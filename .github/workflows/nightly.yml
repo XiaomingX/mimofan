@@ -1,0 +1,162 @@
+name: Nightly
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+  DEEPSEEK_BUILD_SHA: ${{ github.sha }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.artifact_name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- codewhale (cli dispatcher, canonical) ---
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: codewhale
+            artifact_name: codewhale-linux-x64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            binary: codewhale
+            artifact_name: codewhale-linux-arm64
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            binary: codewhale
+            artifact_name: codewhale-linux-riscv64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary: codewhale
+            artifact_name: codewhale-macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary: codewhale
+            artifact_name: codewhale-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: codewhale.exe
+            artifact_name: codewhale-windows-x64.exe
+          # --- codewhale-tui (TUI runtime, canonical) ---
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: codewhale-tui
+            artifact_name: codewhale-tui-linux-x64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            binary: codewhale-tui
+            artifact_name: codewhale-tui-linux-arm64
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            binary: codewhale-tui
+            artifact_name: codewhale-tui-linux-riscv64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary: codewhale-tui
+            artifact_name: codewhale-tui-macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary: codewhale-tui
+            artifact_name: codewhale-tui-macos-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: codewhale-tui.exe
+            artifact_name: codewhale-tui-windows-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.88'
+          targets: ${{ matrix.target }}
+      - name: Install Rust target
+        run: rustup target add --toolchain 1.88 ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          for i in 1 2 3 4 5; do
+            sudo apt-get update && break
+            echo "apt-get update failed (attempt $i); retrying in 15s"
+            sleep 15
+          done
+          sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: Install RISC-V cross-compilation toolchain
+        if: matrix.target == 'riscv64gc-unknown-linux-gnu'
+        run: |
+          # Install cross-compiler (available in standard repos)
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
+
+          # Add Ubuntu ports for riscv64 packages
+          . /etc/os-release
+          sudo tee /etc/apt/sources.list.d/riscv64.sources <<SRC
+          Types: deb
+          URIs: http://ports.ubuntu.com/
+          Suites: ${UBUNTU_CODENAME} ${UBUNTU_CODENAME}-updates
+          Components: main universe
+          Architectures: riscv64
+          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+          SRC
+          sudo dpkg --add-architecture riscv64
+          sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64.sources -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
+          sudo apt-get install -y libdbus-1-dev:riscv64
+      - name: Build
+        shell: bash
+        env:
+          CC_riscv64gc_unknown_linux_gnu: riscv64-linux-gnu-gcc
+          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
+          PKG_CONFIG_ALLOW_CROSS: 1
+          PKG_CONFIG_LIBDIR_riscv64gc_unknown_linux_gnu: /usr/lib/riscv64-linux-gnu/pkgconfig
+        run: |
+          for attempt in 1 2 3; do
+            if cargo build --release --locked --target ${{ matrix.target }}; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 3 ]; then
+              echo "Build attempt ${attempt} failed; retrying in 30s..."
+              sleep 30
+            fi
+          done
+          echo "Build failed after 3 attempts" >&2
+          exit 1
+      - name: Stage artifact
+        id: stage
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::12}"
+          bin_path="target/${{ matrix.target }}/release/${{ matrix.binary }}"
+          if [ ! -f "${bin_path}" ]; then
+            echo "Binary not at ${bin_path}; searching target/ for ${{ matrix.binary }}:"
+            find target -name "${{ matrix.binary }}" -type f
+            exit 1
+          fi
+
+          mkdir -p nightly
+          cp "${bin_path}" "nightly/${{ matrix.artifact_name }}"
+          cat > nightly/nightly-build-info.txt <<INFO
+          repository=${GITHUB_REPOSITORY}
+          ref=${GITHUB_REF_NAME}
+          commit=${GITHUB_SHA}
+          artifact=${{ matrix.artifact_name }}
+          INFO
+          echo "name=${{ matrix.artifact_name }}-${short_sha}" >> "${GITHUB_OUTPUT}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.stage.outputs.name }}
+          path: nightly/*
+          retention-days: 14

@@ -1,0 +1,35 @@
+[package]
+name = "codewhale-app-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "App-server transport for CodeWhale runtime integrations"
+# `codewhale app-server` is owned by codewhale-cli; this crate is library-only.
+autobins = false
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+codewhale-agent = { path = "../agent", version = "0.8.65" }
+codewhale-config = { path = "../config", version = "0.8.65" }
+codewhale-core = { path = "../core", version = "0.8.65" }
+codewhale-execpolicy = { path = "../execpolicy", version = "0.8.65" }
+codewhale-hooks = { path = "../hooks", version = "0.8.65" }
+codewhale-mcp = { path = "../mcp", version = "0.8.65" }
+codewhale-protocol = { path = "../protocol", version = "0.8.65" }
+codewhale-state = { path = "../state", version = "0.8.65" }
+codewhale-tools = { path = "../tools", version = "0.8.65" }
+serde.workspace = true
+serde_json.workspace = true
+rustls.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tower = "0.5"

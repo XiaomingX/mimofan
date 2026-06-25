@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "source": "bundled",
+  "fetched_at": "2026-06-14T00:00:00Z",
+  "ttl_secs": 315360000,
+  "entries": {
+    "deepseek-v4-pro": {
+      "id": "deepseek-v4-pro",
+      "context_window": 1000000,
+      "max_output": 384000,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": ["reasoning"],
+      "provenance": "bundled"
+    },
+    "deepseek-v4-flash": {
+      "id": "deepseek-v4-flash",
+      "context_window": 1000000,
+      "max_output": 384000,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": ["reasoning"],
+      "provenance": "bundled"
+    },
+    "gpt-5-codex": {
+      "id": "gpt-5-codex",
+      "context_window": 400000,
+      "max_output": 128000,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": ["reasoning"],
+      "provenance": "bundled"
+    },
+    "kimi-k2.7-code": {
+      "id": "kimi-k2.7-code",
+      "context_window": 262144,
+      "max_output": 262144,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": ["reasoning"],
+      "provenance": "bundled"
+    },
+    "moonshotai/kimi-k2.7-code": {
+      "id": "moonshotai/kimi-k2.7-code",
+      "context_window": 262144,
+      "max_output": 262144,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": ["reasoning"],
+      "provenance": "bundled"
+    },
+    "z-ai/glm-5.2": {
+      "id": "z-ai/glm-5.2",
+      "context_window": 1000000,
+      "max_output": 131072,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": [],
+      "provenance": "bundled"
+    },
+    "minimax/minimax-m3": {
+      "id": "minimax/minimax-m3",
+      "context_window": 1000000,
+      "max_output": 524288,
+      "supports_reasoning": true,
+      "modalities": ["text", "image"],
+      "supported_parameters": [],
+      "provenance": "bundled"
+    },
+    "qwen/qwen3.6-flash": {
+      "id": "qwen/qwen3.6-flash",
+      "context_window": 1000000,
+      "max_output": 65536,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": [],
+      "provenance": "bundled"
+    },
+    "trinity-large-thinking": {
+      "id": "trinity-large-thinking",
+      "context_window": 262144,
+      "max_output": 262144,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": ["reasoning"],
+      "provenance": "bundled"
+    },
+    "mimo-v2.5-pro": {
+      "id": "mimo-v2.5-pro",
+      "context_window": 1000000,
+      "max_output": 131072,
+      "supports_reasoning": true,
+      "modalities": ["text", "image", "audio"],
+      "supported_parameters": [],
+      "provenance": "bundled"
+    },
+    "mimo-v2.5-pro-ultraspeed": {
+      "id": "mimo-v2.5-pro-ultraspeed",
+      "context_window": 1000000,
+      "max_output": 131072,
+      "supports_reasoning": true,
+      "modalities": ["text"],
+      "supported_parameters": [],
+      "provenance": "bundled"
+    },
+    "mimo-v2.5": {
+      "id": "mimo-v2.5",
+      "context_window": 1000000,
+      "max_output": 131072,
+      "supports_reasoning": true,
+      "modalities": ["text", "image"],
+      "supported_parameters": [],
+      "provenance": "bundled"
+    }
+  }
+}

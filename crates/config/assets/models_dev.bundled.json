@@ -1,0 +1,425 @@
+{
+  "_meta": {
+    "about": "Bundled, network-free Models.dev-shaped catalog snapshot for CodeWhale (#3385).",
+    "schema": "Matches crates/config/src/models_dev.rs ModelsDevCatalog ({ models, providers }).",
+    "source": "Curated from in-repo verified facts, NOT a live models.dev dump. Context windows and max-output are sourced from crates/tui/src/models.rs (context_window_for_model / max_output_tokens_for_model); USD-per-million pricing is sourced from crates/tui/src/pricing.rs. The public models.dev catalog tracks a different (real) model generation than CodeWhale's curated forward-dated model set, so a live transform would disagree with the repo's own model registry and tests. Curated-but-accurate is preferred per the issue.",
+    "honesty": "Pricing is intentionally OMITTED where the repo does not publish a trustworthy per-token rate: DeepSeek-native rows (priced via the time-aware DeepSeek table elsewhere, kept UnknownOrStale at the route layer), aggregator-hosted DeepSeek rows (aggregator account terms, not DeepSeek Platform pricing), Anthropic rows (no in-repo per-token table), and Xiaomi MiMo Token-Plan rows (credit/quota based). Absent pricing surfaces as PricingSku::UnknownOrStale, never a fabricated zero.",
+    "default_rows": "Each provider's `default: true` wire id equals that provider's built-in DEFAULT_*_MODEL so RouteResolver::new() and the descriptor stay in agreement.",
+    "coverage": "13 providers, 27 chat offerings."
+  },
+  "models": {
+    "deepseek-v4-pro": {
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek V4 Pro",
+      "family": "deepseek",
+      "reasoning": true,
+      "tool_call": true,
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "limit": { "context": 1000000, "output": 384000 },
+      "open_weights": true
+    },
+    "deepseek-v4-flash": {
+      "id": "deepseek-v4-flash",
+      "name": "DeepSeek V4 Flash",
+      "family": "deepseek",
+      "reasoning": true,
+      "tool_call": true,
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "limit": { "context": 1000000, "output": 384000 },
+      "open_weights": true
+    }
+  },
+  "providers": {
+    "deepseek": {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "api": "https://api.deepseek.com",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["DEEPSEEK_API_KEY"],
+      "models": {
+        "deepseek-v4-pro": {
+          "id": "deepseek-v4-pro",
+          "base_model": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro",
+          "family": "deepseek",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        },
+        "deepseek-v4-flash": {
+          "id": "deepseek-v4-flash",
+          "base_model": "deepseek-v4-flash",
+          "name": "DeepSeek V4 Flash",
+          "family": "deepseek",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        }
+      }
+    },
+    "zai": {
+      "id": "zai",
+      "name": "Zhipu AI / Z.ai",
+      "api": "https://api.z.ai/api/paas/v4",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["ZAI_API_KEY", "ZHIPU_API_KEY", "GLM_API_KEY"],
+      "models": {
+        "GLM-5.2": {
+          "id": "GLM-5.2",
+          "name": "GLM-5.2",
+          "family": "glm",
+          "default": true,
+          "reasoning": true,
+          "reasoning_options": [{ "type": "effort", "values": ["high", "max"] }],
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 131072 }
+        },
+        "glm-5.1": {
+          "id": "glm-5.1",
+          "name": "GLM-5.1",
+          "family": "glm",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 202752, "output": 131072 },
+          "cost": { "input": 0.98, "output": 3.08, "cache_read": 0.182 }
+        }
+      }
+    },
+    "moonshot": {
+      "id": "moonshot",
+      "name": "Moonshot / Kimi",
+      "api": "https://api.moonshot.ai/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["MOONSHOT_API_KEY", "KIMI_API_KEY"],
+      "models": {
+        "kimi-k2.7-code": {
+          "id": "kimi-k2.7-code",
+          "name": "Kimi K2.7 Code",
+          "family": "kimi",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 262144, "output": 262144 }
+        },
+        "kimi-k2.6": {
+          "id": "kimi-k2.6",
+          "name": "Kimi K2.6",
+          "family": "kimi",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 262144, "output": 262144 },
+          "cost": { "input": 0.68, "output": 3.41, "cache_read": 0.34 }
+        }
+      }
+    },
+    "minimax": {
+      "id": "minimax",
+      "name": "MiniMax",
+      "api": "https://api.minimax.io/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["MINIMAX_API_KEY"],
+      "models": {
+        "MiniMax-M3": {
+          "id": "MiniMax-M3",
+          "name": "MiniMax M3",
+          "family": "minimax",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 524288 },
+          "cost": { "input": 0.30, "output": 1.20, "cache_read": 0.06 }
+        },
+        "minimax-m2.7": {
+          "id": "minimax-m2.7",
+          "name": "MiniMax M2.7",
+          "family": "minimax",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 204800, "output": 204800 }
+        }
+      }
+    },
+    "openai": {
+      "id": "openai",
+      "name": "OpenAI-compatible",
+      "api": "https://api.openai.com/v1",
+      "npm": "@ai-sdk/openai",
+      "env": ["OPENAI_API_KEY"],
+      "models": {
+        "deepseek-v4-pro": {
+          "id": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (OpenAI-compatible default)",
+          "family": "deepseek",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        },
+        "gpt-5.5": {
+          "id": "gpt-5.5",
+          "name": "GPT-5.5",
+          "family": "gpt",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1050000, "output": 128000 },
+          "cost": { "input": 5.00, "output": 30.00, "cache_read": 0.50 }
+        },
+        "gpt-5.5-pro": {
+          "id": "gpt-5.5-pro",
+          "name": "GPT-5.5 Pro",
+          "family": "gpt",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1050000, "output": 128000 },
+          "cost": { "input": 30.00, "output": 180.00 }
+        }
+      }
+    },
+    "anthropic": {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "api": "https://api.anthropic.com",
+      "npm": "@ai-sdk/anthropic",
+      "env": ["ANTHROPIC_API_KEY"],
+      "models": {
+        "claude-sonnet-4-6": {
+          "id": "claude-sonnet-4-6",
+          "name": "Claude Sonnet 4.6",
+          "family": "claude",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 64000 }
+        },
+        "claude-opus-4-8": {
+          "id": "claude-opus-4-8",
+          "name": "Claude Opus 4.8",
+          "family": "claude",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 128000 }
+        },
+        "claude-haiku-4-5": {
+          "id": "claude-haiku-4-5",
+          "name": "Claude Haiku 4.5",
+          "family": "claude",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 200000, "output": 64000 }
+        }
+      }
+    },
+    "openrouter": {
+      "id": "openrouter",
+      "name": "OpenRouter",
+      "api": "https://openrouter.ai/api/v1",
+      "npm": "@openrouter/ai-sdk-provider",
+      "env": ["OPENROUTER_API_KEY"],
+      "models": {
+        "deepseek/deepseek-v4-pro": {
+          "id": "deepseek/deepseek-v4-pro",
+          "base_model": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (OpenRouter)",
+          "family": "deepseek",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        },
+        "qwen/qwen3.6-flash": {
+          "id": "qwen/qwen3.6-flash",
+          "name": "Qwen3.6 Flash",
+          "family": "qwen",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 65536 },
+          "cost": { "input": 0.1875, "output": 1.125 }
+        },
+        "qwen/qwen3.6-plus": {
+          "id": "qwen/qwen3.6-plus",
+          "name": "Qwen3.6 Plus",
+          "family": "qwen",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 65536 },
+          "cost": { "input": 0.325, "output": 1.95 }
+        },
+        "qwen/qwen3.6-35b-a3b": {
+          "id": "qwen/qwen3.6-35b-a3b",
+          "name": "Qwen3.6 35B-A3B",
+          "family": "qwen",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 262144, "output": 262140 },
+          "cost": { "input": 0.15, "output": 1.00, "cache_read": 0.05 }
+        },
+        "minimax/minimax-m3": {
+          "id": "minimax/minimax-m3",
+          "name": "MiniMax M3 (OpenRouter)",
+          "family": "minimax",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 524288 },
+          "cost": { "input": 0.30, "output": 1.20, "cache_read": 0.06 }
+        }
+      }
+    },
+    "together": {
+      "id": "together",
+      "name": "Together AI",
+      "api": "https://api.together.xyz/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["TOGETHER_API_KEY"],
+      "models": {
+        "deepseek-ai/DeepSeek-V4-Pro": {
+          "id": "deepseek-ai/DeepSeek-V4-Pro",
+          "base_model": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (Together)",
+          "family": "deepseek",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        }
+      }
+    },
+    "fireworks": {
+      "id": "fireworks",
+      "name": "Fireworks AI",
+      "api": "https://api.fireworks.ai/inference/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["FIREWORKS_API_KEY"],
+      "models": {
+        "accounts/fireworks/models/deepseek-v4-pro": {
+          "id": "accounts/fireworks/models/deepseek-v4-pro",
+          "base_model": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (Fireworks)",
+          "family": "deepseek",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        }
+      }
+    },
+    "novita": {
+      "id": "novita",
+      "name": "Novita AI",
+      "api": "https://api.novita.ai/v3/openai",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["NOVITA_API_KEY"],
+      "models": {
+        "deepseek/deepseek-v4-pro": {
+          "id": "deepseek/deepseek-v4-pro",
+          "base_model": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (Novita)",
+          "family": "deepseek",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        }
+      }
+    },
+    "siliconflow": {
+      "id": "siliconflow",
+      "name": "SiliconFlow",
+      "api": "https://api.siliconflow.com/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["SILICONFLOW_API_KEY"],
+      "models": {
+        "deepseek-ai/DeepSeek-V4-Pro": {
+          "id": "deepseek-ai/DeepSeek-V4-Pro",
+          "base_model": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (SiliconFlow)",
+          "family": "deepseek",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 384000 }
+        }
+      }
+    },
+    "arcee": {
+      "id": "arcee",
+      "name": "Arcee AI",
+      "api": "https://api.arcee.ai/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["ARCEE_API_KEY"],
+      "models": {
+        "trinity-large-thinking": {
+          "id": "trinity-large-thinking",
+          "name": "Trinity Large Thinking",
+          "family": "trinity",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 262144, "output": 262144 },
+          "cost": { "input": 0.22, "output": 0.85, "cache_read": 0.06 }
+        },
+        "trinity-mini": {
+          "id": "trinity-mini",
+          "name": "Trinity Mini",
+          "family": "trinity",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 128000 }
+        }
+      }
+    },
+    "xiaomi-mimo": {
+      "id": "xiaomi-mimo",
+      "name": "Xiaomi MiMo",
+      "api": "https://api-mimo.xiaomi.com/v1",
+      "npm": "@ai-sdk/openai-compatible",
+      "env": ["XIAOMI_MIMO_API_KEY", "MIMO_API_KEY"],
+      "models": {
+        "mimo-v2.5-pro": {
+          "id": "mimo-v2.5-pro",
+          "name": "MiMo v2.5 Pro",
+          "family": "mimo",
+          "default": true,
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 131072 }
+        },
+        "mimo-v2.5": {
+          "id": "mimo-v2.5",
+          "name": "MiMo v2.5",
+          "family": "mimo",
+          "reasoning": true,
+          "tool_call": true,
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "limit": { "context": 1000000, "output": 131072 }
+        }
+      }
+    }
+  }
+}

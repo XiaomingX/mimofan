@@ -1,0 +1,12 @@
+[package]
+name = "codewhale-execpolicy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Execution policy and approval model for CodeWhale"
+
+[dependencies]
+anyhow.workspace = true
+codewhale-protocol = { path = "../protocol", version = "0.8.65" }
+serde.workspace = true

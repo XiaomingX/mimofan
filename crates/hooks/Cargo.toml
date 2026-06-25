@@ -1,0 +1,17 @@
+[package]
+name = "codewhale-hooks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Hook dispatch and notifications support for CodeWhale"
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+codewhale-protocol = { path = "../protocol", version = "0.8.65" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

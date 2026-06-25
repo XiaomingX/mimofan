@@ -1,0 +1,1059 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                         CodeWhale Configuration                               ║
+# ║                                                                              ║
+# ║  Terminal coding agent for DeepSeek.                                          ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+# See `docs/CONFIGURATION.md` for how config is loaded (profiles, env overrides, etc.).
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Active provider + DeepSeek defaults
+# ─────────────────────────────────────────────────────────────────────────────────
+# Choose which provider to use by default. Per-provider credentials live in the
+# `[providers.*]` sections near the bottom of
+# this file — keeping both stored at once means `/provider deepseek` and
+# `/provider nvidia-nim` (or `--provider openai`, `--provider wanjie-ark`,
+# `--provider volcengine`, `--provider openrouter`, `--provider xiaomi-mimo`,
+# `--provider fireworks`, `--provider siliconflow`, `--provider siliconflow-CN`,
+# `/provider arcee`, `/provider moonshot`, `/provider qianfan`, `/provider sglang`, `/provider vllm`,
+# `/provider ollama`, `/provider huggingface`, `/provider stepfun`) toggle without having to re-enter keys. Top-level
+# `api_key` / `base_url` are
+# still read as DeepSeek defaults when `[providers.deepseek]` is absent
+# (backward compatibility).
+provider = "deepseek" # deepseek | deepseek-cn | deepseek-anthropic | nvidia-nim | openai | atlascloud | wanjie-ark | volcengine | openrouter | xiaomi-mimo | novita | fireworks | siliconflow | siliconflow-CN | arcee | moonshot | zai | stepfun | minimax | sglang | vllm | ollama | huggingface | together | qianfan | openai-codex | anthropic | deepinfra
+api_key = "YOUR_DEEPSEEK_API_KEY" # must be non-empty
+base_url = "https://api.deepseek.com/beta"
+# provider = "deepseek-cn"                       # legacy alias (official host is still https://api.deepseek.com)
+# base_url = "https://api.deepseek.com"         # opt out of DeepSeek beta features
+# Optional custom model request headers for OpenAI-compatible gateways.
+# Authorization and Content-Type are managed by the client and cannot be overridden here.
+# http_headers = { "X-Model-Provider-Id" = "your-model-provider" }
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Default Models
+# ─────────────────────────────────────────────────────────────────────────────────
+# DeepSeek V4 family:
+#   deepseek-v4-pro             — flagship reasoning model on DeepSeek Platform
+#   deepseek-v4-flash           — fast, cost-efficient (legacy aliases: deepseek-chat, deepseek-reasoner)
+#   deepseek-ai/deepseek-v4-pro   — NVIDIA NIM-hosted Pro model ID
+#   deepseek-ai/deepseek-v4-flash — NVIDIA NIM-hosted Flash model ID
+#   deepseek/deepseek-v4-pro      — default OpenRouter DeepSeek model ID
+#   arcee-ai/trinity-large-thinking — OpenRouter Arcee Trinity Large Thinking
+#   xiaomi/mimo-v2.5-pro          — OpenRouter Xiaomi MiMo 2.5 Pro
+#   xiaomi/mimo-v2.5              — OpenRouter Xiaomi MiMo 2.5
+#   z-ai/glm-5.1                  — OpenRouter Z.AI GLM 5.1
+#   z-ai/glm-5.2                  — OpenRouter Z.AI GLM 5.2 (default)
+#   z-ai/glm-5-turbo              — OpenRouter Z.AI GLM 5 Turbo (faster/explore sub-agent sibling)
+#   GLM-5.2                       — default direct Z.AI Coding Plan model
+#   GLM-5.1                       — direct Z.AI smaller model
+#   GLM-5-Turbo                   — direct Z.AI fast model (faster/explore sub-agent sibling)
+#   step-3.7-flash                — default direct StepFun / StepFlash model ID
+#   kimi-k2.6                       — default Moonshot/Kimi model ID
+#   gpt-4.1                         — default generic OpenAI-compatible model ID
+#   deepseek-ai/deepseek-v4-flash   — default AtlasCloud model ID
+#   deepseek-reasoner               — default Wanjie Ark model ID
+#   mimo-v2.5-pro                   — default Xiaomi MiMo model ID
+#   mimo-v2.5                       — Xiaomi MiMo V2.5 Omni model ID
+#   mimo-v2.5-tts                   — Xiaomi MiMo speech/TTS model ID
+#   mimo-v2.5-tts-voicedesign       — Xiaomi MiMo voice-design TTS model ID
+#   mimo-v2.5-tts-voiceclone        — Xiaomi MiMo voice-clone TTS model ID
+#   accounts/fireworks/models/deepseek-v4-pro — Fireworks AI Pro model ID
+#   deepseek-ai/DeepSeek-V4-Pro      — SiliconFlow hosted Pro model ID
+#   deepseek-ai/DeepSeek-V4-Flash    — SiliconFlow hosted Flash model ID
+#   trinity-large-thinking           — default direct Arcee AI API model ID
+#   trinity-large-preview            — direct Arcee AI API model ID
+#   deepseek-ai/DeepSeek-V4-Pro      — SGLang self-hosted Pro model ID
+#   deepseek-ai/DeepSeek-V4-Flash    — SGLang self-hosted Flash model ID
+default_text_model = "deepseek-v4-pro"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Thinking Mode (DeepSeek V4 reasoning effort)
+# ─────────────────────────────────────────────────────────────────────────────────
+# "off"    — disables chain-of-thought (thinking.type = disabled)
+# "low"    — compat-maps to "high" server-side
+# "medium" — compat-maps to "high" server-side
+# "high"   — reasoning_effort = high (DeepSeek default)
+# "max"    — reasoning_effort = max (deepest reasoning)
+#
+# Shift+Tab in the TUI cycles between off / high / max. The header shows the
+# current tier as a ⚡ chip.
+reasoning_effort = "max"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Cost Display
+# ─────────────────────────────────────────────────────────────────────────────────
+# Display estimated usage in USD or CNY. Aliases `yuan` and `rmb` normalize to `cny`.
+cost_currency = "usd" # usd | cny
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Startup update check
+# ─────────────────────────────────────────────────────────────────────────────────
+# The TUI checks for newer CodeWhale releases in the background at startup.
+# Set check_for_updates = false in managed or air-gapped environments.
+# update_uri may point at a GitHub-compatible latest-release JSON endpoint.
+[update]
+check_for_updates = true
+# update_uri = "https://internal.mirror.example/codewhale/releases/latest"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Hotbar slots (#2061 / #2064)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Optional 1-8 sidebar hotbar bindings. When no [[hotbar]] tables are present,
+# the TUI uses built-in defaults:
+#   1 voice.toggle      2 session.compact   3 mode.plan        4 mode.agent
+#   5 mode.yolo         6 palette.open      7 sidebar.toggle   8 trust.toggle
+#
+# Invalid slots are skipped with a warning, duplicate slots use the last entry,
+# and unknown actions are preserved so the UI can show a disabled entry.
+# Slash commands can be bound as slash.<name>, for example slash.mode. Commands
+# that require arguments pre-fill the composer instead of running incomplete.
+#
+# [[hotbar]]
+# slot = 1
+# label = "voice"
+# action = "voice.toggle"
+#
+# [[hotbar]]
+# slot = 2
+# action = "session.compact"
+#
+# [[hotbar]]
+# slot = 3
+# label = "mode"
+# action = "slash.mode"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────────────────────────────────────────
+# New installs write product state under ~/.codewhale/. Existing ~/.deepseek/
+# files are still read as compatibility fallbacks when the .codewhale file is
+# absent.
+skills_dir = "~/.codewhale/skills"
+mcp_config_path = "~/.codewhale/mcp.json"
+notes_path = "~/.codewhale/notes.txt"
+
+memory_path = "~/.codewhale/memory.md"
+
+# instructions = ["./AGENTS.md", "~/.codewhale/global.md"]
+#
+# Optional list of additional instruction files concatenated into the
+# system prompt in declared order (#454). Useful for layering
+# repo-specific rules on top of a global preferences file. Each entry
+# is expanded so `~` and env vars work; missing files are skipped with
+# a tracing warning. Files are capped at 100 KiB per entry.
+#
+# Project-level config (.codewhale/config.toml in the workspace) replaces
+# the user-level array wholesale rather than merging — list `~/global.md`
+# inside the project array if you want both. An explicit empty array
+# (`instructions = []`) clears the user list for the current repo.
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# User memory (#489) — opt-in. When enabled, the TUI reads memory_path on
+# startup and injects its contents into the system prompt as a
+# <user_memory> block, intercepts `# foo` typed in the composer to append
+# the line as a timestamped bullet, and registers a `remember` tool the
+# model can call to add durable notes itself.
+# ─────────────────────────────────────────────────────────────────────────────────
+[memory]
+# enabled = true            # turn the feature on (default: false)
+# Override the env-var equivalent: `DEEPSEEK_MEMORY=on`
+
+# Parsed but currently unused (reserved for future versions):
+# tools_file = "./tools.json"
+
+# Xiaomi MiMo speech/TTS defaults. Also configurable with
+# XIAOMI_MIMO_SPEECH_OUTPUT_DIR / MIMO_SPEECH_OUTPUT_DIR.
+[speech]
+# output_dir = "./speech"
+
+# Native tool catalog controls (#2076). By default only the core tool surface
+# is loaded into the model context; less common native tools are discoverable
+# through ToolSearch and loaded on first use.
+# [tools]
+# always_load = ["git_show", "notify"]
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Security
+# ─────────────────────────────────────────────────────────────────────────────────
+allow_shell = true
+approval_policy = "on-request" # on-request | untrusted | never
+sandbox_mode = "workspace-write" # read-only | workspace-write | danger-full-access | external-sandbox
+# prompt_suggestion = true  # opt-in: show ghost-text follow-up question in composer after each turn
+
+# Typed permission rules live in a sibling `permissions.toml` file, not in
+# config.toml. This shape is ask-only and feeds the execution policy engine;
+# allow/deny records, glob expansion, and UI persistence are intentionally out
+# of scope here.
+#
+# Example ~/.codewhale/permissions.toml:
+#
+# [[rules]]
+# tool = "exec_shell"
+# command = "cargo test"
+#
+# [[rules]]
+# tool = "read_file"
+# path = "secrets/api_key.txt"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# External Sandbox Backend (pluggable remote execution)
+# ─────────────────────────────────────────────────────────────────────────────────
+# When sandbox_backend is set to "opensandbox", all exec_shell calls are
+# routed through an external OpenSandbox-compatible HTTP API instead of
+# spawning a local process. The backend sends `POST {sandbox_url}/v1/sandbox/run`
+# with `{"cmd": "...", "env": {...}}` and expects
+# `{"stdout": "...", "stderr": "...", "exit_code": 0}`.
+#
+# sandbox_backend = "none"          # "none" (default) or "opensandbox"
+# sandbox_url = "http://localhost:8080"  # OpenSandbox-compatible API base URL
+# sandbox_api_key = "YOUR_API_KEY"  # Optional Bearer token sent with requests
+#
+# Env-var overrides:
+#   DEEPSEEK_SANDBOX_BACKEND   → sandbox_backend
+#   DEEPSEEK_SANDBOX_URL       → sandbox_url
+#   DEEPSEEK_SANDBOX_API_KEY   → sandbox_api_key
+#
+# Example OpenSandbox setup:
+#
+#   sandbox_backend = "opensandbox"
+#   sandbox_url = "http://localhost:8080"
+#   sandbox_api_key = "sk-opensandbox-secret"
+#
+# The backend uses a 30-second HTTP timeout. Background, interactive, and
+# TTY modes are not supported with external backends — all commands run
+# synchronously via HTTP.
+# ─────────────────────────────────────────────────────────────────────────────────
+# Bubblewrap (Linux only, additional filesystem isolation)
+# ─────────────────────────────────────────────────────────────────────────────────
+# When set to true and `/usr/bin/bwrap` is present, exec_shell commands are
+# routed through bubblewrap instead of relying solely on Landlock. Bubblewrap
+# creates a read-only view of the root filesystem with write access limited to
+# the working directory. Install separately:
+#
+#   Ubuntu/Debian:  apt install bubblewrap
+#   Fedora:         dnf install bubblewrap
+#   Arch:           pacman -S bubblewrap
+#
+# prefer_bwrap = false  # default — use Landlock only
+#
+# Env override: DEEPSEEK_PREFER_BWRAP=true
+
+# auto_allow entries match by command prefix, not raw string.
+# See command_safety.rs for the prefix dictionary.
+#
+# Examples:
+#   auto_allow = ["git status"]   # auto-approves: git status, git status -s, git status --porcelain
+#                                 # does NOT auto-approve: git push, git checkout
+#   auto_allow = ["cargo check", "npm run"]
+#
+# auto_allow = []
+max_subagents = 10 # optional (1-20)
+
+# Optional sub-agent tuning. max_concurrent overrides top-level max_subagents.
+# [subagents]
+# max_concurrent = 10
+# api_timeout_secs = 120 # per-step API timeout, clamped to 1..=1800
+#
+# How many levels of nested sub-agents the `agent` tool may spawn:
+#   max_depth = 0   # opt out completely — the agent never spawns sub-agents
+#   max_depth = 1   # the agent may spawn sub-agents, but those may not spawn more
+#   max_depth = 2   # one more level of nesting, etc.
+# Unset defaults to 3; any value is clamped to the hard ceiling (3). The depth
+# limit is enforced in code, not requested of the model — a sub-agent past the
+# limit cannot be spawned regardless of what the model decides.
+# max_depth = 3
+
+# Optional managed policy paths (defaults to /etc/deepseek/*.toml on unix):
+# managed_config_path = "/etc/deepseek/managed_config.toml"
+# requirements_path = "/etc/deepseek/requirements.toml"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Per-provider credentials (peer providers — NIM is first-class, not a flag)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Providers can be stored at once; `provider = "..."` (top of file) or
+# `/provider deepseek` / `/provider nvidia-nim` / `--provider openai` /
+# `--provider wanjie-ark` / `/provider volcengine` / `/provider fireworks` /
+# `--provider siliconflow` / `/provider arcee` / `/provider moonshot`
+# switches between them without having to re-enter keys. Env vars override anything set here:
+#   DeepSeek: DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+#   DeepSeek Anthropic-compatible: DEEPSEEK_API_KEY, DEEPSEEK_ANTHROPIC_BASE_URL
+#   NIM:      NVIDIA_API_KEY (or NVIDIA_NIM_API_KEY), NIM_BASE_URL
+#             (or NVIDIA_NIM_BASE_URL / NVIDIA_BASE_URL), NVIDIA_NIM_MODEL
+#   OpenAI-compatible: OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
+#   Wanjie Ark: WANJIE_ARK_API_KEY (or WANJIE_API_KEY), WANJIE_ARK_BASE_URL, WANJIE_ARK_MODEL
+#   Volcengine Ark: VOLCENGINE_API_KEY (or VOLCENGINE_ARK_API_KEY / ARK_API_KEY), VOLCENGINE_BASE_URL, VOLCENGINE_MODEL
+#   OpenRouter: OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_MODEL
+#   Xiaomi MiMo: XIAOMI_MIMO_API_KEY (or XIAOMI_API_KEY / MIMO_API_KEY), XIAOMI_MIMO_BASE_URL, XIAOMI_MIMO_MODEL
+#                Token Plan: XIAOMI_MIMO_TOKEN_PLAN_API_KEY (or MIMO_TOKEN_PLAN_API_KEY), XIAOMI_MIMO_MODE/MIMO_MODE
+#   Novita:     NOVITA_API_KEY, NOVITA_BASE_URL, NOVITA_MODEL
+#   Fireworks:  FIREWORKS_API_KEY, FIREWORKS_BASE_URL
+#   SiliconFlow: SILICONFLOW_API_KEY, SILICONFLOW_BASE_URL, SILICONFLOW_MODEL
+#   Arcee:      ARCEE_API_KEY, ARCEE_BASE_URL, ARCEE_MODEL
+#   Moonshot/Kimi: MOONSHOT_API_KEY (or KIMI_API_KEY), MOONSHOT_BASE_URL, MOONSHOT_MODEL
+#   SGLang:    SGLANG_BASE_URL, SGLANG_MODEL, optional SGLANG_API_KEY
+#   vLLM:      VLLM_BASE_URL, VLLM_MODEL, optional VLLM_API_KEY
+#   Ollama:    OLLAMA_BASE_URL, OLLAMA_MODEL, optional OLLAMA_API_KEY
+#   Hugging Face: HUGGINGFACE_API_KEY (or HF_TOKEN), HUGGINGFACE_BASE_URL (or HF_BASE_URL),
+#                 HUGGINGFACE_MODEL (or HF_MODEL)
+#
+# Custom DeepSeek-compatible APIs usually do not need a new provider table:
+# set `provider = "deepseek"` and override [providers.deepseek].base_url/model.
+# For generic OpenAI-compatible gateways, use `provider = "openai"` and the
+# [providers.openai] table below. Keep provider/api_key/base_url in user config
+# or environment variables; project overlays are not allowed to set them.
+#
+# Provider is the route/account/endpoint; model is the ID on that route.
+# Common DeepSeek routes:
+#   provider = "deepseek"     model = "deepseek-v4-pro"
+#   provider = "nvidia-nim"   model = "deepseek-ai/deepseek-v4-pro"
+#   provider = "openrouter"   model = "deepseek/deepseek-v4-pro"
+#   provider = "fireworks"    model = "accounts/fireworks/models/deepseek-v4-pro"
+#   provider = "siliconflow"  model = "deepseek-ai/DeepSeek-V4-Pro"
+
+# DeepSeek Platform (https://platform.deepseek.com)
+[providers.deepseek]
+# api_key = "YOUR_DEEPSEEK_API_KEY"
+# base_url = "https://api.deepseek.com/beta"
+# model = "deepseek-v4-pro"
+# Custom DeepSeek-compatible example:
+# base_url = "https://your-provider.example/v1"
+# model = "deepseek-ai/DeepSeek-V4-Pro"
+# http_headers = { "X-Model-Provider-Id" = "your-model-provider" } # optional custom request headers
+# path_suffix = "/chat/completions" # override the API path; skips /v1 versioning when set
+# reasoning_stream_style = "inline_tags" # route <think>...</think> content into Thinking cells
+
+# DeepSeek Anthropic-compatible Messages route (opt-in)
+# [providers.deepseek_anthropic]
+# api_key = "YOUR_DEEPSEEK_API_KEY"
+# base_url = "https://api.deepseek.com/anthropic"
+# model = "deepseek-v4-pro"
+# [providers.deepseek.auth] # provider-scoped auth source metadata; command execution lands in a follow-up slice
+# source = "command"
+# command = ["secret-tool", "lookup", "service", "codewhale-deepseek"]
+# timeout_ms = 2000
+# insecure_skip_tls_verify = true # last resort for private gateways; prefer SSL_CERT_FILE
+
+# NVIDIA NIM-hosted DeepSeek V4 (https://build.nvidia.com)
+[providers.nvidia_nim]
+# api_key = "YOUR_NVIDIA_API_KEY"
+# base_url = "https://integrate.api.nvidia.com/v1"
+# model = "deepseek-ai/deepseek-v4-pro"     # or deepseek-ai/deepseek-v4-flash
+
+# Generic OpenAI-compatible endpoint. Use the built-in `openai` provider for
+# third-party gateways; do not invent a custom provider name. For non-local
+# http:// gateways, launch with DEEPSEEK_ALLOW_INSECURE_HTTP=1 only on a
+# trusted network.
+[providers.openai]
+# api_key = "YOUR_OPENAI_COMPATIBLE_API_KEY"
+# base_url = "https://api.openai.com/v1"
+# model = "gpt-4.1"
+# Gateway example:
+# base_url = "https://gateway.example/v1"
+# model = "your-deepseek-compatible-model"
+# Alibaba Bailian / Model Studio DashScope OpenAI-compatible example:
+# base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+# model = "qwen-plus"
+# insecure_skip_tls_verify = true # last resort for private gateways; prefer SSL_CERT_FILE
+
+# AtlasCloud OpenAI-compatible endpoint (https://www.atlascloud.ai/docs/models/llm)
+[providers.atlascloud]
+# api_key = "YOUR_ATLASCLOUD_API_KEY"
+# base_url = "https://api.atlascloud.ai/v1"
+# model = "deepseek-ai/deepseek-v4-flash"
+
+# Wanjie Ark / 万界方舟 OpenAI-compatible endpoint
+[providers.wanjie_ark]
+# api_key = "YOUR_WANJIE_API_KEY"
+# base_url = "https://maas-openapi.wanjiedata.com/api/v1"
+# model = "deepseek-reasoner"                # or the exact model ID enabled on your Wanjie account
+
+# Volcengine / Volcano Engine Ark Coding API
+[providers.volcengine]
+# api_key = "YOUR_VOLCENGINE_API_KEY"
+# base_url = "https://ark.cn-beijing.volces.com/api/coding/v3"
+# model = "DeepSeek-V4-Pro"                  # or DeepSeek-V4-Flash
+
+# OpenRouter — multi-provider gateway (https://openrouter.ai)
+[providers.openrouter]
+# api_key = "YOUR_OPENROUTER_API_KEY"
+# base_url = "https://openrouter.ai/api/v1"
+# model = "deepseek/deepseek-v4-pro"
+# OpenRouter-compatible gateways can reuse this provider so reasoning/cache
+# parsing stays on the OpenRouter-compatible path instead of generic OpenAI:
+# base_url = "https://openrouter-compatible.example/v1"
+# model = "deepseek/deepseek-v4-pro"
+# Recent large model IDs also accepted here include arcee-ai/trinity-large-thinking,
+# minimax/minimax-m3, minimax/minimax-m2.7, xiaomi/mimo-v2.5-pro, qwen/qwen3.6-flash,
+# qwen/qwen3.6-35b-a3b, qwen/qwen3.6-max-preview, qwen/qwen3.6-27b, qwen/qwen3.6-plus,
+# qwen/qwen3.7-max, google/gemma-4-31b-it, z-ai/glm-5.1, z-ai/glm-5.2,
+# moonshotai/kimi-k2.6,
+# nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free, and nvidia/nemotron-3-ultra.
+
+# Xiaomi MiMo OpenAI-compatible endpoint (https://platform.xiaomimimo.com)
+[providers.xiaomi_mimo]
+# api_key = "YOUR_XIAOMI_KEY"
+# base_url = "https://token-plan-sgp.xiaomimimo.com/v1"  # Token Plan / tp- keys
+# # base_url = "https://api.xiaomimimo.com/v1"           # Pay-as-you-go / sk- keys
+# model = "mimo-v2.5-pro"              # chat/reasoning
+# Chat model IDs: mimo-v2.5-pro, mimo-v2.5
+# Token Plan subscriptions use separate tp-* API keys plus api-key auth.
+# mode = "token-plan-sgp"              # default Token Plan endpoint
+# mode = "token-plan-cn"               # China cluster
+# mode = "token-plan-ams"              # Europe cluster
+# mode = "pay-as-you-go"               # standard API / sk- keys
+# TTS aliases are also accepted by `codewhale speech`: tts, voice-design, voice-clone
+# TTS model IDs: mimo-v2.5-tts, mimo-v2.5-tts-voicedesign, mimo-v2.5-tts-voiceclone, mimo-v2-tts
+
+# Novita AI-hosted inference (https://novita.ai)
+[providers.novita]
+# api_key = "YOUR_NOVITA_API_KEY"
+# base_url = "https://api.novita.ai/openai/v1"
+# model = "deepseek/deepseek-v4-pro"         # or deepseek/deepseek-v4-flash
+
+# Fireworks AI-hosted DeepSeek V4 (https://fireworks.ai)
+[providers.fireworks]
+# api_key = "YOUR_FIREWORKS_API_KEY"
+# base_url = "https://api.fireworks.ai/inference/v1"
+# model = "accounts/fireworks/models/deepseek-v4-pro"
+
+# SiliconFlow-hosted DeepSeek V4 (https://siliconflow.com)
+[providers.siliconflow]
+# api_key = "YOUR_SILICONFLOW_API_KEY"
+# base_url = "https://api.siliconflow.com/v1"
+# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
+
+# SiliconFlow China-hosted DeepSeek V4 (https://siliconflow.cn)
+# Falls back to [providers.siliconflow] for api_key / base_url / model when unset.
+[providers.siliconflow-CN]
+# api_key = "YOUR_SILICONFLOW_API_KEY"
+# base_url = "https://api.siliconflow.cn/v1"
+# model = "deepseek-ai/DeepSeek-V4-Pro"
+
+# Arcee AI direct OpenAI-compatible endpoint (https://docs.arcee.ai)
+[providers.arcee]
+# api_key = "YOUR_ARCEE_API_KEY"
+# base_url = "https://api.arcee.ai/api/v1"
+# model = "trinity-large-thinking"          # or trinity-large-preview
+
+# Moonshot/Kimi OpenAI-compatible endpoint (https://platform.moonshot.ai)
+[providers.moonshot]
+# api_key = "YOUR_MOONSHOT_API_KEY"           # or KIMI_API_KEY
+# base_url = "https://api.moonshot.ai/v1"      # or KIMI_BASE_URL
+# model = "kimi-k2.6"
+# # Kimi Code path:
+# # base_url = "https://api.kimi.com/coding/v1"
+# # model = "kimi-for-coding"
+# # auth_mode = "kimi_oauth"                   # reads Kimi Code OAuth credentials
+
+# Z.AI GLM Coding Plan endpoint (https://docs.z.ai)
+[providers.zai]
+# api_key = "YOUR_ZAI_API_KEY"                 # or Z_AI_API_KEY
+# base_url = "https://api.z.ai/api/coding/paas/v4"
+# # General API endpoint, if you are not using the Coding Plan:
+# # base_url = "https://api.z.ai/api/paas/v4"
+# model = "GLM-5.2"                             # default; GLM-5.1 is the smaller model, GLM-5-Turbo the fast sub-agent sibling
+
+# StepFun / StepFlash direct OpenAI-compatible endpoint (https://platform.stepfun.com)
+[providers.stepfun]
+# api_key = "YOUR_STEPFUN_API_KEY"               # or STEP_API_KEY
+# base_url = "https://api.stepfun.ai/v1"          # or STEP_BASE_URL
+# model = "step-3.7-flash"                       # or STEPFUN_MODEL / STEP_MODEL
+
+# MiniMax direct OpenAI-compatible endpoint (https://platform.minimax.io)
+[providers.minimax]
+# api_key = "YOUR_MINIMAX_API_KEY"
+# base_url = "https://api.minimax.io/v1"
+# model = "MiniMax-M3"                          # or MiniMax-M2.7, MiniMax-M2.7-highspeed
+# # MiniMax also publishes Anthropic-compatible endpoints:
+# # global https://api.minimax.io/anthropic, China https://api.minimaxi.com/anthropic.
+
+# Self-hosted SGLang OpenAI-compatible server
+[providers.sglang]
+# api_key = "OPTIONAL_SGLANG_TOKEN"
+# base_url = "http://localhost:30000/v1"
+# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
+
+# Self-hosted vLLM OpenAI-compatible server
+[providers.vllm]
+# api_key = "OPTIONAL_VLLM_TOKEN"
+# base_url = "http://localhost:8000/v1"
+# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
+
+# Self-hosted Ollama OpenAI-compatible server
+[providers.ollama]
+# api_key = "OPTIONAL_OLLAMA_TOKEN"
+# base_url = "http://localhost:11434/v1"
+# model = "deepseek-coder:1.3b"             # or any local Ollama tag
+
+# Hugging Face Inference Providers (https://huggingface.co/docs/api-inference)
+# Provider aliases: huggingface, hugging-face, hugging_face, hf
+# Env var aliases: HUGGINGFACE_API_KEY / HF_TOKEN, HUGGINGFACE_BASE_URL / HF_BASE_URL,
+#                  HUGGINGFACE_MODEL / HF_MODEL
+[providers.huggingface]
+# api_key = "YOUR_HF_TOKEN"
+# base_url = "https://router.huggingface.co/v1"
+# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
+
+# DeepInfra — AI inference cloud (https://deepinfra.com)
+[providers.deepinfra]
+# api_key = "YOUR_DEEPINFRA_TOKEN"
+# base_url = "https://api.deepinfra.com/v1/openai"
+# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Together AI Provider (https://www.together.ai/)
+# Env var aliases: TOGETHER_API_KEY, TOGETHER_BASE_URL, TOGETHER_MODEL
+[providers.together]
+# api_key = "YOUR_TOGETHER_API_KEY"
+# base_url = "https://api.together.xyz/v1"
+# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Baidu Qianfan Provider (https://intl.cloud.baidu.com/product/qianfan.html)
+# Provider aliases: qianfan, baidu-qianfan, baidu_qianfan, baidu
+# Env var aliases: QIANFAN_API_KEY / BAIDU_QIANFAN_API_KEY,
+#                  QIANFAN_BASE_URL / BAIDU_QIANFAN_BASE_URL,
+#                  QIANFAN_MODEL / BAIDU_QIANFAN_MODEL
+[providers.qianfan]
+# api_key = "YOUR_QIANFAN_API_KEY"
+# base_url = "https://api.baiduqianfan.ai/v1"
+# model = "ernie-4.0-turbo-8k"              # or your Qianfan service/model id
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# OpenAI Codex (ChatGPT) Provider — EXPERIMENTAL
+# Reuses your existing ChatGPT/Codex CLI OAuth login. Run `codex login` first;
+# CodeWhale reads and refreshes the access token from ~/.codex/auth.json. No API
+# key is stored here. Talks to the OpenAI Responses API at /codex/responses.
+# Env var aliases: OPENAI_CODEX_ACCESS_TOKEN / CODEX_ACCESS_TOKEN (token override),
+#   OPENAI_CODEX_BASE_URL / CODEX_BASE_URL, OPENAI_CODEX_MODEL / CODEX_MODEL,
+#   OPENAI_CODEX_ACCOUNT_ID / CODEX_ACCOUNT_ID, OPENAI_CODEX_AUTH_FILE, CODEX_HOME
+[providers.openai_codex]
+# base_url = "https://chatgpt.com/backend-api"
+# model = "gpt-5.5"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Anthropic Provider (native Messages API)
+# Talks to https://api.anthropic.com/v1/messages with x-api-key auth — not an
+# OpenAI-compatible route. Models: claude-opus-4-8, claude-sonnet-4-6 (default),
+# claude-haiku-4-5. Env vars: ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL,
+# ANTHROPIC_MODEL.
+[providers.anthropic]
+# api_key = "sk-ant-..."
+# base_url = "https://api.anthropic.com"
+# model = "claude-sonnet-4-6"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Web Search Provider
+# ─────────────────────────────────────────────────────────────────────────────────
+# Choose which backend `web_search` uses. Default is DuckDuckGo HTML scraping
+# with Bing fallback — no API key needed. Bing remains selectable for users who
+# explicitly prefer it. Switch to Tavily, Bocha, Metaso, Baidu, Volcengine,
+# Sofya, or a trusted SearXNG instance for API-backed search.
+#
+# [search]
+# provider = "duckduckgo"  # duckduckgo | bing | tavily | bocha | metaso | searxng | baidu | volcengine | sofya
+#                            # duckduckgo: HTML scrape with Bing fallback
+#                            # bing:       HTML scrape, no API key
+#                            # tavily:     https://tavily.com — AI search, needs api_key
+#                            # bocha:      https://bochaai.com — 博查AI搜索，国内友好，需api_key
+#                            # metaso:     https://metaso.cn — 秘塔AI搜索，每天 100 次免费
+#                            #             设置 METASO_API_KEY 或 [search] api_key 可提升额度
+#                            # searxng:    https://docs.searxng.org — trusted/self-hosted JSON API,
+#                            #             set base_url; no public instance is used by default
+#                            # baidu:      百度 AI Search via qianfan.baidubce.com，需 api_key
+#                            # volcengine: 火山引擎 Ark web_search (免费 2 万次/月), 需 api_key
+#                            #             也回退到 VOLCENGINE_API_KEY / VOLCENGINE_ARK_API_KEY / ARK_API_KEY 环境变量
+#                            # sofya:      https://sofya.co — AI search returning full page
+#                            #             content (not snippets), needs api_key (ay_live_...);
+#                            #             also falls back to the SOFYA_API_KEY env var
+# base_url = "https://search.example/" # optional DuckDuckGo-compatible HTML endpoint;
+#                                      # required SearXNG root or /search endpoint
+# api_key = "YOUR_SEARCH_KEY" # required for tavily, bocha, baidu, volcengine, and sofya; optional for metaso; unused by searxng
+#                             # WARNING: treat config.toml like a secret file when
+#                             # storing API keys. Prefer env vars for local smoke tests.
+#
+# Env-var overrides:
+#   DEEPSEEK_SEARCH_PROVIDER → search.provider
+#   DEEPSEEK_SEARCH_API_KEY  → search.api_key
+#   CODEWHALE_SEARCH_BASE_URL → search.base_url
+#   DEEPSEEK_SEARCH_BASE_URL  → search.base_url (legacy alias)
+#   METASO_API_KEY           → metaso key fallback
+#   BAIDU_SEARCH_API_KEY     → baidu key fallback
+#   SOFYA_API_KEY            → sofya key fallback
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Network Policy (#135)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Per-domain allow/deny rules for outbound network calls made by the TUI's
+# tools (`fetch_url`, `web_search`) and the MCP HTTP transport. Stdio MCP
+# servers and direct LLM API calls are unaffected.
+#
+# Precedence: deny wins. A host listed in both `allow` and `deny` is denied.
+#
+# Host-matching rules:
+#   - Exact match: `api.deepseek.com` matches only `api.deepseek.com`.
+#   - Subdomain wildcard: an entry starting with `.` (e.g. `.example.com`)
+#     matches `api.example.com` and `a.b.example.com` but not the apex
+#     `example.com`. To cover both, list both. `*.example.com` is also accepted.
+#
+# Defaults are intentionally conservative: when this section is absent, no
+# policy is enforced (mirrors pre-v0.7.0 behavior). To opt in:
+#
+# [network]
+# default = "prompt"     # allow | deny | prompt
+# allow = ["api.deepseek.com", "github.com", ".githubusercontent.com"]
+# deny = []
+# audit = true            # one line per call to ~/.codewhale/audit.log
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Skills (#140)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Settings for the `/skill install <spec>` community-skill installer.
+#   * registry_url           — curated index.json that resolves bare names to
+#                              `github:owner/repo` specs. Override to point at
+#                              a private fork or internal mirror.
+#   * max_install_size_bytes — per-skill uncompressed size cap. Tarballs that
+#                              exceed this limit are rejected during validation.
+#                              Default: 5 MiB.
+#
+# `/skill install` is gated by `[network]`. Make sure `github.com` and
+# `raw.githubusercontent.com` are reachable (default `prompt` is fine — you'll
+# be asked once and can persist) before running it.
+#
+# [skills]
+# registry_url = "https://raw.githubusercontent.com/Hmbown/deepseek-skills/main/index.json"
+# max_install_size_bytes = 5_242_880
+# scan_codewhale_only = false # true: ignore Claude/OpenCode/Cursor/agentskills.io skill dirs
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# TUI
+# ─────────────────────────────────────────────────────────────────────────────────
+[tui]
+alternate_screen = "auto"   # auto/always use the TUI screen; never uses terminal scrollback
+mouse_capture = true        # true copies only transcript user/assistant text; false uses raw terminal selection/copy
+terminal_probe_timeout_ms = 500 # optional startup terminal-mode timeout (100-5000ms)
+stream_chunk_timeout_secs = 300 # optional SSE idle timeout per chunk (0 = default, 1-3600)
+osc8_links = true            # emit OSC 8 escapes around URLs (Cmd+click in iTerm2/Ghostty/Kitty/WezTerm/Terminal.app 13+); set false for terminals that misrender
+# Ordered footer chips shown in the TUI status line. Omit the key to use the
+# built-in default; set [] to hide all configurable chips. You can also edit
+# this interactively with `/statusline`.
+# Supported keys: mode, model, cost, balance (DeepSeek / DeepSeekCN only),
+# status, agents,
+# reasoning_replay, prefix_stability, cache, context_percent, git_branch,
+# last_tool_elapsed (reserved), rate_limit (reserved), tokens.
+# status_items = ["mode", "model", "status", "git_branch", "tokens", "cache"]
+# notification_condition = "always" # always | never — overrides [notifications].threshold_secs.
+#                                    "always" = notify on every successful turn (no threshold);
+#                                    "never"  = suppress all turn-completion notifications;
+#                                    unset    = use [notifications] defaults (recommended).
+# locale = "auto"           # UI chrome language: auto | en | ja | zh-Hans | pt-BR
+#                           # "auto" reads LC_ALL → LC_MESSAGES → LANG; falls back to English.
+#                           # Override: `locale = "zh-Hans"` for Simplified Chinese regardless of OS locale.
+#                           # Also settable at runtime: /config locale zh-Hans
+#                           # Note: this only affects TUI labels/chrome — it does NOT change model output language.
+# mention_menu_behavior = "fuzzy" # fuzzy | browser; browser lists immediate directory children for @-mentions.
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Feature Flags
+# ─────────────────────────────────────────────────────────────────────────────────
+[features]
+shell_tool = true
+subagents = true
+web_search = true # enables canonical web.run plus the compatibility web_search alias
+apply_patch = true
+mcp = true
+exec_policy = true
+# vision_model = false  # enable vision model for image_analyze tool
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Vision Model Configuration (optional)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Uses an OpenAI-compatible vision model API for the `image_analyze` tool.
+# api_key inherits from the main config if not specified.
+#
+# [vision_model]
+# model = "gemini-3.1-flash-lite-preview"  # Required: vision-capable model ID
+# api_key = "YOUR_API_KEY"                 # Optional: defaults to main api_key
+# base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"  # Optional
+#
+# Xiaomi MiMo image understanding can be configured through the same tool:
+# model = "mimo-v2.5"
+# api_key = "YOUR_XIAOMI_KEY"
+# base_url = "https://token-plan-sgp.xiaomimimo.com/v1"  # Token Plan / tp- keys
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Retry Configuration
+# ─────────────────────────────────────────────────────────────────────────────────
+[retry]
+enabled = true
+max_retries = 3
+initial_delay = 1.0
+max_delay = 60.0
+exponential_base = 2.0
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Context Compaction
+# ─────────────────────────────────────────────────────────────────────────────────
+# Auto-compaction is a saved UI setting edited with `/config` (`auto_compact`).
+# The optional saved threshold setting is `auto_compact_threshold_percent`
+# (default 80). There is no config-file
+# `[compaction]` table yet; runtime compaction budgets are chosen by the TUI
+# from the active model/context window.
+
+# Append-only Flash seams are experimental and opt-in while the v0.7.5
+# context/cache audit validates prefix-cache behavior.
+[context]
+enabled = false
+verbatim_window_turns = 16
+# Thresholds are based on the active request input estimate, not lifetime
+# summed API usage.
+l1_threshold = 192000
+l2_threshold = 384000
+l3_threshold = 576000
+seam_model = "deepseek-v4-flash"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Workshop / Large-Output Routing (#548)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Tool outputs exceeding `large_output_threshold_tokens` are routed through a
+# V4-Flash synthesis sub-agent.  Only the synthesis reaches the parent context;
+# the raw text is stored in the workshop variable `last_tool_result` so the
+# parent can call `promote_to_context` later if it needs the full content.
+#
+# Per-tool overrides let high-volume tools (e.g. exec_shell) use tighter
+# thresholds without changing the global default.
+#
+# Add `raw = true` to any tool call to bypass routing for that invocation.
+#
+# [workshop]
+# large_output_threshold_tokens = 4096
+# [workshop.per_tool_thresholds]
+# exec_shell  = 2048   # shell output synthesised aggressively
+# grep_files  = 2048
+# web_search  = 8192   # web results can be large; give them more room
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Capacity Controller (runtime pressure guardrails)
+# ─────────────────────────────────────────────────────────────────────────────────
+[capacity]
+enabled = false
+low_risk_max = 0.50
+medium_risk_max = 0.62
+severe_min_slack = -0.25
+severe_violation_ratio = 0.40
+refresh_cooldown_turns = 6
+replan_cooldown_turns = 5
+max_replay_per_turn = 1
+min_turns_before_guardrail = 4
+profile_window = 8
+deepseek_v3_2_chat_prior = 3.9
+deepseek_v3_2_reasoner_prior = 4.1
+deepseek_v4_pro_prior = 3.5
+deepseek_v4_flash_prior = 4.2
+fallback_default_prior = 3.8
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Harness Profiles (preview schema; runtime consumption follows later)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Harness profiles let future CodeWhale runtime slices select model-specific
+# prompt, context, tool, and subagent posture. v0.9 parses, validates, and can
+# resolve profiles for tests/status plumbing, but normal Agent and WhaleFlow
+# runs do not silently promote or mutate behavior from these profiles yet.
+#
+# [[harness_profiles]]
+# provider_route = "deepseek"
+# model_pattern = "deepseek-v4.*"
+#
+# [harness_profiles.posture]
+# kind = "cache-heavy"          # standard | cache-heavy | lean | custom
+# max_subagents = 10            # 0 means runtime default
+# prefer_codebase_search = false
+# compaction_strategy = "prefix-cache" # default | prefix-cache | aggressive
+# tool_surface = "full"              # full | read-only | auto
+# safety_posture = "standard"        # standard | strict | permissive
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Profile Example (for multiple environments)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Select a profile with `deepseek --profile <name>` or `DEEPSEEK_PROFILE=<name>`.
+[profiles.work]
+api_key = "WORK_DEEPSEEK_API_KEY"
+base_url = "https://api.deepseek.com/beta"
+
+[profiles.dev]
+api_key = "DEV_DEEPSEEK_API_KEY"
+allow_shell = true
+
+[profiles.nvidia-nim]
+provider = "nvidia-nim"
+api_key = "YOUR_NVIDIA_API_KEY"
+base_url = "https://integrate.api.nvidia.com/v1"
+default_text_model = "deepseek-ai/deepseek-v4-pro"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Desktop Notifications (OSC 9 / BEL on long agent-turn completion)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Emits an escape sequence to the terminal when a turn **completes successfully**
+# and took longer than `threshold_secs`. Failed or cancelled turns are
+# intentionally silent. Useful when you tab away from the TUI and want an alert
+# for "your task is ready".
+#
+# method        = "auto"   # auto | osc9 | bel | off
+#                 auto: OSC 9 for iTerm.app / Ghostty / WezTerm.
+#                       On macOS / Linux, falls back to BEL.
+#                       On Windows, BEL is routed through MessageBeep(MB_OK).
+#                 osc9: \x1b]9;<msg>\x07 (iTerm2-style; shows macOS notification)
+#                 bel:  plain \x07 beep
+#                 off:  disable entirely
+# threshold_secs = 30      # only notify when the turn took >= this many seconds
+# include_summary = false  # include elapsed time + cost in the notification body
+# completion_sound = "beep" # off | beep | bell | file — sound on turn completion (✅ marker)
+# sound_file = "E:\\google\\downloads\\notify.wav" # WAV used when completion_sound = "file" (Windows)
+[notifications]
+# method = "auto"
+# threshold_secs = 30
+# include_summary = false
+# completion_sound = "beep"
+# sound_file = "E:\\google\\downloads\\notify.wav"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Workspace Snapshots (#137)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Each turn the TUI takes a `pre-turn:<seq>` and `post-turn:<seq>` snapshot of
+# your workspace into a side-git repo at:
+#
+#     ~/.codewhale/snapshots/<project_hash>/<worktree_hash>/.git
+#
+# Your own `.git` is never touched — `--git-dir` and `--work-tree` are always
+# set together when shelling out to git. Use `/restore N` (slash command) or
+# the `revert_turn` tool to roll the working tree back. Conversation history
+# is unaffected.
+#
+# Disk footprint: ~1-2 GB worst case for a 100 MB workspace × 12 turns/day,
+# typically far less thanks to git's content-addressed storage. The session
+# boot prunes anything older than `max_age_days` (default 7).
+#
+# [snapshots]
+# enabled = true        # Snapshot workspace pre/post each turn for /restore
+# max_age_days = 7      # Older snapshots pruned at session start
+# max_workspace_gb = 2  # Snapshots self-disable on first init when the
+#                         # non-excluded workspace exceeds this size in GB
+#                         # (v0.8.32). Default 2 GB protects against running
+#                         # codewhale in directories with hundreds of GB
+#                         # of datasets / model weights / docker dumps where
+#                         # `git add -A` would hang the TUI for hours. Set
+#                         # to 0 to disable the cap (v0.8.31 behaviour);
+#                         # raise to a higher number for legitimate large
+#                         # monorepos.
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# LSP Diagnostics (post-edit) (#136)
+# ─────────────────────────────────────────────────────────────────────────────────
+# After every successful file edit (`edit_file`, `apply_patch`, `write_file`),
+# the engine asks an LSP server for diagnostics on the file and injects them
+# as a synthetic system message before the next API call. This lets the agent
+# see compile breaks immediately without round-tripping through the user.
+#
+# Enabled by default. Failure modes are non-blocking: a missing LSP binary,
+# a crashed server, or a timeout simply skips the post-edit hook for that
+# turn — the agent's work is never blocked.
+#
+# Built-in language → server defaults:
+#   rust       → rust-analyzer
+#   go         → gopls serve
+#   python     → pyright-langserver --stdio
+#   typescript → typescript-language-server --stdio
+#   java       → jdtls
+#   vue        → vue-language-server --stdio
+#   c, cpp     → clangd
+#
+# Java support uses Eclipse JDT LS via the `jdtls` command. IntelliJ IDEA is
+# not required, and installing IntelliJ IDEA alone does not install `jdtls`.
+#
+# Override the defaults via the `servers` table below.
+[lsp]
+# enabled = true
+# poll_after_edit_ms = 5000
+# max_diagnostics_per_file = 20
+# include_warnings = false
+# [lsp.servers]
+# rust = ["rust-analyzer"]
+# go = ["gopls", "serve"]
+# java = ["jdtls"]
+# vue = ["vue-language-server", "--stdio"]
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Hooks (optional)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Hooks run shell commands on lifecycle events (session start/end, tool calls, etc.).
+# Configure as `[[hooks.hooks]]` under a `[hooks]` table.
+#
+# Available events: session_start, session_end, message_submit,
+# tool_call_before, tool_call_after, mode_change, on_error,
+# subagent_spawn, subagent_complete, shell_env.
+#
+# `shell_env` (#456) is special: the hook runs immediately before each
+# `exec_shell` invocation and its stdout is parsed as `KEY=VALUE\n` lines.
+# Those vars are merged into the spawned process environment (later hooks
+# override earlier ones). Use this for ephemeral credentials, per-skill
+# PATH adjustments, or short-lived tokens. The resolved KEY names (NEVER
+# values) are written to `~/.codewhale/audit.log` so each session can be
+# reconciled later. Hook failure / timeout simply contributes no vars —
+# it does not abort the shell call.
+#
+# [hooks]
+# enabled = true
+# default_timeout_secs = 30
+#
+# [[hooks.hooks]]
+# event = "session_start"
+# command = "echo 'CodeWhale session started'"
+#
+# # Inject ephemeral creds into every shell call. Output one
+# # KEY=VALUE per line on stdout (export prefix optional).
+# [[hooks.hooks]]
+# name = "aws-creds"
+# event = "shell_env"
+# command = "aws-vault export my-profile --format=env"
+# # Optionally limit to specific tool names / categories:
+# # condition = { type = "tool_category", category = "shell" }
+#
+# # Observe sub-agent lifecycle events. These hooks receive bounded JSON
+# # metadata on stdin and are warn-only: failures do not affect sub-agent
+# # scheduling, prompts, or results. continue_on_error has no effect for
+# # these observer events; later matching hooks always continue.
+# [[hooks.hooks]]
+# name = "subagent-audit"
+# event = "subagent_complete"
+# command = "~/.codewhale/hooks/subagent-audit.sh"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Runtime API (`deepseek serve --http`) (#561)
+# ─────────────────────────────────────────────────────────────────────────────────
+# Tuning knobs for the local HTTP/SSE daemon. The server binds to 127.0.0.1
+# by default and is intended for local UIs (whalescale-desktop, dashboards,
+# automation scripts). Today this section only controls the CORS allow-list;
+# host/port/workers stay on `--host`, `--port`, and `--workers` flags.
+#
+# Built-in defaults always include:
+#   http://localhost:3000   http://127.0.0.1:3000
+#   http://localhost:1420   http://127.0.0.1:1420
+#   tauri://localhost
+#
+# Use `cors_origins` to add extra dev origins (e.g. Vite's default `:5173`).
+# User entries STACK on top of the defaults — they do not replace them. The
+# CLI flag `--cors-origin URL` (repeatable) and env var
+# `DEEPSEEK_CORS_ORIGINS=url1,url2` resolve to the same merged list.
+#
+# [runtime_api]
+# cors_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Tool Overrides & Plugins ([tools])
+# ─────────────────────────────────────────────────────────────────────────────────
+# The `[tools]` table lets you replace any built-in tool with a custom
+# implementation (script or command) or disable it entirely — without
+# forking or recompiling the binary.
+#
+# Plugin scripts dropped in the plugin directory are auto-discovered and
+# registered as model-visible tools alongside the built-in ones.
+#
+# Scripts receive the tool's JSON input on **stdin** and must return a
+# JSON `ToolResult` (`{"content": "...", "success": true}`) on **stdout**.
+#
+# [tools]
+# # Custom plugin directory (defaults to `~/.codewhale/tools/`)
+# plugin_dir = "~/.codewhale/tools"
+#
+# [tools.overrides]
+# # Disable a tool entirely — removes it from the model-visible catalog.
+# "code_execution" = { type = "disabled" }
+#
+# # Replace a tool with a script. Relative paths resolve against plugin_dir.
+# "exec_shell" = { type = "script", path = "audit-exec-shell.sh" }
+#
+# # Replace a tool with a command (binary on PATH or absolute path).
+# "read_file" = { type = "command", command = "bat", args = ["--paging=never"] }
+#
+# # Scripts can also accept static arguments before the JSON input:
+# "fetch_url" = { type = "script", path = "cached-fetch.sh", args = ["--ttl", "300"] }
+
+# ──────────── Enterprise example: audit-logging exec_shell wrapper ──────────────
+# Drop `audit-exec-shell.sh` in `~/.codewhale/tools/` and enable with:
+#
+# [tools.overrides]
+# "exec_shell" = { type = "script", path = "audit-exec-shell.sh" }
+#
+# The wrapper logs every request to `~/.codewhale/audit/exec_shell.log`, then
+# delegates to your own approved shell executor. Do not pipe the raw JSON
+# request into `sh -s`; parse the command field and enforce your policy first.
+#
+# ```sh
+# #!/usr/bin/env sh
+# # name: exec_shell
+# # description: Audit-logging wrapper for exec_shell
+# # approval: required
+# LOGDIR="${HOME}/.codewhale/audit"
+# mkdir -p "$LOGDIR"
+# LOGFILE="$LOGDIR/exec_shell.log"
+# input=$(cat)
+# echo "[$(date -Iseconds)] $input" >> "$LOGFILE"
+# printf '%s\n' '{"content":"audit wrapper dry run: configure an executor","success":false}'
+# ```
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Agent Fleet trust, security, and role registry (#3165, #3167)
+# ─────────────────────────────────────────────────────────────────────────────────
+# [fleet]
+# # Default trust level for fleet workers: "sandbox" | "local" | "remote-verified" | "operator"
+# default_trust_level = "sandbox"
+# # Require SSH host-key verification before granting remote-verified trust
+# require_identity_verification = true
+# # Maximum trust level any worker may have
+# max_trust_level = "operator"
+#
+# # Headless worker execution hardening (#3027)
+# [fleet.exec]
+# # Tools always allowed regardless of role
+# allowed_tools = []
+# # Tools always disallowed (overrides role and task spec)
+# disallowed_tools = ["exec_shell"]
+# # Hard ceiling on worker steps (tool calls + model turns)
+# max_turns = 500
+# # Recursive child-agent depth for fleet workers. Shares ONE recursion axis
+# # with standalone sub-agents (a fleet worker IS a headless sub-agent).
+# # 0 blocks child agents (the root worker still runs); 3 is the default and the
+# # cap, affording at least three nested delegation levels.
+# max_spawn_depth = 3
+# # Extra system prompt injected into every headless worker
+# append_system_prompt = "Never modify .git/config or change remotes."
+# # Output format: "text" (default) or "stream-json" for ndjson events
+# output_format = "text"
+#
+# # Built-in role presets are always available: smoke-runner, reviewer, builder, read-only.
+# # User-defined roles here override or extend the built-in set. Any key under
+# # [fleet.roles] becomes a valid role name that task specs can reference.
+# [fleet.roles.ci-linter]
+# description = "Runs linters and formatters"
+# tool_profile = "read-only"
+# tools = ["cargo", "cargo-clippy", "cargo-fmt"]
+# capabilities = ["rust"]
+# max_tokens = 12000
+# max_tool_calls = 20
+# timeout_seconds = 600
+#
+# [fleet.roles.pr-reviewer]
+# description = "Reviews PRs with GitHub access"
+# tool_profile = "read-only"
+# tools = ["git", "gh", "rg"]
+# capabilities = ["git", "github"]
+# max_tokens = 16000
+# max_tool_calls = 30
+# timeout_seconds = 900
+# trust_level = "local"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Requirements (admin constraints) example file
+# ─────────────────────────────────────────────────────────────────────────────────
+# allowed_approval_policies = ["on-request", "untrusted", "never"]
+# allowed_sandbox_modes = ["read-only", "workspace-write"]
