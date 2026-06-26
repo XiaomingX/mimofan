@@ -55,9 +55,6 @@ pub enum ApiProvider {
     SiliconflowCn,
     Arcee,
     Moonshot,
-    Sglang,
-    Vllm,
-    Ollama,
     Huggingface,
     Together,
     Qianfan,
@@ -198,7 +195,7 @@ impl ApiProvider {
             Self::Stepfun => "https://platform.stepfun.ai/",
             Self::Minimax => "https://platform.minimax.io/docs/guides/quickstart-preparation",
             Self::Deepinfra => "https://deepinfra.com/dash/api_keys",
-            Self::OpenaiCodex | Self::Sglang | Self::Vllm | Self::Ollama => return None,
+            Self::OpenaiCodex => return None,
             // Custom endpoints have no canonical credential page; the user
             // supplies the key via their own `api_key_env`.
             Self::Custom => return None,
@@ -213,7 +210,7 @@ impl ApiProvider {
 
     /// `ApiProvider` discriminant → `ProviderKind` lookup.
     /// Index 1 is `None` for the legacy `DeepseekCN` variant.
-    const KIND_LOOKUP: [Option<codewhale_config::ProviderKind>; 29] = [
+    const KIND_LOOKUP: [Option<codewhale_config::ProviderKind>; 26] = [
         Some(codewhale_config::ProviderKind::Deepseek),
         None, // DeepseekCN
         Some(codewhale_config::ProviderKind::DeepseekAnthropic),
@@ -230,9 +227,6 @@ impl ApiProvider {
         Some(codewhale_config::ProviderKind::SiliconflowCN),
         Some(codewhale_config::ProviderKind::Arcee),
         Some(codewhale_config::ProviderKind::Moonshot),
-        Some(codewhale_config::ProviderKind::Sglang),
-        Some(codewhale_config::ProviderKind::Vllm),
-        Some(codewhale_config::ProviderKind::Ollama),
         Some(codewhale_config::ProviderKind::Huggingface),
         Some(codewhale_config::ProviderKind::Together),
         Some(codewhale_config::ProviderKind::Qianfan),
@@ -246,7 +240,7 @@ impl ApiProvider {
     ];
 
     /// `ProviderKind` discriminant → `ApiProvider` lookup.
-    const FROM_KIND_LOOKUP: [Self; 28] = [
+    const FROM_KIND_LOOKUP: [Self; 25] = [
         Self::Deepseek,
         Self::DeepseekAnthropic,
         Self::NvidiaNim,
@@ -262,9 +256,6 @@ impl ApiProvider {
         Self::Arcee,
         Self::SiliconflowCn,
         Self::Moonshot,
-        Self::Sglang,
-        Self::Vllm,
-        Self::Ollama,
         Self::Huggingface,
         Self::Together,
         Self::Qianfan,
@@ -300,7 +291,7 @@ impl ApiProvider {
     /// is hosted on the user's own infrastructure.
     #[must_use]
     pub fn is_self_hosted(self) -> bool {
-        matches!(self, Self::Sglang | Self::Vllm | Self::Ollama)
+        false
     }
 }
 
@@ -465,8 +456,7 @@ pub fn provider_capability(provider: ApiProvider, resolved_model: &str) -> Provi
     // #3023: Delete the Openai/Atlascloud/Moonshot early-return so these
     // providers use the generic model-based path below, which correctly
     // resolves context windows, output limits, and thinking support from
-    // models.rs lookups.  Ollama also falls through to model-based lookups
-    // with 8192 as the last-resort fallback instead of a hardcoded floor.
+    // models.rs lookups.
     if matches!(provider, ApiProvider::XiaomiMimo) {
         return ProviderCapability {
             provider,
@@ -513,14 +503,11 @@ pub fn provider_capability(provider: ApiProvider, resolved_model: &str) -> Provi
         && (model_lower.contains("reasoner") || model_lower.contains("r1"));
 
     // Context window: V4-class models get 1M, everything else falls through
-    // to the model's own lookup or a default.  Ollama defaults to 8192
-    // (conservative for small local models) instead of 128K.
+    // to the model's own lookup or a default.
     let context_window = if is_v4_pro || is_v4_flash {
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
     } else if let Some(window) = crate::models::context_window_for_model(resolved_model) {
         window
-    } else if matches!(provider, ApiProvider::Ollama) {
-        8192
     } else {
         crate::models::LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS
     };
@@ -687,7 +674,7 @@ pub fn validate_route(provider: ApiProvider, model: &str) -> Result<(), String> 
     }
 
     // Providers whose model id is passed through verbatim (OpenAI-compatible,
-    // Ollama tags, custom base URLs, …) are validated by the upstream service.
+    // custom base URLs, …) are validated by the upstream service.
     if provider_passes_model_through(provider) {
         return Ok(());
     }
@@ -1022,8 +1009,8 @@ pub fn canonical_model_id_for_provider(provider: ApiProvider, model: &str) -> Op
         return Some(normalized);
     }
 
-    // Aggregators that host DeepSeek (NIM, Novita, Fireworks, SiliconFlow, SGLang,
-    // vLLM, DeepInfra, Wanjie Ark, Volcengine) canonicalize recognized DeepSeek
+    // Aggregators that host DeepSeek (NIM, Novita, Fireworks, SiliconFlow,
+    // DeepInfra, Wanjie Ark, Volcengine) canonicalize recognized DeepSeek
     // ids but pass everything else through — they serve more than DeepSeek, so
     // the upstream API stays the authority. A name is never rejected here.
     if matches!(
@@ -1033,8 +1020,6 @@ pub fn canonical_model_id_for_provider(provider: ApiProvider, model: &str) -> Op
             | ApiProvider::Fireworks
             | ApiProvider::Siliconflow
             | ApiProvider::SiliconflowCn
-            | ApiProvider::Sglang
-            | ApiProvider::Vllm
             | ApiProvider::Deepinfra
             | ApiProvider::WanjieArk
             | ApiProvider::Volcengine
@@ -1117,10 +1102,7 @@ pub fn model_completion_names_for_provider(provider: ApiProvider) -> Vec<&'stati
                 "deepseek-v4-flash",
             ]
         }
-        ApiProvider::Sglang => vec![DEFAULT_SGLANG_MODEL, DEFAULT_SGLANG_FLASH_MODEL],
-        ApiProvider::Vllm => vec![DEFAULT_VLLM_MODEL, DEFAULT_VLLM_FLASH_MODEL],
         ApiProvider::Volcengine => vec![DEFAULT_VOLCENGINE_MODEL, DEFAULT_VOLCENGINE_FLASH_MODEL],
-        ApiProvider::Ollama => Vec::new(),
         ApiProvider::Openai | ApiProvider::Atlascloud => OFFICIAL_DEEPSEEK_MODELS.to_vec(),
         ApiProvider::Together => vec![DEFAULT_TOGETHER_MODEL, DEFAULT_TOGETHER_FLASH_MODEL],
         ApiProvider::Qianfan => vec![DEFAULT_QIANFAN_MODEL],
@@ -2476,12 +2458,6 @@ pub struct ProvidersConfig {
     pub arcee: ProviderConfig,
     #[serde(default)]
     pub moonshot: ProviderConfig,
-    #[serde(default)]
-    pub sglang: ProviderConfig,
-    #[serde(default)]
-    pub vllm: ProviderConfig,
-    #[serde(default)]
-    pub ollama: ProviderConfig,
     #[serde(default, alias = "hugging-face", alias = "hf")]
     pub huggingface: ProviderConfig,
     #[serde(default, alias = "deep-infra", alias = "deep_infra")]
@@ -2661,7 +2637,7 @@ impl Config {
     /// `base_url` field but their active provider is not DeepSeek (the only
     /// provider that actually reads that field, plus an NvidiaNim back-compat
     /// sniff). Common confusion: users add `base_url = "..."` at the top of
-    /// `~/.deepseek/config.toml` for ollama / vllm / openai-compat servers
+    /// `~/.deepseek/config.toml` for openai-compat servers
     /// and wonder why it's silently ignored (#1308).
     fn warn_on_misplaced_root_base_url(&self) {
         let Some(root_base) = self.base_url.as_deref().map(str::trim) else {
@@ -2834,9 +2810,6 @@ impl Config {
             ApiProvider::SiliconflowCn => &providers.siliconflow_cn,
             ApiProvider::Arcee => &providers.arcee,
             ApiProvider::Moonshot => &providers.moonshot,
-            ApiProvider::Sglang => &providers.sglang,
-            ApiProvider::Vllm => &providers.vllm,
-            ApiProvider::Ollama => &providers.ollama,
             ApiProvider::Volcengine => &providers.volcengine,
             ApiProvider::Huggingface => &providers.huggingface,
             ApiProvider::Deepinfra => &providers.deepinfra,
@@ -2892,9 +2865,6 @@ impl Config {
             ApiProvider::SiliconflowCn => &mut providers.siliconflow_cn,
             ApiProvider::Arcee => &mut providers.arcee,
             ApiProvider::Moonshot => &mut providers.moonshot,
-            ApiProvider::Sglang => &mut providers.sglang,
-            ApiProvider::Vllm => &mut providers.vllm,
-            ApiProvider::Ollama => &mut providers.ollama,
             ApiProvider::Volcengine => &mut providers.volcengine,
             ApiProvider::Huggingface => &mut providers.huggingface,
             ApiProvider::Deepinfra => &mut providers.deepinfra,
@@ -3043,9 +3013,6 @@ impl Config {
             ApiProvider::Siliconflow | ApiProvider::SiliconflowCn => DEFAULT_SILICONFLOW_MODEL,
             ApiProvider::Arcee => DEFAULT_ARCEE_MODEL,
             ApiProvider::Moonshot => DEFAULT_MOONSHOT_MODEL,
-            ApiProvider::Sglang => DEFAULT_SGLANG_MODEL,
-            ApiProvider::Vllm => DEFAULT_VLLM_MODEL,
-            ApiProvider::Ollama => DEFAULT_OLLAMA_MODEL,
             ApiProvider::Volcengine => DEFAULT_VOLCENGINE_MODEL,
             ApiProvider::Huggingface => DEFAULT_HUGGINGFACE_MODEL,
             ApiProvider::Deepinfra => DEFAULT_DEEPINFRA_MODEL,
@@ -3095,9 +3062,6 @@ impl Config {
             | ApiProvider::SiliconflowCn
             | ApiProvider::Arcee
             | ApiProvider::Moonshot
-            | ApiProvider::Sglang
-            | ApiProvider::Vllm
-            | ApiProvider::Ollama
             | ApiProvider::Volcengine
             | ApiProvider::Huggingface
             | ApiProvider::Deepinfra
@@ -3152,9 +3116,6 @@ impl Config {
                                 DEFAULT_MOONSHOT_BASE_URL
                             }
                         }
-                        ApiProvider::Sglang => DEFAULT_SGLANG_BASE_URL,
-                        ApiProvider::Vllm => DEFAULT_VLLM_BASE_URL,
-                        ApiProvider::Ollama => DEFAULT_OLLAMA_BASE_URL,
                         ApiProvider::Volcengine => DEFAULT_VOLCENGINE_BASE_URL,
                         ApiProvider::Huggingface => DEFAULT_HUGGINGFACE_BASE_URL,
                         ApiProvider::Deepinfra => DEFAULT_DEEPINFRA_BASE_URL,
@@ -3337,9 +3298,6 @@ impl Config {
                  Env overrides:\n\
                    OPENAI_CODEX_ACCESS_TOKEN  or  CODEX_ACCESS_TOKEN"
             ),
-            // Self-hosted deployments commonly run without auth on localhost.
-            // Return an empty key and let the client omit the Authorization header.
-            ApiProvider::Sglang | ApiProvider::Vllm | ApiProvider::Ollama => Ok(String::new()),
             // Custom OpenAI-compatible endpoints (#1519): the key comes from the
             // env var named by `[providers.<name>] api_key_env`. If we reached
             // here it is unset/empty (and the endpoint is not loopback).
@@ -3882,8 +3840,6 @@ fn root_deepseek_model_is_foreign_to_direct_provider(provider: ApiProvider, mode
             | ApiProvider::SiliconflowCn
             | ApiProvider::Deepinfra
             | ApiProvider::Together
-            | ApiProvider::Sglang
-            | ApiProvider::Vllm
             | ApiProvider::Volcengine
             | ApiProvider::Atlascloud
             | ApiProvider::WanjieArk
@@ -4185,27 +4141,6 @@ fn apply_env_overrides(config: &mut Config) {
                     .moonshot
                     .base_url = Some(value);
             }
-            ApiProvider::Sglang => {
-                config
-                    .providers
-                    .get_or_insert_with(ProvidersConfig::default)
-                    .sglang
-                    .base_url = Some(value);
-            }
-            ApiProvider::Vllm => {
-                config
-                    .providers
-                    .get_or_insert_with(ProvidersConfig::default)
-                    .vllm
-                    .base_url = Some(value);
-            }
-            ApiProvider::Ollama => {
-                config
-                    .providers
-                    .get_or_insert_with(ProvidersConfig::default)
-                    .ollama
-                    .base_url = Some(value);
-            }
             ApiProvider::Volcengine => {
                 config
                     .providers
@@ -4433,26 +4368,6 @@ fn apply_env_overrides(config: &mut Config) {
             .moonshot
             .base_url = Some(value);
     }
-    if matches!(config.api_provider(), ApiProvider::Sglang)
-        && let Ok(value) = std::env::var("SGLANG_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .sglang
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::Vllm)
-        && let Ok(value) = std::env::var("VLLM_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .vllm
-            .base_url = Some(value);
-    }
     if let Ok(value) = std::env::var("DEEPSEEK_HTTP_HEADERS")
         && let Ok(headers) = parse_http_headers(&value)
         && !headers.is_empty()
@@ -4489,9 +4404,6 @@ fn apply_env_overrides(config: &mut Config) {
             ApiProvider::SiliconflowCn => &mut providers.siliconflow_cn,
             ApiProvider::Arcee => &mut providers.arcee,
             ApiProvider::Moonshot => &mut providers.moonshot,
-            ApiProvider::Sglang => &mut providers.sglang,
-            ApiProvider::Vllm => &mut providers.vllm,
-            ApiProvider::Ollama => &mut providers.ollama,
             ApiProvider::Volcengine => &mut providers.volcengine,
             ApiProvider::Huggingface => &mut providers.huggingface,
             ApiProvider::Deepinfra => &mut providers.deepinfra,
@@ -4510,31 +4422,6 @@ fn apply_env_overrides(config: &mut Config) {
         let mut provider_headers = entry.http_headers.clone().unwrap_or_default();
         provider_headers.extend(headers);
         entry.http_headers = Some(provider_headers);
-    }
-    if matches!(config.api_provider(), ApiProvider::Ollama)
-        && let Ok(value) = std::env::var("OLLAMA_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .ollama
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::Sglang)
-        && let Ok(value) = std::env::var("SGLANG_MODEL")
-    {
-        config.default_text_model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::Vllm)
-        && let Ok(value) = std::env::var("VLLM_MODEL")
-    {
-        config.default_text_model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::Ollama)
-        && let Ok(value) = std::env::var("OLLAMA_MODEL")
-    {
-        config.default_text_model = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::Openai)
         && let Ok(value) = std::env::var("OPENAI_MODEL")
@@ -4709,9 +4596,6 @@ fn apply_env_overrides(config: &mut Config) {
                 ApiProvider::SiliconflowCn => &mut providers.siliconflow_cn,
                 ApiProvider::Arcee => &mut providers.arcee,
                 ApiProvider::Moonshot => &mut providers.moonshot,
-                ApiProvider::Sglang => &mut providers.sglang,
-                ApiProvider::Vllm => &mut providers.vllm,
-                ApiProvider::Ollama => &mut providers.ollama,
                 ApiProvider::Volcengine => &mut providers.volcengine,
                 ApiProvider::Huggingface => &mut providers.huggingface,
                 ApiProvider::Deepinfra => &mut providers.deepinfra,
@@ -4877,18 +4761,6 @@ fn normalize_model_config(config: &mut Config) {
         {
             providers.moonshot.model = Some(normalized);
         }
-        if let Some(model) = providers.sglang.model.as_deref()
-            && !provider_entry_uses_custom_base_url(ApiProvider::Sglang, &providers.sglang)
-            && let Some(normalized) = normalize_model_for_provider(ApiProvider::Sglang, model)
-        {
-            providers.sglang.model = Some(normalized);
-        }
-        if let Some(model) = providers.vllm.model.as_deref()
-            && !provider_entry_uses_custom_base_url(ApiProvider::Vllm, &providers.vllm)
-            && let Some(normalized) = normalize_model_for_provider(ApiProvider::Vllm, model)
-        {
-            providers.vllm.model = Some(normalized);
-        }
         if let Some(model) = providers.deepinfra.model.as_deref()
             && !provider_entry_uses_custom_base_url(ApiProvider::Deepinfra, &providers.deepinfra)
             && let Some(normalized) = normalize_model_for_provider(ApiProvider::Deepinfra, model)
@@ -4920,7 +4792,6 @@ pub(crate) fn provider_passes_model_through(provider: ApiProvider) -> bool {
             | ApiProvider::XiaomiMimo
             | ApiProvider::Moonshot
             | ApiProvider::Qianfan
-            | ApiProvider::Ollama
             | ApiProvider::Huggingface
             // Custom OpenAI-compatible endpoints preserve user-supplied model
             // ids verbatim (#1519); never normalize/rewrite them.
@@ -5165,10 +5036,6 @@ fn model_for_provider(provider: ApiProvider, normalized: String) -> String {
             ApiProvider::Siliconflow | ApiProvider::SiliconflowCn,
             "deepseek-v4-flash" | "deepseek-chat" | "deepseek-v3",
         ) => DEFAULT_SILICONFLOW_FLASH_MODEL.to_string(),
-        (ApiProvider::Sglang, "deepseek-v4-pro") => DEFAULT_SGLANG_MODEL.to_string(),
-        (ApiProvider::Sglang, "deepseek-v4-flash") => DEFAULT_SGLANG_FLASH_MODEL.to_string(),
-        (ApiProvider::Vllm, "deepseek-v4-pro") => DEFAULT_VLLM_MODEL.to_string(),
-        (ApiProvider::Vllm, "deepseek-v4-flash") => DEFAULT_VLLM_FLASH_MODEL.to_string(),
         (ApiProvider::Deepinfra, "deepseek-v4-pro" | "deepseek-v4pro") => {
             DEFAULT_DEEPINFRA_MODEL.to_string()
         }
@@ -5471,9 +5338,6 @@ fn merge_providers(
             siliconflow_cn: merge_provider_config(base.siliconflow_cn, override_cfg.siliconflow_cn),
             arcee: merge_provider_config(base.arcee, override_cfg.arcee),
             moonshot: merge_provider_config(base.moonshot, override_cfg.moonshot),
-            sglang: merge_provider_config(base.sglang, override_cfg.sglang),
-            vllm: merge_provider_config(base.vllm, override_cfg.vllm),
-            ollama: merge_provider_config(base.ollama, override_cfg.ollama),
             volcengine: merge_provider_config(base.volcengine, override_cfg.volcengine),
             huggingface: merge_provider_config(base.huggingface, override_cfg.huggingface),
             deepinfra: merge_provider_config(base.deepinfra, override_cfg.deepinfra),

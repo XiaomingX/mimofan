@@ -183,8 +183,7 @@ impl RouteResolver {
 
         // Advisory validation (#1519): a non-loopback `http://` endpoint sends
         // credentials in plaintext. This is advisory, not a hard fail, so
-        // `ok` stays true and local `http://localhost` runtimes (Ollama / vLLM /
-        // SGLang defaults) stay clean.
+        // `ok` stays true and local `http://localhost` runtimes stay clean.
         let mut messages = Vec::new();
         if endpoint_uses_insecure_http(&endpoint.base_url) {
             messages
@@ -381,7 +380,7 @@ fn classify(kind: ProviderKind) -> ProviderClass {
         // Strict first-party direct providers.
         ProviderKind::Deepseek | ProviderKind::Zai => ProviderClass::StrictDirect,
         // Local runtimes / custom OpenAI-compatible endpoints.
-        ProviderKind::Ollama | ProviderKind::Vllm | ProviderKind::Sglang | ProviderKind::Openai => {
+        ProviderKind::Openai => {
             ProviderClass::LocalOrCustom
         }
         // Everything else is treated as an aggregator-style pass-through.
@@ -424,7 +423,7 @@ fn normalize_route_base_url(base_url: &str) -> String {
 /// True when `base_url` is an `http://` endpoint whose host is NOT loopback
 /// (#1519). Such an endpoint sends credentials in plaintext over the network;
 /// loopback (`localhost` / `127.0.0.1` / `::1`) is exempt because local
-/// runtimes (Ollama / vLLM / SGLang) default to plain `http://localhost`.
+/// runtimes default to plain `http://localhost`.
 fn endpoint_uses_insecure_http(base_url: &str) -> bool {
     let trimmed = base_url.trim();
     // Scheme match is case-insensitive but must be `http`, not `https`.

@@ -92,12 +92,6 @@ pub struct ProvidersToml {
     #[serde(default)]
     pub moonshot: ProviderConfigToml,
     #[serde(default)]
-    pub sglang: ProviderConfigToml,
-    #[serde(default)]
-    pub vllm: ProviderConfigToml,
-    #[serde(default)]
-    pub ollama: ProviderConfigToml,
-    #[serde(default)]
     pub huggingface: ProviderConfigToml,
     #[serde(default)]
     pub together: ProviderConfigToml,
@@ -196,9 +190,6 @@ impl ProvidersToml {
             ProviderKind::SiliconflowCN => &self.siliconflow_cn,
             ProviderKind::Arcee => &self.arcee,
             ProviderKind::Moonshot => &self.moonshot,
-            ProviderKind::Sglang => &self.sglang,
-            ProviderKind::Vllm => &self.vllm,
-            ProviderKind::Ollama => &self.ollama,
             ProviderKind::Huggingface => &self.huggingface,
             ProviderKind::Together => &self.together,
             ProviderKind::Qianfan => &self.qianfan,
@@ -229,9 +220,6 @@ impl ProvidersToml {
             ProviderKind::SiliconflowCN => &mut self.siliconflow_cn,
             ProviderKind::Arcee => &mut self.arcee,
             ProviderKind::Moonshot => &mut self.moonshot,
-            ProviderKind::Sglang => &mut self.sglang,
-            ProviderKind::Vllm => &mut self.vllm,
-            ProviderKind::Ollama => &mut self.ollama,
             ProviderKind::Huggingface => &mut self.huggingface,
             ProviderKind::Together => &mut self.together,
             ProviderKind::Qianfan => &mut self.qianfan,
@@ -1798,9 +1786,6 @@ impl ConfigToml {
                         DEFAULT_MOONSHOT_BASE_URL.to_string()
                     }
                 }
-                ProviderKind::Sglang => DEFAULT_SGLANG_BASE_URL.to_string(),
-                ProviderKind::Vllm => DEFAULT_VLLM_BASE_URL.to_string(),
-                ProviderKind::Ollama => DEFAULT_OLLAMA_BASE_URL.to_string(),
                 ProviderKind::Huggingface => DEFAULT_HUGGINGFACE_BASE_URL.to_string(),
                 ProviderKind::Together => DEFAULT_TOGETHER_BASE_URL.to_string(),
                 ProviderKind::Qianfan => DEFAULT_QIANFAN_BASE_URL.to_string(),
@@ -2061,7 +2046,6 @@ fn normalize_model_for_provider(provider: ProviderKind, model: &str) -> String {
             | ProviderKind::Stepfun
             | ProviderKind::Minimax
             | ProviderKind::Qianfan
-            | ProviderKind::Ollama
     ) {
         return model.to_string();
     }
@@ -2132,22 +2116,6 @@ fn normalize_model_for_provider(provider: ProviderKind, model: &str) -> String {
         (ProviderKind::Moonshot, "kimi-k2.6" | "kimi-k2-6" | "moonshot-kimi-k2.6") => {
             MOONSHOT_KIMI_K2_6_MODEL.to_string()
         }
-        (ProviderKind::Sglang, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_SGLANG_MODEL.to_string()
-        }
-        (
-            ProviderKind::Sglang,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_SGLANG_FLASH_MODEL.to_string(),
-        (ProviderKind::Vllm, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_VLLM_MODEL.to_string()
-        }
-        (
-            ProviderKind::Vllm,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_VLLM_FLASH_MODEL.to_string(),
         (ProviderKind::Huggingface, "deepseek-v4-pro" | "deepseek-v4pro") => {
             DEFAULT_HUGGINGFACE_MODEL.to_string()
         }
@@ -2372,9 +2340,6 @@ fn default_model_for_provider(provider: ProviderKind) -> &'static str {
         ProviderKind::Siliconflow | ProviderKind::SiliconflowCN => DEFAULT_SILICONFLOW_MODEL,
         ProviderKind::Arcee => DEFAULT_ARCEE_MODEL,
         ProviderKind::Moonshot => DEFAULT_MOONSHOT_MODEL,
-        ProviderKind::Sglang => DEFAULT_SGLANG_MODEL,
-        ProviderKind::Vllm => DEFAULT_VLLM_MODEL,
-        ProviderKind::Ollama => DEFAULT_OLLAMA_MODEL,
         ProviderKind::Huggingface => DEFAULT_HUGGINGFACE_MODEL,
         ProviderKind::Together => DEFAULT_TOGETHER_MODEL,
         ProviderKind::Qianfan => DEFAULT_QIANFAN_MODEL,
@@ -2406,9 +2371,6 @@ fn default_base_url_for_provider(provider: ProviderKind) -> &'static str {
         ProviderKind::SiliconflowCN => DEFAULT_SILICONFLOW_CN_BASE_URL,
         ProviderKind::Arcee => DEFAULT_ARCEE_BASE_URL,
         ProviderKind::Moonshot => DEFAULT_MOONSHOT_BASE_URL,
-        ProviderKind::Sglang => DEFAULT_SGLANG_BASE_URL,
-        ProviderKind::Vllm => DEFAULT_VLLM_BASE_URL,
-        ProviderKind::Ollama => DEFAULT_OLLAMA_BASE_URL,
         ProviderKind::Huggingface => DEFAULT_HUGGINGFACE_BASE_URL,
         ProviderKind::Together => DEFAULT_TOGETHER_BASE_URL,
         ProviderKind::Qianfan => DEFAULT_QIANFAN_BASE_URL,
@@ -2589,7 +2551,7 @@ fn provider_preserves_custom_base_url_model(provider: ProviderKind, base_url: &s
 }
 
 fn should_skip_secret_store_for_provider(
-    provider: ProviderKind,
+    _provider: ProviderKind,
     base_url: &str,
     auth_mode: Option<&str>,
 ) -> bool {
@@ -2600,10 +2562,7 @@ fn should_skip_secret_store_for_provider(
         return true;
     }
 
-    matches!(
-        provider,
-        ProviderKind::Sglang | ProviderKind::Vllm | ProviderKind::Ollama
-    ) || base_url_uses_local_host(base_url)
+    base_url_uses_local_host(base_url)
 }
 
 fn env_api_key_for_provider(provider: ProviderKind) -> Option<String> {
@@ -3857,9 +3816,6 @@ struct EnvRuntimeOverrides {
     siliconflow_model: Option<String>,
     arcee_base_url: Option<String>,
     moonshot_base_url: Option<String>,
-    sglang_base_url: Option<String>,
-    vllm_base_url: Option<String>,
-    ollama_base_url: Option<String>,
     huggingface_base_url: Option<String>,
     huggingface_model: Option<String>,
     together_base_url: Option<String>,
@@ -4016,15 +3972,6 @@ impl EnvRuntimeOverrides {
                 .or_else(|_| std::env::var("KIMI_BASE_URL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
-            sglang_base_url: std::env::var("SGLANG_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            vllm_base_url: std::env::var("VLLM_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            ollama_base_url: std::env::var("OLLAMA_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
             huggingface_base_url: std::env::var("HUGGINGFACE_BASE_URL")
                 .or_else(|_| std::env::var("HF_BASE_URL"))
                 .ok()
@@ -4141,9 +4088,6 @@ impl EnvRuntimeOverrides {
             }
             ProviderKind::Arcee => self.arcee_base_url.clone(),
             ProviderKind::Moonshot => self.moonshot_base_url.clone(),
-            ProviderKind::Sglang => self.sglang_base_url.clone(),
-            ProviderKind::Vllm => self.vllm_base_url.clone(),
-            ProviderKind::Ollama => self.ollama_base_url.clone(),
             ProviderKind::Huggingface => self.huggingface_base_url.clone(),
             ProviderKind::Together => self.together_base_url.clone(),
             ProviderKind::Qianfan => self.qianfan_base_url.clone(),

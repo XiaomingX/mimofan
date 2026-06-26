@@ -561,57 +561,6 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
-                provider: ProviderKind::Sglang,
-                aliases: vec![
-                    "deepseek-v4-pro".to_string(),
-                    "sglang-deepseek-v4-pro".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "deepseek-ai/DeepSeek-V4-Flash".to_string(),
-                provider: ProviderKind::Sglang,
-                aliases: vec![
-                    "deepseek-v4-flash".to_string(),
-                    "deepseek-chat".to_string(),
-                    "deepseek-reasoner".to_string(),
-                    "sglang-deepseek-v4-flash".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
-                provider: ProviderKind::Vllm,
-                aliases: vec![
-                    "deepseek-v4-pro".to_string(),
-                    "vllm-deepseek-v4-pro".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "deepseek-ai/DeepSeek-V4-Flash".to_string(),
-                provider: ProviderKind::Vllm,
-                aliases: vec![
-                    "deepseek-v4-flash".to_string(),
-                    "deepseek-chat".to_string(),
-                    "deepseek-reasoner".to_string(),
-                    "vllm-deepseek-v4-flash".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "deepseek-coder:1.3b".to_string(),
-                provider: ProviderKind::Ollama,
-                aliases: vec![],
-                supports_tools: true,
-                supports_reasoning: false,
-            },
-            ModelInfo {
-                id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
                 provider: ProviderKind::Huggingface,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
@@ -868,14 +817,12 @@ impl ModelRegistry {
     /// Resolves a user-requested model name to a concrete [`ModelInfo`].
     ///
     /// Resolution follows this priority order:
-    /// 1. If the provider is Ollama, the requested name is used as-is (to
-    ///    support arbitrary local model tags like `qwen2.5-coder:7b`).
-    /// 2. If a `provider_hint` is given, search for a model matching that
+    /// 1. If a `provider_hint` is given, search for a model matching that
     ///    provider whose id or alias matches the request (case-insensitive).
-    /// 3. Look up the alias map for a case-insensitive match.
-    /// 4. Fall back to the first model belonging to the hinted provider
+    /// 2. Look up the alias map for a case-insensitive match.
+    /// 3. Fall back to the first model belonging to the hinted provider
     ///    (or DeepSeek if no hint was given).
-    /// 5. As a last resort, fall back to the first model in the registry.
+    /// 4. As a last resort, fall back to the first model in the registry.
     #[must_use]
     pub fn resolve(
         &self,
@@ -886,20 +833,6 @@ impl ModelRegistry {
 
         if let Some(name) = requested {
             fallback_chain.push(format!("requested:{name}"));
-            if provider_hint == Some(ProviderKind::Ollama) {
-                return ModelResolution {
-                    requested: Some(name.to_string()),
-                    resolved: ModelInfo {
-                        id: name.trim().to_string(),
-                        provider: ProviderKind::Ollama,
-                        aliases: Vec::new(),
-                        supports_tools: true,
-                        supports_reasoning: false,
-                    },
-                    used_fallback: false,
-                    fallback_chain,
-                };
-            }
             if let Some(provider) = provider_hint
                 && let Some(model) = self
                     .models
@@ -1277,15 +1210,6 @@ mod tests {
     }
 
     #[test]
-    fn sglang_default_uses_canonical_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::Sglang));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::Sglang);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/DeepSeek-V4-Pro");
-    }
-
-    #[test]
     fn zai_direct_models_resolve_when_provider_hinted() {
         let registry = ModelRegistry::default();
 
@@ -1408,53 +1332,6 @@ mod tests {
 
         assert_eq!(resolved.resolved.provider, ProviderKind::Novita);
         assert_eq!(resolved.resolved.id, "deepseek/deepseek-v4-flash");
-    }
-
-    #[test]
-    fn deepseek_v4_flash_alias_resolves_to_sglang_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-flash"), Some(ProviderKind::Sglang));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::Sglang);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/DeepSeek-V4-Flash");
-    }
-
-    #[test]
-    fn vllm_default_uses_canonical_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::Vllm));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::Vllm);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/DeepSeek-V4-Pro");
-    }
-
-    #[test]
-    fn ollama_default_uses_small_local_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::Ollama));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::Ollama);
-        assert_eq!(resolved.resolved.id, "deepseek-coder:1.3b");
-        assert!(!resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn ollama_requested_model_tag_is_preserved() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("qwen2.5-coder:7b"), Some(ProviderKind::Ollama));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::Ollama);
-        assert_eq!(resolved.resolved.id, "qwen2.5-coder:7b");
-        assert!(!resolved.used_fallback);
-    }
-
-    #[test]
-    fn deepseek_v4_flash_alias_resolves_to_vllm_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-flash"), Some(ProviderKind::Vllm));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::Vllm);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/DeepSeek-V4-Flash");
     }
 
     #[test]

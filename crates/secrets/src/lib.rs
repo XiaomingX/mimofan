@@ -816,9 +816,6 @@ impl Secrets {
 /// | `siliconflow` / `siliconflow-cn` | `SILICONFLOW_API_KEY` |
 /// | `arcee` / `arcee-ai` | `ARCEE_API_KEY` |
 /// | `moonshot` / `kimi` | `MOONSHOT_API_KEY`, `KIMI_API_KEY` |
-/// | `sglang` | `SGLANG_API_KEY` |
-/// | `vllm` | `VLLM_API_KEY` |
-/// | `ollama` | `OLLAMA_API_KEY` |
 /// | `openai` | `OPENAI_API_KEY` |
 /// | `atlascloud` / `atlas` | `ATLASCLOUD_API_KEY` |
 /// | `volcengine` / `ark` | `VOLCENGINE_API_KEY`, `VOLCENGINE_ARK_API_KEY`, `ARK_API_KEY` |
@@ -846,9 +843,6 @@ pub fn env_for(name: &str) -> Option<String> {
         | "silicon-flow-cn" | "silicon_flow_cn" | "siliconflow-china" => &["SILICONFLOW_API_KEY"],
         "arcee" | "arcee-ai" | "arcee_ai" => &["ARCEE_API_KEY"],
         "moonshot" | "moonshot-ai" | "kimi" | "kimi-k2" => &["MOONSHOT_API_KEY", "KIMI_API_KEY"],
-        "sglang" | "sg-lang" => &["SGLANG_API_KEY"],
-        "vllm" | "v-llm" => &["VLLM_API_KEY"],
-        "ollama" | "ollama-local" => &["OLLAMA_API_KEY"],
         "openai" => &["OPENAI_API_KEY"],
         "anthropic" | "claude" => &["ANTHROPIC_API_KEY"],
         "atlascloud" | "atlas-cloud" | "atlas_cloud" | "atlas" => &["ATLASCLOUD_API_KEY"],
@@ -901,9 +895,6 @@ mod tests {
             "FIREWORKS_API_KEY",
             "SILICONFLOW_API_KEY",
             "ARCEE_API_KEY",
-            "SGLANG_API_KEY",
-            "VLLM_API_KEY",
-            "OLLAMA_API_KEY",
             "OPENAI_API_KEY",
             "ATLASCLOUD_API_KEY",
             "WANJIE_ARK_API_KEY",
@@ -1311,45 +1302,6 @@ mod tests {
         assert_eq!(env_for("kimi-k2").as_deref(), Some("kimi-key"));
         // Safety: env mutation guarded by env_lock().
         unsafe { std::env::remove_var("KIMI_API_KEY") };
-    }
-
-    #[test]
-    fn sglang_env_aliases_resolve() {
-        let _lock = env_lock();
-        clear_known_envs();
-        // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::set_var("SGLANG_API_KEY", "sglang-key") };
-
-        assert_eq!(env_for("sglang").as_deref(), Some("sglang-key"));
-        assert_eq!(env_for("sg-lang").as_deref(), Some("sglang-key"));
-        // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::remove_var("SGLANG_API_KEY") };
-    }
-
-    #[test]
-    fn vllm_env_aliases_resolve() {
-        let _lock = env_lock();
-        clear_known_envs();
-        // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::set_var("VLLM_API_KEY", "vllm-key") };
-
-        assert_eq!(env_for("vllm").as_deref(), Some("vllm-key"));
-        assert_eq!(env_for("v-llm").as_deref(), Some("vllm-key"));
-        // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::remove_var("VLLM_API_KEY") };
-    }
-
-    #[test]
-    fn ollama_env_aliases_resolve() {
-        let _lock = env_lock();
-        clear_known_envs();
-        // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::set_var("OLLAMA_API_KEY", "ollama-key") };
-
-        assert_eq!(env_for("ollama").as_deref(), Some("ollama-key"));
-        assert_eq!(env_for("ollama-local").as_deref(), Some("ollama-key"));
-        // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::remove_var("OLLAMA_API_KEY") };
     }
 
     #[cfg(unix)]

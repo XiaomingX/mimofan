@@ -428,6 +428,19 @@ command = "echo 'Running tool: $TOOL_NAME'"
 
 ---
 
+## 已知架构问题
+
+| 问题 | 严重程度 | 说明 |
+|------|----------|------|
+| `whaleflow` 完全孤立 | 低 | 无内部依赖也不被依赖，Starlark 工作流引擎未集成 |
+| `agent` 命名误导 | 中 | 实际只是 ModelRegistry，不是 Agent 系统核心 |
+| `agent.txt` 遗留文件 | 低 | 旧版 prompt，已被 constitution.md 替代 |
+| `tui` 绕过 `core` | 中 | TUI 走自己的集成路径，不使用 core 的 Runtime |
+
+详见 `ARCHITECTURE_REFORM.md` 的完整分析。
+
+---
+
 ## 架构改进记录
 
 基于 DDD 理论分析，已完成以下架构改进（详见 `ARCHITECTURE_REFORM.md`）：

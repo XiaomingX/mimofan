@@ -1166,22 +1166,6 @@ mod tests {
     }
 
     #[test]
-    fn balance_command_reports_unsupported_provider_clearly() {
-        let mut app = create_test_app();
-        app.api_provider = ApiProvider::Ollama;
-
-        let result = execute("/balance", &mut app);
-        let msg = result
-            .message
-            .expect("unsupported providers should return a clear message");
-
-        assert!(!result.is_error);
-        assert!(msg.contains("Ollama"));
-        assert!(msg.contains("not supported"));
-        assert!(msg.contains("dashboard"));
-    }
-
-    #[test]
     fn unknown_command_suggests_nearest_match() {
         let mut app = create_test_app();
         let result = execute("/modle", &mut app);

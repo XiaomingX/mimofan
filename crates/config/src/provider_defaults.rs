@@ -69,8 +69,6 @@ pub(crate) const MOONSHOT_KIMI_K2_6_MODEL: &str = "kimi-k2.6";
 pub(crate) const DEFAULT_MOONSHOT_BASE_URL: &str = "https://api.moonshot.ai/v1";
 pub(crate) const DEFAULT_KIMI_CODE_MODEL: &str = "kimi-for-coding";
 pub(crate) const DEFAULT_KIMI_CODE_BASE_URL: &str = "https://api.kimi.com/coding/v1";
-pub(crate) const DEFAULT_SGLANG_MODEL: &str = "deepseek-ai/DeepSeek-V4-Pro";
-pub(crate) const DEFAULT_SGLANG_FLASH_MODEL: &str = "deepseek-ai/DeepSeek-V4-Flash";
 pub(crate) const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub(crate) const XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL: &str = "https://api.xiaomimimo.com/v1";
 pub(crate) const DEFAULT_XIAOMI_MIMO_BASE_URL: &str = "https://token-plan-sgp.xiaomimimo.com/v1";
@@ -92,12 +90,6 @@ pub(crate) const DEFAULT_TOGETHER_FLASH_MODEL: &str = "deepseek-ai/DeepSeek-V4-F
 pub(crate) const DEFAULT_TOGETHER_BASE_URL: &str = "https://api.together.xyz/v1";
 pub(crate) const DEFAULT_QIANFAN_MODEL: &str = "ernie-4.0-turbo-8k";
 pub(crate) const DEFAULT_QIANFAN_BASE_URL: &str = "https://api.baiduqianfan.ai/v1";
-pub(crate) const DEFAULT_SGLANG_BASE_URL: &str = "http://localhost:30000/v1";
-pub(crate) const DEFAULT_VLLM_MODEL: &str = "deepseek-ai/DeepSeek-V4-Pro";
-pub(crate) const DEFAULT_VLLM_FLASH_MODEL: &str = "deepseek-ai/DeepSeek-V4-Flash";
-pub(crate) const DEFAULT_VLLM_BASE_URL: &str = "http://localhost:8000/v1";
-pub(crate) const DEFAULT_OLLAMA_MODEL: &str = "deepseek-coder:1.3b";
-pub(crate) const DEFAULT_OLLAMA_BASE_URL: &str = "http://localhost:11434/v1";
 
 // Z.ai (GLM Coding Plan) defaults
 pub(crate) const DEFAULT_ZAI_MODEL: &str = "GLM-5.2";

@@ -956,7 +956,7 @@ mod tests {
         // happens to have saved. Pin all three back to known values so
         // the picker tests below exercise the picker logic, not the
         // user's environment. In particular `api_provider` matters because
-        // pass-through providers (Ollama, OpenAI) hide the DeepSeek model
+        // pass-through providers (OpenAI, etc.) hide the DeepSeek model
         // rows and leave only `auto` + custom — Down has nowhere to go.
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
@@ -1408,22 +1408,6 @@ mod tests {
                 "{speech_model} should not appear in the chat model picker"
             );
         }
-    }
-
-    #[test]
-    fn picker_for_ollama_preserves_current_local_tag_without_hosted_static_rows() {
-        let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Ollama;
-        app.model_ids_passthrough = true;
-        app.model = "qwen2.5-coder:7b".to_string();
-        app.auto_model = false;
-
-        let view = ModelPickerView::new(&app);
-        let model_ids = view.visible_model_ids();
-
-        assert_eq!(model_ids, vec!["auto"]);
-        assert!(view.show_custom_model_row);
-        assert_eq!(view.resolved_model(), "qwen2.5-coder:7b");
     }
 
     #[test]

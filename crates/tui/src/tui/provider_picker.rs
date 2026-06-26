@@ -687,8 +687,6 @@ fn default_reasoning_stream_visibility(provider: ApiProvider) -> ProviderReasoni
         | ApiProvider::Volcengine
         | ApiProvider::Arcee
         | ApiProvider::Minimax
-        | ApiProvider::Sglang
-        | ApiProvider::Vllm
         | ApiProvider::Zai
         | ApiProvider::Moonshot => ProviderReasoningStreamVisibility::StructuredThinking,
         _ => ProviderReasoningStreamVisibility::Unknown,
@@ -700,16 +698,6 @@ fn auth_status_for(
     has_key: bool,
     configured: Option<&crate::config::ProviderConfig>,
 ) -> ProviderAuthStatus {
-    if matches!(provider, ApiProvider::Ollama) {
-        return ProviderAuthStatus::Local;
-    }
-    if matches!(provider, ApiProvider::Sglang | ApiProvider::Vllm) {
-        return if has_explicit_credential(provider, configured) {
-            ProviderAuthStatus::Configured
-        } else {
-            ProviderAuthStatus::Optional
-        };
-    }
     if provider == ApiProvider::Moonshot && configured.is_some_and(config_uses_kimi_oauth) {
         return if has_key {
             ProviderAuthStatus::OAuthReady
@@ -729,26 +717,6 @@ fn auth_status_for(
     } else {
         ProviderAuthStatus::Missing
     }
-}
-
-fn has_explicit_credential(
-    provider: ApiProvider,
-    configured: Option<&crate::config::ProviderConfig>,
-) -> bool {
-    provider
-        .env_vars()
-        .iter()
-        .any(|var| std::env::var(var).is_ok_and(|value| !value.trim().is_empty()))
-        || configured.is_some_and(|entry| {
-            entry
-                .api_key
-                .as_deref()
-                .is_some_and(|value| !value.trim().is_empty())
-                || entry
-                    .auth
-                    .as_ref()
-                    .is_some_and(|auth| auth.validate().is_ok())
-        })
 }
 
 fn config_uses_kimi_oauth(config: &crate::config::ProviderConfig) -> bool {
@@ -781,7 +749,6 @@ fn readiness_for(
 
 fn usage_meter_for(provider: ApiProvider) -> String {
     match provider {
-        ApiProvider::Ollama | ApiProvider::Sglang | ApiProvider::Vllm => "cost: local".to_string(),
         ApiProvider::OpenaiCodex => "usage: Codex OAuth quota".to_string(),
         ApiProvider::Moonshot if kimi_cli_credentials_present() => {
             "usage: Kimi OAuth quota".to_string()
@@ -1409,21 +1376,6 @@ mod tests {
     }
 
     #[test]
-    fn provider_dashboard_row_models_local_readiness_without_rendering() {
-        let config = Config::default();
-        let row =
-            ProviderDashboardRow::from_config(ApiProvider::Ollama, ApiProvider::Ollama, &config);
-
-        assert_eq!(row.provider_id, "ollama");
-        assert_eq!(row.auth_status, ProviderAuthStatus::Local);
-        assert_eq!(row.readiness, ProviderReadiness::LocalReady);
-        assert_eq!(row.supported_protocols, vec!["chat".to_string()]);
-        assert_eq!(row.usage_meter, "cost: local");
-        assert!(row.base_url.contains("localhost:11434"));
-        assert!(row.is_active);
-    }
-
-    #[test]
     fn openai_codex_row_is_experimental_and_tagged_in_hint() {
         let config = Config::default();
         let row = ProviderDashboardRow::from_config(
@@ -1613,40 +1565,6 @@ mod tests {
     }
 
     #[test]
-    fn self_hosted_provider_row_marks_self_hosted_in_hint() {
-        let config = Config::default();
-        let row =
-            ProviderDashboardRow::from_config(ApiProvider::Ollama, ApiProvider::Ollama, &config);
-        assert_eq!(row.auth_status, ProviderAuthStatus::Local);
-        assert!(
-            row.compact_hint().contains("(self-hosted)"),
-            "self-hosted hint missing: {}",
-            row.compact_hint()
-        );
-
-        let sglang =
-            ProviderDashboardRow::from_config(ApiProvider::Sglang, ApiProvider::Sglang, &config);
-        assert_eq!(sglang.auth_status, ProviderAuthStatus::Optional);
-        assert!(
-            sglang.compact_hint().contains("(self-hosted)"),
-            "self-hosted hint missing for SGLang: {}",
-            sglang.compact_hint()
-        );
-    }
-
-    #[test]
-    fn self_hosted_reasoning_visibility_covers_vllm() {
-        assert_eq!(
-            default_reasoning_stream_visibility(ApiProvider::Sglang),
-            ProviderReasoningStreamVisibility::StructuredThinking
-        );
-        assert_eq!(
-            default_reasoning_stream_visibility(ApiProvider::Vllm),
-            ProviderReasoningStreamVisibility::StructuredThinking
-        );
-    }
-
-    #[test]
     fn humanize_token_count_is_compact_and_marks_unknown() {
         assert_eq!(humanize_token_count(None), "?");
         assert_eq!(humanize_token_count(Some(1_000_000)), "1M");
@@ -1772,22 +1690,6 @@ mod tests {
         assert!(rendered.contains("chat"));
         assert!(rendered.contains("cost: unknown"));
         assert!(rendered.contains("localhost:9000/v1"));
-    }
-
-    #[test]
-    fn ollama_is_selectable_without_key() {
-        let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
-        move_to_provider(&mut picker, ApiProvider::Ollama);
-        assert_eq!(picker.selected_provider(), ApiProvider::Ollama);
-        assert!(picker.selected_has_key());
-        let action = picker.handle_key(key(KeyCode::Enter));
-        match action {
-            ViewAction::EmitAndClose(ViewEvent::ProviderPickerApplied { provider }) => {
-                assert_eq!(provider, ApiProvider::Ollama);
-            }
-            other => panic!("expected ProviderPickerApplied, got {other:?}"),
-        }
     }
 
     #[test]
@@ -1989,22 +1891,22 @@ mod tests {
     fn small_list_render_keeps_selected_provider_visible_after_down_navigation() {
         let config = Config::default();
         let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
-        move_to_provider(&mut picker, ApiProvider::Ollama);
+        move_to_provider(&mut picker, ApiProvider::Zai);
 
         let rendered = render_text(&picker, 80, 12);
 
-        assert!(rendered.contains("Ollama"));
+        assert!(rendered.contains("Z.ai"));
         assert!(!rendered.contains("DeepSeek *"));
     }
 
     #[test]
     fn small_list_render_keeps_initial_active_provider_visible() {
         let config = Config::default();
-        let picker = ProviderPickerView::new(ApiProvider::Ollama, &config);
+        let picker = ProviderPickerView::new(ApiProvider::Zai, &config);
 
         let rendered = render_text(&picker, 80, 12);
 
-        assert!(rendered.contains("Ollama *"));
+        assert!(rendered.contains("Z.ai *"));
     }
 
     #[test]
@@ -2015,7 +1917,7 @@ mod tests {
         let rendered = render_text(&picker, 80, 23);
 
         assert!(rendered.contains("DeepSeek *"));
-        assert!(rendered.contains("Ollama"));
+        assert!(rendered.contains("Z.ai"));
     }
 
     #[test]

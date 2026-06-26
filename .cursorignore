@@ -1,0 +1,82 @@
+# ============================================
+# CodeWhale .cursorignore
+# Excludes files that AI agents don't need to read
+# ============================================
+
+# Build artifacts (~6.1G)
+target/
+
+# Frontend / non-Rust code
+web/
+npm/
+extensions/
+integrations/
+
+# Lock files (7000+ lines, wasteful tokens)
+Cargo.lock
+package-lock.json
+web/package-lock.json
+extensions/vscode/package-lock.json
+integrations/*/package-lock.json
+flake.lock
+
+# Large generated files
+crates/tui/assets/model_catalog.bundled.json
+crates/config/assets/models_dev.bundled.json
+
+# Changelogs (historical records, don't affect code understanding)
+CHANGELOG.md
+docs/CHANGELOG_ARCHIVE.md
+crates/tui/CHANGELOG.md
+
+# Non-core documentation
+docs/rfcs/
+docs/evidence/
+docs/skills/
+benchmark_results/
+ARCHITECTURE_REFORM.md
+HIGHLIGHTS.md
+USERGUIDE.md
+SECURITY.md
+docs/RELEASE_CHECKLIST.md
+docs/RELEASE_RUNBOOK.md
+docs/OPERATIONS_RUNBOOK.md
+docs/V0_8_61_EXECUTION.md
+docs/V0865_RELEASE_LEDGER.md
+docs/V0865_REMAINING_AGENT_PROMPT.md
+
+# Nix configuration
+flake.nix
+nix/
+
+# Deployment configuration
+deploy/
+Dockerfile
+.devcontainer/
+
+# GitHub templates/workflows (agents don't need these)
+.github/workflows/
+.github/ISSUE_TEMPLATE/
+.github/PULL_REQUEST_TEMPLATE.md
+.github/APPROVED_CONTRIBUTORS
+.github/AUTHOR_MAP
+.github/CODEOWNERS
+.github/dependabot.yml
+.github/FUNDING.yml
+
+# Temporary/generated files
+*.sh
+*.cmd
+!scripts/**
+result.json
+count_deps.py
+project_overhaul_prompt.md
+
+# ============================================
+# KEPT (not excluded):
+# - crates/ (Rust source code)
+# - scripts/ (useful scripts)
+# - docs/ core docs (ARCHITECTURE.md, CONFIGURATION.md, PROVIDERS.md)
+# - assets/ directories
+# - config.example.toml
+# ============================================

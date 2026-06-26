@@ -576,9 +576,9 @@ fn resolver_empty_saved_provider_model_is_empty_model_error() {
 fn resolver_passthrough_provider_preserves_custom_id_verbatim() {
     let r = RouteResolver::new();
     let out = r
-        .resolve(&req(Some(ProviderKind::Ollama), Some("my-local:7b")))
+        .resolve(&req(Some(ProviderKind::Openai), Some("my-local:7b")))
         .expect("local passthrough should resolve");
-    assert_eq!(out.provider_kind, ProviderKind::Ollama);
+    assert_eq!(out.provider_kind, ProviderKind::Openai);
     assert_eq!(out.wire_model_id.as_str(), "my-local:7b");
     assert_eq!(out.limits, Default::default());
     assert!(out.validation.ok);
@@ -596,7 +596,7 @@ fn resolved_candidate_serializes_secret_free() {
             Some("deepseek-ai/DeepSeek-V4-Pro"),
         ))
         .expect("aggregator resolves"),
-        r.resolve(&req(Some(ProviderKind::Ollama), Some("my-local:7b")))
+        r.resolve(&req(Some(ProviderKind::Openai), Some("my-local:7b")))
             .expect("local resolves"),
     ];
     for out in candidates {
@@ -713,7 +713,7 @@ fn unpriced_offering_stays_unknown() {
 
     // A pass-through route with no matched offering is likewise unknown.
     let passthrough = r
-        .resolve(&req(Some(ProviderKind::Ollama), Some("my-local:7b")))
+        .resolve(&req(Some(ProviderKind::Openai), Some("my-local:7b")))
         .expect("local passthrough should resolve");
     assert!(matches!(
         passthrough.pricing,
@@ -771,7 +771,7 @@ fn loopback_http_endpoint_does_not_warn() {
         "http://[::1]:8080/v1",
     ] {
         let out = r
-            .resolve(&req_with_base(ProviderKind::Ollama, "my-local:7b", base))
+            .resolve(&req_with_base(ProviderKind::Openai, "my-local:7b", base))
             .unwrap_or_else(|e| panic!("loopback route {base} should resolve: {e}"));
         assert!(out.validation.ok);
         assert!(

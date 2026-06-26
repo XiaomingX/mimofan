@@ -47,9 +47,6 @@ enum ProviderArg {
     SiliconflowCn,
     Arcee,
     Moonshot,
-    Sglang,
-    Vllm,
-    Ollama,
     Huggingface,
     Together,
     OpenaiCodex,
@@ -78,9 +75,6 @@ impl From<ProviderArg> for ProviderKind {
             ProviderArg::SiliconflowCn => ProviderKind::SiliconflowCN,
             ProviderArg::Arcee => ProviderKind::Arcee,
             ProviderArg::Moonshot => ProviderKind::Moonshot,
-            ProviderArg::Sglang => ProviderKind::Sglang,
-            ProviderArg::Vllm => ProviderKind::Vllm,
-            ProviderArg::Ollama => ProviderKind::Ollama,
             ProviderArg::Huggingface => ProviderKind::Huggingface,
             ProviderArg::Together => ProviderKind::Together,
             ProviderArg::OpenaiCodex => ProviderKind::OpenaiCodex,
@@ -1246,18 +1240,6 @@ fn run_auth_command_with_secrets(
         } => {
             let provider: ProviderKind = provider.into();
             let slot = provider_slot(provider);
-            if provider == ProviderKind::Ollama && api_key.is_none() && !api_key_stdin {
-                let provider_cfg = store.config.providers.for_provider_mut(provider);
-                if provider_cfg.base_url.is_none() {
-                    provider_cfg.base_url = Some("http://localhost:11434/v1".to_string());
-                }
-                store.save()?;
-                println!(
-                    "configured {slot} provider in {} (API key optional)",
-                    store.path().display()
-                );
-                return Ok(());
-            }
             let api_key = match (api_key, api_key_stdin) {
                 (Some(v), _) => v,
                 (None, true) => read_api_key_from_stdin()?,
@@ -3081,38 +3063,6 @@ mod tests {
             }))
         ));
 
-        let cli = parse_ok(&["deepseek", "auth", "get", "--provider", "sglang"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Auth(AuthArgs {
-                command: AuthCommand::Get {
-                    provider: ProviderArg::Sglang
-                }
-            }))
-        ));
-
-        let cli = parse_ok(&["deepseek", "auth", "get", "--provider", "vllm"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Auth(AuthArgs {
-                command: AuthCommand::Get {
-                    provider: ProviderArg::Vllm
-                }
-            }))
-        ));
-
-        let cli = parse_ok(&["deepseek", "auth", "set", "--provider", "ollama"]);
-        assert!(matches!(
-            cli.command,
-            Some(Commands::Auth(AuthArgs {
-                command: AuthCommand::Set {
-                    provider: ProviderArg::Ollama,
-                    api_key: None,
-                    api_key_stdin: false,
-                }
-            }))
-        ));
-
         let cli = parse_ok(&["deepseek", "auth", "status", "--provider", "openai-codex"]);
         assert!(matches!(
             cli.command,
@@ -3253,38 +3203,6 @@ mod tests {
             reloaded.config.providers.arcee.api_key.as_deref(),
             Some("arcee-key")
         );
-
-        let _ = std::fs::remove_file(path);
-    }
-
-    #[test]
-    fn auth_set_ollama_accepts_empty_key_and_records_base_url() {
-        let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
-        let path = std::env::temp_dir().join(format!(
-            "deepseek-cli-auth-ollama-test-{}-{nanos}.toml",
-            std::process::id()
-        ));
-        let mut store = ConfigStore::load(Some(path.clone())).expect("store should load");
-        store.config.provider = ProviderKind::Deepseek;
-        let secrets = no_keyring_secrets();
-
-        run_auth_command_with_secrets(
-            &mut store,
-            AuthCommand::Set {
-                provider: ProviderArg::Ollama,
-                api_key: None,
-                api_key_stdin: false,
-            },
-            &secrets,
-        )
-        .expect("ollama auth set should not require a key");
-
-        assert_eq!(store.config.provider, ProviderKind::Deepseek);
-        assert_eq!(
-            store.config.providers.ollama.base_url.as_deref(),
-            Some("http://localhost:11434/v1")
-        );
-        assert_eq!(store.config.providers.ollama.api_key, None);
 
         let _ = std::fs::remove_file(path);
     }
@@ -3455,7 +3373,6 @@ mod tests {
         assert!(output.contains("arcee"));
         assert!(output.contains("openrouter"));
         assert!(output.contains("huggingface"));
-        assert!(output.contains("ollama"));
 
         // Active provider should be marked
         assert!(output.contains("deepseek") && output.contains("*"));

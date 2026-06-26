@@ -138,7 +138,7 @@ fn install_rustls_crypto_provider() {
     author,
     version = env!("DEEPSEEK_BUILD_VERSION"),
     about = "CodeWhale terminal coding agent",
-    long_about = "Terminal-native TUI and CLI for open-source and open-weight coding models.\n\nRun 'codewhale' to start.\n\nProvider routes include DeepSeek, Arcee, Hugging Face, OpenRouter, Xiaomi MiMo, local vLLM/SGLang/Ollama, and more."
+    long_about = "Terminal-native TUI and CLI for open-source and open-weight coding models.\n\nRun 'codewhale' to start.\n\nProvider routes include DeepSeek, Arcee, Hugging Face, OpenRouter, Xiaomi MiMo, and more."
 )]
 struct Cli {
     /// Subcommand to run
@@ -2647,16 +2647,6 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
             ApiKeySource::Keyring => "OS keyring",
             ApiKeySource::Secret => "configured secret source",
             ApiKeySource::Env => "environment",
-            ApiKeySource::Missing
-                if matches!(
-                    config.api_provider(),
-                    crate::config::ApiProvider::Sglang
-                        | crate::config::ApiProvider::Vllm
-                        | crate::config::ApiProvider::Ollama
-                ) =>
-            {
-                "optional local auth"
-            }
             ApiKeySource::Missing => "unknown source",
         };
         println!(
@@ -3706,14 +3696,6 @@ fn doctor_auth_scheme(config: &Config) -> &'static str {
                 .is_some_and(|key| key.trim_start().starts_with("tp-")))
     {
         "api-key"
-    } else if matches!(
-        provider,
-        crate::config::ApiProvider::Sglang
-            | crate::config::ApiProvider::Vllm
-            | crate::config::ApiProvider::Ollama
-    ) && config.deepseek_api_key().is_err()
-    {
-        "none"
     } else {
         "bearer"
     }
@@ -6174,7 +6156,7 @@ async fn resolve_cli_auto_route(
         // When --model is not `auto`, fall back to the reasoning_effort
         // declared in the user's config.toml. The previous hard-coded `None`
         // silently dropped the user's setting on every non-auto-route exec
-        // call, which (for example) prevented vllm + Qwen3 users from
+        // call, which (for example) prevented custom-endpoint users from
         // disabling thinking via `reasoning_effort = "off"` and caused
         // 30+ second SSE idle timeouts on trivial prompts.
         Ok(CliAutoRoute {
@@ -7073,7 +7055,7 @@ mod doctor_endpoint_tests {
     #[test]
     fn strict_tool_mode_doctor_marks_custom_endpoint_as_forwarded() {
         let config = Config {
-            provider: Some("vllm".to_string()),
+            provider: Some("custom".to_string()),
             strict_tool_mode: Some(true),
             ..Default::default()
         };
@@ -7311,7 +7293,7 @@ mod doctor_endpoint_tests {
     #[test]
     fn timeout_recovery_for_custom_provider_checks_openai_compatibility() {
         let config = Config {
-            provider: Some("vllm".to_string()),
+            provider: Some("custom".to_string()),
             ..Default::default()
         };
 

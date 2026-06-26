@@ -3645,8 +3645,6 @@ fn stub_client_for_provider(provider: &str) -> DeepSeekClient {
                 ..Default::default()
             };
         }
-        // Ollama is keyless (local runtime); extend per-provider as needed.
-        "ollama" => {}
         other => panic!("extend stub_client_for_provider for provider {other}"),
     }
     let config = crate::config::Config {
@@ -4310,32 +4308,6 @@ fn model_catalog_only_advertises_canonical_subagent_tools() {
 
 // ── #3018: provider-aware auto routing and model validation ─────────────────
 
-#[tokio::test]
-async fn faster_route_on_provider_without_known_sibling_stays_on_parent_model() {
-    // AC: Ollama must never build a request with a DeepSeek id; even when the
-    // model explicitly asks for a faster child, an unknown family stays on the
-    // parent model.
-    let mut runtime = stub_runtime_for_provider("ollama").with_auto_model(true);
-    runtime.model = "qwen3:32b".to_string();
-
-    for prompt in ["hi", "please refactor the whole auth module for security"] {
-        let route = resolve_subagent_assignment_route(
-            &runtime,
-            None,
-            prompt,
-            &SubAgentType::General,
-            ModelRoute::Faster,
-            SubAgentThinking::Inherit,
-        )
-        .await;
-        assert_eq!(route.model, "qwen3:32b", "prompt {prompt:?}");
-        assert!(
-            !route.model.contains("deepseek"),
-            "no DeepSeek id may be fabricated: {route:?}"
-        );
-    }
-}
-
 #[test]
 fn faster_route_uses_known_deepseek_and_glm_family_siblings() {
     let mut deepseek = stub_runtime();
@@ -4461,15 +4433,6 @@ fn normalize_requested_subagent_model_is_provider_aware() {
         )
         .expect("Moonshot accepts its own ids"),
         "kimi-k2.5"
-    );
-    assert_eq!(
-        normalize_requested_subagent_model(
-            "qwen3:32b",
-            "model",
-            crate::config::ApiProvider::Ollama
-        )
-        .expect("Ollama tags pass through"),
-        "qwen3:32b"
     );
     assert!(
         normalize_requested_subagent_model(

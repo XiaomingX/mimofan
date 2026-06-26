@@ -19,7 +19,6 @@ pub(crate) enum ModelAuthSource {
     Env,
     OAuthCli,
     Secret,
-    KeylessLocal,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -82,12 +81,6 @@ impl ModelInventory {
                 }
                 if capability.thinking_supported {
                     tags.push("thinking");
-                }
-                if matches!(
-                    provider,
-                    ApiProvider::Ollama | ApiProvider::Sglang | ApiProvider::Vllm
-                ) {
-                    tags.push("local");
                 }
                 if model.eq_ignore_ascii_case(&default_model) {
                     tags.push("default");
@@ -180,21 +173,12 @@ fn provider_default_model(config: &Config, provider: ApiProvider) -> String {
         .first()
         .copied()
         .unwrap_or(match provider {
-            ApiProvider::Ollama => crate::config::DEFAULT_OLLAMA_MODEL,
-            ApiProvider::Sglang => crate::config::DEFAULT_SGLANG_MODEL,
-            ApiProvider::Vllm => crate::config::DEFAULT_VLLM_MODEL,
             _ => crate::config::DEFAULT_TEXT_MODEL,
         })
         .to_string()
 }
 
 fn auth_source_for_provider(config: &Config, provider: ApiProvider) -> Option<ModelAuthSource> {
-    if matches!(
-        provider,
-        ApiProvider::Ollama | ApiProvider::Sglang | ApiProvider::Vllm
-    ) {
-        return Some(ModelAuthSource::KeylessLocal);
-    }
     if env_has_key_for(provider) {
         return Some(ModelAuthSource::Env);
     }
@@ -277,22 +261,6 @@ mod tests {
     }
 
     #[test]
-    fn inventory_marks_local_providers_keyless() {
-        let _env_lock = crate::test_support::lock_test_env();
-        let _deepseek = crate::test_support::EnvVarGuard::remove("DEEPSEEK_API_KEY");
-        let config = Config::default();
-
-        let inventory = ModelInventory::from_config(&config);
-
-        assert!(
-            inventory
-                .candidates
-                .iter()
-                .any(|candidate| candidate.provider == ApiProvider::Ollama
-                    && candidate.auth_source == ModelAuthSource::KeylessLocal)
-        );
-    }
-
     #[test]
     fn inventory_reports_command_auth_without_secret_value() {
         let _env_lock = crate::test_support::lock_test_env();

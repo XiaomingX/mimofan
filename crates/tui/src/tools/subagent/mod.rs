@@ -5471,7 +5471,6 @@ fn provider_name_for_error(provider: crate::config::ApiProvider) -> &'static str
         crate::config::ApiProvider::Deepseek | crate::config::ApiProvider::DeepseekCN => "DeepSeek",
         crate::config::ApiProvider::Openai | crate::config::ApiProvider::OpenaiCodex => "OpenAI",
         crate::config::ApiProvider::Moonshot => "Moonshot",
-        crate::config::ApiProvider::Ollama => "Ollama",
         _ => "this provider",
     }
 }

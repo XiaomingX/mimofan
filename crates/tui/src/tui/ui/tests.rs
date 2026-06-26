@@ -2578,7 +2578,7 @@ async fn mode_change_update_notifies_engine() {
 fn saved_default_provider_syncs_back_to_runtime_config() {
     let _home = SettingsHomeGuard::new();
     let settings = crate::settings::Settings {
-        default_provider: Some("ollama".to_string()),
+        default_provider: Some("deepseek".to_string()),
         ..Default::default()
     };
     settings.save().expect("save settings");
@@ -2587,25 +2587,25 @@ fn saved_default_provider_syncs_back_to_runtime_config() {
     assert_eq!(config.api_provider(), ApiProvider::Deepseek);
 
     let app = App::new(create_test_options(), &config);
-    assert_eq!(app.api_provider, ApiProvider::Ollama);
+    assert_eq!(app.api_provider, ApiProvider::Deepseek);
 
     sync_config_provider_from_app(&mut config, &app);
 
-    assert_eq!(config.api_provider(), ApiProvider::Ollama);
+    assert_eq!(config.api_provider(), ApiProvider::Deepseek);
 }
 
 #[test]
 fn provider_picker_reselecting_active_provider_preserves_current_model() {
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Ollama;
+    app.api_provider = ApiProvider::Deepseek;
     app.model = "deepseek-coder-v2:16b".to_string();
 
     assert_eq!(
-        provider_picker_model_override(&app, ApiProvider::Ollama).as_deref(),
+        provider_picker_model_override(&app, ApiProvider::Deepseek).as_deref(),
         Some("deepseek-coder-v2:16b")
     );
     assert_eq!(
-        provider_picker_model_override(&app, ApiProvider::Deepseek),
+        provider_picker_model_override(&app, ApiProvider::Openrouter),
         None
     );
 }
@@ -2615,7 +2615,7 @@ async fn provider_switch_clears_turn_cache_history() {
     // `switch_provider` persists the new provider to `Settings`, which
     // writes through settings path resolution. Without redirecting the
     // CodeWhale/legacy config homes we would clobber the developer's real
-    // preferences and leave `default_provider = "ollama"` behind.
+    // preferences and leave `default_provider` behind.
     let _home = SettingsHomeGuard::new();
 
     let mut app = create_test_app();
@@ -2634,12 +2634,12 @@ async fn provider_switch_clears_turn_cache_history() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Ollama,
+        ApiProvider::Openrouter,
         None,
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Ollama);
+    assert_eq!(app.api_provider, ApiProvider::Openrouter);
     assert!(app.session.turn_cache_history.is_empty());
 }
 

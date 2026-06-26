@@ -53,9 +53,6 @@ pub enum ProviderKind {
     #[serde(alias = "siliconflow-cn", alias = "siliconflow-CN")]
     SiliconflowCN,
     Moonshot,
-    Sglang,
-    Vllm,
-    Ollama,
     #[serde(alias = "hugging-face", alias = "hugging_face", alias = "hf")]
     Huggingface,
     #[serde(alias = "together-ai", alias = "together_ai")]
@@ -107,7 +104,7 @@ pub enum ProviderKind {
 }
 
 impl ProviderKind {
-    pub const ALL: [Self; 28] = [
+    pub const ALL: [Self; 25] = [
         Self::Deepseek,
         Self::DeepseekAnthropic,
         Self::NvidiaNim,
@@ -123,9 +120,6 @@ impl ProviderKind {
         Self::Arcee,
         Self::SiliconflowCN,
         Self::Moonshot,
-        Self::Sglang,
-        Self::Vllm,
-        Self::Ollama,
         Self::Huggingface,
         Self::Together,
         Self::Qianfan,

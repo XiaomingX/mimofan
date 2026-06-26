@@ -1550,7 +1550,6 @@ pub(super) fn apply_reasoning_effort(
             | ApiProvider::Novita
             | ApiProvider::Siliconflow
             | ApiProvider::SiliconflowCn
-            | ApiProvider::Sglang
             | ApiProvider::Volcengine
             | ApiProvider::Deepinfra
             | ApiProvider::Together
@@ -1562,20 +1561,6 @@ pub(super) fn apply_reasoning_effort(
                 // OpenAI Codex uses Responses API — thinking handled differently
             }
             ApiProvider::Fireworks => {}
-            // vLLM is an OpenAI-protocol server, not an Anthropic-protocol one.
-            // For Qwen3 / DeepSeek-R1 / other reasoning models hosted via vLLM,
-            // the canonical OpenAI extension to disable thinking is
-            // `chat_template_kwargs.enable_thinking`. The old
-            // `thinking: {type: disabled}` field is Anthropic-native and
-            // silently ignored by vLLM — the model still emits a full
-            // reasoning trace into the `reasoning` field (which this client
-            // doesn't surface), causing 10+ seconds of perceived "freeze"
-            // before the first content token (PR #1480 by @h3c-hexin).
-            ApiProvider::Vllm => {
-                body["chat_template_kwargs"] = json!({
-                    "enable_thinking": false,
-                });
-            }
             ApiProvider::Openai
             | ApiProvider::WanjieArk
             | ApiProvider::Qianfan
@@ -1585,10 +1570,6 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::Moonshot => {
                 // #3024: Kimi models accept thinking enable/disable.
                 body["thinking"] = json!({ "type": "disabled" });
-            }
-            ApiProvider::Ollama => {
-                // #3024: Ollama OpenAI-compat endpoint accepts think param.
-                body["think"] = json!(false);
             }
             ApiProvider::Anthropic | ApiProvider::DeepseekAnthropic => {
                 // #3014: thinking/effort shaping happens natively inside
@@ -1611,7 +1592,6 @@ pub(super) fn apply_reasoning_effort(
             | ApiProvider::DeepseekCN
             | ApiProvider::Siliconflow
             | ApiProvider::SiliconflowCn
-            | ApiProvider::Sglang
             | ApiProvider::Volcengine
             | ApiProvider::Deepinfra
             | ApiProvider::Atlascloud => {
@@ -1645,19 +1625,6 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::Fireworks => {
                 body["reasoning_effort"] = json!("high");
             }
-            ApiProvider::Vllm => {
-                body["chat_template_kwargs"] = json!({
-                    "enable_thinking": true,
-                });
-                // vLLM supports low/medium/high natively — pass through the
-                // user-chosen value instead of hard-coding "high".
-                let value = match normalized.as_str() {
-                    "low" | "minimal" => "low",
-                    "medium" | "mid" => "medium",
-                    _ => "high",
-                };
-                body["reasoning_effort"] = json!(value);
-            }
             ApiProvider::Openai
             | ApiProvider::WanjieArk
             | ApiProvider::Qianfan
@@ -1666,10 +1633,6 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::Moonshot => {
                 // #3024: Kimi models accept thinking enable.
                 body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::Ollama => {
-                // #3024: Ollama think param.
-                body["think"] = json!(true);
             }
             ApiProvider::Anthropic | ApiProvider::DeepseekAnthropic => {
                 // #3014: thinking/effort shaping happens natively inside
@@ -1698,7 +1661,6 @@ pub(super) fn apply_reasoning_effort(
             | ApiProvider::DeepseekCN
             | ApiProvider::Siliconflow
             | ApiProvider::SiliconflowCn
-            | ApiProvider::Sglang
             | ApiProvider::Volcengine
             | ApiProvider::Deepinfra
             | ApiProvider::Atlascloud => {
@@ -1718,14 +1680,6 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::Fireworks => {
                 body["reasoning_effort"] = json!("max");
             }
-            ApiProvider::Vllm => {
-                body["chat_template_kwargs"] = json!({
-                    "enable_thinking": true,
-                });
-                // vLLM only supports none/low/medium/high — downgrade
-                // "max" to "high" instead of sending an invalid value.
-                body["reasoning_effort"] = json!("high");
-            }
             ApiProvider::Openai
             | ApiProvider::WanjieArk
             | ApiProvider::Qianfan
@@ -1734,10 +1688,6 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::Moonshot => {
                 // #3024: Kimi models accept thinking enable.
                 body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::Ollama => {
-                // #3024: Ollama think param.
-                body["think"] = json!(true);
             }
             ApiProvider::Anthropic | ApiProvider::DeepseekAnthropic => {
                 // #3014: thinking/effort shaping happens natively inside
@@ -3247,17 +3197,6 @@ mod tests {
     }
 
     #[test]
-    fn reasoning_effort_ollama_toggles_think_flag() {
-        let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::Ollama);
-        assert_eq!(body, json!({ "think": true }));
-
-        let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::Ollama);
-        assert_eq!(body, json!({ "think": false }));
-    }
-
-    #[test]
     fn reasoning_effort_uses_nvidia_nim_chat_template_kwargs() {
         let mut body = json!({});
         apply_reasoning_effort(&mut body, Some("max"), ApiProvider::NvidiaNim);
@@ -4019,7 +3958,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_models_response_accepts_ollama_tag_ids() {
+    fn parse_models_response_accepts_colon_tag_ids() {
         let payload = r#"{
             "object": "list",
             "data": [

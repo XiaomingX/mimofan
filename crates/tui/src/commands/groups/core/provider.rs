@@ -170,7 +170,7 @@ fn expand_model_alias_for_provider(provider: ApiProvider, name: &str) -> String 
         "pro" | "v4-pro" => "deepseek-v4-pro".to_string(),
         "flash" | "v4-flash" => "deepseek-v4-flash".to_string(),
         // Not a shorthand: keep the id as typed (case preserved for opaque
-        // model tags on passthrough providers like Ollama/HuggingFace).
+        // model tags on passthrough providers like HuggingFace).
         _ => trimmed.to_string(),
     }
 }
@@ -451,45 +451,6 @@ mod tests {
             Some(AppAction::SwitchProvider { provider, model }) => {
                 assert_eq!(provider, ApiProvider::Together);
                 assert_eq!(model.as_deref(), Some("deepseek-v4-flash"));
-            }
-            other => panic!("expected SwitchProvider, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn switch_to_sglang_flash_emits_action() {
-        let mut app = create_test_app();
-        let result = provider(&mut app, Some("sglang flash"));
-        match result.action {
-            Some(AppAction::SwitchProvider { provider, model }) => {
-                assert_eq!(provider, ApiProvider::Sglang);
-                assert_eq!(model.as_deref(), Some("deepseek-v4-flash"));
-            }
-            other => panic!("expected SwitchProvider, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn switch_to_vllm_flash_emits_action() {
-        let mut app = create_test_app();
-        let result = provider(&mut app, Some("vllm flash"));
-        match result.action {
-            Some(AppAction::SwitchProvider { provider, model }) => {
-                assert_eq!(provider, ApiProvider::Vllm);
-                assert_eq!(model.as_deref(), Some("deepseek-v4-flash"));
-            }
-            other => panic!("expected SwitchProvider, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn switch_to_ollama_preserves_model_tag() {
-        let mut app = create_test_app();
-        let result = provider(&mut app, Some("ollama qwen2.5-coder:7b"));
-        match result.action {
-            Some(AppAction::SwitchProvider { provider, model }) => {
-                assert_eq!(provider, ApiProvider::Ollama);
-                assert_eq!(model.as_deref(), Some("qwen2.5-coder:7b"));
             }
             other => panic!("expected SwitchProvider, got {other:?}"),
         }

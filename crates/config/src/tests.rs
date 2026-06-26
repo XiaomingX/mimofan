@@ -618,12 +618,6 @@ struct EnvGuard {
     minimax_api_key: Option<OsString>,
     minimax_base_url: Option<OsString>,
     minimax_model: Option<OsString>,
-    sglang_api_key: Option<OsString>,
-    sglang_base_url: Option<OsString>,
-    vllm_api_key: Option<OsString>,
-    vllm_base_url: Option<OsString>,
-    ollama_api_key: Option<OsString>,
-    ollama_base_url: Option<OsString>,
     huggingface_api_key: Option<OsString>,
     huggingface_token: Option<OsString>,
     huggingface_base_url: Option<OsString>,
@@ -725,12 +719,6 @@ impl EnvGuard {
             minimax_api_key: env::var_os("MINIMAX_API_KEY"),
             minimax_base_url: env::var_os("MINIMAX_BASE_URL"),
             minimax_model: env::var_os("MINIMAX_MODEL"),
-            sglang_api_key: env::var_os("SGLANG_API_KEY"),
-            sglang_base_url: env::var_os("SGLANG_BASE_URL"),
-            vllm_api_key: env::var_os("VLLM_API_KEY"),
-            vllm_base_url: env::var_os("VLLM_BASE_URL"),
-            ollama_api_key: env::var_os("OLLAMA_API_KEY"),
-            ollama_base_url: env::var_os("OLLAMA_BASE_URL"),
             huggingface_api_key: env::var_os("HUGGINGFACE_API_KEY"),
             huggingface_token: env::var_os("HF_TOKEN"),
             huggingface_base_url: env::var_os("HUGGINGFACE_BASE_URL"),
@@ -827,12 +815,6 @@ impl EnvGuard {
             env::remove_var("MINIMAX_API_KEY");
             env::remove_var("MINIMAX_BASE_URL");
             env::remove_var("MINIMAX_MODEL");
-            env::remove_var("SGLANG_API_KEY");
-            env::remove_var("SGLANG_BASE_URL");
-            env::remove_var("VLLM_API_KEY");
-            env::remove_var("VLLM_BASE_URL");
-            env::remove_var("OLLAMA_API_KEY");
-            env::remove_var("OLLAMA_BASE_URL");
             env::remove_var("HUGGINGFACE_API_KEY");
             env::remove_var("HF_TOKEN");
             env::remove_var("HUGGINGFACE_BASE_URL");
@@ -961,12 +943,6 @@ impl Drop for EnvGuard {
             Self::restore_var("MINIMAX_API_KEY", self.minimax_api_key.take());
             Self::restore_var("MINIMAX_BASE_URL", self.minimax_base_url.take());
             Self::restore_var("MINIMAX_MODEL", self.minimax_model.take());
-            Self::restore_var("SGLANG_API_KEY", self.sglang_api_key.take());
-            Self::restore_var("SGLANG_BASE_URL", self.sglang_base_url.take());
-            Self::restore_var("VLLM_API_KEY", self.vllm_api_key.take());
-            Self::restore_var("VLLM_BASE_URL", self.vllm_base_url.take());
-            Self::restore_var("OLLAMA_API_KEY", self.ollama_api_key.take());
-            Self::restore_var("OLLAMA_BASE_URL", self.ollama_base_url.take());
             Self::restore_var("HUGGINGFACE_API_KEY", self.huggingface_api_key.take());
             Self::restore_var("HF_TOKEN", self.huggingface_token.take());
             Self::restore_var("HUGGINGFACE_BASE_URL", self.huggingface_base_url.take());
@@ -2773,14 +2749,6 @@ fn provider_kind_parses_openrouter_and_novita_aliases() {
         ProviderKind::parse("moonshot-ai"),
         Some(ProviderKind::Moonshot)
     );
-    assert_eq!(ProviderKind::parse("sg-lang"), Some(ProviderKind::Sglang));
-    assert_eq!(ProviderKind::parse("v-llm"), Some(ProviderKind::Vllm));
-    assert_eq!(ProviderKind::parse("vllm"), Some(ProviderKind::Vllm));
-    assert_eq!(ProviderKind::parse("ollama"), Some(ProviderKind::Ollama));
-    assert_eq!(
-        ProviderKind::parse("ollama-local"),
-        Some(ProviderKind::Ollama)
-    );
     assert_eq!(
         ProviderKind::parse("wanjie-ark"),
         Some(ProviderKind::WanjieArk)
@@ -3667,104 +3635,6 @@ fn wanjie_ark_provider_defaults_to_openai_compatible_endpoint_and_model() {
 }
 
 #[test]
-fn sglang_provider_defaults_to_local_endpoint_and_model() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let config = ConfigToml {
-        provider: ProviderKind::Sglang,
-        ..ConfigToml::default()
-    };
-
-    let resolved = config.resolve_runtime_options(&CliRuntimeOverrides::default());
-
-    assert_eq!(resolved.provider, ProviderKind::Sglang);
-    assert_eq!(resolved.base_url, DEFAULT_SGLANG_BASE_URL);
-    assert_eq!(resolved.model, DEFAULT_SGLANG_MODEL);
-}
-
-#[test]
-fn vllm_provider_defaults_to_local_endpoint_and_model() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let config = ConfigToml {
-        provider: ProviderKind::Vllm,
-        ..ConfigToml::default()
-    };
-
-    let resolved = config.resolve_runtime_options(&CliRuntimeOverrides::default());
-
-    assert_eq!(resolved.provider, ProviderKind::Vllm);
-    assert_eq!(resolved.base_url, DEFAULT_VLLM_BASE_URL);
-    assert_eq!(resolved.model, DEFAULT_VLLM_MODEL);
-}
-
-#[test]
-fn ollama_provider_defaults_to_local_endpoint_and_small_model() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let config = ConfigToml {
-        provider: ProviderKind::Ollama,
-        ..ConfigToml::default()
-    };
-
-    let resolved = config.resolve_runtime_options(&CliRuntimeOverrides::default());
-
-    assert_eq!(resolved.provider, ProviderKind::Ollama);
-    assert_eq!(resolved.base_url, DEFAULT_OLLAMA_BASE_URL);
-    assert_eq!(resolved.model, DEFAULT_OLLAMA_MODEL);
-    assert_eq!(resolved.api_key, None);
-}
-
-#[test]
-fn self_hosted_providers_do_not_probe_secret_store_by_default() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let store = Arc::new(RecordingSecretsStore::with_value("secret-store-key"));
-    let secrets = Secrets::new(store.clone());
-
-    for provider in [
-        ProviderKind::Sglang,
-        ProviderKind::Vllm,
-        ProviderKind::Ollama,
-    ] {
-        let config = ConfigToml {
-            provider,
-            ..ConfigToml::default()
-        };
-
-        let resolved =
-            config.resolve_runtime_options_with_secrets(&CliRuntimeOverrides::default(), &secrets);
-
-        assert_eq!(resolved.provider, provider);
-        assert_eq!(resolved.api_key, None);
-    }
-
-    assert!(
-        store.gets.lock().unwrap().is_empty(),
-        "self-hosted providers should not read the secret store by default"
-    );
-}
-
-#[test]
-fn self_hosted_api_key_auth_can_use_secret_store_when_requested() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let store = Arc::new(RecordingSecretsStore::with_value("secret-store-key"));
-    let secrets = Secrets::new(store.clone());
-    let config = ConfigToml {
-        provider: ProviderKind::Ollama,
-        auth_mode: Some("api_key".to_string()),
-        ..ConfigToml::default()
-    };
-
-    let resolved =
-        config.resolve_runtime_options_with_secrets(&CliRuntimeOverrides::default(), &secrets);
-
-    assert_eq!(resolved.api_key.as_deref(), Some("secret-store-key"));
-    assert_eq!(store.gets.lock().unwrap().as_slice(), ["ollama"]);
-}
-
-#[test]
 fn moonshot_api_key_mode_can_use_secret_store_by_default() {
     let _lock = env_lock();
     let _env = EnvGuard::without_deepseek_runtime_overrides();
@@ -3804,40 +3674,6 @@ fn loopback_custom_deepseek_base_url_does_not_probe_secret_store_by_default() {
         store.gets.lock().unwrap().is_empty(),
         "loopback custom endpoints should not read macOS Keychain or any secret store"
     );
-}
-
-#[test]
-fn ollama_provider_preserves_model_tags() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let cli = CliRuntimeOverrides {
-        provider: Some(ProviderKind::Ollama),
-        model: Some("deepseek-coder-v2:16b".to_string()),
-        ..CliRuntimeOverrides::default()
-    };
-
-    let resolved = ConfigToml::default().resolve_runtime_options(&cli);
-
-    assert_eq!(resolved.provider, ProviderKind::Ollama);
-    assert_eq!(resolved.model, "deepseek-coder-v2:16b");
-}
-
-#[test]
-fn ollama_env_overrides_provider_base_url_and_optional_key() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    // Safety: test-only environment mutation guarded by a module mutex.
-    unsafe {
-        env::set_var("DEEPSEEK_PROVIDER", "ollama-local");
-        env::set_var("OLLAMA_BASE_URL", "http://ollama.example/v1");
-        env::set_var("OLLAMA_API_KEY", "ollama-env-key");
-    }
-
-    let resolved = ConfigToml::default().resolve_runtime_options(&CliRuntimeOverrides::default());
-
-    assert_eq!(resolved.provider, ProviderKind::Ollama);
-    assert_eq!(resolved.base_url, "http://ollama.example/v1");
-    assert_eq!(resolved.api_key.as_deref(), Some("ollama-env-key"));
 }
 
 #[test]
@@ -4324,38 +4160,6 @@ fn siliconflow_provider_preserves_deepseek_v3_2_alias() {
 
     assert_eq!(resolved.provider, ProviderKind::Siliconflow);
     assert_eq!(resolved.model, "deepseek-v3.2");
-}
-
-#[test]
-fn sglang_provider_normalizes_flash_aliases() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let cli = CliRuntimeOverrides {
-        provider: Some(ProviderKind::Sglang),
-        model: Some("deepseek-v4-flash".to_string()),
-        ..CliRuntimeOverrides::default()
-    };
-
-    let resolved = ConfigToml::default().resolve_runtime_options(&cli);
-
-    assert_eq!(resolved.provider, ProviderKind::Sglang);
-    assert_eq!(resolved.model, DEFAULT_SGLANG_FLASH_MODEL);
-}
-
-#[test]
-fn vllm_provider_normalizes_flash_aliases() {
-    let _lock = env_lock();
-    let _env = EnvGuard::without_deepseek_runtime_overrides();
-    let cli = CliRuntimeOverrides {
-        provider: Some(ProviderKind::Vllm),
-        model: Some("deepseek-v4-flash".to_string()),
-        ..CliRuntimeOverrides::default()
-    };
-
-    let resolved = ConfigToml::default().resolve_runtime_options(&cli);
-
-    assert_eq!(resolved.provider, ProviderKind::Vllm);
-    assert_eq!(resolved.model, DEFAULT_VLLM_FLASH_MODEL);
 }
 
 #[test]
@@ -4958,7 +4762,7 @@ fn resolve_harness_profile_uses_built_in_seed_when_config_has_no_match() {
     assert_eq!(arcee.posture.kind, HarnessPostureKind::CacheHeavy);
 
     let local = config
-        .resolve_harness_profile("vllm", "Qwen/Qwen3.6-Coder")
+        .resolve_harness_profile("openai", "Qwen/Qwen3.6-Coder")
         .expect("local seed should resolve");
     assert_eq!(local.posture.kind, HarnessPostureKind::Lean);
     assert!(local.posture.prefer_codebase_search);

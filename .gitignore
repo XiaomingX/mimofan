@@ -46,7 +46,43 @@ backup/
 docs/DeepSeek_V4.pdf
 docs/*.pdf
 
+# Evidence and reference material (screenshots, data dumps)
+docs/evidence/
+
+# Benchmark results
+benchmark_results/
+
+# Historical RFCs and design docs (not needed for code understanding)
+docs/rfcs/
+
+# Skill documentation (non-code, for skill marketplace)
+docs/skills/
+
+# Non-core docs (release ops, changelog archive, reform plans)
+docs/CHANGELOG_ARCHIVE.md
+docs/OPERATIONS_RUNBOOK.md
+docs/RELEASE_CHECKLIST.md
+docs/RELEASE_RUNBOOK.md
+docs/V0_8_61_EXECUTION.md
+docs/V0865_RELEASE_LEDGER.md
+docs/V0865_REMAINING_AGENT_PROMPT.md
+docs/ACP_REGISTRY_SUBMISSION.md
+ARCHITECTURE_REFORM.md
+
+# Nix configuration
+flake.nix
+flake.lock
+nix/
+
+# Dev container
+.devcontainer/
+
+# Lock files (package-lock.json for various sub-projects)
 # Note: Cargo.lock is intentionally NOT ignored for reproducible builds
+package-lock.json
+extensions/vscode/package-lock.json
+integrations/*/package-lock.json
+web/package-lock.json
 
 # Local dev scripts and temp files
 *.sh
@@ -90,6 +126,7 @@ apps/
 # Local-only Claude / ralph notes
 .claude/*.local.md
 .claude/*.local.json
+**/CLAUDE.local.md
 
 # Maintainer handoff + codemap notes are working-state, not user-facing
 # artifacts. They've leaked into the public repo via .claude/ in the past

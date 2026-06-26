@@ -923,15 +923,6 @@ struct EnvGuard {
     kimi_share_dir: Option<OsString>,
     kimi_code_oauth_host: Option<OsString>,
     kimi_oauth_host: Option<OsString>,
-    sglang_api_key: Option<OsString>,
-    sglang_base_url: Option<OsString>,
-    sglang_model: Option<OsString>,
-    vllm_api_key: Option<OsString>,
-    vllm_base_url: Option<OsString>,
-    vllm_model: Option<OsString>,
-    ollama_api_key: Option<OsString>,
-    ollama_base_url: Option<OsString>,
-    ollama_model: Option<OsString>,
     huggingface_api_key: Option<OsString>,
     huggingface_token: Option<OsString>,
     huggingface_base_url: Option<OsString>,
@@ -1027,15 +1018,6 @@ impl EnvGuard {
         let kimi_share_dir_prev = env::var_os("KIMI_SHARE_DIR");
         let kimi_code_oauth_host_prev = env::var_os("KIMI_CODE_OAUTH_HOST");
         let kimi_oauth_host_prev = env::var_os("KIMI_OAUTH_HOST");
-        let sglang_api_key_prev = env::var_os("SGLANG_API_KEY");
-        let sglang_base_url_prev = env::var_os("SGLANG_BASE_URL");
-        let sglang_model_prev = env::var_os("SGLANG_MODEL");
-        let vllm_api_key_prev = env::var_os("VLLM_API_KEY");
-        let vllm_base_url_prev = env::var_os("VLLM_BASE_URL");
-        let vllm_model_prev = env::var_os("VLLM_MODEL");
-        let ollama_api_key_prev = env::var_os("OLLAMA_API_KEY");
-        let ollama_base_url_prev = env::var_os("OLLAMA_BASE_URL");
-        let ollama_model_prev = env::var_os("OLLAMA_MODEL");
         let huggingface_api_key_prev = env::var_os("HUGGINGFACE_API_KEY");
         let huggingface_token_prev = env::var_os("HF_TOKEN");
         let huggingface_base_url_prev = env::var_os("HUGGINGFACE_BASE_URL");
@@ -1126,15 +1108,6 @@ impl EnvGuard {
             env::remove_var("KIMI_SHARE_DIR");
             env::remove_var("KIMI_CODE_OAUTH_HOST");
             env::remove_var("KIMI_OAUTH_HOST");
-            env::remove_var("SGLANG_API_KEY");
-            env::remove_var("SGLANG_BASE_URL");
-            env::remove_var("SGLANG_MODEL");
-            env::remove_var("VLLM_API_KEY");
-            env::remove_var("VLLM_BASE_URL");
-            env::remove_var("VLLM_MODEL");
-            env::remove_var("OLLAMA_API_KEY");
-            env::remove_var("OLLAMA_BASE_URL");
-            env::remove_var("OLLAMA_MODEL");
             env::remove_var("HUGGINGFACE_API_KEY");
             env::remove_var("HF_TOKEN");
             env::remove_var("HUGGINGFACE_BASE_URL");
@@ -1225,15 +1198,6 @@ impl EnvGuard {
             kimi_share_dir: kimi_share_dir_prev,
             kimi_code_oauth_host: kimi_code_oauth_host_prev,
             kimi_oauth_host: kimi_oauth_host_prev,
-            sglang_api_key: sglang_api_key_prev,
-            sglang_base_url: sglang_base_url_prev,
-            sglang_model: sglang_model_prev,
-            vllm_api_key: vllm_api_key_prev,
-            vllm_base_url: vllm_base_url_prev,
-            vllm_model: vllm_model_prev,
-            ollama_api_key: ollama_api_key_prev,
-            ollama_base_url: ollama_base_url_prev,
-            ollama_model: ollama_model_prev,
             huggingface_api_key: huggingface_api_key_prev,
             huggingface_token: huggingface_token_prev,
             huggingface_base_url: huggingface_base_url_prev,
@@ -1348,15 +1312,6 @@ impl Drop for EnvGuard {
             Self::restore_var("KIMI_SHARE_DIR", self.kimi_share_dir.take());
             Self::restore_var("KIMI_CODE_OAUTH_HOST", self.kimi_code_oauth_host.take());
             Self::restore_var("KIMI_OAUTH_HOST", self.kimi_oauth_host.take());
-            Self::restore_var("SGLANG_API_KEY", self.sglang_api_key.take());
-            Self::restore_var("SGLANG_BASE_URL", self.sglang_base_url.take());
-            Self::restore_var("SGLANG_MODEL", self.sglang_model.take());
-            Self::restore_var("VLLM_API_KEY", self.vllm_api_key.take());
-            Self::restore_var("VLLM_BASE_URL", self.vllm_base_url.take());
-            Self::restore_var("VLLM_MODEL", self.vllm_model.take());
-            Self::restore_var("OLLAMA_API_KEY", self.ollama_api_key.take());
-            Self::restore_var("OLLAMA_BASE_URL", self.ollama_base_url.take());
-            Self::restore_var("OLLAMA_MODEL", self.ollama_model.take());
             Self::restore_var("HUGGINGFACE_API_KEY", self.huggingface_api_key.take());
             Self::restore_var("HF_TOKEN", self.huggingface_token.take());
             Self::restore_var("HUGGINGFACE_BASE_URL", self.huggingface_base_url.take());
@@ -2155,15 +2110,6 @@ fn config_with_provider_scoped_key(provider: &str, api_key: &str) -> Config {
         "siliconflow" => {
             providers.siliconflow.api_key = Some(api_key.to_string());
         }
-        "sglang" => {
-            providers.sglang.api_key = Some(api_key.to_string());
-        }
-        "vllm" => {
-            providers.vllm.api_key = Some(api_key.to_string());
-        }
-        "ollama" => {
-            providers.ollama.api_key = Some(api_key.to_string());
-        }
         "huggingface" => {
             providers.huggingface.api_key = Some(api_key.to_string());
         }
@@ -2877,10 +2823,6 @@ fn requested_model_for_provider_is_permissive_off_deepseek() {
         requested_model_for_provider(ApiProvider::Moonshot, "kimi-k2.5").as_deref(),
         Some("kimi-k2.5")
     );
-    assert_eq!(
-        requested_model_for_provider(ApiProvider::Ollama, "qwen3:32b").as_deref(),
-        Some("qwen3:32b")
-    );
     // The official DeepSeek API stays strict.
     assert!(requested_model_for_provider(ApiProvider::Deepseek, "kimi-k2.5").is_none());
     assert_eq!(
@@ -3167,13 +3109,6 @@ fn model_completion_names_for_wanjie_keep_legacy_default_and_v4_ids() {
     assert_eq!(models.first().copied(), Some(DEFAULT_WANJIE_ARK_MODEL));
     assert!(models.contains(&"deepseek-v4-pro"));
     assert!(models.contains(&"deepseek-v4-flash"));
-}
-
-#[test]
-fn model_completion_names_for_ollama_do_not_promote_static_remote_models() {
-    let models = model_completion_names_for_provider(ApiProvider::Ollama);
-
-    assert!(models.is_empty());
 }
 
 #[test]
@@ -4636,189 +4571,6 @@ fn siliconflow_provider_uses_canonical_defaults() -> Result<()> {
 }
 
 #[test]
-fn sglang_provider_works_without_api_key() -> Result<()> {
-    let _lock = lock_test_env();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-sglang-defaults-{}-{}",
-        std::process::id(),
-        nanos
-    ));
-    fs::create_dir_all(&temp_root)?;
-    let _guard = EnvGuard::new(&temp_root);
-
-    let config = Config {
-        provider: Some("sglang".to_string()),
-        ..Default::default()
-    };
-    config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Sglang);
-    assert_eq!(config.default_model(), DEFAULT_SGLANG_MODEL);
-    assert_eq!(config.deepseek_base_url(), DEFAULT_SGLANG_BASE_URL);
-    assert_eq!(config.deepseek_api_key()?, "");
-    assert!(has_api_key_for(&config, ApiProvider::Sglang));
-    Ok(())
-}
-
-#[test]
-fn ollama_provider_uses_local_defaults_without_api_key() -> Result<()> {
-    let _lock = lock_test_env();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-ollama-defaults-{}-{}",
-        std::process::id(),
-        nanos
-    ));
-    fs::create_dir_all(&temp_root)?;
-    let _guard = EnvGuard::new(&temp_root);
-
-    let config = Config {
-        provider: Some("ollama".to_string()),
-        ..Default::default()
-    };
-    config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Ollama);
-    assert_eq!(config.default_model(), DEFAULT_OLLAMA_MODEL);
-    assert_eq!(config.deepseek_base_url(), DEFAULT_OLLAMA_BASE_URL);
-    assert_eq!(config.deepseek_api_key()?, "");
-    assert!(has_api_key_for(&config, ApiProvider::Ollama));
-    Ok(())
-}
-
-#[test]
-fn ollama_model_is_passed_through_verbatim() -> Result<()> {
-    let _lock = lock_test_env();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-ollama-model-test-{}-{}",
-        std::process::id(),
-        nanos
-    ));
-    fs::create_dir_all(&temp_root)?;
-    let _guard = EnvGuard::new(&temp_root);
-
-    let config_path = temp_root.join(".deepseek").join("config.toml");
-    ensure_parent_dir(&config_path)?;
-    fs::write(
-        &config_path,
-        r#"provider = "ollama"
-
-[providers.ollama]
-base_url = "http://127.0.0.1:11434/v1"
-model = "qwen2.5-coder:7b"
-"#,
-    )?;
-
-    let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Ollama);
-    assert_eq!(config.default_model(), "qwen2.5-coder:7b");
-    assert_eq!(config.deepseek_base_url(), "http://127.0.0.1:11434/v1");
-    Ok(())
-}
-
-#[test]
-fn deepseek_base_url_env_scopes_to_self_hosted_providers() -> Result<()> {
-    let _lock = lock_test_env();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-self-hosted-base-url-test-{}-{}",
-        std::process::id(),
-        nanos
-    ));
-    fs::create_dir_all(&temp_root)?;
-    let _guard = EnvGuard::new(&temp_root);
-
-    // Safety: test-only environment mutation guarded by a global mutex.
-    unsafe {
-        env::set_var("DEEPSEEK_PROVIDER", "ollama");
-        env::set_var("DEEPSEEK_BASE_URL", "http://ollama.remote:11434/v1");
-    }
-    let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Ollama);
-    assert_eq!(config.deepseek_base_url(), "http://ollama.remote:11434/v1");
-
-    // Safety: test-only environment mutation guarded by a global mutex.
-    unsafe {
-        env::set_var("DEEPSEEK_PROVIDER", "vllm");
-        env::set_var("DEEPSEEK_BASE_URL", "http://vllm.remote:8000/v1");
-    }
-    let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Vllm);
-    assert_eq!(config.deepseek_base_url(), "http://vllm.remote:8000/v1");
-    Ok(())
-}
-
-#[test]
-fn vllm_env_resolves_reported_lan_http_endpoint_and_model() -> Result<()> {
-    let _lock = lock_test_env();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-vllm-lan-http-test-{}-{}",
-        std::process::id(),
-        nanos
-    ));
-    fs::create_dir_all(&temp_root)?;
-    let _guard = EnvGuard::new(&temp_root);
-
-    // Safety: test-only environment mutation guarded by a global mutex.
-    unsafe {
-        env::set_var("DEEPSEEK_PROVIDER", "vllm");
-        env::set_var("VLLM_BASE_URL", "http://192.168.0.110:8000/v1");
-        env::set_var("DEEPSEEK_MODEL", "deepseek-v4-flash");
-    }
-
-    let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Vllm);
-    assert_eq!(config.deepseek_base_url(), "http://192.168.0.110:8000/v1");
-    assert_eq!(config.default_model(), "deepseek-v4-flash");
-    Ok(())
-}
-
-#[test]
-fn ollama_env_overrides_base_url_and_model() -> Result<()> {
-    let _lock = lock_test_env();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-ollama-env-test-{}-{}",
-        std::process::id(),
-        nanos
-    ));
-    fs::create_dir_all(&temp_root)?;
-    let _guard = EnvGuard::new(&temp_root);
-
-    // Safety: test-only environment mutation guarded by a global mutex.
-    unsafe {
-        env::set_var("DEEPSEEK_PROVIDER", "ollama-local");
-        env::set_var("OLLAMA_BASE_URL", "http://ollama.example/v1");
-        env::set_var("OLLAMA_MODEL", "deepseek-coder-v2:16b");
-    }
-
-    let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Ollama);
-    assert_eq!(config.deepseek_base_url(), "http://ollama.example/v1");
-    assert_eq!(config.default_model(), "deepseek-coder-v2:16b");
-    Ok(())
-}
-
-#[test]
 fn openrouter_env_api_key_resolves_via_deepseek_api_key() -> Result<()> {
     let _lock = lock_test_env();
     let nanos = SystemTime::now()
@@ -5778,14 +5530,6 @@ fn has_api_key_for_detects_env_and_config_per_provider() -> Result<()> {
     assert!(!has_api_key_for(&config, ApiProvider::Openrouter));
     assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
     assert!(!has_api_key_for(&config, ApiProvider::Siliconflow));
-    assert!(
-        has_api_key_for(&config, ApiProvider::Sglang),
-        "SGLang is self-hosted and does not require a key by default"
-    );
-    assert!(
-        has_api_key_for(&config, ApiProvider::Vllm),
-        "vLLM is self-hosted and does not require a key by default"
-    );
 
     // Safety: test-only environment mutation guarded by a global mutex.
     unsafe {
@@ -5940,7 +5684,6 @@ fn save_api_key_for_openrouter_writes_provider_table() -> Result<()> {
         (ApiProvider::Fireworks, "fireworks-saved-key"),
         (ApiProvider::XiaomiMimo, "mimo-saved-key"),
         (ApiProvider::Siliconflow, "sf-saved-key"),
-        (ApiProvider::Sglang, "sglang-saved-key"),
     ] {
         assert_eq!(save_api_key_for(provider, key)?, path);
     }
@@ -5985,14 +5728,6 @@ fn save_api_key_for_openrouter_writes_provider_table() -> Result<()> {
             .and_then(|t| t.get("api_key"))
             .and_then(toml::Value::as_str),
         Some("sf-saved-key")
-    );
-    assert_eq!(
-        parsed
-            .get("providers")
-            .and_then(|p| p.get("sglang"))
-            .and_then(|t| t.get("api_key"))
-            .and_then(toml::Value::as_str),
-        Some("sglang-saved-key")
     );
     save_api_key_for(ApiProvider::SiliconflowCn, "sf-cn-saved-key")?;
     let contents = fs::read_to_string(&path)?;
@@ -6422,18 +6157,6 @@ fn provider_capability_siliconflow_v4_pro_has_thinking_no_cache() {
 }
 
 #[test]
-fn provider_capability_sglang_v4_pro_has_thinking_no_cache() {
-    let cap = provider_capability(ApiProvider::Sglang, DEFAULT_SGLANG_MODEL);
-    assert_eq!(
-        cap.context_window,
-        crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
-    );
-    assert_eq!(cap.max_output, 384_000);
-    assert!(cap.thinking_supported);
-    assert!(!cap.cache_telemetry_supported);
-}
-
-#[test]
 fn provider_capability_openai_custom_model_is_chat_completions_without_thinking() {
     let cap = provider_capability(ApiProvider::Openai, "glm-5");
     assert_eq!(
@@ -6550,37 +6273,6 @@ fn provider_capability_wanjie_ark_reasoner_has_thinking_no_cache() {
 }
 
 #[test]
-fn provider_capability_ollama_deepseek_tag_uses_deepseek_heuristic() {
-    // #3023: known model families resolve through models.rs lookups even
-    // on Ollama — a legacy DeepSeek tag gets the 128K heuristic window.
-    let cap = provider_capability(ApiProvider::Ollama, "deepseek-v3.1:671b");
-    assert_eq!(
-        cap.context_window,
-        crate::models::LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS
-    );
-    assert_eq!(cap.max_output, 4096);
-    assert!(!cap.thinking_supported);
-    assert!(!cap.cache_telemetry_supported);
-    assert_eq!(
-        cap.request_payload_mode,
-        RequestPayloadMode::ChatCompletions
-    );
-}
-
-#[test]
-fn provider_capability_ollama_unknown_model_falls_back_to_8192() {
-    let cap = provider_capability(ApiProvider::Ollama, "llama3.2:3b");
-    assert_eq!(cap.context_window, 8192);
-    assert_eq!(cap.max_output, 4096);
-    assert!(!cap.thinking_supported);
-    assert!(!cap.cache_telemetry_supported);
-    assert_eq!(
-        cap.request_payload_mode,
-        RequestPayloadMode::ChatCompletions
-    );
-}
-
-#[test]
 fn provider_capability_non_v4_model_has_smaller_window() {
     let cap = provider_capability(ApiProvider::Deepseek, "deepseek-coder");
     assert_eq!(
@@ -6609,13 +6301,9 @@ fn status_item_balance_available_only_for_deepseek_providers() {
     assert!(!StatusItem::Balance.is_available_for(ApiProvider::Novita));
     assert!(!StatusItem::Balance.is_available_for(ApiProvider::NvidiaNim));
     assert!(!StatusItem::Balance.is_available_for(ApiProvider::Fireworks));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Sglang));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Vllm));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Ollama));
     assert!(!StatusItem::Balance.is_available_for(ApiProvider::Openai));
     assert!(!StatusItem::Balance.is_available_for(ApiProvider::Atlascloud));
     // Other StatusItem variants should be available everywhere.
-    assert!(StatusItem::Mode.is_available_for(ApiProvider::Ollama));
 }
 
 #[test]

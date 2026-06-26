@@ -99,8 +99,33 @@ default_text_model = "deepseek-v4-pro"
 | 火山引擎 | `volcengine` | 字节跳动 |
 | 月之暗面 | `moonshot` | Kimi 系列 |
 | 智谱 | `zai` | GLM 系列 |
-| Ollama | `ollama` | 本地模型 |
 | NVIDIA NIM | `nvidia-nim` | NVIDIA 托管 |
+| 阿里 Qwen | `qwen` | 通义千问 |
+| 阶跃星辰 | `stepfun` | Step 系列 |
+| MiniMax | `minimax` | 海螺 AI |
+| DeepInfra | `deepinfra` | 开源模型托管 |
+
+### 小米 MiMo 配置示例
+
+```bash
+# 环境变量方式
+export XIAOMI_MIMO_API_KEY="your-api-key"
+export XIAOMI_MIMO_BASE_URL="https://token-plan-cn.xiaomimimo.com/v1"  # CN 区域
+
+# 或在 config.toml 中
+[providers.xiaomi_mimo]
+api_key = "your-api-key"
+base_url = "https://token-plan-cn.xiaomimimo.com/v1"
+```
+
+MiMo API 端点：
+
+| 区域 | 地址 |
+|------|------|
+| 新加坡（默认） | `https://token-plan-sgp.xiaomimimo.com/v1` |
+| 中国大陆 | `https://token-plan-cn.xiaomimimo.com/v1` |
+| 阿姆斯特丹 | `https://token-plan-ams.xiaomimimo.com/v1` |
+| 按量付费 | `https://api.xiaomimimo.com/v1` |
 
 ---
 

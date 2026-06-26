@@ -3757,21 +3757,6 @@ mod tests {
     }
 
     #[test]
-    fn slash_completion_hints_model_ollama_has_no_static_remote_models() {
-        let hints =
-            slash_completion_hints("/model", 128, &[], Locale::En, None, ApiProvider::Ollama);
-        let names = hints
-            .iter()
-            .map(|hint| hint.name.as_str())
-            .collect::<Vec<_>>();
-
-        assert!(names.contains(&"/model"));
-        assert!(!names.contains(&"/model deepseek-v4-pro"));
-        assert!(!names.contains(&"/model deepseek-v4-flash"));
-        assert!(!names.contains(&"/model deepseek-coder:1.3b"));
-    }
-
-    #[test]
     fn selection_style_uses_explicit_selection_text_role() {
         let line = Line::from(Span::styled(
             "hello world",

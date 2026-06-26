@@ -44,7 +44,7 @@ impl RouterCandidates {
 ///
 /// DeepSeek providers route between the canonical pro/flash pair. Hosted
 /// routes with known wire ids for that pair (NVIDIA NIM, OpenRouter, Novita,
-/// SiliconFlow, SGLang, vLLM, Wanjie Ark, Volcengine) use their provider
+/// SiliconFlow, Wanjie Ark, Volcengine) use their provider
 /// spellings. Every other provider has no known cheap tier: `big` is the
 /// session model and `cheap` is `None`, so auto mode never fabricates a
 /// DeepSeek id for a provider that cannot serve it.
@@ -98,8 +98,6 @@ pub(crate) fn provider_router_candidates(
         | ApiProvider::Novita
         | ApiProvider::Siliconflow
         | ApiProvider::SiliconflowCn
-        | ApiProvider::Sglang
-        | ApiProvider::Vllm
         | ApiProvider::WanjieArk => RouterCandidates {
             big: crate::config::wire_model_for_provider(provider, "deepseek-v4-pro"),
             cheap: Some(crate::config::wire_model_for_provider(
@@ -1274,10 +1272,6 @@ mod tests {
         assert_eq!(zai_turbo.cheap, None);
 
         // Providers without a known cheap tier: big = session model, no cheap.
-        let ollama = provider_router_candidates(ApiProvider::Ollama, "qwen3:32b");
-        assert_eq!(ollama.big, "qwen3:32b");
-        assert_eq!(ollama.cheap, None);
-
         let moonshot = provider_router_candidates(ApiProvider::Moonshot, "kimi-k2.6");
         assert_eq!(moonshot.big, "kimi-k2.6");
         assert_eq!(moonshot.cheap, None);
@@ -1285,7 +1279,6 @@ mod tests {
 
     #[test]
     fn heuristic_without_cheap_tier_always_returns_current_model() {
-        // #3018 AC: Ollama + auto must never fabricate a DeepSeek id.
         let candidates = RouterCandidates {
             big: "qwen3:32b".to_string(),
             cheap: None,

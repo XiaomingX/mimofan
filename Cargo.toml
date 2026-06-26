@@ -55,3 +55,31 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 uuid = { version = "1.11", features = ["v4"] }
+
+# ── Build profiles: reduce target/ disk usage ──────────────────────────
+# Default debug builds emit full DWARF (~500 MB+ for a workspace this size).
+# Switching to "line-tables-only" cuts that by 60-80 % while preserving
+# backtraces and IDE breakpoint support.
+
+[profile.dev]
+# Only emit line tables, not full DWARF debug info. Saves massive disk space.
+debug = "line-tables-only"
+# Fewer codegen-units = fewer .o / .dwo files in target/
+codegen-units = 16
+
+[profile.test]
+# Tests don't need full debug info either
+debug = "line-tables-only"
+codegen-units = 16
+
+[profile.release]
+# Strip all symbols from release binaries — huge savings
+strip = true
+# Thin LTO: good size reduction without massive compile-time cost
+lto = "thin"
+codegen-units = 16
+
+[profile.bench]
+strip = true
+lto = "thin"
+codegen-units = 16

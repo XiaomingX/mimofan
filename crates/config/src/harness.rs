@@ -186,21 +186,6 @@ pub fn built_in_harness_profiles() -> &'static [HarnessProfile] {
                 model_pattern: "*".to_string(),
                 posture: HarnessPosture::lean(),
             },
-            HarnessProfile {
-                provider_route: "sglang".to_string(),
-                model_pattern: "*".to_string(),
-                posture: HarnessPosture::lean(),
-            },
-            HarnessProfile {
-                provider_route: "vllm".to_string(),
-                model_pattern: "*".to_string(),
-                posture: HarnessPosture::lean(),
-            },
-            HarnessProfile {
-                provider_route: "ollama".to_string(),
-                model_pattern: "*".to_string(),
-                posture: HarnessPosture::lean(),
-            },
         ]
     })
 }
