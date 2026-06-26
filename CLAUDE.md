@@ -113,8 +113,7 @@ See `docs/PROVIDERS.md` for provider-specific details.
 ## File Organization
 
 ```
-docs/ARCHITECTURE.md      English architecture doc
-docs/ARCHITECTURE_CN.md   Chinese architecture doc
+docs/ARCHITECTURE_CN.md   Architecture doc (Chinese)
 docs/CONFIGURATION.md     Configuration guide
 docs/PROVIDERS.md         Provider guide
 docs/SUBAGENTS.md         Sub-agent guide
@@ -129,8 +128,7 @@ config.example.toml       Example configuration
 ## Detailed Docs
 
 For deep dives, read the corresponding doc under `docs/`:
-- Architecture and crate relationships: `docs/ARCHITECTURE.md` (EN) /
-  `docs/ARCHITECTURE_CN.md` (CN)
+- Architecture and crate relationships: `docs/ARCHITECTURE_CN.md`
 - Configuration and routing: `docs/CONFIGURATION.md`
 - Provider setup: `docs/PROVIDERS.md`
 - Sub-agent system: `docs/SUBAGENTS.md`

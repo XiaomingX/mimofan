@@ -257,7 +257,7 @@ The README is the short version. The rest is in docs and on
 - [Modes](docs/MODES.md) — Agent, Plan, and YOLO.
 - [Fleet](docs/FLEET.md) · [Sub-agents](docs/SUBAGENTS.md) — roles, lifecycle,
   output contract, and recovery behavior.
-- [Architecture](docs/ARCHITECTURE.md) — crate layout, runtime flow, tool system,
+- [Architecture](docs/ARCHITECTURE_CN.md) — crate layout, runtime flow, tool system,
   extension points, and security model.
 - [WhaleFlow authoring](docs/WHALEFLOW_AUTHORING.md) · [MCP](docs/MCP.md) ·
   [Runtime API](docs/RUNTIME_API.md) · [Model Lab](docs/MODEL_LAB.md)

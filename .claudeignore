@@ -1,18 +1,18 @@
 # ============================================
 # CodeWhale .claudeignore
-# Excludes files that AI agents don't need to read
+# 优化：排除 AI 不需要读取的文件，减少 token 浪费
 # ============================================
 
-# Build artifacts (~6.1G)
+# ── 构建产物 ──
 target/
 
-# Frontend / non-Rust code
+# ── 前端 / 非 Rust 代码 ──
 web/
 npm/
 extensions/
 integrations/
 
-# Lock files (7000+ lines, wasteful tokens)
+# ── Lock 文件（数千行，浪费 token）──
 Cargo.lock
 package-lock.json
 web/package-lock.json
@@ -20,19 +20,23 @@ extensions/vscode/package-lock.json
 integrations/*/package-lock.json
 flake.lock
 
-# Large generated files
+# ── 大型生成文件 ──
 crates/tui/assets/model_catalog.bundled.json
 crates/config/assets/models_dev.bundled.json
 
-# Changelogs (historical records, don't affect code understanding)
+# ── AI 记忆文件（已自动注入上下文，重复读取浪费 token）──
+**/CLAUDE.local.md
+
+# ── 变更日志（历史记录，不影响代码理解）──
 CHANGELOG.md
 docs/CHANGELOG_ARCHIVE.md
 crates/tui/CHANGELOG.md
 
-# Non-core documentation
+# ── 非核心文档 ──
 docs/rfcs/
 docs/evidence/
 docs/skills/
+docs/ARCHITECTURE.md          # 英文版，已有中文版 ARCHITECTURE_CN.md
 benchmark_results/
 ARCHITECTURE_REFORM.md
 HIGHLIGHTS.md
@@ -44,17 +48,19 @@ docs/OPERATIONS_RUNBOOK.md
 docs/V0_8_61_EXECUTION.md
 docs/V0865_RELEASE_LEDGER.md
 docs/V0865_REMAINING_AGENT_PROMPT.md
+README.md                     # GitHub 展示文件，不影响代码理解
 
-# Nix configuration
+# ── Nix 配置 ──
 flake.nix
 nix/
 
-# Deployment configuration
+# ── 部署配置 ──
 deploy/
 Dockerfile
 .devcontainer/
+.cnb.yml
 
-# GitHub templates/workflows (agents don't need these)
+# ── GitHub 模板/工作流 ──
 .github/workflows/
 .github/ISSUE_TEMPLATE/
 .github/PULL_REQUEST_TEMPLATE.md
@@ -64,19 +70,35 @@ Dockerfile
 .github/dependabot.yml
 .github/FUNDING.yml
 
-# Temporary/generated files
+# ── 资源文件（图片等，不影响代码理解）──
+assets/
+
+# ── 脚本文件（发布/部署/CI 脚本，不影响代码理解）──
+scripts/
+
+# ── 工作流定义（JS/Star 脚本）──
+workflows/
+
+# ── 临时/生成文件 ──
 *.sh
 *.cmd
-!scripts/**
 result.json
 count_deps.py
 project_overhaul_prompt.md
 
+# ── 项目本地配置 ──
+.codewhale/
+.env.example
+.mailmap
+.gitattributes
+
 # ============================================
-# KEPT (not excluded):
-# - crates/ (Rust source code)
-# - scripts/ (useful scripts)
-# - docs/ core docs (ARCHITECTURE.md, CONFIGURATION.md, PROVIDERS.md)
-# - assets/ directories
+# 保留（不排除）：
+# - crates/          Rust 源代码
+# - docs/ 核心文档   ARCHITECTURE_CN.md, CONFIGURATION.md, PROVIDERS.md,
+#                    SUBAGENTS.md, MCP.md, MODES.md, USAGE_CN.md
 # - config.example.toml
+# - AGENTS.md        AI 代理工作规范
+# - CLAUDE.md        项目级 AI 指引
+# - Cargo.toml       工作区配置
 # ============================================
