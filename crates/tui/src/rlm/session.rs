@@ -8,17 +8,17 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
 use crate::models::{ContentBlock, Message, SystemPrompt};
 use crate::repl::PythonRuntime;
 
-pub type SharedRlmSessionStore = Arc<Mutex<HashMap<String, Arc<Mutex<RlmSession>>>>>;
+pub type SharedRlmSessionStore = Arc<RwLock<HashMap<String, Arc<Mutex<RlmSession>>>>>;
 
 #[must_use]
 pub fn new_shared_rlm_session_store() -> SharedRlmSessionStore {
-    Arc::new(Mutex::new(HashMap::new()))
+    Arc::new(RwLock::new(HashMap::new()))
 }
 
 #[derive(Debug)]

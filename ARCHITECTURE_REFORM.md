@@ -2,7 +2,7 @@
 
 > 基于 DDD（领域驱动设计）理论，从第一性原理出发的架构分析与改进方案。
 > 改造范围：仅影响底层实现，不改变用户可见的交互方式和外部 API 接口。
-> 最后更新：2026-06-26
+> 最后更新：2026-06-28
 
 ---
 
@@ -100,7 +100,7 @@ codewhale-tui 依赖: config, execpolicy, protocol, release, secrets, tools
 codewhale-tui 不依赖: core, agent, hooks, mcp, state
 ```
 
-`tui` 没有使用 `core` crate，而是自己构建了一套完整的运行时集成路径（RuntimeThreadManager、SubAgentRuntime 等）。`core` 中的线程管理、会话管理、工具编排逻辑在 TUI 模式下被绕过。
+`tui` 没有使用 `core` crate，而是自己构建了一套完整的运行时路径（RuntimeThreadManager、SubAgentRuntime 等）。`core` 中的线程管理、会话管理、工具编排逻辑在 TUI 模式下被绕过。
 
 **DDD 诊断**：领域逻辑泄漏到了 UI 层。
 
@@ -122,83 +122,24 @@ codewhale-tui 不依赖: core, agent, hooks, mcp, state
 
 **实际评估**：这是一个实验性功能，设计了丰富的类型系统（BranchSet、TeacherReview、PromotionGate 等），但集成需要大量编排层工作。**保持现状，不强行集成。**
 
-### 问题 4：遗留文件
+### 问题 4：遗留文件（✅ 已解决）
 
-- `crates/tui/src/prompts/agent.txt` — 旧版 prompt，已被 constitution.md 替代
-
-**DDD 诊断**：技术债务。**应清理。**
+- ~~`crates/tui/src/prompts/agent.txt`~~ — 旧版 prompt，已被 constitution.md 替代。**已于 2026-06-26 删除**，
+  `prompts.rs` 中的 `include_str!` 引用已替换为占位字符串，相关测试已适配。
 
 ---
 
 ## 四、稳定性与性能风险
 
-### 风险 1：`unwrap()` 在生产代码中的使用
+详见 `docs/STABILITY_ANALYSIS.md`，此处仅列摘要：
 
-非测试代码中有 **513 处 `.unwrap()`**，热区：
-
-| 文件 | 数量 | 风险等级 |
-|------|------|----------|
-| `fleet/manager.rs` | 117 | **高** — 舰队编排路径 |
-| `snapshot/repo.rs` | 116 | **中** — 文件系统操作 |
-| `working_set.rs` | 82 | **中** — 路径操作 |
-| `commands/groups/session/session.rs` | 54 | **中** — 会话管理 |
-| `tools/fetch_url.rs` | 41 | **中** — HTTP 响应解析 |
-
-**好消息**：无 `RwLock::write().unwrap()` 或 `RwLock::read().unwrap()` 模式。锁获取全部使用 `.await`（异步锁）或 `try_lock()`（31 处，均有守卫）。
-
-**改进项**：
-- [ ] 将 `fleet/manager.rs` 的 unwrap 替换为 `?` 或 `.expect("context")`
-- [ ] 将 `snapshot/repo.rs` 的 unwrap 替换为错误传播
-- [ ] 将 `working_set.rs` 的路径 unwrap 替换为安全处理
-- [ ] 其余文件逐步替换，优先处理用户交互路径
-
-### 风险 2：`clone()` 热区
-
-非测试代码中有 **2,425 处 `.clone()`**，热区：
-
-| 文件 | 数量 | 影响 |
-|------|------|------|
-| `fleet/manager.rs` | 117 | 舰队扩展时内存/延迟增长 |
-| `fleet/ledger.rs` | 42 | 账本记录克隆 |
-| `tui/tab/manager.rs` | 38 | 标签页状态 |
-| `client/chat.rs` | 35 | 每次 API 调用的请求构建 |
-| `tools/plugin.rs` | 30 | 插件上下文 |
-
-**改进项**：
-- [ ] `client/chat.rs` — 审查请求构建路径，用引用替代不必要的 String clone
-- [ ] `fleet/manager.rs` — 用 `Arc` 共享不可变状态，减少深拷贝
-- [ ] 其余热区按需优化，需先 profile 确认瓶颈
-
-### 风险 3：嵌套 Mutex 模式
-
-`rlm/session.rs` 存在双层嵌套 Mutex：
-```rust
-pub type SharedRlmSessionStore = Arc<Mutex<HashMap<String, Arc<Mutex<RlmSession>>>>>;
-```
-
-**风险**：如果两个代码路径以不同顺序获取外层和内层锁，可能死锁。
-
-**实际评估**：当前代码中内层锁仅在外层释放后获取，实际死锁风险低。但属于代码异味。
-
-**改进项**：
-- [ ] 重构为扁平结构（如 `Arc<Mutex<HashMap<String, RlmSession>>>`），或改用 `RwLock` 减少锁竞争
-
-### 风险 4：`ui.rs` 文件过大（11,000+ 行）
-
-渲染逻辑、事件处理、异步动作分发全在一个文件中。
-
-**改进项**：
-- [ ] 拆分为 `ui/chat.rs`（对话渲染）、`ui/sidebar.rs`（侧边栏）、`ui/footer.rs`（底部栏）、`ui/picker.rs`（选择器）等子模块
-- [ ] 目标：单文件不超过 1,000 行
-
-### 风险 5：工具执行完全串行化
-
-`Engine::tool_exec_lock: Arc<RwLock<()>>` 对所有工具调用加写锁，意味着同一时刻只能执行一个工具。
-
-**实际评估**：这是有意设计（防止并发工具执行导致文件冲突）。但如果未来需要并行工具执行，这是瓶颈。
-
-**改进项**：
-- [ ] 评估是否可以按工具类型分锁（读操作并行，写操作串行）
+| 风险 | 严重度 | 状态 |
+|------|--------|------|
+| `ui.rs` / `main.rs` 文件过大（11K/9K 行） | 中 | 待拆分 |
+| `clone()` 热区（2,425 处非测试代码） | 低-中 | 需 profile 确认瓶颈 |
+| `settings.rs` 50 处 unsafe 块 | 中 | 需审查必要性 |
+| 工具执行完全串行化 | 低 | 有意设计，可按需分锁 |
+| 嵌套锁模式（rlm/session.rs） | 低 | 已改善为 RwLock+Mutex |
 
 ---
 
@@ -211,48 +152,43 @@ pub type SharedRlmSessionStore = Arc<Mutex<HashMap<String, Arc<Mutex<RlmSession>
 | Phase 3 | core 拆分 job.rs + thread.rs | lib.rs 2767→1348 行，职责边界明确 | [x] 已完成 |
 | 构建优化 | Cargo.toml 添加 profile 配置，启用 sccache | debug 构建减少 60-80% 空间，编译提速 55% | [x] 已完成 |
 | 文档优化 | .claudeignore 补充 CLAUDE.local.md、scripts、assets 等 | 减少 AI 读取无关文件的 token 浪费 | [x] 已完成 |
+| 遗留清理 | 删除 `crates/tui/src/prompts/agent.txt`，更新 prompts.rs 引用 | 旧版 prompt 已被 constitution.md 替代 | [x] 已完成 |
+| 风险重审 | 重新审计 unwrap 热区文件的生产/测试代码边界 | 8 个热区文件全部在测试代码中，生产路径零 unwrap | [x] 已完成 |
+| Ignore 优化 | .claudeignore 新增排除 30+ 非核心文档 | 减少 AI 上下文 token 消耗 | [x] 已完成 |
 
 ---
 
 ## 六、待办改进清单
 
-### 高优先级（影响稳定性）
+### 高优先级（影响可维护性）
 
-- [ ] 替换 `fleet/manager.rs` 中 117 处 `unwrap()` 为错误传播
-- [ ] 替换 `snapshot/repo.rs` 中 116 处 `unwrap()` 为错误传播
-- [ ] 替换 `working_set.rs` 中 82 处 `unwrap()` 为安全处理
-- [ ] 清理遗留文件 `crates/tui/src/prompts/agent.txt`
+- [ ] 拆分 `tui/ui.rs`（11,412 行）为子模块（chat、sidebar、footer、picker），目标单文件不超过 1,000 行
+- [ ] 拆分 `tui/main.rs`（9,231 行）为初始化、参数解析、模块接线等独立文件
 
-### 中优先级（影响可维护性）
+### 中优先级（影响代码质量）
 
-- [ ] 拆分 `tui/ui.rs`（11,000+ 行）为子模块（chat、sidebar、footer、picker）
-- [ ] 拆分 `tui/main.rs`（9,200+ 行）为初始化、参数解析、模块接线等独立文件
+- [ ] 审查 `settings.rs` 的 50 处 unsafe 块，评估是否可用安全替代方案
 - [ ] 审查 `client/chat.rs` 的 35 处 clone，用引用替代不必要的 String 拷贝
-- [ ] 重构 `rlm/session.rs` 的嵌套 Mutex 为扁平结构
+- [ ] 评估 `tools/subagent/mod.rs`（247 处 clone）和 `core/engine.rs`（173 处 clone）是否可通过 Arc 优化
 
-### 低优先级（改善代码质量）
+### 低优先级（长期改善）
 
-- [ ] 逐步替换其余文件中的 `unwrap()` 为 `?` 或 `.expect("context")`
-- [ ] 评估 `fleet/manager.rs` 的 117 处 clone 是否可通过 `Arc` 优化
+- [ ] 建立精确的 CI unwrap 审计（`cargo geiger` 或自定义脚本），替代 grep 统计
 - [ ] 评估工具执行锁是否可以按类型分拆（读并行、写串行）
 
----
-
-## 七、不做（经评估后明确排除）
-
-以下改进经过深入分析后判断**收益不足以抵消风险或成本**：
+### 已排除（经评估后明确不做）
 
 | 提议 | 排除原因 |
 |------|----------|
-| 提示词系统独立为 crate | 提示词组装逻辑（35K tokens）深度耦合 TUI 类型（AppMode、ProjectContext），独立需大量接口抽象，收益有限 |
-| 消除 config→execpolicy 依赖 | 配置域对策略类型的依赖是合理的领域依赖（重导出 ToolAskRule） |
-| 统一 TUI 和 core 运行时 | TUI 运行时（ratatui 渲染、子代理编排、MCP OAuth）与 core 的 API 编排是根本不同的设计 |
+| 提示词系统独立为 crate | 提示词组装逻辑深度耦合 TUI 类型，独立需大量接口抽象，收益有限 |
+| 消除 config→execpolicy 依赖 | 配置域对策略类型的依赖是合理的领域依赖 |
+| 统一 TUI 和 core 运行时 | TUI 运行时与 core 的 API 编排是根本不同的设计模式 |
 | 重命名 agent crate | 影响所有依赖方、CI、发布流程，收益有限 |
-| 集成 whaleflow | 实验性功能，集成需要大量编排层工作，当前保持独立更安全 |
+| 集成 whaleflow | 实验性功能，集成需要大量编排层工作 |
 
 ---
 
-## 八、关键设计决策记录
+## 七、关键设计决策记录
 
 ### 决策 1：保留双入口（CLI + TUI）
 

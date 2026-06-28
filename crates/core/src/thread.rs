@@ -2,17 +2,16 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-pub use codewhale_protocol::{
-    ThreadGoalClearParams, ThreadGoalGetParams, ThreadGoalProgressParams, ThreadGoalSetParams,
-};
 use codewhale_protocol::{
     Thread, ThreadForkParams, ThreadGoal, ThreadGoalStatus, ThreadListParams, ThreadReadParams,
     ThreadResumeParams, ThreadSetNameParams, ThreadStatus,
 };
+pub use codewhale_protocol::{
+    ThreadGoalClearParams, ThreadGoalGetParams, ThreadGoalProgressParams, ThreadGoalSetParams,
+};
 use codewhale_state::{
-    SessionSource, StateStore, ThreadGoalRecord,
-    ThreadGoalStatus as PersistedThreadGoalStatus, ThreadListFilters, ThreadMetadata,
-    ThreadStatus as PersistedThreadStatus,
+    SessionSource, StateStore, ThreadGoalRecord, ThreadGoalStatus as PersistedThreadGoalStatus,
+    ThreadListFilters, ThreadMetadata, ThreadStatus as PersistedThreadStatus,
 };
 use serde_json::{Value, json};
 use uuid::Uuid;

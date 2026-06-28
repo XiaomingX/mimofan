@@ -380,9 +380,7 @@ fn classify(kind: ProviderKind) -> ProviderClass {
         // Strict first-party direct providers.
         ProviderKind::Deepseek | ProviderKind::Zai => ProviderClass::StrictDirect,
         // Local runtimes / custom OpenAI-compatible endpoints.
-        ProviderKind::Openai => {
-            ProviderClass::LocalOrCustom
-        }
+        ProviderKind::Openai => ProviderClass::LocalOrCustom,
         // Everything else is treated as an aggregator-style pass-through.
         _ => ProviderClass::Aggregator,
     }

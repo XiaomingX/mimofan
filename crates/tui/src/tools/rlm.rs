@@ -189,7 +189,7 @@ impl ToolSpec for RlmOpenTool {
             .unwrap_or_else(|| derive_session_name(source_hint.as_deref()));
 
         {
-            let sessions = context.runtime.rlm_sessions.lock().await;
+            let sessions = context.runtime.rlm_sessions.read().await;
             if sessions.contains_key(&name) {
                 return Err(ToolError::invalid_input(format!(
                     "rlm_open: context name `{name}` already exists"
@@ -207,7 +207,7 @@ impl ToolSpec for RlmOpenTool {
         let session = RlmSession::new(name.clone(), kernel, context_meta.clone(), context_path);
         let id = session.id.clone();
 
-        let mut sessions = context.runtime.rlm_sessions.lock().await;
+        let mut sessions = context.runtime.rlm_sessions.write().await;
         sessions.insert(name.clone(), Arc::new(tokio::sync::Mutex::new(session)));
 
         ToolResult::json(&json!({
@@ -517,7 +517,7 @@ impl ToolSpec for RlmCloseTool {
     async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
         let name = required_non_empty_str(&input, "name")?;
         let removed = {
-            let mut sessions = context.runtime.rlm_sessions.lock().await;
+            let mut sessions = context.runtime.rlm_sessions.write().await;
             sessions.remove(name)
         };
         let Some(session) = removed else {
@@ -623,7 +623,7 @@ async fn get_session(
     context: &ToolContext,
     name: &str,
 ) -> Result<Arc<tokio::sync::Mutex<RlmSession>>, ToolError> {
-    let sessions = context.runtime.rlm_sessions.lock().await;
+    let sessions = context.runtime.rlm_sessions.read().await;
     sessions.get(name).cloned().ok_or_else(|| {
         ToolError::invalid_input(format!("unknown RLM context `{name}`; call rlm_open first"))
     })

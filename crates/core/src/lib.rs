@@ -191,8 +191,7 @@ impl Runtime {
                 }
             }
             ThreadRequest::Fork(params) => {
-                let cwd =
-                    std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
                 if let Some(new) = self.thread_manager.fork_thread(&params, &cwd)? {
                     let mut response = thread_response_from_new("forked", new);
                     response.data = self.persisted_thread_data(&response.thread_id)?;

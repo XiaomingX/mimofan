@@ -32,13 +32,40 @@ CHANGELOG.md
 docs/CHANGELOG_ARCHIVE.md
 crates/tui/CHANGELOG.md
 
-# ── 非核心文档 ──
-docs/rfcs/
-docs/evidence/
-docs/skills/
+# ── 非核心文档（不影响代码理解）──
+docs/rfcs/                    # 历史 RFC 设计文档
+docs/evidence/                # 审计证据材料
+docs/skills/                  # 技能市场文档
+docs/architecture/            # 架构子文档（已有 ARCHITECTURE_CN.md）
 docs/ARCHITECTURE.md          # 英文版，已有中文版 ARCHITECTURE_CN.md
+docs/GUIDE.md                 # 用户指南（已有 USAGE_CN.md）
+docs/INSTALL.md               # 安装指南（802 行，不影响代码理解）
+docs/DOCKER.md                # Docker 部署
+docs/FLEET.md                 # 舰队编排（542 行，实验性功能）
+docs/RUNTIME_API.md           # 运行时 API（665 行）
+docs/AGENT_RUNTIME.md         # 代理运行时
+docs/RECURSIVE_SELF_IMPROVEMENT.md
+docs/CNB_MIRROR.md
+docs/REBRAND.md
+docs/RECEIPTS.md
+docs/CLAUDE_PLUGIN_COMPAT.md
+docs/ACP_REGISTRY_SUBMISSION.md
+docs/CLASSROOM_INSTALL.md
+docs/ACCESSIBILITY.md
+docs/CONTRIBUTORS.md
+docs/MODEL_LAB.md
+docs/TOOL_LIFECYCLE.md
+docs/WORKROOM_SECURITY.md
+docs/WORKROOM_ARCHITECTURE.md
+docs/WHALEFLOW_AUTHORING.md
+docs/LEGACY_PATHS.md
+docs/SANDBOX.md
+docs/SKILL_INVOCATION_DESIGN.md
+docs/CLAUDE.local.md
+docs/memory/                  # 记忆系统文档
 benchmark_results/
-ARCHITECTURE_REFORM.md
+ARCHITECTURE_REFORM.md        # 改进计划（已完成的阶段性文档）
+DEEPSEEK_CACHE_AUDIT.md       # 审计文档
 HIGHLIGHTS.md
 USERGUIDE.md
 SECURITY.md
@@ -94,11 +121,12 @@ project_overhaul_prompt.md
 
 # ============================================
 # 保留（不排除）：
-# - crates/          Rust 源代码
-# - docs/ 核心文档   ARCHITECTURE_CN.md, CONFIGURATION.md, PROVIDERS.md,
-#                    SUBAGENTS.md, MCP.md, MODES.md, USAGE_CN.md
-# - config.example.toml
-# - AGENTS.md        AI 代理工作规范
-# - CLAUDE.md        项目级 AI 指引
-# - Cargo.toml       工作区配置
+# - crates/              Rust 源代码（含 prompts/ 提示词模板）
+# - docs/ 核心文档       ARCHITECTURE_CN.md, CONFIGURATION.md, PROVIDERS.md,
+#                        SUBAGENTS.md, MCP.md, MODES.md, USAGE_CN.md,
+#                        TOOL_SURFACE.md, KEYBINDINGS.md, MEMORY.md
+# - config.example.toml  配置示例
+# - AGENTS.md            AI 代理工作规范
+# - CLAUDE.md            项目级 AI 指引
+# - Cargo.toml           工作区配置
 # ============================================

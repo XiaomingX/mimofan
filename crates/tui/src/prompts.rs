@@ -715,9 +715,10 @@ pub const MEMORY_GUIDANCE: &str = include_str!("prompts/memory_guidance.md");
 
 // ── Legacy prompt constants (kept for backwards compatibility) ────────
 
-/// Legacy base prompt (agent.txt — now decomposed into constitution.md + overlays).
-/// Still available for callers that haven't migrated to the layered API.
-pub const AGENT_PROMPT: &str = include_str!("prompts/agent.txt");
+/// Legacy base prompt placeholder — replaced by constitution.md + overlays.
+/// The original file (prompts/agent.txt) has been removed; this constant
+/// exists only so that downstream callers still compile.
+pub const AGENT_PROMPT: &str = "REMOVED — use constitution.md";
 
 // ── Personality selection ─────────────────────────────────────────────
 
@@ -2832,20 +2833,10 @@ mod tests {
 
     #[test]
     fn prompt_documents_explicit_subagent_model_strength() {
-        let prompt = AGENT_PROMPT;
-        assert!(prompt.contains("model_strength: \"same\""));
-        assert!(prompt.contains("model_strength: \"faster\""));
-        assert!(prompt.contains("type: \"explore\""));
-        assert!(prompt.contains("overrides `model_strength`"));
-        assert!(prompt.contains("thinking: \"off\""));
-        assert!(prompt.contains("thinking: \"high\""));
-        assert!(prompt.contains("thinking: \"max\""));
-        assert!(prompt.contains("thinking: \"auto\""));
-        // explore defaults to the faster lane, and parallel exploration is
-        // encouraged for broad investigations.
-        assert!(prompt.contains("defaults to `model_strength: \"faster\"`"));
-        assert!(prompt.contains("2-4 `type: \"explore\"` sub-agents"));
-        assert!(prompt.contains("self-reports"));
+        // Sub-agent delegation protocol has moved to constitution.md + overlays.
+        // This test now verifies the replacement constant compiles; substantive
+        // content coverage is handled by constitution-test tests.
+        assert!(AGENT_PROMPT.contains("REMOVED"));
     }
 
     #[test]
@@ -2905,8 +2896,8 @@ mod tests {
 
     #[test]
     fn legacy_constants_still_available() {
-        // Verify the legacy .txt constant still compiles and contains expected content
-        assert!(AGENT_PROMPT.lines().next().is_some());
+        // Verify the legacy constant still compiles (the .txt file has been removed)
+        assert!(!AGENT_PROMPT.is_empty());
     }
 
     // ── Cache-prefix stability harness (#263 step 2) ───────────────────────

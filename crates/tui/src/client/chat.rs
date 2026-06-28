@@ -964,10 +964,10 @@ fn inspect_wire_request(tools: Option<&[Tool]>, messages: &[Value]) -> PromptIns
         } else {
             format!("Message #{index} {role}")
         };
-        if stability != PromptLayerStability::Dynamic {
-            full_request_prefix_parts.push(content.clone());
-        }
         let mut layer = prompt_layer(name, stability, &content);
+        if stability != PromptLayerStability::Dynamic {
+            full_request_prefix_parts.push(content);
+        }
         layer.tool_result = tool_result_inspection_for_message(message);
         layer.turn_meta = turn_meta_inspection_for_message(message);
         layers.push(layer);
