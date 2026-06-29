@@ -3,14 +3,9 @@
 # 排除 AI 不需要读取的文件，减少 token 浪费
 # ============================================
 
-# ── TUI 专属模式：排除非 TUI 依赖的 crate ──
-crates/core/
-crates/agent/
+# ── 排除辅助/入口 crate（保留核心引擎和工具链）──
 crates/app-server/
 crates/cli/
-crates/mcp/
-crates/hooks/
-crates/state/
 crates/whaleflow/
 
 # ── 构建产物 ──
@@ -64,7 +59,7 @@ crates/tui/src/tui/views/mod.rs
 # ── AI 记忆文件（已自动注入上下文，重复读取浪费 token）──
 **/CLAUDE.local.md
 
-# ── 根目录非 TUI 文件 ──
+# ── 根目录非核心文件 ──
 AGENTS.md
 ARCHITECTURE_MASTER_PLAN.md
 ARCHITECTURE_REFORM_PLAN*.md
@@ -170,14 +165,19 @@ workflows/
 .gitattributes
 
 # ============================================
-# 保留（不排除）：
-# - crates/tui/          TUI 主 crate
-# - crates/config/       配置管理（TUI 依赖）
-# - crates/execpolicy/   执行策略（TUI 依赖）
-# - crates/protocol/     协议类型（TUI 依赖）
-# - crates/release/      发布工具（TUI 依赖）
-# - crates/secrets/      密钥管理（TUI 依赖）
-# - crates/tools/        工具系统（TUI 依赖）
+# 保留（不排除）— Claude Code 核心组件：
+# - crates/tui/          TUI 终端界面
+# - crates/core/         对话引擎、会话管理
+# - crates/agent/        模型注册表、路由解析
+# - crates/config/       配置管理
+# - crates/tools/        工具系统（shell、文件等）
+# - crates/mcp/          MCP 工具集成
+# - crates/hooks/        工具执行钩子
+# - crates/execpolicy/   执行策略引擎
+# - crates/protocol/     协议类型定义
+# - crates/state/        会话持久化（SQLite）
+# - crates/secrets/      密钥管理
+# - crates/release/      发布工具
 # - config.example.toml  配置示例
 # - CLAUDE.md            项目级 AI 指引
 # - Cargo.toml           工作区配置
