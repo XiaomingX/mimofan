@@ -3,6 +3,16 @@
 # 排除 AI 不需要读取的文件，减少 token 浪费
 # ============================================
 
+# ── TUI 专属模式：排除非 TUI 依赖的 crate ──
+crates/core/
+crates/agent/
+crates/app-server/
+crates/cli/
+crates/mcp/
+crates/hooks/
+crates/state/
+crates/whaleflow/
+
 # ── 构建产物 ──
 target/
 
@@ -54,6 +64,15 @@ crates/tui/src/tui/views/mod.rs
 # ── AI 记忆文件（已自动注入上下文，重复读取浪费 token）──
 **/CLAUDE.local.md
 
+# ── 根目录非 TUI 文件 ──
+AGENTS.md
+ARCHITECTURE_MASTER_PLAN.md
+ARCHITECTURE_REFORM_PLAN*.md
+CONSTANTS_AND_CONFIG_CONSOLIDATION.md
+STABILITY_RISKS_ANALYSIS.md
+USER_GUIDE.md
+settings.example.json
+
 # ── 变更日志（历史记录，不影响代码理解）──
 CHANGELOG.md
 docs/CHANGELOG_ARCHIVE.md
@@ -96,6 +115,18 @@ docs/OPERATIONS_RUNBOOK.md
 docs/PROVIDERS.md
 docs/STABILITY_ANALYSIS.md
 docs/AGENT_ETHOS.md
+
+# ── 非 TUI 相关文档 ──
+docs/ARCHITECTURE_CN.md
+docs/ARCHITECTURE_CN_V2.md
+docs/USAGE_GUIDE_CN.md
+docs/CONFIGURATION.md
+docs/SUBAGENTS.md
+docs/MCP.md
+docs/MODES.md
+docs/TOOL_SURFACE.md
+docs/KEYBINDINGS.md
+docs/MEMORY.md
 
 # ── Nix 配置 ──
 flake.nix
@@ -140,12 +171,14 @@ workflows/
 
 # ============================================
 # 保留（不排除）：
-# - crates/              Rust 源代码（含 prompts/ 提示词模板）
-# - docs/ 核心文档       ARCHITECTURE_CN.md, CONFIGURATION.md,
-#                        SUBAGENTS.md, MCP.md, MODES.md, USAGE_CN.md,
-#                        TOOL_SURFACE.md, KEYBINDINGS.md, MEMORY.md
+# - crates/tui/          TUI 主 crate
+# - crates/config/       配置管理（TUI 依赖）
+# - crates/execpolicy/   执行策略（TUI 依赖）
+# - crates/protocol/     协议类型（TUI 依赖）
+# - crates/release/      发布工具（TUI 依赖）
+# - crates/secrets/      密钥管理（TUI 依赖）
+# - crates/tools/        工具系统（TUI 依赖）
 # - config.example.toml  配置示例
-# - AGENTS.md            AI 代理工作规范
 # - CLAUDE.md            项目级 AI 指引
 # - Cargo.toml           工作区配置
 # ============================================
