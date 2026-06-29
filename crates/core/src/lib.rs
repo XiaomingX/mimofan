@@ -4,7 +4,7 @@ mod thread;
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use mimofan_agent::ModelRegistry;
 use mimofan_config::{CliRuntimeOverrides, ConfigToml, DEFAULT_PROVIDER_ID, ProviderKind};
 use mimofan_execpolicy::{
@@ -80,7 +80,8 @@ impl Runtime {
         let history = self
             .thread_manager
             .state_store()
-            .list_messages(thread_id, Some(500))?
+            .list_messages(thread_id, Some(500))
+            .context("Failed to list messages for thread")?
             .into_iter()
             .map(|message| {
                 json!({
@@ -96,7 +97,8 @@ impl Runtime {
         let checkpoint = self
             .thread_manager
             .state_store()
-            .load_checkpoint(thread_id, None)?
+            .load_checkpoint(thread_id, None)
+            .context("Failed to load checkpoint for thread")?
             .map(|record| {
                 json!({
                     "checkpoint_id": record.checkpoint_id,
@@ -108,7 +110,8 @@ impl Runtime {
         let goal = self
             .thread_manager
             .state_store()
-            .get_thread_goal(thread_id)?
+            .get_thread_goal(thread_id)
+            .context("Failed to get thread goal")?
             .map(to_protocol_goal);
 
         Ok(json!({
@@ -127,7 +130,7 @@ impl Runtime {
                 "saved_at": chrono::Utc::now().timestamp(),
                 "state": state
             }),
-        )
+        ).context("Failed to save checkpoint for thread")
     }
 
     /// Dispatches a thread request (create, start, resume, fork, list, read, etc.).
