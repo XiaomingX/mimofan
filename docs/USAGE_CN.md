@@ -1,7 +1,7 @@
 # mimo-tui 使用说明
 
 > 面向中国开发者的使用指南，说人话，不绕弯子。
-> 最后更新：2026-06-28
+> 最后更新：2026-06-29
 
 ---
 
@@ -15,7 +15,42 @@
 - "跑一下测试，看看有没有报错"
 - "帮我提交代码并创建 PR"
 
-它会调用大模型（DeepSeek、GPT、Claude 等）思考，然后用内置工具（shell、文件读写、Git 等）把活干了。
+它会调用大模型（MiMo、DeepSeek、GPT、Claude 等）思考，然后用内置工具（shell、文件读写、Git 等）把活干了。
+
+---
+
+## 核心概念
+
+### 1. 会话（Session）
+
+一次对话就是一个会话。会话包含：
+- 用户输入
+- AI 回复
+- 工具调用记录
+- 上下文历史
+
+### 2. 线程（Thread）
+
+线程是会话中的一个对话流。一个会话可以有多个线程（分支对话）。
+
+### 3. 工具（Tool）
+
+工具是 AI 可以调用的能力。内置工具包括：
+- `shell` — 执行 shell 命令
+- `read_file` — 读取文件
+- `write_file` — 写入文件
+- `search` — 搜索文件内容
+- `web_search` — 网络搜索
+
+### 4. 模式（Mode）
+
+mimo-tui 有三种工作模式：
+
+| 模式 | 说明 | 审批策略 |
+|------|------|---------|
+| `agent` | 标准模式，工具调用需要确认 | 需要用户确认 |
+| `plan` | 规划模式，只分析不执行 | 不执行工具 |
+| `yolo` | 自动模式，跳过所有审批 | 自动执行 |
 
 ---
 
@@ -603,4 +638,135 @@ AI 会：
 2. 生成 README.md
 3. 生成 API 文档
 4. 包含使用示例
+```
+
+---
+
+## 常用函数和 API（开发者向）
+
+### 核心入口函数
+
+```rust
+// 1. 创建运行时（最顶层入口）
+use mimofan_core::Runtime;
+
+let runtime = Runtime::new(
+    config,           // 配置
+    model_registry,   // 模型注册表
+    state,            // 状态存储
+    tool_registry,    // 工具注册表
+    mcp_manager,      // MCP 管理器
+    exec_policy,      // 执行策略
+    hooks,            // 钩子系统
+)?;
+
+// 2. 发送消息
+let response = runtime.send_message(MessageRequest {
+    model: "mimo-v2.5-pro".to_string(),
+    messages: vec![Message::user("帮我写个函数")],
+    max_tokens: 4096,
+    ..Default::default()
+}).await?;
+
+// 3. 流式接收
+let mut stream = runtime.send_message_stream(request).await?;
+while let Some(event) = stream.next().await {
+    match event? {
+        EventFrame::ResponseDelta { delta, .. } => print!("{}", delta),
+        EventFrame::ToolCall { name, .. } => println!("[工具] {}", name),
+        _ => {}
+    }
+}
+```
+
+### 工具注册
+
+```rust
+use mimofan_tools::{ToolHandler, ToolSpec, ToolRegistry};
+
+// 实现工具
+struct MyTool;
+#[async_trait]
+impl ToolHandler for MyTool {
+    fn kind(&self) -> ToolKind { ToolKind::Function }
+    async fn handle(&self, inv: ToolInvocation) -> Result<ToolOutput, FunctionCallError> {
+        Ok(ToolOutput::Function { body: Some(json!({"ok": true})), success: true })
+    }
+}
+
+// 注册
+let mut registry = ToolRegistry::default();
+registry.register(spec, Arc::new(MyTool))?;
+```
+
+### 配置解析
+
+```rust
+use mimofan_config::{ConfigStore, RouteResolver};
+
+let store = ConfigStore::load(Some("config.toml"))?;
+let resolver = RouteResolver::new(store.config());
+let candidate = resolver.resolve(&request)?;
+// candidate.model, candidate.base_url, candidate.context_window
+```
+
+### 执行策略检查
+
+```rust
+use mimofan_execpolicy::{ExecPolicyEngine, ExecPolicyContext};
+
+let engine = ExecPolicyEngine::new();
+let decision = engine.check(&ExecPolicyContext {
+    command: "rm -rf /tmp/test",
+    cwd: "/workspace",
+    tool: "shell",
+    ask_for_approval: AskForApproval::OnRequest,
+    sandbox_mode: SandboxMode::Seatbelt,
+})?;
+// decision.requires_approval == true
+```
+
+### 状态持久化
+
+```rust
+use mimofan_state::StateStore;
+
+let store = StateStore::open("~/.mimofan/state.db")?;
+store.upsert_thread(&ThreadMetadata { id: "t1".into(), .. })?;
+store.append_message(&MessageRecord { thread_id: "t1".into(), role: "user".into(), .. })?;
+let messages = store.list_messages("t1")?;
+```
+
+---
+
+## 配置文件速查
+
+| 文件 | 位置 | 用途 |
+|------|------|------|
+| 主配置 | `~/.mimofan/config.toml` | Provider、模型、策略 |
+| 运行时设置 | `~/.mimofan/settings.toml` | 模式、UI 偏好 |
+| MCP 配置 | `~/.mimofan/mcp.json` | MCP 服务器 |
+| 技能目录 | `~/.mimofan/skills/` | 自定义技能 |
+| 会话历史 | `~/.mimofan/sessions/` | 对话记录 |
+| 审计日志 | `~/.mimofan/audit.log` | 操作审计 |
+
+---
+
+## 构建与测试
+
+```bash
+# 格式化
+cargo fmt
+
+# 编译
+cargo build
+
+# 测试
+cargo test -p mimofan-config        # 配置测试
+cargo test -p mimofan-protocol      # 协议测试
+cargo test -p mimofan --locked      # TUI 测试
+cargo test --workspace              # 全量测试
+
+# 发布构建
+cargo build --release -p mimofan-cli -p mimofan
 ```

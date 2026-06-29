@@ -1,7 +1,7 @@
 # mimo-tui 架构说明
 
 > 本文档面向开发者，用大白话讲清楚 mimo-tui 的架构设计、模块职责、核心入口和扩展方式。
-> 最后更新：2026-06-28
+> 最后更新：2026-06-29
 
 ---
 
@@ -154,25 +154,25 @@ Layer 4 ─ 顶层入口
 
 **位置**：`crates/agent/src/`
 
-**作用**：管理所有支持的 AI 模型。你告诉它"我要用 deepseek-v4-pro"，它帮你找到正确的 provider 和端点。
+**作用**：管理所有支持的 AI 模型。你告诉它"我要用 mimo-v2.5-pro"，它帮你找到正确的 provider 和端点。
 
 > **注意**：虽然叫 `agent`，但它实际只包含模型注册表逻辑，不是 Agent 系统的核心。
 
 **子模块**：
-- `family.rs` — `ModelFamily` 枚举（DeepSeek、OpenAI、Anthropic 等 11 个家族）
+- `family.rs` — `ModelFamily` 枚举（MiMo、DeepSeek、OpenAI 等家族）
 - `provider_resolver.rs` — 模型匹配、大小写保持、provider 特定逻辑
 - `lib.rs` — `ModelRegistry`（70+ 模型配置）、`resolve()` 方法
 
 **使用示例**：
 ```rust
-use mimo-tui_agent::{ModelRegistry, model_family, ModelFamily};
+use mimofan_agent::{ModelRegistry, model_family, ModelFamily};
 
 let registry = ModelRegistry::default();
-let result = registry.resolve(Some("deepseek-v4-pro"), None);
-// result.resolved.id == "deepseek-v4-pro"
-// result.resolved.provider == ProviderKind::Deepseek
+let result = registry.resolve(Some("mimo-v2.5-pro"), None);
+// result.resolved.id == "mimo-v2.5-pro"
+// result.resolved.provider == ProviderKind::XiaomiMimo
 
-assert_eq!(model_family("deepseek-v4-pro"), ModelFamily::DeepSeek);
+assert_eq!(model_family("mimo-v2.5-pro"), ModelFamily::MiMo);
 ```
 
 ### 3. core — 核心引擎（领域服务层）
@@ -208,8 +208,8 @@ runtime.jobs.enqueue("my-job", payload)?;
 **作用**：读取和解析配置文件，管理 provider 配置、模型设置、执行策略。
 
 **配置文件位置**：
-- `~/.mimo-tui/config.toml` — 主配置文件
-- `~/.mimo-tui/settings.toml` — 运行时设置
+- `~/.mimofan/config.toml` — 主配置文件
+- `~/.mimofan/settings.toml` — 运行时设置
 - `/etc/deepseek/managed_config.toml` — 系统级默认配置
 
 **核心类型**：
@@ -221,8 +221,8 @@ let config: &ConfigToml = store.config();
 // 路由解析
 let resolver = RouteResolver::new(config);
 let candidate = resolver.resolve(&request)?;
-// candidate.model == "deepseek-v4-pro"
-// candidate.base_url == "https://api.deepseek.com"
+// candidate.model == "mimo-v2.5-pro"
+// candidate.base_url == "https://api.xiaomi.com"
 ```
 
 ### 5. tools — 工具系统（领域模型层）
@@ -233,7 +233,7 @@ let candidate = resolver.resolve(&request)?;
 
 **如何注册一个新工具**：
 ```rust
-use mimo-tui_tools::{ToolHandler, ToolSpec, ToolRegistry, ToolInvocation, ToolOutput};
+use mimofan_tools::{ToolHandler, ToolSpec, ToolRegistry, ToolInvocation, ToolOutput};
 use async_trait::async_trait;
 
 struct MyTool;
@@ -299,7 +299,7 @@ let tools = manager.list_tools().await;
 **作用**：用 SQLite 存储会话、线程、任务等持久化数据。4 次 schema 迁移（v0→v4）。
 
 ```rust
-let store = StateStore::open("~/.mimo-tui/state.db")?;
+let store = StateStore::open("~/.mimofan/state.db")?;
 
 // 创建线程
 store.upsert_thread(&ThreadMetadata { id: "t1".into(), .. })?;
@@ -405,10 +405,10 @@ TUI/CLI 接收输入
 core 创建 Thread，组装 prompt
     │
     ▼
-agent 根据配置解析出模型 (deepseek-v4-pro)
+agent 根据配置解析出模型 (mimo-v2.5-pro)
     │
     ▼
-LLM 客户端发送 HTTP 请求到 DeepSeek API
+LLM 客户端发送 HTTP 请求到小米 API
     │
     ▼
 流式接收 EventFrame::ResponseDelta
@@ -475,20 +475,20 @@ ToolRegistry 查找工具 handler
 
 ### 添加 MCP 服务器
 
-1. 编辑 `~/.mimo-tui/mcp.json`，添加服务器配置
+1. 编辑 `~/.mimofan/mcp.json`，添加服务器配置
 2. mimo-tui 启动时自动连接并注册工具
 3. 工具自动对 LLM 可见
 
 ### 添加 Skills 技能
 
-1. 在 `~/.mimo-tui/skills/` 下创建目录
+1. 在 `~/.mimofan/skills/` 下创建目录
 2. 添加 `SKILL.md` 文件定义技能提示词
 3. 可选添加辅助脚本
 4. 通过 `load_skill` 工具调用
 
 ### 添加 Hooks 钩子
 
-在 `~/.mimo-tui/config.toml` 中配置：
+在 `~/.mimofan/config.toml` 中配置：
 
 ```toml
 [[hooks]]
@@ -508,18 +508,18 @@ cargo fmt
 cargo build
 
 # 运行测试
-cargo test -p mimo-tui-config        # 配置测试
-cargo test -p mimo-tui-protocol      # 协议测试
-cargo test -p mimo-tui --locked  # TUI 测试
+cargo test -p mimofan-config        # 配置测试
+cargo test -p mimofan-protocol      # 协议测试
+cargo test -p mimofan --locked  # TUI 测试
 cargo test --workspace                # 全量测试
 
 # 发布构建
-cargo build --release -p mimo-tui-cli -p mimo-tui
+cargo build --release -p mimofan-cli -p mimofan
 ```
 
 ### 已知测试问题（非回归）
 
-- `config_command_allow_shell_*` 在 `~/.mimo-tui/settings.toml` 设置 `default_mode = "yolo"` 时失败（测试不隔离）
+- `config_command_allow_shell_*` 在 `~/.mimofan/settings.toml` 设置 `default_mode = "yolo"` 时失败（测试不隔离）
 - `run_verifiers_background_*` 在全量并行测试时偶发失败，单独运行通过
 
 ---
@@ -528,26 +528,15 @@ cargo build --release -p mimo-tui-cli -p mimo-tui
 
 | 文件路径 | 说明 |
 |---------|------|
-| `~/.mimo-tui/config.toml` | 主配置（provider、模型、策略） |
-| `~/.mimo-tui/settings.toml` | 运行时设置（模式、UI 偏好） |
-| `~/.mimo-tui/mcp.json` | MCP 服务器配置 |
-| `~/.mimo-tui/skills/` | 用户自定义技能目录 |
-| `~/.mimo-tui/sessions/` | 会话历史 |
-| `~/.mimo-tui/tasks/` | 后台任务记录 |
-| `~/.mimo-tui/snapshots/` | 工作区快照（用于恢复） |
-| `~/.mimo-tui/audit.log` | 审计日志 |
+| `~/.mimofan/config.toml` | 主配置（provider、模型、策略） |
+| `~/.mimofan/settings.toml` | 运行时设置（模式、UI 偏好） |
+| `~/.mimofan/mcp.json` | MCP 服务器配置 |
+| `~/.mimofan/skills/` | 用户自定义技能目录 |
+| `~/.mimofan/sessions/` | 会话历史 |
+| `~/.mimofan/tasks/` | 后台任务记录 |
+| `~/.mimofan/snapshots/` | 工作区快照（用于恢复） |
+| `~/.mimofan/audit.log` | 审计日志 |
 | `config.example.toml` | 配置文件示例（项目根目录） |
-
----
-
-## 架构改进记录
-
-详见 `ARCHITECTURE_REFORM.md`，已完成：
-- [x] Phase 1：protocol 按限界上下文拆分（lib.rs 714→17 行）
-- [x] Phase 2：agent 抽取 family.rs + provider_resolver.rs
-- [x] Phase 3：core 拆分 job.rs + thread.rs（lib.rs 2767→1348 行）
-- [x] 构建优化：Cargo profile + sccache
-- [x] 文档优化：.claudeignore 排除 30+ 非核心文档
 
 ---
 
