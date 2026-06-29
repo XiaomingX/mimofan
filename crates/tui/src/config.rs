@@ -3844,9 +3844,7 @@ fn xiaomi_mimo_env_api_key_for_runtime(
     mode: Option<&str>,
     base_url: Option<&str>,
 ) -> Option<String> {
-    const TOKEN_PLAN_ENV_VARS: &[&str] =
-        &["XIAOMI_MIMO_TOKEN_PLAN_API_KEY", "MIMO_TOKEN_PLAN_API_KEY"];
-    const STANDARD_ENV_VARS: &[&str] = &["XIAOMI_MIMO_API_KEY", "XIAOMI_API_KEY", "MIMO_API_KEY"];
+    use mimofan_config::{XIAOMI_MIMO_STANDARD_ENV_VARS, XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS};
 
     let normalized_mode =
         mode.map(|value| value.trim().to_ascii_lowercase().replace(['_', ' '], "-"));
@@ -3855,7 +3853,7 @@ fn xiaomi_mimo_env_api_key_for_runtime(
         .is_some_and(xiaomi_mimo_mode_uses_standard_endpoint)
         || base_url.is_some_and(xiaomi_mimo_base_url_is_pay_as_you_go);
     if standard_selected {
-        return xiaomi_mimo_env_var(STANDARD_ENV_VARS);
+        return xiaomi_mimo_env_var(XIAOMI_MIMO_STANDARD_ENV_VARS);
     }
 
     let token_plan_selected = normalized_mode
@@ -3864,10 +3862,11 @@ fn xiaomi_mimo_env_api_key_for_runtime(
         .is_some()
         || base_url.is_some_and(xiaomi_mimo_base_url_uses_token_plan);
     if token_plan_selected {
-        return xiaomi_mimo_env_var(TOKEN_PLAN_ENV_VARS);
+        return xiaomi_mimo_env_var(XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS);
     }
 
-    xiaomi_mimo_env_var(TOKEN_PLAN_ENV_VARS).or_else(|| xiaomi_mimo_env_var(STANDARD_ENV_VARS))
+    xiaomi_mimo_env_var(XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS)
+        .or_else(|| xiaomi_mimo_env_var(XIAOMI_MIMO_STANDARD_ENV_VARS))
 }
 
 fn resolve_xiaomi_mimo_base_url(

@@ -9,6 +9,18 @@
 /// Default provider ID used when no provider is specified.
 pub const DEFAULT_PROVIDER_ID: &str = "xiaomi-mimo";
 
+// ── Environment variable names ──────────────────────────────────────
+/// Standard API key environment variables for Xiaomi MiMo (pay-as-you-go).
+pub const XIAOMI_MIMO_STANDARD_ENV_VARS: &[&str] =
+    &["XIAOMI_MIMO_API_KEY", "XIAOMI_API_KEY", "MIMO_API_KEY"];
+
+/// Token plan API key environment variables for Xiaomi MiMo.
+pub const XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS: &[&str] =
+    &["XIAOMI_MIMO_TOKEN_PLAN_API_KEY", "MIMO_TOKEN_PLAN_API_KEY"];
+
+/// Legacy DeepSeek API key environment variable (backward compatibility).
+pub const DEEPSEEK_API_KEY_ENV: &str = "DEEPSEEK_API_KEY";
+
 // ── Xiaomi MiMo defaults ────────────────────────────────────────────
 pub(crate) const DEFAULT_XIAOMI_MIMO_MODEL: &str = "mimo-v2.5-pro";
 pub(crate) const XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL: &str = "mimo-v2.5-pro-ultraspeed";
