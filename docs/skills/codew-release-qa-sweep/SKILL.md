@@ -1,11 +1,11 @@
 ---
 name: codew-release-qa-sweep
-description: "Use before claiming mimo-tui release work is done: run the full gate sweep and list the manual QA targets."
+description: "Use before claiming mimofan release work is done: run the full gate sweep and list the manual QA targets."
 ---
 
-# mimo-tui Release QA Sweep
+# mimofan Release QA Sweep
 
-Run this before claiming any mimo-tui release work is "done." A green automated
+Run this before claiming any mimofan release work is "done." A green automated
 gate sweep plus the three manual QA targets is the evidence bar. No sweep, no
 "done" — report exactly what was run and the result of each step.
 
@@ -31,23 +31,23 @@ cargo fmt --all --check
 git diff --check
 
 # 2. Library/protocol/cli/flow/state tests, locked
-cargo test -p mimo-tui-config -p mimo-tui-protocol -p mimo-tui-cli \
-  -p mimo-tui-whaleflow -p mimo-tui-state --locked
+cargo test -p mimofan-config -p mimofan-protocol -p mimofan-cli \
+  -p mimofan-whaleflow -p mimofan-state --locked
 
 # 3. TUI test binaries, locked
-cargo test -p mimo-tui --bins --locked
+cargo test -p mimofan --bins --locked
 
 # 4. TUI debug build, locked
-cargo build -p mimo-tui --locked
+cargo build -p mimofan --locked
 
 # 5. Release build for the shipped binaries, locked
-cargo build --release --locked -p mimo-tui-cli -p mimo-tui
+cargo build --release --locked -p mimofan-cli -p mimofan
 
 # 6. Version-drift gate (workspace ↔ npm ↔ Cargo.lock ↔ changelog ↔ README)
 ./scripts/release/check-versions.sh
 
 # 7. Binary smoke
-./target/release/mimo-tui --version
+./target/release/mimofan --version
 ```
 
 If you are validating a PR for landing, also test mergeability against the

@@ -15,7 +15,7 @@ commands. The application state and credentials still live in CodeWhale's
 normal config files, not inside `node_modules`.
 
 > Previously published as `deepseek-tui`. See
-> [docs/REBRAND.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/REBRAND.md)
+> [docs/REBRAND.md](https://github.com/XiaomingX/mimofan/blob/main/docs/REBRAND.md)
 > for the migration notes; the legacy `deepseek-tui` npm package is deprecated
 > and receives no further releases.
 
@@ -50,7 +50,7 @@ codewhale
 Every provider is the same one-line shape — `--provider openrouter`,
 `--provider huggingface`, `--provider ollama`, or `--provider anthropic` for a
 Claude key; the full registry lives in
-[docs/PROVIDERS.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/PROVIDERS.md).
+[docs/PROVIDERS.md](https://github.com/XiaomingX/mimofan/blob/main/docs/PROVIDERS.md).
 
 The `codewhale` facade and `codewhale-tui` binary share
 `~/.codewhale/config.toml` for auth and default model settings. Legacy
@@ -75,7 +75,7 @@ platform/architecture combinations (musl, FreeBSD, …) aren't
 shipped as prebuilts. Unsupported platforms, checksum failures, and glibc
 compatibility problems still fail with a clear error pointing you at
 `cargo install codewhale-cli codewhale-tui --locked` and the full
-[docs/INSTALL.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/INSTALL.md)
+[docs/INSTALL.md](https://github.com/XiaomingX/mimofan/blob/main/docs/INSTALL.md)
 build-from-source guide.
 
 ## Wrapper configuration
@@ -86,7 +86,7 @@ build-from-source guide.
 | `CODEWHALE_RELEASE_BASE_URL` | Canonical override: use an internal or mirrored release-asset directory when GitHub Releases is unavailable. The directory must contain `codewhale-artifacts-sha256.txt` and the platform binaries. `DEEPSEEK_TUI_RELEASE_BASE_URL` and `DEEPSEEK_RELEASE_BASE_URL` are the implemented legacy fallbacks. |
 | `CODEWHALE_USE_CNB_MIRROR=1` | Download release assets from the CNB (China-friendly) mirror instead of GitHub. |
 | `DEEPSEEK_TUI_VERSION` or `DEEPSEEK_VERSION` | Override the GitHub release version to download. |
-| `DEEPSEEK_TUI_GITHUB_REPO` or `DEEPSEEK_GITHUB_REPO` | Override the source repo. Defaults to `XiaomingX/mimo-tui`. |
+| `DEEPSEEK_TUI_GITHUB_REPO` or `DEEPSEEK_GITHUB_REPO` | Override the source repo. Defaults to `XiaomingX/mimofan`. |
 | `DEEPSEEK_TUI_FORCE_DOWNLOAD=1` | Force download even when the cached binary is already present. |
 | `DEEPSEEK_TUI_DISABLE_INSTALL=1` | Skip install-time download. |
 | `DEEPSEEK_TUI_OPTIONAL_INSTALL=1` | Make install-time retryable download failures warn and exit `0` instead of failing `npm install`. |
@@ -108,7 +108,7 @@ offline installs, set `DEEPSEEK_TUI_DISABLE_INSTALL=1` or point
 
 ## Links
 
-- Repository: <https://github.com/XiaomingX/mimo-tui>
+- Repository: <https://github.com/XiaomingX/mimofan>
 - Website: <https://codewhale.net/>
-- Provider registry: [docs/PROVIDERS.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/PROVIDERS.md)
-- Changelog: [CHANGELOG.md](https://github.com/XiaomingX/mimo-tui/blob/main/CHANGELOG.md)
+- Provider registry: [docs/PROVIDERS.md](https://github.com/XiaomingX/mimofan/blob/main/docs/PROVIDERS.md)
+- Changelog: [CHANGELOG.md](https://github.com/XiaomingX/mimofan/blob/main/CHANGELOG.md)

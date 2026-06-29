@@ -1,6 +1,6 @@
 # Prompt 索引
 
-mimo-tui 的所有 LLM prompt 统一存放在 `crates/tui/src/prompts/` 目录下，
+mimofan 的所有 LLM prompt 统一存放在 `crates/tui/src/prompts/` 目录下，
 通过 `include_str!` 编译进二进制。修改 `.md` 文件后重新编译即可生效。
 
 ## 分层体系（Tier 1-9）
@@ -12,7 +12,7 @@ Prompt 按宪法层级组织，优先级从高到低：
 | 1 | Constitution | `prompts/constitution.md` |
 | 2 | Statutes | `prompts/approvals/*.md` |
 | 3 | Regulations | `prompts/modes/*.md` |
-| 4 | Project Law | `.mimo-tui/constitution.json`（用户项目级） |
+| 4 | Project Law | `.mimofan/constitution.json`（用户项目级） |
 | 5 | Memory | `prompts/memory_guidance.md` |
 | 6 | Live Evidence | 工具返回的实时数据 |
 | 7 | Handoffs | `prompts/compact.md` |
@@ -127,5 +127,5 @@ Prompt 按宪法层级组织，优先级从高到低：
 
 1. 编辑对应的 `.md` 文件
 2. 运行 `cargo build` 验证编译
-3. 运行 `cargo test -p mimo-tui` 验证测试
+3. 运行 `cargo test -p mimofan` 验证测试
 4. 模板变量使用 `{variable_name}` 语法，对应 `format!()` 调用

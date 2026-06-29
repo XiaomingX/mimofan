@@ -1,6 +1,6 @@
 # codewhale-web
 
-Community site for [CodeWhale](https://github.com/XiaomingX/mimo-tui) — lives at **codewhale.net**.
+Community site for [CodeWhale](https://github.com/XiaomingX/mimofan) — lives at **codewhale.net**.
 
 Next.js 15 (App Router) + Tailwind, deployed to Cloudflare Workers via [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). Curated "Today's Dispatch" content is regenerated every 6 hours by a Cloudflare Cron Trigger that calls `deepseek-v4-flash` to summarise recent repo activity, and stored in Workers KV.
 
@@ -19,7 +19,7 @@ Env (mirrors `.env.example`):
 | --------------------------- | ---------------------------------------------------------------- | -------------------- |
 | `DEEPSEEK_API_KEY`          | DeepSeek platform key (`sk-...`)                                 | only for the `/api/cron` tasks (summarization + community agent) |
 | `GITHUB_TOKEN`              | Fine-grained PAT, public-repo read scope                         | optional (raises rate limit 60 → 5000 req/h) |
-| `GITHUB_REPO`               | Defaults to `XiaomingX/mimo-tui`                                   | optional             |
+| `GITHUB_REPO`               | Defaults to `XiaomingX/mimofan`                                   | optional             |
 | `CRON_SECRET`               | Shared secret for manual `/api/cron` invocation                  | optional (Cloudflare cron triggers don't need it) |
 | `DEEPSEEK_MODEL`            | Defaults to `deepseek-v4-flash`                                  | optional             |
 | `DEEPSEEK_BASE_URL`         | Defaults to `https://api.deepseek.com`                           | optional             |

@@ -1,6 +1,6 @@
 //! Minimal PTY/frame-capture harness for TUI integration tests.
 //!
-//! Spawns the `mimo-tui` binary in a real pseudo-terminal, sends scripted
+//! Spawns the `mimofan` binary in a real pseudo-terminal, sends scripted
 //! keystrokes / paste / resize, and parses the ANSI output stream into terminal
 //! frames so tests can assert on visible text and on the filesystem.
 //!

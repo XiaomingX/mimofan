@@ -15,13 +15,13 @@
       "url": "https://www.buymeacoffee.com/hmbown"
     }
   ],
-  "homepage": "https://github.com/XiaomingX/mimo-tui",
+  "homepage": "https://github.com/XiaomingX/mimofan",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/XiaomingX/mimo-tui.git"
+    "url": "git+https://github.com/XiaomingX/mimofan.git"
   },
   "bugs": {
-    "url": "https://github.com/XiaomingX/mimo-tui/issues"
+    "url": "https://github.com/XiaomingX/mimofan/issues"
   },
   "keywords": [
     "codewhale",

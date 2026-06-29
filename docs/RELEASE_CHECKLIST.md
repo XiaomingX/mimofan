@@ -39,7 +39,7 @@ generic checklist does not enumerate.
 
 - [ ] Run `./scripts/release/prepare-release.sh X.Y.Z` — it bumps the
       workspace version, every per-crate dependency pin,
-      `npm/mimo-tui/package.json` (`version` + `mimo-tuiBinaryVersion`),
+      `npm/mimofan/package.json` (`version` + `mimofanBinaryVersion`),
       the README install-tag examples, refreshes `Cargo.lock`, regenerates
       `crates/tui/CHANGELOG.md` and `web/lib/facts.generated.ts`, and ends
       by running `check-versions.sh`. Write the CHANGELOG entry **before**
@@ -68,7 +68,7 @@ Run, in order, from the repo root:
 
 ## 4. npm wrapper smoke
 
-- [ ] `cargo build --release --locked -p mimo-tui-cli -p mimo-tui`
+- [ ] `cargo build --release --locked -p mimofan-cli -p mimofan`
 - [ ] `node scripts/release/npm-wrapper-smoke.js`
       (Set `DEEPSEEK_TUI_KEEP_SMOKE_DIR=1` if you need to inspect the temp
       install afterwards.)
@@ -151,16 +151,16 @@ release anxiety: contributors cannot tell whether their work merged.
 - [ ] The live GitHub Release body has its own `## Contributors` or
       `## Credits` section; do not rely on "see CHANGELOG" alone. Verify with:
       ```
-      gh release view vX.Y.Z --repo XiaomingX/mimo-tui --json body \
+      gh release view vX.Y.Z --repo XiaomingX/mimofan --json body \
         --jq '.body | test("## (Contributors|Credits)")'
       ```
-- [ ] `npm view mimo-tui@X.Y.Z version mimo-tuiBinaryVersion --json`
+- [ ] `npm view mimofan@X.Y.Z version mimofanBinaryVersion --json`
       reports the new version on the npm registry.
 - [ ] `npm view deepseek-tui deprecated` is non-empty. The legacy npm package
       is deprecated and must not receive an `X.Y.Z` publish.
 - [ ] `crates.io` has the new version (or the `publish-crates.sh` job has
       pushed it).
-- [ ] `ghcr.io/hmbown/mimo-tui:vX.Y.Z` and `:latest` are updated.
+- [ ] `ghcr.io/hmbown/mimofan:vX.Y.Z` and `:latest` are updated.
 
 ## 8. Post-tag
 

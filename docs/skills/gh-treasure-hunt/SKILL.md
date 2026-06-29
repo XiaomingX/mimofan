@@ -27,9 +27,9 @@ alone, and never merge/close/tag without Hunter's approval.
 
 1. Pull the queue (read everything, decide nothing yet):
    ```bash
-   gh pr list --repo XiaomingX/mimo-tui --state open --limit 200 \
+   gh pr list --repo XiaomingX/mimofan --state open --limit 200 \
      --json number,title,author,headRefName,baseRefName,isDraft,mergeable,mergeStateStatus,additions,deletions,changedFiles,reviewDecision,labels,url
-   gh issue list --repo XiaomingX/mimo-tui --state open --limit 300 \
+   gh issue list --repo XiaomingX/mimofan --state open --limit 300 \
      --json number,title,author,labels,milestone,url
    ```
 2. Shortlist PRs that look CLEAN + small (`mergeable=MERGEABLE`, low
@@ -37,9 +37,9 @@ alone, and never merge/close/tag without Hunter's approval.
    sandbox, install, publish, branding). Flag any NEW contributor for credit.
 3. Confirm each shortlisted PR from code, tests, comments, and checks:
    ```bash
-   gh pr view N --repo XiaomingX/mimo-tui \
+   gh pr view N --repo XiaomingX/mimofan \
      --json files,commits,reviews,comments,statusCheckRollup,closingIssuesReferences
-   gh pr checks N --repo XiaomingX/mimo-tui
+   gh pr checks N --repo XiaomingX/mimofan
    ```
 4. Test mergeability against the REAL landing branch (release branches are often
    local-only; the main-based `mergeable` flag lies):

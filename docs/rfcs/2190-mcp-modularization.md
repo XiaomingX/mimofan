@@ -6,15 +6,15 @@
 
 ## 1. Current state
 
-### 1.1 `mimo-tui-mcp` crate (`crates/mcp/`)
+### 1.1 `mimofan-mcp` crate (`crates/mcp/`)
 
 The current MCP implementation lives in a single crate with two responsibilities:
 
 - **MCP client** — connects to MCP servers over stdio, manages protocol handshake,
   tool discovery, and tool invocation. Used by the TUI to surface MCP tools as
   `mcp_<server>_<tool>` entries in the tool registry.
-- **MCP stdio server** — a minimal MCP server that exposes mimo-tui's own tools
-  over stdio for external MCP clients. Used by the `mimo-tui mcp` CLI subcommand.
+- **MCP stdio server** — a minimal MCP server that exposes mimofan's own tools
+  over stdio for external MCP clients. Used by the `mimofan mcp` CLI subcommand.
 
 Both the client and server share protocol types (JSON-RPC messages, tool schemas)
 but have different lifecycle concerns and different callers.
@@ -54,7 +54,7 @@ These concerns are client-side only and should not affect the server crate.
 The MCP client is currently embedded in the TUI binary. If we want to use
 MCP tools from:
 - The `app-server` (HTTP/SSE runtime API)
-- The `mimo-tui` CLI (non-interactive mode)
+- The `mimofan` CLI (non-interactive mode)
 - External consumers (library use)
 
 ...the client needs to be a standalone crate with a clean public API.
@@ -67,12 +67,12 @@ crates/mcp/           →  crates/mcp-protocol/   (shared types, no I/O)
                           crates/mcp-server/     (server implementation)
 ```
 
-### 3.1 `mimo-tui-mcp-protocol`
+### 3.1 `mimofan-mcp-protocol`
 
 **Contents:** JSON-RPC message types, tool schema types, protocol constants,
 handshake types, error types. No I/O, no async runtime dependency.
 
-**Dependencies:** `serde`, `serde_json`, `mimo-tui-protocol` (for tool schema)
+**Dependencies:** `serde`, `serde_json`, `mimofan-protocol` (for tool schema)
 
 **Public API:**
 ```rust
@@ -82,12 +82,12 @@ pub mod errors;       // MCP error codes
 pub mod version;      // Protocol version constants
 ```
 
-### 3.2 `mimo-tui-mcp-client`
+### 3.2 `mimofan-mcp-client`
 
 **Contents:** MCP client: stdio transport, process management, handshake,
 tool discovery, tool invocation, OAuth support.
 
-**Dependencies:** `mimo-tui-mcp-protocol`, `tokio`, `serde_json`, `tracing`,
+**Dependencies:** `mimofan-mcp-protocol`, `tokio`, `serde_json`, `tracing`,
 `oauth2` (new, for OAuth), `keyring` (optional, for token storage)
 
 **Public API:**
@@ -125,12 +125,12 @@ pub enum OAuthProvider {
 }
 ```
 
-### 3.3 `mimo-tui-mcp-server`
+### 3.3 `mimofan-mcp-server`
 
 **Contents:** MCP stdio server: accepts connections, exposes tool list,
 handles tool calls, manages stdio transport.
 
-**Dependencies:** `mimo-tui-mcp-protocol`, `mimo-tui-tools`, `tokio`,
+**Dependencies:** `mimofan-mcp-protocol`, `mimofan-tools`, `tokio`,
 `serde_json`, `tracing`
 
 **Public API:**
@@ -151,16 +151,16 @@ impl McpServer {
 ### Phase 1: Extract protocol crate (non-breaking)
 
 1. Move shared types from `crates/mcp/src/` to `crates/mcp-protocol/src/`
-2. Re-export from `mimo-tui-mcp` for backward compatibility
-3. Update `Cargo.toml` in `mimo-tui-mcp` to depend on `mimo-tui-mcp-protocol`
+2. Re-export from `mimofan-mcp` for backward compatibility
+3. Update `Cargo.toml` in `mimofan-mcp` to depend on `mimofan-mcp-protocol`
 
 ### Phase 2: Split client and server (breaking for direct imports)
 
 1. Create `crates/mcp-client/` with client code
 2. Create `crates/mcp-server/` with server code
-3. Update `mimo-tui` to depend on `mimo-tui-mcp-client`
-4. Update `mimo-tui-cli` to depend on `mimo-tui-mcp-server`
-5. Deprecate `mimo-tui-mcp` crate (re-exports from new crates)
+3. Update `mimofan` to depend on `mimofan-mcp-client`
+4. Update `mimofan-cli` to depend on `mimofan-mcp-server`
+5. Deprecate `mimofan-mcp` crate (re-exports from new crates)
 
 ### Phase 3: Remove legacy crate
 
@@ -173,7 +173,7 @@ impl McpServer {
 Tokens should be stored securely. Options (in priority order):
 1. OS keychain via `keyring` crate (macOS Keychain, Windows Credential Manager,
    Linux Secret Service)
-2. Encrypted file in `~/.mimo-tui/mcp-credentials/` (fallback)
+2. Encrypted file in `~/.mimofan/mcp-credentials/` (fallback)
 3. Environment variable `MCP_OAUTH_TOKEN_<PROVIDER>`
 
 ### 5.2 OAuth flows
@@ -189,7 +189,7 @@ Future (deferred):
 ### 5.3 Configuration
 
 ```toml
-# ~/.mimo-tui/config.toml
+# ~/.mimofan/config.toml
 [mcp.servers.github]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-github"]
@@ -205,7 +205,7 @@ scopes = ["repo", "read:org"]
 | Risk | Mitigation |
 |---|---|
 | Crate proliferation | 3 small crates vs 1 medium crate; each has a clear purpose |
-| Breaking internal imports | Phase 2 carries `mimo-tui-mcp` deprecation shim for one release |
+| Breaking internal imports | Phase 2 carries `mimofan-mcp` deprecation shim for one release |
 | OAuth token security | OS keychain preferred; encrypted fallback with file permissions |
 | Testing complexity | Each crate has its own test suite; integration tests remain in `crates/tui/tests/` |
 | Dependency bloat | `oauth2` and `keyring` are optional features; consumers opt in |

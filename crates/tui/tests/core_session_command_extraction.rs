@@ -1,6 +1,6 @@
 //! Gherkin binary health and eval harness smoke test for command extraction.
 //!
-//! This runs the binary through `mimo-tui eval` and verifies that the
+//! This runs the binary through `mimofan eval` and verifies that the
 //! executable still loads and reports a successful JSON evaluation after the
 //! core/session command modules are extracted.
 
@@ -24,7 +24,7 @@ struct CoreSessionExtractionWorld {
     report: Option<Value>,
 }
 
-#[given("a clean mimo-tui evaluation workspace")]
+#[given("a clean mimofan evaluation workspace")]
 fn clean_mimofan_evaluation_workspace(world: &mut CoreSessionExtractionWorld) {
     world.record_dir = Some(TempDir::new().expect("evaluation TempDir"));
 }

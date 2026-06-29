@@ -1,8 +1,8 @@
-# mimo-tui
+# mimofan
 
 > The terminal coding agent for any model — open models first.
 
-mimo-tui is a terminal coding agent — a TUI and a CLI. You point it at a model
+mimofan is a terminal coding agent — a TUI and a CLI. You point it at a model
 and a project, and it gets to work: reading code, making edits, running
 commands, checking results, planning multi-step tasks, and correcting itself
 when something fails.
@@ -11,38 +11,38 @@ It's open source (MIT, Rust), it runs on your machine, and it works with the
 models people actually use. DeepSeek and open-weight models are first-class, and
 a local vLLM/SGLang/Ollama box on your LAN needs no key at all — but Claude, GPT,
 Kimi, and GLM are full peers through the same runtime and the same tools. You
-pick a provider and a model; mimo-tui resolves a real route and runs.
+pick a provider and a model; mimofan resolves a real route and runs.
 
 The project began as `deepseek-tui`, a coding harness built around DeepSeek
 workflows. The developer community — much of it in China — adopted it, filed
 reports, and contributed fixes, and it became clear the harness was bigger than
-one model. Multi-provider support followed, and the project became mimo-tui to
+one model. Multi-provider support followed, and the project became mimofan to
 match. If there's a model, endpoint, or feature you don't see that you want,
 open an issue — that's how the project grows.
 
-[中文架构说明](docs/ARCHITECTURE_CN.md) · [中文使用指南](docs/USAGE_CN.md) · [mimo-tui.net](https://mimo-tui.net/) · [Install guide](docs/INSTALL.md) · [Provider registry](docs/PROVIDERS.md) · [Changelog](CHANGELOG.md) · [架构改进计划](ARCHITECTURE_REFORM.md)
+[中文架构说明](docs/ARCHITECTURE_CN.md) · [中文使用指南](docs/USAGE_CN.md) · [mimofan.net](https://mimofan.net/) · [Install guide](docs/INSTALL.md) · [Provider registry](docs/PROVIDERS.md) · [Changelog](CHANGELOG.md) · [架构改进计划](ARCHITECTURE_REFORM.md)
 
-[![CI](https://github.com/XiaomingX/mimo-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/XiaomingX/mimo-tui/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/crates/v/mimo-tui-cli?label=crates.io)](https://crates.io/crates/mimo-tui-cli)
-[![npm](https://img.shields.io/npm/v/mimo-tui?label=npm)](https://www.npmjs.com/package/mimo-tui)
-[![DeepWiki project index](https://img.shields.io/badge/DeepWiki-project-blue)](https://deepwiki.com/XiaomingX/mimo-tui)
+[![CI](https://github.com/XiaomingX/mimofan/actions/workflows/ci.yml/badge.svg)](https://github.com/XiaomingX/mimofan/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/mimofan-cli?label=crates.io)](https://crates.io/crates/mimofan-cli)
+[![npm](https://img.shields.io/npm/v/mimofan?label=npm)](https://www.npmjs.com/package/mimofan)
+[![DeepWiki project index](https://img.shields.io/badge/DeepWiki-project-blue)](https://deepwiki.com/XiaomingX/mimofan)
 
-![mimo-tui running in a terminal](assets/screenshot.png)
+![mimofan running in a terminal](assets/screenshot.png)
 
 ## Install
 
 ```bash
-npm install -g mimo-tui
-mimo-tui --version   # 0.8.65
+npm install -g mimofan
+mimofan --version   # 0.8.65
 ```
 
 The npm wrapper (Node 18+) downloads SHA-256-verified binaries from GitHub
-Releases and installs `mimo-tui`, `codew`, and `mimo-tui`. Prefer building
+Releases and installs `mimofan`, `codew`, and `mimofan`. Prefer building
 from source? Use cargo (Rust 1.88+):
 
 ```bash
-cargo install mimo-tui-cli --locked
-cargo install mimo-tui --locked
+cargo install mimofan-cli --locked
+cargo install mimofan --locked
 ```
 
 > **Linux users:** install system build dependencies first:
@@ -53,17 +53,17 @@ Every other path:
 
 ```bash
 # Docker
-docker pull ghcr.io/hmbown/mimo-tui:latest
+docker pull ghcr.io/hmbown/mimofan:latest
 
 # Nix
-nix run github:XiaomingX/mimo-tui
+nix run github:XiaomingX/mimofan
 
 # Windows
-scoop install mimo-tui        # or the NSIS installer from GitHub Releases
+scoop install mimofan        # or the NSIS installer from GitHub Releases
 
 # CNB mirror for users who cannot reliably reach GitHub
-cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag v0.8.65 mimo-tui-cli --locked --force
-cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag v0.8.65 mimo-tui --locked --force
+cargo install --git https://cnb.cool/mimofan.net/mimofan --tag v0.8.65 mimofan-cli --locked --force
+cargo install --git https://cnb.cool/mimofan.net/mimofan --tag v0.8.65 mimofan --locked --force
 
 # Legacy Homebrew compatibility while the formula is renamed
 brew tap Hmbown/deepseek-tui
@@ -71,30 +71,30 @@ brew install deepseek-tui
 ```
 
 Prebuilt archives for every platform — including Linux riscv64 — are attached
-to [GitHub Releases](https://github.com/XiaomingX/mimo-tui/releases). Checksums,
+to [GitHub Releases](https://github.com/XiaomingX/mimofan/releases). Checksums,
 China mirrors, Windows specifics, and troubleshooting live in
 [docs/INSTALL.md](docs/INSTALL.md).
 
 **Upgrading from the legacy `deepseek-tui` package?** Your config, sessions,
 skills, and MCP settings are preserved. See [docs/REBRAND.md](docs/REBRAND.md),
-then run `mimo-tui doctor` to confirm.
+then run `mimofan doctor` to confirm.
 
 ## First run
 
 ```bash
-mimo-tui auth set --provider deepseek
-mimo-tui auth status
-mimo-tui doctor
-mimo-tui
+mimofan auth set --provider deepseek
+mimofan auth status
+mimofan doctor
+mimofan
 ```
 
 Every provider is the same one-line shape: `--provider openrouter`,
 `--provider moonshot`, or point `vllm`, `sglang`, or `ollama` at your own
 localhost runtime with no key at all. Have a Claude key instead? Run
-`mimo-tui auth set --provider anthropic` — or just export
+`mimofan auth set --provider anthropic` — or just export
 `ANTHROPIC_API_KEY` — and the native Messages adapter takes it from there.
 
-Keys land in `~/.mimo-tui/config.toml`; legacy `~/.deepseek/` config is still
+Keys land in `~/.mimofan/config.toml`; legacy `~/.deepseek/` config is still
 read for compatibility.
 
 Useful in-session commands:
@@ -105,21 +105,21 @@ Useful in-session commands:
   `/model auto`) to switch mid-session.
 - `/restore` rolls back a prior turn from side-git snapshots.
 - `/fleet` opens the Fleet setup view — roles, profiles, loadouts, and policy.
-- `/skills` loads reusable workflows from `~/.mimo-tui/skills/`.
+- `/skills` loads reusable workflows from `~/.mimofan/skills/`.
 - `/config` edits runtime settings; `/statusline` shows the current route,
   cost, and session state.
-- `! cargo test -p mimo-tui` runs any shell command through the normal
+- `! cargo test -p mimofan` runs any shell command through the normal
   approval and sandbox path.
 
 Headless, for scripts and CI:
 
 ```bash
-mimo-tui exec --allowed-tools read_file,exec_shell --max-turns 10 "fix the failing test"
+mimofan exec --allowed-tools read_file,exec_shell --max-turns 10 "fix the failing test"
 ```
 
 ## Providers and routing
 
-You pick a provider and a model, and mimo-tui resolves a **real route** — a
+You pick a provider and a model, and mimofan resolves a **real route** — a
 concrete endpoint, wire protocol, model ID, context limit, and price — instead
 of just swapping a base URL. A `RouteResolver` is the only thing that can mint a
 resolved route, so the same selection logic backs the TUI picker, the CLI, and
@@ -133,7 +133,7 @@ Because the route is resolved, the rest of the harness can be honest about it:
   come from the resolved route's real context limit, not a hardcoded guess.
 - **Honest cost display.** A route reports exactly one cost state: per-token
   pricing, a subscription/quota meter, account credits, *local / not
-  applicable*, or *unknown / stale*. mimo-tui never invents a price it doesn't
+  applicable*, or *unknown / stale*. mimofan never invents a price it doesn't
   have — an unmatched model shows as unknown rather than $0.
 - **Explicit wire protocol.** Whether a route speaks Chat Completions, the
   OpenAI Responses API, or native Anthropic Messages is carried on the resolved
@@ -165,15 +165,15 @@ you want isn't here, that's a good issue to open.
 
 ## Fleet
 
-Fleet is mimo-tui's durable control plane for multi-worker runs. A fleet worker
-is a headless `mimo-tui exec` run, but the fleet launches and tracks it durably:
-work is recorded in an append-only ledger (`.mimo-tui/fleet.jsonl`), so a run
+Fleet is mimofan's durable control plane for multi-worker runs. A fleet worker
+is a headless `mimofan exec` run, but the fleet launches and tracks it durably:
+work is recorded in an append-only ledger (`.mimofan/fleet.jsonl`), so a run
 survives a manager exit, laptop sleep, or a runtime restart.
 
 ```bash
-mimo-tui fleet run tasks.json --max-workers 4
-mimo-tui fleet status
-mimo-tui fleet resume <run-id>
+mimofan fleet run tasks.json --max-workers 4
+mimofan fleet status
+mimofan fleet resume <run-id>
 ```
 
 `fleet resume` replays the ledger, reconciles any in-flight task whose worker
@@ -191,12 +191,12 @@ durable layer on top. See [docs/FLEET.md](docs/FLEET.md).
 
 ## Safety
 
-mimo-tui edits files and runs commands, so the safety posture is part of the
+mimofan edits files and runs commands, so the safety posture is part of the
 product, not an afterthought.
 
 - **Three modes.** Plan (read-only investigation), Agent (executes, asks per
   action), and YOLO (auto-approve). Switch with `Tab` or `/mode`.
-- **Approval-gated tools.** A `.mimo-tui/hooks.toml` hook system can allow,
+- **Approval-gated tools.** A `.mimofan/hooks.toml` hook system can allow,
   deny, or ask before any tool call, and the exec policy decides whether a
   command runs, needs approval, or is forbidden outright.
 - **OS sandboxing.** Seatbelt on macOS, Landlock plus a seccomp syscall filter
@@ -212,12 +212,12 @@ product, not an afterthought.
   background tasks; the Work sidebar shows live plan and checklist state.
 - **Durable sessions.** Persist across restarts and system sleep; a task that
   takes forty tool calls survives the forty-first.
-- **Headless mode.** `mimo-tui exec` with `--allowed-tools`,
+- **Headless mode.** `mimofan exec` with `--allowed-tools`,
   `--disallowed-tools` (deny wins), `--max-turns`, and `--append-system-prompt`
   for scripts and CI.
 - **MCP, bidirectionally.** Consume tools from external MCP servers, or expose
-  mimo-tui itself as an MCP server via `mimo-tui mcp`.
-- **Skills.** Reusable workflows in `~/.mimo-tui/skills/`, loaded with
+  mimofan itself as an MCP server via `mimofan mcp`.
+- **Skills.** Reusable workflows in `~/.mimofan/skills/`, loaded with
   `/skills`.
 - **Embedded everywhere.** HTTP/SSE and ACP runtime APIs, a VS Code extension,
   and Telegram/Feishu bridges (Weixin experimental).
@@ -228,7 +228,7 @@ As a project evolves, the instructions pile up and they inevitably conflict: the
 original spec, a later refactor that contradicts it, stale memory, a previous
 agent's handoff, your current request, and fresh test output that doesn't match
 what the handoff claimed. A flat system prompt makes the model resolve that by
-guess. mimo-tui uses a **nested constitution** so there's a defined rank instead
+guess. mimofan uses a **nested constitution** so there's a defined rank instead
 of vibes.
 
 The system prompt is layered, most-static first, and the order is enforced in
@@ -236,7 +236,7 @@ code (there are tests asserting it can't drift):
 
 1. **Global constitution** — the base law, compiled into every binary. Its
    priority article fixes the authority order for any conflict.
-2. **Your project's law** — drop a `.mimo-tui/constitution.json` in a repo to
+2. **Your project's law** — drop a `.mimofan/constitution.json` in a repo to
    declare `protected_invariants`, `branch_policy`, `verification_policy`, and
    `escalate_when`. It's loaded as its own authority block, above memory and
    handoffs.
@@ -250,7 +250,7 @@ lives in the harness, not the model, swapping models keeps the structure intact.
 ## Where details live
 
 The README is the short version. The rest is in docs and on
-[mimo-tui.net](https://mimo-tui.net/):
+[mimofan.net](https://mimofan.net/):
 
 - [User guide](docs/GUIDE.md) · [Install guide](docs/INSTALL.md) ·
   [Configuration](docs/CONFIGURATION.md) · [Provider registry](docs/PROVIDERS.md)
@@ -268,7 +268,7 @@ The README is the short version. The rest is in docs and on
 
 ## The project
 
-mimo-tui started as one person's DeepSeek side project. Developers from
+mimofan started as one person's DeepSeek side project. Developers from
 countries all over the world have made it what it is — the contributor list on
 every release is the proof. The project is built in the open, issues are triaged
 in the open, and releases cut from `main`.
@@ -281,17 +281,17 @@ and recurring contributors stay credited in the public record. If you hit
 something that doesn't work, or you want a model that isn't listed, that's the
 most useful thing you can tell the project.
 
-- [Open issues](https://github.com/XiaomingX/mimo-tui/issues) — good first
+- [Open issues](https://github.com/XiaomingX/mimofan/issues) — good first
   contributions live here.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — set up a dev loop and open a PR.
 - [Code of Conduct](CODE_OF_CONDUCT.md) — be excellent to each other.
-- [Contributors](docs/CONTRIBUTORS.md) — the people who've shaped mimo-tui.
+- [Contributors](docs/CONTRIBUTORS.md) — the people who've shaped mimofan.
 
 Support: [Buy me a coffee](https://www.buymeacoffee.com/hmbown).
 
 ## Thanks
 
-mimo-tui exists because of the people who use it, break it, and fix it.
+mimofan exists because of the people who use it, break it, and fix it.
 
 - **[DeepSeek](https://github.com/deepseek-ai)** — the models and support that
   got this project started. 感谢 DeepSeek 提供模型与支持。
@@ -307,9 +307,9 @@ mimo-tui exists because of the people who use it, break it, and fix it.
 
 [MIT](LICENSE)
 
-> *mimo-tui is an independent community project and is not affiliated with any
+> *mimofan is an independent community project and is not affiliated with any
 > model provider.*
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/chart?repos=XiaomingX/mimo-tui&type=date&legend=top-left)](https://www.star-history.com/?repos=XiaomingX%2Fmimo-tui&type=date&logscale=&legend=top-left)
+[![Star History Chart](https://api.star-history.com/chart?repos=XiaomingX/mimofan&type=date&legend=top-left)](https://www.star-history.com/?repos=XiaomingX%2Fmimofan&type=date&logscale=&legend=top-left)

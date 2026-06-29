@@ -1,7 +1,7 @@
 # Model Lab Roadmap
 
-Model Lab is the planned open-model workbench for mimo-tui. The north star is
-simple: mimo-tui should make open-source and open-weight models practical in
+Model Lab is the planned open-model workbench for mimofan. The north star is
+simple: mimofan should make open-source and open-weight models practical in
 terminal coding workflows across every provider that offers them. Model Lab is how
 those models become discoverable, evaluable, routable, servable, and exportable
 without weakening the current terminal-agent contract: local workspace control,
@@ -17,7 +17,7 @@ This document is roadmap language. Some worksets below are roadmap-only.
 - OpenRouter, Novita, Fireworks, NVIDIA NIM, AtlasCloud, Wanjie Ark, Hugging
   Face Inference Providers, generic OpenAI-compatible endpoints, SGLang, vLLM,
   and Ollama are supported provider paths where their IDs appear in
-  `/provider`, `mimo-tui --provider`, or `mimo-tui models`.
+  `/provider`, `mimofan --provider`, or `mimofan models`.
 - Hugging Face Inference Providers are available through the
   OpenAI-compatible router at `https://router.huggingface.co/v1`. Select the
   route with `huggingface`, `hugging-face`, `hugging_face`, or `hf`; configure
@@ -58,7 +58,7 @@ Model Lab should help users answer practical questions:
 - Can I reproduce, export, or self-host the route?
 
 It should never hide provider boundaries, silently upload local artifacts, or
-describe a model as available before mimo-tui can actually route to it.
+describe a model as available before mimofan can actually route to it.
 
 ## Hugging Face Workset
 

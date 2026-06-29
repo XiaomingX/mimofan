@@ -1,4 +1,4 @@
-# Installing mimo-tui
+# Installing mimofan
 
 This page covers every supported install path and the most common
 "it didn't install" failures, including **Linux ARM64** and other less
@@ -11,30 +11,30 @@ If you just want the short version, see the
 On macOS and Linux, the website installer is the shortest install/update path:
 
 ```bash
-curl -fsSL https://mimo-tui.net/install.sh | sh
+curl -fsSL https://mimofan.net/install.sh | sh
 ```
 
-It downloads the matching `mimo-tui` and `mimo-tui` release binaries,
-verifies them against `mimo-tui-artifacts-sha256.txt`, installs to
+It downloads the matching `mimofan` and `mimofan` release binaries,
+verifies them against `mimofan-artifacts-sha256.txt`, installs to
 `~/.local/bin` by default, and creates the `codew` convenience alias.
 
 ---
 
 ## 1. Supported platforms
 
-mimo-tui ships matched `mimo-tui` and `mimo-tui` prebuilt binaries for
+mimofan ships matched `mimofan` and `mimofan` prebuilt binaries for
 these platform/architecture combinations. Linux ARM64 is available from
 v0.8.8 onward; Linux RISC-V starts with the first release after v0.8.47.
 
 | Platform     | Architecture | npm install | `cargo install` | GitHub release asset                                  |
 | ------------ | ------------ | :---------: | :-------------: | ----------------------------------------------------- |
-| Linux        | x64 (x86_64) |     ✅      |       ✅        | `mimo-tui-linux-x64`, `mimo-tui-linux-x64`        |
-| Linux        | arm64        |     ✅      |       ✅        | `mimo-tui-linux-arm64`, `mimo-tui-linux-arm64`    |
-| Linux        | riscv64      |     ✅      |       ✅        | `mimo-tui-linux-riscv64`, `mimo-tui-linux-riscv64`|
-| macOS        | x64          |     ✅      |       ✅        | `mimo-tui-macos-x64`, `mimo-tui-macos-x64`        |
-| macOS        | arm64 (M-series) | ✅      |       ✅        | `mimo-tui-macos-arm64`, `mimo-tui-macos-arm64`    |
-| Windows      | x64          |     ✅      |       ✅        | `mimo-tui-windows-x64.exe`, `mimo-tui-windows-x64.exe` |
-| Linux x64 on musl (Alpine) | ✅ (static) |    ✅      |       ✅        | static `mimo-tui-linux-x64` (musl) asset           |
+| Linux        | x64 (x86_64) |     ✅      |       ✅        | `mimofan-linux-x64`, `mimofan-linux-x64`        |
+| Linux        | arm64        |     ✅      |       ✅        | `mimofan-linux-arm64`, `mimofan-linux-arm64`    |
+| Linux        | riscv64      |     ✅      |       ✅        | `mimofan-linux-riscv64`, `mimofan-linux-riscv64`|
+| macOS        | x64          |     ✅      |       ✅        | `mimofan-macos-x64`, `mimofan-macos-x64`        |
+| macOS        | arm64 (M-series) | ✅      |       ✅        | `mimofan-macos-arm64`, `mimofan-macos-arm64`    |
+| Windows      | x64          |     ✅      |       ✅        | `mimofan-windows-x64.exe`, `mimofan-windows-x64.exe` |
+| Linux x64 on musl (Alpine) | ✅ (static) |    ✅      |       ✅        | static `mimofan-linux-x64` (musl) asset           |
 | Other Linux (musl non-x64, other arches) | — | ❌¹ | ✅² | build from source                                     |
 | FreeBSD / OpenBSD              | — |   ❌      |       ✅²       | build from source                                     |
 
@@ -64,14 +64,14 @@ the GNU assets are built on Ubuntu 24.04 and can require `GLIBC_2.39`. Ubuntu
 version `GLIBC_2.39' not found
 ```
 
-The npm wrapper, `mimo-tui update`, and the Unix archive installer preflight
+The npm wrapper, `mimofan update`, and the Unix archive installer preflight
 Linux GNU binaries before installing them and point older systems to Cargo/source
 builds. If you are on Ubuntu 22.04 arm64, Debian stable, RHEL/CentOS, or another
 older GNU base for a non-x64 asset, use:
 
 ```bash
-cargo install mimo-tui-cli --locked
-cargo install mimo-tui --locked
+cargo install mimofan-cli --locked
+cargo install mimofan --locked
 ```
 
 Future release engineering may add static (musl) arm64/riscv64 assets so the
@@ -81,8 +81,8 @@ build from source on older distros.
 > **Linux ARM64 note (v0.8.7 and earlier).** v0.8.7 and earlier do **not**
 > publish a Linux ARM64 prebuilt; users on HarmonyOS thin-and-light, Asahi
 > Linux, Raspberry Pi, AWS Graviton, etc. saw `Unsupported architecture: arm64`
-> from `npm i -g mimo-tui`. v0.8.8 publishes both `mimo-tui-linux-arm64`
-> and `mimo-tui-linux-arm64`, so a plain `npm i -g mimo-tui` works
+> from `npm i -g mimofan`. v0.8.8 publishes both `mimofan-linux-arm64`
+> and `mimofan-linux-arm64`, so a plain `npm i -g mimofan` works
 > on any glibc-based ARM64 Linux. If you're stuck on v0.8.7, jump to
 > [Build from source](#7-build-from-source) — `cargo install` works fine.
 > For HarmonyOS PC and OpenHarmony cross-build setup, see
@@ -93,20 +93,20 @@ build from source on older distros.
 ## 2. Download safety and checksums
 
 Official release binaries are published only from
-`https://github.com/XiaomingX/mimo-tui/releases` and the npm package named
-`mimo-tui`. Do not install release assets from look-alike repositories,
+`https://github.com/XiaomingX/mimofan/releases` and the npm package named
+`mimofan`. Do not install release assets from look-alike repositories,
 archives, or search-result mirrors unless you deliberately trust that mirror.
 
-Every GitHub release includes `mimo-tui-artifacts-sha256.txt`. If you download
+Every GitHub release includes `mimofan-artifacts-sha256.txt`. If you download
 binaries manually, verify them before running:
 
 ```bash
 # Run from the directory containing the downloaded binaries.
-curl -L -O https://github.com/XiaomingX/mimo-tui/releases/latest/download/mimo-tui-artifacts-sha256.txt
-sha256sum -c mimo-tui-artifacts-sha256.txt --ignore-missing
+curl -L -O https://github.com/XiaomingX/mimofan/releases/latest/download/mimofan-artifacts-sha256.txt
+sha256sum -c mimofan-artifacts-sha256.txt --ignore-missing
 ```
 
-On macOS, use `shasum -a 256 -c mimo-tui-artifacts-sha256.txt` instead of
+On macOS, use `shasum -a 256 -c mimofan-artifacts-sha256.txt` instead of
 `sha256sum`.
 
 If antivirus software flags an official release binary, treat it as unresolved
@@ -115,7 +115,7 @@ the GitHub issue:
 
 - the release tag, for example `v0.8.36`
 - the exact download URL
-- the filename, for example `mimo-tui-linux-x64`
+- the filename, for example `mimofan-linux-x64`
 - the file SHA-256 from your machine
 - the antivirus product name and detection name
 
@@ -126,24 +126,24 @@ a download sourced from an impersonating repository or mirror.
 
 ## 3. Install via npm
 
-npm is the recommended install path. The `mimo-tui` wrapper is published at
+npm is the recommended install path. The `mimofan` wrapper is published at
 v0.8.65 (Node 18+; wrapper available for v0.8.56 and later).
 
 ```bash
-npm install -g mimo-tui
-mimo-tui --version   # 0.8.65
+npm install -g mimofan
+mimofan --version   # 0.8.65
 ```
 
 `postinstall` downloads the right pair of binaries from the matching GitHub
-release, verifies a SHA-256 manifest, and exposes `mimo-tui`, `codew`, and
-`mimo-tui` on your `PATH`.
+release, verifies a SHA-256 manifest, and exposes `mimofan`, `codew`, and
+`mimofan` on your `PATH`.
 
 Useful environment variables:
 
 | Variable                            | Purpose                                                                                |
 | ----------------------------------- | -------------------------------------------------------------------------------------- |
 | `CODEWHALE_VERSION`                 | Pin which release the wrapper downloads (canonical)                                    |
-| `DEEPSEEK_TUI_VERSION`              | Legacy alias for `CODEWHALE_VERSION` (defaults to `mimo-tuiBinaryVersion`)            |
+| `DEEPSEEK_TUI_VERSION`              | Legacy alias for `CODEWHALE_VERSION` (defaults to `mimofanBinaryVersion`)            |
 | `DEEPSEEK_TUI_GITHUB_REPO`          | Point the downloader at a fork (`owner/repo`)                                          |
 | `DEEPSEEK_TUI_RELEASE_BASE_URL`     | Override the download root (e.g. an internal mirror or release-asset proxy)            |
 | `DEEPSEEK_TUI_FORCE_DOWNLOAD=1`     | Re-download even if a cached binary marker matches                                     |
@@ -154,7 +154,7 @@ Useful environment variables:
 > (not just the postinstall binary download), use an npm registry mirror:
 > ```bash
 > npm config set registry https://registry.npmmirror.com
-> npm install -g mimo-tui
+> npm install -g mimofan
 > ```
 > See also [Section 4](#4-install-via-cargo-any-tier-1-rust-target) if you
 > prefer Cargo over npm.
@@ -169,13 +169,13 @@ delegates to the TUI runtime at runtime.
 
 ```bash
 # Requires Rust 1.88+ (https://rustup.rs)
-cargo install mimo-tui-cli --locked   # provides `mimo-tui`
-cargo install mimo-tui     --locked   # provides `mimo-tui`
-mimo-tui --version
+cargo install mimofan-cli --locked   # provides `mimofan`
+cargo install mimofan     --locked   # provides `mimofan`
+mimofan --version
 ```
 
 > **Linux: install build-time dependencies first.** `cargo install` compiles
-> from source, and on Linux the `mimo-tui` crate links against
+> from source, and on Linux the `mimofan` crate links against
 > `libdbus-1` (used by the D-Bus secret-service backend for credential
 > storage). Install the required system packages before running `cargo install`:
 >
@@ -250,14 +250,14 @@ is fastest from your network.
 If you already have Nix with flake support, run:
 
 ```sh
-nix run github:XiaomingX/mimo-tui
+nix run github:XiaomingX/mimofan
 ```
 
-Nix builds `mimo-tui` and then starts the `mimo-tui` dispatcher. Pass
+Nix builds `mimofan` and then starts the `mimofan` dispatcher. Pass
 arguments after `--`, for example:
 
 ```sh
-nix run github:XiaomingX/mimo-tui -- --help
+nix run github:XiaomingX/mimofan -- --help
 ```
 
 ### Flake
@@ -269,8 +269,8 @@ Add inputs to `flake.nix`:
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    mimo-tui.url = "github:XiaomingX/mimo-tui";
-    mimo-tui.inputs.nixpkgs.follows = "nixpkgs";
+    mimofan.url = "github:XiaomingX/mimofan";
+    mimofan.inputs.nixpkgs.follows = "nixpkgs";
   };
 }
 ```
@@ -279,7 +279,7 @@ Install into a NixOS module:
 
 ```nix
 {
-  outputs = { self, nixpkgs, mimo-tui }:
+  outputs = { self, nixpkgs, mimofan }:
   let
     # replace system "x86_64-linux" with your system
     system = "x86_64-linux";
@@ -291,7 +291,7 @@ Install into a NixOS module:
       modules = [
         # ...
         {
-          environment.systemPackages = [ mimo-tui.packages.${system}.default ];
+          environment.systemPackages = [ mimofan.packages.${system}.default ];
         }
       ];
     };
@@ -304,7 +304,7 @@ Install into a NixOS module:
 ## Homebrew (legacy tap)
 
 Homebrew currently ships only the legacy `deepseek-tui` tap, kept for
-compatibility while the formula is renamed to `mimo-tui`. It installs the
+compatibility while the formula is renamed to `mimofan`. It installs the
 same current-release binaries:
 
 ```bash
@@ -312,7 +312,7 @@ brew tap Hmbown/deepseek-tui
 brew install deepseek-tui
 ```
 
-Update with `brew upgrade deepseek-tui`. There is no `mimo-tui` formula yet;
+Update with `brew upgrade deepseek-tui`. There is no `mimofan` formula yet;
 once the rename lands, this section will switch to it.
 
 ---
@@ -320,40 +320,40 @@ once the rename lands, this section will switch to it.
 ## 6. Manual download from GitHub Releases
 
 Each platform appears on the Releases page in **two forms** (this is intentional — see #3208):
-the **bare binaries** (`mimo-tui-<platform>` and `mimo-tui-<platform>`, no extension) and a
-**`.tar.gz` / `.zip` archive** (`mimo-tui-<platform>.tar.gz`) that bundles the same two binaries
-plus an `install.sh`. The bare binaries are what the npm wrapper and the in-app `mimo-tui update`
+the **bare binaries** (`mimofan-<platform>` and `mimofan-<platform>`, no extension) and a
+**`.tar.gz` / `.zip` archive** (`mimofan-<platform>.tar.gz`) that bundles the same two binaries
+plus an `install.sh`. The bare binaries are what the npm wrapper and the in-app `mimofan update`
 download; the archive is the easiest manual install (see §5). The steps below use the bare binaries
 directly.
 
 Grab the matching pair of binaries for your platform from the
-[Releases page](https://github.com/XiaomingX/mimo-tui/releases) and drop them
+[Releases page](https://github.com/XiaomingX/mimofan/releases) and drop them
 side by side into a directory on your `PATH` (e.g. `~/.local/bin`):
 
 ```bash
 # Linux ARM64 example
 mkdir -p ~/.local/bin
-curl -L -o ~/.local/bin/mimo-tui      \
-    https://github.com/XiaomingX/mimo-tui/releases/latest/download/mimo-tui-linux-arm64
-curl -L -o ~/.local/bin/mimo-tui  \
-    https://github.com/XiaomingX/mimo-tui/releases/latest/download/mimo-tui-linux-arm64
-chmod +x ~/.local/bin/mimo-tui ~/.local/bin/mimo-tui
-mimo-tui --version
+curl -L -o ~/.local/bin/mimofan      \
+    https://github.com/XiaomingX/mimofan/releases/latest/download/mimofan-linux-arm64
+curl -L -o ~/.local/bin/mimofan  \
+    https://github.com/XiaomingX/mimofan/releases/latest/download/mimofan-linux-arm64
+chmod +x ~/.local/bin/mimofan ~/.local/bin/mimofan
+mimofan --version
 ```
 
 > **macOS Gatekeeper note.** If you downloaded the binaries with a browser,
 > macOS may block them with "Apple cannot verify" warnings. Clear the quarantine
 > attribute on both binaries and retry:
 > ```bash
-> xattr -d com.apple.quarantine ~/.local/bin/mimo-tui ~/.local/bin/mimo-tui 2>/dev/null || true
+> xattr -d com.apple.quarantine ~/.local/bin/mimofan ~/.local/bin/mimofan 2>/dev/null || true
 > ```
 
 Verify integrity against the per-release SHA-256 manifest:
 
 ```bash
-curl -L -o /tmp/mimo-tui-artifacts-sha256.txt \
-    https://github.com/XiaomingX/mimo-tui/releases/latest/download/mimo-tui-artifacts-sha256.txt
-( cd ~/.local/bin && sha256sum -c /tmp/mimo-tui-artifacts-sha256.txt --ignore-missing )
+curl -L -o /tmp/mimofan-artifacts-sha256.txt \
+    https://github.com/XiaomingX/mimofan/releases/latest/download/mimofan-artifacts-sha256.txt
+( cd ~/.local/bin && sha256sum -c /tmp/mimofan-artifacts-sha256.txt --ignore-missing )
 ```
 
 (Use `shasum -a 256 -c` instead of `sha256sum` on macOS.)
@@ -365,11 +365,11 @@ explicitly. Replace `X.Y.Z` with the version you want to restore.
 
 ```bash
 # npm wrapper, only for versions that were published to npm
-npm install -g mimo-tui@X.Y.Z
+npm install -g mimofan@X.Y.Z
 
 # Cargo install path; both crates are required
-cargo install mimo-tui-cli --version X.Y.Z --locked --force
-cargo install mimo-tui --version X.Y.Z --locked --force
+cargo install mimofan-cli --version X.Y.Z --locked --force
+cargo install mimofan --version X.Y.Z --locked --force
 ```
 
 For manual installs, download both binaries or the platform archive from the
@@ -377,27 +377,27 @@ exact release tag and verify the matching checksum manifest from that same tag:
 
 ```bash
 # individual binaries
-curl -L -o mimo-tui-artifacts-sha256.txt \
-  https://github.com/XiaomingX/mimo-tui/releases/download/vX.Y.Z/mimo-tui-artifacts-sha256.txt
+curl -L -o mimofan-artifacts-sha256.txt \
+  https://github.com/XiaomingX/mimofan/releases/download/vX.Y.Z/mimofan-artifacts-sha256.txt
 
 # platform archives
-curl -L -o mimo-tui-bundles-sha256.txt \
-  https://github.com/XiaomingX/mimo-tui/releases/download/vX.Y.Z/mimo-tui-bundles-sha256.txt
+curl -L -o mimofan-bundles-sha256.txt \
+  https://github.com/XiaomingX/mimofan/releases/download/vX.Y.Z/mimofan-bundles-sha256.txt
 ```
 
-Inside a mimo-tui workspace, `/restore list [N]` lists side-git file snapshots
+Inside a mimofan workspace, `/restore list [N]` lists side-git file snapshots
 and `/restore <N>` restores files from the chosen snapshot. That workspace
 rollback does not change your installed binary version and does not rewrite
 conversation history.
 
 ### Windows Scoop
 
-The `mimo-tui` package is listed in Scoop's main bucket:
+The `mimofan` package is listed in Scoop's main bucket:
 
 ```powershell
 scoop update
-scoop install mimo-tui
-mimo-tui --version
+scoop install mimofan
+mimofan --version
 ```
 
 Scoop manifests are maintained outside this repository's release workflow and
@@ -410,28 +410,28 @@ A standalone NSIS-based installer is available starting with v0.8.50 for
 Windows users who prefer a traditional double-click setup (no npm, no Scoop, no
 Cargo required).
 
-**Download** `mimo-tuiSetup.exe` from the
-[Releases page](https://github.com/XiaomingX/mimo-tui/releases/latest).
+**Download** `mimofanSetup.exe` from the
+[Releases page](https://github.com/XiaomingX/mimofan/releases/latest).
 
 **Install** by double-clicking the setup executable. The installer:
 
-- Installs `mimo-tui.exe` and `mimo-tui.exe` side-by-side into
-  `%LOCALAPPDATA%\Programs\mimo-tui\bin`
+- Installs `mimofan.exe` and `mimofan.exe` side-by-side into
+  `%LOCALAPPDATA%\Programs\mimofan\bin`
 - Adds the install directory to the **current user** `PATH`
 - Registers in Windows **Apps & Features** for easy uninstall
 
 **Silent install** (for IT admins, SCCM, Intune):
 
 ```powershell
-mimo-tuiSetup.exe /S
+mimofanSetup.exe /S
 ```
 
 The installer is per-user and does not request elevation. Run silent installs in
 the target user's context, or use a deployment tool that can run the installer
-for each user profile that needs mimo-tui.
+for each user profile that needs mimofan.
 
 The release-built installer is currently unsigned and may trigger Windows
-SmartScreen. Verify the SHA-256 checksum from `mimo-tui-artifacts-sha256.txt`
+SmartScreen. Verify the SHA-256 checksum from `mimofan-artifacts-sha256.txt`
 before deploying, and sign the installer in your internal deployment pipeline if
 your environment requires signed application packages.
 
@@ -439,8 +439,8 @@ your environment requires signed application packages.
 
 ```powershell
 cd scripts\installer
-# Place mimo-tui.exe and mimo-tui.exe here, then:
-makensis /DVERSION=<version> mimo-tui.nsi
+# Place mimofan.exe and mimofan.exe here, then:
+makensis /DVERSION=<version> mimofan.nsi
 ```
 
 **Manual fallback** — if the installer is blocked by group policy, see the
@@ -472,13 +472,13 @@ LoongArch, FreeBSD, and pre-2024 ARM64 distros.
 ### Build and install
 
 ```bash
-git clone https://github.com/XiaomingX/mimo-tui.git
-cd mimo-tui
+git clone https://github.com/XiaomingX/mimofan.git
+cd mimofan
 
-cargo install --path crates/cli --locked   # provides `mimo-tui`
-cargo install --path crates/tui --locked   # provides `mimo-tui`
+cargo install --path crates/cli --locked   # provides `mimofan`
+cargo install --path crates/tui --locked   # provides `mimofan`
 
-mimo-tui --version
+mimofan --version
 ```
 
 Both binaries land in `~/.cargo/bin/` by default; make sure that directory is
@@ -497,13 +497,13 @@ rustup target add aarch64-unknown-linux-gnu
 cargo install cross --locked
 
 # Per build
-cross build --release --target aarch64-unknown-linux-gnu -p mimo-tui-cli
-cross build --release --target aarch64-unknown-linux-gnu -p mimo-tui
+cross build --release --target aarch64-unknown-linux-gnu -p mimofan-cli
+cross build --release --target aarch64-unknown-linux-gnu -p mimofan
 ```
 
 The resulting binaries land in
-`target/aarch64-unknown-linux-gnu/release/mimo-tui` and
-`target/aarch64-unknown-linux-gnu/release/mimo-tui`. Copy the matched pair
+`target/aarch64-unknown-linux-gnu/release/mimofan` and
+`target/aarch64-unknown-linux-gnu/release/mimofan`. Copy the matched pair
 to the ARM64 host (e.g. via `scp`) and `chmod +x` them.
 
 If you don't have Docker available, install the cross-linker directly and let
@@ -518,8 +518,8 @@ cat >> ~/.cargo/config.toml <<'EOF'
 linker = "aarch64-linux-gnu-gcc"
 EOF
 
-cargo build --release --target aarch64-unknown-linux-gnu -p mimo-tui-cli
-cargo build --release --target aarch64-unknown-linux-gnu -p mimo-tui
+cargo build --release --target aarch64-unknown-linux-gnu -p mimofan-cli
+cargo build --release --target aarch64-unknown-linux-gnu -p mimofan
 ```
 
 The same recipe works for `aarch64-unknown-linux-musl` if your distro is
@@ -575,14 +575,14 @@ that session and run `cargo build` from the project root.
 **Build**
 
 ```bash
-git clone https://github.com/XiaomingX/mimo-tui.git
-cd mimo-tui
+git clone https://github.com/XiaomingX/mimofan.git
+cd mimofan
 set CARGO_HTTP_CHECK_REVOKE=false   # may be needed behind some Chinese ISPs
 cargo build --release
 ```
 
-Both binaries appear in `target\release\mimo-tui.exe` and
-`target\release\mimo-tui.exe`.
+Both binaries appear in `target\release\mimofan.exe` and
+`target\release\mimofan.exe`.
 
 > Prefer not to build? Install via npm, Cargo, GitHub Releases, or the CNB
 > mirror — see the sections above.
@@ -594,30 +594,30 @@ Both binaries appear in `target\release\mimo-tui.exe` and
 ### `Unsupported architecture: arm64 on platform linux`
 
 You're on a release earlier than v0.8.8 that doesn't publish Linux ARM64
-binaries. Either upgrade (`npm i -g mimo-tui@latest`) or use
+binaries. Either upgrade (`npm i -g mimofan@latest`) or use
 `cargo install` per [Section 4](#4-install-via-cargo-any-tier-1-rust-target).
 
 ### `MISSING_COMPANION_BINARY` at runtime
 
-The dispatcher (`mimo-tui`) requires the TUI runtime (`mimo-tui`) to be on
+The dispatcher (`mimofan`) requires the TUI runtime (`mimofan`) to be on
 the same `PATH`. If you installed only one crate via `cargo install`, install
 both:
 
 ```bash
-cargo install mimo-tui-cli --locked
-cargo install mimo-tui     --locked
+cargo install mimofan-cli --locked
+cargo install mimofan     --locked
 ```
 
-### `mimo-tui update` reports `no asset found for platform mimo-tui-linux-aarch64`
+### `mimofan update` reports `no asset found for platform mimofan-linux-aarch64`
 
-This is [#503](https://github.com/XiaomingX/mimo-tui/issues/503) in v0.8.7 —
+This is [#503](https://github.com/XiaomingX/mimofan/issues/503) in v0.8.7 —
 the self-updater used Rust's `aarch64`/`x86_64` arch names instead of the
 release artifact's `arm64`/`x64`. Workaround until v0.8.8:
 
 ```bash
-npm i -g mimo-tui@latest
+npm i -g mimofan@latest
 # or
-cargo install mimo-tui-cli --locked
+cargo install mimofan-cli --locked
 ```
 
 ### npm download is slow or times out from mainland China
@@ -627,29 +627,29 @@ Set `CODEWHALE_RELEASE_BASE_URL` to a mirrored release-asset directory
 Cargo mirror setup in [Section 4](#4-install-via-cargo-any-tier-1-rust-target).
 The legacy `DEEPSEEK_TUI_RELEASE_BASE_URL` name is still accepted.
 
-### `mimo-tui update` is blocked by GitHub from mainland China
+### `mimofan update` is blocked by GitHub from mainland China
 
-`mimo-tui update` normally contacts GitHub Releases for metadata and binary
+`mimofan update` normally contacts GitHub Releases for metadata and binary
 assets. On networks where GitHub is blocked or unreliable, use the CNB source
 mirror instead and install both binaries from the release tag:
 
 To check the latest release without downloading or replacing binaries, run
-`mimo-tui update --check`.
+`mimofan update --check`.
 
 ```bash
-cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag vX.Y.Z mimo-tui-cli --locked --force
-cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag vX.Y.Z mimo-tui     --locked --force
+cargo install --git https://cnb.cool/mimofan.net/mimofan --tag vX.Y.Z mimofan-cli --locked --force
+cargo install --git https://cnb.cool/mimofan.net/mimofan --tag vX.Y.Z mimofan     --locked --force
 ```
 
-If you operate a binary asset mirror, `mimo-tui update` can use it directly:
+If you operate a binary asset mirror, `mimofan update` can use it directly:
 
 ```bash
-CODEWHALE_RELEASE_BASE_URL=https://your-mirror.example.com/mimo-tui/vX.Y.Z/ \
+CODEWHALE_RELEASE_BASE_URL=https://your-mirror.example.com/mimofan/vX.Y.Z/ \
 DEEPSEEK_TUI_VERSION=X.Y.Z \
-mimo-tui update
+mimofan update
 ```
 
-The mirror directory must contain `mimo-tui-artifacts-sha256.txt` and the
+The mirror directory must contain `mimofan-artifacts-sha256.txt` and the
 platform binaries from the GitHub release. The legacy
 `DEEPSEEK_TUI_RELEASE_BASE_URL` mirror variable remains supported as an alias.
 
@@ -676,8 +676,8 @@ export RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 source "$HOME/.cargo/env"
 rustup default stable
-cargo install mimo-tui-cli --locked
-cargo install mimo-tui     --locked
+cargo install mimofan-cli --locked
+cargo install mimofan     --locked
 ```
 
 Afterward, `which cargo` should point to `~/.cargo/bin/cargo`, not
@@ -691,7 +691,7 @@ Install the C toolchain:
 sudo apt-get install -y build-essential pkg-config libdbus-1-dev
 ```
 
-### Wrapper installs but `mimo-tui` isn't found
+### Wrapper installs but `mimofan` isn't found
 
 `npm i -g` installs into `$(npm prefix -g)/bin`; make sure that directory is on
 your shell's `PATH`. With nvm: `nvm use --lts && hash -r`.
@@ -741,7 +741,7 @@ path-agnostic — moving `target-dir` does not help.
 3. **Use the GitHub Release installer/archive instead** — the release assets
    ship prebuilt binaries and skip the Cargo build entirely
    ([Section 6](#6-manual-download-from-github-releases)).
-4. **Use `cargo install mimo-tui-cli --locked`** from crates.io — this
+4. **Use `cargo install mimofan-cli --locked`** from crates.io — this
    changes the binary path, which some AV tools treat differently.
 
 To verify that the build-script binary itself is valid (not corrupted), locate
@@ -755,7 +755,7 @@ target/debug/build/libsqlite3-sys-*/build-script-build
 
 ### npm binary download times out
 
-If `mimo-tui` waits several seconds and prints `connect ETIMEDOUT` or
+If `mimofan` waits several seconds and prints `connect ETIMEDOUT` or
 `EAI_AGAIN` while fetching from `github.com`, the npm wrapper installed
 successfully but the prebuilt binary download from GitHub Releases is blocked
 or unreliable on your network. This download is separate from the npm registry
@@ -767,24 +767,24 @@ Use one of these paths:
 
    ```bash
    export HTTPS_PROXY=http://your-proxy:port
-   mimo-tui
+   mimofan
    ```
 
 2. Mirror the release assets internally and set `DEEPSEEK_TUI_RELEASE_BASE_URL`:
 
    ```bash
-   export DEEPSEEK_TUI_RELEASE_BASE_URL=https://your-mirror.example.com/mimo-tui/
-   mimo-tui
+   export DEEPSEEK_TUI_RELEASE_BASE_URL=https://your-mirror.example.com/mimofan/
+   mimofan
    ```
 
-   The directory must contain `mimo-tui-artifacts-sha256.txt` and the platform
+   The directory must contain `mimofan-artifacts-sha256.txt` and the platform
    binaries from the GitHub release.
 
 3. Install via Cargo, which builds locally and does not download GitHub release
    assets. See [Section 4](#4-install-via-cargo-any-tier-1-rust-target).
 
-4. Download both `mimo-tui` and `mimo-tui` manually from the
-   [Releases page](https://github.com/XiaomingX/mimo-tui/releases), place them
+4. Download both `mimofan` and `mimofan` manually from the
+   [Releases page](https://github.com/XiaomingX/mimofan/releases), place them
    in a directory on `PATH`, and make them executable. See
    [Section 6](#6-manual-download-from-github-releases).
 
@@ -793,9 +793,9 @@ Use one of these paths:
 ## 9. Verifying your install
 
 ```bash
-mimo-tui --version
-mimo-tui doctor       # checks API key, provider, runtime, and PATH integrity
-mimo-tui doctor --json
+mimofan --version
+mimofan doctor       # checks API key, provider, runtime, and PATH integrity
+mimofan doctor --json
 ```
 
 `doctor` exits non-zero if it finds a problem and prints structured remediation

@@ -1,5 +1,5 @@
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║                         mimo-tui Configuration                               ║
+# ║                         mimofan Configuration                               ║
 # ║                                                                              ║
 # ║  Terminal coding agent for DeepSeek.                                          ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -88,12 +88,12 @@ cost_currency = "usd" # usd | cny
 # ─────────────────────────────────────────────────────────────────────────────────
 # Startup update check
 # ─────────────────────────────────────────────────────────────────────────────────
-# The TUI checks for newer mimo-tui releases in the background at startup.
+# The TUI checks for newer mimofan releases in the background at startup.
 # Set check_for_updates = false in managed or air-gapped environments.
 # update_uri may point at a GitHub-compatible latest-release JSON endpoint.
 [update]
 check_for_updates = true
-# update_uri = "https://internal.mirror.example/mimo-tui/releases/latest"
+# update_uri = "https://internal.mirror.example/mimofan/releases/latest"
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # Hotbar slots (#2061 / #2064)
@@ -125,16 +125,16 @@ check_for_updates = true
 # ─────────────────────────────────────────────────────────────────────────────────
 # Paths
 # ─────────────────────────────────────────────────────────────────────────────────
-# New installs write product state under ~/.mimo-tui/. Existing ~/.deepseek/
-# files are still read as compatibility fallbacks when the .mimo-tui file is
+# New installs write product state under ~/.mimofan/. Existing ~/.deepseek/
+# files are still read as compatibility fallbacks when the .mimofan file is
 # absent.
-skills_dir = "~/.mimo-tui/skills"
-mcp_config_path = "~/.mimo-tui/mcp.json"
-notes_path = "~/.mimo-tui/notes.txt"
+skills_dir = "~/.mimofan/skills"
+mcp_config_path = "~/.mimofan/mcp.json"
+notes_path = "~/.mimofan/notes.txt"
 
-memory_path = "~/.mimo-tui/memory.md"
+memory_path = "~/.mimofan/memory.md"
 
-# instructions = ["./AGENTS.md", "~/.mimo-tui/global.md"]
+# instructions = ["./AGENTS.md", "~/.mimofan/global.md"]
 #
 # Optional list of additional instruction files concatenated into the
 # system prompt in declared order (#454). Useful for layering
@@ -142,7 +142,7 @@ memory_path = "~/.mimo-tui/memory.md"
 # is expanded so `~` and env vars work; missing files are skipped with
 # a tracing warning. Files are capped at 100 KiB per entry.
 #
-# Project-level config (.mimo-tui/config.toml in the workspace) replaces
+# Project-level config (.mimofan/config.toml in the workspace) replaces
 # the user-level array wholesale rather than merging — list `~/global.md`
 # inside the project array if you want both. An explicit empty array
 # (`instructions = []`) clears the user list for the current repo.
@@ -185,7 +185,7 @@ sandbox_mode = "workspace-write" # read-only | workspace-write | danger-full-acc
 # allow/deny records, glob expansion, and UI persistence are intentionally out
 # of scope here.
 #
-# Example ~/.mimo-tui/permissions.toml:
+# Example ~/.mimofan/permissions.toml:
 #
 # [[rules]]
 # tool = "exec_shell"
@@ -329,7 +329,7 @@ max_subagents = 10 # optional (1-20)
 # model = "deepseek-v4-pro"
 # [providers.deepseek.auth] # provider-scoped auth source metadata; command execution lands in a follow-up slice
 # source = "command"
-# command = ["secret-tool", "lookup", "service", "mimo-tui-deepseek"]
+# command = ["secret-tool", "lookup", "service", "mimofan-deepseek"]
 # timeout_ms = 2000
 # insecure_skip_tls_verify = true # last resort for private gateways; prefer SSL_CERT_FILE
 
@@ -401,7 +401,7 @@ max_subagents = 10 # optional (1-20)
 # mode = "token-plan-cn"               # China cluster
 # mode = "token-plan-ams"              # Europe cluster
 # mode = "pay-as-you-go"               # standard API / sk- keys
-# TTS aliases are also accepted by `mimo-tui speech`: tts, voice-design, voice-clone
+# TTS aliases are also accepted by `mimofan speech`: tts, voice-design, voice-clone
 # TTS model IDs: mimo-v2.5-tts, mimo-v2.5-tts-voicedesign, mimo-v2.5-tts-voiceclone, mimo-v2-tts
 
 # Novita AI-hosted inference (https://novita.ai)
@@ -522,7 +522,7 @@ max_subagents = 10 # optional (1-20)
 # ─────────────────────────────────────────────────────────────────────────────────
 # OpenAI Codex (ChatGPT) Provider — EXPERIMENTAL
 # Reuses your existing ChatGPT/Codex CLI OAuth login. Run `codex login` first;
-# mimo-tui reads and refreshes the access token from ~/.codex/auth.json. No API
+# mimofan reads and refreshes the access token from ~/.codex/auth.json. No API
 # key is stored here. Talks to the OpenAI Responses API at /codex/responses.
 # Env var aliases: OPENAI_CODEX_ACCESS_TOKEN / CODEX_ACCESS_TOKEN (token override),
 #   OPENAI_CODEX_BASE_URL / CODEX_BASE_URL, OPENAI_CODEX_MODEL / CODEX_MODEL,
@@ -603,7 +603,7 @@ max_subagents = 10 # optional (1-20)
 # default = "prompt"     # allow | deny | prompt
 # allow = ["api.deepseek.com", "github.com", ".githubusercontent.com"]
 # deny = []
-# audit = true            # one line per call to ~/.mimo-tui/audit.log
+# audit = true            # one line per call to ~/.mimofan/audit.log
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # Skills (#140)
@@ -623,7 +623,7 @@ max_subagents = 10 # optional (1-20)
 # [skills]
 # registry_url = "https://raw.githubusercontent.com/Hmbown/deepseek-skills/main/index.json"
 # max_install_size_bytes = 5_242_880
-# scan_mimo-tui_only = false # true: ignore Claude/OpenCode/Cursor/agentskills.io skill dirs
+# scan_mimofan_only = false # true: ignore Claude/OpenCode/Cursor/agentskills.io skill dirs
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # TUI
@@ -755,7 +755,7 @@ fallback_default_prior = 3.8
 # ─────────────────────────────────────────────────────────────────────────────────
 # Harness Profiles (preview schema; runtime consumption follows later)
 # ─────────────────────────────────────────────────────────────────────────────────
-# Harness profiles let future mimo-tui runtime slices select model-specific
+# Harness profiles let future mimofan runtime slices select model-specific
 # prompt, context, tool, and subagent posture. v0.9 parses, validates, and can
 # resolve profiles for tests/status plumbing, but normal Agent and WhaleFlow
 # runs do not silently promote or mutate behavior from these profiles yet.
@@ -822,7 +822,7 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # Each turn the TUI takes a `pre-turn:<seq>` and `post-turn:<seq>` snapshot of
 # your workspace into a side-git repo at:
 #
-#     ~/.mimo-tui/snapshots/<project_hash>/<worktree_hash>/.git
+#     ~/.mimofan/snapshots/<project_hash>/<worktree_hash>/.git
 #
 # Your own `.git` is never touched — `--git-dir` and `--work-tree` are always
 # set together when shelling out to git. Use `/restore N` (slash command) or
@@ -839,7 +839,7 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # max_workspace_gb = 2  # Snapshots self-disable on first init when the
 #                         # non-excluded workspace exceeds this size in GB
 #                         # (v0.8.32). Default 2 GB protects against running
-#                         # mimo-tui in directories with hundreds of GB
+#                         # mimofan in directories with hundreds of GB
 #                         # of datasets / model weights / docker dumps where
 #                         # `git add -A` would hang the TUI for hours. Set
 #                         # to 0 to disable the cap (v0.8.31 behaviour);
@@ -897,7 +897,7 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # Those vars are merged into the spawned process environment (later hooks
 # override earlier ones). Use this for ephemeral credentials, per-skill
 # PATH adjustments, or short-lived tokens. The resolved KEY names (NEVER
-# values) are written to `~/.mimo-tui/audit.log` so each session can be
+# values) are written to `~/.mimofan/audit.log` so each session can be
 # reconciled later. Hook failure / timeout simply contributes no vars —
 # it does not abort the shell call.
 #
@@ -907,7 +907,7 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 #
 # [[hooks.hooks]]
 # event = "session_start"
-# command = "echo 'mimo-tui session started'"
+# command = "echo 'mimofan session started'"
 #
 # # Inject ephemeral creds into every shell call. Output one
 # # KEY=VALUE per line on stdout (export prefix optional).
@@ -925,7 +925,7 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # [[hooks.hooks]]
 # name = "subagent-audit"
 # event = "subagent_complete"
-# command = "~/.mimo-tui/hooks/subagent-audit.sh"
+# command = "~/.mimofan/hooks/subagent-audit.sh"
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # Runtime API (`deepseek serve --http`) (#561)
@@ -962,8 +962,8 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # JSON `ToolResult` (`{"content": "...", "success": true}`) on **stdout**.
 #
 # [tools]
-# # Custom plugin directory (defaults to `~/.mimo-tui/tools/`)
-# plugin_dir = "~/.mimo-tui/tools"
+# # Custom plugin directory (defaults to `~/.mimofan/tools/`)
+# plugin_dir = "~/.mimofan/tools"
 #
 # [tools.overrides]
 # # Disable a tool entirely — removes it from the model-visible catalog.
@@ -979,12 +979,12 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # "fetch_url" = { type = "script", path = "cached-fetch.sh", args = ["--ttl", "300"] }
 
 # ──────────── Enterprise example: audit-logging exec_shell wrapper ──────────────
-# Drop `audit-exec-shell.sh` in `~/.mimo-tui/tools/` and enable with:
+# Drop `audit-exec-shell.sh` in `~/.mimofan/tools/` and enable with:
 #
 # [tools.overrides]
 # "exec_shell" = { type = "script", path = "audit-exec-shell.sh" }
 #
-# The wrapper logs every request to `~/.mimo-tui/audit/exec_shell.log`, then
+# The wrapper logs every request to `~/.mimofan/audit/exec_shell.log`, then
 # delegates to your own approved shell executor. Do not pipe the raw JSON
 # request into `sh -s`; parse the command field and enforce your policy first.
 #
@@ -993,7 +993,7 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # # name: exec_shell
 # # description: Audit-logging wrapper for exec_shell
 # # approval: required
-# LOGDIR="${HOME}/.mimo-tui/audit"
+# LOGDIR="${HOME}/.mimofan/audit"
 # mkdir -p "$LOGDIR"
 # LOGFILE="$LOGDIR/exec_shell.log"
 # input=$(cat)

@@ -23,7 +23,7 @@ export DEEPSEEK_MEMORY=on
 Accepted truthy values are `1`, `on`, `true`, `yes`, `y`, and
 `enabled`.
 
-…or add to `~/.mimo-tui/config.toml`:
+…or add to `~/.mimofan/config.toml`:
 
 ```toml
 [memory]
@@ -32,11 +32,11 @@ enabled = true
 
 Restart the TUI after toggling. Disabling is the same in reverse.
 
-The memory file lives at `~/.mimo-tui/memory.md` by default; override
+The memory file lives at `~/.mimofan/memory.md` by default; override
 with `memory_path` in `config.toml` or `DEEPSEEK_MEMORY_PATH` in
 the environment. `DEEPSEEK_MEMORY_PATH` wins over the config file when
 both are set. Existing `~/.deepseek/memory.md` files remain supported as a
-legacy fallback when no `.mimo-tui` memory file exists.
+legacy fallback when no `.mimofan` memory file exists.
 
 ## Quick examples
 
@@ -61,7 +61,7 @@ When memory is enabled and the file exists, every turn's system
 prompt carries an extra block:
 
 ```xml
-<user_memory source="/Users/you/.mimo-tui/memory.md">
+<user_memory source="/Users/you/.mimofan/memory.md">
 - (2026-05-03 22:14 UTC) prefer pytest over unittest
 - (2026-05-03 22:31 UTC) this codebase uses 4-space indentation
 …
@@ -167,7 +167,7 @@ note was added when grooming the file.
 
 Memory is intentionally **user-scoped** rather than repo-scoped. It
 sits alongside — not inside — project instruction sources such as
-`AGENTS.md`, `.mimo-tui/instructions.md`, legacy `.deepseek/instructions.md`,
+`AGENTS.md`, `.mimofan/instructions.md`, legacy `.deepseek/instructions.md`,
 and `instructions = [...]`.
 
 - Use **memory** for durable personal preferences that should follow
@@ -196,7 +196,7 @@ Memory is for **durable** signal. Things that should NOT live there:
 
 ## Privacy and scope
 
-The memory file lives entirely on your machine in `~/.mimo-tui/`.
+The memory file lives entirely on your machine in `~/.mimofan/`.
 It's never uploaded to any cloud service — the TUI only ever
 includes it inline in the system prompt that the LLM provider
 receives, and only when memory is enabled. If you switch providers
@@ -205,24 +205,24 @@ used; the file is provider-agnostic.
 
 The file is per-user, not per-project. If you want project-specific
 memory, use the project-level `AGENTS.md` or
-`.mimo-tui/instructions.md` files instead. Legacy
+`.mimofan/instructions.md` files instead. Legacy
 `.deepseek/instructions.md` files are still loaded for compatibility. These are
 loaded by `project_context` and live in the repo (or wherever you commit them).
 
 ## Configuration reference
 
 ```toml
-# ~/.mimo-tui/config.toml
+# ~/.mimofan/config.toml
 [memory]
 enabled = true                    # default false; or set DEEPSEEK_MEMORY=on
 # Path is configured at the top-level (next to skills_dir, notes_path):
-memory_path = "~/.mimo-tui/memory.md"
+memory_path = "~/.mimofan/memory.md"
 ```
 
 | Setting               | Default                       | Override                              |
 |-----------------------|-------------------------------|---------------------------------------|
 | Memory enabled        | `false`                       | `[memory] enabled = true` or `DEEPSEEK_MEMORY=on` |
-| Memory file path      | `~/.mimo-tui/memory.md`       | `memory_path = "..."` or `DEEPSEEK_MEMORY_PATH=`  |
+| Memory file path      | `~/.mimofan/memory.md`       | `memory_path = "..."` or `DEEPSEEK_MEMORY_PATH=`  |
 | Max file size         | 100 KiB                       | (none today; truncation marker shows the cut)     |
 
 ## Related
@@ -230,5 +230,5 @@ memory_path = "~/.mimo-tui/memory.md"
 - `docs/SUBAGENTS.md` — sub-agents inherit memory and can use the
   `remember` tool too.
 - `docs/CONFIGURATION.md` — full config reference.
-- Issue [#489](https://github.com/XiaomingX/mimo-tui/issues/489)
+- Issue [#489](https://github.com/XiaomingX/mimofan/issues/489)
   — phase-1 EPIC tracking the work.

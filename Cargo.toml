@@ -28,7 +28,7 @@ edition = "2024"
 # confusing E0658 from rustc.
 rust-version = "1.88"
 license = "MIT"
-repository = "https://github.com/XiaomingX/mimo-tui"
+repository = "https://github.com/XiaomingX/mimofan"
 
 [workspace.dependencies]
 anyhow = "1.0.100"

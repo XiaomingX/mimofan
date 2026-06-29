@@ -30,7 +30,7 @@ Sources for the external PR author:
 
 ## Local ACP Readiness Audit
 
-mimo-tui already exposes ACP through `mimo-tui serve --acp`.
+mimofan already exposes ACP through `mimofan serve --acp`.
 
 Implemented locally:
 
@@ -39,8 +39,8 @@ Implemented locally:
 - `crates/tui/src/acp_server.rs` implements JSON-RPC 2.0 over newline-delimited
   stdio.
 - `initialize` advertises:
-  - `agentInfo.name = "mimo-tui"`
-  - `agentInfo.title = "mimo-tui"`
+  - `agentInfo.name = "mimofan"`
+  - `agentInfo.title = "mimofan"`
   - `agentInfo.version = env!("CARGO_PKG_VERSION")`
   - `promptCapabilities.embeddedContext = true`
   - `loadSession = false`
@@ -49,7 +49,7 @@ Implemented locally:
   - `authMethods` with terminal auth: `auth set --provider <provider>`
 - `session/new` creates an in-memory session with a cwd.
 - `session/prompt` accepts string prompts plus text/resource/resource_link
-  blocks, routes through the configured mimo-tui client, emits one
+  blocks, routes through the configured mimofan client, emits one
   `session/update` agent message chunk, then returns `stopReason: "end_turn"`.
 - `session/cancel` currently returns `null`.
 
@@ -74,36 +74,36 @@ wrapper handle platform selection, checksums, mirrors, and glibc preflight.
 Create this directory in `agentclientprotocol/registry`:
 
 ```text
-mimo-tui/
+mimofan/
   agent.json
   icon.svg
 ```
 
-Replace `0.8.61` with the final published mimo-tui version. Do not use
+Replace `0.8.61` with the final published mimofan version. Do not use
 `@latest`.
 
-### `mimo-tui/agent.json`
+### `mimofan/agent.json`
 
 ```json
 {
-  "id": "mimo-tui",
-  "name": "mimo-tui",
+  "id": "mimofan",
+  "name": "mimofan",
   "version": "0.8.61",
   "description": "Provider-agnostic terminal coding agent with first-class DeepSeek support.",
-  "repository": "https://github.com/XiaomingX/mimo-tui",
-  "website": "https://github.com/XiaomingX/mimo-tui/blob/main/docs/RUNTIME_API.md#acp-stdio-adapter-mimo-tui-serve---acp",
+  "repository": "https://github.com/XiaomingX/mimofan",
+  "website": "https://github.com/XiaomingX/mimofan/blob/main/docs/RUNTIME_API.md#acp-stdio-adapter-mimofan-serve---acp",
   "authors": ["Hunter Bown"],
   "license": "MIT",
   "distribution": {
     "npx": {
-      "package": "mimo-tui@0.8.61",
+      "package": "mimofan@0.8.61",
       "args": ["serve", "--acp"]
     }
   }
 }
 ```
 
-### `mimo-tui/icon.svg`
+### `mimofan/icon.svg`
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -117,20 +117,20 @@ Replace `0.8.61` with the final published mimo-tui version. Do not use
 Title:
 
 ```text
-Add mimo-tui ACP agent
+Add mimofan ACP agent
 ```
 
 Body:
 
 ```text
-Adds mimo-tui to the ACP registry.
+Adds mimofan to the ACP registry.
 
-mimo-tui is a provider-agnostic terminal coding agent with first-class
+mimofan is a provider-agnostic terminal coding agent with first-class
 DeepSeek support. The submitted distribution uses the published npm package and
-runs `mimo-tui serve --acp`.
+runs `mimofan serve --acp`.
 
-Local readiness checked in XiaomingX/mimo-tui:
-- ACP stdio adapter exists at `mimo-tui serve --acp`.
+Local readiness checked in XiaomingX/mimofan:
+- ACP stdio adapter exists at `mimofan serve --acp`.
 - `initialize` returns terminal auth via `auth set --provider <provider>`.
 - `session/new`, `session/prompt`, and `session/cancel` are implemented.
 - The adapter is intentionally baseline: no ACP shell/file tools, no session
@@ -141,11 +141,11 @@ Version: 0.8.61
 
 ## Pre-Submission Checklist
 
-- Confirm `mimo-tui@0.8.61` is published to npm, or switch the draft to
+- Confirm `mimofan@0.8.61` is published to npm, or switch the draft to
   versioned GitHub Release binary URLs that exist.
 - Run the upstream registry validator:
-  `python3 .github/workflows/verify_agents.py --auth-check --agent mimo-tui`
-- Verify `npx mimo-tui@0.8.61 serve --acp` returns `authMethods` from
+  `python3 .github/workflows/verify_agents.py --auth-check --agent mimofan`
+- Verify `npx mimofan@0.8.61 serve --acp` returns `authMethods` from
   `initialize` on a clean machine.
 - Keep the external PR body explicit that ACP support is baseline and does not
   imply the full TUI/runtime API is available inside ACP.

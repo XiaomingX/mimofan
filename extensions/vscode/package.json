@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/XiaomingX/mimo-tui.git",
+    "url": "https://github.com/XiaomingX/mimofan.git",
     "directory": "extensions/vscode"
   },
   "engines": {

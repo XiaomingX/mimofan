@@ -20,7 +20,7 @@ struct DirectoryListingWorld {
     fixture_records: Vec<serde_json::Value>,
 }
 
-#[given("an offline mimo-tui evaluation workspace")]
+#[given("an offline mimofan evaluation workspace")]
 fn offline_mimofan_evaluation_workspace(world: &mut DirectoryListingWorld) {
     world.record_dir = Some(TempDir::new().expect("record tempdir"));
 }
