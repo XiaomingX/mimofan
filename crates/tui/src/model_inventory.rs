@@ -104,9 +104,9 @@ impl ModelInventory {
 
         Self {
             active_provider,
-            router_provider: ApiProvider::Deepseek,
+            router_provider: ApiProvider::XiaomiMimo,
             router_model: "deepseek-v4-flash",
-            router_available: has_api_key_for(config, ApiProvider::Deepseek),
+            router_available: has_api_key_for(config, ApiProvider::XiaomiMimo),
             candidates,
         }
     }
@@ -187,8 +187,8 @@ fn auth_source_for_provider(config: &Config, provider: ApiProvider) -> Option<Mo
         .and_then(|entry| entry.auth.as_ref())
     {
         return match auth.source {
-            codewhale_config::AuthSourceKind::Command => Some(ModelAuthSource::Command),
-            codewhale_config::AuthSourceKind::Secret => Some(ModelAuthSource::Secret),
+            mimofan_config::AuthSourceKind::Command => Some(ModelAuthSource::Command),
+            mimofan_config::AuthSourceKind::Secret => Some(ModelAuthSource::Secret),
         };
     }
     if provider_uses_oauth_cli(config, provider) && has_api_key_for(config, provider) {
@@ -199,8 +199,8 @@ fn auth_source_for_provider(config: &Config, provider: ApiProvider) -> Option<Mo
 
 fn provider_uses_oauth_cli(config: &Config, provider: ApiProvider) -> bool {
     match provider {
-        ApiProvider::OpenaiCodex => true,
-        ApiProvider::Moonshot => config
+        ApiProvider::XiaomiMimo => true,
+        ApiProvider::XiaomiMimo => config
             .provider_config_for(provider)
             .and_then(|entry| entry.auth_mode.as_deref())
             .is_some_and(|mode| {
@@ -249,14 +249,14 @@ mod tests {
         assert!(inventory.router_available);
         assert!(
             inventory
-                .candidate(ApiProvider::Zai, crate::config::ZAI_GLM_5_2_MODEL)
+                .candidate(ApiProvider::XiaomiMimo, crate::config::ZAI_GLM_5_2_MODEL)
                 .is_some()
         );
         assert!(
             inventory
                 .candidates
                 .iter()
-                .all(|candidate| candidate.provider != ApiProvider::Minimax)
+                .all(|candidate| candidate.provider != ApiProvider::XiaomiMimo)
         );
     }
 
@@ -267,8 +267,8 @@ mod tests {
         let _deepseek = crate::test_support::EnvVarGuard::remove("DEEPSEEK_API_KEY");
         let _openai = crate::test_support::EnvVarGuard::remove("OPENAI_API_KEY");
         let mut providers = crate::config::ProvidersConfig::default();
-        providers.openai.auth = Some(codewhale_config::ProviderAuthSourceToml {
-            source: codewhale_config::AuthSourceKind::Command,
+        providers.openai.auth = Some(mimofan_config::ProviderAuthSourceToml {
+            source: mimofan_config::AuthSourceKind::Command,
             command: vec!["secret-tool".to_string(), "lookup".to_string()],
             timeout_ms: Some(2000),
             secret_id: None,
@@ -283,7 +283,7 @@ mod tests {
         let candidate = inventory
             .candidates
             .iter()
-            .find(|candidate| candidate.provider == ApiProvider::Openai)
+            .find(|candidate| candidate.provider == ApiProvider::XiaomiMimo)
             .expect("openai candidate");
 
         assert_eq!(candidate.auth_source, ModelAuthSource::Command);

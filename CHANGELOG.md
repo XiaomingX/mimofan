@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from #2239 by @gordonlu.
 - **Website and automation.** A runtime/integrations page, provenance and
   mirror-trust copy, a fact-drift CI gate, a published install script, and a
-  weekly community digest archive on codewhale.net (#3419, #3421, #3415, #3482,
+  weekly community digest archive on mimo-tui.net (#3419, #3421, #3415, #3482,
   #3420); per-automation mode/shell/trust/approval settings (#3467).
 
 ### Changed
@@ -153,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `windows`, `toml`, `tokio`, `lru`, `similar`, and web tooling security locks.
 - **Public release surface cleanup.** Benchmark-specific materials were kept
   out of the public release repo; benchmark source fragments belong in the
-  separate `codewhale-bench` lane.
+  separate `mimo-tui-bench` lane.
 
 ## [0.8.63] - 2026-06-19
 
@@ -230,19 +230,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `HTTP_PROXY` / `HTTPS_PROXY` from `ALL_PROXY`. Reported by @lordwedggie and
   harvested from #3331 by @cyq1017.
 - **Legacy app-server non-loopback auth hardening (#3258).** Bare
-  `codewhale app-server --host 0.0.0.0` now fails fast unless an explicit
+  `mimo-tui app-server --host 0.0.0.0` now fails fast unless an explicit
   `--auth-token` or `CODEWHALE_APP_SERVER_TOKEN` is supplied, keeping generated
   one-time `cwapp_*` tokens loopback-only.
 - **Legacy `.deepseek` state write-path migration (#3240).** State subdirectories
   (`sessions`, `slop_ledger`, `trophies`, `catalog`) are now always written under
-  `~/.codewhale/`, and the first write of a subdir relocates any pre-existing
+  `~/.mimo-tui/`, and the first write of a subdir relocates any pre-existing
   `~/.deepseek/<sub>` contents into the primary location so the legacy tree stops
   growing while old data is preserved. The read resolver still finds legacy data
   for backfill until each subdir migrates. Reported by @Final527; onboarding
   marker slice from #3302 by @nightt5879.
 - **State subdir validation on Windows (#3240).** State path hardening now
   rejects rooted/prefixed subdir strings such as `/etc` before resolving or
-  migrating state directories, keeping the `.codewhale` write resolver inside
+  migrating state directories, keeping the `.mimo-tui` write resolver inside
   its state root across platforms.
 
 ## [0.8.62] - 2026-06-17
@@ -250,7 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **GLM-5.2 is now the default direct Z.AI model.** `DEFAULT_ZAI_MODEL` resolves
-  to `GLM-5.2` in both `codewhale-tui` and `codewhale-config`; the `glm-5.1`
+  to `GLM-5.2` in both `mimo-tui` and `mimo-tui-config`; the `glm-5.1`
   alias still resolves to `GLM-5.1` (the defaulting was decoupled from the alias
   arm so it no longer tracks the default). Docs and `config.example.toml` no
   longer describe GLM-5.2 as an opt-in preview.
@@ -304,8 +304,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Every summary therefore carries exactly one boundary marker, never both.
 - **Provider metadata centralization.** Provider env vars, config keys, aliases,
   and auth hints are now resolved through the shared `ProviderMetadata` registry
-  across `codewhale-config`, `codewhale-tui`, and `codewhale-cli`, reducing drift
-  between the provider picker, `codewhale auth`, `doctor --json`, and setup
+  across `mimo-tui-config`, `mimo-tui`, and `mimo-tui-cli`, reducing drift
+  between the provider picker, `mimo-tui auth`, `doctor --json`, and setup
   hints.
 
 ### Added
@@ -332,9 +332,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   corrupt selection. Supporting terminals get live hyperlinks; others see the
   label text unchanged. Clipboard/selection extraction strips residual codes as
   defense-in-depth.
-- **CodeWhale-only skill discovery gate (#3296).** New
-  `[skills].scan_codewhale_only = true` limits session-time skill discovery to
-  CodeWhale-owned roots (`<workspace>/.codewhale/skills`, `~/.codewhale/skills`,
+- **mimo-tui-only skill discovery gate (#3296).** New
+  `[skills].scan_mimo-tui_only = true` limits session-time skill discovery to
+  mimo-tui-owned roots (`<workspace>/.mimo-tui/skills`, `~/.mimo-tui/skills`,
   and any explicit `skills_dir`) while ignoring cross-tool directories such as
   `.claude/skills`, `.opencode/skills`, `.cursor/skills`, and `~/.agents/skills`.
   The default remains the broad compatibility scan.
@@ -344,7 +344,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in otherwise auto-approved flows and are rejected under
   `approval_mode = "never"`.
 - **Runtime API no-auth documentation.** `docs/RUNTIME_API.md` now documents
-  `codewhale app-server --insecure-no-auth` for loopback-only testing and warns
+  `mimo-tui app-server --insecure-no-auth` for loopback-only testing and warns
   against combining it with `--mobile` on `0.0.0.0`.
 
 ### Fixed
@@ -352,7 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TUI polish.** The empty-startup welcome block is centered by the actual
   rendered text width, fixing the off-center layout left over from the old
   sidebar-oriented welcome composition. Streaming HTTP body read errors now
-  explain whether CodeWhale can retry before output, or is surfacing a warning
+  explain whether mimo-tui can retry before output, or is surfacing a warning
   after partial output to avoid replaying and duplicating streamed text.
 - **Config comment preservation.** Rewriting `config.toml`, `settings.toml`, or
   `tui.toml` now merges user comments and formatting back into the serialized
@@ -417,7 +417,7 @@ folds in several community contributions.
   faster models and `thinking: "off"`.
 - Plan mode is strictly read-only (no shell tools), consistent with its runtime posture.
 - `/swarm` is gated behind the durable worker substrate. (#3218)
-- Legacy `deepseek` install/update path resolves to `codewhale`. (#2960, #2924, #2917)
+- Legacy `deepseek` install/update path resolves to `mimo-tui`. (#2960, #2924, #2917)
 
 ### Fixed
 
@@ -477,8 +477,8 @@ folds in several community contributions.
 
 ### Added
 
-- **Agent Fleet real-run cutover (#3154/#3096).** `codewhale fleet run` now
-  launches durable workers through the headless `codewhale exec --output-format
+- **Agent Fleet real-run cutover (#3154/#3096).** `mimo-tui fleet run` now
+  launches durable workers through the headless `mimo-tui exec --output-format
   stream-json` path instead of the local simulation interpreter, with terminal
   worker events freeing leases so queued fleet tasks continue running.
 - **Read-only shell parallelism (#2983).** The engine can now run conservative
@@ -539,9 +539,9 @@ folds in several community contributions.
   to concise prompt/output discipline unless overridden by config, env, or
   `--verbosity`, while interactive TUI launches remain normal by default.
   Thanks @cyq1017 for the PR.
-- **Ephemeral generated project context (#3058).** Opening CodeWhale in a
+- **Ephemeral generated project context (#3058).** Opening mimo-tui in a
   directory with no instruction files now keeps the bounded generated project
-  overview in memory instead of creating `.codewhale/instructions.md`.
+  overview in memory instead of creating `.mimo-tui/instructions.md`.
 - **ACP registry auth metadata (#1447).** The ACP stdio adapter now advertises
   terminal authentication setup in `initialize.authMethods`, matching the
   registry's validation requirement.
@@ -630,7 +630,7 @@ folds in several community contributions.
   persisted turn items once and groups them by turn instead of reading the
   items directory once per turn, preserving item order while keeping large
   thread detail loads responsive.
-- **Project-local hook trust boundary (#3140).** `.codewhale/hooks.toml` is now
+- **Project-local hook trust boundary (#3140).** `.mimo-tui/hooks.toml` is now
   loaded only after the workspace is trusted in user-owned config, matching the
   project-local MCP trust model while preserving the documented shell-command
   hook contract.
@@ -642,18 +642,18 @@ folds in several community contributions.
   table and falls back to `[providers.siliconflow]` only for unset
   `api_key`/`base_url`/`model` fields. Thanks @Artenx for the report and
   @idling11 for the PR.
-- **Self-update download timeout (#3006).** `codewhale update` now applies a
+- **Self-update download timeout (#3006).** `mimo-tui update` now applies a
   five-minute HTTP client timeout so blocked or very slow GitHub release
   downloads fail instead of hanging indefinitely. Thanks @New2Niu for the PR.
 - **Legacy `deepseek` update migration (#2960/#3013/#3053).** Running
   `deepseek update` or `deepseek-tui update` from a pre-rebrand install now
   returns copy-pasteable npm, Cargo, Homebrew, and manual-binary migration
-  steps instead of trying to spawn a missing `codewhale` binary. README and
+  steps instead of trying to spawn a missing `mimo-tui` binary. README and
   rebrand docs now cover the same upgrade path. Thanks @jazzi and
   @tiangangQiu for the reports, @cyq1017 for the update-path PR, and
   @angus-guo for the README PR.
 - **Short `codew` shim delegation.** The `codew` convenience binary now
-  prefers the sibling `codewhale` dispatcher installed next to it before
+  prefers the sibling `mimo-tui` dispatcher installed next to it before
   falling back to `PATH`, preventing fresh local builds or installs from
   accidentally invoking an older global dispatcher.
 - **Constitution trust wording (#2950/#3008).** The base prompt now explains
@@ -663,8 +663,8 @@ folds in several community contributions.
   providers now report whether the value came from `--provider`, environment,
   or config. Config-sourced unsupported providers fall back to DeepSeek without
   forwarding stale keyring secrets. Thanks @cyq1017 for the PR.
-- **Exec auto-model handoff (#3148).** `codewhale exec --model auto` now
-  survives the CLI/TUI boundary by honoring the CodeWhale model env alias and
+- **Exec auto-model handoff (#3148).** `mimo-tui exec --model auto` now
+  survives the CLI/TUI boundary by honoring the mimo-tui model env alias and
   legacy DeepSeek model handoff before falling back to provider defaults.
   Thanks @hongchen1993 for the PR.
 - **macOS shortcut modifiers (#2938/#2943).** Ctrl-like shortcuts that are
@@ -691,7 +691,7 @@ folds in several community contributions.
   to `low` and has regression coverage that Codex requests use
   `reasoning.effort`, not DeepSeek `thinking` fields.
 - **OpenAI Codex context metadata (#3070).** The `gpt-5.5` default and
-  CodeWhale aliases now use OpenAI's documented 1,050,000-token context window
+  mimo-tui aliases now use OpenAI's documented 1,050,000-token context window
   and 128,000 max-output metadata for context pressure, prompts, and doctor
   capability output.
 - **OpenAI Codex effective context budgeting.** The public OpenAI API metadata
@@ -744,14 +744,14 @@ folds in several community contributions.
   "additionalContext"}` — with deny > ask > allow precedence across multiple
   hooks, last-writer-wins input rewriting, and concatenated context. Exit
   code 2 remains a legacy hard deny. Hooks support glob matchers and
-  project-local `.codewhale/hooks.toml` (#3026).
+  project-local `.mimo-tui/hooks.toml` (#3026).
 - **Clickable sidebar.** Background-job rows show/cancel on click, the
   Ctrl+K hint row runs `/jobs cancel-all`, and agent rows open `/subagents`;
   row actions are built in the same pass as the rendered lines so a click
   can never target the wrong job (#3028).
 - OSC 8 out-of-band hyperlink infrastructure with per-region open/close
   sequences that survive partial redraws (#3029).
-- `codewhale exec` gains `--allowed-tools`, `--disallowed-tools` (deny wins),
+- `mimo-tui exec` gains `--allowed-tools`, `--disallowed-tools` (deny wins),
   `--max-turns`, and `--append-system-prompt` (#3027).
 - Constitution prompt source: YAML source-of-truth plus Python renderer for
   the system prompt, with the active prompt now served from
@@ -838,7 +838,7 @@ folds in several community contributions.
 - Docs reorganized: internal design notes moved under `docs/rfcs/`; stale
   internal docs (old audits, handoffs, region-specific VM notes) removed.
 - Agent-facing polish: the system prompt environment block reports
-  `codewhale_version` (was `deepseek_version`), the legacy
+  `mimo-tui_version` (was `deepseek_version`), the legacy
   `.deepseek/instructions.md` path is no longer advertised in the prompt
   (still honored for back-compat), and oversized instruction files are
   truncated with an explicit `[…truncated: N bytes omitted]` marker instead
@@ -848,7 +848,7 @@ folds in several community contributions.
 
 - **Docker images build again.** The release `docker` job failed for v0.8.56
   because the Dockerfile still copied the pre-rebrand `deepseek` /
-  `deepseek-tui` binaries; they are now symlinks to the codewhale binaries
+  `deepseek-tui` binaries; they are now symlinks to the mimo-tui binaries
   inside the image, so legacy container entrypoints keep working.
 - `.devcontainer/devcontainer.json` used the pre-rebrand container name,
   mount path, and `deepseek` remote user.
@@ -870,7 +870,7 @@ folds in several community contributions.
 - **Approval dialog localization.** The approval dialog surface is now
   localized across 7 locales: English, Simplified Chinese, Japanese,
   Vietnamese, Portuguese, Spanish, and French (#2891, @gordonlu).
-- **Volcengine provider in TUI dispatcher.** The `codewhale` / `codewhale-tui`
+- **Volcengine provider in TUI dispatcher.** The `mimo-tui` / `mimo-tui`
   CLI dispatcher now allows the Volcengine provider, so users can launch
   directly into a Volcengine-backed session (#2923, @hongchen1993).
 - **Dispatcher API-key preference.** When a provider-specific API key is
@@ -880,7 +880,7 @@ folds in several community contributions.
 - **Qwen 3.6 Plus model support.** Added complete Qwen 3.6 Plus model
   resolution with dedicated version-bump tests (#2930, @idling11).
 - **Oversized paste spill.** Pastes larger than ~10 KB are now written to
-  `.codewhale/pastes/` instead of being truncated or dropped, preserving the
+  `.mimo-tui/pastes/` instead of being truncated or dropped, preserving the
   full content for the session (#2920, @sximelon).
 - **Cross-session prompt cache.** Added a disk-backed cross-session prompt
   base-section cache so post-mode-flip and post-restart turns reuse the
@@ -967,7 +967,7 @@ folds in several community contributions.
 - Added provider-scoped `insecure_skip_tls_verify` for private
   OpenAI-compatible gateways that cannot use a trusted CA bundle. The setting is
   disabled by default, applies only to the active LLM provider HTTP client, and
-  is surfaced by `codewhale doctor`; `SSL_CERT_FILE` remains the preferred path
+  is surfaced by `mimo-tui doctor`; `SSL_CERT_FILE` remains the preferred path
   for corporate or private CA roots. Thanks @wavezhang for the original #1893
   direction.
 - Added a default-disabled hard-compaction planner that can identify the
@@ -980,7 +980,7 @@ folds in several community contributions.
   grounded objectives, context, sources, critical files, constraints,
   verification, risks, and handoff notes through the transcript card, Plan
   confirmation prompt, `/relay`, fork-state, and saved-session replay.
-- Added the first `codewhale-whaleflow` foundation crate with typed workflow
+- Added the first `mimo-tui-whaleflow` foundation crate with typed workflow
   config/IR validation and deterministic phase ordering tests. This preserves
   the WhaleFlow direction from #2482/#2486 without exposing a runtime
   `workflow_run` tool until cancellation, replay, and worktree semantics are
@@ -1094,7 +1094,7 @@ folds in several community contributions.
 - Added a static prompt composer override for embedders that need to replace
   the byte-stable base/personality prompt segment while leaving mode metadata,
   approval policy, tool taxonomy, Context Management, and the Compaction Relay
-  under CodeWhale's runtime prompt assembly. This refines the embedder prompt
+  under mimo-tui's runtime prompt assembly. This refines the embedder prompt
   customization path from #2786 without weakening prompt-continuity safeguards.
   Thanks @h3c-hexin.
 - Added `POST /v1/sessions` for runtime clients to save a completed thread as a
@@ -1105,7 +1105,7 @@ folds in several community contributions.
   were previously unpriced: `mimo-v2.5-pro` / `xiaomi/mimo-v2.5-pro` reuse the
   DeepSeek V4-Pro rate table and `mimo-v2.5` / `xiaomi/mimo-v2.5` reuse the
   DeepSeek V4-Flash rates. Existing DeepSeek pricing is unchanged (#2731, #2750).
-- Added a metadata-only `codewhale-config` provider registry with canonical
+- Added a metadata-only `mimo-tui-config` provider registry with canonical
   lookup, alias-aware resolution, provider defaults, config-table keys, and
   API-key env candidates. Runtime routing remains unchanged and fallback
   providers stay dormant; this harvests the safe provider-trait foundation from
@@ -1170,7 +1170,7 @@ folds in several community contributions.
 
 - Removed the deprecated `deepseek` and `deepseek-tui` binary shims from the
   v0.9.0 Cargo crates and GitHub release artifact matrix. The canonical
-  `codewhale`, `codew`, and `codewhale-tui` entry points remain, the private
+  `mimo-tui`, `codew`, and `mimo-tui` entry points remain, the private
   deprecated `npm/deepseek-tui` notice package stays unpublished, and DeepSeek
   provider/model/env/config compatibility remains first-class.
 - Command-adjacent config persistence and auto model routing now live in
@@ -1178,11 +1178,11 @@ folds in several community contributions.
   coupling while preserving current `/config`, `/model`, UI, runtime, and
   sub-agent behavior (#2871). Thanks @aboimpinto for landing this first staged
   command-boundary layer from the broader #2851/#2791 design direction.
-- `/config` now reports the canonical `~/.codewhale/settings.toml` path for TUI
+- `/config` now reports the canonical `~/.mimo-tui/settings.toml` path for TUI
   settings while still reading legacy DeepSeek-branded settings fallbacks and
-  migrating them into the CodeWhale home on load.
+  migrating them into the mimo-tui home on load.
 - Provider switches now roll back transactionally when the first request to a
-  newly selected provider fails authentication: CodeWhale restores the previous
+  newly selected provider fails authentication: mimo-tui restores the previous
   provider/model, model-ID passthrough, onboarding/API-key state, runtime
   config, persisted provider selection, and engine handle so users can return
   to DeepSeek after a failed Moonshot/Kimi switch (#2754, #2755). Thanks
@@ -1256,12 +1256,12 @@ folds in several community contributions.
   explicitly continue a live checkpointed interrupted child while normal
   completed/failed/cancelled follow-up behavior stays unchanged (#2029).
 - Durable task recovery no longer requeues tasks that were `running` when the
-  previous CodeWhale process exited. On restart those records are marked failed
+  previous mimo-tui process exited. On restart those records are marked failed
   with a recovery note, and any running tool-call summaries are marked failed
   too, so stale shell/task state cannot silently become live work again (#1786).
 - Auto-generated project instructions now reuse the bounded Project Context
   Pack data instead of running an unbounded summary/tree scan when no
-  `.codewhale/instructions.md` file exists. The fallback keeps later
+  `.mimo-tui/instructions.md` file exists. The fallback keeps later
   top-level folders visible in noisy large workspaces while the dynamic
   `<project_context_pack>` marker remains controlled by its own setting
   (#697, #1827).
@@ -1291,8 +1291,8 @@ folds in several community contributions.
   aligned with the existing stream retry path (#2847). Thanks
   @qamranmushtaq-collab for the Windows/npx DeepSeek report.
 - The TUI footer, `/status`, `/mcp` manager, and command-palette MCP entries
-  now count trusted workspace-local `.codewhale/mcp.json` servers together with
-  the global MCP config, matching `codewhale mcp list` for merged global +
+  now count trusted workspace-local `.mimo-tui/mcp.json` servers together with
+  the global MCP config, matching `mimo-tui mcp list` for merged global +
   project setups (#2787). Thanks @yekern for the detailed reproduction.
 - AltGr key chords in the composer no longer get swallowed by sidebar shortcuts
   on AZERTY and other international layouts, so characters such as `@`, `#`,
@@ -1321,8 +1321,8 @@ folds in several community contributions.
   dedicated hydrated status, so it is no longer indistinguishable from a real
   successful execution. A hydrated row also ranks with active work rather than
   completed successes (#2648).
-- `codewhale sessions` now shows `codewhale resume <session-id>` in the footer
-  instead of the invalid dispatcher command `codewhale --resume <session-id>`
+- `mimo-tui sessions` now shows `mimo-tui resume <session-id>` in the footer
+  instead of the invalid dispatcher command `mimo-tui --resume <session-id>`
   (#2758, #2760).
 - TUI HTTP clients now install the Rustls ring crypto provider before building
   `reqwest` clients, covering engine, runtime API, tool, MCP, config, and skill
@@ -1344,7 +1344,7 @@ restore-listing implementation, and pending-input delivery-mode label work
 **@wywsoor** for the broader macOS/iTerm rollback UX report (#2494),
 **@HUQIANTAO** for the `web_run` lock-splitting work (#2502), turn-metadata
 prefix-cache stability work (#2517), and project-context cache direction
-(#2636), **@xyuai** for canonical CodeWhale
+(#2636), **@xyuai** for canonical mimo-tui
 settings-path migration work (#2730), **@gaord** for the runtime thread
 workspace update and completed-thread save APIs (#2640, #2639),
 **@shenjackyuanjie** for the
@@ -1449,7 +1449,7 @@ OpenAI-compatible endpoints (#2558).
   `prompt_cache_hit_tokens` and OpenAI-style `cached_tokens` usage payloads no
   longer infer cache misses from the wrong hit count, avoiding inflated TUI cost
   estimates on cached DeepSeek turns (#2567, #2609).
-- **Cygwin/MSYS2 config paths honor exported `$HOME`.** CodeWhale and legacy
+- **Cygwin/MSYS2 config paths honor exported `$HOME`.** mimo-tui and legacy
   DeepSeek config roots now prefer a non-empty `$HOME` before falling back to the
   platform home resolver, while `CODEWHALE_HOME` remains the strongest explicit
   override (#2369, #2610).
@@ -1468,7 +1468,7 @@ patches, retesting, and release-stabilization signals that shaped this pass.
 
 - **Arcee AI as a direct provider.** New `[providers.arcee]` config block and
   `ARCEE_API_KEY` / `ARCEE_BASE_URL` / `ARCEE_MODEL` environment variables,
-  wired through CLI auth (`codewhale auth set --provider arcee`), the TUI
+  wired through CLI auth (`mimo-tui auth set --provider arcee`), the TUI
   provider picker, and the model registry. The default direct-API model is
   `trinity-large-thinking` (reasoning-capable, 262K context and 262K max
   output); `trinity-large-preview` (262K context, non-reasoning) and
@@ -1564,14 +1564,14 @@ that shaped this release cycle.
 
 - Added a Windows NSIS installer release artifact and classroom/lab deployment
   checklist, harvested from #2045 for #1987. The release workflow now builds
-  `CodeWhaleSetup.exe` from the canonical Windows binaries, and the installer
+  `mimo-tuiSetup.exe` from the canonical Windows binaries, and the installer
   adds/removes only the exact current-user PATH entry.
 - Added deterministic session timestamps in session listings, receipt-export
   boundary docs, and current-model turn metadata for routed/auto sessions.
 - Added exact AtlasCloud provider-hinted model ID pass-through for explicit
   `vendor/model-id` selections, harvested from #2569 without freezing a
   brittle provider catalog.
-- Added Xiaomi MiMo speech/TTS support with a `codewhale speech` CLI command,
+- Added Xiaomi MiMo speech/TTS support with a `mimo-tui speech` CLI command,
   `tts` tool alias, and config wiring for voice-design and voice-clone models,
   harvested from #2560.
 - Added a three-zone immutable prefix diagnostic layer (FrozenPrefix Phase 2)
@@ -1594,8 +1594,8 @@ that shaped this release cycle.
 
 - Hardened theme repainting and sidebar color use so theme switches do not
   leave stale Whale-dark panel colors behind.
-- Made legacy config migration visible when CodeWhale copies old DeepSeek-era
-  config into the CodeWhale config path.
+- Made legacy config migration visible when mimo-tui copies old DeepSeek-era
+  config into the mimo-tui config path.
 
 ### Fixed
 
@@ -1650,7 +1650,7 @@ UX reports relayed during the final triage pass.
 
 - Fixed the DeepSeek V4-Pro cost estimate after the 2026-05-31 pricing cutoff:
   the post-promotion official rate remains one quarter of the original price,
-  so CodeWhale no longer shows roughly 4x too much after June 1 (#2489).
+  so mimo-tui no longer shows roughly 4x too much after June 1 (#2489).
 - Fixed Kimi/Moonshot tool schema normalization by moving parent `type` fields
   into `anyOf`/`oneOf` items, with regression coverage for nested schema shapes
   that could otherwise still fail Kimi validation (#2438).
@@ -1804,7 +1804,7 @@ screenshots, logs, or retest requests shaped this release: **@buko** (#2359,
 ### Changed
 
 - **DeepSeek-first release framing, project-context logging, state-root
-  migration, CodeWhale README paths, and reasoning-locale behavior** were
+  migration, mimo-tui README paths, and reasoning-locale behavior** were
   finalized for the v0.8.47 release.
 
 ### Fixed
@@ -1833,9 +1833,9 @@ Thanks to contributors credited in the v0.8.47 GitHub Release, including
   remain accepted for back-compat.
 - **Platform archive bundles.** Release artifacts now ship as per-platform
   archives (`tar.gz` for Linux/macOS, `.zip` for Windows) containing both
-  `codewhale` and `codewhale-tui` binaries plus an install script. No more
+  `mimo-tui` and `mimo-tui` binaries plus an install script. No more
   downloading two loose files and guessing which ones to pick (#2193).
-- **Windows portable archive.** `codewhale-windows-x64-portable.zip` ships
+- **Windows portable archive.** `mimo-tui-windows-x64-portable.zip` ships
   the two binaries without an install script for USB-stick distribution
   (#2193).
 - **Web install download tile.** The website install page now shows a
@@ -1873,7 +1873,7 @@ Thanks to contributors credited in the v0.8.47 GitHub Release, including
   with Esc now applies the last-highlighted choice instead of reverting
   (#2196).
 - **Web install downloads both binaries.** The `install-binary.tsx`
-  snippet now fetches both `codewhale` and `codewhale-tui`, fixing the
+  snippet now fetches both `mimo-tui` and `mimo-tui`, fixing the
   `MISSING_COMPANION_BINARY` trap on fresh npm installs (#2191).
 - **`grep_files` skips large directories.** The pure-Rust search tool
   now skips known-large directories (`.git`, `node_modules`, `target`)
@@ -1952,9 +1952,9 @@ and continuing contributors **@reidliu41**, **@cyq1017**, **@idling11**,
   Thanks @reidliu41 (#2143).
 - **Model picker selection survives Esc.** Dismissing the model picker with Esc
   no longer loses the highlighted selection. Thanks @reidliu41 (#2056).
-- **Moonshot/Kimi sessions launch from the dispatcher.** The `codewhale`
+- **Moonshot/Kimi sessions launch from the dispatcher.** The `mimo-tui`
   wrapper now includes Moonshot/Kimi in the TUI provider allowlist, so
-  `codewhale --provider moonshot --model kimi-k2.6` reaches the TUI instead of
+  `mimo-tui --provider moonshot --model kimi-k2.6` reaches the TUI instead of
   stopping after config resolution.
 - **Slash recovery no longer restores command tails in the composer.**
   Resuming a session or recovering from a crash no longer leaves stale
@@ -1990,8 +1990,8 @@ and continuing contributors **@reidliu41**, **@cyq1017**, **@idling11**,
 ### Added
 
 - **`codew` convenience alias.** `codew` is a short-form command that silently
-  forwards to `codewhale`. Six fewer keystrokes, same binary. Ships with the
-  Rust `codewhale-cli` crate and the npm `codewhale` package (#2013).
+  forwards to `mimo-tui`. Six fewer keystrokes, same binary. Ships with the
+  Rust `mimo-tui-cli` crate and the npm `mimo-tui` package (#2013).
 - **Session picker inline rename.** Press `r` in the session picker (Ctrl+R)
   to rename the selected session inline. Type the new title, Enter to confirm,
   Esc to cancel (#1600).
@@ -2001,18 +2001,18 @@ and continuing contributors **@reidliu41**, **@cyq1017**, **@idling11**,
 - **Agent team UX.** Delegate cards in the transcript now show human-readable
   roles (scout, builder, reviewer, verifier, executor) and the completion
   summary instead of raw `agent_xxx` IDs (#1981).
-- **`--continue` / `-c` CLI flag.** `codewhale --continue` resumes your most
+- **`--continue` / `-c` CLI flag.** `mimo-tui --continue` resumes your most
   recent interactive session for the current workspace.
 
 ### Changed
 
-- **App state migrates to `~/.codewhale/`.** New installs write product-owned
-  state (config, sessions, tasks, skills, logs, etc.) under `~/.codewhale/`.
+- **App state migrates to `~/.mimo-tui/`.** New installs write product-owned
+  state (config, sessions, tasks, skills, logs, etc.) under `~/.mimo-tui/`.
   `~/.deepseek/` continues to work as a compatibility fallback — no data loss,
   no forced migration. `CODEWHALE_HOME` and `CODEWHALE_CONFIG_PATH` env vars
   are now supported alongside existing `DEEPSEEK_*` vars (#2011).
-- **Project config overlay prefers `.codewhale/config.toml`** before
-  `.deepseek/config.toml`. Both are read; the CodeWhale root takes precedence.
+- **Project config overlay prefers `.mimo-tui/config.toml`** before
+  `.deepseek/config.toml`. Both are read; the mimo-tui root takes precedence.
 - **Doctor reports active state root** and whether legacy `~/.deepseek/`
   state is also present.
 - **README contributor acknowledgements are current for this release.**
@@ -2044,10 +2044,10 @@ and continuing contributors **@reidliu41**, **@cyq1017**, **@idling11**,
   now go to the managed sessions directory instead of the current workspace.
   Explicit `/save path/to/file.json` exports still work as before (#2010).
 - **Boot-time session prune** caps managed sessions at 50 on every startup,
-  preventing unbounded growth of `~/.codewhale/sessions/`.
+  preventing unbounded growth of `~/.mimo-tui/sessions/`.
 - **Checkpoint path resolution** no longer hardcodes `~/.deepseek/` — uses
   the resolved session directory instead.
-- **Plain startup no longer auto-opens the session picker.** `codewhale` and
+- **Plain startup no longer auto-opens the session picker.** `mimo-tui` and
   `codew` start in a fresh composer again even when saved sessions exist.
   Use `/sessions`, Ctrl+R, `--resume`, or `--continue` when you want to resume.
 - **Work sidebar now refreshes immediately** after `checklist_write`,
@@ -2104,7 +2104,7 @@ and continuing contributors **@reidliu41**, **@cyq1017**, **@idling11**,
   include 30+ previously unlisted contributors whose PRs were merged since
   April 2026.
 - **README and web surface rebrand refinements.** Crate descriptions, npm
-  package text, and website copy now consistently position CodeWhale as
+  package text, and website copy now consistently position mimo-tui as
   open-model-first and provider-spanning, with DeepSeek V4 as the first-class
   path.
 - **New contributor names added to README acknowledgements.** Thanks to
@@ -2126,21 +2126,21 @@ and continuing contributors **@reidliu41**, **@cyq1017**, **@idling11**,
   loop now drains late-arriving sub-agent completions at the final checkpoint
   before breaking, so child-agent sentinels surface immediately instead of
   appearing in the following turn (#1961).
-- **`codewhale doctor` now referenced correctly in SSE timeout errors.**
+- **`mimo-tui doctor` now referenced correctly in SSE timeout errors.**
   The error message shown when SSE streams fail to connect now points users to
-  `codewhale doctor` (not the legacy `deepseek doctor`).
+  `mimo-tui doctor` (not the legacy `deepseek doctor`).
 
 ## [0.8.42] - 2026-05-24
 
 ### Changed
 
-- **CodeWhale now ships with the Brother Whale agent identity prompt.** The
+- **mimo-tui now ships with the Brother Whale agent identity prompt.** The
   built-in system prompt frames the agent as trusted, calm, careful, and
   responsible, and adds the coordination principle that great intelligence
   creates spaces where future intelligences can work together.
-- **CodeWhale positioning is clarified as DeepSeek-first and open-model
+- **mimo-tui positioning is clarified as DeepSeek-first and open-model
   oriented.** README, rebrand notes, crate metadata, and npm package text now
-  describe CodeWhale as an agentic terminal for open source and open-weight
+  describe mimo-tui as an agentic terminal for open source and open-weight
   coding models while preserving the official DeepSeek provider as first-class.
 - **Model auto-routing is documented separately from TUI modes.** README and
   modes docs now reserve "mode" for Plan / Agent / YOLO, describe
@@ -2200,11 +2200,11 @@ and selection fix in #1964.
 
 ### Changed
 
-- **Project renamed to codewhale.** The canonical CLI dispatcher is now
-  `codewhale` (was `deepseek`) and the TUI runtime is `codewhale-tui`
+- **Project renamed to mimo-tui.** The canonical CLI dispatcher is now
+  `mimo-tui` (was `deepseek`) and the TUI runtime is `mimo-tui`
   (was `deepseek-tui`). The 14 workspace crates are renamed from
-  `deepseek-*` / `deepseek-tui-*` to `codewhale-*` / `codewhale-tui-*`.
-  The npm wrapper package is now `codewhale` (was `deepseek-tui`). See
+  `deepseek-*` / `deepseek-tui-*` to `mimo-tui-*` / `mimo-tui-*`.
+  The npm wrapper package is now `mimo-tui` (was `deepseek-tui`). See
   [docs/REBRAND.md](docs/REBRAND.md) for migration notes.
 - **DeepSeek provider integration is unchanged.** `DEEPSEEK_*` env vars,
   model IDs (`deepseek-v4-pro`, `deepseek-v4-flash`, the legacy
@@ -2219,7 +2219,7 @@ and selection fix in #1964.
   renamed binaries. They will be removed in v0.9.0.
 - The `deepseek-tui` npm package continues to publish for one release
   cycle as a no-`bin` deprecation shim whose postinstall directs users
-  to `npm install -g codewhale`. It will be removed in v0.9.0.
+  to `npm install -g mimo-tui`. It will be removed in v0.9.0.
 
 ### Fixed
 
@@ -2254,7 +2254,7 @@ and selection fix in #1964.
 ### Thanks
 
 Thanks to **OpenWarp ([@zerx-lab](https://github.com/zerx-lab))** for
-prioritizing codewhale support and collaborating on terminal-agent UX.
+prioritizing mimo-tui support and collaborating on terminal-agent UX.
 Thanks to **[@leo119](https://github.com/leo119)** for the update-command
 documentation lineage now preserved through the rename.
 
@@ -2429,30 +2429,30 @@ overflow report and `/theme` picker edge-wrapping patch in #1814.
 
 Older releases (v0.8.39 and earlier) are archived in [docs/CHANGELOG_ARCHIVE.md](docs/CHANGELOG_ARCHIVE.md).
 
-[Unreleased]: https://github.com/Hmbown/CodeWhale/compare/v0.8.64...HEAD
-[0.8.65]: https://github.com/Hmbown/CodeWhale/compare/v0.8.64...v0.8.65
-[0.8.64]: https://github.com/Hmbown/CodeWhale/compare/v0.8.63...v0.8.64
-[0.8.63]: https://github.com/Hmbown/CodeWhale/compare/v0.8.62...v0.8.63
-[0.8.62]: https://github.com/Hmbown/CodeWhale/compare/v0.8.61...v0.8.62
-[0.8.61]: https://github.com/Hmbown/CodeWhale/compare/v0.8.60...v0.8.61
-[0.8.60]: https://github.com/Hmbown/CodeWhale/compare/v0.8.59...v0.8.60
-[0.8.59]: https://github.com/Hmbown/CodeWhale/compare/v0.8.58...v0.8.59
-[0.8.58]: https://github.com/Hmbown/CodeWhale/compare/v0.8.57...v0.8.58
-[0.8.57]: https://github.com/Hmbown/CodeWhale/compare/v0.8.56...v0.8.57
-[0.8.56]: https://github.com/Hmbown/CodeWhale/compare/v0.8.55...v0.8.56
-[0.8.55]: https://github.com/Hmbown/CodeWhale/compare/v0.8.54...v0.8.55
-[0.8.54]: https://github.com/Hmbown/CodeWhale/compare/v0.8.53...v0.8.54
-[0.8.53]: https://github.com/Hmbown/CodeWhale/compare/v0.8.52...v0.8.53
-[0.8.52]: https://github.com/Hmbown/CodeWhale/compare/v0.8.51...v0.8.52
-[0.8.51]: https://github.com/Hmbown/CodeWhale/compare/v0.8.50...v0.8.51
-[0.8.50]: https://github.com/Hmbown/CodeWhale/compare/v0.8.49...v0.8.50
-[0.8.49]: https://github.com/Hmbown/CodeWhale/compare/v0.8.48...v0.8.49
-[0.8.48]: https://github.com/Hmbown/CodeWhale/compare/v0.8.47...v0.8.48
-[0.8.47]: https://github.com/Hmbown/CodeWhale/compare/v0.8.46...v0.8.47
-[0.8.46]: https://github.com/Hmbown/CodeWhale/compare/v0.8.45...v0.8.46
-[0.8.45]: https://github.com/Hmbown/CodeWhale/compare/v0.8.44...v0.8.45
-[0.8.44]: https://github.com/Hmbown/CodeWhale/compare/v0.8.43...v0.8.44
-[0.8.43]: https://github.com/Hmbown/CodeWhale/compare/v0.8.42...v0.8.43
-[0.8.42]: https://github.com/Hmbown/CodeWhale/compare/v0.8.41...v0.8.42
-[0.8.41]: https://github.com/Hmbown/CodeWhale/compare/v0.8.40...v0.8.41
-[0.8.40]: https://github.com/Hmbown/CodeWhale/compare/v0.8.39...v0.8.40
+[Unreleased]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.64...HEAD
+[0.8.65]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.64...v0.8.65
+[0.8.64]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.63...v0.8.64
+[0.8.63]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.62...v0.8.63
+[0.8.62]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.61...v0.8.62
+[0.8.61]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.60...v0.8.61
+[0.8.60]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.59...v0.8.60
+[0.8.59]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.58...v0.8.59
+[0.8.58]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.57...v0.8.58
+[0.8.57]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.56...v0.8.57
+[0.8.56]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.55...v0.8.56
+[0.8.55]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.54...v0.8.55
+[0.8.54]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.53...v0.8.54
+[0.8.53]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.52...v0.8.53
+[0.8.52]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.51...v0.8.52
+[0.8.51]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.50...v0.8.51
+[0.8.50]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.49...v0.8.50
+[0.8.49]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.48...v0.8.49
+[0.8.48]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.47...v0.8.48
+[0.8.47]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.46...v0.8.47
+[0.8.46]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.45...v0.8.46
+[0.8.45]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.44...v0.8.45
+[0.8.44]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.43...v0.8.44
+[0.8.43]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.42...v0.8.43
+[0.8.42]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.41...v0.8.42
+[0.8.41]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.40...v0.8.41
+[0.8.40]: https://github.com/XiaomingX/mimo-tui/compare/v0.8.39...v0.8.40

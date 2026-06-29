@@ -404,7 +404,7 @@ mod tests {
             tool_use_message(
                 "call-big",
                 "exec_shell",
-                json!({"command": "cargo test -p codewhale-tui"}),
+                json!({"command": "cargo test -p mimofan-tui"}),
             ),
             tool_result_message("call-big", &raw),
         ];
@@ -423,7 +423,7 @@ mod tests {
         assert!(content.contains("detail_handle: art_call-big"));
         assert!(content.contains("retrieve: retrieve_tool_result ref=art_call-big"));
         assert!(
-            content.contains("command_or_query: {\"command\":\"cargo test -p codewhale-tui\"}")
+            content.contains("command_or_query: {\"command\":\"cargo test -p mimofan-tui\"}")
         );
     }
 

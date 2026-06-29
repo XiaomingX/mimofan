@@ -1,11 +1,11 @@
 [package]
-name = "codewhale-tui"
+name = "mimofan"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Terminal UI for open-source and open-weight coding models"
-default-run = "codewhale-tui"
+description = "MiMo 专属中文编码助手 TUI"
+default-run = "mimofan"
 
 [features]
 default = ["tui", "json", "toml"]
@@ -16,17 +16,17 @@ toml = ["schemaui/toml"]
 long-running-tests = []
 
 [[bin]]
-name = "codewhale-tui"
+name = "mimofan"
 path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.100"
-codewhale-config = { path = "../config", version = "0.8.65" }
-codewhale-execpolicy = { path = "../execpolicy", version = "0.8.65" }
-codewhale-protocol = { path = "../protocol", version = "0.8.65" }
-codewhale-release = { path = "../release", version = "0.8.65" }
-codewhale-secrets = { path = "../secrets", version = "0.8.65" }
-codewhale-tools = { path = "../tools", version = "0.8.65" }
+mimofan-config = { path = "../config", version = "0.8.65" }
+mimofan-execpolicy = { path = "../execpolicy", version = "0.8.65" }
+mimofan-protocol = { path = "../protocol", version = "0.8.65" }
+mimofan-release = { path = "../release", version = "0.8.65" }
+mimofan-secrets = { path = "../secrets", version = "0.8.65" }
+mimofan-tools = { path = "../tools", version = "0.8.65" }
 schemaui = { version = "0.12.0", default-features = false, optional = true }
 async-stream = "0.3.6"
 async-trait = "0.1"

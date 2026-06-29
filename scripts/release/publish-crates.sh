@@ -15,7 +15,7 @@ case "${mode}" in
 esac
 
 packages=("${release_crates[@]}")
-crates_user_agent="CodeWhale release publish check (https://github.com/Hmbown/CodeWhale)"
+crates_user_agent="CodeWhale release publish check (https://github.com/XiaomingX/mimo-tui)"
 
 workspace_version=""
 workspace_codewhale_packages=()

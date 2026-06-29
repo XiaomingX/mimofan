@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use codewhale_protocol::{ToolKind, ToolOutput, ToolPayload};
+use mimofan_protocol::{ToolKind, ToolOutput, ToolPayload};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
@@ -658,7 +658,7 @@ mod tests {
         let call = ToolCall {
             name: "shell".to_string(),
             payload: ToolPayload::LocalShell {
-                params: codewhale_protocol::LocalShellParams {
+                params: mimofan_protocol::LocalShellParams {
                     command: "ls -l".to_string(),
                     cwd: Some("/custom/dir".to_string()),
                     timeout_ms: None,
@@ -679,7 +679,7 @@ mod tests {
         let call = ToolCall {
             name: "shell".to_string(),
             payload: ToolPayload::LocalShell {
-                params: codewhale_protocol::LocalShellParams {
+                params: mimofan_protocol::LocalShellParams {
                     command: "echo hello".to_string(),
                     cwd: None,
                     timeout_ms: None,

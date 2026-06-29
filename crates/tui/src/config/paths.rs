@@ -17,7 +17,7 @@ pub(crate) fn default_config_path() -> Option<PathBuf> {
     env_config_path().or_else(home_config_path)
 }
 
-pub(crate) fn codewhale_home_dir() -> Option<PathBuf> {
+pub(crate) fn mimofan_home_dir() -> Option<PathBuf> {
     std::env::var_os("CODEWHALE_HOME").and_then(|path| {
         let path = PathBuf::from(path);
         (!path.as_os_str().is_empty()).then_some(path)
@@ -56,12 +56,12 @@ pub(crate) fn effective_home_dir() -> Option<PathBuf> {
 }
 
 pub(crate) fn home_config_path() -> Option<PathBuf> {
-    if let Some(home) = codewhale_home_dir() {
+    if let Some(home) = mimofan_home_dir() {
         return Some(home.join("config.toml"));
     }
 
     effective_home_dir().map(|home| {
-        let primary = home.join(".codewhale").join("config.toml");
+        let primary = home.join(".mimofan").join("config.toml");
         if primary.exists() {
             return primary;
         }
@@ -114,7 +114,7 @@ pub(crate) fn default_managed_config_path() -> Option<PathBuf> {
     #[cfg(not(unix))]
     {
         effective_home_dir().map(|home| {
-            let primary = home.join(".codewhale").join("managed_config.toml");
+            let primary = home.join(".mimofan").join("managed_config.toml");
             if primary.exists() {
                 return primary;
             }
@@ -131,7 +131,7 @@ pub(crate) fn default_requirements_path() -> Option<PathBuf> {
     #[cfg(not(unix))]
     {
         effective_home_dir().map(|home| {
-            let primary = home.join(".codewhale").join("requirements.toml");
+            let primary = home.join(".mimofan").join("requirements.toml");
             if primary.exists() {
                 return primary;
             }
@@ -157,12 +157,12 @@ pub(crate) fn expand_path(path: &str) -> PathBuf {
 }
 
 pub(crate) fn default_skills_dir() -> Option<PathBuf> {
-    effective_home_dir().map(|home| home.join(".codewhale").join("skills"))
+    effective_home_dir().map(|home| home.join(".mimofan").join("skills"))
 }
 
 pub(crate) fn default_mcp_config_path() -> Option<PathBuf> {
     effective_home_dir().map(|home| {
-        let primary = home.join(".codewhale").join("mcp.json");
+        let primary = home.join(".mimofan").join("mcp.json");
         if primary.exists() {
             return primary;
         }
@@ -176,7 +176,7 @@ pub(crate) fn default_mcp_config_path() -> Option<PathBuf> {
 
 pub(crate) fn default_notes_path() -> Option<PathBuf> {
     effective_home_dir().map(|home| {
-        let primary = home.join(".codewhale").join("notes.txt");
+        let primary = home.join(".mimofan").join("notes.txt");
         if primary.exists() {
             return primary;
         }
@@ -190,7 +190,7 @@ pub(crate) fn default_notes_path() -> Option<PathBuf> {
 
 pub(crate) fn default_memory_path() -> Option<PathBuf> {
     effective_home_dir().map(|home| {
-        let primary = home.join(".codewhale").join("memory.md");
+        let primary = home.join(".mimofan").join("memory.md");
         if primary.exists() {
             return primary;
         }

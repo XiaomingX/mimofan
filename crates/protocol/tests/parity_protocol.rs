@@ -1,4 +1,4 @@
-use codewhale_protocol::{
+use mimofan_protocol::{
     AppRequest, EventFrame, ThreadGoal, ThreadGoalProgressParams, ThreadGoalSetParams,
     ThreadGoalStatus, ThreadListParams, ThreadRequest, ThreadResumeParams, UserInputAnswerEvent,
     UserInputOptionEvent, UserInputQuestionEvent, UserInputRequestEvent,

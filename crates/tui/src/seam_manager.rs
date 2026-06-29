@@ -296,9 +296,8 @@ impl SeamManager {
             }],
             max_tokens,
             system: Some(SystemPrompt::Text(
-                "You are a context compaction specialist. Produce dense, factual summaries that \
-                 preserve every decision, path, error, constraint, and open question. Drop \
-                 conversational filler and repetition."
+                include_str!("prompts/compaction_specialist.md")
+                    .trim()
                     .to_string(),
             )),
             tools: None,
@@ -417,9 +416,8 @@ impl SeamManager {
             }],
             max_tokens,
             system: Some(SystemPrompt::Text(
-                "You are a context summarization specialist. Produce dense, factual summaries \
-                 that preserve every decision, path, error, constraint, and open question. \
-                 Never omit a file path, error message, or decision rationale."
+                include_str!("prompts/summarization_specialist.md")
+                    .trim()
                     .to_string(),
             )),
             tools: None,

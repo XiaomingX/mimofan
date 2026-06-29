@@ -1,11 +1,11 @@
 ---
 name: gh-file-issue
-description: "Use when filing a new CodeWhale GitHub issue: turn a bug or idea into a well-formed, actionable issue with repro, acceptance criteria, labels, and milestone."
+description: "Use when filing a new mimo-tui GitHub issue: turn a bug or idea into a well-formed, actionable issue with repro, acceptance criteria, labels, and milestone."
 ---
 
 # gh-file-issue
 
-File ONE high-quality, actionable issue for CodeWhale. An issue is maintainer
+File ONE high-quality, actionable issue for mimo-tui. An issue is maintainer
 evidence, not a sticky note: it must name a real gap, show falsifiable proof,
 and tell the next agent exactly when it is done. Vague issues become queue
 noise; concrete ones become fixes with credit.
@@ -13,7 +13,7 @@ noise; concrete ones become fixes with credit.
 ## When to use
 
 - You hit a bug, regression, or rough edge while building, reviewing, or
-  running CodeWhale and want it tracked instead of lost.
+  running mimo-tui and want it tracked instead of lost.
 - You have a feature or product-surface idea worth a milestone slot.
 - A community report, comment, or PR surfaced a gap that deserves its own
   trackable issue (link, do not duplicate).
@@ -31,8 +31,8 @@ noise; concrete ones become fixes with credit.
 2. **Check for duplicates / related work.** Search open issues and PRs before
    filing; if one exists, comment there instead, or cross-link as `Related: #N`.
    ```bash
-   gh issue list --repo Hmbown/CodeWhale --state all --search "keyword in:title,body" --limit 30
-   gh pr list --repo Hmbown/CodeWhale --state all --search "keyword" --limit 20
+   gh issue list --repo XiaomingX/mimo-tui --state all --search "keyword in:title,body" --limit 30
+   gh pr list --repo XiaomingX/mimo-tui --state all --search "keyword" --limit 20
    ```
 3. **Write a title that names the gap**, not the vibe. Match the house pattern
    `vX.Y.Z: <imperative gap>`, e.g. `v0.8.62: Isolate provider/model selection
@@ -57,13 +57,13 @@ noise; concrete ones become fixes with credit.
    `workflow-runtime`. Severity `release-blocker` only when it truly blocks the
    next release. The current target milestone is `v0.8.62`.
    ```bash
-   gh label list --repo Hmbown/CodeWhale --limit 100
-   gh api repos/Hmbown/CodeWhale/milestones --jq '.[] | "\(.title)\topen:\(.open_issues)"'
+   gh label list --repo XiaomingX/mimo-tui --limit 100
+   gh api repos/XiaomingX/mimo-tui/milestones --jq '.[] | "\(.title)\topen:\(.open_issues)"'
    ```
 6. **Create the issue.** Pipe the body from stdin (this skill writes no files);
    `--milestone` and repeatable `--label` take live names verbatim:
    ```bash
-   gh issue create --repo Hmbown/CodeWhale \
+   gh issue create --repo XiaomingX/mimo-tui \
      --title "v0.8.62: Isolate provider/model selection per TUI session" \
      --label bug --label tui --label reliability \
      --milestone "v0.8.62" \

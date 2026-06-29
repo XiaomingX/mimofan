@@ -59,21 +59,21 @@ describe("lastPageFromLink", () => {
 
   it("extracts page from Link header with last rel", () => {
     const link =
-      '<https://api.github.com/repos/Hmbown/CodeWhale/issues?page=5>; rel="last"';
+      '<https://api.github.com/repos/XiaomingX/mimo-tui/issues?page=5>; rel="last"';
     expect(lastPageFromLink(link)).toBe(5);
   });
 
   it("extracts page from multi-part Link header", () => {
     const link = [
-      '<https://api.github.com/repos/Hmbown/CodeWhale/issues?page=1>; rel="prev"',
-      '<https://api.github.com/repos/Hmbown/CodeWhale/issues?page=3>; rel="last"',
+      '<https://api.github.com/repos/XiaomingX/mimo-tui/issues?page=1>; rel="prev"',
+      '<https://api.github.com/repos/XiaomingX/mimo-tui/issues?page=3>; rel="last"',
     ].join(", ");
     expect(lastPageFromLink(link)).toBe(3);
   });
 
   it("returns undefined when no last rel present", () => {
     const link =
-      '<https://api.github.com/repos/Hmbown/CodeWhale/issues?page=1>; rel="prev"';
+      '<https://api.github.com/repos/XiaomingX/mimo-tui/issues?page=1>; rel="prev"';
     expect(lastPageFromLink(link)).toBeUndefined();
   });
 

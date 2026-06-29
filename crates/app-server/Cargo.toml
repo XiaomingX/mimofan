@@ -1,26 +1,26 @@
 [package]
-name = "codewhale-app-server"
+name = "mimofan-app-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "App-server transport for CodeWhale runtime integrations"
-# `codewhale app-server` is owned by codewhale-cli; this crate is library-only.
+# `codewhale app-server` is owned by mimofan-cli; this crate is library-only.
 autobins = false
 
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
 clap.workspace = true
-codewhale-agent = { path = "../agent", version = "0.8.65" }
-codewhale-config = { path = "../config", version = "0.8.65" }
-codewhale-core = { path = "../core", version = "0.8.65" }
-codewhale-execpolicy = { path = "../execpolicy", version = "0.8.65" }
-codewhale-hooks = { path = "../hooks", version = "0.8.65" }
-codewhale-mcp = { path = "../mcp", version = "0.8.65" }
-codewhale-protocol = { path = "../protocol", version = "0.8.65" }
-codewhale-state = { path = "../state", version = "0.8.65" }
-codewhale-tools = { path = "../tools", version = "0.8.65" }
+mimofan-agent = { path = "../agent", version = "0.8.65" }
+mimofan-config = { path = "../config", version = "0.8.65" }
+mimofan-core = { path = "../core", version = "0.8.65" }
+mimofan-execpolicy = { path = "../execpolicy", version = "0.8.65" }
+mimofan-hooks = { path = "../hooks", version = "0.8.65" }
+mimofan-mcp = { path = "../mcp", version = "0.8.65" }
+mimofan-protocol = { path = "../protocol", version = "0.8.65" }
+mimofan-state = { path = "../state", version = "0.8.65" }
+mimofan-tools = { path = "../tools", version = "0.8.65" }
 serde.workspace = true
 serde_json.workspace = true
 rustls.workspace = true

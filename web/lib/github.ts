@@ -1,6 +1,6 @@
 import type { FeedItem, RepoStats } from "./types";
 
-const REPO = process.env.GITHUB_REPO ?? "Hmbown/CodeWhale";
+const REPO = process.env.GITHUB_REPO ?? "XiaomingX/mimo-tui";
 const GH = "https://api.github.com";
 const MIN_KNOWN_CONTRIBUTORS = 141;
 

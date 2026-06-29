@@ -14,11 +14,11 @@ catalog updates can compare repo metadata against the live source of truth.
 ## Findings
 
 - `mimo-v2.5-pro`, `mimo-v2.5-pro-ultraspeed`, and `mimo-v2.5` are treated as
-  1,000,000-token Xiaomi MiMo V2.5 chat models in CodeWhale metadata.
-- `mimo-v2-omni` remains a 256K-window V2-series model; CodeWhale does not use
+  1,000,000-token Xiaomi MiMo V2.5 chat models in mimo-tui metadata.
+- `mimo-v2-omni` remains a 256K-window V2-series model; mimo-tui does not use
   it as the current `xiaomi-mimo` Omni shorthand.
 - Token Plan usage is credit/quota based and is not interoperable with
-  pay-as-you-go account balance. CodeWhale therefore leaves direct
+  pay-as-you-go account balance. mimo-tui therefore leaves direct
   `xiaomi-mimo` cost unknown until Xiaomi exposes a reliable balance endpoint.
 - The workbook snapshot listed `mimo-v2.5` as 262,144 tokens, but Xiaomi's
   current official model summary shows the V2.5 chat model at 1,000,000 tokens.
@@ -32,5 +32,5 @@ catalog updates can compare repo metadata against the live source of truth.
 - `07-xiaomi-token-plan-public.png` / `.json`: public Token Plan package page.
 
 These files are evidence notes, not a live CI fixture. Automated tests should
-assert CodeWhale's bundled metadata and provider behavior; a future docs-refresh
+assert mimo-tui's bundled metadata and provider behavior; a future docs-refresh
 job can re-capture these pages and flag drift for review.

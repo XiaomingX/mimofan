@@ -42,16 +42,16 @@ function dsEnv(env: WatchEnv): DeepSeekEnv {
 // Targets to probe daily. For registries that block bot HEAD/GET (npm, crates.io)
 // we hit the public JSON API instead — same upstream, doesn't 403.
 const LINK_TARGETS: { url: string; label: string }[] = [
-  { url: "https://github.com/Hmbown/CodeWhale", label: "Main repo" },
-  { url: "https://github.com/Hmbown/CodeWhale/issues", label: "Issues" },
-  { url: "https://github.com/Hmbown/CodeWhale/pulls", label: "Pull Requests" },
-  { url: "https://github.com/Hmbown/CodeWhale/discussions", label: "Discussions" },
-  { url: "https://github.com/Hmbown/CodeWhale/releases", label: "Releases" },
-  { url: "https://github.com/Hmbown/CodeWhale/blob/main/LICENSE", label: "License file" },
-  { url: "https://github.com/Hmbown/CodeWhale/blob/main/CODE_OF_CONDUCT.md", label: "Code of Conduct" },
-  { url: "https://github.com/Hmbown/CodeWhale/blob/main/SECURITY.md", label: "Security policy" },
-  { url: "https://github.com/Hmbown/CodeWhale/blob/main/CONTRIBUTING.md", label: "Contributing guide" },
-  { url: "https://github.com/Hmbown/CodeWhale/blob/main/.github/PULL_REQUEST_TEMPLATE.md", label: "PR template" },
+  { url: "https://github.com/XiaomingX/mimo-tui", label: "Main repo" },
+  { url: "https://github.com/XiaomingX/mimo-tui/issues", label: "Issues" },
+  { url: "https://github.com/XiaomingX/mimo-tui/pulls", label: "Pull Requests" },
+  { url: "https://github.com/XiaomingX/mimo-tui/discussions", label: "Discussions" },
+  { url: "https://github.com/XiaomingX/mimo-tui/releases", label: "Releases" },
+  { url: "https://github.com/XiaomingX/mimo-tui/blob/main/LICENSE", label: "License file" },
+  { url: "https://github.com/XiaomingX/mimo-tui/blob/main/CODE_OF_CONDUCT.md", label: "Code of Conduct" },
+  { url: "https://github.com/XiaomingX/mimo-tui/blob/main/SECURITY.md", label: "Security policy" },
+  { url: "https://github.com/XiaomingX/mimo-tui/blob/main/CONTRIBUTING.md", label: "Contributing guide" },
+  { url: "https://github.com/XiaomingX/mimo-tui/blob/main/.github/PULL_REQUEST_TEMPLATE.md", label: "PR template" },
   { url: "https://github.com/Hmbown/homebrew-deepseek-tui", label: "Homebrew tap" },
   { url: "https://github.com/sponsors/Hmbown", label: "Support link (GitHub Sponsors)" },
   { url: "https://buymeacoffee.com/hmbown", label: "Support link (BMC)" },
@@ -229,8 +229,8 @@ export async function runSemanticDrift(env: WatchEnv): Promise<{ ok: boolean; dr
 
   // Fetch CHANGELOG (truncated), recent commits, and live homepage HTML.
   const [changelog, commits, homepageHtml, docsHtml] = await Promise.all([
-    fetch("https://raw.githubusercontent.com/Hmbown/CodeWhale/main/CHANGELOG.md", { headers: ghHeaders }).then((r) => r.ok ? r.text() : "").catch(() => ""),
-    fetch("https://api.github.com/repos/Hmbown/CodeWhale/commits?per_page=30", { headers: ghHeaders }).then((r) => r.ok ? r.json() as Promise<{ commit: { message: string }; sha: string }[]> : []).catch(() => []),
+    fetch("https://raw.githubusercontent.com/XiaomingX/mimo-tui/main/CHANGELOG.md", { headers: ghHeaders }).then((r) => r.ok ? r.text() : "").catch(() => ""),
+    fetch("https://api.github.com/repos/XiaomingX/mimo-tui/commits?per_page=30", { headers: ghHeaders }).then((r) => r.ok ? r.json() as Promise<{ commit: { message: string }; sha: string }[]> : []).catch(() => []),
     fetch("https://codewhale.net/en", { headers: { "User-Agent": "codewhale-watch" } }).then((r) => r.ok ? r.text() : "").catch(() => ""),
     fetch("https://codewhale.net/en/docs", { headers: { "User-Agent": "codewhale-watch" } }).then((r) => r.ok ? r.text() : "").catch(() => ""),
   ]);

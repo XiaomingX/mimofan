@@ -26,7 +26,7 @@ use crate::tui::views::{
     CommandPaletteAction, ModalKind, ModalView, ViewAction, ViewEvent, truncate_view_text,
 };
 
-const PROFILE_DIR: &str = ".codewhale/agents";
+const PROFILE_DIR: &str = ".mimofan/agents";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RowTone {
@@ -118,8 +118,8 @@ impl FleetSetupSnapshot {
             .fleet
             .as_ref()
             .map(|fleet| fleet.exec.max_spawn_depth)
-            .unwrap_or_else(|| codewhale_config::FleetExecConfig::default().max_spawn_depth)
-            .min(codewhale_config::MAX_SPAWN_DEPTH_CEILING);
+            .unwrap_or_else(|| mimofan_config::FleetExecConfig::default().max_spawn_depth)
+            .min(mimofan_config::MAX_SPAWN_DEPTH_CEILING);
 
         Self {
             workspace: app.workspace.clone(),
@@ -482,7 +482,7 @@ fn build_lanes(snapshot: &FleetSetupSnapshot) -> Vec<FleetSetupLane> {
                         "agent {} / fleet {}",
                         snapshot.subagent_spawn_depth, snapshot.fleet_spawn_depth
                     ),
-                    format!("ceiling {}", codewhale_config::MAX_SPAWN_DEPTH_CEILING),
+                    format!("ceiling {}", mimofan_config::MAX_SPAWN_DEPTH_CEILING),
                 )
                 .tone(RowTone::Ready),
                 FleetSetupRow::new(
@@ -716,7 +716,7 @@ mod tests {
 
     fn snapshot() -> FleetSetupSnapshot {
         FleetSetupSnapshot {
-            workspace: PathBuf::from("/tmp/codewhale-test-workspace"),
+            workspace: PathBuf::from("/tmp/mimofan-test-workspace"),
             provider: "DeepSeek".to_string(),
             model: "deepseek-v4-pro".to_string(),
             reasoning: "Auto".to_string(),
@@ -763,7 +763,7 @@ mod tests {
                 action: CommandPaletteAction::InsertText { text },
             }) => {
                 // Default selection is the first Role row ("manager").
-                assert!(text.contains("Target path: .codewhale/agents/manager.toml"));
+                assert!(text.contains("Target path: .mimofan/agents/manager.toml"));
                 assert!(text.contains("role_hint (set to \"manager\")"));
                 assert!(text.contains("provider = DeepSeek"));
                 assert!(text.contains("model (optional explicit model id"));
@@ -789,7 +789,7 @@ mod tests {
 
         let prompt = view.profile_prompt();
         assert!(
-            prompt.contains("Target path: .codewhale/agents/builder.toml"),
+            prompt.contains("Target path: .mimofan/agents/builder.toml"),
             "selection should drive the profile file name; got: {prompt}"
         );
         assert!(

@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use codewhale_protocol::{
+use mimofan_protocol::{
     Thread, ThreadForkParams, ThreadGoal, ThreadGoalStatus, ThreadListParams, ThreadReadParams,
     ThreadResumeParams, ThreadSetNameParams, ThreadStatus,
 };
-pub use codewhale_protocol::{
+pub use mimofan_protocol::{
     ThreadGoalClearParams, ThreadGoalGetParams, ThreadGoalProgressParams, ThreadGoalSetParams,
 };
-use codewhale_state::{
+use mimofan_state::{
     SessionSource, StateStore, ThreadGoalRecord, ThreadGoalStatus as PersistedThreadGoalStatus,
     ThreadListFilters, ThreadMetadata, ThreadStatus as PersistedThreadStatus,
 };
@@ -98,11 +98,11 @@ impl ThreadManager {
             cwd: cwd.clone(),
             cli_version: self.cli_version.clone(),
             source: match source {
-                SessionSource::Interactive => codewhale_protocol::SessionSource::Interactive,
-                SessionSource::Resume => codewhale_protocol::SessionSource::Resume,
-                SessionSource::Fork => codewhale_protocol::SessionSource::Fork,
-                SessionSource::Api => codewhale_protocol::SessionSource::Api,
-                SessionSource::Unknown => codewhale_protocol::SessionSource::Unknown,
+                SessionSource::Interactive => mimofan_protocol::SessionSource::Interactive,
+                SessionSource::Resume => mimofan_protocol::SessionSource::Resume,
+                SessionSource::Fork => mimofan_protocol::SessionSource::Fork,
+                SessionSource::Api => mimofan_protocol::SessionSource::Api,
+                SessionSource::Unknown => mimofan_protocol::SessionSource::Unknown,
             },
             name: None,
         };
@@ -442,11 +442,11 @@ pub(crate) fn to_protocol_thread(thread: ThreadMetadata) -> Thread {
         cwd: thread.cwd,
         cli_version: thread.cli_version,
         source: match thread.source {
-            SessionSource::Interactive => codewhale_protocol::SessionSource::Interactive,
-            SessionSource::Resume => codewhale_protocol::SessionSource::Resume,
-            SessionSource::Fork => codewhale_protocol::SessionSource::Fork,
-            SessionSource::Api => codewhale_protocol::SessionSource::Api,
-            SessionSource::Unknown => codewhale_protocol::SessionSource::Unknown,
+            SessionSource::Interactive => mimofan_protocol::SessionSource::Interactive,
+            SessionSource::Resume => mimofan_protocol::SessionSource::Resume,
+            SessionSource::Fork => mimofan_protocol::SessionSource::Fork,
+            SessionSource::Api => mimofan_protocol::SessionSource::Api,
+            SessionSource::Unknown => mimofan_protocol::SessionSource::Unknown,
         },
         name: thread.name,
     }
@@ -489,13 +489,13 @@ pub(crate) fn to_persisted_status(status: &ThreadStatus) -> PersistedThreadStatu
     }
 }
 
-fn to_persisted_source(source: &codewhale_protocol::SessionSource) -> SessionSource {
+fn to_persisted_source(source: &mimofan_protocol::SessionSource) -> SessionSource {
     match source {
-        codewhale_protocol::SessionSource::Interactive => SessionSource::Interactive,
-        codewhale_protocol::SessionSource::Resume => SessionSource::Resume,
-        codewhale_protocol::SessionSource::Fork => SessionSource::Fork,
-        codewhale_protocol::SessionSource::Api => SessionSource::Api,
-        codewhale_protocol::SessionSource::Unknown => SessionSource::Unknown,
+        mimofan_protocol::SessionSource::Interactive => SessionSource::Interactive,
+        mimofan_protocol::SessionSource::Resume => SessionSource::Resume,
+        mimofan_protocol::SessionSource::Fork => SessionSource::Fork,
+        mimofan_protocol::SessionSource::Api => SessionSource::Api,
+        mimofan_protocol::SessionSource::Unknown => SessionSource::Unknown,
     }
 }
 

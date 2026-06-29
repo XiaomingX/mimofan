@@ -91,7 +91,7 @@ impl Default for HelpView {
 
 impl HelpView {
     pub fn new() -> Self {
-        Self::new_for_locale(Locale::En)
+        Self::new_for_locale(Locale::ZhHans)
     }
 
     pub fn new_for_locale(locale: Locale) -> Self {

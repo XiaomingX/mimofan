@@ -15,7 +15,6 @@ pub enum TextDirection {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LocaleCoverage {
-    English,
     V076Core,
     PlannedQa,
 }
@@ -33,97 +32,31 @@ pub struct LocaleSpec {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Locale {
-    En,
-    Ja,
     ZhHans,
-    ZhHant,
-    PtBr,
-    Es419,
-    Vi,
 }
 
 impl Locale {
     pub fn tag(self) -> &'static str {
         match self {
-            Self::En => "en",
-            Self::Ja => "ja",
             Self::ZhHans => "zh-Hans",
-            Self::ZhHant => "zh-Hant",
-            Self::PtBr => "pt-BR",
-            Self::Es419 => "es-419",
-            Self::Vi => "vi",
         }
     }
 
     pub fn translation_target_name(self) -> &'static str {
         match self {
-            Self::En => "English",
-            Self::Ja => "Japanese (日本語)",
-            Self::ZhHans => "Simplified Chinese (简体中文)",
-            Self::ZhHant => "Traditional Chinese (繁體中文)",
-            Self::PtBr => "Brazilian Portuguese (Português do Brasil)",
-            Self::Es419 => "Latin American Spanish (Español latinoamericano)",
-            Self::Vi => "Vietnamese (Tiếng Việt)",
+            Self::ZhHans => "简体中文",
         }
     }
 
     #[allow(dead_code)]
     pub fn spec(self) -> LocaleSpec {
         match self {
-            Self::En => LocaleSpec {
-                tag: "en",
-                display_name: "English",
-                script: "Latin",
-                direction: TextDirection::Ltr,
-                fallback: "en",
-                coverage: LocaleCoverage::English,
-            },
-            Self::Ja => LocaleSpec {
-                tag: "ja",
-                display_name: "Japanese",
-                script: "Jpan",
-                direction: TextDirection::Ltr,
-                fallback: "en",
-                coverage: LocaleCoverage::V076Core,
-            },
             Self::ZhHans => LocaleSpec {
                 tag: "zh-Hans",
-                display_name: "Chinese Simplified",
+                display_name: "简体中文",
                 script: "Hans",
                 direction: TextDirection::Ltr,
-                fallback: "en",
-                coverage: LocaleCoverage::V076Core,
-            },
-            Self::ZhHant => LocaleSpec {
-                tag: "zh-Hant",
-                display_name: "Chinese Traditional",
-                script: "Hant",
-                direction: TextDirection::Ltr,
                 fallback: "zh-Hans",
-                coverage: LocaleCoverage::V076Core,
-            },
-            Self::PtBr => LocaleSpec {
-                tag: "pt-BR",
-                display_name: "Portuguese (Brazil)",
-                script: "Latin",
-                direction: TextDirection::Ltr,
-                fallback: "en",
-                coverage: LocaleCoverage::V076Core,
-            },
-            Self::Es419 => LocaleSpec {
-                tag: "es-419",
-                display_name: "Spanish (Latin America)",
-                script: "Latin",
-                direction: TextDirection::Ltr,
-                fallback: "en",
-                coverage: LocaleCoverage::V076Core,
-            },
-            Self::Vi => LocaleSpec {
-                tag: "vi",
-                display_name: "Vietnamese",
-                script: "Latin",
-                direction: TextDirection::Ltr,
-                fallback: "en",
                 coverage: LocaleCoverage::V076Core,
             },
         }
@@ -131,15 +64,7 @@ impl Locale {
 
     #[allow(dead_code)]
     pub fn shipped() -> &'static [Self] {
-        &[
-            Self::En,
-            Self::Ja,
-            Self::ZhHans,
-            Self::ZhHant,
-            Self::PtBr,
-            Self::Es419,
-            Self::Vi,
-        ]
+        &[Self::ZhHans]
     }
 }
 
@@ -1128,61 +1053,31 @@ pub fn tr(locale: Locale, id: MessageId) -> &'static str {
 
 pub fn thinking_translation_placeholder(locale: Locale) -> &'static str {
     match locale {
-        Locale::En => "Thinking; translating when complete...",
-        Locale::Ja => "思考中です。完了後に日本語へ翻訳します...",
         Locale::ZhHans => "正在思考，完成后翻译为简体中文...",
-        Locale::ZhHant => "正在思考，完成後翻譯為繁體中文...",
-        Locale::PtBr => "Pensando; traduzindo ao concluir...",
-        Locale::Es419 => "Pensando; traduciendo al finalizar...",
-        Locale::Vi => "Đang suy nghĩ; sẽ dịch sau khi hoàn thành...",
     }
 }
 
 pub fn thinking_translation_in_progress(locale: Locale) -> &'static str {
     match locale {
-        Locale::En => "Translating thinking content...",
-        Locale::Ja => "思考内容を翻訳中...",
         Locale::ZhHans => "正在翻译思考内容...",
-        Locale::ZhHant => "正在翻譯思考內容...",
-        Locale::PtBr => "Traduzindo o conteúdo de raciocínio...",
-        Locale::Es419 => "Traduciendo el contenido de razonamiento...",
-        Locale::Vi => "Đang dịch nội dung suy nghĩ...",
     }
 }
 
 pub fn thinking_translation_complete(locale: Locale) -> &'static str {
     match locale {
-        Locale::En => "Thinking translation complete",
-        Locale::Ja => "思考内容の翻訳が完了しました",
         Locale::ZhHans => "思考内容翻译完成",
-        Locale::ZhHant => "思考內容翻譯完成",
-        Locale::PtBr => "Tradução do raciocínio concluída",
-        Locale::Es419 => "Traducción del razonamiento completada",
-        Locale::Vi => "Đã dịch xong nội dung suy nghĩ",
     }
 }
 
 pub fn thinking_translation_failed(locale: Locale) -> &'static str {
     match locale {
-        Locale::En => "Thinking translation failed",
-        Locale::Ja => "思考内容の翻訳に失敗しました",
         Locale::ZhHans => "思考内容翻译失败",
-        Locale::ZhHant => "思考內容翻譯失敗",
-        Locale::PtBr => "Falha ao traduzir o raciocínio",
-        Locale::Es419 => "Falló la traducción del razonamiento",
-        Locale::Vi => "Dịch nội dung suy nghĩ thất bại",
     }
 }
 
 pub fn hidden_translation_failed(locale: Locale) -> &'static str {
     match locale {
-        Locale::En => "Translation failed; original text is hidden.",
-        Locale::Ja => "翻訳に失敗しました。原文は非表示です。",
         Locale::ZhHans => "翻译失败，原文已隐藏。",
-        Locale::ZhHant => "翻譯失敗，原文已隱藏。",
-        Locale::PtBr => "A tradução falhou; o texto original está oculto.",
-        Locale::Es419 => "La traducción falló; el texto original está oculto.",
-        Locale::Vi => "Dịch thất bại; văn bản gốc đã bị ẩn.",
     }
 }
 
@@ -1211,20 +1106,8 @@ pub fn resolve_locale_with_env<F>(setting: &str, env: F) -> Locale
 where
     F: Fn(&str) -> Option<String>,
 {
-    let normalized = normalize_locale_input(setting);
-    if !matches!(normalized.as_str(), "" | "auto" | "system") {
-        return parse_locale(&normalized).unwrap_or(Locale::En);
-    }
-
-    for key in ["LC_ALL", "LC_MESSAGES", "LANG"] {
-        if let Some(value) = env(key)
-            && let Some(locale) = parse_locale(&normalize_locale_input(&value))
-        {
-            return locale;
-        }
-    }
-
-    Locale::En
+    // 始终返回中文简体
+    Locale::ZhHans
 }
 
 #[allow(dead_code)]
@@ -1270,36 +1153,14 @@ fn normalize_locale_input(input: &str) -> String {
 }
 
 fn parse_locale(value: &str) -> Option<Locale> {
-    if value == "c" || value == "posix" || value.starts_with("en") {
-        return Some(Locale::En);
-    }
-    if value.starts_with("ja") {
-        return Some(Locale::Ja);
-    }
     if value.starts_with("zh") {
-        if value.contains("hant")
-            || value.contains("-tw")
-            || value.contains("-hk")
-            || value.contains("-mo")
-        {
-            return Some(Locale::ZhHant);
-        }
         return Some(Locale::ZhHans);
-    }
-    if value.starts_with("pt") || value == "br" {
-        return Some(Locale::PtBr);
-    }
-    if value.starts_with("es") {
-        return Some(Locale::Es419);
-    }
-    if value.starts_with("vi") {
-        return Some(Locale::Vi);
     }
     None
 }
 
 fn fallback_translation(candidate: Option<&'static str>, id: MessageId) -> &'static str {
-    candidate.unwrap_or_else(|| english(id))
+    candidate.unwrap_or_else(|| chinese_simplified(id).unwrap_or("未知消息"))
 }
 
 fn english(id: MessageId) -> &'static str {
@@ -1643,11 +1504,11 @@ fn english(id: MessageId) -> &'static str {
         MessageId::LinksDashboard => "Dashboard:",
         MessageId::LinksDocs => "Docs:",
         MessageId::LinksTip => {
-            "Tip: Use the env var shown for your provider, or save the key with `codewhale auth set --provider <id>`."
+            "Tip: Use the env var shown for your provider, or save the key with `mimofan auth set --provider <id>`."
         }
         MessageId::SubagentsFetching => "Fetching Fleet worker status...",
         MessageId::HelpUnknownCommand => "Unknown command: {topic}",
-        MessageId::HomeDashboardTitle => "codewhale Home Dashboard",
+        MessageId::HomeDashboardTitle => "mimofan Home Dashboard",
         MessageId::HomeModel => "Model:",
         MessageId::HomeMode => "Mode:",
         MessageId::HomeWorkspace => "Workspace:",
@@ -1689,7 +1550,7 @@ fn english(id: MessageId) -> &'static str {
         }
         MessageId::OnboardApiKeyStep2 => "Step 2.  Paste it below and press Enter.",
         MessageId::OnboardApiKeySavedHint => {
-            "Saved to ~/.codewhale/config.toml so it works from any folder."
+            "Saved to ~/.mimofan/config.toml so it works from any folder."
         }
         MessageId::OnboardApiKeyFormatHint => {
             "Paste the full key exactly as issued (no spaces or newlines)."
@@ -1913,13 +1774,7 @@ fn english(id: MessageId) -> &'static str {
 
 fn translation(locale: Locale, id: MessageId) -> Option<&'static str> {
     match locale {
-        Locale::En => Some(english(id)),
-        Locale::Ja => japanese(id),
         Locale::ZhHans => chinese_simplified(id),
-        Locale::ZhHant => traditional_chinese(id),
-        Locale::PtBr => portuguese_brazil(id),
-        Locale::Es419 => spanish_latin_america(id),
-        Locale::Vi => vietnamese(id),
     }
 }
 
@@ -2289,11 +2144,11 @@ fn vietnamese(id: MessageId) -> Option<&'static str> {
         MessageId::LinksDashboard => "Bảng điều khiển:",
         MessageId::LinksDocs => "Tài liệu:",
         MessageId::LinksTip => {
-            "Mẹo: Dùng biến môi trường được hiển thị cho nhà cung cấp, hoặc lưu khóa bằng `codewhale auth set --provider <id>`."
+            "Mẹo: Dùng biến môi trường được hiển thị cho nhà cung cấp, hoặc lưu khóa bằng `mimofan auth set --provider <id>`."
         }
         MessageId::SubagentsFetching => "Đang lấy trạng thái Fleet worker...",
         MessageId::HelpUnknownCommand => "Lệnh không xác định: {topic}",
-        MessageId::HomeDashboardTitle => "Bảng Điều Khiển Trang Chủ codewhale",
+        MessageId::HomeDashboardTitle => "Bảng Điều Khiển Trang Chủ mimofan",
         MessageId::HomeModel => "Mô hình:",
         MessageId::HomeMode => "Chế độ:",
         MessageId::HomeWorkspace => "Không gian làm việc:",
@@ -2341,7 +2196,7 @@ fn vietnamese(id: MessageId) -> Option<&'static str> {
         }
         MessageId::OnboardApiKeyStep2 => "Bước 2. Dán khóa vào bên dưới và nhấn Enter.",
         MessageId::OnboardApiKeySavedHint => {
-            "Được lưu vào ~/.codewhale/config.toml để có thể hoạt động từ mọi thư mục."
+            "Được lưu vào ~/.mimofan/config.toml để có thể hoạt động từ mọi thư mục."
         }
         MessageId::OnboardApiKeyFormatHint => {
             "Dán chính xác toàn bộ khóa (không chứa khoảng trắng hoặc xuống dòng)."
@@ -3108,11 +2963,11 @@ fn japanese(id: MessageId) -> Option<&'static str> {
         MessageId::LinksDashboard => "ダッシュボード：",
         MessageId::LinksDocs => "ドキュメント：",
         MessageId::LinksTip => {
-            "ヒント: 表示されたプロバイダー用の環境変数を使うか、`codewhale auth set --provider <id>` でキーを保存してください。"
+            "ヒント: 表示されたプロバイダー用の環境変数を使うか、`mimofan auth set --provider <id>` でキーを保存してください。"
         }
         MessageId::SubagentsFetching => "Fleetワーカー状態を取得中...",
         MessageId::HelpUnknownCommand => "不明なコマンド: {topic}",
-        MessageId::HomeDashboardTitle => "codewhale ホームダッシュボード",
+        MessageId::HomeDashboardTitle => "mimofan ホームダッシュボード",
         MessageId::HomeModel => "モデル：",
         MessageId::HomeMode => "モード：",
         MessageId::HomeWorkspace => "ワークスペース：",
@@ -3154,7 +3009,7 @@ fn japanese(id: MessageId) -> Option<&'static str> {
         }
         MessageId::OnboardApiKeyStep2 => "ステップ 2. 下に貼り付けて Enter を押してください。",
         MessageId::OnboardApiKeySavedHint => {
-            "~/.codewhale/config.toml に保存されるので、どのフォルダからでも有効になります。"
+            "~/.mimofan/config.toml に保存されるので、どのフォルダからでも有効になります。"
         }
         MessageId::OnboardApiKeyFormatHint => {
             "発行されたキーをそのまま貼り付けてください（空白や改行を含めない）。"
@@ -3753,11 +3608,11 @@ fn portuguese_brazil(id: MessageId) -> Option<&'static str> {
         MessageId::LinksDashboard => "Painel:",
         MessageId::LinksDocs => "Documentação:",
         MessageId::LinksTip => {
-            "Dica: use a variável de ambiente mostrada para seu provedor ou salve a chave com `codewhale auth set --provider <id>`."
+            "Dica: use a variável de ambiente mostrada para seu provedor ou salve a chave com `mimofan auth set --provider <id>`."
         }
         MessageId::SubagentsFetching => "Buscando status dos workers Fleet...",
         MessageId::HelpUnknownCommand => "Comando desconhecido: {topic}",
-        MessageId::HomeDashboardTitle => "Painel Inicial do codewhale",
+        MessageId::HomeDashboardTitle => "Painel Inicial do mimofan",
         MessageId::HomeModel => "Modelo:",
         MessageId::HomeMode => "Modo:",
         MessageId::HomeWorkspace => "Workspace:",
@@ -3805,7 +3660,7 @@ fn portuguese_brazil(id: MessageId) -> Option<&'static str> {
         }
         MessageId::OnboardApiKeyStep2 => "Passo 2.  Cole abaixo e pressione Enter.",
         MessageId::OnboardApiKeySavedHint => {
-            "Salvo em ~/.codewhale/config.toml para funcionar em qualquer pasta."
+            "Salvo em ~/.mimofan/config.toml para funcionar em qualquer pasta."
         }
         MessageId::OnboardApiKeyFormatHint => {
             "Cole a chave inteira como foi emitida (sem espaços ou quebras de linha)."
@@ -4178,7 +4033,7 @@ fn spanish_latin_america(id: MessageId) -> Option<&'static str> {
         MessageId::CmdModelsDescription => "Listar los modelos disponibles por la API",
         MessageId::CmdNetworkDescription => "Gestionar reglas de red permitidas y bloqueadas",
         MessageId::CmdNoteDescription => {
-            "Agregar nota al archivo persistente (.codewhale/notes.md)"
+            "Agregar nota al archivo persistente (.mimofan/notes.md)"
         }
         MessageId::CmdThemeDescription => "Alternar entre tema claro y oscuro",
         MessageId::CmdProviderDescription => {
@@ -4405,11 +4260,11 @@ fn spanish_latin_america(id: MessageId) -> Option<&'static str> {
         MessageId::LinksDashboard => "Panel:",
         MessageId::LinksDocs => "Documentación:",
         MessageId::LinksTip => {
-            "Tip: usa la variable de entorno mostrada para tu proveedor o guarda la clave con `codewhale auth set --provider <id>`."
+            "Tip: usa la variable de entorno mostrada para tu proveedor o guarda la clave con `mimofan auth set --provider <id>`."
         }
         MessageId::SubagentsFetching => "Obteniendo estado de workers Fleet...",
         MessageId::HelpUnknownCommand => "Comando desconocido: {topic}",
-        MessageId::HomeDashboardTitle => "Panel Inicial de codewhale",
+        MessageId::HomeDashboardTitle => "Panel Inicial de mimofan",
         MessageId::HomeModel => "Modelo:",
         MessageId::HomeMode => "Modo:",
         MessageId::HomeWorkspace => "Workspace:",
@@ -4455,7 +4310,7 @@ fn spanish_latin_america(id: MessageId) -> Option<&'static str> {
         }
         MessageId::OnboardApiKeyStep2 => "Paso 2.  Pégala abajo y presiona Enter.",
         MessageId::OnboardApiKeySavedHint => {
-            "Guardada en ~/.codewhale/config.toml para funcionar en cualquier carpeta."
+            "Guardada en ~/.mimofan/config.toml para funcionar en cualquier carpeta."
         }
         MessageId::OnboardApiKeyFormatHint => {
             "Pega la clave completa tal como fue emitida (sin espacios ni saltos de línea)."
@@ -4704,10 +4559,10 @@ mod tests {
     }
 
     #[test]
-    fn locale_resolution_uses_config_then_environment_then_english() {
+    fn locale_resolution_always_returns_zh_hans() {
         assert_eq!(
             resolve_locale_with_env("ja", |_| Some("pt_BR.UTF-8".to_string())),
-            Locale::Ja
+            Locale::ZhHans
         );
         assert_eq!(
             resolve_locale_with_env("auto", |key| {
@@ -4719,9 +4574,9 @@ mod tests {
             resolve_locale_with_env("auto", |key| {
                 (key == "LANG").then(|| "zh_TW.UTF-8".to_string())
             }),
-            Locale::ZhHant
+            Locale::ZhHans
         );
-        assert_eq!(resolve_locale_with_env("auto", |_| None), Locale::En);
+        assert_eq!(resolve_locale_with_env("auto", |_| None), Locale::ZhHans);
     }
 
     #[test]
@@ -4747,27 +4602,18 @@ mod tests {
             MessageId::AppModeYoloHint,
         ];
         for locale in Locale::shipped() {
-            if *locale == Locale::En {
-                continue;
-            }
             for id in sentences {
                 let localized = tr(*locale, id);
                 assert!(!localized.is_empty(), "{} empty for {id:?}", locale.tag());
-                assert_ne!(
-                    localized,
-                    tr(Locale::En, id),
-                    "{} should translate {id:?}",
-                    locale.tag()
-                );
             }
         }
     }
 
     #[test]
-    fn unsupported_locale_falls_back_to_english() {
+    fn unsupported_locale_falls_back_to_zh_hans() {
         assert_eq!(
             resolve_locale_with_env("ar", |_| None),
-            Locale::En,
+            Locale::ZhHans,
             "Arabic is planned for QA but not shipped in the v0.7.6 core pack"
         );
     }
@@ -4790,8 +4636,8 @@ mod tests {
                 locale.tag()
             );
             assert!(
-                !description.contains("codewhale |"),
-                "{} provider description should not name codewhale as a backend: {description}",
+                !description.contains("mimofan |"),
+                "{} provider description should not name mimofan as a backend: {description}",
                 locale.tag()
             );
         }

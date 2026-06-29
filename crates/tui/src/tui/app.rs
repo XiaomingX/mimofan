@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
-use codewhale_config::{ProviderChain, route::RouteLimits};
+use mimofan_config::{ProviderChain, route::RouteLimits};
 
 use crate::artifacts::ArtifactRecord;
 use crate::client::{CacheWarmupKey, PromptInspection};
@@ -70,13 +70,13 @@ pub(crate) fn resolve_skills_dir(
     global_skills_dir: &Path,
     config: &Config,
 ) -> PathBuf {
-    if config.skills_config().scan_codewhale_only() {
+    if config.skills_config().scan_mimofan_only() {
         if config.skills_dir.is_some() {
             return global_skills_dir.to_path_buf();
         }
-        if let Some(codewhale_skills_dir) = crate::skills::codewhale_workspace_skills_dir(workspace)
+        if let Some(mimofan_skills_dir) = crate::skills::mimofan_workspace_skills_dir(workspace)
         {
-            return codewhale_skills_dir;
+            return mimofan_skills_dir;
         }
         return global_skills_dir.to_path_buf();
     }
@@ -265,10 +265,10 @@ impl ReasoningEffort {
     #[must_use]
     pub fn display_label_for_provider(self, provider: ApiProvider) -> &'static str {
         match (provider, self.normalize_for_provider(provider)) {
-            (ApiProvider::OpenaiCodex, Self::Low) => "low",
-            (ApiProvider::OpenaiCodex, Self::Medium) => "medium",
-            (ApiProvider::OpenaiCodex, Self::High) => "high",
-            (ApiProvider::OpenaiCodex, Self::Max) => "xhigh",
+            (ApiProvider::XiaomiMimo, Self::Low) => "low",
+            (ApiProvider::XiaomiMimo, Self::Medium) => "medium",
+            (ApiProvider::XiaomiMimo, Self::High) => "high",
+            (ApiProvider::XiaomiMimo, Self::Max) => "xhigh",
             (_, effort) => effort.short_label(),
         }
     }
@@ -283,7 +283,7 @@ impl ReasoningEffort {
 
     #[must_use]
     pub fn normalize_for_provider(self, provider: ApiProvider) -> Self {
-        if provider != ApiProvider::OpenaiCodex {
+        if provider != ApiProvider::XiaomiMimo {
             return self;
         }
         match self {
@@ -295,7 +295,7 @@ impl ReasoningEffort {
 
     #[must_use]
     pub fn api_value_for_provider(self, provider: ApiProvider) -> Option<&'static str> {
-        if provider != ApiProvider::OpenaiCodex {
+        if provider != ApiProvider::XiaomiMimo {
             return self.api_value();
         }
         Some(match self.normalize_for_provider(provider) {
@@ -327,7 +327,7 @@ impl ReasoningEffort {
 
     #[must_use]
     pub fn cycle_next_for_provider(self, provider: ApiProvider) -> Self {
-        if provider != ApiProvider::OpenaiCodex {
+        if provider != ApiProvider::XiaomiMimo {
             return self.cycle_next();
         }
         match self.normalize_for_provider(provider) {
@@ -1062,7 +1062,7 @@ pub struct TuiOptions {
 pub enum InitialInput {
     /// Pre-populate the composer and wait for the user to press Enter.
     ///
-    /// Used by `codewhale pr <N>` (#451) to drop the model into a session
+    /// Used by `mimofan pr <N>` (#451) to drop the model into a session
     /// with the PR context already typed so the user can edit before sending.
     Prefill(String),
     /// Pre-populate the composer, submit it once startup is ready, then keep
@@ -1620,7 +1620,7 @@ pub struct App {
     pub config_profile: Option<String>,
     pub mcp_config_path: PathBuf,
     pub skills_dir: PathBuf,
-    pub skills_scan_codewhale_only: bool,
+    pub skills_scan_mimofan_only: bool,
     /// Path to the user-memory file (#489). Always populated; only
     /// consulted when `use_memory` is `true`.
     pub memory_path: PathBuf,
@@ -2369,7 +2369,7 @@ impl App {
             .or_else(|| {
                 // default_model is a DeepSeek-centric setting; other providers
                 // get their model from config.toml / env (e.g. OPENAI_MODEL).
-                if matches!(provider, ApiProvider::Deepseek | ApiProvider::DeepseekCN) {
+                if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
                     settings.default_model.clone()
                 } else {
                     None
@@ -2453,7 +2453,7 @@ impl App {
         let shell_manager = new_shared_shell_manager(workspace.clone());
 
         // Initialize hooks executor from config, merged with project-local
-        // `.codewhale/hooks.toml` (#3026).
+        // `.mimofan/hooks.toml` (#3026).
         let hooks_config =
             crate::hooks::HooksConfig::load_with_project(config.hooks_config(), &workspace);
         let hooks = HookExecutor::new(hooks_config, workspace.clone());
@@ -2461,10 +2461,10 @@ impl App {
         // Initialize plan state
         let plan_state = new_shared_plan_state();
 
-        let skills_scan_codewhale_only = config.skills_config().scan_codewhale_only();
+        let skills_scan_mimofan_only = config.skills_config().scan_mimofan_only();
         let skills_dir = resolve_skills_dir(&workspace, &global_skills_dir, config);
         let cached_skills =
-            Self::discover_cached_skills(&workspace, &skills_dir, skills_scan_codewhale_only);
+            Self::discover_cached_skills(&workspace, &skills_dir, skills_scan_mimofan_only);
 
         let input_history = crate::composer_history::load_history();
         let (initial_input_text, initial_input_cursor, auto_submit_initial_input) =
@@ -2556,7 +2556,7 @@ impl App {
             config_profile,
             mcp_config_path: mcp_config_path.clone(),
             skills_dir,
-            skills_scan_codewhale_only,
+            skills_scan_mimofan_only,
             memory_path,
             use_memory,
             use_alt_screen,
@@ -2759,12 +2759,12 @@ impl App {
     fn discover_cached_skills(
         workspace: &std::path::Path,
         skills_dir: &std::path::Path,
-        scan_codewhale_only: bool,
+        scan_mimofan_only: bool,
     ) -> Vec<(String, String)> {
         crate::skills::discover_for_workspace_and_dir_with_mode(
             workspace,
             skills_dir,
-            crate::skills::SkillDiscoveryMode::from_codewhale_only(scan_codewhale_only),
+            crate::skills::SkillDiscoveryMode::from_mimofan_only(scan_mimofan_only),
         )
         .list()
         .iter()
@@ -2777,7 +2777,7 @@ impl App {
         self.cached_skills = Self::discover_cached_skills(
             &self.workspace,
             &skills_dir,
-            self.skills_scan_codewhale_only,
+            self.skills_scan_mimofan_only,
         );
     }
 
@@ -5241,7 +5241,7 @@ impl App {
 
     /// When the composer input exceeds [`MAX_SUBMITTED_INPUT_CHARS`], write
     /// the full content to a timestamped paste file under
-    /// `.codewhale/pastes/` and replace `self.input` with an `@`-mention
+    /// `.mimofan/pastes/` and replace `self.input` with an `@`-mention
     /// pointing at it so the model can read the full content via the
     /// normal file-mention resolution path (#553).
     fn consolidate_large_input(&mut self) {
@@ -5251,9 +5251,9 @@ impl App {
         let now = chrono::Local::now();
         let suffix = uuid::Uuid::new_v4().to_string()[..8].to_string();
         let filename = format!("paste-{}-{}.md", now.format("%Y-%m-%d-%H%M%S"), suffix);
-        let rel_path = format!(".codewhale/pastes/{filename}");
+        let rel_path = format!(".mimofan/pastes/{filename}");
 
-        let pastes_dir = self.workspace.join(".codewhale/pastes");
+        let pastes_dir = self.workspace.join(".mimofan/pastes");
         if let Err(e) = std::fs::create_dir_all(&pastes_dir) {
             // Fallback: keep a truncated version so we don't lose the
             // user's input entirely when the filesystem is unhappy.

@@ -14,11 +14,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 
-use codewhale_config::catalog::{
+use mimofan_config::catalog::{
     CatalogOffering, CatalogRefreshError, CatalogSource, CatalogStatus, ProviderCatalogCache,
     ProviderCatalogDelta, base_url_fingerprint, now_unix,
 };
-use codewhale_config::route::ReadyRouteCandidate;
+use mimofan_config::route::ReadyRouteCandidate;
 
 use crate::config::{ApiProvider, Config, RetryPolicy, wire_model_for_provider};
 use crate::llm_client::{
@@ -743,17 +743,17 @@ impl DeepSeekClient {
         // The ChatGPT Codex backend sits behind Cloudflare bot protection that
         // only admits the Codex CLI's user agent; present a codex_cli_rs UA on
         // that path so the request is handled like the official client.
-        let user_agent: &str = if api_provider == ApiProvider::OpenaiCodex {
+        let user_agent: &str = if api_provider == ApiProvider::XiaomiMimo {
             concat!(
-                "codex_cli_rs/0.137.0 (CodeWhale ",
+                "codex_cli_rs/0.137.0 (mimofan ",
                 env!("CARGO_PKG_VERSION"),
                 ")"
             )
         } else {
             concat!(
-                "Mozilla/5.0 (compatible; codewhale/",
+                "Mozilla/5.0 (compatible; mimofan/",
                 env!("CARGO_PKG_VERSION"),
-                "; +https://github.com/Hmbown/CodeWhale)"
+                "; +https://github.com/XiaomingX/mimofan)"
             )
         };
         let mut builder = crate::tls::reqwest_client_builder()
@@ -784,7 +784,7 @@ impl DeepSeekClient {
         build_default_headers(
             api_key,
             extra_headers,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
             crate::config::DEFAULT_DEEPSEEK_BASE_URL,
         )
     }
@@ -868,26 +868,18 @@ fn is_auth_dialect_header(header_name: &HeaderName) -> bool {
 fn api_provider_uses_anthropic_messages(api_provider: ApiProvider) -> bool {
     matches!(
         api_provider,
-        ApiProvider::Anthropic | ApiProvider::DeepseekAnthropic
+        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
     )
 }
 
 fn api_provider_skips_models_probe(api_provider: ApiProvider) -> bool {
-    matches!(api_provider, ApiProvider::DeepseekAnthropic)
+    matches!(api_provider, ApiProvider::XiaomiMimo)
 }
 
 fn translation_system_prompt(target_language: &str) -> String {
     format!(
-        "You are a professional translator. Your ONLY task is to translate text to {target_language}. \
-         Rules:\n\
-         1. Output ONLY the translation, nothing else — no explanations, no notes, no quotes.\n\
-         2. Preserve all code blocks (```...```), URLs, file paths, command names, \
-         and technical terms like API names, function names, and library names untranslated.\n\
-         3. Keep Markdown formatting (headings, lists, bold, italics, links) intact.\n\
-         4. Translate all natural-language prose naturally and professionally.\n\
-         5. Do NOT add any prefix, suffix, or commentary.\n\
-         6. If the input is already in {target_language} or contains no prose to translate, \
-         return it as-is."
+        include_str!("prompts/translator.md"),
+        target_language = target_language
     )
 }
 
@@ -1451,7 +1443,7 @@ impl LlmClient for DeepSeekClient {
     }
 
     async fn create_message(&self, request: MessageRequest) -> Result<MessageResponse> {
-        if self.api_provider == ApiProvider::OpenaiCodex {
+        if self.api_provider == ApiProvider::XiaomiMimo {
             return self.handle_responses_message(request).await;
         }
         if api_provider_uses_anthropic_messages(self.api_provider) {
@@ -1464,7 +1456,7 @@ impl LlmClient for DeepSeekClient {
         &self,
         request: MessageRequest,
     ) -> Result<crate::llm_client::StreamEventBox> {
-        if self.api_provider == ApiProvider::OpenaiCodex {
+        if self.api_provider == ApiProvider::XiaomiMimo {
             return self.handle_responses_stream(request).await;
         }
         if api_provider_uses_anthropic_messages(self.api_provider) {
@@ -1530,7 +1522,7 @@ pub(super) fn apply_reasoning_effort(
     effort: Option<&str>,
     provider: ApiProvider,
 ) {
-    if matches!(provider, ApiProvider::Minimax) {
+    if matches!(provider, ApiProvider::XiaomiMimo) {
         // MiniMax's OpenAI-compatible API keeps thinking inside `content`
         // unless reasoning_split is enabled. Always request the split shape
         // so private thinking renders as Thinking cells rather than answer
@@ -1543,65 +1535,65 @@ pub(super) fn apply_reasoning_effort(
     let normalized = effort.trim().to_ascii_lowercase();
     match normalized.as_str() {
         "off" | "disabled" | "none" | "false" => match provider {
-            ApiProvider::Deepseek
-            | ApiProvider::DeepseekCN
-            | ApiProvider::Openrouter
+            ApiProvider::XiaomiMimo
             | ApiProvider::XiaomiMimo
-            | ApiProvider::Novita
-            | ApiProvider::Siliconflow
-            | ApiProvider::SiliconflowCn
-            | ApiProvider::Volcengine
-            | ApiProvider::Deepinfra
-            | ApiProvider::Together
-            | ApiProvider::Atlascloud
-            | ApiProvider::Zai => {
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "disabled" });
             }
-            ApiProvider::OpenaiCodex => {
+            ApiProvider::XiaomiMimo => {
                 // OpenAI Codex uses Responses API — thinking handled differently
             }
-            ApiProvider::Fireworks => {}
-            ApiProvider::Openai
-            | ApiProvider::WanjieArk
-            | ApiProvider::Qianfan
-            | ApiProvider::Arcee
-            | ApiProvider::Huggingface
+            ApiProvider::XiaomiMimo => {}
+            ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
             | ApiProvider::Custom => {}
-            ApiProvider::Moonshot => {
+            ApiProvider::XiaomiMimo => {
                 // #3024: Kimi models accept thinking enable/disable.
                 body["thinking"] = json!({ "type": "disabled" });
             }
-            ApiProvider::Anthropic | ApiProvider::DeepseekAnthropic => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 // #3014: thinking/effort shaping happens natively inside
                 // client/anthropic.rs (adaptive thinking + output_config),
                 // not via OpenAI-dialect fields.
             }
-            ApiProvider::NvidiaNim => {
+            ApiProvider::XiaomiMimo => {
                 body["chat_template_kwargs"] = json!({
                     "thinking": false,
                 });
             }
-            ApiProvider::Minimax => {
+            ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "disabled" });
             }
-            ApiProvider::Stepfun => {}
+            ApiProvider::XiaomiMimo => {}
         },
         "low" | "minimal" | "medium" | "mid" | "high" | "" => match provider {
             // DeepSeek compatibility: low/medium both map to high
-            ApiProvider::Deepseek
-            | ApiProvider::DeepseekCN
-            | ApiProvider::Siliconflow
-            | ApiProvider::SiliconflowCn
-            | ApiProvider::Volcengine
-            | ApiProvider::Deepinfra
-            | ApiProvider::Atlascloud => {
+            ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("high");
                 body["thinking"] = json!({ "type": "enabled" });
             }
             // OpenRouter/Novita/Together: pass through the actual user-chosen value.
             // OpenRouter's unified scale is none/minimal/low/medium/high/xhigh;
             // DeepSeek models hosted there accept those directly.
-            ApiProvider::Openrouter | ApiProvider::Novita | ApiProvider::Together => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 let value = match normalized.as_str() {
                     "low" | "minimal" => "low",
                     "medium" | "mid" => "medium",
@@ -1613,7 +1605,7 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Arcee | ApiProvider::Huggingface => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 let value = match normalized.as_str() {
                     "minimal" => "minimal",
                     "low" => "low",
@@ -1622,94 +1614,94 @@ pub(super) fn apply_reasoning_effort(
                 };
                 body["reasoning_effort"] = json!(value);
             }
-            ApiProvider::Fireworks => {
+            ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("high");
             }
-            ApiProvider::Openai
-            | ApiProvider::WanjieArk
-            | ApiProvider::Qianfan
-            | ApiProvider::OpenaiCodex
+            ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
             | ApiProvider::Custom => {}
-            ApiProvider::Moonshot => {
+            ApiProvider::XiaomiMimo => {
                 // #3024: Kimi models accept thinking enable.
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Anthropic | ApiProvider::DeepseekAnthropic => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 // #3014: thinking/effort shaping happens natively inside
                 // client/anthropic.rs (adaptive thinking + output_config),
                 // not via OpenAI-dialect fields.
             }
-            ApiProvider::NvidiaNim => {
+            ApiProvider::XiaomiMimo => {
                 body["chat_template_kwargs"] = json!({
                     "thinking": true,
                     "reasoning_effort": "high",
                 });
             }
-            ApiProvider::Minimax => {
+            ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "adaptive" });
             }
-            ApiProvider::Zai => {
+            ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({
                     "type": "enabled",
                     "clear_thinking": false,
                 });
             }
-            ApiProvider::Stepfun => {}
+            ApiProvider::XiaomiMimo => {}
         },
         "xhigh" | "max" | "highest" | "ultracode" => match provider {
-            ApiProvider::Deepseek
-            | ApiProvider::DeepseekCN
-            | ApiProvider::Siliconflow
-            | ApiProvider::SiliconflowCn
-            | ApiProvider::Volcengine
-            | ApiProvider::Deepinfra
-            | ApiProvider::Atlascloud => {
+            ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("max");
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Openrouter | ApiProvider::Novita | ApiProvider::Together => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("xhigh");
                 body["thinking"] = json!({ "type": "enabled" });
             }
             ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Arcee | ApiProvider::Huggingface => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("high");
             }
-            ApiProvider::Fireworks => {
+            ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("max");
             }
-            ApiProvider::Openai
-            | ApiProvider::WanjieArk
-            | ApiProvider::Qianfan
-            | ApiProvider::OpenaiCodex
+            ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
             | ApiProvider::Custom => {}
-            ApiProvider::Moonshot => {
+            ApiProvider::XiaomiMimo => {
                 // #3024: Kimi models accept thinking enable.
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Anthropic | ApiProvider::DeepseekAnthropic => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 // #3014: thinking/effort shaping happens natively inside
                 // client/anthropic.rs (adaptive thinking + output_config),
                 // not via OpenAI-dialect fields.
             }
-            ApiProvider::NvidiaNim => {
+            ApiProvider::XiaomiMimo => {
                 body["chat_template_kwargs"] = json!({
                     "thinking": true,
                     "reasoning_effort": "max",
                 });
             }
-            ApiProvider::Minimax => {
+            ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "adaptive" });
             }
-            ApiProvider::Zai => {
+            ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({
                     "type": "enabled",
                     "clear_thinking": false,
                 });
             }
-            ApiProvider::Stepfun => {}
+            ApiProvider::XiaomiMimo => {}
         },
         _ => {}
     }
@@ -2125,7 +2117,7 @@ mod tests {
         let client = DeepSeekClient::build_http_client(
             "sk-test",
             &HashMap::new(),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
             crate::config::DEFAULT_DEEPSEEK_BASE_URL,
         );
 
@@ -2219,7 +2211,7 @@ mod tests {
         let headers = DeepSeekClient::default_headers_for_provider(
             "sk-or-test",
             &extra,
-            ApiProvider::Openrouter,
+            ApiProvider::XiaomiMimo,
             crate::config::DEFAULT_OPENROUTER_BASE_URL,
         )
         .expect("headers");
@@ -2244,7 +2236,7 @@ mod tests {
         let headers = DeepSeekClient::default_headers_for_provider(
             "sf-cn-test",
             &extra,
-            ApiProvider::SiliconflowCn,
+            ApiProvider::XiaomiMimo,
             crate::config::DEFAULT_SILICONFLOW_CN_BASE_URL,
         )
         .expect("headers");
@@ -2272,7 +2264,7 @@ mod tests {
         let headers = DeepSeekClient::default_headers_for_provider(
             "tokenhub-test",
             &extra,
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "https://tokenhub.tencentmaas.com/v1",
         )
         .expect("headers");
@@ -2295,7 +2287,7 @@ mod tests {
         let headers = DeepSeekClient::default_headers_for_provider(
             "ds-test",
             &extra,
-            ApiProvider::DeepseekAnthropic,
+            ApiProvider::XiaomiMimo,
             crate::config::DEFAULT_DEEPSEEK_ANTHROPIC_BASE_URL,
         )
         .expect("headers");
@@ -2414,7 +2406,7 @@ mod tests {
         let headers = DeepSeekClient::default_headers_for_provider(
             "",
             &extra,
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "https://gateway.example.test/v1",
         )
         .expect("headers");
@@ -2511,7 +2503,7 @@ mod tests {
             top_p: None,
         };
 
-        let openai = build_chat_messages_for_request_and_provider(&request, ApiProvider::Openai);
+        let openai = build_chat_messages_for_request_and_provider(&request, ApiProvider::XiaomiMimo);
         let generic_assistant = openai
             .iter()
             .find(|value| value.get("role").and_then(Value::as_str) == Some("assistant"))
@@ -3117,7 +3109,7 @@ mod tests {
     #[test]
     fn reasoning_effort_uses_deepseek_top_level_thinking_parameter() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::Deepseek);
+        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::XiaomiMimo);
 
         assert_eq!(
             body.get("reasoning_effort").and_then(Value::as_str),
@@ -3133,7 +3125,7 @@ mod tests {
     #[test]
     fn reasoning_effort_off_disables_top_level_thinking() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::Deepseek);
+        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::XiaomiMimo);
 
         assert_eq!(
             body.pointer("/thinking/type").and_then(Value::as_str),
@@ -3146,12 +3138,12 @@ mod tests {
     #[test]
     fn reasoning_effort_off_is_omitted_for_strict_openai_like_providers() {
         for provider in [
-            ApiProvider::Openai,
-            ApiProvider::WanjieArk,
-            ApiProvider::Qianfan,
-            ApiProvider::Arcee,
-            ApiProvider::Huggingface,
-            ApiProvider::Fireworks,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
         ] {
             let mut body = json!({});
             apply_reasoning_effort(&mut body, Some("off"), provider);
@@ -3167,39 +3159,39 @@ mod tests {
     #[test]
     fn reasoning_effort_atlascloud_speaks_deepseek_dialect() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::Atlascloud);
+        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::XiaomiMimo);
         assert_eq!(
             body,
             json!({ "reasoning_effort": "high", "thinking": { "type": "enabled" } })
         );
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::Atlascloud);
+        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::XiaomiMimo);
         assert_eq!(
             body,
             json!({ "reasoning_effort": "max", "thinking": { "type": "enabled" } })
         );
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::Atlascloud);
+        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::XiaomiMimo);
         assert_eq!(body, json!({ "thinking": { "type": "disabled" } }));
     }
 
     #[test]
     fn reasoning_effort_moonshot_toggles_thinking() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::Moonshot);
+        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::XiaomiMimo);
         assert_eq!(body, json!({ "thinking": { "type": "enabled" } }));
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::Moonshot);
+        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::XiaomiMimo);
         assert_eq!(body, json!({ "thinking": { "type": "disabled" } }));
     }
 
     #[test]
     fn reasoning_effort_uses_nvidia_nim_chat_template_kwargs() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::NvidiaNim);
+        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::XiaomiMimo);
 
         assert_eq!(
             body.pointer("/chat_template_kwargs/thinking")
@@ -3218,7 +3210,7 @@ mod tests {
     #[test]
     fn reasoning_effort_off_disables_nvidia_nim_thinking() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::NvidiaNim);
+        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::XiaomiMimo);
 
         assert_eq!(
             body.pointer("/chat_template_kwargs/thinking")
@@ -3234,7 +3226,7 @@ mod tests {
     #[test]
     fn reasoning_effort_uses_openai_compatible_shape_for_fireworks() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::Fireworks);
+        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::XiaomiMimo);
 
         assert_eq!(
             body.get("reasoning_effort").and_then(Value::as_str),
@@ -3257,7 +3249,7 @@ mod tests {
             ("max", "high"),
         ] {
             let mut body = json!({});
-            apply_reasoning_effort(&mut body, Some(input), ApiProvider::Arcee);
+            apply_reasoning_effort(&mut body, Some(input), ApiProvider::XiaomiMimo);
 
             assert_eq!(
                 body.get("reasoning_effort").and_then(Value::as_str),
@@ -3282,7 +3274,7 @@ mod tests {
             ("xhigh", "xhigh"),
         ] {
             let mut body = json!({});
-            apply_reasoning_effort(&mut body, Some(input), ApiProvider::Openrouter);
+            apply_reasoning_effort(&mut body, Some(input), ApiProvider::XiaomiMimo);
 
             assert_eq!(
                 body.get("reasoning_effort").and_then(Value::as_str),
@@ -3322,7 +3314,7 @@ mod tests {
     #[test]
     fn reasoning_effort_minimax_splits_reasoning_from_content() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::Minimax);
+        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::XiaomiMimo);
         assert_eq!(
             body.get("reasoning_split").and_then(Value::as_bool),
             Some(true)
@@ -3334,7 +3326,7 @@ mod tests {
         assert!(body.get("reasoning_effort").is_none());
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::Minimax);
+        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::XiaomiMimo);
         assert_eq!(
             body.get("reasoning_split").and_then(Value::as_bool),
             Some(true)
@@ -3345,35 +3337,35 @@ mod tests {
         );
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, None, ApiProvider::Minimax);
+        apply_reasoning_effort(&mut body, None, ApiProvider::XiaomiMimo);
         assert_eq!(body, json!({ "reasoning_split": true }));
     }
 
     #[test]
     fn reasoning_effort_zai_uses_documented_thinking_shape() {
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::Zai);
+        apply_reasoning_effort(&mut body, Some("high"), ApiProvider::XiaomiMimo);
         assert_eq!(
             body,
             json!({ "thinking": { "type": "enabled", "clear_thinking": false } })
         );
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::Zai);
+        apply_reasoning_effort(&mut body, Some("max"), ApiProvider::XiaomiMimo);
         assert_eq!(
             body,
             json!({ "thinking": { "type": "enabled", "clear_thinking": false } })
         );
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("ultracode"), ApiProvider::Zai);
+        apply_reasoning_effort(&mut body, Some("ultracode"), ApiProvider::XiaomiMimo);
         assert_eq!(
             body,
             json!({ "thinking": { "type": "enabled", "clear_thinking": false } })
         );
 
         let mut body = json!({});
-        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::Zai);
+        apply_reasoning_effort(&mut body, Some("off"), ApiProvider::XiaomiMimo);
         assert_eq!(body, json!({ "thinking": { "type": "disabled" } }));
     }
 
@@ -4186,7 +4178,7 @@ mod tests {
             .filter(|entry| entry.is_fresh(now_unix()))
             .map(|entry| entry.offerings.clone())
             .unwrap_or_default();
-        let snapshot = codewhale_config::catalog::CatalogCompiler::new()
+        let snapshot = mimofan_config::catalog::CatalogCompiler::new()
             .with_bundled(vec![static_row])
             .with_live(fresh_live)
             .compile();
@@ -4318,7 +4310,7 @@ mod tests {
             &mut body,
             "deepseek-v4-pro",
             Some("max"),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         )
         .expect("multi-turn thinking-mode conversation should report replay tokens");
         // ~4 chars/token; 46 bytes of reasoning -> 11 tokens.
@@ -4357,7 +4349,7 @@ mod tests {
             &mut body,
             "deepseek-v4-flash",
             None,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         // reasoning_effort is None → no thinking injection, result is None
         assert!(result.is_none());
@@ -4385,7 +4377,7 @@ mod tests {
             &mut body,
             "deepseek-v4-pro",
             Some("max"),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
 
         let chars = count_reasoning_replay_chars(&body);
@@ -4415,7 +4407,7 @@ mod tests {
             &mut body,
             "qwen3-coder",
             Some("max"),
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
         );
 
         assert!(result.is_none());
@@ -4453,7 +4445,7 @@ mod tests {
             &mut body,
             "deepseek-v4-pro",
             Some("max"),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
 
         let messages = body["messages"].as_array().unwrap();
@@ -4789,7 +4781,7 @@ mod tests {
         };
         let route = crate::route_runtime::resolve_runtime_route(
             &config,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
             Some(model),
         )
         .expect("deepseek route should resolve");

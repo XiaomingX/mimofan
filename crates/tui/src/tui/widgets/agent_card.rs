@@ -665,7 +665,7 @@ mod tests {
 
     #[test]
     fn fanout_card_dot_grid_renders_stateful_worker_slots() {
-        let mut card = FanoutCard::new("fanout", Locale::En)
+        let mut card = FanoutCard::new("fanout", Locale::ZhHans)
             .with_workers(["w_1", "w_2", "w_3", "w_4", "w_5", "w_6", "w_7"]);
         card.upsert_worker("w_1", AgentLifecycle::Completed);
         card.upsert_worker("w_2", AgentLifecycle::Completed);
@@ -683,7 +683,7 @@ mod tests {
     #[test]
     fn fanout_card_aggregate_counts_match_dot_grid() {
         let mut card =
-            FanoutCard::new("rlm", Locale::En).with_workers(["w_1", "w_2", "w_3", "w_4"]);
+            FanoutCard::new("rlm", Locale::ZhHans).with_workers(["w_1", "w_2", "w_3", "w_4"]);
         card.upsert_worker("w_1", AgentLifecycle::Completed);
         card.upsert_worker("w_2", AgentLifecycle::Completed);
         card.upsert_worker("w_3", AgentLifecycle::Completed);
@@ -706,7 +706,7 @@ mod tests {
 
     #[test]
     fn fanout_apply_inserts_unknown_worker_via_child_spawned() {
-        let mut card = FanoutCard::new("fanout", Locale::En);
+        let mut card = FanoutCard::new("fanout", Locale::ZhHans);
         let msg = MailboxMessage::ChildSpawned {
             parent_id: "root".into(),
             child_id: "agent_late".into(),
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     fn fanout_started_claims_seeded_pending_slot_without_growing_grid() {
-        let mut card = FanoutCard::new("fanout", Locale::En).with_workers(["task:a", "task:b"]);
+        let mut card = FanoutCard::new("fanout", Locale::ZhHans).with_workers(["task:a", "task:b"]);
         let started =
             MailboxMessage::started("agent_live", crate::tools::subagent::SubAgentType::General);
 
@@ -740,7 +740,7 @@ mod tests {
 
     #[test]
     fn fanout_apply_transitions_worker_through_lifecycle() {
-        let mut card = FanoutCard::new("fanout", Locale::En).with_workers(["w_1"]);
+        let mut card = FanoutCard::new("fanout", Locale::ZhHans).with_workers(["w_1"]);
         let started = MailboxMessage::started("w_1", crate::tools::subagent::SubAgentType::General);
         apply_to_fanout(&mut card, &started);
         assert_eq!(card.workers[0].status, AgentLifecycle::Running);
@@ -769,7 +769,7 @@ mod tests {
         ];
         for (total, done, expected) in cases {
             let ids: Vec<String> = (0..*total).map(|i| format!("w_{i}")).collect();
-            let mut card = FanoutCard::new("fanout", Locale::En).with_workers(ids.iter().cloned());
+            let mut card = FanoutCard::new("fanout", Locale::ZhHans).with_workers(ids.iter().cloned());
             for id in ids.iter().take(*done) {
                 card.upsert_worker(id, AgentLifecycle::Completed);
             }
@@ -805,7 +805,7 @@ mod tests {
 
     #[test]
     fn fanout_interrupted_worker_leaves_running_counts() {
-        let mut card = FanoutCard::new("fanout", Locale::En).with_workers(["w_1", "w_2"]);
+        let mut card = FanoutCard::new("fanout", Locale::ZhHans).with_workers(["w_1", "w_2"]);
         apply_to_fanout(
             &mut card,
             &MailboxMessage::started("w_1", crate::tools::subagent::SubAgentType::General),

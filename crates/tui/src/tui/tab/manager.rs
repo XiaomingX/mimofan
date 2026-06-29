@@ -811,7 +811,7 @@ mod tests {
 
     #[test]
     fn test_persistence_roundtrip() {
-        let dir = std::env::temp_dir().join("codewhale_tabs_roundtrip");
+        let dir = std::env::temp_dir().join("mimofan_tabs_roundtrip");
         let path = dir.join("tabs.json");
         let _ = std::fs::remove_file(&path);
 

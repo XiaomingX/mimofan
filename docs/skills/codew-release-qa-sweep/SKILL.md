@@ -1,11 +1,11 @@
 ---
 name: codew-release-qa-sweep
-description: "Use before claiming CodeWhale release work is done: run the full gate sweep and list the manual QA targets."
+description: "Use before claiming mimo-tui release work is done: run the full gate sweep and list the manual QA targets."
 ---
 
-# CodeWhale Release QA Sweep
+# mimo-tui Release QA Sweep
 
-Run this before claiming any CodeWhale release work is "done." A green automated
+Run this before claiming any mimo-tui release work is "done." A green automated
 gate sweep plus the three manual QA targets is the evidence bar. No sweep, no
 "done" — report exactly what was run and the result of each step.
 
@@ -31,23 +31,23 @@ cargo fmt --all --check
 git diff --check
 
 # 2. Library/protocol/cli/flow/state tests, locked
-cargo test -p codewhale-config -p codewhale-protocol -p codewhale-cli \
-  -p codewhale-whaleflow -p codewhale-state --locked
+cargo test -p mimo-tui-config -p mimo-tui-protocol -p mimo-tui-cli \
+  -p mimo-tui-whaleflow -p mimo-tui-state --locked
 
 # 3. TUI test binaries, locked
-cargo test -p codewhale-tui --bins --locked
+cargo test -p mimo-tui --bins --locked
 
 # 4. TUI debug build, locked
-cargo build -p codewhale-tui --locked
+cargo build -p mimo-tui --locked
 
 # 5. Release build for the shipped binaries, locked
-cargo build --release --locked -p codewhale-cli -p codewhale-tui
+cargo build --release --locked -p mimo-tui-cli -p mimo-tui
 
 # 6. Version-drift gate (workspace ↔ npm ↔ Cargo.lock ↔ changelog ↔ README)
 ./scripts/release/check-versions.sh
 
 # 7. Binary smoke
-./target/release/codewhale --version
+./target/release/mimo-tui --version
 ```
 
 If you are validating a PR for landing, also test mergeability against the

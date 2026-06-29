@@ -53,7 +53,7 @@ a familiar declaration format, not a second execution runtime.
 
 ## Verification
 
-- `cargo test -p codewhale-whaleflow --locked javascript`
-- `cargo test -p codewhale-whaleflow --locked starlark`
+- `cargo test -p mimo-tui-whaleflow --locked javascript`
+- `cargo test -p mimo-tui-whaleflow --locked starlark`
 
 Current example: `workflows/issue_audit.workflow.js`.

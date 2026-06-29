@@ -19,7 +19,7 @@ function resolveBinaryVersion() {
 }
 
 function resolveRepo() {
-  return process.env.DEEPSEEK_TUI_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "Hmbown/CodeWhale";
+  return process.env.DEEPSEEK_TUI_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "XiaomingX/mimo-tui";
 }
 
 function requestStatus(url, method = "HEAD", redirects = 0) {

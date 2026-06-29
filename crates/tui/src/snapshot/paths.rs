@@ -1,7 +1,7 @@
 //! Path resolution for the per-workspace snapshot side-repos.
 //!
 //! Snapshots live under the resolved state directory
-//! (`~/.codewhale/snapshots` or legacy `~/.deepseek/snapshots`) with
+//! (`~/.mimofan/snapshots` or legacy `~/.deepseek/snapshots`) with
 //! a two-level hash split so we can snapshot multiple worktrees of the
 //! same project independently — `git worktree list` users won't get
 //! cross-talk between feature branches.
@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 /// Compute the snapshot directory for a given workspace path.
 ///
 /// Returns `$STATE_DIR/snapshots/<project_hash>/<worktree_hash>/` where
-/// `$STATE_DIR` is resolved via `codewhale_config::resolve_state_dir`.
+/// `$STATE_DIR` is resolved via `mimofan_config::resolve_state_dir`.
 /// The caller is responsible for creating it on disk; we purposefully
 /// don't touch the filesystem here so this is cheap to call repeatedly.
 ///
@@ -42,10 +42,14 @@ pub fn snapshot_dir_with_home(workspace: &Path, home: Option<PathBuf>) -> PathBu
 
 fn snapshot_base_with_home(home: Option<PathBuf>) -> PathBuf {
     let home = home.unwrap_or_else(|| PathBuf::from("."));
-    // Prefer .codewhale, fall back to .deepseek
-    let primary = home.join(".codewhale").join("snapshots");
+    // Prefer .mimo, fall back to .mimofan, then .deepseek
+    let primary = home.join(".mimo").join("snapshots");
     if primary.exists() {
         return primary;
+    }
+    let previous = home.join(".mimofan").join("snapshots");
+    if previous.exists() {
+        return previous;
     }
     home.join(".deepseek").join("snapshots")
 }

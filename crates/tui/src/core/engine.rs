@@ -15,8 +15,8 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::Result;
-use codewhale_execpolicy::{AskForApproval, ExecPolicyContext};
-use codewhale_protocol::runtime::DynamicToolSpec;
+use mimofan_execpolicy::{AskForApproval, ExecPolicyContext};
+use mimofan_protocol::runtime::DynamicToolSpec;
 use futures_util::StreamExt;
 use futures_util::stream::FuturesUnordered;
 use serde_json::{Value, json};
@@ -243,7 +243,7 @@ pub struct EngineConfig {
     pub model: String,
     /// Route/offering limits for the active provider+model, when the runtime
     /// route resolver had concrete catalog facts.
-    pub active_route_limits: Option<codewhale_config::route::RouteLimits>,
+    pub active_route_limits: Option<mimofan_config::route::RouteLimits>,
     /// Workspace root for tool execution and file operations.
     pub workspace: PathBuf,
     /// Allow shell tool execution when true.
@@ -256,9 +256,9 @@ pub struct EngineConfig {
     pub mcp_config_path: PathBuf,
     /// Directory containing discoverable skills.
     pub skills_dir: PathBuf,
-    /// Restrict skill discovery to CodeWhale-owned roots plus explicit
+    /// Restrict skill discovery to mimofan-owned roots plus explicit
     /// `skills_dir` configuration.
-    pub skills_scan_codewhale_only: bool,
+    pub skills_scan_mimofan_only: bool,
     /// Sources injected as `<instructions source="…">` blocks in the system
     /// prompt (#454). Each entry is either a disk path (read at render time)
     /// or an inline string. Loaded in declared order from the user's
@@ -303,7 +303,7 @@ pub struct EngineConfig {
     pub goal_state: SharedGoalState,
     /// Maximum sub-agent recursion depth (default 3). See
     /// `SubAgentRuntime::max_spawn_depth`. Override via
-    /// `[subagents] max_depth = N` in `~/.codewhale/config.toml`.
+    /// `[subagents] max_depth = N` in `~/.mimofan/config.toml`.
     pub max_spawn_depth: u32,
     /// Optional aggregate token budget for each root sub-agent run.
     /// Descendant agents inherit the root pool unless a child starts a new
@@ -397,7 +397,7 @@ pub struct EngineConfig {
     /// `workspace_follow_symlinks` setting.
     pub workspace_follow_symlinks: bool,
     /// Ask-only permission rules loaded from sibling `permissions.toml`.
-    pub exec_policy_engine: codewhale_execpolicy::ExecPolicyEngine,
+    pub exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine,
 }
 
 impl Default for EngineConfig {
@@ -411,7 +411,7 @@ impl Default for EngineConfig {
             notes_path: PathBuf::from("notes.txt"),
             mcp_config_path: PathBuf::from("mcp.json"),
             skills_dir: crate::skills::default_skills_dir(),
-            skills_scan_codewhale_only: false,
+            skills_scan_mimofan_only: false,
             instructions: Vec::new(),
             project_context_pack_enabled: true,
             translation_enabled: false,
@@ -471,7 +471,7 @@ impl Default for EngineConfig {
             verbosity: None,
             tools: None,
             workspace_follow_symlinks: false,
-            exec_policy_engine: codewhale_execpolicy::ExecPolicyEngine::new(Vec::new(), Vec::new()),
+            exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine::new(Vec::new(), Vec::new()),
         }
     }
 }
@@ -550,7 +550,7 @@ pub struct Engine {
     shell_manager: SharedShellManager,
     mcp_pool: Option<Arc<AsyncMutex<McpPool>>>,
     api_provider: ApiProvider,
-    active_route_limits: Option<codewhale_config::route::RouteLimits>,
+    active_route_limits: Option<mimofan_config::route::RouteLimits>,
     rx_op: mpsc::Receiver<Op>,
     /// Clone of the op-channel sender, so the engine can self-dispatch ops
     /// (e.g. a goal-continuation `SendMessage` after a turn completes).
@@ -564,7 +564,7 @@ pub struct Engine {
     /// can fan completion events back into the engine.
     tx_subagent_completion: mpsc::UnboundedSender<SubAgentCompletion>,
     /// Receiver paired with `tx_subagent_completion`. Drained at the
-    /// turn-loop's empty-tool_uses branch to surface `<codewhale:subagent.done>`
+    /// turn-loop's empty-tool_uses branch to surface `<mimo:subagent.done>`
     /// sentinels into the parent's transcript before deciding to end the turn.
     pub(super) rx_subagent_completion: mpsc::UnboundedReceiver<SubAgentCompletion>,
     /// Sub-agent completions already injected into the parent transcript.
@@ -725,8 +725,8 @@ impl Engine {
 
         Some(format!(
             "The rejected key came from {env_var}; no saved config key is present.\n\
-             Run `codewhale auth status` to inspect credential sources, then \
-             `codewhale auth set --provider {provider}` to save a valid key in ~/.codewhale/config.toml, \
+             Run `mimofan auth status` to inspect credential sources, then \
+             `mimofan auth set --provider {provider}` to save a valid key in ~/.mimofan/config.toml, \
              or remove the stale export and open a fresh shell.",
             provider = provider.as_str()
         ))
@@ -856,7 +856,7 @@ impl Engine {
                     ),
                     show_thinking: config.show_thinking,
                     verbosity: config.verbosity.as_deref(),
-                    skills_scan_codewhale_only: config.skills_scan_codewhale_only,
+                    skills_scan_mimofan_only: config.skills_scan_mimofan_only,
                 },
             );
         let stable_prompt = Some(system_prompt);
@@ -1535,7 +1535,7 @@ impl Engine {
                         self.config.launch_concurrency =
                             launch_concurrency.clamp(1, self.config.max_subagents);
                         self.config.max_spawn_depth =
-                            max_spawn_depth.min(codewhale_config::MAX_SPAWN_DEPTH_CEILING);
+                            max_spawn_depth.min(mimofan_config::MAX_SPAWN_DEPTH_CEILING);
                         self.config.subagent_api_timeout = Duration::from_secs(api_timeout_secs);
                         self.config.subagent_heartbeat_timeout =
                             Duration::from_secs(heartbeat_timeout_secs);
@@ -2423,7 +2423,7 @@ impl Engine {
                     Some(format!(
                         "The engine hit an internal error and stopped this turn: {detail}. \
                          Your session is intact — send your message again to retry. \
-                         A crash report was saved to ~/.codewhale/crashes/."
+                         A crash report was saved to ~/.mimofan/crashes/."
                     )),
                 )
             }
@@ -2848,7 +2848,7 @@ impl Engine {
         .with_runtime_services(self.config.runtime_services.clone())
         .with_skills_config(
             self.config.skills_dir.clone(),
-            self.config.skills_scan_codewhale_only,
+            self.config.skills_scan_mimofan_only,
         )
         .with_session_objects(crate::rlm::session::SessionObjectSnapshot::new(
             self.session.id.clone(),
@@ -3082,7 +3082,7 @@ impl Engine {
                 )),
                 show_thinking: self.config.show_thinking,
                 verbosity: self.config.verbosity.as_deref(),
-                skills_scan_codewhale_only: self.config.skills_scan_codewhale_only,
+                skills_scan_mimofan_only: self.config.skills_scan_mimofan_only,
             },
         );
         let mut stable_prompt =
@@ -3156,9 +3156,9 @@ impl Engine {
 }
 
 fn default_plugin_tools_dir() -> PathBuf {
-    codewhale_config::codewhale_home()
+    mimofan_config::mimofan_home()
         .unwrap_or_else(|_| {
-            dirs::home_dir().map_or_else(|| PathBuf::from(".codewhale"), |h| h.join(".codewhale"))
+            dirs::home_dir().map_or_else(|| PathBuf::from(".mimofan"), |h| h.join(".mimofan"))
         })
         .join("tools")
 }

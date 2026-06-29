@@ -1,6 +1,6 @@
 # CNB Cool mirror
 
-`cnb.cool/codewhale.net/codewhale` is a one-way mirror of this
+`cnb.cool/mimo-tui.net/mimo-tui` is a one-way mirror of this
 GitHub repository for users on networks where GitHub is slow or blocked
 (primarily mainland China). The mirror receives every push to `main`, every
 `fix/*`, `rebrand/*`, and `work/v*` branch used for first-party release work,
@@ -9,11 +9,11 @@ and every `v*` release tag.
 ## Provenance
 
 **GitHub is the sole canonical source.** All releases, tags, and source code
-originate at `github.com/Hmbown/CodeWhale`. The CNB mirror is a read-only
+originate at `github.com/XiaomingX/mimo-tui`. The CNB mirror is a read-only
 replica maintained by the `Sync to CNB` workflow — it exists solely to serve
 users behind GFW-blocked or slow GitHub connections.
 
-Every CNB release includes `codewhale-artifacts-sha256.txt` — a SHA256 manifest
+Every CNB release includes `mimo-tui-artifacts-sha256.txt` — a SHA256 manifest
 of the CNB-built Linux x64 binaries, generated from the same source commit that
 is tagged on GitHub. (CNB builds from source, so these checksums cover the
 CNB-built artifacts, not GitHub's release assets.) Verify a downloaded binary
@@ -21,7 +21,7 @@ against it:
 
 ```bash
 # Verify a downloaded CNB binary against the CNB manifest
-sha256sum -c codewhale-artifacts-sha256.txt
+sha256sum -c mimo-tui-artifacts-sha256.txt
 ```
 
 ## How it works
@@ -56,9 +56,9 @@ mirror carry them to CNB.
 When CNB receives a `v*` tag, the root `.cnb.yml` tag pipeline builds Linux x64
 release assets from source and publishes a CNB release with:
 
-- `codewhale-linux-x64`
-- `codewhale-tui-linux-x64`
-- `codewhale-artifacts-sha256.txt`
+- `mimo-tui-linux-x64`
+- `mimo-tui-linux-x64`
+- `mimo-tui-artifacts-sha256.txt`
 
 This gives users who can reach CNB but not GitHub a CNB-native release path.
 GitHub remains the canonical macOS/Windows release matrix; the CNB tag pipeline
@@ -74,7 +74,7 @@ Linux Rust gates run on Tencent-hosted runners instead of GitHub Actions:
 - `cargo check --workspace --all-targets --locked`
 - `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings`
 - `cargo test --workspace --all-features --locked`
-- `cargo build --release --locked -p codewhale-cli -p codewhale-tui`
+- `cargo build --release --locked -p mimo-tui-cli -p mimo-tui`
 - `node scripts/release/npm-wrapper-smoke.js`
 
 Release branches matching `work/v*` also run
@@ -88,19 +88,19 @@ should have both the new commit on `main` and the new tag:
 
 ```bash
 # Quick check: does the new tag exist on CNB?
-git ls-remote https://cnb.cool/codewhale.net/codewhale.git \
+git ls-remote https://cnb.cool/mimo-tui.net/mimo-tui.git \
     refs/tags/vX.Y.Z
 
 # Quick check: is CNB's main at the same commit as origin/main?
-gh_main=$(git ls-remote https://github.com/Hmbown/CodeWhale.git refs/heads/main | awk '{print $1}')
-cnb_main=$(git ls-remote https://cnb.cool/codewhale.net/codewhale.git refs/heads/main | awk '{print $1}')
+gh_main=$(git ls-remote https://github.com/XiaomingX/mimo-tui.git refs/heads/main | awk '{print $1}')
+cnb_main=$(git ls-remote https://cnb.cool/mimo-tui.net/mimo-tui.git refs/heads/main | awk '{print $1}')
 test "$gh_main" = "$cnb_main" && echo "in sync" || echo "DIVERGED: gh=$gh_main cnb=$cnb_main"
 ```
 
 Or check the workflow run directly:
 
 ```bash
-gh run list --workflow=sync-cnb.yml --repo Hmbown/CodeWhale --limit 5
+gh run list --workflow=sync-cnb.yml --repo XiaomingX/mimo-tui --limit 5
 ```
 
 If the most recent run for the release tag is `success`, the mirror
@@ -120,7 +120,7 @@ If the workflow is healthy but happened to fail on the release run
 without pushing anything:
 
 ```bash
-gh workflow run sync-cnb.yml --repo Hmbown/CodeWhale
+gh workflow run sync-cnb.yml --repo XiaomingX/mimo-tui
 ```
 
 `workflow_dispatch` runs against the workflow's default branch
@@ -136,15 +136,15 @@ expired:
    with `repo` (push) scope.
 2. Update the `CNB_GIT_TOKEN` repository secret:
    ```bash
-   gh secret set CNB_GIT_TOKEN --repo Hmbown/CodeWhale
+   gh secret set CNB_GIT_TOKEN --repo XiaomingX/mimo-tui
    ```
 3. Re-trigger the workflow on a recent commit:
    ```bash
-   gh workflow run sync-cnb.yml --repo Hmbown/CodeWhale
+   gh workflow run sync-cnb.yml --repo XiaomingX/mimo-tui
    ```
 4. Confirm the run succeeds via `gh run list --workflow=sync-cnb.yml`.
 
-## Binary release assets and `codewhale update`
+## Binary release assets and `mimo-tui update`
 
 CNB now builds Linux x64 assets for `v*` tags from the source-controlled
 `.cnb.yml` pipeline. GitHub remains the canonical macOS/Windows release matrix. Users
@@ -152,8 +152,8 @@ behind GitHub-blocking networks should use one of these paths:
 
 - **`cargo install`** from the CNB mirror:
   ```bash
-  cargo install --git https://cnb.cool/codewhale.net/codewhale --tag vX.Y.Z codewhale-cli
-  cargo install --git https://cnb.cool/codewhale.net/codewhale --tag vX.Y.Z codewhale-tui
+  cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag vX.Y.Z mimo-tui-cli
+  cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag vX.Y.Z mimo-tui
   ```
   (Both binaries are required — the dispatcher and the TUI ship
   separately; see `AGENTS.md` for the two-binary install rationale.)
@@ -162,17 +162,17 @@ behind GitHub-blocking networks should use one of these paths:
   [INSTALL.md](INSTALL.md#4-install-via-cargo-any-tier-1-rust-target).
 
 - **CNB release assets** for Linux x64, when the matching CNB tag pipeline has
-  completed successfully. Download `codewhale-linux-x64`,
-  `codewhale-tui-linux-x64`, and `codewhale-artifacts-sha256.txt` from the CNB
+  completed successfully. Download `mimo-tui-linux-x64`,
+  `mimo-tui-linux-x64`, and `mimo-tui-artifacts-sha256.txt` from the CNB
   release for `vX.Y.Z`, then verify the binaries against the manifest.
 
 - **`DEEPSEEK_TUI_RELEASE_BASE_URL`** environment variable, if a
   CDN mirror of release assets exists. The npm
-  wrapper installer and `codewhale update` read this variable to redirect
-  binary downloads. For `codewhale update`, also set
+  wrapper installer and `mimo-tui update` read this variable to redirect
+  binary downloads. For `mimo-tui update`, also set
   `DEEPSEEK_TUI_VERSION=X.Y.Z` so the updater can label the mirrored
   release without contacting GitHub. The directory pointed to must contain
-  `codewhale-artifacts-sha256.txt` and the platform binaries; format matches
+  `mimo-tui-artifacts-sha256.txt` and the platform binaries; format matches
   a GitHub Release asset directory.
 
 ## Clone from CNB
@@ -180,7 +180,7 @@ behind GitHub-blocking networks should use one of these paths:
 For a stable install, clone `main` or a release tag from:
 
 ```bash
-https://cnb.cool/codewhale.net/codewhale.git
+https://cnb.cool/mimo-tui.net/mimo-tui.git
 ```
 
 The mirror receives `main`, release tags, and matched release branches. GitHub

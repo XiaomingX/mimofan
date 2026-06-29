@@ -13,10 +13,10 @@ use std::io::{BufRead, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use codewhale_protocol::fleet::*;
+use mimofan_protocol::fleet::*;
 use serde::{Deserialize, Serialize};
 
-const FLEET_DIR: &str = ".codewhale";
+const FLEET_DIR: &str = ".mimofan";
 const FLEET_LEDGER_FILE: &str = "fleet.jsonl";
 const PARTIAL_SUFFIX: &str = ".tmp";
 
@@ -134,7 +134,7 @@ pub struct FleetLedger {
 }
 
 impl FleetLedger {
-    /// Open (or create) the ledger under `workspace/.codewhale/fleet.jsonl`.
+    /// Open (or create) the ledger under `workspace/.mimofan/fleet.jsonl`.
     pub fn open(workspace: &Path) -> Result<Self> {
         let dir = workspace.join(FLEET_DIR);
         std::fs::create_dir_all(&dir)

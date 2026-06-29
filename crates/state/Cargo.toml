@@ -1,5 +1,5 @@
 [package]
-name = "codewhale-state"
+name = "mimofan-state"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

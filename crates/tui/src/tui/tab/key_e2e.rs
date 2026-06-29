@@ -284,7 +284,7 @@ mod tests {
     fn test_e2e_full_workflow_save_load() {
         use std::path::Path;
 
-        let dir = std::env::temp_dir().join("codewhale_e2e_persist");
+        let dir = std::env::temp_dir().join("mimofan_e2e_persist");
         let path = dir.join("tabs.json");
         std::fs::create_dir_all(&dir).unwrap();
         let _ = std::fs::remove_file(&path);

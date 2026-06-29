@@ -27,7 +27,7 @@ chosen over the available shell equivalent. The sub-agent delegation protocol
 | `write_file` | Create or overwrite a file. |
 | `edit_file` | Search-and-replace inside a single file. Cheaper than a full rewrite. |
 | `apply_patch` | Apply a unified diff. The right tool for multi-hunk edits. |
-| `retrieve_tool_result` | Read summaries or slices of prior large tool outputs spilled to `~/.codewhale/tool_outputs/`; use `summary`, `head`, `tail`, `lines`, or `query` instead of replaying the whole result. |
+| `retrieve_tool_result` | Read summaries or slices of prior large tool outputs spilled to `~/.mimo-tui/tool_outputs/`; use `summary`, `head`, `tail`, `lines`, or `query` instead of replaying the whole result. |
 | `handle_read` | Read bounded projections from `var_handle` payloads held by live tool environments. This is the foundation for RLM sessions, sub-agent transcripts, and other large symbolic payloads. |
 
 ### Search
@@ -317,8 +317,8 @@ while the registry contract stays stable.
 Version smoke:
 
 ```bash
-codewhale --version
-codewhale-tui --version
+mimo-tui --version
+mimo-tui --version
 ```
 
 Tool-surface smoke:
@@ -361,7 +361,7 @@ registry also includes these model-visible tools:
 | `finance` | Fetch market data and stock quotes |
 
 MCP tools, plugin-provided tools, and feature-gated tools may also be
-visible depending on runtime configuration. Use `codewhale tools list` or
+visible depending on runtime configuration. Use `mimo-tui tools list` or
 the TUI `/tools` palette to inspect the active catalog.
 
 ## Why we don't ship a single `bash` tool

@@ -2,7 +2,7 @@
 
 Agent Fleet is the local-first control plane for durable multi-worker runs. It
 is **not** a separate execution engine: a fleet worker is a headless
-`codewhale exec` run that the fleet launches and tracks durably. See
+`mimo-tui exec` run that the fleet launches and tracks durably. See
 [AGENT_RUNTIME.md](AGENT_RUNTIME.md) for how sub-agents, `exec`, and the fleet
 converge on one durable runtime. In product language, a user may still "open a
 sub-agent"; in architecture language, durable nested work should be a
@@ -13,28 +13,28 @@ needs retry, sleep/restart survival, remote execution, receipts, or a ledgered
 audit trail. The initial CLI surface is:
 
 ```sh
-codewhale fleet init
-codewhale fleet run tasks.json --max-workers 4
-codewhale fleet status
-codewhale fleet inspect <worker-id>
-codewhale fleet logs <worker-id>
-codewhale fleet artifacts <worker-id>
-codewhale fleet interrupt <worker-id>
-codewhale fleet restart <worker-id>
-codewhale fleet resume <run-id>
-codewhale fleet stop --all
+mimo-tui fleet init
+mimo-tui fleet run tasks.json --max-workers 4
+mimo-tui fleet status
+mimo-tui fleet inspect <worker-id>
+mimo-tui fleet logs <worker-id>
+mimo-tui fleet artifacts <worker-id>
+mimo-tui fleet interrupt <worker-id>
+mimo-tui fleet restart <worker-id>
+mimo-tui fleet resume <run-id>
+mimo-tui fleet stop --all
 ```
 
-`codewhale fleet resume <run-id>` is the restart-recovery verb: it replays the
+`mimo-tui fleet resume <run-id>` is the restart-recovery verb: it replays the
 ledger, reconciles any in-flight lease whose worker stopped heartbeating
 (retrying within the task's budget, else failing and escalating per the alert
 policy), and prints the post-resume status. It launches no new work and is
 idempotent, so it is safe to run after a manager exit, laptop sleep, or runtime
 restart.
 
-Fleet state is stored under the workspace in `.codewhale/fleet.jsonl`. Worker
-logs and adapter logs are stored under `.codewhale/fleet/` and
-`.codewhale/fleet-host/`.
+Fleet state is stored under the workspace in `.mimo-tui/fleet.jsonl`. Worker
+logs and adapter logs are stored under `.mimo-tui/fleet/` and
+`.mimo-tui/fleet-host/`.
 
 ## Naming: Modes, WhaleFlow, Fleet, and Swarm
 
@@ -62,7 +62,7 @@ for every worker.
 
 ## Task Spec
 
-`codewhale fleet run` accepts JSON or TOML. A minimal JSON spec:
+`mimo-tui fleet run` accepts JSON or TOML. A minimal JSON spec:
 
 ```json
 {
@@ -78,7 +78,7 @@ for every worker.
 }
 ```
 
-Workers are optional. If omitted, CodeWhale creates local worker slots up to
+Workers are optional. If omitted, mimo-tui creates local worker slots up to
 `--max-workers`.
 
 Task specs are typed in Rust and keep verification data separate from worker
@@ -90,10 +90,10 @@ transcripts. A task can declare:
 - `input_files`, extra `context`, `budget`, `timeout_seconds`, and `retry_policy`
 - `expected_artifacts`, `scorer`, `tags`, and free-form `metadata`
 
-Workers write bounded artifact files under `.codewhale/fleet/` and ledger only
+Workers write bounded artifact files under `.mimo-tui/fleet/` and ledger only
 the artifact refs: kind, path, checksum, MIME type, and size. Receipts record
 `pass`, `fail`, `partial`, `skip`, or `timeout`; failed receipts may also mark
-the source as `transport`, `task`, or `verifier`. `codewhale fleet status`
+the source as `transport`, `task`, or `verifier`. `mimo-tui fleet status`
 surfaces those failure-source counts separately.
 
 Deterministic built-in scorers are `exit_code`, `file_exists`, `regex_match`,
@@ -138,7 +138,7 @@ override any field in the task spec:
   "input_files": ["crates/**/*.rs"],
   "budget": { "max_tokens": 32000 },
   "expected_artifacts": ["log", "report"],
-  "scorer": { "kind": "regex_match", "path": ".codewhale/fleet/report.md", "pattern": "finding|all clear" }
+  "scorer": { "kind": "regex_match", "path": ".mimo-tui/fleet/report.md", "pattern": "finding|all clear" }
 }
 ```
 
@@ -218,7 +218,7 @@ Example alert config shape:
     "ops-slack": {
       "kind": "slack",
       "webhook_env": "CODEWHALE_FLEET_SLACK_WEBHOOK",
-      "channel": "#codewhale-fleet"
+      "channel": "#mimo-tui-fleet"
     },
     "pager": {
       "kind": "pager_duty",
@@ -232,7 +232,7 @@ Example alert config shape:
 Use dry-run to inspect a redacted adapter payload without sending:
 
 ```sh
-codewhale fleet alert-dry-run \
+mimo-tui fleet alert-dry-run \
   --event stale \
   --run-id fleet-demo \
   --worker-id fleet-demo-local-1 \
@@ -242,13 +242,13 @@ codewhale fleet alert-dry-run \
 ```
 
 The payload includes the run id, worker id, task id, status, short reason, and
-safe inspection commands such as `codewhale fleet status` and
-`codewhale fleet inspect <worker-id>`. Endpoints, webhook secrets, and
+safe inspection commands such as `mimo-tui fleet status` and
+`mimo-tui fleet inspect <worker-id>`. Endpoints, webhook secrets, and
 PagerDuty routing keys are shown as `<redacted:env:...>`.
 
 ## Status Surfaces
 
-`codewhale fleet status` shows compact counts for queued, running, completed,
+`mimo-tui fleet status` shows compact counts for queued, running, completed,
 partial, failed, restarted, escalated, cancelled, stale, and verifier/transport
 failure sources. `inspect` shows the worker state plus the current task
 objective, role, host, heartbeat, latest event, artifact refs, latest error, and
@@ -274,9 +274,9 @@ decisions in the fleet ledger.
 ## Manager-Agent Runbook
 
 Manager agents should treat Fleet operations as typed, ledgered control-plane
-work. Start with `codewhale fleet status`, then inspect one run or worker with
-`codewhale fleet inspect <worker-id>`, `logs`, and `artifacts`. Use direct
-reads of `.codewhale/fleet.jsonl`, host logs, or remote files only when the
+work. Start with `mimo-tui fleet status`, then inspect one run or worker with
+`mimo-tui fleet inspect <worker-id>`, `logs`, and `artifacts`. Use direct
+reads of `.mimo-tui/fleet.jsonl`, host logs, or remote files only when the
 typed CLI/API surface cannot provide the required evidence.
 
 Classify the worker before taking action:
@@ -296,10 +296,10 @@ Choose one typed action:
 
 - Restart a worker only when the failure is transient, retry budget remains,
   the task is idempotent or retry-safe, and no permission or secret boundary is
-  involved: `codewhale fleet restart <worker-id>`.
+  involved: `mimo-tui fleet restart <worker-id>`.
 - Interrupt or stop only when the current task is unsafe to continue or the
-  operator explicitly asks for cancellation: `codewhale fleet interrupt
-  <worker-id>` or `codewhale fleet stop --all`.
+  operator explicitly asks for cancellation: `mimo-tui fleet interrupt
+  <worker-id>` or `mimo-tui fleet stop --all`.
 - Do not restart pure task failures by default; preserve artifacts and hand the
   receipt to the task owner unless the task spec says retrying can produce new
   evidence.
@@ -312,13 +312,13 @@ Choose one typed action:
 Safe Slack or PagerDuty draft:
 
 ```text
-CodeWhale fleet needs attention
+mimo-tui fleet needs attention
 Run: <run-id>
 Worker: <worker-id>
 Task: <task-id or unknown>
 Classification: <transient failure | task failure | verifier failure | needs-human>
 Reason: <one sentence, no secrets>
-Latest typed evidence: codewhale fleet inspect <worker-id>; codewhale fleet artifacts <worker-id>
+Latest typed evidence: mimo-tui fleet inspect <worker-id>; mimo-tui fleet artifacts <worker-id>
 Safe log excerpt: <3 lines max or "see artifact <ref>">
 Requested decision: <restart approval | verifier review | task owner review | permission decision>
 ```
@@ -355,12 +355,12 @@ Example SSH worker spec:
   "host": {
     "kind": "ssh",
     "host": "builder.example.com",
-    "user": "codewhale",
+    "user": "mimo-tui",
     "port": 22,
-    "identity": "~/.ssh/codewhale_fleet",
-    "working_directory": "/srv/codewhale/work",
+    "identity": "~/.ssh/mimo-tui_fleet",
+    "working_directory": "/srv/mimo-tui/work",
     "env_allowlist": ["CODEWHALE_PROFILE"],
-    "codewhale_binary": "/usr/local/bin/codewhale"
+    "mimo-tui_binary": "/usr/local/bin/mimo-tui"
   },
   "capabilities": ["local", "linux", "tests"],
   "max_concurrent_tasks": 1
@@ -370,10 +370,10 @@ Example SSH worker spec:
 Defaults are intentionally conservative:
 
 - no hosted control plane or cloud provisioning is enabled;
-- SSH requires an explicit host, working directory, and CodeWhale binary path;
+- SSH requires an explicit host, working directory, and mimo-tui binary path;
 - secret-like environment names such as `TOKEN`, `SECRET`, `PASSWORD`,
   `API_KEY`, and `PRIVATE_KEY` are rejected from adapter allowlists;
-- secrets should remain in CodeWhale config providers or remote host config,
+- secrets should remain in mimo-tui config providers or remote host config,
   not in task instructions, argv, or fleet logs.
 
 ## Security and Trust Boundaries
@@ -386,7 +386,7 @@ writes) and how it must prove its identity before being granted those privileges
 
 | Level | Access | Requires |
 |-------|--------|----------|
-| `sandbox` | No network, no secrets, writes only to `.codewhale/fleet/` | Nothing — default for new workers |
+| `sandbox` | No network, no secrets, writes only to `.mimo-tui/fleet/` | Nothing — default for new workers |
 | `local` | Workspace reads, gated writes, configured secrets | Local process (same uid) |
 | `remote-verified` | Network access, bounded capability grants, configured secrets | SSH host-key verification or equivalent attestation |
 | `operator` | Full access to all secrets, unrestricted writes, any action | Operator-owned machine |
@@ -438,7 +438,7 @@ optional source hint that tells the fleet manager where to resolve the value:
 Supported sources:
 - `"env"` — resolve from a process environment variable
 - `"keyring"` — resolve from the OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-- `"file"` — resolve from `~/.codewhale/secrets/`
+- `"file"` — resolve from `~/.mimo-tui/secrets/`
 - absent — try all sources in default order (store first, then env)
 
 Secret refs are redacted in logs and ledger entries: `<secret:env.GH_TOKEN>`.
@@ -465,14 +465,14 @@ SSH workers should always set `host_key_fingerprint` in production:
   "host": {
     "kind": "ssh",
     "host": "builder.example.com",
-    "user": "codewhale",
+    "user": "mimo-tui",
     "port": 22,
-    "identity": "~/.ssh/codewhale_fleet",
+    "identity": "~/.ssh/mimo-tui_fleet",
     "host_key_fingerprint": "SHA256:aLGqZo1M6c...",
     "known_hosts": "~/.ssh/known_hosts",
-    "working_directory": "/srv/codewhale/work",
+    "working_directory": "/srv/mimo-tui/work",
     "env_allowlist": ["CODEWHALE_PROFILE"],
-    "codewhale_binary": "/usr/local/bin/codewhale"
+    "mimo-tui_binary": "/usr/local/bin/mimo-tui"
   },
   "capabilities": ["local", "linux", "tests"],
   "max_concurrent_tasks": 1

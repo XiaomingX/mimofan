@@ -1,4 +1,4 @@
-use codewhale_config::route::{
+use mimofan_config::route::{
     LogicalModelRef, ReadyRouteCandidate, RouteRequest, RouteResolver, WireModelId,
 };
 
@@ -68,7 +68,7 @@ fn prepared_route_config(
     if provider != ApiProvider::Custom {
         route_config.provider = Some(provider.as_str().to_string());
     }
-    if matches!(provider, ApiProvider::NvidiaNim)
+    if matches!(provider, ApiProvider::XiaomiMimo)
         && route_config
             .base_url
             .as_deref()
@@ -77,7 +77,7 @@ fn prepared_route_config(
     {
         route_config.base_url = Some(DEFAULT_NVIDIA_NIM_BASE_URL.to_string());
     }
-    if matches!(provider, ApiProvider::Deepseek | ApiProvider::DeepseekCN)
+    if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo)
         && route_config
             .base_url
             .as_deref()
@@ -132,7 +132,7 @@ mod tests {
             ..Default::default()
         };
 
-        let route = resolve_runtime_route(&config, ApiProvider::Zai, None)
+        let route = resolve_runtime_route(&config, ApiProvider::XiaomiMimo, None)
             .expect("target provider default should resolve");
 
         assert_eq!(route.model, DEFAULT_ZAI_MODEL);
@@ -169,7 +169,7 @@ mod tests {
             ..Default::default()
         };
 
-        let err = resolve_runtime_route(&config, ApiProvider::Zai, Some("deepseek-v4-pro"))
+        let err = resolve_runtime_route(&config, ApiProvider::XiaomiMimo, Some("deepseek-v4-pro"))
             .expect_err("foreign direct-provider model should reject");
 
         assert!(err.contains("not served by direct provider zai"));
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn custom_provider_resolves_to_custom_endpoint_and_verbatim_model() {
-        use codewhale_config::route::RequestProtocol;
+        use mimofan_config::route::RequestProtocol;
 
         let config = custom_config("https://api.example.com/v1", "vendor/custom-model-v1");
         let route = resolve_runtime_route(&config, ApiProvider::Custom, None)

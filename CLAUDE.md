@@ -336,7 +336,7 @@ Currently 40 files have clippy allow attributes — reduce, don't increase.
   not tag, publish, create a GitHub Release, push release artifacts, or merge to
   `main` without Hunter's explicit approval.
 - Base release triage on the current GitHub release milestone named in the active
-  handoff (`gh issue list --repo Hmbown/CodeWhale --milestone "<current>" --state open`)
+  handoff (`gh issue list --repo XiaomingX/mimo-tui --milestone "<current>" --state open`)
   unless Hunter gives a newer branch/milestone.
 - Work the queue in this order: release blockers, recently approved PRs, clean
   PRs with small scope, blocked PRs with obvious fixes, dirty PRs that can be

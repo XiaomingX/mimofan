@@ -440,7 +440,7 @@ impl Renderable for ChatWidget {
 
         let area = _area;
 
-        // Repaint the full chat area with the codewhale-ink background each
+        // Repaint the full chat area with the mimofan-ink background each
         // frame. Ratatui's `Paragraph` only writes cells that contain text,
         // so cells the current frame's paragraph doesn't touch would
         // otherwise hold the *previous* frame's contents (the `:24Z`
@@ -2214,7 +2214,7 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
     }
 
     let workspace = crate::utils::display_path(&app.workspace);
-    let title = format!(">_ codewhale (v{})", env!("CARGO_PKG_VERSION"));
+    let title = format!(">_ mimofan (v{})", env!("CARGO_PKG_VERSION"));
     let model = format!("model: {}  /model to switch", app.model);
     let directory = format!("directory: {workspace}");
     let block_width = [&title, &model, &directory]
@@ -3065,7 +3065,7 @@ mod tests {
             initial_input: None,
         };
         let mut app = App::new(options, &Config::default());
-        app.ui_locale = Locale::En;
+        app.ui_locale = Locale::ZhHans;
         app.composer.vim_enabled = false;
         app
     }
@@ -3401,7 +3401,7 @@ mod tests {
 
     #[test]
     fn slash_completion_hints_include_links_and_config() {
-        let hints = slash_completion_hints("/", 128, &[], Locale::En, None, ApiProvider::Deepseek);
+        let hints = slash_completion_hints("/", 128, &[], Locale::ZhHans, None, ApiProvider::XiaomiMimo);
         assert!(hints.iter().any(|hint| hint.name == "/config"));
         assert!(hints.iter().any(|hint| hint.name == "/links"));
     }
@@ -3412,7 +3412,7 @@ mod tests {
         // `qingping` only matches by prefix). Before #1811 the entries were
         // sorted alphabetically, so `/clear` shadowed `/exit` even though
         // the user typed the exact alias for `/exit`.
-        let hints = slash_completion_hints("/q", 128, &[], Locale::En, None, ApiProvider::Deepseek);
+        let hints = slash_completion_hints("/q", 128, &[], Locale::ZhHans, None, ApiProvider::XiaomiMimo);
         let names: Vec<&str> = hints.iter().map(|h| h.name.as_str()).collect();
         let exit_pos = names
             .iter()
@@ -3433,7 +3433,7 @@ mod tests {
         // Within the same rank tier (no exact-alias match), entries fall
         // back to alphabetical name order, same as the prior behavior.
         let hints =
-            slash_completion_hints("/co", 128, &[], Locale::En, None, ApiProvider::Deepseek);
+            slash_completion_hints("/co", 128, &[], Locale::ZhHans, None, ApiProvider::XiaomiMimo);
         let names: Vec<&str> = hints
             .iter()
             .map(|h| h.name.as_str())
@@ -3452,9 +3452,9 @@ mod tests {
 
     #[test]
     fn slash_completion_hints_exclude_set_and_deepseek_commands() {
-        let hints = slash_completion_hints("/", 128, &[], Locale::En, None, ApiProvider::Deepseek);
+        let hints = slash_completion_hints("/", 128, &[], Locale::ZhHans, None, ApiProvider::XiaomiMimo);
         assert!(!hints.iter().any(|hint| hint.name == "/set"));
-        assert!(!hints.iter().any(|hint| hint.name == "/codewhale"));
+        assert!(!hints.iter().any(|hint| hint.name == "/mimofan"));
     }
 
     #[test]
@@ -3472,9 +3472,9 @@ mod tests {
             "/git",
             128,
             &[],
-            Locale::En,
+            Locale::ZhHans,
             Some(tmp.path()),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         let entry = hints
             .iter()
@@ -3498,9 +3498,9 @@ mod tests {
             "/deploy",
             128,
             &[],
-            Locale::En,
+            Locale::ZhHans,
             Some(tmp.path()),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         let entry = hints
             .iter()
@@ -3512,7 +3512,7 @@ mod tests {
     #[test]
     fn slash_completion_hints_exclude_hidden_user_commands() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let commands_dir = tmp.path().join(".codewhale").join("commands");
+        let commands_dir = tmp.path().join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).unwrap();
         std::fs::write(
             commands_dir.join("secret.md"),
@@ -3524,9 +3524,9 @@ mod tests {
             "/secret",
             128,
             &[],
-            Locale::En,
+            Locale::ZhHans,
             Some(tmp.path()),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
 
         assert!(!hints.iter().any(|hint| hint.name == "/secret"));
@@ -3535,7 +3535,7 @@ mod tests {
     #[test]
     fn slash_completion_hints_match_user_command_aliases() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let commands_dir = tmp.path().join(".codewhale").join("commands");
+        let commands_dir = tmp.path().join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).unwrap();
         std::fs::write(
             commands_dir.join("deploy-target.md"),
@@ -3547,9 +3547,9 @@ mod tests {
             "/ship",
             128,
             &[],
-            Locale::En,
+            Locale::ZhHans,
             Some(tmp.path()),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         let entry = hints
             .iter()
@@ -3563,7 +3563,7 @@ mod tests {
     #[test]
     fn slash_completion_hints_keep_builtin_canonical_when_only_builtin_alias_is_shadowed() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let commands_dir = tmp.path().join(".codewhale").join("commands");
+        let commands_dir = tmp.path().join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).unwrap();
         std::fs::write(
             commands_dir.join("attach-review.md"),
@@ -3575,9 +3575,9 @@ mod tests {
             "/att",
             128,
             &[],
-            Locale::En,
+            Locale::ZhHans,
             Some(tmp.path()),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
 
         assert!(
@@ -3589,9 +3589,9 @@ mod tests {
             "/image",
             128,
             &[],
-            Locale::En,
+            Locale::ZhHans,
             Some(tmp.path()),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
 
         assert!(
@@ -3607,7 +3607,7 @@ mod tests {
     #[test]
     fn slash_completion_hints_prefer_user_metadata_for_shadowed_builtin() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let commands_dir = tmp.path().join(".codewhale").join("commands");
+        let commands_dir = tmp.path().join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).unwrap();
         std::fs::write(
             commands_dir.join("help.md"),
@@ -3619,9 +3619,9 @@ mod tests {
             "/help",
             128,
             &[],
-            Locale::En,
+            Locale::ZhHans,
             Some(tmp.path()),
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         let help_entries: Vec<_> = hints.iter().filter(|hint| hint.name == "/help").collect();
 
@@ -3643,7 +3643,7 @@ mod tests {
             "/deploy",
             "deploy",
             "deploy",
-            Locale::En,
+            Locale::ZhHans,
             &user_commands,
         );
 
@@ -3662,9 +3662,9 @@ mod tests {
             "/",
             128,
             &cached_skills,
-            Locale::En,
+            Locale::ZhHans,
             None,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         assert!(hints.iter().any(|hint| hint.name == "/skill"));
         assert!(hints.iter().any(|hint| hint.name == "/skills"));
@@ -3681,9 +3681,9 @@ mod tests {
             "/se",
             128,
             &cached_skills,
-            Locale::En,
+            Locale::ZhHans,
             None,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         assert!(!hints.iter().any(|hint| hint.name == "/skill search-files"));
         assert!(!hints.iter().any(|hint| hint.name == "/skill my-review"));
@@ -3699,9 +3699,9 @@ mod tests {
             "/skill ",
             128,
             &cached_skills,
-            Locale::En,
+            Locale::ZhHans,
             None,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         assert_eq!(hints.len(), 2);
         assert!(hints.iter().any(|hint| hint.name == "/skill search-files"));
@@ -3719,9 +3719,9 @@ mod tests {
             "/skill my",
             128,
             &cached_skills,
-            Locale::En,
+            Locale::ZhHans,
             None,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
         );
         assert_eq!(hints.len(), 1);
         assert_eq!(hints[0].name, "/skill my-review");
@@ -3731,7 +3731,7 @@ mod tests {
     #[test]
     fn slash_completion_hints_model_deepseek_provider_uses_bare_ids() {
         let hints =
-            slash_completion_hints("/model", 128, &[], Locale::En, None, ApiProvider::Deepseek);
+            slash_completion_hints("/model", 128, &[], Locale::ZhHans, None, ApiProvider::XiaomiMimo);
         let names = hints
             .iter()
             .map(|hint| hint.name.as_str())
@@ -3746,7 +3746,7 @@ mod tests {
     #[test]
     fn slash_completion_hints_model_provider_uses_provider_specific_ids() {
         let hints =
-            slash_completion_hints("/model", 128, &[], Locale::En, None, ApiProvider::NvidiaNim);
+            slash_completion_hints("/model", 128, &[], Locale::ZhHans, None, ApiProvider::XiaomiMimo);
         let names = hints
             .iter()
             .map(|hint| hint.name.as_str())
@@ -4062,7 +4062,7 @@ mod tests {
 
     #[test]
     fn localized_composer_placeholders_render_at_narrow_widths() {
-        for locale in [Locale::Ja, Locale::ZhHans, Locale::PtBr] {
+        for locale in [Locale::ZhHans, Locale::ZhHans, Locale::ZhHans] {
             let mut app = create_test_app();
             app.ui_locale = locale;
             app.composer_density = ComposerDensity::Comfortable;
@@ -4112,7 +4112,7 @@ mod tests {
     #[test]
     fn empty_state_shows_startup_context() {
         let mut app = create_test_app();
-        app.workspace = PathBuf::from("/tmp/codewhale-test-workspace");
+        app.workspace = PathBuf::from("/tmp/mimofan-test-workspace");
         app.model = "deepseek-v4-pro".to_string();
 
         let lines = build_empty_state_lines(&app, Rect::new(0, 0, 100, 20));
@@ -4127,15 +4127,15 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
 
-        assert!(rendered.contains(&format!(">_ codewhale (v{})", env!("CARGO_PKG_VERSION"))));
+        assert!(rendered.contains(&format!(">_ mimofan (v{})", env!("CARGO_PKG_VERSION"))));
         assert!(rendered.contains("model: deepseek-v4-pro  /model to switch"));
-        assert!(rendered.contains("directory: /tmp/codewhale-test-workspace"));
+        assert!(rendered.contains("directory: /tmp/mimofan-test-workspace"));
     }
 
     #[test]
     fn empty_state_centers_startup_block_by_actual_text_width() {
         let mut app = create_test_app();
-        app.workspace = PathBuf::from("/tmp/codewhale-test-workspace");
+        app.workspace = PathBuf::from("/tmp/mimofan-test-workspace");
         app.model = "deepseek-v4-pro".to_string();
 
         let lines = build_empty_state_lines(&app, Rect::new(0, 0, 100, 20));
@@ -4148,9 +4148,9 @@ mod tests {
                     .collect::<String>()
             })
             .collect::<Vec<_>>();
-        let title = format!(">_ codewhale (v{})", env!("CARGO_PKG_VERSION"));
+        let title = format!(">_ mimofan (v{})", env!("CARGO_PKG_VERSION"));
         let model = "model: deepseek-v4-pro  /model to switch";
-        let directory = "directory: /tmp/codewhale-test-workspace";
+        let directory = "directory: /tmp/mimofan-test-workspace";
         let block_width = [title.as_str(), model, directory]
             .into_iter()
             .map(UnicodeWidthStr::width)

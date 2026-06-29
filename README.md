@@ -20,11 +20,11 @@ one model. Multi-provider support followed, and the project became mimo-tui to
 match. If there's a model, endpoint, or feature you don't see that you want,
 open an issue — that's how the project grows.
 
-[中文架构说明](docs/ARCHITECTURE_CN.md) · [中文使用指南](docs/USAGE_CN.md) · [codewhale.net](https://codewhale.net/) · [Install guide](docs/INSTALL.md) · [Provider registry](docs/PROVIDERS.md) · [Changelog](CHANGELOG.md) · [架构改进计划](ARCHITECTURE_REFORM.md)
+[中文架构说明](docs/ARCHITECTURE_CN.md) · [中文使用指南](docs/USAGE_CN.md) · [mimo-tui.net](https://mimo-tui.net/) · [Install guide](docs/INSTALL.md) · [Provider registry](docs/PROVIDERS.md) · [Changelog](CHANGELOG.md) · [架构改进计划](ARCHITECTURE_REFORM.md)
 
 [![CI](https://github.com/XiaomingX/mimo-tui/actions/workflows/ci.yml/badge.svg)](https://github.com/XiaomingX/mimo-tui/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/crates/v/codewhale-cli?label=crates.io)](https://crates.io/crates/codewhale-cli)
-[![npm](https://img.shields.io/npm/v/codewhale?label=npm)](https://www.npmjs.com/package/codewhale)
+[![crates.io](https://img.shields.io/crates/v/mimo-tui-cli?label=crates.io)](https://crates.io/crates/mimo-tui-cli)
+[![npm](https://img.shields.io/npm/v/mimo-tui?label=npm)](https://www.npmjs.com/package/mimo-tui)
 [![DeepWiki project index](https://img.shields.io/badge/DeepWiki-project-blue)](https://deepwiki.com/XiaomingX/mimo-tui)
 
 ![mimo-tui running in a terminal](assets/screenshot.png)
@@ -32,17 +32,17 @@ open an issue — that's how the project grows.
 ## Install
 
 ```bash
-npm install -g codewhale
-codewhale --version   # 0.8.65
+npm install -g mimo-tui
+mimo-tui --version   # 0.8.65
 ```
 
 The npm wrapper (Node 18+) downloads SHA-256-verified binaries from GitHub
-Releases and installs `codewhale`, `codew`, and `codewhale-tui`. Prefer building
+Releases and installs `mimo-tui`, `codew`, and `mimo-tui`. Prefer building
 from source? Use cargo (Rust 1.88+):
 
 ```bash
-cargo install codewhale-cli --locked
-cargo install codewhale-tui --locked
+cargo install mimo-tui-cli --locked
+cargo install mimo-tui --locked
 ```
 
 > **Linux users:** install system build dependencies first:
@@ -53,17 +53,17 @@ Every other path:
 
 ```bash
 # Docker
-docker pull ghcr.io/hmbown/codewhale:latest
+docker pull ghcr.io/hmbown/mimo-tui:latest
 
 # Nix
 nix run github:XiaomingX/mimo-tui
 
 # Windows
-scoop install codewhale        # or the NSIS installer from GitHub Releases
+scoop install mimo-tui        # or the NSIS installer from GitHub Releases
 
 # CNB mirror for users who cannot reliably reach GitHub
-cargo install --git https://cnb.cool/codewhale.net/codewhale --tag v0.8.65 codewhale-cli --locked --force
-cargo install --git https://cnb.cool/codewhale.net/codewhale --tag v0.8.65 codewhale-tui --locked --force
+cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag v0.8.65 mimo-tui-cli --locked --force
+cargo install --git https://cnb.cool/mimo-tui.net/mimo-tui --tag v0.8.65 mimo-tui --locked --force
 
 # Legacy Homebrew compatibility while the formula is renamed
 brew tap Hmbown/deepseek-tui
@@ -77,24 +77,24 @@ China mirrors, Windows specifics, and troubleshooting live in
 
 **Upgrading from the legacy `deepseek-tui` package?** Your config, sessions,
 skills, and MCP settings are preserved. See [docs/REBRAND.md](docs/REBRAND.md),
-then run `codewhale doctor` to confirm.
+then run `mimo-tui doctor` to confirm.
 
 ## First run
 
 ```bash
-codewhale auth set --provider deepseek
-codewhale auth status
-codewhale doctor
-codewhale
+mimo-tui auth set --provider deepseek
+mimo-tui auth status
+mimo-tui doctor
+mimo-tui
 ```
 
 Every provider is the same one-line shape: `--provider openrouter`,
 `--provider moonshot`, or point `vllm`, `sglang`, or `ollama` at your own
 localhost runtime with no key at all. Have a Claude key instead? Run
-`codewhale auth set --provider anthropic` — or just export
+`mimo-tui auth set --provider anthropic` — or just export
 `ANTHROPIC_API_KEY` — and the native Messages adapter takes it from there.
 
-Keys land in `~/.codewhale/config.toml`; legacy `~/.deepseek/` config is still
+Keys land in `~/.mimo-tui/config.toml`; legacy `~/.deepseek/` config is still
 read for compatibility.
 
 Useful in-session commands:
@@ -105,16 +105,16 @@ Useful in-session commands:
   `/model auto`) to switch mid-session.
 - `/restore` rolls back a prior turn from side-git snapshots.
 - `/fleet` opens the Fleet setup view — roles, profiles, loadouts, and policy.
-- `/skills` loads reusable workflows from `~/.codewhale/skills/`.
+- `/skills` loads reusable workflows from `~/.mimo-tui/skills/`.
 - `/config` edits runtime settings; `/statusline` shows the current route,
   cost, and session state.
-- `! cargo test -p codewhale-tui` runs any shell command through the normal
+- `! cargo test -p mimo-tui` runs any shell command through the normal
   approval and sandbox path.
 
 Headless, for scripts and CI:
 
 ```bash
-codewhale exec --allowed-tools read_file,exec_shell --max-turns 10 "fix the failing test"
+mimo-tui exec --allowed-tools read_file,exec_shell --max-turns 10 "fix the failing test"
 ```
 
 ## Providers and routing
@@ -166,14 +166,14 @@ you want isn't here, that's a good issue to open.
 ## Fleet
 
 Fleet is mimo-tui's durable control plane for multi-worker runs. A fleet worker
-is a headless `codewhale exec` run, but the fleet launches and tracks it durably:
-work is recorded in an append-only ledger (`.codewhale/fleet.jsonl`), so a run
+is a headless `mimo-tui exec` run, but the fleet launches and tracks it durably:
+work is recorded in an append-only ledger (`.mimo-tui/fleet.jsonl`), so a run
 survives a manager exit, laptop sleep, or a runtime restart.
 
 ```bash
-codewhale fleet run tasks.json --max-workers 4
-codewhale fleet status
-codewhale fleet resume <run-id>
+mimo-tui fleet run tasks.json --max-workers 4
+mimo-tui fleet status
+mimo-tui fleet resume <run-id>
 ```
 
 `fleet resume` replays the ledger, reconciles any in-flight task whose worker
@@ -196,7 +196,7 @@ product, not an afterthought.
 
 - **Three modes.** Plan (read-only investigation), Agent (executes, asks per
   action), and YOLO (auto-approve). Switch with `Tab` or `/mode`.
-- **Approval-gated tools.** A `.codewhale/hooks.toml` hook system can allow,
+- **Approval-gated tools.** A `.mimo-tui/hooks.toml` hook system can allow,
   deny, or ask before any tool call, and the exec policy decides whether a
   command runs, needs approval, or is forbidden outright.
 - **OS sandboxing.** Seatbelt on macOS, Landlock plus a seccomp syscall filter
@@ -212,12 +212,12 @@ product, not an afterthought.
   background tasks; the Work sidebar shows live plan and checklist state.
 - **Durable sessions.** Persist across restarts and system sleep; a task that
   takes forty tool calls survives the forty-first.
-- **Headless mode.** `codewhale exec` with `--allowed-tools`,
+- **Headless mode.** `mimo-tui exec` with `--allowed-tools`,
   `--disallowed-tools` (deny wins), `--max-turns`, and `--append-system-prompt`
   for scripts and CI.
 - **MCP, bidirectionally.** Consume tools from external MCP servers, or expose
-  mimo-tui itself as an MCP server via `codewhale mcp`.
-- **Skills.** Reusable workflows in `~/.codewhale/skills/`, loaded with
+  mimo-tui itself as an MCP server via `mimo-tui mcp`.
+- **Skills.** Reusable workflows in `~/.mimo-tui/skills/`, loaded with
   `/skills`.
 - **Embedded everywhere.** HTTP/SSE and ACP runtime APIs, a VS Code extension,
   and Telegram/Feishu bridges (Weixin experimental).
@@ -236,7 +236,7 @@ code (there are tests asserting it can't drift):
 
 1. **Global constitution** — the base law, compiled into every binary. Its
    priority article fixes the authority order for any conflict.
-2. **Your project's law** — drop a `.codewhale/constitution.json` in a repo to
+2. **Your project's law** — drop a `.mimo-tui/constitution.json` in a repo to
    declare `protected_invariants`, `branch_policy`, `verification_policy`, and
    `escalate_when`. It's loaded as its own authority block, above memory and
    handoffs.
@@ -250,7 +250,7 @@ lives in the harness, not the model, swapping models keeps the structure intact.
 ## Where details live
 
 The README is the short version. The rest is in docs and on
-[codewhale.net](https://codewhale.net/):
+[mimo-tui.net](https://mimo-tui.net/):
 
 - [User guide](docs/GUIDE.md) · [Install guide](docs/INSTALL.md) ·
   [Configuration](docs/CONFIGURATION.md) · [Provider registry](docs/PROVIDERS.md)

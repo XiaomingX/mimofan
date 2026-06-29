@@ -16,7 +16,7 @@ use super::CommandResult;
 ///
 /// When an explicit path is given, the session is exported there
 /// (user-visible explicit export).  Without a path, v0.8.44 saves
-/// into the managed session directory (`~/.codewhale/sessions`
+/// into the managed session directory (`~/.mimofan/sessions`
 /// or legacy `~/.deepseek/sessions`) so repo-local `session_*.json`
 /// artifacts are no longer created by default.
 pub fn save(app: &mut App, path: Option<&str>) -> CommandResult {
@@ -668,8 +668,8 @@ mod tests {
         let home = tmpdir.path().join("home");
         let sessions_dir = home.join("sessions");
         std::fs::create_dir_all(&sessions_dir).unwrap();
-        let codewhale_home = EnvVarGuard::set("CODEWHALE_HOME", &home);
-        let previous_codewhale_home = codewhale_home.previous();
+        let mimofan_home = EnvVarGuard::set("CODEWHALE_HOME", &home);
+        let previous_mimofan_home = mimofan_home.previous();
         let mut app = create_test_app_with_tmpdir(&tmpdir);
         let result = save(&mut app, None);
         assert!(result.message.is_some());
@@ -685,13 +685,13 @@ mod tests {
         } else {
             Vec::new()
         };
-        drop(codewhale_home);
+        drop(mimofan_home);
         // Session should be saved to the managed dir, not the workspace root.
         assert!(
             !entries.is_empty(),
             "expected session file in {sessions_dir:?}, got none; msg: {msg}"
         );
-        assert_eq!(std::env::var_os("CODEWHALE_HOME"), previous_codewhale_home);
+        assert_eq!(std::env::var_os("CODEWHALE_HOME"), previous_mimofan_home);
     }
 
     #[test]

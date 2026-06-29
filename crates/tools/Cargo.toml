@@ -1,5 +1,5 @@
 [package]
-name = "codewhale-tools"
+name = "mimofan-tools"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,7 +9,7 @@ description = "Tool invocation lifecycle, schema validation, and scheduler paral
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-codewhale-protocol = { path = "../protocol", version = "0.8.65" }
+mimofan-protocol = { path = "../protocol", version = "0.8.65" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

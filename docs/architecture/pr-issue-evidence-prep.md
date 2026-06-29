@@ -2,8 +2,8 @@
 
 **Target branch:** `hunter/0.8.62-glm-subagents`
 **Replay branch:** `feat/replay-epic-001-on-hunter`
-**Related EPIC:** [#2870](https://github.com/Hmbown/CodeWhale/issues/2870)
-**Related issue:** [#2791](https://github.com/Hmbown/CodeWhale/issues/2791)
+**Related EPIC:** [#2870](https://github.com/XiaomingX/mimo-tui/issues/2870)
+**Related issue:** [#2791](https://github.com/XiaomingX/mimo-tui/issues/2791)
 
 This file is the working PR/issue evidence checklist for replaying EPIC-001
 FEAT-001, FEAT-002, and FEAT-003 onto the Hunter branch.
@@ -40,10 +40,10 @@ Replays the completed EPIC-001 command-boundary work onto
 ## Validation
 
 - `cargo fmt --all -- --check`
-- `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo check -p codewhale-tui`
-- `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo test -p codewhale-tui commands::`
-- `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo test -p codewhale-tui command_palette`
-- `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo test -p codewhale-tui slash_completion`
+- `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo check -p mimo-tui`
+- `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo test -p mimo-tui commands::`
+- `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo test -p mimo-tui command_palette`
+- `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo test -p mimo-tui slash_completion`
 - `git diff --check`
 ```
 
@@ -72,8 +72,8 @@ Record live results here before opening or updating the PR.
 | Check | Result |
 |-------|--------|
 | `cargo fmt --all -- --check` | Pass |
-| `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo check -p codewhale-tui` | Pass |
-| `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo test -p codewhale-tui commands::` | Pass: 456 command tests |
-| `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo test -p codewhale-tui command_palette` | Pass: 18 tests |
-| `CARGO_TARGET_DIR=/tmp/codewhale-hunter-target cargo test -p codewhale-tui slash_completion` | Pass: 17 tests |
+| `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo check -p mimo-tui` | Pass |
+| `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo test -p mimo-tui commands::` | Pass: 456 command tests |
+| `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo test -p mimo-tui command_palette` | Pass: 18 tests |
+| `CARGO_TARGET_DIR=/tmp/mimo-tui-hunter-target cargo test -p mimo-tui slash_completion` | Pass: 17 tests |
 | `git diff --check` | Pass |

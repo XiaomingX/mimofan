@@ -185,11 +185,11 @@ pub fn bundled_catalog() -> CatalogCache {
 }
 
 fn catalog_cache_read_path() -> Result<PathBuf> {
-    Ok(codewhale_config::resolve_state_dir("catalog")?.join(OPENROUTER_CACHE_FILE))
+    Ok(mimofan_config::resolve_state_dir("catalog")?.join(OPENROUTER_CACHE_FILE))
 }
 
 fn catalog_cache_write_path() -> Result<PathBuf> {
-    Ok(codewhale_config::ensure_state_dir("catalog")?.join(OPENROUTER_CACHE_FILE))
+    Ok(mimofan_config::ensure_state_dir("catalog")?.join(OPENROUTER_CACHE_FILE))
 }
 
 pub fn load_cached() -> Option<CatalogCache> {

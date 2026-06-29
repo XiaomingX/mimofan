@@ -855,7 +855,7 @@ impl ModelPickerView {
                     ReasoningEffort::Medium => "balanced reasoning".to_string(),
                     ReasoningEffort::High => "deeper reasoning".to_string(),
                     ReasoningEffort::Max => {
-                        if effort_provider == ApiProvider::OpenaiCodex {
+                        if effort_provider == ApiProvider::XiaomiMimo {
                             "extra-high reasoning".to_string()
                         } else {
                             "maximum reasoning".to_string()
@@ -884,7 +884,7 @@ fn picker_efforts_for_provider(
         return AUTO_MODEL_PICKER_EFFORTS;
     }
     match provider {
-        ApiProvider::OpenaiCodex => CODEX_PICKER_EFFORTS,
+        ApiProvider::XiaomiMimo => CODEX_PICKER_EFFORTS,
         _ => DEFAULT_PICKER_EFFORTS,
     }
 }
@@ -897,7 +897,7 @@ fn normalize_picker_effort(
     if model_is_auto {
         return ReasoningEffort::Auto;
     }
-    if provider == ApiProvider::OpenaiCodex {
+    if provider == ApiProvider::XiaomiMimo {
         return effort.normalize_for_provider(provider);
     }
     match effort {
@@ -909,7 +909,7 @@ fn normalize_picker_effort(
 fn default_picker_effort_idx(provider: ApiProvider, model_is_auto: bool) -> usize {
     let default_effort = if model_is_auto {
         ReasoningEffort::Auto
-    } else if provider == ApiProvider::OpenaiCodex {
+    } else if provider == ApiProvider::XiaomiMimo {
         ReasoningEffort::Medium
     } else {
         ReasoningEffort::High
@@ -961,7 +961,7 @@ mod tests {
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
         app.reasoning_effort = ReasoningEffort::Max;
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = false;
         app.provider_models.clear();
         (app, lock)
@@ -1007,7 +1007,7 @@ mod tests {
     #[test]
     fn picker_main_rows_are_scoped_to_active_provider() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Together;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = crate::config::DEFAULT_TOGETHER_MODEL.to_string();
         app.provider_models.insert(
             "openrouter".to_string(),
@@ -1020,7 +1020,7 @@ mod tests {
             view.visible_model_rows()
                 .iter()
                 .all(|row| row.provider.is_none()
-                    || row.provider == Some(crate::config::ApiProvider::Together))
+                    || row.provider == Some(crate::config::ApiProvider::XiaomiMimo))
         );
         assert!(
             !view
@@ -1082,14 +1082,14 @@ mod tests {
 
     #[test]
     fn picker_exposes_auto_and_distinct_thinking_tiers() {
-        let model_labels = picker_model_ids_for_provider(crate::config::ApiProvider::Deepseek);
+        let model_labels = picker_model_ids_for_provider(crate::config::ApiProvider::XiaomiMimo);
         assert_eq!(
             model_labels,
             vec!["auto", "deepseek-v4-pro", "deepseek-v4-flash"]
         );
 
         let effort_labels: Vec<_> =
-            picker_efforts_for_provider(crate::config::ApiProvider::Deepseek, false)
+            picker_efforts_for_provider(crate::config::ApiProvider::XiaomiMimo, false)
                 .iter()
                 .map(|effort| effort.as_setting())
                 .collect();
@@ -1099,7 +1099,7 @@ mod tests {
     #[test]
     fn codex_picker_exposes_responses_reasoning_tiers() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::OpenaiCodex;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "gpt-5.5-codex".to_string();
         app.auto_model = false;
         app.reasoning_effort = ReasoningEffort::Off;
@@ -1108,10 +1108,10 @@ mod tests {
 
         assert_eq!(view.resolved_effort(), ReasoningEffort::Low);
         let labels: Vec<_> =
-            picker_efforts_for_provider(crate::config::ApiProvider::OpenaiCodex, false)
+            picker_efforts_for_provider(crate::config::ApiProvider::XiaomiMimo, false)
                 .iter()
                 .map(|effort| {
-                    effort.display_label_for_provider(crate::config::ApiProvider::OpenaiCodex)
+                    effort.display_label_for_provider(crate::config::ApiProvider::XiaomiMimo)
                 })
                 .collect();
         assert_eq!(labels, vec!["low", "medium", "high", "xhigh"]);
@@ -1120,7 +1120,7 @@ mod tests {
     #[test]
     fn picker_excludes_saved_codex_model_from_deepseek_main_section() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
         app.reasoning_effort = ReasoningEffort::Off;
@@ -1133,7 +1133,7 @@ mod tests {
             view.visible_model_rows()
                 .iter()
                 .all(|row| row.provider.is_none()
-                    || row.provider == Some(crate::config::ApiProvider::Deepseek))
+                    || row.provider == Some(crate::config::ApiProvider::XiaomiMimo))
         );
         assert!(!view.visible_model_ids().contains(&"gpt-5.5"));
     }
@@ -1141,7 +1141,7 @@ mod tests {
     #[test]
     fn picker_does_not_switch_provider_when_moving_through_model_rows() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
         app.reasoning_effort = ReasoningEffort::Max;
@@ -1152,17 +1152,17 @@ mod tests {
         while view.move_down() {
             assert_ne!(
                 view.resolved_provider(),
-                Some(crate::config::ApiProvider::OpenaiCodex)
+                Some(crate::config::ApiProvider::XiaomiMimo)
             );
         }
 
-        assert_eq!(view.initial_provider, crate::config::ApiProvider::Deepseek);
+        assert_eq!(view.initial_provider, crate::config::ApiProvider::XiaomiMimo);
     }
 
     #[test]
     fn picker_query_reveals_cross_provider_route_rows() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
 
@@ -1171,7 +1171,7 @@ mod tests {
             view.visible_model_rows()
                 .iter()
                 .all(|row| row.provider.is_none()
-                    || row.provider == Some(crate::config::ApiProvider::Deepseek))
+                    || row.provider == Some(crate::config::ApiProvider::XiaomiMimo))
         );
 
         type_model_query(&mut view, "openrouter");
@@ -1179,19 +1179,19 @@ mod tests {
         assert!(
             view.visible_model_rows()
                 .iter()
-                .any(|row| row.provider == Some(crate::config::ApiProvider::Openrouter)),
+                .any(|row| row.provider == Some(crate::config::ApiProvider::XiaomiMimo)),
             "query should reveal explicit OpenRouter route rows"
         );
         assert_eq!(
             view.resolved_provider(),
-            Some(crate::config::ApiProvider::Openrouter)
+            Some(crate::config::ApiProvider::XiaomiMimo)
         );
     }
 
     #[test]
     fn picker_query_cross_provider_enter_emits_provider_switch() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
 
@@ -1206,7 +1206,7 @@ mod tests {
             ViewAction::EmitAndClose(ViewEvent::ModelPickerApplied {
                 model, provider, ..
             }) => {
-                assert_eq!(provider, Some(crate::config::ApiProvider::Openrouter));
+                assert_eq!(provider, Some(crate::config::ApiProvider::XiaomiMimo));
                 assert!(
                     !model.trim().is_empty() && model != "auto",
                     "cross-provider row must carry a concrete wire model"
@@ -1219,7 +1219,7 @@ mod tests {
     #[test]
     fn picker_query_no_match_custom_row_stays_active_provider_scoped() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Openrouter;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = true;
         app.model = crate::config::DEFAULT_OPENROUTER_MODEL.to_string();
         app.auto_model = false;
@@ -1230,7 +1230,7 @@ mod tests {
         assert_eq!(view.resolved_model(), "custom-org/custom-model");
         assert_eq!(
             view.resolved_provider(),
-            Some(crate::config::ApiProvider::Openrouter)
+            Some(crate::config::ApiProvider::XiaomiMimo)
         );
         let action = view.handle_key(KeyEvent::new(
             KeyCode::Enter,
@@ -1250,7 +1250,7 @@ mod tests {
     #[test]
     fn picker_query_no_match_strict_provider_enter_is_noop() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = false;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
@@ -1269,7 +1269,7 @@ mod tests {
     #[test]
     fn picker_query_backspace_restores_active_provider_rows() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
 
@@ -1278,7 +1278,7 @@ mod tests {
         assert!(
             view.visible_model_rows()
                 .iter()
-                .any(|row| row.provider == Some(crate::config::ApiProvider::Openrouter))
+                .any(|row| row.provider == Some(crate::config::ApiProvider::XiaomiMimo))
         );
 
         for _ in 0.."openrouter".len() {
@@ -1293,7 +1293,7 @@ mod tests {
             view.visible_model_rows()
                 .iter()
                 .all(|row| row.provider.is_none()
-                    || row.provider == Some(crate::config::ApiProvider::Deepseek))
+                    || row.provider == Some(crate::config::ApiProvider::XiaomiMimo))
         );
     }
 
@@ -1314,14 +1314,14 @@ mod tests {
             view.visible_model_rows()
                 .iter()
                 .all(|row| row.provider.is_none()
-                    || row.provider == Some(crate::config::ApiProvider::Deepseek))
+                    || row.provider == Some(crate::config::ApiProvider::XiaomiMimo))
         );
     }
 
     #[test]
     fn picker_query_resyncs_effort_for_codex_rows() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
         app.reasoning_effort = ReasoningEffort::Auto;
@@ -1333,7 +1333,7 @@ mod tests {
 
         assert_eq!(
             view.resolved_provider(),
-            Some(crate::config::ApiProvider::OpenaiCodex)
+            Some(crate::config::ApiProvider::XiaomiMimo)
         );
         assert_eq!(
             view.resolved_effort(),
@@ -1355,7 +1355,7 @@ mod tests {
     #[test]
     fn picker_lists_openrouter_large_models() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Openrouter;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = true;
         app.model = "minimax/minimax-m3".to_string();
         app.auto_model = false;
@@ -1442,7 +1442,7 @@ mod tests {
     #[test]
     fn picker_preserves_custom_passthrough_model_ids() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Openrouter;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = true;
         app.model = "opencode-go/glm-5.1".to_string();
         app.auto_model = false;
@@ -1541,7 +1541,7 @@ mod tests {
     #[test]
     fn picker_does_not_hijack_current_custom_model_with_saved_provider_row() {
         let (mut app, _lock) = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Openai;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = true;
         app.model = "kimi-k2.6".to_string();
         app.provider_models
@@ -1819,7 +1819,7 @@ mod tests {
     #[test]
     fn deepseek_picker_exposes_auto_off_high_max() {
         let labels: Vec<&str> =
-            picker_efforts_for_provider(crate::config::ApiProvider::Deepseek, false)
+            picker_efforts_for_provider(crate::config::ApiProvider::XiaomiMimo, false)
                 .iter()
                 .map(|effort| effort.short_label())
                 .collect();

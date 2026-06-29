@@ -141,12 +141,10 @@ impl LargeOutputRouter {
     #[allow(dead_code)] // used by future Flash synthesis call; keep for API stability
     pub fn synthesis_prompt(tool_name: &str, raw_output: &str, estimated_tokens: usize) -> String {
         format!(
-            "You are a synthesis assistant. The tool `{tool_name}` produced {estimated_tokens} tokens \
-             of output that is too large to include directly in the parent context.\n\n\
-             Summarise the output below into a concise, faithful synthesis of ≤ 800 words. \
-             Preserve key facts, numbers, file paths, error messages, and any actionable \
-             information. Do NOT add commentary or interpretation beyond what is in the source.\n\n\
-             <raw_tool_output>\n{raw_output}\n</raw_tool_output>"
+            include_str!("../prompts/synthesis_assistant.md"),
+            tool_name = tool_name,
+            estimated_tokens = estimated_tokens,
+            raw_output = raw_output
         )
     }
 

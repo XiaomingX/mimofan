@@ -116,5 +116,5 @@ cat <<EOF
 Contributor credits for this release live in the changelog entry above —
 thank you to everyone whose reports, PRs, reviews, and reproductions shaped it.
 
-See [CHANGELOG.md](https://github.com/Hmbown/CodeWhale/blob/main/CHANGELOG.md) for full notes and [docs/CHANGELOG_ARCHIVE.md](https://github.com/Hmbown/CodeWhale/blob/main/docs/CHANGELOG_ARCHIVE.md) for older releases.
+See [CHANGELOG.md](https://github.com/XiaomingX/mimo-tui/blob/main/CHANGELOG.md) for full notes and [docs/CHANGELOG_ARCHIVE.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/CHANGELOG_ARCHIVE.md) for older releases.
 EOF

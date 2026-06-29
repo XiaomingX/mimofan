@@ -5,7 +5,7 @@ WhaleFlow. It is a design boundary, not a runtime implementation.
 
 ## Decision
 
-External memory should be optional and explicit for v0.9.0. Normal CodeWhale
+External memory should be optional and explicit for v0.9.0. Normal mimo-tui
 operation must not depend on it, and WhaleFlow must not silently enable it for
 long-running runs.
 

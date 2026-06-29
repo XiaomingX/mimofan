@@ -1,7 +1,7 @@
 //! Project document discovery and loading
 //!
 //! Supports auto-discovery of project instructions like Claude Code.
-//! Priority: AGENTS.md > WHALE.md (deprecated) > .claude/instructions.md > CLAUDE.md > .codewhale/instructions.md > .deepseek/instructions.md
+//! Priority: AGENTS.md > WHALE.md (deprecated) > .claude/instructions.md > CLAUDE.md > .mimo/instructions.md > .mimofan/instructions.md > .deepseek/instructions.md
 
 use std::fs;
 use std::io::{self, Read};
@@ -9,15 +9,16 @@ use std::path::{Path, PathBuf};
 
 /// Document filenames to search for (in priority order).
 /// `AGENTS.md` is canonical. `WHALE.md` is **deprecated** (read-only legacy
-/// fallback, now below `AGENTS.md`); CodeWhale-specific authority policy lives
-/// in `.codewhale/constitution.json`. `CLAUDE.md` and the `*/instructions.md`
+/// fallback, now below `AGENTS.md`); mimofan-specific authority policy lives
+/// in `.mimo/constitution.json`. `CLAUDE.md` and the `*/instructions.md`
 /// variants are read-only compatibility fallbacks.
 pub const DOC_FILENAMES: &[&str] = &[
     "AGENTS.md",
     "WHALE.md", // deprecated: legacy CodeWhale-native, read-only fallback
     ".claude/instructions.md",
     "CLAUDE.md",
-    ".codewhale/instructions.md",
+    ".mimo/instructions.md",
+    ".mimofan/instructions.md",
     ".deepseek/instructions.md",
 ];
 

@@ -35,7 +35,7 @@ struct ToolLifecycleWorld {
     requests: Vec<Value>,
 }
 
-#[given("an offline CodeWhale workspace containing:")]
+#[given("an offline mimo-tui workspace containing:")]
 fn offline_codewhale_workspace_containing(world: &mut ToolLifecycleWorld, step: &Step) {
     let workspace = TempDir::new().expect("workspace tempdir");
     let home = TempDir::new().expect("home tempdir");
@@ -112,7 +112,7 @@ async fn user_asks(world: &mut ToolLifecycleWorld, prompt: String) {
     world.llm_server = Some(server);
 }
 
-#[then("CodeWhale should send the user request to the mocked LLM")]
+#[then("mimo-tui should send the user request to the mocked LLM")]
 fn codewhale_should_send_user_request_to_mocked_llm(world: &mut ToolLifecycleWorld) {
     let first_request = world
         .requests
@@ -165,7 +165,7 @@ fn public_tool_result_should_return_directory_entries(world: &mut ToolLifecycleW
     }
 }
 
-#[then("CodeWhale should send the tool result back to the mocked LLM")]
+#[then("mimo-tui should send the tool result back to the mocked LLM")]
 fn codewhale_should_send_tool_result_back_to_mocked_llm(world: &mut ToolLifecycleWorld) {
     let request = world
         .requests

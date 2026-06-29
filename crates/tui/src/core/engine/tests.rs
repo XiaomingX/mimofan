@@ -225,7 +225,7 @@ fn tool_catalog_filter_is_inert_without_gates() {
 fn structured_state_block_includes_rich_plan_artifact() {
     let state = StructuredState {
         mode_label: "Plan".to_string(),
-        workspace: PathBuf::from("/workspace/codewhale"),
+        workspace: PathBuf::from("/workspace/mimofan"),
         cwd: None,
         working_set_summary: None,
         todo_snapshot: None,
@@ -264,8 +264,8 @@ fn structured_state_block_includes_rich_plan_artifact() {
 fn structured_state_block_uses_checklist_as_work_surface() {
     let state = StructuredState {
         mode_label: "Agent".to_string(),
-        workspace: PathBuf::from("/workspace/codewhale"),
-        cwd: Some(PathBuf::from("/workspace/codewhale")),
+        workspace: PathBuf::from("/workspace/mimofan"),
+        cwd: Some(PathBuf::from("/workspace/mimofan")),
         working_set_summary: None,
         todo_snapshot: Some(TodoListSnapshot {
             items: vec![
@@ -311,8 +311,8 @@ fn env_only_auth_error_gets_recovery_hint() {
 
     assert!(message.contains("DEEPSEEK_API_KEY"));
     assert!(message.contains("no saved config key is present"));
-    assert!(message.contains("codewhale auth status"));
-    assert!(message.contains("codewhale auth set --provider deepseek"));
+    assert!(message.contains("mimofan auth status"));
+    assert!(message.contains("mimofan auth set --provider deepseek"));
 }
 
 #[test]
@@ -333,7 +333,7 @@ fn config_auth_error_does_not_blame_env() {
 
 #[test]
 fn plugin_tools_dir_honors_missing_custom_directory_without_fallback() {
-    let missing = PathBuf::from("definitely-missing-codewhale-plugin-dir");
+    let missing = PathBuf::from("definitely-missing-mimofan-plugin-dir");
     let tools_config = crate::config::ToolsConfig {
         plugin_dir: Some(missing.to_string_lossy().to_string()),
         ..Default::default()
@@ -417,17 +417,17 @@ fn make_plan_at(
     }
 }
 
-fn ask_rule_engine(command: &str) -> codewhale_execpolicy::ExecPolicyEngine {
-    codewhale_execpolicy::ExecPolicyEngine::with_rulesets(vec![
-        codewhale_execpolicy::Ruleset::user(vec![], vec![])
-            .with_ask_rules(vec![codewhale_execpolicy::ToolAskRule::exec_shell(command)]),
+fn ask_rule_engine(command: &str) -> mimofan_execpolicy::ExecPolicyEngine {
+    mimofan_execpolicy::ExecPolicyEngine::with_rulesets(vec![
+        mimofan_execpolicy::Ruleset::user(vec![], vec![])
+            .with_ask_rules(vec![mimofan_execpolicy::ToolAskRule::exec_shell(command)]),
     ])
 }
 
-fn file_ask_rule_engine(tool: &str, path: &str) -> codewhale_execpolicy::ExecPolicyEngine {
-    codewhale_execpolicy::ExecPolicyEngine::with_rulesets(vec![
-        codewhale_execpolicy::Ruleset::user(vec![], vec![]).with_ask_rules(vec![
-            codewhale_execpolicy::ToolAskRule::file_path(tool, path),
+fn file_ask_rule_engine(tool: &str, path: &str) -> mimofan_execpolicy::ExecPolicyEngine {
+    mimofan_execpolicy::ExecPolicyEngine::with_rulesets(vec![
+        mimofan_execpolicy::Ruleset::user(vec![], vec![]).with_ask_rules(vec![
+            mimofan_execpolicy::ToolAskRule::file_path(tool, path),
         ]),
     ])
 }
@@ -929,7 +929,7 @@ async fn runtime_goal_updates_emit_ui_snapshot() {
             "verified with focused tests".to_string(),
             crate::tools::goal::GoalCompletionVerification {
                 status: "passed".to_string(),
-                check: "cargo test -p codewhale-tui runtime_goal_updates_emit_ui_snapshot"
+                check: "cargo test -p mimofan-tui runtime_goal_updates_emit_ui_snapshot"
                     .to_string(),
                 summary: "focused runtime goal snapshot test passed".to_string(),
             },
@@ -2992,7 +2992,7 @@ fn context_budget_reserves_output_and_headroom() {
     let _lock = lock_test_env();
     // V4 has a 1M context window — the only family that comfortably hosts
     // a 256K output reservation without saturating the input budget to 0.
-    let budget = context_input_budget_for_provider(ApiProvider::Deepseek, "deepseek-v4-pro")
+    let budget = context_input_budget_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-pro")
         .expect("deepseek-v4-pro should have a known context window");
     let v4_window: usize = 1_000_000;
     let expected = v4_window - (TURN_MAX_OUTPUT_TOKENS as usize) - 1_024usize;
@@ -3002,7 +3002,7 @@ fn context_budget_reserves_output_and_headroom() {
 #[test]
 fn context_budget_uses_conservative_fallback_for_unknown_models() {
     let _lock = lock_test_env();
-    let budget = context_input_budget_for_provider(ApiProvider::Openai, "auto")
+    let budget = context_input_budget_for_provider(ApiProvider::XiaomiMimo, "auto")
         .expect("unknown/auto model ids should still get a conservative hard preflight budget");
     let expected = 128_000usize - effective_max_output_tokens("auto") as usize - 1_024usize;
     assert_eq!(budget, expected);
@@ -3011,7 +3011,7 @@ fn context_budget_uses_conservative_fallback_for_unknown_models() {
 #[test]
 fn context_budget_uses_provider_effective_window_for_openai_codex() {
     let _lock = lock_test_env();
-    let budget = context_input_budget_for_provider(ApiProvider::OpenaiCodex, "gpt-5.5")
+    let budget = context_input_budget_for_provider(ApiProvider::XiaomiMimo, "gpt-5.5")
         .expect("OpenAI Codex should use the route-effective context window");
     let expected = 400_000usize - effective_max_output_tokens("gpt-5.5") as usize - 1_024usize;
     assert_eq!(budget, expected);
@@ -3020,7 +3020,7 @@ fn context_budget_uses_provider_effective_window_for_openai_codex() {
 #[test]
 fn route_context_budget_uses_shared_budget_service() {
     let _lock = lock_test_env();
-    let budget = route_context_budget_for_provider(ApiProvider::OpenaiCodex, "gpt-5.5", 380_000)
+    let budget = route_context_budget_for_provider(ApiProvider::XiaomiMimo, "gpt-5.5", 380_000)
         .expect("OpenAI Codex should produce a route budget");
 
     assert_eq!(budget.window_tokens, 400_000);
@@ -3038,13 +3038,13 @@ fn route_context_budget_uses_shared_budget_service() {
 #[test]
 fn route_context_budget_prefers_resolved_route_limits() {
     let _lock = lock_test_env();
-    let limits = codewhale_config::route::RouteLimits {
+    let limits = mimofan_config::route::RouteLimits {
         context_tokens: Some(128_000),
         input_tokens: None,
         output_tokens: Some(32_768),
     };
     let budget = route_context_budget_for_route(
-        ApiProvider::Openrouter,
+        ApiProvider::XiaomiMimo,
         "deepseek/deepseek-v4-pro",
         Some(limits),
         60_000,
@@ -3059,7 +3059,7 @@ fn route_context_budget_prefers_resolved_route_limits() {
 #[test]
 fn effective_max_output_tokens_for_route_caps_to_route_output_limit() {
     let _lock = lock_test_env();
-    let limits = codewhale_config::route::RouteLimits {
+    let limits = mimofan_config::route::RouteLimits {
         context_tokens: Some(1_000_000),
         input_tokens: None,
         output_tokens: Some(8_192),
@@ -3174,7 +3174,7 @@ fn internal_context_budget_tiers_reserved_output_by_window() {
     // Large-context (>=500K) models reserve the full TURN_MAX_OUTPUT_TOKENS
     // headroom so long V4 sessions don't compact prematurely.
     let internal_budget =
-        context_input_budget_for_provider(ApiProvider::Deepseek, "deepseek-v4-pro")
+        context_input_budget_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-pro")
             .expect("V4 should have a known context window");
     let v4_window: usize = 1_000_000;
     let expected_internal = v4_window - (TURN_MAX_OUTPUT_TOKENS as usize) - 1_024usize;
@@ -3185,7 +3185,7 @@ fn internal_context_budget_tiers_reserved_output_by_window() {
     // previous formula reserved the full 262K and computed 256K - 262K - 1K,
     // which underflowed to None and silently disabled preflight/recovery.
     let small_window_budget =
-        context_input_budget_for_provider(ApiProvider::Openai, "qwen3-32b-256k")
+        context_input_budget_for_provider(ApiProvider::XiaomiMimo, "qwen3-32b-256k")
             .expect("a 256K-suffix model must yield Some budget via the effective-cap branch");
     let effective_output = effective_max_output_tokens("qwen3-32b-256k") as usize;
     let expected_small = 256_000 - effective_output - 1_024;
@@ -3355,14 +3355,14 @@ fn task_gate_run_results_are_structured_before_context_insertion() {
             "gate": {
                 "id": "gate_abcd1234",
                 "gate": "clippy",
-                "command": "cargo clippy -p codewhale-tui --all-targets --all-features --locked -- -D warnings",
+                "command": "cargo clippy -p mimofan-tui --all-targets --all-features --locked -- -D warnings",
                 "cwd": "/repo",
                 "exit_code": 1,
                 "status": "failed",
                 "classification": "compile_failure",
                 "duration_ms": 5000,
                 "summary": "warning promoted to error in verifier.rs",
-                "log_path": "/repo/.codewhale/runtime/gate.log",
+                "log_path": "/repo/.mimofan/runtime/gate.log",
                 "recorded_at": "2026-06-01T12:00:00Z"
             },
             "stdout_summary": "",
@@ -3375,9 +3375,9 @@ fn task_gate_run_results_are_structured_before_context_insertion() {
 
     assert!(context.contains("[task_gate_run result summarized for context]"));
     assert!(context.contains("gate: clippy, status: failed, exit_code: 1"));
-    assert!(context.contains("cargo clippy -p codewhale-tui"));
+    assert!(context.contains("cargo clippy -p mimofan-tui"));
     assert!(context.contains("summary: warning promoted to error"));
-    assert!(context.contains("log_path: /repo/.codewhale/runtime/gate.log"));
+    assert!(context.contains("log_path: /repo/.mimofan/runtime/gate.log"));
 }
 
 #[test]
@@ -4448,7 +4448,7 @@ fn filter_tool_call_delta_strips_bracket_marker() {
 fn filter_tool_call_delta_strips_deepseek_xml_marker() {
     let mut in_block = false;
     let visible = filter_tool_call_delta(
-        "before <codewhale:tool_call name=\"x\">payload</codewhale:tool_call> after",
+        "before <mimo:tool_call name=\"x\">payload</mimo:tool_call> after",
         &mut in_block,
     );
     assert!(!in_block);

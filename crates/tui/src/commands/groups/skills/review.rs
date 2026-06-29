@@ -41,7 +41,7 @@ pub fn review(app: &mut App, args: Option<&str>) -> CommandResult {
         None => {
             let global_display = global_dir.display();
             return CommandResult::error(format!(
-                "Review skill not found in {} or {}. Create ~/.codewhale/skills/review/SKILL.md.{}",
+                "Review skill not found in {} or {}. Create ~/.mimofan/skills/review/SKILL.md.{}",
                 skills_dir.display(),
                 global_display,
                 warnings
@@ -50,8 +50,9 @@ pub fn review(app: &mut App, args: Option<&str>) -> CommandResult {
     };
 
     let instruction = format!(
-        "You are now using a skill. Follow these instructions:\n\n# Skill: {}\n\n{}\n\n---\n\nNow respond to the user's request following the above skill instructions.",
-        skill.name, skill.body
+        include_str!("../../../prompts/skill_loader.md"),
+        skill_name = skill.name,
+        skill_body = skill.body
     );
 
     app.add_message(HistoryCell::System {

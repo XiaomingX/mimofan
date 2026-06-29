@@ -78,9 +78,9 @@ struct SettingsHomeGuard {
     _tmp: TempDir,
     previous_home: Option<OsString>,
     previous_userprofile: Option<OsString>,
-    previous_codewhale_home: Option<OsString>,
+    previous_mimofan_home: Option<OsString>,
     previous_deepseek_config_path: Option<OsString>,
-    previous_codewhale_provider: Option<OsString>,
+    previous_mimofan_provider: Option<OsString>,
     previous_deepseek_provider: Option<OsString>,
     previous_xdg_config_home: Option<OsString>,
     previous_appdata: Option<OsString>,
@@ -94,20 +94,20 @@ impl SettingsHomeGuard {
         let tmp = TempDir::new().expect("settings tempdir");
         let previous_home = std::env::var_os("HOME");
         let previous_userprofile = std::env::var_os("USERPROFILE");
-        let previous_codewhale_home = std::env::var_os("CODEWHALE_HOME");
+        let previous_mimofan_home = std::env::var_os("CODEWHALE_HOME");
         let previous_deepseek_config_path = std::env::var_os("DEEPSEEK_CONFIG_PATH");
-        let previous_codewhale_provider = std::env::var_os("CODEWHALE_PROVIDER");
+        let previous_mimofan_provider = std::env::var_os("CODEWHALE_PROVIDER");
         let previous_deepseek_provider = std::env::var_os("DEEPSEEK_PROVIDER");
         let previous_xdg_config_home = std::env::var_os("XDG_CONFIG_HOME");
         let previous_appdata = std::env::var_os("APPDATA");
         let previous_localappdata = std::env::var_os("LOCALAPPDATA");
-        let codewhale_home = tmp.path().join(".codewhale");
+        let mimofan_home = tmp.path().join(".mimofan");
         // Safety: test-only environment mutation guarded by a global mutex.
         unsafe {
             std::env::set_var("HOME", tmp.path());
             std::env::set_var("USERPROFILE", tmp.path());
-            std::env::set_var("CODEWHALE_HOME", &codewhale_home);
-            std::env::set_var("DEEPSEEK_CONFIG_PATH", codewhale_home.join("config.toml"));
+            std::env::set_var("CODEWHALE_HOME", &mimofan_home);
+            std::env::set_var("DEEPSEEK_CONFIG_PATH", mimofan_home.join("config.toml"));
             std::env::remove_var("CODEWHALE_PROVIDER");
             std::env::remove_var("DEEPSEEK_PROVIDER");
             std::env::set_var("XDG_CONFIG_HOME", tmp.path().join("xdg-config"));
@@ -118,9 +118,9 @@ impl SettingsHomeGuard {
             _tmp: tmp,
             previous_home,
             previous_userprofile,
-            previous_codewhale_home,
+            previous_mimofan_home,
             previous_deepseek_config_path,
-            previous_codewhale_provider,
+            previous_mimofan_provider,
             previous_deepseek_provider,
             previous_xdg_config_home,
             previous_appdata,
@@ -144,14 +144,14 @@ impl Drop for SettingsHomeGuard {
 
         restore("HOME", self.previous_home.take());
         restore("USERPROFILE", self.previous_userprofile.take());
-        restore("CODEWHALE_HOME", self.previous_codewhale_home.take());
+        restore("CODEWHALE_HOME", self.previous_mimofan_home.take());
         restore(
             "DEEPSEEK_CONFIG_PATH",
             self.previous_deepseek_config_path.take(),
         );
         restore(
             "CODEWHALE_PROVIDER",
-            self.previous_codewhale_provider.take(),
+            self.previous_mimofan_provider.take(),
         );
         restore("DEEPSEEK_PROVIDER", self.previous_deepseek_provider.take());
         restore("XDG_CONFIG_HOME", self.previous_xdg_config_home.take());
@@ -164,7 +164,7 @@ impl Drop for SettingsHomeGuard {
 fn resume_hint_uses_canonical_resume_command() {
     assert_eq!(
         resume_hint_text(),
-        "To continue this session, execute codewhale run --continue"
+        "To continue this session, execute mimofan run --continue"
     );
     assert!(should_show_resume_hint(Some(
         "019dd9d6-4f44-7c83-9863-59674a12b827"
@@ -1724,7 +1724,7 @@ fn create_test_app() -> App {
     let mut app = App::new(options, &Config::default());
     // Pin locale and currency for deterministic tests regardless of host locale.
     app.cost_currency = crate::pricing::CostCurrency::Usd;
-    app.ui_locale = crate::localization::Locale::En;
+    app.ui_locale = crate::localization::Locale::ZhHans;
     app
 }
 
@@ -2379,7 +2379,7 @@ fn active_tool_status_label_strips_shell_wrappers_from_ci_polling() {
     active.push_tool(
         "exec-1",
         HistoryCell::Tool(ToolCell::Exec(ExecCell {
-            command: "cd /tmp/repo && sleep 15 && gh pr checks 1611 --repo Hmbown/CodeWhale"
+            command: "cd /tmp/repo && sleep 15 && gh pr checks 1611 --repo XiaomingX/mimofan"
                 .to_string(),
             status: ToolStatus::Running,
             output: None,
@@ -2584,28 +2584,28 @@ fn saved_default_provider_syncs_back_to_runtime_config() {
     settings.save().expect("save settings");
 
     let mut config = Config::default();
-    assert_eq!(config.api_provider(), ApiProvider::Deepseek);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
 
     let app = App::new(create_test_options(), &config);
-    assert_eq!(app.api_provider, ApiProvider::Deepseek);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
 
     sync_config_provider_from_app(&mut config, &app);
 
-    assert_eq!(config.api_provider(), ApiProvider::Deepseek);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
 }
 
 #[test]
 fn provider_picker_reselecting_active_provider_preserves_current_model() {
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = "deepseek-coder-v2:16b".to_string();
 
     assert_eq!(
-        provider_picker_model_override(&app, ApiProvider::Deepseek).as_deref(),
+        provider_picker_model_override(&app, ApiProvider::XiaomiMimo).as_deref(),
         Some("deepseek-coder-v2:16b")
     );
     assert_eq!(
-        provider_picker_model_override(&app, ApiProvider::Openrouter),
+        provider_picker_model_override(&app, ApiProvider::XiaomiMimo),
         None
     );
 }
@@ -2614,7 +2614,7 @@ fn provider_picker_reselecting_active_provider_preserves_current_model() {
 async fn provider_switch_clears_turn_cache_history() {
     // `switch_provider` persists the new provider to `Settings`, which
     // writes through settings path resolution. Without redirecting the
-    // CodeWhale/legacy config homes we would clobber the developer's real
+    // mimofan/legacy config homes we would clobber the developer's real
     // preferences and leave `default_provider` behind.
     let _home = SettingsHomeGuard::new();
 
@@ -2634,12 +2634,12 @@ async fn provider_switch_clears_turn_cache_history() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Openrouter,
+        ApiProvider::XiaomiMimo,
         None,
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Openrouter);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert!(app.session.turn_cache_history.is_empty());
 }
 
@@ -2647,7 +2647,7 @@ async fn provider_switch_clears_turn_cache_history() {
 async fn provider_switch_to_deepseek_canonicalizes_openrouter_default_model() {
     let _home = SettingsHomeGuard::new();
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Openrouter;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = DEFAULT_OPENROUTER_MODEL.to_string();
     let mut engine = mock_engine_handle();
     let mut config = Config {
@@ -2661,12 +2661,12 @@ async fn provider_switch_to_deepseek_canonicalizes_openrouter_default_model() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Deepseek,
+        ApiProvider::XiaomiMimo,
         None,
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Deepseek);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert!(!app.model_ids_passthrough);
     assert_eq!(app.model, DEFAULT_TEXT_MODEL);
 }
@@ -2699,12 +2699,12 @@ async fn provider_switch_to_deepseek_drops_stale_xiaomi_root_base_url() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Deepseek,
+        ApiProvider::XiaomiMimo,
         None,
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Deepseek);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert!(!app.model_ids_passthrough);
     assert_eq!(app.model, DEFAULT_TEXT_MODEL);
     assert_eq!(config.provider.as_deref(), Some("deepseek"));
@@ -2740,7 +2740,7 @@ async fn provider_switch_from_mimo_to_openrouter_without_key_fails_before_dispat
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Openrouter,
+        ApiProvider::XiaomiMimo,
         Some(crate::config::OPENROUTER_NEMOTRON_3_ULTRA_MODEL.to_string()),
     )
     .await;
@@ -2791,7 +2791,7 @@ api_key = "arcee-key"
     .expect("write config");
 
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Arcee;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = "auto".to_string();
     app.config_path = Some(config_path.clone());
 
@@ -2847,12 +2847,12 @@ async fn provider_switch_model_override_updates_target_provider_model_slot() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Deepseek,
+        ApiProvider::XiaomiMimo,
         Some("deepseek-v4-flash".to_string()),
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Deepseek);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(app.model, "deepseek-v4-flash");
     assert_eq!(
         config
@@ -2874,7 +2874,7 @@ async fn provider_switch_model_override_updates_target_provider_model_slot() {
 async fn provider_switch_without_model_uses_target_default_not_previous_provider_model() {
     let _home = SettingsHomeGuard::new();
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Openrouter;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = "deepseek/deepseek-v4-pro".to_string();
     app.model_ids_passthrough = true;
     let mut engine = mock_engine_handle();
@@ -2900,12 +2900,12 @@ async fn provider_switch_without_model_uses_target_default_not_previous_provider
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Zai,
+        ApiProvider::XiaomiMimo,
         None,
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Zai);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(app.model, DEFAULT_ZAI_MODEL);
     assert_eq!(config.provider.as_deref(), Some("zai"));
     assert_eq!(
@@ -2928,7 +2928,7 @@ async fn provider_switch_without_model_uses_target_default_not_previous_provider
 async fn provider_switch_foreign_direct_model_rejected_before_mutation() {
     let _home = SettingsHomeGuard::new();
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = DEFAULT_TEXT_MODEL.to_string();
     let mut engine = mock_engine_handle();
     let mut config = Config {
@@ -2953,12 +2953,12 @@ async fn provider_switch_foreign_direct_model_rejected_before_mutation() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Zai,
+        ApiProvider::XiaomiMimo,
         Some("deepseek-v4-pro".to_string()),
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Deepseek);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(app.model, DEFAULT_TEXT_MODEL);
     assert_eq!(config.provider.as_deref(), Some("deepseek"));
     assert_eq!(
@@ -2982,7 +2982,7 @@ async fn provider_switch_to_openai_codex_normalizes_deepseek_off_effort() {
     let _home = SettingsHomeGuard::new();
     let _token = crate::test_support::EnvVarGuard::set("OPENAI_CODEX_ACCESS_TOKEN", "test-token");
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = DEFAULT_TEXT_MODEL.to_string();
     app.reasoning_effort = ReasoningEffort::Off;
     let mut engine = mock_engine_handle();
@@ -3003,12 +3003,12 @@ async fn provider_switch_to_openai_codex_normalizes_deepseek_off_effort() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::OpenaiCodex,
+        ApiProvider::XiaomiMimo,
         None,
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::OpenaiCodex);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(app.model, crate::config::DEFAULT_OPENAI_CODEX_MODEL);
     assert_eq!(app.reasoning_effort, ReasoningEffort::Low);
     assert_eq!(app.reasoning_effort_display_label(), "low");
@@ -3018,7 +3018,7 @@ async fn provider_switch_to_openai_codex_normalizes_deepseek_off_effort() {
 async fn provider_switch_to_openrouter_canonicalizes_deepseek_default_model() {
     let _home = SettingsHomeGuard::new();
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = DEFAULT_TEXT_MODEL.to_string();
     let mut engine = mock_engine_handle();
     let mut config = Config {
@@ -3038,12 +3038,12 @@ async fn provider_switch_to_openrouter_canonicalizes_deepseek_default_model() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Openrouter,
+        ApiProvider::XiaomiMimo,
         None,
     )
     .await;
 
-    assert_eq!(app.api_provider, ApiProvider::Openrouter);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(app.model, DEFAULT_OPENROUTER_MODEL);
 }
 
@@ -3779,7 +3779,7 @@ fn init_git_repo() -> TempDir {
     let commit = Command::new("git")
         .args([
             "-c",
-            "user.name=codewhale Tests",
+            "user.name=mimofan Tests",
             "-c",
             "user.email=tests@example.com",
             "-c",
@@ -3895,7 +3895,7 @@ fn hotbar_dispatches_slash_command_slot() {
     let mut app = create_test_app();
     app.onboarding = OnboardingState::None;
     let config = Config {
-        hotbar: Some(vec![codewhale_config::HotbarBindingToml {
+        hotbar: Some(vec![mimofan_config::HotbarBindingToml {
             slot: 1,
             label: Some("mode".to_string()),
             action: "slash.mode".to_string(),
@@ -4401,7 +4401,7 @@ fn subagent_hook_preview_is_bounded_on_char_boundaries() {
 #[test]
 fn subagent_completion_status_reads_done_sentinel() {
     let result = r#"done
-<codewhale:subagent.done>{"agent_id":"agent_x","status":"completed"}</codewhale:subagent.done>"#;
+<mimo:subagent.done>{"agent_id":"agent_x","status":"completed"}</mimo:subagent.done>"#;
 
     assert_eq!(
         subagent_completion_status(result).as_deref(),
@@ -4985,7 +4985,7 @@ fn version_hint_requires_complete_release_assets() {
             .iter()
             .filter(|asset| {
                 asset.get("name").and_then(serde_json::Value::as_str)
-                    != Some("codewhale-artifacts-sha256.txt")
+                    != Some("mimofan-artifacts-sha256.txt")
             })
             .cloned()
             .collect(),
@@ -5857,13 +5857,13 @@ fn visible_slash_menu_entries_excludes_removed_commands() {
     assert!(entries.iter().any(|entry| entry.name == "/config"));
     assert!(entries.iter().any(|entry| entry.name == "/links"));
     assert!(!entries.iter().any(|entry| entry.name == "/set"));
-    assert!(!entries.iter().any(|entry| entry.name == "/codewhale"));
+    assert!(!entries.iter().any(|entry| entry.name == "/mimofan"));
 }
 
 #[test]
 fn visible_slash_model_completions_are_provider_scoped() {
     let mut app = create_test_app();
-    app.api_provider = crate::config::ApiProvider::Together;
+    app.api_provider = crate::config::ApiProvider::XiaomiMimo;
     app.model = crate::config::DEFAULT_TOGETHER_MODEL.to_string();
     app.provider_models.insert(
         "openrouter".to_string(),
@@ -8884,7 +8884,7 @@ fn approval_prompt_uses_event_input_after_message_complete_drain() {
     app.pending_tool_uses.clear();
 
     let event_input = serde_json::json!({
-        "command": "cargo test -p codewhale-tui approval",
+        "command": "cargo test -p mimofan-tui approval",
         "workdir": "/repo",
     });
     push_approval_request_view(
@@ -8907,7 +8907,7 @@ fn approval_prompt_uses_event_input_after_message_complete_drain() {
         panic!("expected approval params pager");
     };
 
-    assert!(content.contains("cargo test -p codewhale-tui approval"));
+    assert!(content.contains("cargo test -p mimofan-tui approval"));
     assert!(content.contains("/repo"));
     assert!(!content.contains("stale value from drained list"));
     assert_ne!(content.trim(), "{}");
@@ -8921,7 +8921,7 @@ async fn approval_decision_persists_ask_rules_to_permissions_file() {
     app.config_path = Some(config_path.clone());
     let mut config = Config::default();
     let mut engine = mock_engine_handle();
-    let rule = codewhale_config::ToolAskRule::exec_shell("cargo test");
+    let rule = mimofan_config::ToolAskRule::exec_shell("cargo test");
 
     apply_approval_decision(
         &mut app,
@@ -8945,7 +8945,7 @@ async fn approval_decision_persists_ask_rules_to_permissions_file() {
             id: "tool-1".to_string()
         })
     );
-    let store = codewhale_config::ConfigStore::load(Some(config_path)).expect("load config store");
+    let store = mimofan_config::ConfigStore::load(Some(config_path)).expect("load config store");
     assert_eq!(store.permissions().rules, vec![rule]);
     assert!(
         app.status_message
@@ -8955,12 +8955,12 @@ async fn approval_decision_persists_ask_rules_to_permissions_file() {
 
     let decision = config
         .exec_policy_engine
-        .check(codewhale_execpolicy::ExecPolicyContext {
+        .check(mimofan_execpolicy::ExecPolicyContext {
             command: "cargo test --workspace",
             cwd: tmp.path().to_string_lossy().as_ref(),
             tool: Some("exec_shell"),
             path: None,
-            ask_for_approval: codewhale_execpolicy::AskForApproval::OnFailure,
+            ask_for_approval: mimofan_execpolicy::AskForApproval::OnFailure,
             sandbox_mode: None,
         })
         .expect("check persisted runtime policy");
@@ -9159,10 +9159,10 @@ fn recoverable_provider_error_advances_fallback_chain() {
     use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, ErrorSeverity};
 
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
-    app.provider_chain = Some(codewhale_config::ProviderChain::new(
-        codewhale_config::ProviderKind::Deepseek,
-        &[codewhale_config::ProviderKind::Openrouter],
+    app.api_provider = ApiProvider::XiaomiMimo;
+    app.provider_chain = Some(mimofan_config::ProviderChain::new(
+        mimofan_config::ProviderKind::XiaomiMimo,
+        &[mimofan_config::ProviderKind::XiaomiMimo],
     ));
 
     apply_engine_error_to_app(
@@ -9176,7 +9176,7 @@ fn recoverable_provider_error_advances_fallback_chain() {
         ),
     );
 
-    assert_eq!(app.api_provider, ApiProvider::Openrouter);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert!(app.is_fallback_active());
     assert!(!app.offline_mode);
     assert!(
@@ -9202,13 +9202,13 @@ fn auth_error_does_not_trigger_provider_fallback() {
     use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, ErrorSeverity};
 
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
+    app.api_provider = ApiProvider::XiaomiMimo;
     // Not env-only, so we exercise the category gate rather than the env-key
     // onboarding early-return.
     app.api_key_env_only = false;
-    app.provider_chain = Some(codewhale_config::ProviderChain::new(
-        codewhale_config::ProviderKind::Deepseek,
-        &[codewhale_config::ProviderKind::Openrouter],
+    app.provider_chain = Some(mimofan_config::ProviderChain::new(
+        mimofan_config::ProviderKind::XiaomiMimo,
+        &[mimofan_config::ProviderKind::XiaomiMimo],
     ));
 
     apply_engine_error_to_app(
@@ -9226,7 +9226,7 @@ fn auth_error_does_not_trigger_provider_fallback() {
 
     assert_eq!(
         app.api_provider,
-        ApiProvider::Deepseek,
+        ApiProvider::XiaomiMimo,
         "auth failure must not rotate providers"
     );
     assert!(!app.is_fallback_active());
@@ -9245,10 +9245,10 @@ fn fallback_switch_status_shows_one_based_position_and_reason() {
     use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, ErrorSeverity};
 
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
-    app.provider_chain = Some(codewhale_config::ProviderChain::new(
-        codewhale_config::ProviderKind::Deepseek,
-        &[codewhale_config::ProviderKind::Openrouter],
+    app.api_provider = ApiProvider::XiaomiMimo;
+    app.provider_chain = Some(mimofan_config::ProviderChain::new(
+        mimofan_config::ProviderKind::XiaomiMimo,
+        &[mimofan_config::ProviderKind::XiaomiMimo],
     ));
 
     apply_engine_error_to_app(
@@ -9262,7 +9262,7 @@ fn fallback_switch_status_shows_one_based_position_and_reason() {
         ),
     );
 
-    assert_eq!(app.api_provider, ApiProvider::Openrouter);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(
         app.fallback_chain_position(),
         Some(1),
@@ -9281,7 +9281,7 @@ async fn provider_switch_auth_error_restores_previous_provider_and_model() {
 
     let _home = SettingsHomeGuard::new();
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = "deepseek-v4-pro".to_string();
     app.model_ids_passthrough = false;
     app.onboarding = OnboardingState::None;
@@ -9310,11 +9310,11 @@ async fn provider_switch_auth_error_restores_previous_provider_and_model() {
         &mut app,
         &mut engine.handle,
         &mut config,
-        ApiProvider::Moonshot,
+        ApiProvider::XiaomiMimo,
         Some("kimi-k2.6".to_string()),
     )
     .await;
-    assert_eq!(app.api_provider, ApiProvider::Moonshot);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(config.provider.as_deref(), Some("moonshot"));
     assert!(app.pending_provider_switch.is_some());
 
@@ -9325,7 +9325,7 @@ async fn provider_switch_auth_error_restores_previous_provider_and_model() {
     let rollback_status = rollback_provider_after_auth_failure(&mut app, &mut config)
         .expect("auth failure after provider switch should roll back");
 
-    assert_eq!(app.api_provider, ApiProvider::Deepseek);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(app.model, "deepseek-v4-pro");
     assert!(!app.model_ids_passthrough);
     assert!(!app.offline_mode);
@@ -9772,7 +9772,7 @@ fn render_footer_from_surfaces_background_shell_even_without_tasks_panel() {
     app.task_panel = vec![crate::tui::app::TaskPanelEntry {
         id: "shell_abc".to_string(),
         status: "running".to_string(),
-        prompt_summary: "shell: cargo test -p codewhale-tui".to_string(),
+        prompt_summary: "shell: cargo test -p mimofan-tui".to_string(),
         duration_ms: Some(5_000),
         kind: crate::tui::app::TaskPanelEntryKind::Background,
         stale: false,
@@ -9941,7 +9941,7 @@ fn render_footer_from_without_balance_item_hides_balance() {
 #[test]
 fn should_fetch_deepseek_balance_requires_balance_status_item() {
     let mut app = create_test_app();
-    app.api_provider = ApiProvider::Deepseek;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.status_items = crate::config::StatusItem::default_footer();
 
     assert!(!should_fetch_deepseek_balance(&app));
@@ -9955,10 +9955,10 @@ fn should_fetch_deepseek_balance_requires_deepseek_provider() {
     let mut app = create_test_app();
     app.status_items = vec![crate::config::StatusItem::Balance];
 
-    app.api_provider = ApiProvider::Openrouter;
+    app.api_provider = ApiProvider::XiaomiMimo;
     assert!(!should_fetch_deepseek_balance(&app));
 
-    app.api_provider = ApiProvider::DeepseekCN;
+    app.api_provider = ApiProvider::XiaomiMimo;
     assert!(should_fetch_deepseek_balance(&app));
 }
 
@@ -10593,7 +10593,7 @@ fn completed_turn_notification_truncates_long_text() {
 #[test]
 fn completed_turn_notification_leads_with_user_locale() {
     let mut app = create_test_app();
-    app.ui_locale = crate::localization::Locale::Ja;
+    app.ui_locale = crate::localization::Locale::ZhHans;
     let msg = crate::tui::notifications::completed_turn_message(
         &app,
         "完了しました。",
@@ -10607,9 +10607,9 @@ fn completed_turn_notification_leads_with_user_locale() {
 #[test]
 fn subagent_completion_notification_uses_summary_line_not_sentinel() {
     let msg = crate::tui::notifications::subagent_completion_message(
-        crate::localization::Locale::En,
+        crate::localization::Locale::ZhHans,
         "agent_live",
-        "Finished the docs audit.\n<codewhale:subagent.done>{}</codewhale:subagent.done>",
+        "Finished the docs audit.\n<mimo:subagent.done>{}</mimo:subagent.done>",
         false,
         Duration::from_secs(42),
     );
@@ -10618,13 +10618,13 @@ fn subagent_completion_notification_uses_summary_line_not_sentinel() {
         msg,
         "Sub-agent complete\nagent_live: Finished the docs audit."
     );
-    assert!(!msg.contains("codewhale:subagent.done"));
+    assert!(!msg.contains("mimo:subagent.done"));
 }
 
 #[test]
 fn subagent_completion_notification_can_include_elapsed_summary() {
     let msg = crate::tui::notifications::subagent_completion_message(
-        crate::localization::Locale::En,
+        crate::localization::Locale::ZhHans,
         "agent_live",
         "",
         true,
@@ -10967,7 +10967,7 @@ mod work_sidebar_projection_tests {
         // the list of running jobs, so the task panel refresh picks up the
         // correct state.
         let temp_dir = std::env::temp_dir().join(format!(
-            "codewhale-test-shell-cancel-{}",
+            "mimofan-test-shell-cancel-{}",
             std::process::id()
         ));
         let _ = std::fs::create_dir_all(&temp_dir);

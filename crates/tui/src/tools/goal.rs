@@ -245,7 +245,7 @@ impl GoalSnapshot {
     }
 
     #[must_use]
-    pub fn from_thread_goal(goal: &codewhale_protocol::ThreadGoal) -> Self {
+    pub fn from_thread_goal(goal: &mimofan_protocol::ThreadGoal) -> Self {
         Self {
             objective: Some(goal.objective.clone()),
             status: thread_goal_status_as_goal_status(goal.status.clone())
@@ -267,15 +267,15 @@ impl GoalSnapshot {
 
 #[must_use]
 pub fn thread_goal_status_as_goal_status(
-    status: codewhale_protocol::ThreadGoalStatus,
+    status: mimofan_protocol::ThreadGoalStatus,
 ) -> GoalStatus {
     match status {
-        codewhale_protocol::ThreadGoalStatus::Active => GoalStatus::Active,
-        codewhale_protocol::ThreadGoalStatus::Paused => GoalStatus::Paused,
-        codewhale_protocol::ThreadGoalStatus::Complete => GoalStatus::Complete,
-        codewhale_protocol::ThreadGoalStatus::Blocked
-        | codewhale_protocol::ThreadGoalStatus::UsageLimited
-        | codewhale_protocol::ThreadGoalStatus::BudgetLimited => GoalStatus::Blocked,
+        mimofan_protocol::ThreadGoalStatus::Active => GoalStatus::Active,
+        mimofan_protocol::ThreadGoalStatus::Paused => GoalStatus::Paused,
+        mimofan_protocol::ThreadGoalStatus::Complete => GoalStatus::Complete,
+        mimofan_protocol::ThreadGoalStatus::Blocked
+        | mimofan_protocol::ThreadGoalStatus::UsageLimited
+        | mimofan_protocol::ThreadGoalStatus::BudgetLimited => GoalStatus::Blocked,
     }
 }
 
@@ -630,7 +630,7 @@ mod tests {
                     "evidence": "focused tests passed",
                     "verification": {
                         "status": "passed",
-                        "check": "cargo test -p codewhale-tui goal_loop",
+                        "check": "cargo test -p mimofan-tui goal_loop",
                         "summary": "focused tests passed"
                     }
                 }),
@@ -733,11 +733,11 @@ mod tests {
 
     #[test]
     fn protocol_thread_goal_converts_to_runtime_snapshot() {
-        let snapshot = GoalSnapshot::from_thread_goal(&codewhale_protocol::ThreadGoal {
+        let snapshot = GoalSnapshot::from_thread_goal(&mimofan_protocol::ThreadGoal {
             thread_id: "thread-1".to_string(),
             goal_id: "goal-1".to_string(),
             objective: "Bridge the goal models".to_string(),
-            status: codewhale_protocol::ThreadGoalStatus::Active,
+            status: mimofan_protocol::ThreadGoalStatus::Active,
             token_budget: Some(2_000),
             tokens_used: 750,
             time_used_seconds: 44,

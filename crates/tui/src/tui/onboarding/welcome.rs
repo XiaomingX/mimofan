@@ -8,7 +8,7 @@ use crate::palette;
 pub fn lines() -> Vec<Line<'static>> {
     vec![
         Line::from(Span::styled(
-            "codewhale",
+            "mimofan",
             Style::default()
                 .fg(palette::WHALE_ACCENT_PRIMARY)
                 .add_modifier(Modifier::BOLD),

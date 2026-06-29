@@ -7,18 +7,18 @@ use serde::Deserialize;
 ///
 /// Mirror directories must contain this file alongside platform binaries so
 /// that download integrity can be verified.
-pub const CHECKSUM_MANIFEST_ASSET: &str = "codewhale-artifacts-sha256.txt";
+pub const CHECKSUM_MANIFEST_ASSET: &str = "mimofan-artifacts-sha256.txt";
 
 /// GitHub API URL for the single latest stable release.
 pub const LATEST_RELEASE_URL: &str =
-    "https://api.github.com/repos/Hmbown/CodeWhale/releases/latest";
+    "https://api.github.com/repos/XiaomingX/mimofan/releases/latest";
 
 /// GitHub API URL listing recent releases (up to 100), used to find beta tags.
 pub const RELEASES_URL: &str =
-    "https://api.github.com/repos/Hmbown/CodeWhale/releases?per_page=100";
+    "https://api.github.com/repos/XiaomingX/mimofan/releases?per_page=100";
 
-/// Base URL of the CodeWhale repository on the CNB mirror platform.
-pub const CNB_REPO_URL: &str = "https://cnb.cool/codewhale.net/codewhale";
+/// Base URL of the mimofan repository on the CNB mirror platform.
+pub const CNB_REPO_URL: &str = "https://cnb.cool/XiaomingX/mimofan";
 
 /// Environment variable that overrides the base URL for release asset downloads.
 pub const RELEASE_BASE_URL_ENV: &str = "CODEWHALE_RELEASE_BASE_URL";
@@ -39,9 +39,9 @@ pub const UPDATE_VERSION_ENV: &str = "DEEPSEEK_TUI_VERSION";
 pub const LEGACY_UPDATE_VERSION_ENV: &str = "DEEPSEEK_VERSION";
 
 /// User-Agent header sent with release metadata requests.
-pub const UPDATE_USER_AGENT: &str = "codewhale-updater";
+pub const UPDATE_USER_AGENT: &str = "mimofan-updater";
 
-const CNB_RELEASE_ASSET_BASE: &str = "https://cnb.cool/Hmbown/CodeWhale/-/releases";
+const CNB_RELEASE_ASSET_BASE: &str = "https://cnb.cool/XiaomingX/mimofan/-/releases";
 const RELEASE_METADATA_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The release channel to query for updates.
@@ -149,10 +149,10 @@ pub fn update_network_fallback_hint() -> String {
         "GitHub release downloads may be blocked or slow on this network.\n\
          For mainland China, use one of these fallback paths:\n\
            1. Source build from the CNB mirror, installing both shipped binaries:\n\
-              cargo install --git {CNB_REPO_URL} --tag vX.Y.Z codewhale-cli --locked --force\n\
-              cargo install --git {CNB_REPO_URL} --tag vX.Y.Z codewhale-tui --locked --force\n\
+              cargo install --git {CNB_REPO_URL} --tag vX.Y.Z mimofan-cli --locked --force\n\
+              cargo install --git {CNB_REPO_URL} --tag vX.Y.Z mimofan-tui --locked --force\n\
            2. Use a binary asset mirror:\n\
-              {RELEASE_BASE_URL_ENV}=https://<mirror>/<release-assets>/ {UPDATE_VERSION_ENV}=X.Y.Z codewhale update\n\
+              {RELEASE_BASE_URL_ENV}=https://<mirror>/<release-assets>/ {UPDATE_VERSION_ENV}=X.Y.Z mimofan update\n\
          The mirror directory must contain {CHECKSUM_MANIFEST_ASSET} and the platform binaries."
     )
 }
@@ -514,7 +514,7 @@ mod tests {
 
         assert_eq!(
             release_base_url_from_env("v1.2.3"),
-            Some("https://cnb.cool/Hmbown/CodeWhale/-/releases/v1.2.3".to_string())
+            Some("https://cnb.cool/XiaomingX/mimofan/-/releases/v1.2.3".to_string())
         );
 
         set_release_env(RELEASE_BASE_URL_ENV, "https://explicit.example.com");
@@ -683,11 +683,11 @@ mod tests {
     fn cnb_release_base_url_includes_tag_directory() {
         assert_eq!(
             cnb_release_base_url("0.8.47"),
-            "https://cnb.cool/Hmbown/CodeWhale/-/releases/v0.8.47"
+            "https://cnb.cool/XiaomingX/mimofan/-/releases/v0.8.47"
         );
         assert_eq!(
             cnb_release_base_url("v0.8.47"),
-            "https://cnb.cool/Hmbown/CodeWhale/-/releases/v0.8.47"
+            "https://cnb.cool/XiaomingX/mimofan/-/releases/v0.8.47"
         );
     }
 

@@ -21,7 +21,7 @@ fn req(provider: Option<ProviderKind>, model: Option<&str>) -> RouteRequest {
 fn models_dev_route_resolver() -> RouteResolver {
     let raw = r#"{
       "providers": {
-        "zai": {
+        "xiaomi-mimo": {
           "models": {
             "glm-5.2": {
               "id": "glm-5.2",
@@ -32,7 +32,7 @@ fn models_dev_route_resolver() -> RouteResolver {
             }
           }
         },
-        "openrouter": {
+        "custom": {
           "models": {
             "z-ai/glm-5.2": {
               "id": "z-ai/glm-5.2",
@@ -46,12 +46,12 @@ fn models_dev_route_resolver() -> RouteResolver {
     }"#;
     let catalog = ModelsDevCatalog::parse_json(raw).expect("Models.dev fixture parses");
     let mut offerings = catalog
-        .provider_offerings("zai")
-        .expect("zai provider offerings");
+        .provider_offerings("xiaomi-mimo")
+        .expect("xiaomi-mimo provider offerings");
     offerings.extend(
         catalog
-            .provider_offerings("openrouter")
-            .expect("openrouter provider offerings"),
+            .provider_offerings("custom")
+            .expect("custom provider offerings"),
     );
     RouteResolver::from_offerings(offerings)
 }
@@ -59,12 +59,12 @@ fn models_dev_route_resolver() -> RouteResolver {
 #[test]
 fn provider_id_from_kind_uses_canonical_id() {
     assert_eq!(
-        ProviderId::from_kind(ProviderKind::Deepseek).as_str(),
-        "deepseek"
+        ProviderId::from_kind(ProviderKind::XiaomiMimo).as_str(),
+        "xiaomi-mimo"
     );
     assert_eq!(
-        ProviderId::from_kind(ProviderKind::Openrouter).as_str(),
-        "openrouter"
+        ProviderId::from_kind(ProviderKind::Custom).as_str(),
+        "custom"
     );
 }
 
@@ -117,8 +117,8 @@ fn no_namespace_hint_or_logical_ref_to_provider_id_conversion() {
     // A ProviderId may ONLY be built from an explicit ProviderKind or string,
     // never derived from the hint above. (If a `From<NamespaceHint>` for
     // `ProviderId` were ever added, this seam would silently break #2608.)
-    let provider = ProviderId::from_kind(ProviderKind::Together);
-    assert_eq!(provider.as_str(), "together");
+    let provider = ProviderId::from_kind(ProviderKind::Custom);
+    assert_eq!(provider.as_str(), "custom");
 }
 
 #[test]
@@ -159,13 +159,7 @@ fn descriptor_protocol_matches_provider_wire() {
             kind.provider().wire(),
             "{kind:?} protocol must equal provider().wire()"
         );
-        let expected = match kind {
-            ProviderKind::OpenaiCodex => RequestProtocol::Responses,
-            ProviderKind::DeepseekAnthropic | ProviderKind::Anthropic => {
-                RequestProtocol::AnthropicMessages
-            }
-            _ => RequestProtocol::ChatCompletions,
-        };
+        let expected = RequestProtocol::ChatCompletions;
         assert_eq!(d.protocol(), expected, "{kind:?} protocol mismatch");
     }
 }
@@ -174,13 +168,14 @@ fn descriptor_protocol_matches_provider_wire() {
 fn resolver_explicit_provider_scoped_model_maps_to_wire_id() {
     let r = RouteResolver::new();
     let out = r
-        .resolve(&req(Some(ProviderKind::Deepseek), Some("deepseek-v4-pro")))
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("mimo-v2.5-pro")))
         .expect("should resolve");
-    assert_eq!(out.provider_kind, ProviderKind::Deepseek);
-    assert_eq!(out.wire_model_id.as_str(), "deepseek-v4-pro");
+    assert_eq!(out.provider_kind, ProviderKind::XiaomiMimo);
+    assert_eq!(out.wire_model_id.as_str(), "mimo-v2.5-pro");
     assert_eq!(
         out.canonical_model.as_ref().map(ModelId::as_str),
-        Some("deepseek-v4-pro")
+        None,
+        "bundled mimo-v2.5-pro has no base_model so canonical_model stays None"
     );
 }
 
@@ -189,13 +184,13 @@ fn resolver_aggregator_preserves_prefixed_wire_id_without_inferring_deepseek() {
     let r = RouteResolver::new();
     let out = r
         .resolve(&req(
-            Some(ProviderKind::Together),
+            Some(ProviderKind::Custom),
             Some("deepseek-ai/DeepSeek-V4-Pro"),
         ))
         .expect("aggregator should resolve");
-    // Provider stays Together, NOT Deepseek, despite the deepseek-ai/ prefix.
-    assert_eq!(out.provider_kind, ProviderKind::Together);
-    assert_ne!(out.provider_kind, ProviderKind::Deepseek);
+    // Provider stays Custom, NOT XiaomiMimo, despite the deepseek-ai/ prefix.
+    assert_eq!(out.provider_kind, ProviderKind::Custom);
+    assert_ne!(out.provider_kind, ProviderKind::XiaomiMimo);
     // Wire id preserved verbatim.
     assert_eq!(out.wire_model_id.as_str(), "deepseek-ai/DeepSeek-V4-Pro");
 }
@@ -218,12 +213,12 @@ fn resolver_openrouter_keeps_provider_for_every_namespace_prefix() {
             "{raw} should have a namespace hint"
         );
         let out = r
-            .resolve(&req(Some(ProviderKind::Openrouter), Some(raw)))
-            .unwrap_or_else(|e| panic!("{raw} should resolve on openrouter: {e}"));
-        // ...but the provider stays Openrouter regardless.
+            .resolve(&req(Some(ProviderKind::Custom), Some(raw)))
+            .unwrap_or_else(|e| panic!("{raw} should resolve on custom: {e}"));
+        // ...but the provider stays Custom regardless.
         assert_eq!(
             out.provider_kind,
-            ProviderKind::Openrouter,
+            ProviderKind::Custom,
             "{raw} must not change provider"
         );
         assert_eq!(out.wire_model_id.as_str(), raw, "{raw} wire id verbatim");
@@ -231,43 +226,27 @@ fn resolver_openrouter_keeps_provider_for_every_namespace_prefix() {
 }
 
 #[test]
-fn resolver_no_explicit_provider_does_not_infer_deepseek_from_prefix() {
-    let r = RouteResolver::new();
-    // explicit_provider=None => default scope (Deepseek). A prefixed selector
-    // is foreign for the strict-direct default, so it ERRORS rather than being
-    // silently accepted as a deepseek model: the prefix never *selects* it.
-    let out = r.resolve(&req(None, Some("deepseek/deepseek-v4-pro")));
-    match out {
-        Err(RouteError::ForeignModelForDirectProvider { provider, model }) => {
-            assert_eq!(provider.as_str(), "deepseek");
-            assert_eq!(model, "deepseek/deepseek-v4-pro");
-        }
-        other => panic!("expected ForeignModelForDirectProvider, got {other:?}"),
-    }
-}
-
-#[test]
 fn resolver_auto_is_sentinel_not_literal_model() {
     let r = RouteResolver::new();
     let out = r
-        .resolve(&req(Some(ProviderKind::Deepseek), Some("auto")))
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("auto")))
         .expect("auto should resolve");
     // The logical selector is the auto sentinel...
     assert!(out.logical_model.is_auto());
     // ...and "auto" is NOT put on the wire as a literal model.
     assert_ne!(out.wire_model_id.as_str(), "auto");
-    assert_eq!(out.wire_model_id.as_str(), "deepseek-v4-pro");
+    assert_eq!(out.wire_model_id.as_str(), "mimo-v2.5-pro");
 }
 
 #[test]
 fn resolver_can_use_models_dev_offering_for_provider_scoped_route() {
     let r = models_dev_route_resolver();
     let out = r
-        .resolve(&req(Some(ProviderKind::Zai), Some("glm-5.2")))
-        .expect("Models.dev-backed Z.ai route should resolve");
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("glm-5.2")))
+        .expect("Models.dev-backed XiaomiMiMo route should resolve");
 
-    assert_eq!(out.provider_kind, ProviderKind::Zai);
-    assert_eq!(out.provider_id.as_str(), "zai");
+    assert_eq!(out.provider_kind, ProviderKind::XiaomiMimo);
+    assert_eq!(out.provider_id.as_str(), "xiaomi-mimo");
     assert_eq!(out.wire_model_id.as_str(), "glm-5.2");
     assert_eq!(
         out.canonical_model.as_ref().map(ModelId::as_str),
@@ -279,14 +258,14 @@ fn resolver_can_use_models_dev_offering_for_provider_scoped_route() {
 fn resolver_auto_uses_models_dev_default_offering_when_available() {
     let r = models_dev_route_resolver();
     let out = r
-        .resolve(&req(Some(ProviderKind::Zai), Some("auto")))
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("auto")))
         .expect("auto should resolve through catalog default");
 
     assert!(out.logical_model.is_auto());
     assert_eq!(
         out.wire_model_id.as_str(),
         "glm-5.2",
-        "catalog default should win over the built-in Z.ai spelling"
+        "catalog default should win over the built-in XiaomiMiMo spelling"
     );
     assert_eq!(
         out.canonical_model.as_ref().map(ModelId::as_str),
@@ -296,12 +275,12 @@ fn resolver_auto_uses_models_dev_default_offering_when_available() {
 
 #[test]
 fn resolver_auto_falls_back_to_descriptor_default_without_catalog_default() {
-    // Z.ai offerings exist in the catalog snapshot but none is marked
+    // XiaomiMiMo offerings exist in the catalog snapshot but none is marked
     // `default: true`. `auto` must then fall back to the provider descriptor's
     // built-in default wire model rather than picking an arbitrary catalog row.
     let raw = r#"{
       "providers": {
-        "zai": {
+        "xiaomi-mimo": {
           "models": {
             "glm-5-turbo": {
               "id": "glm-5-turbo",
@@ -313,19 +292,19 @@ fn resolver_auto_falls_back_to_descriptor_default_without_catalog_default() {
     }"#;
     let catalog = ModelsDevCatalog::parse_json(raw).expect("Models.dev fixture parses");
     let offerings = catalog
-        .provider_offerings("zai")
-        .expect("zai provider offerings");
+        .provider_offerings("xiaomi-mimo")
+        .expect("xiaomi-mimo provider offerings");
     let r = RouteResolver::from_offerings(offerings);
 
     let out = r
-        .resolve(&req(Some(ProviderKind::Zai), Some("auto")))
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("auto")))
         .expect("auto should resolve to the descriptor default");
 
     assert!(out.logical_model.is_auto());
     assert_eq!(
         out.wire_model_id.as_str(),
-        "GLM-5.2",
-        "no catalog default → descriptor built-in default wins"
+        "mimo-v2.5-pro",
+        "no catalog default -> descriptor built-in default wins"
     );
     assert_eq!(
         out.canonical_model, None,
@@ -337,11 +316,11 @@ fn resolver_auto_falls_back_to_descriptor_default_without_catalog_default() {
 fn resolver_models_dev_prefixed_wire_id_stays_inside_provider_scope() {
     let r = models_dev_route_resolver();
     let out = r
-        .resolve(&req(Some(ProviderKind::Openrouter), Some("z-ai/glm-5.2")))
-        .expect("OpenRouter Models.dev row should resolve");
+        .resolve(&req(Some(ProviderKind::Custom), Some("z-ai/glm-5.2")))
+        .expect("Custom Models.dev row should resolve");
 
-    assert_eq!(out.provider_kind, ProviderKind::Openrouter);
-    assert_ne!(out.provider_kind, ProviderKind::Zai);
+    assert_eq!(out.provider_kind, ProviderKind::Custom);
+    assert_ne!(out.provider_kind, ProviderKind::XiaomiMimo);
     assert_eq!(out.wire_model_id.as_str(), "z-ai/glm-5.2");
     assert_eq!(
         out.canonical_model.as_ref().map(ModelId::as_str),
@@ -353,8 +332,8 @@ fn resolver_models_dev_prefixed_wire_id_stays_inside_provider_scope() {
 fn resolver_carries_models_dev_limits_into_ready_candidate() {
     let r = models_dev_route_resolver();
     let out = r
-        .resolve(&req(Some(ProviderKind::Zai), Some("glm-5.2")))
-        .expect("Z.AI Models.dev row should resolve");
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("glm-5.2")))
+        .expect("XiaomiMiMo Models.dev row should resolve");
 
     assert_eq!(out.limits.context_tokens, Some(1_000_000));
     assert_eq!(out.limits.input_tokens, Some(900_000));
@@ -366,11 +345,11 @@ fn resolver_carries_models_dev_limits_into_ready_candidate() {
 fn resolver_keeps_limits_provider_scoped_for_same_canonical_model() {
     let r = models_dev_route_resolver();
     let direct = r
-        .resolve(&req(Some(ProviderKind::Zai), Some("glm-5.2")))
-        .expect("direct Z.AI route should resolve");
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("glm-5.2")))
+        .expect("direct XiaomiMiMo route should resolve");
     let hosted = r
-        .resolve(&req(Some(ProviderKind::Openrouter), Some("z-ai/glm-5.2")))
-        .expect("hosted OpenRouter route should resolve");
+        .resolve(&req(Some(ProviderKind::Custom), Some("z-ai/glm-5.2")))
+        .expect("hosted Custom route should resolve");
 
     assert_eq!(
         direct.canonical_model.as_ref().map(ModelId::as_str),
@@ -382,36 +361,10 @@ fn resolver_keeps_limits_provider_scoped_for_same_canonical_model() {
 }
 
 #[test]
-fn resolver_strict_direct_rejects_clearly_foreign_selector() {
-    let r = RouteResolver::new();
-    let out = r.resolve(&req(Some(ProviderKind::Zai), Some("anthropic/claude-foo")));
-    match out {
-        Err(RouteError::ForeignModelForDirectProvider { provider, model }) => {
-            assert_eq!(provider.as_str(), "zai");
-            assert_eq!(model, "anthropic/claude-foo");
-        }
-        other => panic!("expected ForeignModelForDirectProvider, got {other:?}"),
-    }
-}
-
-#[test]
-fn resolver_strict_direct_rejects_other_provider_known_bare_offering() {
-    let r = RouteResolver::new();
-    let out = r.resolve(&req(Some(ProviderKind::Zai), Some("deepseek-v4-pro")));
-    match out {
-        Err(RouteError::ForeignModelForDirectProvider { provider, model }) => {
-            assert_eq!(provider.as_str(), "zai");
-            assert_eq!(model, "deepseek-v4-pro");
-        }
-        other => panic!("expected ForeignModelForDirectProvider, got {other:?}"),
-    }
-}
-
-#[test]
 fn resolver_custom_endpoint_allows_namespaced_selector_for_strict_provider() {
     let r = RouteResolver::new();
     let request = RouteRequest {
-        explicit_provider: Some(ProviderKind::Deepseek),
+        explicit_provider: Some(ProviderKind::XiaomiMimo),
         model_selector: Some(LogicalModelRef::from("vendor/custom-coder")),
         saved_provider_model: None,
         base_url_override: Some("https://example.local/v1".to_string()),
@@ -419,7 +372,7 @@ fn resolver_custom_endpoint_allows_namespaced_selector_for_strict_provider() {
     let out = r
         .resolve(&request)
         .expect("custom endpoint should defer model validation upstream");
-    assert_eq!(out.provider_kind, ProviderKind::Deepseek);
+    assert_eq!(out.provider_kind, ProviderKind::XiaomiMimo);
     assert_eq!(out.wire_model_id.as_str(), "vendor/custom-coder");
     assert_eq!(out.endpoint.base_url, "https://example.local/v1");
 }
@@ -448,19 +401,6 @@ fn resolver_explicit_custom_with_base_url_override_passes_model_through_verbatim
     assert!(out.validation.messages.is_empty());
 }
 
-#[test]
-fn resolver_strict_direct_rejects_models_dev_offering_from_another_provider() {
-    let r = models_dev_route_resolver();
-    let out = r.resolve(&req(Some(ProviderKind::Deepseek), Some("glm-5.2")));
-    match out {
-        Err(RouteError::ForeignModelForDirectProvider { provider, model }) => {
-            assert_eq!(provider.as_str(), "deepseek");
-            assert_eq!(model, "glm-5.2");
-        }
-        other => panic!("expected ForeignModelForDirectProvider, got {other:?}"),
-    }
-}
-
 // ---------------------------------------------------------------------------
 // #3385: the DEFAULT resolver now sources the bundled Models.dev catalog asset,
 // so real provider/model facts (context windows) reach candidates.
@@ -470,91 +410,43 @@ fn resolver_strict_direct_rejects_models_dev_offering_from_another_provider() {
 fn default_resolver_yields_real_facts_from_bundled_catalog() {
     let r = RouteResolver::new();
 
-    // A GLM row (Z.ai) resolves to a real, non-default context window — proof
-    // the bundled asset feeds the default resolver rather than the old 4-row
-    // seam, which only knew deepseek/together/openrouter and left everything
-    // else at `RouteLimits::default()` (unknown).
-    let glm = r
-        .resolve(&req(Some(ProviderKind::Zai), Some("GLM-5.2")))
-        .expect("Z.ai GLM-5.2 should resolve from the bundled catalog");
-    assert_eq!(glm.provider_kind, ProviderKind::Zai);
-    assert_eq!(glm.wire_model_id.as_str(), "GLM-5.2");
+    // A MiMo v2.5 Pro row resolves to a real, non-default context window —
+    // proof the bundled asset feeds the default resolver with real facts.
+    let mimo = r
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("mimo-v2.5-pro")))
+        .expect("mimo-v2.5-pro should resolve from the bundled catalog");
+    assert_eq!(mimo.provider_kind, ProviderKind::XiaomiMimo);
+    assert_eq!(mimo.wire_model_id.as_str(), "mimo-v2.5-pro");
     assert_eq!(
-        glm.limits.context_tokens,
+        mimo.limits.context_tokens,
         Some(1_000_000),
-        "GLM-5.2 must carry its real context window, not the unknown default"
+        "mimo-v2.5-pro must carry its real context window, not the unknown default"
     );
-    assert_eq!(glm.limits.output_tokens, Some(131_072));
-    assert!(glm.limits.has_known_limit());
+    assert_eq!(mimo.limits.output_tokens, Some(131_072));
+    assert!(mimo.limits.has_known_limit());
 
-    // A Kimi row (Moonshot) likewise resolves with its real window — a model
-    // the 4-row seam never knew about at all.
-    let kimi = r
-        .resolve(&req(Some(ProviderKind::Moonshot), Some("kimi-k2.7-code")))
-        .expect("Moonshot kimi-k2.7-code should resolve from the bundled catalog");
-    assert_eq!(kimi.limits.context_tokens, Some(262_144));
-    assert_eq!(kimi.limits.output_tokens, Some(262_144));
-
-    // With the #3085 pricing keystone present on the release branch, the asset's
-    // provider-scoped `cost` now projects onto the candidate via
-    // `route_pricing_sku`, so a priced Z.ai row carries a real per-token meter
-    // rather than `UnknownOrStale` — the "lighting up" that #3385 + #3085 deliver
-    // together.
-    let glm51 = r
-        .resolve(&req(Some(ProviderKind::Zai), Some("glm-5.1")))
-        .expect("Z.ai glm-5.1 should resolve from the bundled catalog");
-    assert_eq!(glm51.limits.context_tokens, Some(202_752));
-    assert!(matches!(
-        glm51.pricing,
-        Some(super::candidate::PricingSku::Token { .. })
-    ));
-}
-
-#[test]
-fn default_resolver_preserves_seam_canonical_joins() {
-    // The bundled asset is merged UNDER the hand seam, so the seam's curated
-    // canonical-model joins still win: a DeepSeek-native selector keeps its
-    // canonical id, and an aggregator-prefixed wire id still maps back to the
-    // canonical DeepSeek model. (This is what keeps the existing route
-    // invariants green after the asset was wired in.)
-    let r = RouteResolver::new();
-
-    let direct = r
-        .resolve(&req(Some(ProviderKind::Deepseek), Some("deepseek-v4-pro")))
-        .expect("deepseek-v4-pro resolves");
-    assert_eq!(
-        direct.canonical_model.as_ref().map(ModelId::as_str),
-        Some("deepseek-v4-pro")
-    );
-
-    let hosted = r
-        .resolve(&req(
-            Some(ProviderKind::Together),
-            Some("deepseek-ai/DeepSeek-V4-Pro"),
-        ))
-        .expect("together hosted deepseek resolves");
-    assert_eq!(
-        hosted.canonical_model.as_ref().map(ModelId::as_str),
-        Some("deepseek-v4-pro"),
-        "seam canonical join must survive the asset merge"
-    );
-    assert_eq!(hosted.wire_model_id.as_str(), "deepseek-ai/DeepSeek-V4-Pro");
+    // A MiMo v2.5 row likewise resolves with its real window.
+    let mimo_lite = r
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("mimo-v2.5")))
+        .expect("mimo-v2.5 should resolve from the bundled catalog");
+    assert_eq!(mimo_lite.limits.context_tokens, Some(1_000_000));
+    assert_eq!(mimo_lite.limits.output_tokens, Some(131_072));
 }
 
 #[test]
 fn resolver_deepseek_none_selector_uses_default_wire_id() {
     let r = RouteResolver::new();
     let out = r
-        .resolve(&req(Some(ProviderKind::Deepseek), None))
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), None))
         .expect("none selector should use provider default");
-    assert_eq!(out.provider_kind, ProviderKind::Deepseek);
-    assert_eq!(out.wire_model_id.as_str(), "deepseek-v4-pro");
+    assert_eq!(out.provider_kind, ProviderKind::XiaomiMimo);
+    assert_eq!(out.wire_model_id.as_str(), "mimo-v2.5-pro");
 }
 
 #[test]
 fn resolver_empty_string_selector_is_empty_model_error() {
     let r = RouteResolver::new();
-    let out = r.resolve(&req(Some(ProviderKind::Deepseek), Some("")));
+    let out = r.resolve(&req(Some(ProviderKind::XiaomiMimo), Some("")));
     assert!(matches!(out, Err(RouteError::EmptyModel)));
 }
 
@@ -564,7 +456,7 @@ fn resolver_empty_saved_provider_model_is_empty_model_error() {
     // just an empty explicit selector (the guard covers every selector source).
     let r = RouteResolver::new();
     let request = RouteRequest {
-        explicit_provider: Some(ProviderKind::Deepseek),
+        explicit_provider: Some(ProviderKind::XiaomiMimo),
         model_selector: None,
         saved_provider_model: Some(WireModelId::from("")),
         base_url_override: None,
@@ -576,9 +468,9 @@ fn resolver_empty_saved_provider_model_is_empty_model_error() {
 fn resolver_passthrough_provider_preserves_custom_id_verbatim() {
     let r = RouteResolver::new();
     let out = r
-        .resolve(&req(Some(ProviderKind::Openai), Some("my-local:7b")))
+        .resolve(&req(Some(ProviderKind::Custom), Some("my-local:7b")))
         .expect("local passthrough should resolve");
-    assert_eq!(out.provider_kind, ProviderKind::Openai);
+    assert_eq!(out.provider_kind, ProviderKind::Custom);
     assert_eq!(out.wire_model_id.as_str(), "my-local:7b");
     assert_eq!(out.limits, Default::default());
     assert!(out.validation.ok);
@@ -589,14 +481,14 @@ fn resolved_candidate_serializes_secret_free() {
     let r = RouteResolver::new();
     // Cover a direct, an aggregator, and a local/passthrough route.
     let candidates = [
-        r.resolve(&req(Some(ProviderKind::Deepseek), Some("deepseek-v4-pro")))
+        r.resolve(&req(Some(ProviderKind::XiaomiMimo), Some("mimo-v2.5-pro")))
             .expect("direct resolves"),
         r.resolve(&req(
-            Some(ProviderKind::Together),
+            Some(ProviderKind::Custom),
             Some("deepseek-ai/DeepSeek-V4-Pro"),
         ))
         .expect("aggregator resolves"),
-        r.resolve(&req(Some(ProviderKind::Openai), Some("my-local:7b")))
+        r.resolve(&req(Some(ProviderKind::Custom), Some("my-local:7b")))
             .expect("local resolves"),
     ];
     for out in candidates {
@@ -649,16 +541,16 @@ fn resolver_protocol_matches_descriptor_for_every_provider() {
 // #3085: honest pricing on resolved candidates.
 // ---------------------------------------------------------------------------
 
-/// A resolver whose single offering is a DeepSeek-priced catalog row, projected
+/// A resolver whose single offering is a priced catalog row, projected
 /// through the wired `CatalogOffering::to_offering` pricing seam.
-fn priced_deepseek_resolver() -> RouteResolver {
+fn priced_xiaomi_mimo_resolver() -> RouteResolver {
     use crate::catalog::{CatalogOffering, CatalogSource};
     use crate::models_dev::ModelsDevCost;
 
     let priced = CatalogOffering {
-        provider: "deepseek".into(),
-        wire_model_id: "deepseek-v4-pro".into(),
-        canonical_model: Some("deepseek-v4-pro".into()),
+        provider: "xiaomi-mimo".into(),
+        wire_model_id: "mimo-v2.5-pro".into(),
+        canonical_model: Some("mimo-v2.5-pro".into()),
         endpoint_key: "chat".into(),
         default_for_provider: true,
         cost: Some(ModelsDevCost {
@@ -677,10 +569,10 @@ fn priced_deepseek_resolver() -> RouteResolver {
 fn priced_offering_yields_token_pricing_sku() {
     use super::candidate::PricingSku;
 
-    let r = priced_deepseek_resolver();
+    let r = priced_xiaomi_mimo_resolver();
     let out = r
-        .resolve(&req(Some(ProviderKind::Deepseek), Some("deepseek-v4-pro")))
-        .expect("priced DeepSeek route should resolve");
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("mimo-v2.5-pro")))
+        .expect("priced XiaomiMiMo route should resolve");
 
     match out.pricing {
         Some(PricingSku::Token {
@@ -703,17 +595,17 @@ fn unpriced_offering_stays_unknown() {
     // zero price (#2608 / #3085 honesty rule).
     let r = RouteResolver::new();
     let out = r
-        .resolve(&req(Some(ProviderKind::Deepseek), Some("deepseek-v4-pro")))
-        .expect("bundled DeepSeek route should resolve");
+        .resolve(&req(Some(ProviderKind::XiaomiMimo), Some("mimo-v2.5-pro")))
+        .expect("bundled XiaomiMiMo route should resolve");
     assert!(
         matches!(out.pricing, Some(PricingSku::UnknownOrStale)),
-        "bundled offering carries no price → UnknownOrStale, got {:?}",
+        "bundled offering carries no price -> UnknownOrStale, got {:?}",
         out.pricing
     );
 
     // A pass-through route with no matched offering is likewise unknown.
     let passthrough = r
-        .resolve(&req(Some(ProviderKind::Openai), Some("my-local:7b")))
+        .resolve(&req(Some(ProviderKind::Custom), Some("my-local:7b")))
         .expect("local passthrough should resolve");
     assert!(matches!(
         passthrough.pricing,
@@ -740,7 +632,7 @@ fn http_custom_endpoint_emits_insecure_warning() {
     let r = RouteResolver::new();
     let out = r
         .resolve(&req_with_base(
-            ProviderKind::Openai,
+            ProviderKind::Custom,
             "gpt-whatever",
             "http://example.com/v1",
         ))
@@ -771,7 +663,7 @@ fn loopback_http_endpoint_does_not_warn() {
         "http://[::1]:8080/v1",
     ] {
         let out = r
-            .resolve(&req_with_base(ProviderKind::Openai, "my-local:7b", base))
+            .resolve(&req_with_base(ProviderKind::Custom, "my-local:7b", base))
             .unwrap_or_else(|e| panic!("loopback route {base} should resolve: {e}"));
         assert!(out.validation.ok);
         assert!(
@@ -787,7 +679,7 @@ fn https_endpoint_has_no_warning() {
     let r = RouteResolver::new();
     let out = r
         .resolve(&req_with_base(
-            ProviderKind::Openai,
+            ProviderKind::Custom,
             "gpt-whatever",
             "https://example.com/v1",
         ))

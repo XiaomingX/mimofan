@@ -32,7 +32,7 @@ pub enum Currency {
     #[default]
     Usd,
     Cny,
-    /// An ISO-4217-style code CodeWhale does not special-case.
+    /// An ISO-4217-style code mimofan does not special-case.
     Other(String),
 }
 

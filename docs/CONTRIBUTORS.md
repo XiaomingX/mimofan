@@ -1,21 +1,21 @@
 # Contributors
 
-CodeWhale is built in the open with a growing community of contributors. Every
+mimo-tui is built in the open with a growing community of contributors. Every
 issue report and pull request is real project work — welcome at any experience
 level. This is the full per-PR contributor record in **chronological order**
 (newest first), collapsed into time bands so it stays scannable. Expand any band
 to see everyone.
 
 For the live list, see the
-[GitHub contributors page](https://github.com/Hmbown/CodeWhale/graphs/contributors),
-[`AUTHOR_MAP`](https://github.com/Hmbown/CodeWhale/blob/main/.github/AUTHOR_MAP),
+[GitHub contributors page](https://github.com/XiaomingX/mimo-tui/graphs/contributors),
+[`AUTHOR_MAP`](https://github.com/XiaomingX/mimo-tui/blob/main/.github/AUTHOR_MAP),
 and [CHANGELOG.md](../CHANGELOG.md).
 
 ## Organizational thanks
 
 - **[DeepSeek](https://github.com/deepseek-ai)** — the models and support that got this project started. 感谢 DeepSeek 提供模型与支持。
 - **[DataWhale](https://github.com/datawhalechina)** 🐋 — for the support and for welcoming us into the Whale Brother family. 感谢 DataWhale 的支持。
-- **[OpenWarp](https://github.com/zerx-lab/warp)** — for prioritizing codewhale support and collaborating on a better terminal-agent experience.
+- **[OpenWarp](https://github.com/zerx-lab/warp)** — for prioritizing mimo-tui support and collaborating on a better terminal-agent experience.
 - **[Open Design](https://github.com/nexu-io/open-design)** — for support and collaboration around design-forward agent workflows.
 
 The maintainer rule: reports and PRs are real project work, even when the final
@@ -50,7 +50,7 @@ proxying, and DeepSeek thinking tool calls — alongside community contributions
 - **[wuisabel-gif](https://github.com/wuisabel-gif)** — tear down the delegated
   serve/app-server child process when the dispatcher exits (#3259 / #3317)
 - **[nightt5879](https://github.com/nightt5879)** — keep the onboarding marker in
-  the codewhale home view (#3302) and branch-hygiene check hardening (#3348)
+  the mimo-tui home view (#3302) and branch-hygiene check hardening (#3348)
 - **[gaord](https://github.com/gaord)** — preserve thinking/tool blocks when
   seeding a thread from a saved session, plus Hugging Face provider env (#3329)
 - **[greyfreedom](https://github.com/greyfreedom)** — persist ask-permission rules
@@ -67,7 +67,7 @@ proxying, and DeepSeek thinking tool calls — alongside community contributions
 
 The v0.8.62 release retuned provider/model routing (GLM-5.2 as the default direct
 Z.AI model, `type: "explore"` sub-agents defaulting to the cheaper same-family
-sibling), added TOML comment preservation and the CodeWhale-only skill discovery
+sibling), added TOML comment preservation and the mimo-tui-only skill discovery
 gate, and shipped the static Linux x64 musl binary — alongside a broad community
 closeout and a retroactive credit reconciliation pass.
 
@@ -80,8 +80,8 @@ closeout and a retroactive credit reconciliation pass.
 - **[LeoLin990405](https://github.com/LeoLin990405)** — Poppler `pdftotext -v`
   detection (#1667), session persistence before stall/cancel recovery (#2739),
   and debounced thinking-stream re-renders (#1620)
-- **[nightt5879](https://github.com/nightt5879)** — CodeWhale-only skill discovery
-  gate (`[skills].scan_codewhale_only`) ignoring cross-tool directories (#3296) and
+- **[nightt5879](https://github.com/nightt5879)** — mimo-tui-only skill discovery
+  gate (`[skills].scan_mimo-tui_only`) ignoring cross-tool directories (#3296) and
   app-server no-auth loopback docs
 - **[reidliu41](https://github.com/reidliu41)** — slash commands exposed as hotbar
   actions (#3269)
@@ -89,7 +89,7 @@ closeout and a retroactive credit reconciliation pass.
   binaries
 - **[wuisabel-gif](https://github.com/wuisabel-gif)** — per-tool snapshot gate
   respecting `[snapshots].enabled` (#3292) and composer history written under
-  `.codewhale`
+  `.mimo-tui`
 - **[gaord](https://github.com/gaord)** — `workspace_follow_symlinks` setting for
   symlink-aware tool operations with hardened path handling
 - **[greyfreedom](https://github.com/greyfreedom)** — ask-permission rules honored
@@ -145,7 +145,7 @@ patches, and TUI fixes landed alongside first-time and returning contributor wor
 <summary><strong>Forward track — recent v0.9 work (newest)</strong></summary>
 
 
-- **[xyuai](https://github.com/xyuai)** — canonical CodeWhale settings path,
+- **[xyuai](https://github.com/xyuai)** — canonical mimo-tui settings path,
   provider persistence, provider picker, logout-scope, and MiMo auth cleanup
   work (#2730, #2714, #2715, #2717, #2718)
 - **[shenjackyuanjie](https://github.com/shenjackyuanjie)** — HarmonyOS /
@@ -234,7 +234,7 @@ patches, and TUI fixes landed alongside first-time and returning contributor wor
 - **[xieshutao](https://github.com/xieshutao)** — plain Markdown skill fallback (#869)
 - **[GK012](https://github.com/GK012)** — npm wrapper `--version` fallback (#885)
 - **[y0sif](https://github.com/y0sif)** — parent turn-loop wakeup after direct child sub-agent completion (#901)
-- **[mac119](https://github.com/mac119)** and **[leo119](https://github.com/leo119)** — `codewhale update` command documentation (#838, #917)
+- **[mac119](https://github.com/mac119)** and **[leo119](https://github.com/leo119)** — `mimo-tui update` command documentation (#838, #917)
 - **[dumbjack](https://github.com/dumbjack)** / **浩淼的mac** — command-safety null-byte hardening (#706, #918)
 - **macworkers** — fork confirmation with the new session id (#600, #919)
 - **zero** and **[zerx-lab](https://github.com/zerx-lab)** — notification condition config and richer OSC 9 notification body (#820, #920)
@@ -262,7 +262,7 @@ patches, and TUI fixes landed alongside first-time and returning contributor wor
 - **[mdrkrg](https://github.com/mdrkrg)** — first-run onboarding crash fix when the API key is missing (#1598)
 - **[Aitensa](https://github.com/Aitensa)** — CJK wrapping propagation for diff and pager output (#1622)
 - **[qiyan233](https://github.com/qiyan233)** — legacy DeepSeek CN provider alias compatibility (#1645)
-- **[zlh124](https://github.com/zlh124)** — WSL2/headless startup report, clipboard-init fix, CodeWhale tab-title polish, localized context-menu labels, and approval-dialog fixes (#1772, #1773, #2319, #2320, #2325)
+- **[zlh124](https://github.com/zlh124)** — WSL2/headless startup report, clipboard-init fix, mimo-tui tab-title polish, localized context-menu labels, and approval-dialog fixes (#1772, #1773, #2319, #2320, #2325)
 - **[aboimpinto](https://github.com/aboimpinto)** — Windows alt-screen
   logging, Home/End composer, runtime log follow-ups, sidebar command polish,
   and pausable command lifecycle work (#1774, #1776, #1748, #1749, #1782,
@@ -275,11 +275,11 @@ patches, and TUI fixes landed alongside first-time and returning contributor wor
 - **[sximelon](https://github.com/sximelon)** — paste Enter suppression, key handler extraction (#2174, #2042)
 - **[nanookclaw](https://github.com/nanookclaw)** — search provider in doctor output (#2135)
 - **[Sskift](https://github.com/Sskift)** — CLI default env override prevention and statusline footer clearing (#2119, #2248)
-- **[xin1104](https://github.com/xin1104)** — Homebrew codewhale binary install (#2105)
+- **[xin1104](https://github.com/xin1104)** — Homebrew mimo-tui binary install (#2105)
 - **[mrluanma](https://github.com/mrluanma)** — Metaso search provider (#2059)
 - **[Lellansin](https://github.com/Lellansin)** — skip config merge at home dir (#2055)
 - **[zhuangbiaowei](https://github.com/zhuangbiaowei)** — update release channels and legacy MCP SSE fixes (#2145, #2301)
-- **[cy2311](https://github.com/cy2311)** — Windows `.bat` launcher for CodeWhale (#1861)
+- **[cy2311](https://github.com/cy2311)** — Windows `.bat` launcher for mimo-tui (#1861)
 - **[LING71671](https://github.com/LING71671)** — effective cost currency context, custom provider docs, and core tool taxonomy prompt block (#1902, #2287, #2292)
 - **[dzyuan](https://github.com/dzyuan)** — Volcengine provider support with DeepSeek V4 Pro/Flash models (#1993)
 - **[mvanhorn](https://github.com/mvanhorn)** — live request-shape test factories and global `~/.agents/AGENTS.md` fallback (#2107, #2236)

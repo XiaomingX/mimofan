@@ -64,12 +64,12 @@ function unsupportedBuildHint() {
     "",
     "Or build from a checkout:",
     "",
-    "  git clone https://github.com/Hmbown/CodeWhale.git",
+    "  git clone https://github.com/XiaomingX/mimo-tui.git",
     "  cd CodeWhale",
     "  cargo install --path crates/cli --locked",
     "  cargo install --path crates/tui --locked",
     "",
-    "See https://github.com/Hmbown/CodeWhale/blob/main/docs/INSTALL.md",
+    "See https://github.com/XiaomingX/mimo-tui/blob/main/docs/INSTALL.md",
     "for cross-compilation, mirror, and Linux ARM64 specifics.",
   ].join("\n");
 }
@@ -78,7 +78,7 @@ function executableName(base, platform) {
   return platform === "win32" ? `${base}.exe` : base;
 }
 
-function releaseBaseUrl(version, repo = "Hmbown/CodeWhale") {
+function releaseBaseUrl(version, repo = "XiaomingX/mimo-tui") {
   // CODEWHALE_RELEASE_BASE_URL is the canonical override.
   // DEEPSEEK_TUI_RELEASE_BASE_URL / DEEPSEEK_RELEASE_BASE_URL are legacy aliases.
   const override =
@@ -92,16 +92,16 @@ function releaseBaseUrl(version, repo = "Hmbown/CodeWhale") {
   // When CODEWHALE_USE_CNB_MIRROR is set, use the CNB (China-friendly)
   // mirror that already builds and publishes binary release assets.
   if (process.env.CODEWHALE_USE_CNB_MIRROR) {
-    return `https://cnb.cool/Hmbown/CodeWhale/-/releases/v${version}/`;
+    return `https://cnb.cool/XiaomingX/mimo-tui/-/releases/v${version}/`;
   }
   return `https://github.com/${repo}/releases/download/v${version}/`;
 }
 
-function releaseAssetUrl(baseName, version, repo = "Hmbown/CodeWhale") {
+function releaseAssetUrl(baseName, version, repo = "XiaomingX/mimo-tui") {
   return new URL(baseName, releaseBaseUrl(version, repo)).toString();
 }
 
-function checksumManifestUrl(version, repo = "Hmbown/CodeWhale") {
+function checksumManifestUrl(version, repo = "XiaomingX/mimo-tui") {
   return releaseAssetUrl(CHECKSUM_MANIFEST, version, repo);
 }
 

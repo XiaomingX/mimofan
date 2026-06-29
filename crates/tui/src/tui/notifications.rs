@@ -165,7 +165,7 @@ fn build_escape(method: Method, in_tmux: bool, msg: &str) -> Vec<u8> {
         }
         Method::Ghostty => {
             // Ghostty notification: OSC 777 ; notify ; title ; message BEL
-            let seq = format!("\x1b]777;notify;codewhale;{msg}\x07");
+            let seq = format!("\x1b]777;notify;mimofan;{msg}\x07");
             wrap_for_multiplexer(&seq, in_tmux).into_bytes()
         }
         // Auto and Off and MacOS should not reach build_escape.
@@ -480,7 +480,7 @@ fn completion_sound_state_for_tests() -> (crate::config::CompletionSound, Option
 /// Runs on a dedicated background thread so the caller is not blocked.
 ///
 /// The notification includes:
-/// - **Title**: "CodeWhale"
+/// - **Title**: "mimofan"
 /// - **Subtitle**: First line of `msg` (when the message contains a newline,
 ///   e.g. the localized completion status from a completed turn)
 /// - **Body**: Remaining lines of `msg`, if any
@@ -738,7 +738,7 @@ pub fn subagent_completion_message(
     let result_line = result
         .lines()
         .map(str::trim)
-        .find(|line| !line.is_empty() && !line.starts_with("<codewhale:subagent.done>"));
+        .find(|line| !line.is_empty() && !line.starts_with("<mimo:subagent.done>"));
     let mut msg = completion_status(
         notification_subagent_complete(locale),
         include_summary,
@@ -775,25 +775,13 @@ fn completion_status(
 
 fn notification_turn_complete(locale: Locale) -> &'static str {
     match locale {
-        Locale::En => "Turn complete",
-        Locale::Ja => "ターン完了",
         Locale::ZhHans => "本轮已完成",
-        Locale::ZhHant => "本輪已完成",
-        Locale::PtBr => "Turno concluído",
-        Locale::Es419 => "Turno completado",
-        Locale::Vi => "Lượt hoàn tất",
     }
 }
 
 fn notification_subagent_complete(locale: Locale) -> &'static str {
     match locale {
-        Locale::En => "Sub-agent complete",
-        Locale::Ja => "サブエージェント完了",
         Locale::ZhHans => "子代理已完成",
-        Locale::ZhHant => "子代理已完成",
-        Locale::PtBr => "Subagente concluído",
-        Locale::Es419 => "Subagente completado",
-        Locale::Vi => "Sub-agent hoàn tất",
     }
 }
 
@@ -890,8 +878,8 @@ mod tests {
 
     #[test]
     fn osc9_body_format() {
-        let out = capture(Method::Osc9, false, "codewhale: done", 0, 1);
-        assert_eq!(out, b"\x1b]9;codewhale: done\x07");
+        let out = capture(Method::Osc9, false, "mimofan: done", 0, 1);
+        assert_eq!(out, b"\x1b]9;mimofan: done\x07");
     }
 
     #[test]
@@ -920,7 +908,7 @@ mod tests {
         let out = capture(Method::Ghostty, false, "done", 0, 1);
         let s = String::from_utf8(out).unwrap();
         assert!(
-            s.contains("777;notify;codewhale;done"),
+            s.contains("777;notify;mimofan;done"),
             "should have ghostty seq"
         );
     }

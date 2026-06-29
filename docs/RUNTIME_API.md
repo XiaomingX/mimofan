@@ -1,18 +1,18 @@
 # Runtime API & Integration Contract
 
-`codewhale app-server` is the canonical local runtime API and control plane.
+`mimo-tui app-server` is the canonical local runtime API and control plane.
 Local SDKs, mobile/remote-control clients, and editor integrations talk to it
 instead of screen-scraping terminal output. It serves the full HTTP/SSE runtime
 API (`/v1/*`), a JSON-RPC control transport over stdio, and the phone-friendly
-mobile page. `codewhale doctor --json` provides machine-readable health, and
-`codewhale serve --acp` speaks the Agent Client Protocol over stdio for editors
+mobile page. `mimo-tui doctor --json` provides machine-readable health, and
+`mimo-tui serve --acp` speaks the Agent Client Protocol over stdio for editors
 such as Zed.
 
-`codewhale serve --http` / `serve --mobile` remain as **compatibility aliases**
-for `codewhale app-server --http` / `--mobile`; both launch the identical
+`mimo-tui serve --http` / `serve --mobile` remain as **compatibility aliases**
+for `mimo-tui app-server --http` / `--mobile`; both launch the identical
 server. New integrations should target `app-server`.
 
-`codewhale exec` is the separate one-shot headless worker path (stream-json,
+`mimo-tui exec` is the separate one-shot headless worker path (stream-json,
 fleet worker subprocess, CI primitive). It is not part of this API, but it
 shares the same runtime, provider/model resolution, permission profiles, and
 event vocabulary.
@@ -25,14 +25,14 @@ applications (and other local supervisors) that embed the DeepSeek engine.
 ```
 local supervisor / SDK / automation harness
         │
-        ├─ codewhale app-server --http     → HTTP/SSE runtime API (/v1/*)        [canonical]
-        ├─ codewhale app-server --mobile   → runtime API + mobile control page
-        ├─ codewhale app-server --stdio    → JSON-RPC control transport over stdio
-        ├─ codewhale doctor --json         → machine-readable health & capability
-        ├─ codewhale serve --acp           → ACP stdio agent for editors such as Zed
-        ├─ codewhale serve --mcp           → MCP stdio server
-        ├─ codewhale serve --http/--mobile → legacy aliases for `app-server --http/--mobile`
-        └─ codewhale exec [args]           → one-shot headless worker (stream-json)
+        ├─ mimo-tui app-server --http     → HTTP/SSE runtime API (/v1/*)        [canonical]
+        ├─ mimo-tui app-server --mobile   → runtime API + mobile control page
+        ├─ mimo-tui app-server --stdio    → JSON-RPC control transport over stdio
+        ├─ mimo-tui doctor --json         → machine-readable health & capability
+        ├─ mimo-tui serve --acp           → ACP stdio agent for editors such as Zed
+        ├─ mimo-tui serve --mcp           → MCP stdio server
+        ├─ mimo-tui serve --http/--mobile → legacy aliases for `app-server --http/--mobile`
+        └─ mimo-tui exec [args]           → one-shot headless worker (stream-json)
 ```
 
 The engine runs as a local-only process. All APIs bind to `localhost` by
@@ -46,11 +46,11 @@ CLI/API surfaces are not implemented yet.
 
 | Entry | Transport | Use |
 |---|---|---|
-| `codewhale app-server --http` | HTTP/SSE on `127.0.0.1:7878` | Full `/v1/*` runtime API (canonical) |
-| `codewhale app-server --mobile` | HTTP/SSE on `0.0.0.0:7878` + `/mobile` | Runtime API + phone control page |
-| `codewhale app-server --stdio` | JSON-RPC 2.0 over stdio | Local SDK / control probe (no listener) |
-| `codewhale app-server` | HTTP on `127.0.0.1:8787` | Legacy in-process app-server (`/healthz`, `/thread`, `/app`, `/prompt`, `/tool`, `/jobs`) |
-| `codewhale serve --http` / `--mobile` | same server as `app-server --http`/`--mobile` | Compatibility aliases |
+| `mimo-tui app-server --http` | HTTP/SSE on `127.0.0.1:7878` | Full `/v1/*` runtime API (canonical) |
+| `mimo-tui app-server --mobile` | HTTP/SSE on `0.0.0.0:7878` + `/mobile` | Runtime API + phone control page |
+| `mimo-tui app-server --stdio` | JSON-RPC 2.0 over stdio | Local SDK / control probe (no listener) |
+| `mimo-tui app-server` | HTTP on `127.0.0.1:8787` | Legacy in-process app-server (`/healthz`, `/thread`, `/app`, `/prompt`, `/tool`, `/jobs`) |
+| `mimo-tui serve --http` / `--mobile` | same server as `app-server --http`/`--mobile` | Compatibility aliases |
 
 `app-server --http` and `--mobile` launch the same mature runtime API server
 historically reached through `serve --http` — no routes or behavior changed, so
@@ -58,7 +58,7 @@ every endpoint documented below is identical across both entrypoints. The
 runtime API token is read from `--auth-token`, then `CODEWHALE_RUNTIME_TOKEN`,
 then `DEEPSEEK_RUNTIME_TOKEN`; use `--insecure-no-auth` only with a loopback
 bind. The `serve` compatibility aliases keep their `--insecure` flag.
-The legacy in-process `codewhale app-server` also requires an explicit
+The legacy in-process `mimo-tui app-server` also requires an explicit
 `--auth-token` or `CODEWHALE_APP_SERVER_TOKEN` before binding a non-loopback
 host; its generated one-time `cwapp_*` token is loopback-only.
 
@@ -70,7 +70,7 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"healthz"}' \
   '{"jsonrpc":"2.0","id":2,"method":"capabilities"}' \
   '{"jsonrpc":"2.0","id":3,"method":"shutdown"}' \
-  | codewhale app-server --stdio
+  | mimo-tui app-server --stdio
 ```
 
 `capabilities` returns the advertised method families (`thread/*`, `app/*`,
@@ -97,7 +97,7 @@ this; the table maps each integration need to where a local client reads it.
 | Token usage | `TurnRecord.usage`; aggregate via `GET /v1/usage` | available |
 | Single-read run receipt (route + usage + cost) | `GET /v1/threads/{id}/turns/{turn_id}/receipt` | proposed ([RECEIPTS.md](RECEIPTS.md)) |
 
-For one-shot/headless automation, prefer `codewhale exec` with explicit
+For one-shot/headless automation, prefer `mimo-tui exec` with explicit
 `--provider <id> --model <id>` so a failure identifies the exact provider/model
 pair. Use `app-server` when a local integration needs to start, resume, steer,
 or interrupt turns, list models/capabilities, follow the event stream, or read
@@ -115,16 +115,16 @@ scripts/release/app-server-smoke.sh --matrix --real # + exec a cheap sentinel pe
 ```
 
 The stdio probe runs against a throwaway config, so it never reads real keys.
-The matrix discovers configured providers from `codewhale auth list`, maps each
+The matrix discovers configured providers from `mimo-tui auth list`, maps each
 to a cheap model (override per provider with `SMOKE_MODEL_<SLUG>`), skips
 unconfigured providers, and fails loudly on unmapped ones. `auth list` reports
 presence flags only and exec output is passed through a redactor, so secrets are
 never printed. The parser is covered by
-`scripts/release/app-server-smoke.test.sh` against a fake `codewhale` binary.
+`scripts/release/app-server-smoke.test.sh` against a fake `mimo-tui` binary.
 
-## ACP stdio adapter: `codewhale serve --acp`
+## ACP stdio adapter: `mimo-tui serve --acp`
 
-`codewhale serve --acp` speaks JSON-RPC 2.0 over newline-delimited stdio for
+`mimo-tui serve --acp` speaks JSON-RPC 2.0 over newline-delimited stdio for
 ACP-compatible editor clients. The initial adapter implements the ACP baseline:
 
 - `initialize`
@@ -138,16 +138,16 @@ followed by a `session/prompt` response with `stopReason: "end_turn"`.
 
 The adapter is intentionally conservative: it does not yet expose shell tools,
 file-write tools, checkpoint replay, or session loading through ACP. Use
-`codewhale serve --http` for the full local runtime API and `codewhale serve --mcp`
+`mimo-tui serve --http` for the full local runtime API and `mimo-tui serve --mcp`
 when another client needs DeepSeek's tools as MCP tools.
 
-## Capability endpoint: `codewhale doctor --json`
+## Capability endpoint: `mimo-tui doctor --json`
 
 Returns a JSON object describing the current installation's readiness state.
 Suitable for health-check polling from a macOS workbench.
 
 ```bash
-codewhale doctor --json
+mimo-tui doctor --json
 ```
 
 ### Response schema (key fields)
@@ -168,7 +168,7 @@ codewhale doctor --json
 | `mcp.present` | bool | Whether MCP config exists |
 | `mcp.servers` | array | Per-server health: `{name, enabled, status, detail}` |
 | `skills.selected` | string | Resolved skills directory |
-| `skills.global.path` / `.present` / `.count` | — | CodeWhale global skills dir (`~/.codewhale/skills`, with legacy `~/.deepseek/skills` support) |
+| `skills.global.path` / `.present` / `.count` | — | mimo-tui global skills dir (`~/.mimo-tui/skills`, with legacy `~/.deepseek/skills` support) |
 | `skills.agents.path` / `.present` / `.count` | — | Workspace `.agents/skills/` dir |
 | `skills.agents_global.path` / `.present` / `.count` | — | agentskills.io global skills dir (`~/.agents/skills`) |
 | `skills.local.path` / `.present` / `.count` | — | `skills/` dir |
@@ -186,9 +186,9 @@ codewhale doctor --json
 ```json
 {
   "version": "0.8.9",
-  "config_path": "/Users/you/.codewhale/config.toml",
+  "config_path": "/Users/you/.mimo-tui/config.toml",
   "config_present": true,
-  "workspace": "/Users/you/projects/codewhale-tui",
+  "workspace": "/Users/you/projects/mimo-tui",
   "api_key": {
     "source": "env"
   },
@@ -196,11 +196,11 @@ codewhale doctor --json
   "default_text_model": "deepseek-v4-pro",
   "memory": {
     "enabled": false,
-    "path": "/Users/you/.codewhale/memory.md",
+    "path": "/Users/you/.mimo-tui/memory.md",
     "file_present": true
   },
   "mcp": {
-    "config_path": "/Users/you/.codewhale/mcp.json",
+    "config_path": "/Users/you/.mimo-tui/mcp.json",
     "present": true,
     "servers": [
       {"name": "filesystem", "enabled": true, "status": "ok", "detail": "ready"}
@@ -213,16 +213,16 @@ codewhale doctor --json
 }
 ```
 
-## HTTP/SSE runtime API: `codewhale app-server --http`
+## HTTP/SSE runtime API: `mimo-tui app-server --http`
 
 ```bash
-codewhale app-server --http [--host 127.0.0.1] [--port 7878] [--workers 2] [--auth-token TOKEN] [--insecure-no-auth]
-codewhale app-server --mobile [--host 0.0.0.0] [--port 7878] [--auth-token TOKEN]
-codewhale app-server --mobile --host 127.0.0.1 [--port 7878] [--insecure-no-auth]
+mimo-tui app-server --http [--host 127.0.0.1] [--port 7878] [--workers 2] [--auth-token TOKEN] [--insecure-no-auth]
+mimo-tui app-server --mobile [--host 0.0.0.0] [--port 7878] [--auth-token TOKEN]
+mimo-tui app-server --mobile --host 127.0.0.1 [--port 7878] [--insecure-no-auth]
 
 # Compatibility aliases — identical server, serve flag names:
-codewhale serve --http   [...] [--insecure]
-codewhale serve --mobile [...] [--insecure]
+mimo-tui serve --http   [...] [--insecure]
+mimo-tui serve --mobile [...] [--insecure]
 ```
 
 Defaults: host `127.0.0.1`, port `7878`, 2 workers (clamped 1–8).
@@ -230,11 +230,11 @@ Defaults: host `127.0.0.1`, port `7878`, 2 workers (clamped 1–8).
 The server binds to `localhost` by default. Configuration is via CLI flags —
 there is no `[app_server]` config section.
 
-`/v1/*` routes require a bearer token unless `codewhale app-server` is started
+`/v1/*` routes require a bearer token unless `mimo-tui app-server` is started
 with `--insecure-no-auth` on a loopback bind such as `127.0.0.1`. Do not combine
 no-auth mode with the `--mobile` default host `0.0.0.0`; use a token for LAN
 mobile access, or add `--host 127.0.0.1` for local-only no-auth testing. The
-`codewhale serve` compatibility aliases use `--insecure` for the same loopback
+`mimo-tui serve` compatibility aliases use `--insecure` for the same loopback
 escape hatch.
 Pass `--auth-token TOKEN` or set `DEEPSEEK_RUNTIME_TOKEN=TOKEN` before starting
 the server. If neither is set, the process generates a one-time token and prints
@@ -249,7 +249,7 @@ clients that cannot set custom headers.
 
 ### Mobile control page
 
-`codewhale serve --mobile` starts the same HTTP/SSE runtime API and serves a
+`mimo-tui serve --mobile` starts the same HTTP/SSE runtime API and serves a
 phone-friendly control page at `/mobile`. When the bind host is left at the
 default, mobile mode binds to `0.0.0.0`, prints a warning, and prints local/LAN
 URLs. Pass `--host 127.0.0.1` to keep the mobile page loopback-only. If a
@@ -299,7 +299,7 @@ workspace metadata:
   "branch": "feature/runtime-api",
   "head": "abc1234",
   "dirty": false,
-  "workspace": "/Users/you/projects/codewhale",
+  "workspace": "/Users/you/projects/mimo-tui",
   "archived": false,
   "updated_at": "2026-06-06T05:43:00Z",
   "latest_turn_id": "turn_...",
@@ -544,9 +544,9 @@ The runtime API ships with a built-in dev-origin allow-list:
 `http://127.0.0.1:1420`, `tauri://localhost`. To add additional origins (e.g.
 when developing a UI on Vite's default `:5173`), use any of:
 
-- CLI flag (repeatable): `codewhale serve --http --cors-origin http://localhost:5173`
+- CLI flag (repeatable): `mimo-tui serve --http --cors-origin http://localhost:5173`
 - Env var (comma-separated): `DEEPSEEK_CORS_ORIGINS="http://localhost:5173,http://localhost:8080"`
-- Config (`~/.codewhale/config.toml`):
+- Config (`~/.mimo-tui/config.toml`):
   ```toml
   [runtime_api]
   cors_origins = ["http://localhost:5173"]
@@ -559,12 +559,12 @@ model is preserved. Added in v0.8.10 (#561).
 ## Runtime SDK Fleet Helpers
 
 The v0.8.60 Runtime SDK fixture lives in `npm/runtime-sdk` and is exposed as
-the `@codewhale/runtime-sdk` workspace package. It is deliberately thin: every
-helper calls the local Rust Runtime API and therefore cannot bypass CodeWhale's
+the `@mimo-tui/runtime-sdk` workspace package. It is deliberately thin: every
+helper calls the local Rust Runtime API and therefore cannot bypass mimo-tui's
 sandbox, approval prompts, provider configuration, or fleet ledger authority.
 
 ```js
-import { createRuntimeClient } from "@codewhale/runtime-sdk";
+import { createRuntimeClient } from "@mimo-tui/runtime-sdk";
 
 const client = createRuntimeClient({
   baseUrl: "http://127.0.0.1:7878",
@@ -598,13 +598,13 @@ generic fetch failures.
 Verification:
 
 ```bash
-npm test --workspace @codewhale/runtime-sdk
+npm test --workspace @mimo-tui/runtime-sdk
 ```
 
 ## Agent Run Receipts
 
 Sub-agent lanes persist compact run receipts in
-`.codewhale/state/subagents.v1.json`. The Runtime API exposes those receipts as
+`.mimo-tui/state/subagents.v1.json`. The Runtime API exposes those receipts as
 a read-only inspection surface:
 
 | Operation | Endpoint |
@@ -643,7 +643,7 @@ the TUI and parent model see.
 Contract snapshots live in `crates/protocol/tests/`. Run:
 
 ```bash
-cargo test -p codewhale-protocol --test parity_protocol --locked
+cargo test -p mimo-tui-protocol --test parity_protocol --locked
 ```
 
 This validates that the app-server's event schema hasn't drifted from the
@@ -653,7 +653,7 @@ The app-server stdio control surface has its own drift guard — the advertised
 `capabilities` method set is pinned in `crates/app-server/src/lib.rs`:
 
 ```bash
-cargo test -p codewhale-app-server capabilities
+cargo test -p mimo-tui-app-server capabilities
 ```
 
 Before a release, run the headless smoke (stdio probe + optional provider

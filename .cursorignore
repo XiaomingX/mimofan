@@ -1,6 +1,6 @@
 # ============================================
-# CodeWhale .claudeignore
-# 优化：排除 AI 不需要读取的文件，减少 token 浪费
+# mimofan .claudeignore
+# 排除 AI 不需要读取的文件，减少 token 浪费
 # ============================================
 
 # ── 构建产物 ──
@@ -24,6 +24,18 @@ flake.lock
 crates/tui/assets/model_catalog.bundled.json
 crates/config/assets/models_dev.bundled.json
 
+# ── 测试文件（不影响代码理解，减少 token 浪费）──
+crates/*/tests/
+crates/tui/tests/
+crates/tui/src/tui/ui/tests.rs
+crates/tui/src/tui/app/tests.rs
+crates/tui/src/config/tests.rs
+crates/tui/src/runtime_api/tests.rs
+crates/tui/src/tools/subagent/tests.rs
+crates/tui/src/core/engine/tests.rs
+crates/config/src/tests.rs
+crates/config/src/route/tests.rs
+
 # ── AI 记忆文件（已自动注入上下文，重复读取浪费 token）──
 **/CLAUDE.local.md
 
@@ -33,20 +45,19 @@ docs/CHANGELOG_ARCHIVE.md
 crates/tui/CHANGELOG.md
 
 # ── 非核心文档（不影响代码理解）──
-docs/rfcs/                    # 历史 RFC 设计文档
-docs/evidence/                # 审计证据材料
-docs/skills/                  # 技能市场文档
-docs/architecture/            # 架构子文档（已有 ARCHITECTURE_CN.md）
-docs/ARCHITECTURE.md          # 英文版，已有中文版 ARCHITECTURE_CN.md
-docs/GUIDE.md                 # 用户指南（已有 USAGE_CN.md）
-docs/INSTALL.md               # 安装指南（802 行，不影响代码理解）
-docs/DOCKER.md                # Docker 部署
-docs/FLEET.md                 # 舰队编排（542 行，实验性功能）
-docs/RUNTIME_API.md           # 运行时 API（665 行）
-docs/AGENT_RUNTIME.md         # 代理运行时
+docs/rfcs/
+docs/evidence/
+docs/skills/
+docs/architecture/
+docs/ARCHITECTURE.md
+docs/GUIDE.md
+docs/INSTALL.md
+docs/DOCKER.md
+docs/FLEET.md
+docs/RUNTIME_API.md
+docs/AGENT_RUNTIME.md
 docs/RECURSIVE_SELF_IMPROVEMENT.md
 docs/CNB_MIRROR.md
-docs/REBRAND.md
 docs/RECEIPTS.md
 docs/CLAUDE_PLUGIN_COMPAT.md
 docs/ACP_REGISTRY_SUBMISSION.md
@@ -62,20 +73,14 @@ docs/LEGACY_PATHS.md
 docs/SANDBOX.md
 docs/SKILL_INVOCATION_DESIGN.md
 docs/CLAUDE.local.md
-docs/memory/                  # 记忆系统文档
+docs/memory/
 benchmark_results/
-ARCHITECTURE_REFORM.md        # 改进计划（已完成的阶段性文档）
-DEEPSEEK_CACHE_AUDIT.md       # 审计文档
-HIGHLIGHTS.md
-USERGUIDE.md
-SECURITY.md
 docs/RELEASE_CHECKLIST.md
 docs/RELEASE_RUNBOOK.md
 docs/OPERATIONS_RUNBOOK.md
-docs/V0_8_61_EXECUTION.md
-docs/V0865_RELEASE_LEDGER.md
-docs/V0865_REMAINING_AGENT_PROMPT.md
-README.md                     # GitHub 展示文件，不影响代码理解
+docs/PROVIDERS.md
+docs/STABILITY_ANALYSIS.md
+docs/AGENT_ETHOS.md
 
 # ── Nix 配置 ──
 flake.nix
@@ -109,12 +114,11 @@ workflows/
 # ── 临时/生成文件 ──
 *.sh
 *.cmd
-result.json
-count_deps.py
-project_overhaul_prompt.md
+
+# ── Git 内部目录 ──
+.git/
 
 # ── 项目本地配置 ──
-.codewhale/
 .env.example
 .mailmap
 .gitattributes
@@ -122,7 +126,7 @@ project_overhaul_prompt.md
 # ============================================
 # 保留（不排除）：
 # - crates/              Rust 源代码（含 prompts/ 提示词模板）
-# - docs/ 核心文档       ARCHITECTURE_CN.md, CONFIGURATION.md, PROVIDERS.md,
+# - docs/ 核心文档       ARCHITECTURE_CN.md, CONFIGURATION.md,
 #                        SUBAGENTS.md, MCP.md, MODES.md, USAGE_CN.md,
 #                        TOOL_SURFACE.md, KEYBINDINGS.md, MEMORY.md
 # - config.example.toml  配置示例

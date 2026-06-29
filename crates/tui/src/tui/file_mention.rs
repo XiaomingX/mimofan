@@ -152,7 +152,7 @@ pub fn find_file_mention_completions(
     // Never-mentioned candidates fall back to the workspace ranker's order.
     let entries = super::file_frecency::rerank_by_frecency(entries);
     tracing::debug!(
-        target: "codewhale_tui::file_mention",
+        target: "mimofan_tui::file_mention",
         partial = %partial,
         workspace = %workspace.root.display(),
         cwd = ?std::env::current_dir().ok(),
@@ -171,7 +171,7 @@ pub fn find_file_mention_browser_completions(
 ) -> Vec<String> {
     let entries = workspace.browser_completions(partial, limit);
     tracing::debug!(
-        target: "codewhale_tui::file_mention",
+        target: "mimofan_tui::file_mention",
         partial = %partial,
         workspace = %workspace.root.display(),
         cwd = ?std::env::current_dir().ok(),
@@ -655,7 +655,7 @@ fn local_context_from_file_mentions(
             }
         };
         tracing::debug!(
-            target: "codewhale_tui::file_mention",
+            target: "mimofan_tui::file_mention",
             raw_typed = %mention,
             workspace = %workspace.display(),
             cwd = ?std::env::current_dir().ok(),

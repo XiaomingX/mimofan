@@ -412,7 +412,7 @@ impl WebSearchTool {
     /// Search via a configured SearXNG JSON API.
     ///
     /// SearXNG exposes `/search?q=...&format=json`, but public instances often
-    /// disable JSON output or rate-limit automation. CodeWhale therefore uses
+    /// disable JSON output or rate-limit automation. mimofan therefore uses
     /// only the trusted instance configured in `[search] base_url`.
     async fn run_searxng_search(
         &self,
@@ -2509,7 +2509,7 @@ mod tests {
 
         let (subpath_url, _) = searxng_search_url(
             Some("https://search.example/searxng?language=en"),
-            "codewhale",
+            "mimofan",
         )
         .expect("searxng subpath url");
         let parsed = reqwest::Url::parse(&subpath_url).expect("valid subpath url");
@@ -2524,7 +2524,7 @@ mod tests {
         );
 
         let (search_url, _) =
-            searxng_search_url(Some("https://search.example/searxng/search"), "codewhale")
+            searxng_search_url(Some("https://search.example/searxng/search"), "mimofan")
                 .expect("searxng search endpoint");
         assert_eq!(
             reqwest::Url::parse(&search_url)

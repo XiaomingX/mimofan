@@ -733,7 +733,7 @@ mod tests {
         // above. Pin model state explicitly so these tests are host-neutral.
         app.model = "deepseek-v4-flash".to_string();
         app.auto_model = false;
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         // Same for theme: tests below assert against the default dark palette,
         // but App::new honors saved settings.toml values on the host machine.
         app.theme_id = crate::palette::ThemeId::Whale;
@@ -906,20 +906,20 @@ mod tests {
     // ---- agents chip wording ----
     #[test]
     fn footer_agents_chip_is_empty_when_no_agents_running() {
-        let chip = super::footer_agents_chip(0, Locale::En);
+        let chip = super::footer_agents_chip(0, Locale::ZhHans);
         assert!(chip.is_empty(), "0 agents in flight → no chip");
     }
 
     #[test]
     fn footer_agents_chip_uses_singular_for_one() {
-        let chip = super::footer_agents_chip(1, Locale::En);
+        let chip = super::footer_agents_chip(1, Locale::ZhHans);
         assert_eq!(chip.len(), 1);
         assert_eq!(chip[0].content.as_ref(), "1 agent");
     }
 
     #[test]
     fn footer_agents_chip_uses_plural_for_many() {
-        let chip = super::footer_agents_chip(3, Locale::En);
+        let chip = super::footer_agents_chip(3, Locale::ZhHans);
         assert_eq!(chip.len(), 1);
         assert_eq!(chip[0].content.as_ref(), "3 agents");
     }
@@ -927,7 +927,7 @@ mod tests {
     #[test]
     fn footer_agents_chip_renders_into_widget() {
         let app = make_app();
-        let agents = super::footer_agents_chip(2, Locale::En);
+        let agents = super::footer_agents_chip(2, Locale::ZhHans);
         let props = FooterProps::from_app(
             &app,
             None,
@@ -1162,16 +1162,16 @@ mod tests {
         // The label sequence `working` → `working.` → `working..` →
         // `working...` then wraps back. Each frame is a discrete tick;
         // the cycle is exactly 4 frames so adjacent ticks visibly differ.
-        assert_eq!(super::footer_working_label(0, Locale::En), "working");
-        assert_eq!(super::footer_working_label(1, Locale::En), "working.");
-        assert_eq!(super::footer_working_label(2, Locale::En), "working..");
-        assert_eq!(super::footer_working_label(3, Locale::En), "working...");
+        assert_eq!(super::footer_working_label(0, Locale::ZhHans), "working");
+        assert_eq!(super::footer_working_label(1, Locale::ZhHans), "working.");
+        assert_eq!(super::footer_working_label(2, Locale::ZhHans), "working..");
+        assert_eq!(super::footer_working_label(3, Locale::ZhHans), "working...");
         assert_eq!(
-            super::footer_working_label(4, Locale::En),
+            super::footer_working_label(4, Locale::ZhHans),
             "working",
             "wraps back at frame 4",
         );
-        assert_eq!(super::footer_working_label(7, Locale::En), "working...");
+        assert_eq!(super::footer_working_label(7, Locale::ZhHans), "working...");
     }
 
     /// Render the footer at `width` and return the visible single-line text.

@@ -776,287 +776,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9b18233253483ce2f65329a24072ec414db782531bdbb7d0bbc4bd2ce6b7e21"
 
 [[package]]
-name = "codewhale-agent"
-version = "0.8.65"
-dependencies = [
- "codewhale-config",
- "serde",
-]
-
-[[package]]
-name = "codewhale-app-server"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "codewhale-agent",
- "codewhale-config",
- "codewhale-core",
- "codewhale-execpolicy",
- "codewhale-hooks",
- "codewhale-mcp",
- "codewhale-protocol",
- "codewhale-state",
- "codewhale-tools",
- "reqwest 0.13.4",
- "rustls",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "codewhale-cli"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "clap_complete",
- "codewhale-agent",
- "codewhale-app-server",
- "codewhale-config",
- "codewhale-execpolicy",
- "codewhale-mcp",
- "codewhale-release",
- "codewhale-secrets",
- "codewhale-state",
- "dirs",
- "libc",
- "reqwest 0.13.4",
- "rustls",
- "semver",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "tokio",
- "tracing",
- "windows",
-]
-
-[[package]]
-name = "codewhale-config"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "codewhale-execpolicy",
- "codewhale-secrets",
- "dirs",
- "libc",
- "serde",
- "serde_json",
- "tempfile",
- "toml",
- "toml_edit",
- "tracing",
-]
-
-[[package]]
-name = "codewhale-core"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "chrono",
- "codewhale-agent",
- "codewhale-config",
- "codewhale-execpolicy",
- "codewhale-hooks",
- "codewhale-mcp",
- "codewhale-protocol",
- "codewhale-state",
- "codewhale-tools",
- "serde_json",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "codewhale-execpolicy"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "codewhale-protocol",
- "serde",
-]
-
-[[package]]
-name = "codewhale-hooks"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "codewhale-protocol",
- "reqwest 0.13.4",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "codewhale-mcp"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "codewhale-protocol"
-version = "0.8.65"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "uuid",
-]
-
-[[package]]
-name = "codewhale-release"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "reqwest 0.13.4",
- "semver",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "codewhale-secrets"
-version = "0.8.65"
-dependencies = [
- "dirs",
- "keyring",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "codewhale-state"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "chrono",
- "dirs",
- "rusqlite",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "codewhale-tools"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "async-trait",
- "codewhale-protocol",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "codewhale-tui"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "arboard",
- "async-stream",
- "async-trait",
- "axum",
- "base64",
- "chrono",
- "clap",
- "clap_complete",
- "codewhale-config",
- "codewhale-execpolicy",
- "codewhale-protocol",
- "codewhale-release",
- "codewhale-secrets",
- "codewhale-tools",
- "colored",
- "crossterm 0.28.1",
- "cucumber",
- "dirs",
- "dotenvy",
- "fd-lock",
- "flate2",
- "futures-util",
- "ignore",
- "image",
- "libc",
- "lru 0.18.0",
- "multimap",
- "oauth2",
- "objc2",
- "objc2-foundation",
- "parking_lot",
- "pdf-extract",
- "portable-pty",
- "pretty_assertions",
- "qrcode",
- "ratatui",
- "regex",
- "reqwest 0.13.4",
- "rmcp",
- "rustls",
- "schemars",
- "schemaui",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "shellexpand",
- "shlex",
- "similar",
- "starlark",
- "tar",
- "tempfile",
- "thiserror 2.0.18",
- "tiny_http",
- "tokio",
- "tokio-util",
- "toml",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "unicode-segmentation",
- "unicode-width 0.2.2",
- "urlencoding",
- "uuid",
- "vt100",
- "wait-timeout",
- "webbrowser",
- "windows",
- "wiremock",
-]
-
-[[package]]
-name = "codewhale-whaleflow"
-version = "0.8.65"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "starlark",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3223,6 +2942,287 @@ checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
 dependencies = [
  "mime",
  "unicase",
+]
+
+[[package]]
+name = "mimofan"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "arboard",
+ "async-stream",
+ "async-trait",
+ "axum",
+ "base64",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "colored",
+ "crossterm 0.28.1",
+ "cucumber",
+ "dirs",
+ "dotenvy",
+ "fd-lock",
+ "flate2",
+ "futures-util",
+ "ignore",
+ "image",
+ "libc",
+ "lru 0.18.0",
+ "mimofan-config",
+ "mimofan-execpolicy",
+ "mimofan-protocol",
+ "mimofan-release",
+ "mimofan-secrets",
+ "mimofan-tools",
+ "multimap",
+ "oauth2",
+ "objc2",
+ "objc2-foundation",
+ "parking_lot",
+ "pdf-extract",
+ "portable-pty",
+ "pretty_assertions",
+ "qrcode",
+ "ratatui",
+ "regex",
+ "reqwest 0.13.4",
+ "rmcp",
+ "rustls",
+ "schemars",
+ "schemaui",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "shellexpand",
+ "shlex",
+ "similar",
+ "starlark",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tiny_http",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "unicode-segmentation",
+ "unicode-width 0.2.2",
+ "urlencoding",
+ "uuid",
+ "vt100",
+ "wait-timeout",
+ "webbrowser",
+ "windows",
+ "wiremock",
+]
+
+[[package]]
+name = "mimofan-agent"
+version = "0.8.65"
+dependencies = [
+ "mimofan-config",
+ "serde",
+]
+
+[[package]]
+name = "mimofan-app-server"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "mimofan-agent",
+ "mimofan-config",
+ "mimofan-core",
+ "mimofan-execpolicy",
+ "mimofan-hooks",
+ "mimofan-mcp",
+ "mimofan-protocol",
+ "mimofan-state",
+ "mimofan-tools",
+ "reqwest 0.13.4",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "mimofan-cli"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "dirs",
+ "libc",
+ "mimofan-agent",
+ "mimofan-app-server",
+ "mimofan-config",
+ "mimofan-execpolicy",
+ "mimofan-mcp",
+ "mimofan-release",
+ "mimofan-secrets",
+ "mimofan-state",
+ "reqwest 0.13.4",
+ "rustls",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "windows",
+]
+
+[[package]]
+name = "mimofan-config"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "libc",
+ "mimofan-execpolicy",
+ "mimofan-secrets",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml",
+ "toml_edit",
+ "tracing",
+]
+
+[[package]]
+name = "mimofan-core"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "mimofan-agent",
+ "mimofan-config",
+ "mimofan-execpolicy",
+ "mimofan-hooks",
+ "mimofan-mcp",
+ "mimofan-protocol",
+ "mimofan-state",
+ "mimofan-tools",
+ "serde_json",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "mimofan-execpolicy"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "mimofan-protocol",
+ "serde",
+]
+
+[[package]]
+name = "mimofan-hooks"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "mimofan-protocol",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "mimofan-mcp"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mimofan-protocol"
+version = "0.8.65"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "mimofan-release"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "reqwest 0.13.4",
+ "semver",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mimofan-secrets"
+version = "0.8.65"
+dependencies = [
+ "dirs",
+ "keyring",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "mimofan-state"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dirs",
+ "rusqlite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mimofan-tools"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "mimofan-protocol",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "mimofan-whaleflow"
+version = "0.8.65"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "starlark",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

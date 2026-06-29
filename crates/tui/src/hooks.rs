@@ -217,14 +217,14 @@ fn default_enabled() -> bool {
 }
 
 impl HooksConfig {
-    /// Load global hooks merged with project-local `.codewhale/hooks.toml` (#3026).
+    /// Load global hooks merged with project-local `.mimofan/hooks.toml` (#3026).
     ///
     /// Project hooks are executable repository configuration, so they are only
     /// honored after the workspace has been trusted in user-owned config.
     /// Trusted project hooks are appended after global hooks.  A malformed
     /// trusted project file logs a warning and falls back to global-only.
     pub fn load_with_project(global: HooksConfig, workspace: &Path) -> HooksConfig {
-        let project_path = workspace.join(".codewhale").join("hooks.toml");
+        let project_path = workspace.join(".mimofan").join("hooks.toml");
         if !project_path.exists() || !workspace_allows_project_hooks(workspace) {
             return global;
         }
@@ -1557,7 +1557,7 @@ NOEQUAL line dropped
     fn turn_end_payload_contains_post_turn_observer_fields() {
         let context = HookContext::new()
             .with_session_id("sess_test")
-            .with_workspace(PathBuf::from("/tmp/codewhale"))
+            .with_workspace(PathBuf::from("/tmp/mimofan"))
             .with_mode("agent")
             .with_model("deepseek-v4")
             .with_tokens(125);
@@ -1590,7 +1590,7 @@ NOEQUAL line dropped
 
         assert_eq!(payload["event"], "turn_end");
         assert_eq!(payload["session_id"], "sess_test");
-        assert_eq!(payload["workspace"], "/tmp/codewhale");
+        assert_eq!(payload["workspace"], "/tmp/mimofan");
         assert_eq!(payload["mode"], "agent");
         assert_eq!(payload["model"], "deepseek-v4");
         assert_eq!(payload["turn_id"], "turn_123");
@@ -2459,8 +2459,8 @@ exit 7
         let config_path = dir.path().join("user-config.toml");
         let _config = trust_workspace_for_project_hooks(dir.path(), &config_path);
         let _legacy_config = EnvVarGuard::remove("DEEPSEEK_CONFIG_PATH");
-        let project_dir = dir.path().join(".codewhale");
-        std::fs::create_dir_all(&project_dir).expect("mkdir .codewhale");
+        let project_dir = dir.path().join(".mimofan");
+        std::fs::create_dir_all(&project_dir).expect("mkdir .mimofan");
         std::fs::write(
             project_dir.join("hooks.toml"),
             r#"
@@ -2495,8 +2495,8 @@ command = "echo project"
         let dir = tempfile::tempdir().expect("tempdir");
         let _config = EnvVarGuard::set("CODEWHALE_CONFIG_PATH", dir.path().join("config.toml"));
         let _legacy_config = EnvVarGuard::remove("DEEPSEEK_CONFIG_PATH");
-        let project_dir = dir.path().join(".codewhale");
-        std::fs::create_dir_all(&project_dir).expect("mkdir .codewhale");
+        let project_dir = dir.path().join(".mimofan");
+        std::fs::create_dir_all(&project_dir).expect("mkdir .mimofan");
         std::fs::write(
             project_dir.join("hooks.toml"),
             r#"
@@ -2524,9 +2524,9 @@ command = "echo project"
         let dir = tempfile::tempdir().expect("tempdir");
         let _config = EnvVarGuard::set("CODEWHALE_CONFIG_PATH", dir.path().join("config.toml"));
         let _legacy_config = EnvVarGuard::remove("DEEPSEEK_CONFIG_PATH");
-        let project_dir = dir.path().join(".codewhale");
+        let project_dir = dir.path().join(".mimofan");
         let legacy_trust_dir = dir.path().join(".deepseek");
-        std::fs::create_dir_all(&project_dir).expect("mkdir .codewhale");
+        std::fs::create_dir_all(&project_dir).expect("mkdir .mimofan");
         std::fs::create_dir_all(&legacy_trust_dir).expect("mkdir .deepseek");
         std::fs::write(legacy_trust_dir.join("trusted"), "").expect("write legacy trust marker");
         std::fs::write(
@@ -2557,8 +2557,8 @@ command = "echo project"
         let config_path = dir.path().join("user-config.toml");
         let _config = trust_workspace_for_project_hooks(dir.path(), &config_path);
         let _legacy_config = EnvVarGuard::remove("DEEPSEEK_CONFIG_PATH");
-        let project_dir = dir.path().join(".codewhale");
-        std::fs::create_dir_all(&project_dir).expect("mkdir .codewhale");
+        let project_dir = dir.path().join(".mimofan");
+        std::fs::create_dir_all(&project_dir).expect("mkdir .mimofan");
         std::fs::write(project_dir.join("hooks.toml"), "this is [ not toml")
             .expect("write hooks.toml");
 

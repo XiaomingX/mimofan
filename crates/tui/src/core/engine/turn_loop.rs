@@ -115,7 +115,7 @@ impl Engine {
         // Signal to the terminal / taskbar that a turn is in progress
         // (OSC 9 ; 4 indeterminate progress + title spinner).
         crate::tui::notifications::set_taskbar_progress_busy();
-        crate::tui::notifications::start_title_animation("CodeWhale");
+        crate::tui::notifications::start_title_animation("mimofan");
 
         let client = self
             .deepseek_client
@@ -1157,7 +1157,7 @@ impl Engine {
                 // streaming with no tool calls — but if it has direct children
                 // still running (or completions queued from children that
                 // finished while we were inferring), surface their
-                // `<codewhale:subagent.done>` sentinels into the transcript and
+                // `<mimo:subagent.done>` sentinels into the transcript and
                 // resume instead of ending the turn. This fulfils the contract
                 // already documented in `prompts/constitution.md`: the parent is
                 // promised it'll see the sentinel when a child finishes.
@@ -2450,13 +2450,13 @@ impl Engine {
 
 pub(super) fn subagent_completion_runtime_text(payload: &str) -> String {
     format!(
-        "<codewhale:runtime_event kind=\"subagent_completion\" visibility=\"internal\">\n\
+        "<mimo:runtime_event kind=\"subagent_completion\" visibility=\"internal\">\n\
 This is an internal runtime event, not user input. Use the sub-agent completion \
 data below to continue coordinating the current task. Do not tell the user they \
 pasted sentinels, do not explain the sentinel protocol, and do not quote the raw \
 XML unless the user explicitly asks to debug sub-agent internals.\n\n\
 {payload}\n\
-</codewhale:runtime_event>"
+</mimo:runtime_event>"
     )
 }
 
@@ -2882,7 +2882,7 @@ mod tests {
     #[test]
     fn subagent_completion_handoff_is_internal_user_message() {
         let message = subagent_completion_runtime_message(
-            "Build passed\n<codewhale:subagent.done>{\"agent_id\":\"agent_a\"}</codewhale:subagent.done>",
+            "Build passed\n<mimo:subagent.done>{\"agent_id\":\"agent_a\"}</mimo:subagent.done>",
         );
 
         // Must be "user", not "system": a system message appended mid-stream
@@ -2896,7 +2896,7 @@ mod tests {
         };
         assert!(text.contains("internal runtime event, not user input"));
         assert!(text.contains("Do not tell the user they pasted sentinels"));
-        assert!(text.contains("<codewhale:subagent.done>"));
+        assert!(text.contains("<mimo:subagent.done>"));
         assert!(text.contains("Build passed"));
     }
 
@@ -2905,7 +2905,7 @@ mod tests {
         let status = shell_completion_status_text(
             &[crate::tools::shell::ShellCompletionEvent {
                 task_id: "shell_abc".to_string(),
-                command: "cargo test -p codewhale-tui".to_string(),
+                command: "cargo test -p mimofan-tui".to_string(),
                 status: crate::tools::shell::ShellStatus::Failed,
                 exit_code: Some(101),
                 duration_ms: 1234,
@@ -2920,7 +2920,7 @@ mod tests {
         .expect("status text");
 
         assert!(status.contains("1 background shell job finished (1 failed)"));
-        assert!(status.contains("cargo test -p codewhale-tui"));
+        assert!(status.contains("cargo test -p mimofan-tui"));
         assert!(status.contains("by verifier"));
         assert!(!status.contains("runtime_event"));
         assert!(!status.contains("manual exec_shell_wait polling"));
@@ -3097,7 +3097,7 @@ mod tests {
             resolve_auto_effort(
                 Some("auto"),
                 &messages,
-                crate::config::ApiProvider::Deepseek
+                crate::config::ApiProvider::XiaomiMimo
             ),
             Some("high".to_string()),
             "auto thinking should classify the user request, not stored metadata"

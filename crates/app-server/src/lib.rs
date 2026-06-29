@@ -9,17 +9,17 @@ use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use codewhale_agent::ModelRegistry;
-use codewhale_config::{CliRuntimeOverrides, ConfigStore};
-use codewhale_core::Runtime;
-use codewhale_hooks::{HookDispatcher, JsonlHookSink, StdoutHookSink, UnixSocketHookSink};
-use codewhale_mcp::McpManager;
-use codewhale_protocol::{
+use mimofan_agent::ModelRegistry;
+use mimofan_config::{CliRuntimeOverrides, ConfigStore};
+use mimofan_core::Runtime;
+use mimofan_hooks::{HookDispatcher, JsonlHookSink, StdoutHookSink, UnixSocketHookSink};
+use mimofan_mcp::McpManager;
+use mimofan_protocol::{
     AppRequest, AppResponse, PromptRequest, PromptResponse, ThreadGoalClearParams,
     ThreadGoalGetParams, ThreadGoalSetParams, ThreadRequest, ThreadResponse, UserInputAnswerEvent,
 };
-use codewhale_state::StateStore;
-use codewhale_tools::{ToolCall, ToolRegistry};
+use mimofan_state::StateStore;
+use mimofan_tools::{ToolCall, ToolRegistry};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -30,7 +30,7 @@ use uuid::Uuid;
 
 /// Answers submitted for a pending `request_user_input` clarification.
 ///
-/// The headless runtime emits [`codewhale_protocol::EventFrame::UserInputRequest`]
+/// The headless runtime emits [`mimofan_protocol::EventFrame::UserInputRequest`]
 /// fire-and-return (it has no resume channel, mirroring headless approval).
 /// Clients POST answers back via [`AppRequest::SubmitUserInput`]; we record
 /// them here keyed by `request_id` so a driver can retrieve and feed them into
@@ -77,7 +77,7 @@ impl std::fmt::Debug for AppServerOptions {
 #[derive(Clone)]
 struct AppState {
     config_path: Option<PathBuf>,
-    config: Arc<RwLock<codewhale_config::ConfigToml>>,
+    config: Arc<RwLock<mimofan_config::ConfigToml>>,
     runtime: Arc<Mutex<Runtime>>,
     registry: ModelRegistry,
     auth_token: Option<String>,
@@ -304,11 +304,11 @@ async fn tool_handler(
         cfg.approval_policy
             .as_deref()
             .and_then(|p| match p.trim().to_ascii_lowercase().as_str() {
-                "auto" | "yolo" => Some(codewhale_execpolicy::AskForApproval::UnlessTrusted),
-                "never" | "deny" => Some(codewhale_execpolicy::AskForApproval::Never),
+                "auto" | "yolo" => Some(mimofan_execpolicy::AskForApproval::UnlessTrusted),
+                "never" | "deny" => Some(mimofan_execpolicy::AskForApproval::Never),
                 _ => None,
             })
-            .unwrap_or(codewhale_execpolicy::AskForApproval::OnRequest)
+            .unwrap_or(mimofan_execpolicy::AskForApproval::OnRequest)
     };
     match runtime.invoke_tool(req.call, approval_mode, &cwd).await {
         Ok(value) => Json(value),
@@ -1002,8 +1002,8 @@ async fn process_app_request(
         AppRequest::ThreadLoadedList => {
             let mut runtime = state.runtime.lock().await;
             let response = runtime
-                .handle_thread(codewhale_protocol::ThreadRequest::List(
-                    codewhale_protocol::ThreadListParams {
+                .handle_thread(mimofan_protocol::ThreadRequest::List(
+                    mimofan_protocol::ThreadListParams {
                         include_archived: false,
                         limit: Some(50),
                     },
@@ -1052,7 +1052,7 @@ async fn process_app_request(
     }
 }
 
-async fn persist_config(state: &AppState, config: codewhale_config::ConfigToml) -> Result<()> {
+async fn persist_config(state: &AppState, config: mimofan_config::ConfigToml) -> Result<()> {
     if state.config_path.is_none() {
         return Ok(());
     }
@@ -1065,7 +1065,7 @@ async fn persist_config(state: &AppState, config: codewhale_config::ConfigToml) 
 mod tests {
     use super::*;
     use axum::body::{Body, to_bytes};
-    use codewhale_protocol::AppRequest;
+    use mimofan_protocol::AppRequest;
     use std::fs;
     use tower::ServiceExt;
 
@@ -1201,12 +1201,12 @@ mod tests {
         let runtime = state.runtime.lock().await;
         let decision = runtime
             .exec_policy
-            .check(codewhale_execpolicy::ExecPolicyContext {
+            .check(mimofan_execpolicy::ExecPolicyContext {
                 command: "cargo test --workspace",
                 cwd: "/workspace",
                 tool: Some("exec_shell"),
                 path: None,
-                ask_for_approval: codewhale_execpolicy::AskForApproval::UnlessTrusted,
+                ask_for_approval: mimofan_execpolicy::AskForApproval::UnlessTrusted,
                 sandbox_mode: Some("workspace-write"),
             })
             .expect("policy check");

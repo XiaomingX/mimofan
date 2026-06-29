@@ -14,7 +14,7 @@
 #![allow(dead_code)]
 
 use anyhow::{Result, bail};
-use codewhale_protocol::fleet::{
+use mimofan_protocol::fleet::{
     FleetHostSpec, FleetResolvedRoute, FleetTaskSpec, FleetTaskWorkerProfile,
     FleetWorkerEventPayload, FleetWorkerSpec,
 };
@@ -64,7 +64,7 @@ pub fn fleet_task_to_worker_spec(
     let tool_profile = fleet_tool_profile(task_spec.worker.as_ref());
 
     let objective = fleet_task_prompt(task_spec);
-    let max_spawn_depth = codewhale_config::FleetExecConfig::default().max_spawn_depth;
+    let max_spawn_depth = mimofan_config::FleetExecConfig::default().max_spawn_depth;
     let runtime_profile =
         fleet_worker_runtime_profile(&agent_type, &tool_profile, model, 0, max_spawn_depth);
 
@@ -130,7 +130,7 @@ pub fn fleet_task_to_worker_spec_with_profiles(
     let agent_type = fleet_role_to_agent_type(role.as_deref());
     let tool_profile = fleet_tool_profile(worker_profile);
     let objective = fleet_task_prompt_with_profile(task_spec, agent_profile);
-    let max_spawn_depth = codewhale_config::FleetExecConfig::default().max_spawn_depth;
+    let max_spawn_depth = mimofan_config::FleetExecConfig::default().max_spawn_depth;
     let loadout = effective_fleet_loadout(worker_profile, agent_profile);
     let effective_model = effective_fleet_model(model, worker_profile, agent_profile);
     let mut requested_runtime = fleet_worker_runtime_profile_for_loadout(
@@ -215,7 +215,7 @@ pub(crate) fn resolve_fleet_route(
     // default provider scope (mirrors `ProviderKind::default()`). The resolver
     // is fully offline/hermetic and never reads secrets, env, or config.
     let candidate =
-        resolve_route_candidate(ApiProvider::Deepseek, model_selector, None, None).ok()?;
+        resolve_route_candidate(ApiProvider::XiaomiMimo, model_selector, None, None).ok()?;
 
     Some(FleetResolvedRoute {
         provider_id: candidate.provider_id.as_str().to_string(),
@@ -233,8 +233,8 @@ pub(crate) fn resolve_fleet_route(
 }
 
 /// Plain-string label for a resolved wire protocol (no config type leaks).
-fn route_protocol_label(protocol: codewhale_config::route::RequestProtocol) -> &'static str {
-    use codewhale_config::route::RequestProtocol;
+fn route_protocol_label(protocol: mimofan_config::route::RequestProtocol) -> &'static str {
+    use mimofan_config::route::RequestProtocol;
     match protocol {
         RequestProtocol::ChatCompletions => "chat_completions",
         RequestProtocol::Responses => "responses",
@@ -243,8 +243,8 @@ fn route_protocol_label(protocol: codewhale_config::route::RequestProtocol) -> &
 }
 
 /// Collapse an `inherit` (no-op) loadout to `None` for the receipt.
-fn loadout_intent_label(loadout: &codewhale_config::FleetLoadout) -> Option<String> {
-    if *loadout == codewhale_config::FleetLoadout::Inherit {
+fn loadout_intent_label(loadout: &mimofan_config::FleetLoadout) -> Option<String> {
+    if *loadout == mimofan_config::FleetLoadout::Inherit {
         None
     } else {
         Some(loadout.as_str().to_string())
@@ -361,14 +361,14 @@ fn effective_fleet_role(
 fn effective_fleet_loadout(
     worker_profile: Option<&FleetTaskWorkerProfile>,
     agent_profile: Option<&AgentProfile>,
-) -> codewhale_config::FleetLoadout {
+) -> mimofan_config::FleetLoadout {
     worker_profile
         .and_then(|worker| worker.model_class.as_deref().or(worker.loadout.as_deref()))
-        .map(codewhale_config::FleetLoadout::from_name)
+        .map(mimofan_config::FleetLoadout::from_name)
         .or_else(|| {
             agent_profile
                 .map(|profile| profile.profile.loadout.clone())
-                .filter(|loadout| *loadout != codewhale_config::FleetLoadout::Inherit)
+                .filter(|loadout| *loadout != mimofan_config::FleetLoadout::Inherit)
         })
         .unwrap_or_default()
 }
@@ -445,7 +445,7 @@ fn fleet_worker_runtime_profile_for_loadout(
     model: &str,
     spawn_depth: u32,
     max_spawn_depth: u32,
-    loadout: &codewhale_config::FleetLoadout,
+    loadout: &mimofan_config::FleetLoadout,
 ) -> WorkerRuntimeProfile {
     let mut profile = fleet_worker_runtime_profile(
         agent_type,
@@ -465,36 +465,36 @@ fn non_empty_trimmed(value: &str) -> Option<&str> {
 
 fn fleet_model_route_for_loadout(
     model: &str,
-    loadout: &codewhale_config::FleetLoadout,
+    loadout: &mimofan_config::FleetLoadout,
 ) -> ModelRoute {
     let model = model.trim();
     if !model.is_empty() && !model.eq_ignore_ascii_case("auto") {
         return ModelRoute::Fixed(model.to_string());
     }
     match loadout {
-        codewhale_config::FleetLoadout::Inherit => ModelRoute::Inherit,
-        codewhale_config::FleetLoadout::Fast => ModelRoute::Faster,
-        codewhale_config::FleetLoadout::Strong
-        | codewhale_config::FleetLoadout::Balanced
-        | codewhale_config::FleetLoadout::DeepReasoning
-        | codewhale_config::FleetLoadout::Code
-        | codewhale_config::FleetLoadout::Review
-        | codewhale_config::FleetLoadout::ToolHeavy
-        | codewhale_config::FleetLoadout::Custom(_) => ModelRoute::Auto,
+        mimofan_config::FleetLoadout::Inherit => ModelRoute::Inherit,
+        mimofan_config::FleetLoadout::Fast => ModelRoute::Faster,
+        mimofan_config::FleetLoadout::Strong
+        | mimofan_config::FleetLoadout::Balanced
+        | mimofan_config::FleetLoadout::DeepReasoning
+        | mimofan_config::FleetLoadout::Code
+        | mimofan_config::FleetLoadout::Review
+        | mimofan_config::FleetLoadout::ToolHeavy
+        | mimofan_config::FleetLoadout::Custom(_) => ModelRoute::Auto,
     }
 }
 
 /// Create a fleet artifact ref from a worker output.
 ///
-/// Uses the fleet artifact conventions: logs go under `.codewhale/fleet/`,
-/// reports under `.codewhale/fleet/reports/`.
+/// Uses the fleet artifact conventions: logs go under `.mimofan/fleet/`,
+/// reports under `.mimofan/fleet/reports/`.
 pub fn fleet_artifact_ref(
     _run_id: &str,
     _worker_id: &str,
-    kind: codewhale_protocol::fleet::FleetArtifactKind,
+    kind: mimofan_protocol::fleet::FleetArtifactKind,
     path: std::path::PathBuf,
-) -> codewhale_protocol::fleet::FleetArtifactRef {
-    codewhale_protocol::fleet::FleetArtifactRef {
+) -> mimofan_protocol::fleet::FleetArtifactRef {
+    mimofan_protocol::fleet::FleetArtifactRef {
         kind,
         path,
         checksum: None,
@@ -544,7 +544,7 @@ pub fn agent_status_to_fleet_event(
 /// appended when configured.
 pub fn apply_exec_hardening(
     mut spec: AgentWorkerSpec,
-    exec: &codewhale_config::FleetExecConfig,
+    exec: &mimofan_config::FleetExecConfig,
 ) -> AgentWorkerSpec {
     // Cap max_steps to config max_turns
     if exec.max_turns > 0 && exec.max_turns != u32::MAX {
@@ -552,7 +552,7 @@ pub fn apply_exec_hardening(
     }
     spec.max_spawn_depth = exec
         .max_spawn_depth
-        .min(codewhale_config::MAX_SPAWN_DEPTH_CEILING);
+        .min(mimofan_config::MAX_SPAWN_DEPTH_CEILING);
     spec.runtime_profile.max_spawn_depth = spec.max_spawn_depth.saturating_sub(spec.spawn_depth);
 
     // Apply tool filtering
@@ -578,7 +578,7 @@ pub fn apply_exec_hardening(
 /// Filter a tool profile against allowed/disallowed lists.
 fn filter_tool_profile(
     profile: &AgentWorkerToolProfile,
-    exec: &codewhale_config::FleetExecConfig,
+    exec: &mimofan_config::FleetExecConfig,
 ) -> AgentWorkerToolProfile {
     match profile {
         AgentWorkerToolProfile::Explicit(tools) => {
@@ -676,23 +676,23 @@ mod tests {
         id: &str,
         role: &str,
         instructions: Option<&str>,
-        loadout: codewhale_config::FleetLoadout,
+        loadout: mimofan_config::FleetLoadout,
     ) -> AgentProfile {
         AgentProfile {
             id: id.to_string(),
             display_name: Some(format!("{role} profile")),
             description: Some(format!("{role} description")),
-            profile: codewhale_config::FleetProfile {
-                slot: codewhale_config::FleetSlot::from_name(role),
-                role: codewhale_config::FleetRole {
+            profile: mimofan_config::FleetProfile {
+                slot: mimofan_config::FleetSlot::from_name(role),
+                role: mimofan_config::FleetRole {
                     name: role.to_string(),
                     description: Some(format!("{role} role")),
                     instructions: instructions.map(str::to_string),
                 },
                 loadout,
                 model: None,
-                permissions: codewhale_config::FleetProfilePermissions::default(),
-                delegation: codewhale_config::FleetDelegationHints::default(),
+                permissions: mimofan_config::FleetProfilePermissions::default(),
+                delegation: mimofan_config::FleetDelegationHints::default(),
             },
             source: std::path::PathBuf::from(format!("{id}.toml")),
         }
@@ -885,7 +885,7 @@ mod tests {
             "reviewer",
             "reviewer",
             Some("Focus on regressions and missing tests."),
-            codewhale_config::FleetLoadout::Balanced,
+            mimofan_config::FleetLoadout::Balanced,
         );
         let task = fleet_task(
             "review",
@@ -960,7 +960,7 @@ mod tests {
             "reviewer",
             "reviewer",
             Some("Focus on regressions and missing tests."),
-            codewhale_config::FleetLoadout::Balanced,
+            mimofan_config::FleetLoadout::Balanced,
         );
         profile.profile.model = Some("glm-5.2".to_string());
         let worker = FleetWorkerSpec {
@@ -1127,14 +1127,14 @@ mod tests {
         // sub-agent default (3) so fleet and sub-agents are one substrate and
         // at least 3 nested delegation levels are afforded.
         assert_eq!(spec.spawn_depth, 0);
-        assert_eq!(spec.max_spawn_depth, codewhale_config::DEFAULT_SPAWN_DEPTH);
+        assert_eq!(spec.max_spawn_depth, mimofan_config::DEFAULT_SPAWN_DEPTH);
         assert_eq!(spec.max_spawn_depth, 3);
 
         // End-to-end reachability: walk the SAME gate the SubAgentRuntime
         // enforces (`would_exceed_depth` = `spawn_depth + 1 > max_spawn_depth`).
         // A depth-0 root must reach 3 nested levels, then stop. This fails if
         // anyone lowers the shared default below 3 (Hunter: afford >= 3).
-        let hardened = apply_exec_hardening(spec, &codewhale_config::FleetExecConfig::default());
+        let hardened = apply_exec_hardening(spec, &mimofan_config::FleetExecConfig::default());
         let would_exceed = |spawn_depth: u32| spawn_depth + 1 > hardened.max_spawn_depth;
         assert!(
             !would_exceed(0),
@@ -1270,22 +1270,22 @@ mod tests {
         // same/inherit -> Inherit). No fleet-specific provider/model table is
         // involved — only the shared enum.
         assert_eq!(
-            fleet_model_route_for_loadout("auto", &codewhale_config::FleetLoadout::Fast),
+            fleet_model_route_for_loadout("auto", &mimofan_config::FleetLoadout::Fast),
             ModelRoute::Faster,
         );
         assert_eq!(
-            fleet_model_route_for_loadout("auto", &codewhale_config::FleetLoadout::Inherit),
+            fleet_model_route_for_loadout("auto", &mimofan_config::FleetLoadout::Inherit),
             ModelRoute::Inherit,
         );
         assert_eq!(
-            fleet_model_route_for_loadout("auto", &codewhale_config::FleetLoadout::Strong),
+            fleet_model_route_for_loadout("auto", &mimofan_config::FleetLoadout::Strong),
             ModelRoute::Auto,
         );
         // An explicit model always pins to a Fixed route, regardless of loadout.
         assert_eq!(
             fleet_model_route_for_loadout(
                 "deepseek-v4-flash",
-                &codewhale_config::FleetLoadout::Strong
+                &mimofan_config::FleetLoadout::Strong
             ),
             ModelRoute::Fixed("deepseek-v4-flash".to_string()),
         );
@@ -1307,10 +1307,10 @@ mod tests {
             ModelRoute::Inherit => parent.to_string(),
         };
 
-        let deepseek = provider_router_candidates(ApiProvider::Deepseek, parent);
+        let deepseek = provider_router_candidates(ApiProvider::XiaomiMimo, parent);
         assert_eq!(
             resolve(
-                &fleet_model_route_for_loadout("auto", &codewhale_config::FleetLoadout::Fast),
+                &fleet_model_route_for_loadout("auto", &mimofan_config::FleetLoadout::Fast),
                 &deepseek,
             ),
             "deepseek-v4-flash",
@@ -1319,11 +1319,11 @@ mod tests {
 
         // A provider with no known fast sibling must keep children on the parent
         // model rather than fabricating a cloud id (#3166 route assertion).
-        let no_sibling = provider_router_candidates(ApiProvider::Anthropic, parent);
+        let no_sibling = provider_router_candidates(ApiProvider::XiaomiMimo, parent);
         assert_eq!(no_sibling.cheap, None);
         assert_eq!(
             resolve(
-                &fleet_model_route_for_loadout("auto", &codewhale_config::FleetLoadout::Fast),
+                &fleet_model_route_for_loadout("auto", &mimofan_config::FleetLoadout::Fast),
                 &no_sibling,
             ),
             parent,
@@ -1352,7 +1352,7 @@ mod tests {
             spawn_depth: 0,
             max_spawn_depth: 0,
         };
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             max_turns: 50,
             ..Default::default()
         };
@@ -1382,24 +1382,24 @@ mod tests {
             max_spawn_depth: 0,
         };
 
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             max_spawn_depth: 2,
             ..Default::default()
         };
         let hardened = apply_exec_hardening(spec.clone(), &exec);
         assert_eq!(hardened.max_spawn_depth, 2);
 
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             max_spawn_depth: 99,
             ..Default::default()
         };
         let hardened = apply_exec_hardening(spec.clone(), &exec);
         assert_eq!(
             hardened.max_spawn_depth,
-            codewhale_config::MAX_SPAWN_DEPTH_CEILING
+            mimofan_config::MAX_SPAWN_DEPTH_CEILING
         );
 
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             max_spawn_depth: 0,
             ..Default::default()
         };
@@ -1414,7 +1414,7 @@ mod tests {
             "exec_shell".to_string(),
             "git_diff".to_string(),
         ]);
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             disallowed_tools: vec!["exec_shell".to_string()],
             ..Default::default()
         };
@@ -1434,7 +1434,7 @@ mod tests {
             "exec_shell".to_string(),
             "git_diff".to_string(),
         ]);
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             allowed_tools: vec!["read_file".to_string(), "git_diff".to_string()],
             ..Default::default()
         };
@@ -1453,7 +1453,7 @@ mod tests {
             "read_file".to_string(),
             "exec_shell".to_string(),
         ]);
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             allowed_tools: vec!["read_file".to_string(), "exec_shell".to_string()],
             disallowed_tools: vec!["exec_shell".to_string()],
             ..Default::default()
@@ -1503,7 +1503,7 @@ mod tests {
             spawn_depth: 0,
             max_spawn_depth: 0,
         };
-        let exec = codewhale_config::FleetExecConfig {
+        let exec = mimofan_config::FleetExecConfig {
             append_system_prompt: "never push to main".to_string(),
             ..Default::default()
         };

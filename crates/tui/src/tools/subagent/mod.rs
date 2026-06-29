@@ -117,7 +117,7 @@ const MAX_AGENT_WORKER_RECORDS: usize = 256;
 const MAX_AGENT_WORKER_EVENTS_PER_RECORD: usize = 128;
 const SUBAGENT_STATE_SCHEMA_VERSION: u32 = 1;
 const SUBAGENT_STATE_FILE: &str = "subagents.v1.json";
-const SUBAGENT_WORKTREE_ROOT_DIR: &str = ".codewhale-worktrees";
+const SUBAGENT_WORKTREE_ROOT_DIR: &str = ".mimofan-worktrees";
 const SUBAGENT_RESTART_REASON: &str = "Interrupted by process restart";
 const SUBAGENT_QUEUED_LAUNCH_REASON: &str = "queued: waiting for a sub-agent launch slot";
 const SUBAGENT_MODEL_WAIT_REASON: &str = "waiting for model response";
@@ -1234,7 +1234,7 @@ struct SpawnRequest {
     /// inside the parent's workspace. For first-class git worktree isolation,
     /// use `worktree` instead of pre-creating a cwd by hand.
     cwd: Option<PathBuf>,
-    /// Optional first-class git worktree isolation. When set, CodeWhale
+    /// Optional first-class git worktree isolation. When set, mimofan
     /// creates a sibling worktree/branch and runs the child from that checkout.
     worktree: Option<SubAgentWorktreeRequest>,
     /// Optional file path for cache-aware resident mode (#529). When set,
@@ -1341,17 +1341,17 @@ impl Default for PersistedSubAgentState {
 /// Default cap on sub-agent recursion depth. Override via
 /// `[subagents] max_depth = N` in config.
 ///
-/// Sourced from [`codewhale_config::DEFAULT_SPAWN_DEPTH`] so standalone
+/// Sourced from [`mimofan_config::DEFAULT_SPAWN_DEPTH`] so standalone
 /// sub-agents and fleet workers share ONE recursion axis (no "two moving
 /// targets"). Configured/requested depths clamp to
-/// [`codewhale_config::MAX_SPAWN_DEPTH_CEILING`].
-pub const DEFAULT_MAX_SPAWN_DEPTH: u32 = codewhale_config::DEFAULT_SPAWN_DEPTH;
+/// [`mimofan_config::MAX_SPAWN_DEPTH_CEILING`].
+pub const DEFAULT_MAX_SPAWN_DEPTH: u32 = mimofan_config::DEFAULT_SPAWN_DEPTH;
 
 /// Terminal-state notification emitted to the immediate parent's completion
 /// inbox when one of its children finishes (issue #756). For root-spawned
 /// agents that inbox is the engine turn loop; for nested agents it is a
 /// parent-local receiver inside `run_subagent`. Carries the already-rendered
-/// `<codewhale:subagent.done>` sentinel that the model expects in the
+/// `<mimo:subagent.done>` sentinel that the model expects in the
 /// transcript per `prompts/constitution.md`.
 #[derive(Debug, Clone)]
 pub struct SubAgentCompletion {
@@ -3164,10 +3164,10 @@ async fn subagent_session_projection(
 
 fn default_state_path(workspace: &Path) -> Result<PathBuf> {
     let workspace = normalize_subagent_workspace(workspace);
-    // Prefer .codewhale, fall back to .deepseek for project-local state
+    // Prefer .mimofan, fall back to .deepseek for project-local state
     let primary = checked_subagent_state_path(
         &workspace,
-        &Path::new(".codewhale")
+        &Path::new(".mimofan")
             .join("state")
             .join(SUBAGENT_STATE_FILE),
     )?;
@@ -3431,7 +3431,7 @@ impl ToolSpec for AgentTool {
     fn description(&self) -> &'static str {
         concat!(
             "Start, inspect, peek at, or cancel focused child agent tasks through one surface. Use start only for independent work that benefits from a clean context. ",
-            "For several independent targets, call agent separately for each target; CodeWhale runs or queues them under runtime capacity and provider rate-limit backpressure. ",
+            "For several independent targets, call agent separately for each target; mimofan runs or queues them under runtime capacity and provider rate-limit backpressure. ",
             "The child runs in the background and reports back automatically when finished; keep tiny reads/searches local. ",
             "Use action=status or action=peek with agent_id to inspect progress, and action=cancel with agent_id to stop a running child. Returns session projections with transcript_handle for UI/debug inspection."
         )
@@ -3469,7 +3469,7 @@ impl ToolSpec for AgentTool {
                 "model_strength": {
                     "type": "string",
                     "enum": ["same", "faster"],
-                    "description": "Optional child model strength. Use same when the child should be as capable as the current model. Use faster for type=explore, read-only lookup/search, status, or other low-risk tasks that can run on a smaller/faster same-family sibling; CodeWhale maps known families such as DeepSeek V4 Pro to Flash and GLM-5.2 to GLM-5-Turbo. type=explore defaults to faster unless you pass model_strength or model explicitly. No hidden auto-downgrade happens."
+                    "description": "Optional child model strength. Use same when the child should be as capable as the current model. Use faster for type=explore, read-only lookup/search, status, or other low-risk tasks that can run on a smaller/faster same-family sibling; mimofan maps known families such as DeepSeek V4 Pro to Flash and GLM-5.2 to GLM-5-Turbo. type=explore defaults to faster unless you pass model_strength or model explicitly. No hidden auto-downgrade happens."
                 },
                 "model": {
                     "type": "string",
@@ -3498,7 +3498,7 @@ impl ToolSpec for AgentTool {
                 },
                 "worktree_path": {
                     "type": "string",
-                    "description": "Optional worktree checkout path. Relative paths are created under the default sibling .codewhale-worktrees directory, not inside the parent checkout."
+                    "description": "Optional worktree checkout path. Relative paths are created under the default sibling .mimofan-worktrees directory, not inside the parent checkout."
                 },
                 "fork_context": {
                     "type": "boolean",
@@ -3844,12 +3844,12 @@ fn build_initial_subagent_messages(
             .filter(|state| !state.is_empty())
         {
             messages.push(system_text_message(format!(
-                "<codewhale:fork_state>\n{state}\n</codewhale:fork_state>"
+                "<mimo:fork_state>\n{state}\n</mimo:fork_state>"
             )));
         }
 
         messages.push(system_text_message(format!(
-            "<codewhale:subagent_context>\n{}\n</codewhale:subagent_context>",
+            "<mimo:subagent_context>\n{}\n</mimo:subagent_context>",
             build_subagent_system_prompt(agent_type, assignment)
         )));
     }
@@ -3944,7 +3944,7 @@ async fn run_subagent_task(task: SubAgentTask) {
     // sidebar / cell) AND a structured sentinel the model can recognize
     // on its next turn. Format: human summary on the first line,
     // sentinel on the second. The sentinel uses an opaque tag
-    // (`codewhale:subagent.done`) to avoid collision with normal user
+    // (`mimo:subagent.done`) to avoid collision with normal user
     // text.
     let model_id = task.runtime.model.clone();
     let (summary, sentinel) = match &result {
@@ -4098,7 +4098,7 @@ pub(crate) fn subagent_completion_from_result(result: &SubAgentResult) -> SubAge
     }
 }
 
-/// Build a `<codewhale:subagent.done>` JSON sentinel for a successful child.
+/// Build a `<mimo:subagent.done>` JSON sentinel for a successful child.
 /// Intended to surface in the parent's transcript so the model recognizes
 /// child completion.
 ///
@@ -4127,10 +4127,10 @@ fn subagent_done_sentinel(agent_id: &str, res: &SubAgentResult, truncated: bool)
     if let Some(needs_input) = res.needs_input.clone() {
         payload["needs_input"] = json!(needs_input);
     }
-    format!("<codewhale:subagent.done>{payload}</codewhale:subagent.done>")
+    format!("<mimo:subagent.done>{payload}</mimo:subagent.done>")
 }
 
-/// Build a `<codewhale:subagent.done>` sentinel for a failed child.
+/// Build a `<mimo:subagent.done>` sentinel for a failed child.
 ///
 /// Kept lean: the (annotated) error is on the previous line (`error_location`)
 /// so the sentinel only signals completion state rather than re-embedding the
@@ -4141,7 +4141,7 @@ fn subagent_failed_sentinel(agent_id: &str, _err: &str) -> String {
         "status": "failed",
         "error_location": "previous_line",
     });
-    format!("<codewhale:subagent.done>{payload}</codewhale:subagent.done>")
+    format!("<mimo:subagent.done>{payload}</mimo:subagent.done>")
 }
 
 fn response_was_truncated(response: &MessageResponse) -> bool {
@@ -4407,7 +4407,7 @@ fn drain_child_completion_events(
 
 fn child_completion_runtime_message(completions: &[SubAgentCompletion]) -> Message {
     let mut text = String::from(
-        "<codewhale:runtime_event kind=\"child_subagent_completion\" visibility=\"internal\">\n\
+        "<mimo:runtime_event kind=\"child_subagent_completion\" visibility=\"internal\">\n\
 This is an internal runtime event, not user input. One or more child sub-agents \
 you spawned have finished. Treat each child summary as an unverified self-report: \
 if you rely on it, cite the child agent_id and the EVIDENCE lines it provided, \
@@ -4421,7 +4421,7 @@ and distinguish that from evidence you personally verified.\n",
         text.push_str(&completion.payload);
         text.push('\n');
     }
-    text.push_str("</codewhale:runtime_event>");
+    text.push_str("</mimo:runtime_event>");
 
     Message {
         role: "user".to_string(),
@@ -5341,7 +5341,7 @@ fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolError> {
         .or_else(|| input.get("max_spawn_depth"))
         .and_then(Value::as_u64)
         .map(|depth| {
-            let ceiling = codewhale_config::MAX_SPAWN_DEPTH_CEILING;
+            let ceiling = mimofan_config::MAX_SPAWN_DEPTH_CEILING;
             u32::try_from(depth)
                 .map_err(|_| {
                     ToolError::invalid_input(format!("max_depth must be between 0 and {ceiling}"))
@@ -5468,9 +5468,9 @@ pub(crate) fn normalize_requested_subagent_model(
 
 fn provider_name_for_error(provider: crate::config::ApiProvider) -> &'static str {
     match provider {
-        crate::config::ApiProvider::Deepseek | crate::config::ApiProvider::DeepseekCN => "DeepSeek",
-        crate::config::ApiProvider::Openai | crate::config::ApiProvider::OpenaiCodex => "OpenAI",
-        crate::config::ApiProvider::Moonshot => "Moonshot",
+        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => "DeepSeek",
+        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => "OpenAI",
+        crate::config::ApiProvider::XiaomiMimo => "Moonshot",
         _ => "this provider",
     }
 }
@@ -5638,7 +5638,7 @@ fn subagent_reasoning_effort_for_request(
             // emitting an off that is silently rewritten. Explicit thinking
             // passed by the caller already won via the arms above.
             let provider = runtime.client.api_provider();
-            let effort = if matches!(provider, crate::config::ApiProvider::OpenaiCodex) {
+            let effort = if matches!(provider, crate::config::ApiProvider::XiaomiMimo) {
                 ReasoningEffort::Low
             } else {
                 ReasoningEffort::Off
@@ -5798,7 +5798,7 @@ fn validate_existing_child_cwd(
     };
     let canonical = resolved.canonicalize().map_err(|e| {
         ToolError::invalid_input(format!(
-            "Invalid cwd '{}': {e} (path may not exist yet — use worktree=true to let CodeWhale create an isolated checkout)",
+            "Invalid cwd '{}': {e} (path may not exist yet — use worktree=true to let mimofan create an isolated checkout)",
             requested_cwd.display()
         ))
     })?;
@@ -6520,8 +6520,7 @@ const SUBAGENT_SUMMARY_TAIL_CHARS: usize = 4_000;
 /// One-line provenance suffix reinforcing that a sub-agent summary is a
 /// self-report (issue #2652). Appended only when the summary was NOT
 /// length-truncated, so every summary carries exactly one boundary marker.
-const SUBAGENT_SELF_REPORT_NOTE: &str = "\n[Sub-agent self-report — re-verify material claims (read changed files, \
-run the relevant tests) before relying on it.]";
+const SUBAGENT_SELF_REPORT_NOTE: &str = include_str!("../../prompts/subagent_self_report_note.md");
 
 /// Stamp a sub-agent summary with a provenance/clip marker (issue #2652).
 ///

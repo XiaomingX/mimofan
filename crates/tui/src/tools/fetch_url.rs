@@ -26,7 +26,7 @@ const DEFAULT_TIMEOUT_MS: u64 = 15_000;
 const HARD_MAX_TIMEOUT_MS: u64 = 60_000;
 const MAX_REDIRECTS: usize = 5;
 const USER_AGENT: &str =
-    "Mozilla/5.0 (compatible; codewhale/0.5; +https://github.com/Hmbown/CodeWhale)";
+    "Mozilla/5.0 (compatible; mimofan/0.5; +https://github.com/XiaomingX/mimofan)";
 
 static SCRIPT_RE: OnceLock<Regex> = OnceLock::new();
 static STYLE_RE: OnceLock<Regex> = OnceLock::new();
@@ -757,7 +757,7 @@ mod tests {
     #[tokio::test]
     async fn unresolved_hostname_is_rejected_before_request() {
         let url =
-            reqwest::Url::parse("https://codewhale-unresolvable-fetch-target.invalid/resource")
+            reqwest::Url::parse("https://mimofan-unresolvable-fetch-target.invalid/resource")
                 .unwrap();
         let err = validate_fetch_target(&url, &ctx())
             .await

@@ -1,4 +1,4 @@
-//! Tool specification traits for the CodeWhale agent system.
+//! Tool specification traits for the mimofan agent system.
 //!
 //! This module defines the core abstractions for tools:
 //! - `ToolSpec`: The main trait that all tools must implement
@@ -26,7 +26,7 @@ use crate::tools::handle::{SharedHandleStore, new_shared_handle_store};
 use crate::tools::shell::{SharedShellManager, new_shared_shell_manager};
 use crate::worker_profile::ShellPolicy;
 #[allow(unused_imports)]
-pub use codewhale_tools::{
+pub use mimofan_tools::{
     ApprovalRequirement, ToolCapability, ToolError, ToolResult, optional_bool, optional_str,
     optional_u64, required_str, required_u64,
 };
@@ -168,8 +168,8 @@ pub struct ToolContext {
     pub mcp_config_path: PathBuf,
     /// Explicit skills directory used for model-visible skill discovery.
     pub skills_dir: Option<PathBuf>,
-    /// Restrict skill discovery to CodeWhale-owned roots plus `skills_dir`.
-    pub skills_scan_codewhale_only: bool,
+    /// Restrict skill discovery to mimofan-owned roots plus `skills_dir`.
+    pub skills_scan_mimofan_only: bool,
     /// Elevated sandbox policy override (used when retrying after sandbox denial).
     /// This overrides the default sandbox behavior for shell commands.
     pub elevated_sandbox_policy: Option<crate::sandbox::SandboxPolicy>,
@@ -255,11 +255,11 @@ impl ToolContext {
     pub fn new(workspace: impl Into<PathBuf>) -> Self {
         let workspace = workspace.into();
         let shell_manager = new_shared_shell_manager(workspace.clone());
-        // Prefer .codewhale, fall back to .deepseek for project-local state
-        let notes_path = codewhale_config::resolve_project_state_dir(&workspace, "notes.md")
+        // Prefer .mimofan, fall back to .deepseek for project-local state
+        let notes_path = mimofan_config::resolve_project_state_dir(&workspace, "notes.md")
             .expect("hardcoded project notes state path is valid")
             .1;
-        let mcp_config_path = codewhale_config::resolve_project_state_dir(&workspace, "mcp.json")
+        let mcp_config_path = mimofan_config::resolve_project_state_dir(&workspace, "mcp.json")
             .expect("hardcoded project MCP state path is valid")
             .1;
         Self {
@@ -273,7 +273,7 @@ impl ToolContext {
             notes_path,
             mcp_config_path,
             skills_dir: None,
-            skills_scan_codewhale_only: false,
+            skills_scan_mimofan_only: false,
             elevated_sandbox_policy: None,
             shell_network_denied_hint: None,
             auto_approve: false,
@@ -318,7 +318,7 @@ impl ToolContext {
             notes_path: notes_path.into(),
             mcp_config_path: mcp_config_path.into(),
             skills_dir: None,
-            skills_scan_codewhale_only: false,
+            skills_scan_mimofan_only: false,
             elevated_sandbox_policy: None,
             shell_network_denied_hint: None,
             auto_approve: false,
@@ -363,7 +363,7 @@ impl ToolContext {
             notes_path: notes_path.into(),
             mcp_config_path: mcp_config_path.into(),
             skills_dir: None,
-            skills_scan_codewhale_only: false,
+            skills_scan_mimofan_only: false,
             elevated_sandbox_policy: None,
             shell_network_denied_hint: None,
             auto_approve,
@@ -421,10 +421,10 @@ impl ToolContext {
     pub fn with_skills_config(
         mut self,
         skills_dir: impl Into<PathBuf>,
-        scan_codewhale_only: bool,
+        scan_mimofan_only: bool,
     ) -> Self {
         self.skills_dir = Some(skills_dir.into());
-        self.skills_scan_codewhale_only = scan_codewhale_only;
+        self.skills_scan_mimofan_only = scan_mimofan_only;
         self
     }
 

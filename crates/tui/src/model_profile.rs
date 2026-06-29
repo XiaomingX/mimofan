@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn resolved_capability_profile_merges_provider_facts_and_overrides() {
         let profile = resolved_capability_profile_with_overrides(
-            ApiProvider::OpenaiCodex,
+            ApiProvider::XiaomiMimo,
             "gpt-5-codex",
             CapabilityOverride {
                 context_window: Some(123_456),
@@ -351,7 +351,7 @@ mod tests {
             },
         );
 
-        assert_eq!(profile.provider, ApiProvider::OpenaiCodex);
+        assert_eq!(profile.provider, ApiProvider::XiaomiMimo);
         assert_eq!(profile.request_payload_mode, RequestPayloadMode::Responses);
         assert_eq!(profile.context_window, Some(123_456));
         assert_eq!(profile.reasoning, SupportState::Unsupported);
@@ -362,9 +362,9 @@ mod tests {
 
     #[test]
     fn capability_predicates_are_not_provider_string_checks() {
-        let broad = resolved_capability_profile(ApiProvider::Deepseek, "deepseek-v4-pro");
+        let broad = resolved_capability_profile(ApiProvider::XiaomiMimo, "deepseek-v4-pro");
         let compact = resolved_capability_profile_with_overrides(
-            ApiProvider::Openrouter,
+            ApiProvider::XiaomiMimo,
             "unknown-small-model",
             CapabilityOverride {
                 context_window: Some(32_000),

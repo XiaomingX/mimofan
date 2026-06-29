@@ -187,7 +187,7 @@ fn exec_shell_parallel_flags_are_input_aware() {
         "background": true
     })));
     assert!(tool.starts_detached_for(&json!({
-        "command": "cargo test -p codewhale-tui --bins",
+        "command": "cargo test -p mimofan-tui --bins",
         "tty": true
     })));
     assert!(!tool.starts_detached_for(&json!({

@@ -20,15 +20,15 @@ skill. Decide from code+tests+comments+checks, never from title alone.
 
 ## Inputs
 
-- Repo root: the local CodeWhale checkout (run `git rev-parse --show-toplevel`).
-- GitHub repo: `Hmbown/CodeWhale`
+- Repo root: the local mimo-tui checkout (run `git rev-parse --show-toplevel`).
+- GitHub repo: `XiaomingX/mimo-tui`
 - GitHub CLI: `gh`
 - Target milestone name from Hunter (do not invent one).
 
 ## 1. Pull the milestone as evidence
 
 ```bash
-gh issue list --repo Hmbown/CodeWhale --milestone v0.8.62 \
+gh issue list --repo XiaomingX/mimo-tui --milestone v0.8.62 \
   --state open --limit 200 \
   --json number,title,labels,body,comments,milestone,updatedAt,url
 ```
@@ -37,7 +37,7 @@ For each candidate, read the real signal — body, comments, linked PRs/issues �
 never the title alone:
 
 ```bash
-gh issue view N --repo Hmbown/CodeWhale \
+gh issue view N --repo XiaomingX/mimo-tui \
   --json number,title,labels,body,comments,closedByPullRequestsReferences
 ```
 
@@ -48,7 +48,7 @@ the real subsystem labels as the first cut, then confirm by grepping the code
 the issue actually names:
 
 ```bash
-gh issue list --repo Hmbown/CodeWhale --milestone v0.8.62 \
+gh issue list --repo XiaomingX/mimo-tui --milestone v0.8.62 \
   --state open --label workflow-runtime --json number,title --jq '.[].number'
 rg -n "ProviderRoute|session_model|route" crates/ --type rust -l
 ```
@@ -69,7 +69,7 @@ sequence it whole.
 
 ## 4. Name the lead train
 
-The runtime control plane leads; UI/docs ride along. For CodeWhale the lead
+The runtime control plane leads; UI/docs ride along. For mimo-tui the lead
 train, in order, is:
 
 1. **Route/model isolation** — per-session provider/model, atomic route swaps

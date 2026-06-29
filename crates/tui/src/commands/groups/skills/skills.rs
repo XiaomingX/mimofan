@@ -24,14 +24,14 @@ fn discover_visible_skills(app: &App) -> SkillRegistry {
     crate::skills::discover_for_workspace_and_dir_with_mode(
         &app.workspace,
         &app.skills_dir,
-        crate::skills::SkillDiscoveryMode::from_codewhale_only(app.skills_scan_codewhale_only),
+        crate::skills::SkillDiscoveryMode::from_mimofan_only(app.skills_scan_mimofan_only),
     )
 }
 
 #[cfg(test)]
 fn discover_visible_skills(app: &App) -> SkillRegistry {
     let mode =
-        crate::skills::SkillDiscoveryMode::from_codewhale_only(app.skills_scan_codewhale_only);
+        crate::skills::SkillDiscoveryMode::from_mimofan_only(app.skills_scan_mimofan_only);
     TEST_HOME_DIR.with(|home| {
         if let Some(home) = home.borrow().as_deref() {
             crate::skills::discover_for_workspace_and_dir_with_home_and_mode(
@@ -66,7 +66,7 @@ fn render_skill_warnings(registry: &SkillRegistry) -> String {
 /// List all available skills. Pass `--remote` (or `remote`) to fetch the
 /// curated registry instead of scanning the local skills directory.
 /// Pass `sync` to pull the registry index and download all skills to the
-/// local cache (`~/.codewhale/cache/skills/`).
+/// local cache (`~/.mimofan/cache/skills/`).
 pub fn list_skills(app: &mut App, arg: Option<&str>) -> CommandResult {
     let mut prefix: Option<String> = None;
     if let Some(arg) = arg {
@@ -256,8 +256,9 @@ fn activate_skill(app: &mut App, name: &str) -> CommandResult {
 
     if let Some(skill) = registry.get(name) {
         let instruction = format!(
-            "You are now using a skill. Follow these instructions:\n\n# Skill: {}\n\n{}\n\n---\n\nNow respond to the user's request following the above skill instructions.",
-            skill.name, skill.body
+            include_str!("../../../prompts/skill_loader.md"),
+            skill_name = skill.name,
+            skill_body = skill.body
         );
 
         app.add_message(HistoryCell::System {
@@ -434,7 +435,7 @@ pub fn list_remote_skills(app: &mut App) -> CommandResult {
 // ─── /skills sync ──────────────────────────────────────────────────────────
 
 /// Fetch the remote registry index and download every listed skill into the
-/// local cache (`~/.codewhale/cache/skills/<name>/`).
+/// local cache (`~/.mimofan/cache/skills/<name>/`).
 ///
 /// For each skill the sync checks the cached ETag / SHA-256 before
 /// downloading so unchanged skills are skipped in O(1) network round-trips.
@@ -555,14 +556,14 @@ fn path_or_default(path: &std::path::Path) -> String {
 fn needs_approval_message(host: &str) -> String {
     format!(
         "Network policy requires approval for {host}.\n\
-         Add it to your allow list with `/network allow {host}` (or set [network].default = \"allow\" in ~/.codewhale/config.toml), then retry."
+         Add it to your allow list with `/network allow {host}` (or set [network].default = \"allow\" in ~/.mimofan/config.toml), then retry."
     )
 }
 
 fn network_denied_message(host: &str) -> String {
     format!(
         "Network policy denied access to {host}.\n\
-         Remove the deny entry from ~/.codewhale/config.toml under [network] or contact your administrator."
+         Remove the deny entry from ~/.mimofan/config.toml under [network] or contact your administrator."
     )
 }
 
@@ -579,7 +580,7 @@ fn registry_fetch_error_hint(err: &anyhow::Error) -> Option<&'static str> {
         || msg.contains("nodename nor servname")
     {
         Some(
-            "Hint: DNS lookup failed. Check internet/DNS connectivity, or override the registry URL in [skills] of ~/.codewhale/config.toml.",
+            "Hint: DNS lookup failed. Check internet/DNS connectivity, or override the registry URL in [skills] of ~/.mimofan/config.toml.",
         )
     } else if msg.contains("connection refused")
         || msg.contains("connection reset")
@@ -598,7 +599,7 @@ fn registry_fetch_error_hint(err: &anyhow::Error) -> Option<&'static str> {
         )
     } else if msg.contains(" 404") || msg.contains("not found") {
         Some(
-            "Hint: registry URL returned 404. Verify the registry URL in [skills] of ~/.codewhale/config.toml.",
+            "Hint: registry URL returned 404. Verify the registry URL in [skills] of ~/.mimofan/config.toml.",
         )
     } else if msg.contains(" 401") || msg.contains(" 403") || msg.contains("forbidden") {
         Some(
@@ -970,7 +971,7 @@ mod tests {
     }
 
     #[test]
-    fn test_list_skills_respects_codewhale_only_scan() {
+    fn test_list_skills_respects_mimofan_only_scan() {
         let tmpdir = TempDir::new().unwrap();
         let _home = IsolatedHome::new(&tmpdir);
         let claude_skill_dir = tmpdir
@@ -984,25 +985,25 @@ mod tests {
             "---\nname: claude-skill\ndescription: Claude skill\n---\nbody",
         )
         .unwrap();
-        let codewhale_skill_dir = tmpdir
+        let mimofan_skill_dir = tmpdir
             .path()
-            .join(".codewhale")
+            .join(".mimofan")
             .join("skills")
-            .join("codewhale-skill");
-        std::fs::create_dir_all(&codewhale_skill_dir).unwrap();
+            .join("mimofan-skill");
+        std::fs::create_dir_all(&mimofan_skill_dir).unwrap();
         std::fs::write(
-            codewhale_skill_dir.join("SKILL.md"),
-            "---\nname: codewhale-skill\ndescription: CodeWhale skill\n---\nbody",
+            mimofan_skill_dir.join("SKILL.md"),
+            "---\nname: mimofan-skill\ndescription: CodeWhale skill\n---\nbody",
         )
         .unwrap();
 
         let mut app = create_test_app_with_tmpdir(&tmpdir);
-        app.skills_dir = tmpdir.path().join(".codewhale").join("skills");
-        app.skills_scan_codewhale_only = true;
+        app.skills_dir = tmpdir.path().join(".mimofan").join("skills");
+        app.skills_scan_mimofan_only = true;
         let result = list_skills(&mut app, None);
         let msg = result.message.unwrap();
 
-        assert!(msg.contains("/codewhale-skill"), "got: {msg}");
+        assert!(msg.contains("/mimofan-skill"), "got: {msg}");
         assert!(!msg.contains("/claude-skill"), "got: {msg}");
     }
 

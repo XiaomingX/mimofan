@@ -1,6 +1,6 @@
 //! Plugin tool system — scripts and commands as first-class tools.
 //!
-//! Users can drop self-describing scripts in `~/.codewhale/tools/` and they
+//! Users can drop self-describing scripts in `~/.mimofan/tools/` and they
 //! are auto-discovered, parsed for frontmatter, and registered as model-visible
 //! tools alongside built-in implementations.
 //!

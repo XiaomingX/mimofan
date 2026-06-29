@@ -1046,8 +1046,8 @@ fn read_workspace_anchors(workspace: Option<&Path>) -> Vec<String> {
         return Vec::new();
     };
 
-    // Prefer .codewhale, fall back to .deepseek
-    let primary = ws.join(".codewhale").join("anchors.md");
+    // Prefer .mimofan, fall back to .deepseek
+    let primary = ws.join(".mimofan").join("anchors.md");
     let anchors_path = if primary.exists() {
         primary
     } else {
@@ -1199,7 +1199,7 @@ async fn create_summary(
     // adding UI surface. The event is emitted with
     // `target = "compaction"`, so the filter is
     // `RUST_LOG=compaction=debug` (the module-path form
-    // `codewhale_tui::compaction=debug` does NOT match — `EnvFilter`
+    // `mimofan_tui::compaction=debug` does NOT match — `EnvFilter`
     // matches the explicit target string when one is set).
     log_summary_cache_telemetry(telemetry_cache_aligned, &response.usage);
 
@@ -1431,7 +1431,9 @@ fn build_formatted_summary_request(
         }],
         max_tokens: limits.max_tokens,
         system: Some(SystemPrompt::Text(
-            "You are a helpful assistant that creates concise conversation summaries.".to_string(),
+            include_str!("prompts/conversation_summary.md")
+                .trim()
+                .to_string(),
         )),
         tools: None,
         tool_choice: None,

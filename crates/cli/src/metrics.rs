@@ -1,4 +1,4 @@
-//! `codewhale metrics` — reads the audit log and session/task stores and prints
+//! `mimofan metrics` — reads the audit log and session/task stores and prints
 //! a human-readable usage rollup.
 //!
 //! Data sources:
@@ -17,7 +17,7 @@ use serde_json::Value;
 // Public entry-point
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// Arguments accepted by `codewhale metrics`.
+/// Arguments accepted by `mimofan metrics`.
 #[derive(Debug, Default)]
 pub struct MetricsArgs {
     /// Emit machine-readable JSON instead of human text.

@@ -1,5 +1,5 @@
 [package]
-name = "codewhale-config"
+name = "mimofan-config"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,8 +8,8 @@ description = "Config schema and precedence model for CodeWhale"
 
 [dependencies]
 anyhow.workspace = true
-codewhale-execpolicy = { path = "../execpolicy", version = "0.8.65" }
-codewhale-secrets = { path = "../secrets", version = "0.8.65" }
+mimofan-execpolicy = { path = "../execpolicy", version = "0.8.65" }
+mimofan-secrets = { path = "../secrets", version = "0.8.65" }
 dirs.workspace = true
 libc = "0.2"
 serde.workspace = true

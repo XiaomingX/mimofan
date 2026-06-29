@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn user_command_shadows_builtin_before_group_dispatch() {
         let temp = tempdir().unwrap();
-        let commands_dir = temp.path().join(".codewhale").join("commands");
+        let commands_dir = temp.path().join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).unwrap();
         std::fs::write(
             commands_dir.join("help.md"),
@@ -368,7 +368,7 @@ mod tests {
     #[test]
     fn removed_user_command_reloads_and_falls_back_to_builtin() {
         let temp = tempdir().unwrap();
-        let commands_dir = temp.path().join(".codewhale").join("commands");
+        let commands_dir = temp.path().join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).unwrap();
         let command_path = commands_dir.join("help.md");
         std::fs::write(&command_path, "user help").unwrap();
@@ -405,7 +405,7 @@ mod tests {
         assert_eq!(sidebar.description_id, MessageId::CmdSidebarDescription);
         assert!(
             sidebar
-                .description_for(Locale::En)
+                .description_for(Locale::ZhHans)
                 .contains("right sidebar")
         );
         assert!(command_infos().iter().any(|cmd| cmd.name == "links"));
@@ -415,7 +415,7 @@ mod tests {
             .expect("hf command should exist");
         assert_eq!(hf.aliases, &["huggingface"]);
         assert_eq!(hf.description_id, MessageId::CmdHfDescription);
-        assert!(hf.description_for(Locale::En).contains("Hugging Face"));
+        assert!(hf.description_for(Locale::ZhHans).contains("Hugging Face"));
         assert!(command_infos().iter().any(|cmd| cmd.name == "memory"));
         assert!(!command_infos().iter().any(|cmd| cmd.name == "set"));
         assert!(!command_infos().iter().any(|cmd| cmd.name == "deepseek"));
@@ -536,7 +536,7 @@ mod tests {
             .expect("relay command should exist");
         assert_eq!(relay.aliases, &["batonpass", "接力"]);
         assert!(relay.description_for(Locale::ZhHans).contains("接力"));
-        assert!(relay.description_for(Locale::ZhHant).contains("接力"));
+        assert!(relay.description_for(Locale::ZhHans).contains("接力"));
 
         let mut app = create_test_app();
         let result = execute("/接力 next hand", &mut app);
@@ -597,7 +597,7 @@ mod tests {
                 command.usage
             );
 
-            let description = command.description_for(Locale::En);
+            let description = command.description_for(Locale::ZhHans);
             assert!(
                 !description.trim().is_empty(),
                 "/{} must have non-empty English help text",
@@ -703,7 +703,7 @@ mod tests {
             .find(|cmd| cmd.name == "context")
             .expect("context command should exist");
         assert_eq!(context.aliases, &["ctx"]);
-        assert!(context.description_for(Locale::En).contains("inspector"));
+        assert!(context.description_for(Locale::ZhHans).contains("inspector"));
 
         let mut app = create_test_app();
         let result = execute("/ctx", &mut app);
@@ -1144,7 +1144,7 @@ mod tests {
         let info = get_command_info("balance").expect("balance command should be registered");
         assert_eq!(info.description_id, MessageId::CmdBalanceDescription);
         assert!(
-            info.description_for(Locale::En)
+            info.description_for(Locale::ZhHans)
                 .contains("provider account balance")
         );
     }
@@ -1152,7 +1152,7 @@ mod tests {
     #[test]
     fn balance_command_reports_scaffold_without_claiming_dispatch() {
         let mut app = create_test_app();
-        app.api_provider = ApiProvider::Deepseek;
+        app.api_provider = ApiProvider::XiaomiMimo;
 
         let result = execute("/balance", &mut app);
         let msg = result

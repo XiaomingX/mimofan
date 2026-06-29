@@ -13,5 +13,5 @@ binaries. Compatibility-only deprecation shims under the old `deepseek` /
 `deepseek-tui` binary names are available in v0.8.x and are scheduled for
 removal in v0.9.0.
 
-See [docs/REBRAND.md](https://github.com/Hmbown/CodeWhale/blob/main/docs/REBRAND.md)
+See [docs/REBRAND.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/REBRAND.md)
 for the full migration story.

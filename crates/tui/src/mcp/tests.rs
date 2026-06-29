@@ -19,7 +19,7 @@ async fn lock_mcp_loopback_tests() -> tokio::sync::MutexGuard<'static, ()> {
 
 struct WorkspaceTrustConfigGuard {
     config_path: PathBuf,
-    _codewhale_config_path: crate::test_support::EnvVarGuard,
+    _mimofan_config_path: crate::test_support::EnvVarGuard,
     _deepseek_config_path: crate::test_support::EnvVarGuard,
     _env_lock: std::sync::MutexGuard<'static, ()>,
 }
@@ -34,13 +34,13 @@ fn workspace_trust_config_guard(workspace: &Path) -> WorkspaceTrustConfigGuard {
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent).unwrap();
     }
-    let codewhale_config_path =
+    let mimofan_config_path =
         crate::test_support::EnvVarGuard::set("CODEWHALE_CONFIG_PATH", config_path.as_os_str());
     let deepseek_config_path = crate::test_support::EnvVarGuard::remove("DEEPSEEK_CONFIG_PATH");
 
     WorkspaceTrustConfigGuard {
         config_path,
-        _codewhale_config_path: codewhale_config_path,
+        _mimofan_config_path: mimofan_config_path,
         _deepseek_config_path: deepseek_config_path,
         _env_lock: env_lock,
     }
@@ -386,7 +386,7 @@ fn workspace_mcp_config_merges_with_project_overrides() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let _trust = mark_workspace_trusted(&workspace);
     fs::write(
@@ -427,7 +427,7 @@ fn workspace_manager_snapshot_counts_global_and_project_servers() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let _trust = mark_workspace_trusted(&workspace);
     fs::write(
@@ -470,7 +470,7 @@ fn workspace_mcp_config_ignores_project_file_until_workspace_trusted() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     fs::write(
         &global_path,
@@ -494,7 +494,7 @@ fn workspace_mcp_config_ignores_project_local_legacy_trust_marker() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     fs::create_dir_all(workspace.join(".deepseek")).unwrap();
     fs::write(workspace.join(".deepseek").join("trusted"), "").unwrap();
@@ -520,7 +520,7 @@ fn workspace_mcp_config_ignores_invalid_untrusted_project_file() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     fs::write(&global_path, r#"{"servers": {}}"#).unwrap();
     fs::write(project_dir.join("mcp.json"), "{ not json").unwrap();
@@ -535,7 +535,7 @@ fn workspace_mcp_config_rejects_parent_components() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let _trust = mark_workspace_trusted(&workspace);
     fs::write(&global_path, r#"{"servers": {}}"#).unwrap();
@@ -560,7 +560,7 @@ fn workspace_mcp_config_resolves_relative_cwd_from_workspace() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let _trust = mark_workspace_trusted(&workspace);
     fs::write(&global_path, r#"{"servers": {}}"#).unwrap();
@@ -585,7 +585,7 @@ fn workspace_mcp_config_rejects_project_cwd_escape() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let _trust = mark_workspace_trusted(&workspace);
     fs::write(&global_path, r#"{"servers": {}}"#).unwrap();
@@ -611,7 +611,7 @@ fn workspace_mcp_config_rejects_symlinked_project_cwd_escape() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     let outside = dir.path().join("outside");
     fs::create_dir_all(&project_dir).unwrap();
     fs::create_dir_all(&outside).unwrap();
@@ -656,7 +656,7 @@ async fn workspace_mcp_pool_reload_picks_up_project_config_creation() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&workspace).unwrap();
     let _trust = mark_workspace_trusted(&workspace);
     fs::write(
@@ -686,7 +686,7 @@ async fn workspace_mcp_pool_reload_picks_up_project_config_after_workspace_trust
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let trust_env = workspace_trust_config_guard(&workspace);
     fs::write(
@@ -716,7 +716,7 @@ async fn workspace_mcp_pool_reload_drops_project_config_after_workspace_trust_re
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let trust = mark_workspace_trusted(&workspace);
     fs::write(
@@ -746,7 +746,7 @@ async fn workspace_mcp_pool_reload_drops_project_config_after_deletion() {
     let dir = tempfile::tempdir().unwrap();
     let global_path = dir.path().join("global-mcp.json");
     let workspace = dir.path().join("workspace");
-    let project_dir = workspace.join(".codewhale");
+    let project_dir = workspace.join(".mimofan");
     fs::create_dir_all(&project_dir).unwrap();
     let _trust = mark_workspace_trusted(&workspace);
     fs::write(
@@ -1656,7 +1656,7 @@ async fn discover_snapshot_includes_underlying_spawn_error_in_chain() {
         r#"{
             "mcpServers": {
                 "broken": {
-                    "command": "codewhale-tui-test-this-binary-does-not-exist-9f8e7d6c5b4a",
+                    "command": "mimofan-tui-test-this-binary-does-not-exist-9f8e7d6c5b4a",
                     "args": []
                 }
             }

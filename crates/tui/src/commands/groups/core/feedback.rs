@@ -3,7 +3,7 @@ use crate::commands::traits::{CommandInfo, RegisterCommand};
 use crate::localization::MessageId;
 use crate::tui::app::{App, AppAction};
 
-const SECURITY_POLICY_URL: &str = "https://github.com/Hmbown/CodeWhale/security/policy";
+const SECURITY_POLICY_URL: &str = "https://github.com/XiaomingX/mimofan/security/policy";
 
 pub(in crate::commands) const COMMAND_INFO: CommandInfo = CommandInfo {
     name: "feedback",
@@ -103,9 +103,9 @@ impl FeedbackKind {
 
     fn issue_url_base(self) -> &'static str {
         match self {
-            Self::Bug => "https://github.com/Hmbown/CodeWhale/issues/new?template=bug_report.md",
+            Self::Bug => "https://github.com/XiaomingX/mimofan/issues/new?template=bug_report.md",
             Self::Feature => {
-                "https://github.com/Hmbown/CodeWhale/issues/new?template=feature_request.md"
+                "https://github.com/XiaomingX/mimofan/issues/new?template=feature_request.md"
             }
             Self::Security => SECURITY_POLICY_URL,
         }
@@ -282,11 +282,11 @@ mod tests {
 
         assert_eq!(
             bug,
-            "https://github.com/Hmbown/CodeWhale/issues/new?template=bug_report.md"
+            "https://github.com/XiaomingX/mimofan/issues/new?template=bug_report.md"
         );
         assert_eq!(
             feature,
-            "https://github.com/Hmbown/CodeWhale/issues/new?template=feature_request.md"
+            "https://github.com/XiaomingX/mimofan/issues/new?template=feature_request.md"
         );
     }
 

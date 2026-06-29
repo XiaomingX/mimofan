@@ -178,13 +178,9 @@ fn show_single_setting(app: &App, key: &str) -> CommandResult {
     }
     fn locale_display(l: crate::localization::Locale) -> &'static str {
         match l {
-            crate::localization::Locale::En => "en",
+            crate::localization::Locale::ZhHans => "en",
             crate::localization::Locale::ZhHans => "zh-Hans",
-            crate::localization::Locale::ZhHant => "zh-Hant",
-            crate::localization::Locale::Ja => "ja",
-            crate::localization::Locale::PtBr => "pt-BR",
-            crate::localization::Locale::Es419 => "es-419",
-            crate::localization::Locale::Vi => "vi",
+            crate::localization::Locale::ZhHans => "zh-Hant",
         }
     }
     fn density_display(d: crate::tui::app::ComposerDensity) -> &'static str {
@@ -997,7 +993,7 @@ fn set_subagents_config_value(
                 Ok(raw) => raw,
                 Err(err) => return CommandResult::error(err),
             };
-            let ceiling = u64::from(codewhale_config::MAX_SPAWN_DEPTH_CEILING);
+            let ceiling = u64::from(mimofan_config::MAX_SPAWN_DEPTH_CEILING);
             let clamped = raw.min(ceiling);
             if clamped != raw {
                 note = Some(format!("clamped from {raw} to {clamped}"));
@@ -1336,7 +1332,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
             };
             if matches!(
                 app.api_provider,
-                ApiProvider::Deepseek | ApiProvider::DeepseekCN
+                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
             ) {
                 if persist {
                     match persist_root_string_key(app.config_path.as_deref(), "base_url", &value) {
@@ -1886,8 +1882,8 @@ pub fn lsp_command(app: &mut App, arg: Option<&str>) -> CommandResult {
 /// Logout - clear all saved API keys and return to onboarding.
 /// This is NOT provider-scoped — it clears keys for every saved provider.
 /// For single-provider key replacement, use
-/// `codewhale auth clear --provider <id>` and
-/// `codewhale auth set --provider <id>`.
+/// `mimofan auth clear --provider <id>` and
+/// `mimofan auth set --provider <id>`.
 pub fn logout(app: &mut App) -> CommandResult {
     let provider_name = app.api_provider.as_str();
     match clear_active_provider_api_key(provider_name) {
@@ -1898,7 +1894,7 @@ pub fn logout(app: &mut App) -> CommandResult {
             app.api_key_cursor = 0;
             CommandResult::message(format!(
                 "Cleared API key for {provider_name}. \
-                 Use `codewhale auth clear --provider <id>` to clear a different provider."
+                 Use `mimofan auth clear --provider <id>` to clear a different provider."
             ))
         }
         Err(e) => CommandResult::error(format!("Failed to clear API key for {provider_name}: {e}")),
@@ -1922,7 +1918,7 @@ mod tests {
     struct EnvGuard {
         home: Option<OsString>,
         userprofile: Option<OsString>,
-        codewhale_config_path: Option<OsString>,
+        mimofan_config_path: Option<OsString>,
         deepseek_config_path: Option<OsString>,
         _lock: std::sync::MutexGuard<'static, ()>,
     }
@@ -1935,7 +1931,7 @@ mod tests {
             let config_str = OsString::from(config_path.as_os_str());
             let home_prev = env::var_os("HOME");
             let userprofile_prev = env::var_os("USERPROFILE");
-            let codewhale_config_prev = env::var_os("CODEWHALE_CONFIG_PATH");
+            let mimofan_config_prev = env::var_os("CODEWHALE_CONFIG_PATH");
             let deepseek_config_prev = env::var_os("DEEPSEEK_CONFIG_PATH");
 
             // Safety: test-only environment mutation guarded by process-wide mutex.
@@ -1949,7 +1945,7 @@ mod tests {
             Self {
                 home: home_prev,
                 userprofile: userprofile_prev,
-                codewhale_config_path: codewhale_config_prev,
+                mimofan_config_path: mimofan_config_prev,
                 deepseek_config_path: deepseek_config_prev,
                 _lock: lock,
             }
@@ -1982,7 +1978,7 @@ mod tests {
                 }
             }
 
-            if let Some(value) = self.codewhale_config_path.take() {
+            if let Some(value) = self.mimofan_config_path.take() {
                 // Safety: test-only environment mutation guarded by a global mutex.
                 unsafe {
                     env::set_var("CODEWHALE_CONFIG_PATH", value);
@@ -2036,7 +2032,7 @@ mod tests {
         // not normalized through a provider selected in an interactive run.
         app.model = "test-model".to_string();
         app.auto_model = false;
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = false;
         app
     }
@@ -2259,13 +2255,13 @@ mod tests {
     #[test]
     fn config_reasoning_effort_uses_codex_provider_labels() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-codex-effort-config-test-{}",
+            "mimofan-tui-codex-effort-config-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
         let _guard = EnvGuard::new(&temp_root);
         let mut app = create_test_app();
-        app.api_provider = ApiProvider::OpenaiCodex;
+        app.api_provider = ApiProvider::XiaomiMimo;
         app.reasoning_effort = ReasoningEffort::High;
 
         let result = set_config_value(&mut app, "reasoning_effort", "off", false);
@@ -2288,7 +2284,7 @@ mod tests {
     #[test]
     fn config_fancy_animations_obeys_ghostty_override() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-ghostty-fancy-config-test-{}",
+            "mimofan-tui-ghostty-fancy-config-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2349,7 +2345,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-default-mode-test-{}-{}",
+            "mimofan-tui-default-mode-test-{}-{}",
             std::process::id(),
             nanos
         ));
@@ -2374,7 +2370,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-cost-currency-test-{}-{}",
+            "mimofan-tui-cost-currency-test-{}-{}",
             std::process::id(),
             nanos
         ));
@@ -2435,7 +2431,7 @@ mod tests {
         assert_eq!(result.message.as_deref(), Some("provider = openrouter"));
         match result.action {
             Some(AppAction::SwitchProvider { provider, model }) => {
-                assert_eq!(provider, ApiProvider::Openrouter);
+                assert_eq!(provider, ApiProvider::XiaomiMimo);
                 assert_eq!(model, None);
             }
             other => panic!("expected SwitchProvider action, got {other:?}"),
@@ -2476,7 +2472,7 @@ mod tests {
     #[test]
     fn config_command_allow_shell_save_persists_root_boolean() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-allow-shell-save-app-path-test-{}",
+            "mimofan-allow-shell-save-app-path-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2513,7 +2509,7 @@ mod tests {
     #[test]
     fn config_command_subagents_off_save_persists_and_updates_runtime() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-subagents-off-save-test-{}",
+            "mimofan-subagents-off-save-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2541,7 +2537,7 @@ mod tests {
     #[test]
     fn config_command_subagents_depth_save_clamps_to_ceiling() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-subagents-depth-save-test-{}",
+            "mimofan-subagents-depth-save-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2552,7 +2548,7 @@ mod tests {
         let result = config_command(&mut app, Some("subagents max_depth 99 --save"));
         let msg = result.message.unwrap();
         let saved = fs::read_to_string(&config_path).unwrap();
-        let ceiling = codewhale_config::MAX_SPAWN_DEPTH_CEILING;
+        let ceiling = mimofan_config::MAX_SPAWN_DEPTH_CEILING;
 
         assert!(!result.is_error);
         assert!(msg.contains(&format!("subagents.max_depth = {ceiling}")));
@@ -2571,7 +2567,7 @@ mod tests {
     #[test]
     fn config_command_subagents_status_shows_raw_and_resolved_values() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-subagents-status-test-{}",
+            "mimofan-subagents-status-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2618,7 +2614,7 @@ heartbeat_timeout_secs = 1
     #[test]
     fn config_command_audit_lists_editability_and_current_values() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-config-audit-test-{}",
+            "mimofan-config-audit-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2778,7 +2774,7 @@ max_concurrent = 4
             .unwrap()
             .as_nanos();
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-stream-timeout-test-{}-{}",
+            "mimofan-tui-stream-timeout-test-{}-{}",
             std::process::id(),
             nanos
         ));
@@ -2860,7 +2856,7 @@ max_concurrent = 4
     #[test]
     fn config_command_provider_url_token_plan_persists_provider_base_url() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-provider-url-save-app-path-test-{}",
+            "mimofan-provider-url-save-app-path-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2908,7 +2904,7 @@ max_concurrent = 4
             .unwrap()
             .as_nanos();
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-theme-command-test-{}-{}",
+            "mimofan-tui-theme-command-test-{}-{}",
             std::process::id(),
             nanos
         ));
@@ -2931,7 +2927,7 @@ max_concurrent = 4
             .unwrap()
             .as_nanos();
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-theme-save-test-{}-{}",
+            "mimofan-tui-theme-save-test-{}-{}",
             std::process::id(),
             nanos
         ));
@@ -2972,7 +2968,7 @@ max_concurrent = 4
     #[test]
     fn config_approval_mode_save_persists_top_level_policy() {
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-approval-policy-save-test-{}",
+            "mimofan-approval-policy-save-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -3065,7 +3061,7 @@ max_concurrent = 4
             .unwrap()
             .as_nanos();
         let temp_root = env::temp_dir().join(format!(
-            "codewhale-tui-logout-test-{}-{}",
+            "mimofan-tui-logout-test-{}-{}",
             std::process::id(),
             nanos
         ));

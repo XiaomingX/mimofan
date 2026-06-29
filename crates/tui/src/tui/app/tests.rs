@@ -154,28 +154,28 @@ fn test_trust_mode_follows_yolo_on_startup() {
 #[test]
 fn reasoning_effort_display_label_uses_codex_xhigh() {
     assert_eq!(
-        ReasoningEffort::Off.display_label_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::Off.display_label_for_provider(ApiProvider::XiaomiMimo),
         "low"
     );
     assert_eq!(
-        ReasoningEffort::Medium.display_label_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::Medium.display_label_for_provider(ApiProvider::XiaomiMimo),
         "medium"
     );
     assert_eq!(
-        ReasoningEffort::Max.display_label_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::Max.display_label_for_provider(ApiProvider::XiaomiMimo),
         "xhigh"
     );
     assert_eq!(
-        ReasoningEffort::Max.display_label_for_provider(ApiProvider::Deepseek),
+        ReasoningEffort::Max.display_label_for_provider(ApiProvider::XiaomiMimo),
         "max"
     );
     assert_eq!(
-        ReasoningEffort::High.display_label_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::High.display_label_for_provider(ApiProvider::XiaomiMimo),
         "high"
     );
 
     let mut app = App::new(test_options(false), &Config::default());
-    app.api_provider = ApiProvider::OpenaiCodex;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.reasoning_effort = ReasoningEffort::Max;
     app.auto_model = false;
     assert_eq!(app.reasoning_effort_display_label(), "xhigh");
@@ -222,23 +222,23 @@ fn mode_and_thinking_are_locked_while_a_turn_is_running() {
 #[test]
 fn reasoning_effort_api_values_are_provider_aware_for_codex() {
     assert_eq!(
-        ReasoningEffort::Off.normalize_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::Off.normalize_for_provider(ApiProvider::XiaomiMimo),
         ReasoningEffort::Low
     );
     assert_eq!(
-        ReasoningEffort::Auto.normalize_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::Auto.normalize_for_provider(ApiProvider::XiaomiMimo),
         ReasoningEffort::Medium
     );
     assert_eq!(
-        ReasoningEffort::Max.api_value_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::Max.api_value_for_provider(ApiProvider::XiaomiMimo),
         Some("xhigh")
     );
     assert_eq!(
-        ReasoningEffort::Off.api_value_for_provider(ApiProvider::OpenaiCodex),
+        ReasoningEffort::Off.api_value_for_provider(ApiProvider::XiaomiMimo),
         Some("low")
     );
     assert_eq!(
-        ReasoningEffort::Max.api_value_for_provider(ApiProvider::Deepseek),
+        ReasoningEffort::Max.api_value_for_provider(ApiProvider::XiaomiMimo),
         Some("max")
     );
     assert_eq!(
@@ -250,7 +250,7 @@ fn reasoning_effort_api_values_are_provider_aware_for_codex() {
 #[test]
 fn set_model_selection_normalizes_codex_fixed_model_effort() {
     let mut app = App::new(test_options(false), &Config::default());
-    app.api_provider = ApiProvider::OpenaiCodex;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.reasoning_effort = ReasoningEffort::Off;
 
     app.set_model_selection("gpt-5.5-codex".to_string());
@@ -292,7 +292,7 @@ fn app_new_normalizes_saved_codex_reasoning_effort() {
 
         let app = App::new(test_options(false), &config);
 
-        assert_eq!(app.api_provider, ApiProvider::OpenaiCodex);
+        assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
         assert_eq!(app.reasoning_effort, expected, "raw setting {raw}");
         assert_eq!(app.reasoning_effort_display_label(), display);
     }
@@ -325,7 +325,7 @@ fn settings_default_provider_auth_check_uses_provider_scoped_key() {
 
     let app = App::new(test_options(false), &config);
 
-    assert_eq!(app.api_provider, ApiProvider::Openai);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert!(
         !app.onboarding_needs_api_key,
         "OpenAI provider config key should satisfy startup auth without a DeepSeek key"
@@ -510,8 +510,8 @@ fn bang_shell_prefix_parses_compact_and_spaced_forms() {
     assert_eq!(shell_command_from_bang_input("!pwd"), Ok(Some("pwd")));
     assert_eq!(shell_command_from_bang_input("! pwd"), Ok(Some("pwd")));
     assert_eq!(
-        shell_command_from_bang_input("  !  cargo test -p codewhale-tui sidebar"),
-        Ok(Some("cargo test -p codewhale-tui sidebar"))
+        shell_command_from_bang_input("  !  cargo test -p mimofan-tui sidebar"),
+        Ok(Some("cargo test -p mimofan-tui sidebar"))
     );
     assert_eq!(shell_command_from_bang_input("normal message"), Ok(None));
 }
@@ -993,7 +993,7 @@ fn cached_skills_merges_across_candidate_directories() {
 }
 
 #[test]
-fn cached_skills_respect_codewhale_only_scan_config() {
+fn cached_skills_respect_mimofan_only_scan_config() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let workspace = tmp.path().join("workspace");
 
@@ -1008,16 +1008,16 @@ fn cached_skills_respect_codewhale_only_scan_config() {
     )
     .expect("write claude skill");
 
-    let codewhale_dir = workspace
-        .join(".codewhale")
+    let mimofan_dir = workspace
+        .join(".mimofan")
         .join("skills")
-        .join("codewhale-skill");
-    std::fs::create_dir_all(&codewhale_dir).expect("codewhale skill dir");
+        .join("mimofan-skill");
+    std::fs::create_dir_all(&mimofan_dir).expect("mimofan skill dir");
     std::fs::write(
-        codewhale_dir.join("SKILL.md"),
-        "---\nname: codewhale-skill\ndescription: CodeWhale skill\n---\nbody\n",
+        mimofan_dir.join("SKILL.md"),
+        "---\nname: mimofan-skill\ndescription: CodeWhale skill\n---\nbody\n",
     )
-    .expect("write codewhale skill");
+    .expect("write mimofan skill");
 
     let mut options = test_options(false);
     options.workspace = workspace.clone();
@@ -1026,18 +1026,18 @@ fn cached_skills_respect_codewhale_only_scan_config() {
         options,
         &Config {
             skills: Some(crate::config::SkillsConfig {
-                scan_codewhale_only: Some(true),
+                scan_mimofan_only: Some(true),
                 ..Default::default()
             }),
             ..Default::default()
         },
     );
 
-    assert_eq!(app.skills_dir, workspace.join(".codewhale").join("skills"));
+    assert_eq!(app.skills_dir, workspace.join(".mimofan").join("skills"));
     assert!(
         app.cached_skills
             .iter()
-            .any(|(name, _)| name == "codewhale-skill"),
+            .any(|(name, _)| name == "mimofan-skill"),
         "CodeWhale skill should be cached: {:?}",
         app.cached_skills
     );
@@ -1051,12 +1051,12 @@ fn cached_skills_respect_codewhale_only_scan_config() {
 }
 
 #[test]
-fn resolve_skills_dir_requires_codewhale_skills_to_be_directory() {
+fn resolve_skills_dir_requires_mimofan_skills_to_be_directory() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let workspace = tmp.path().join("workspace");
-    std::fs::create_dir_all(workspace.join(".codewhale")).expect("codewhale dir");
+    std::fs::create_dir_all(workspace.join(".mimofan")).expect("mimofan dir");
     std::fs::write(
-        workspace.join(".codewhale").join("skills"),
+        workspace.join(".mimofan").join("skills"),
         "not a directory",
     )
     .expect("skills file");
@@ -1064,7 +1064,7 @@ fn resolve_skills_dir_requires_codewhale_skills_to_be_directory() {
     let global_skills_dir = tmp.path().join("global-skills");
     let config = Config {
         skills: Some(crate::config::SkillsConfig {
-            scan_codewhale_only: Some(true),
+            scan_mimofan_only: Some(true),
             ..Default::default()
         }),
         ..Default::default()
@@ -1109,20 +1109,20 @@ fn cached_skills_include_configured_directory() {
 }
 
 #[test]
-fn cached_skills_preserve_configured_directory_in_codewhale_only_scan() {
+fn cached_skills_preserve_configured_directory_in_mimofan_only_scan() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let workspace = tmp.path().join("workspace");
 
-    let codewhale_skill_dir = workspace
-        .join(".codewhale")
+    let mimofan_skill_dir = workspace
+        .join(".mimofan")
         .join("skills")
-        .join("workspace-codewhale");
-    std::fs::create_dir_all(&codewhale_skill_dir).expect("workspace codewhale skill dir");
+        .join("workspace-mimofan");
+    std::fs::create_dir_all(&mimofan_skill_dir).expect("workspace mimofan skill dir");
     std::fs::write(
-        codewhale_skill_dir.join("SKILL.md"),
-        "---\nname: workspace-codewhale\ndescription: Workspace CodeWhale skill\n---\nbody\n",
+        mimofan_skill_dir.join("SKILL.md"),
+        "---\nname: workspace-mimofan\ndescription: Workspace CodeWhale skill\n---\nbody\n",
     )
-    .expect("write workspace codewhale skill");
+    .expect("write workspace mimofan skill");
 
     let configured_dir = tmp.path().join("configured-skills");
     let configured_skill_dir = configured_dir.join("configured-skill");
@@ -1139,7 +1139,7 @@ fn cached_skills_preserve_configured_directory_in_codewhale_only_scan() {
     let config = Config {
         skills_dir: Some(configured_dir.to_string_lossy().into_owned()),
         skills: Some(crate::config::SkillsConfig {
-            scan_codewhale_only: Some(true),
+            scan_mimofan_only: Some(true),
             ..Default::default()
         }),
         ..Default::default()
@@ -1150,7 +1150,7 @@ fn cached_skills_preserve_configured_directory_in_codewhale_only_scan() {
     assert!(
         app.cached_skills
             .iter()
-            .any(|(name, _)| name == "workspace-codewhale"),
+            .any(|(name, _)| name == "workspace-mimofan"),
         "workspace CodeWhale skill should still be cached: {:?}",
         app.cached_skills
     );
@@ -1164,12 +1164,12 @@ fn cached_skills_preserve_configured_directory_in_codewhale_only_scan() {
 }
 
 #[test]
-fn cached_skills_reject_codewhale_only_workspace_symlink_escape() {
+fn cached_skills_reject_mimofan_only_workspace_symlink_escape() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let workspace = tmp.path().join("workspace");
     let escape_target = tmp.path().join("escape-target");
     let escaped_skill_dir = escape_target.join("escaped-skill");
-    std::fs::create_dir_all(workspace.join(".codewhale")).expect("codewhale dir");
+    std::fs::create_dir_all(workspace.join(".mimofan")).expect("mimofan dir");
     std::fs::create_dir_all(&escaped_skill_dir).expect("escaped skill dir");
     std::fs::write(
         escaped_skill_dir.join("SKILL.md"),
@@ -1177,7 +1177,7 @@ fn cached_skills_reject_codewhale_only_workspace_symlink_escape() {
     )
     .expect("write escaped skill");
 
-    let link_path = workspace.join(".codewhale").join("skills");
+    let link_path = workspace.join(".mimofan").join("skills");
     if create_dir_symlink(&escape_target, &link_path).is_err() {
         return;
     }
@@ -1188,7 +1188,7 @@ fn cached_skills_reject_codewhale_only_workspace_symlink_escape() {
     options.skills_dir = global_skills_dir.clone();
     let config = Config {
         skills: Some(crate::config::SkillsConfig {
-            scan_codewhale_only: Some(true),
+            scan_mimofan_only: Some(true),
             ..Default::default()
         }),
         ..Default::default()
@@ -1220,7 +1220,7 @@ fn paste_defers_oversized_text_consolidation_until_submit() {
 
     assert_eq!(app.input, full_content);
     assert_eq!(app.cursor_position, app.input.chars().count());
-    let pastes_dir = tmp.path().join(".codewhale/pastes");
+    let pastes_dir = tmp.path().join(".mimofan/pastes");
     assert!(
         !pastes_dir.exists() || std::fs::read_dir(&pastes_dir).unwrap().next().is_none(),
         "paste file should not be written before submit"
@@ -1242,7 +1242,7 @@ fn paste_defers_oversized_text_consolidation_until_submit() {
     );
     let mention_start = full_content.len();
     assert!(
-        submitted[mention_start..].starts_with("\n@.codewhale/pastes/paste-"),
+        submitted[mention_start..].starts_with("\n@.mimofan/pastes/paste-"),
         "expected @mention suffix, got: {}",
         &submitted[mention_start..]
     );
@@ -1273,9 +1273,9 @@ fn paste_under_threshold_does_not_consolidate() {
     app.insert_paste_text(&small);
 
     assert_eq!(app.input, small);
-    assert!(!app.input.starts_with("@.codewhale/pastes/"));
+    assert!(!app.input.starts_with("@.mimofan/pastes/"));
     // No paste file gets written for under-cap pastes.
-    let pastes_dir = tmp.path().join(".codewhale/pastes");
+    let pastes_dir = tmp.path().join(".mimofan/pastes");
     assert!(
         !pastes_dir.exists() || std::fs::read_dir(&pastes_dir).unwrap().next().is_none(),
         "no paste file should be written for under-cap content"
@@ -1304,7 +1304,7 @@ fn submit_input_consolidates_oversized_input_into_paste_file() {
     );
     let mention_start = full_content.len();
     assert!(
-        submitted[mention_start..].starts_with("\n@.codewhale/pastes/paste-"),
+        submitted[mention_start..].starts_with("\n@.mimofan/pastes/paste-"),
         "submitted text should end with @mention, got suffix: {}",
         &submitted[mention_start..]
     );
@@ -2997,7 +2997,7 @@ fn delete_selection_noop_when_no_selection() {
 /// providers under test are cleared so readiness is driven solely by config.
 fn app_with_fallback_chain(
     active: ApiProvider,
-    fallbacks: &[codewhale_config::ProviderKind],
+    fallbacks: &[mimofan_config::ProviderKind],
     keyed: &[ApiProvider],
 ) -> App {
     let mut providers = ProvidersConfig::default();
@@ -3007,11 +3007,11 @@ fn app_with_fallback_chain(
             ..Default::default()
         };
         match provider {
-            ApiProvider::Deepseek => providers.deepseek = entry,
-            ApiProvider::Openai => providers.openai = entry,
-            ApiProvider::Openrouter => providers.openrouter = entry,
-            ApiProvider::Together => providers.together = entry,
-            ApiProvider::Fireworks => providers.fireworks = entry,
+            ApiProvider::XiaomiMimo => providers.deepseek = entry,
+            ApiProvider::XiaomiMimo => providers.openai = entry,
+            ApiProvider::XiaomiMimo => providers.openrouter = entry,
+            ApiProvider::XiaomiMimo => providers.together = entry,
+            ApiProvider::XiaomiMimo => providers.fireworks = entry,
             other => panic!("unhandled keyed provider in test helper: {other:?}"),
         }
     }
@@ -3038,19 +3038,19 @@ fn advance_fallback_skips_unauthed_middle_provider_and_lands_on_next_ready() {
 
     // Chain: Openai (active, keyed) -> Openrouter (no key) -> Together (keyed).
     let mut app = app_with_fallback_chain(
-        ApiProvider::Openai,
+        ApiProvider::XiaomiMimo,
         &[
-            codewhale_config::ProviderKind::Openrouter,
-            codewhale_config::ProviderKind::Together,
+            mimofan_config::ProviderKind::XiaomiMimo,
+            mimofan_config::ProviderKind::XiaomiMimo,
         ],
-        &[ApiProvider::Openai, ApiProvider::Together],
+        &[ApiProvider::XiaomiMimo, ApiProvider::XiaomiMimo],
     );
     assert_eq!(app.fallback_chain_position(), Some(0));
 
     // Openrouter is skipped (needs auth); we land on Together.
     let next = app.advance_fallback("network error");
-    assert_eq!(next, Some(ApiProvider::Together));
-    assert_eq!(app.api_provider, ApiProvider::Together);
+    assert_eq!(next, Some(ApiProvider::XiaomiMimo));
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
     assert_eq!(app.fallback_chain_position(), Some(2));
 
     let reason = app.last_fallback_reason.as_deref().unwrap_or_default();
@@ -3074,18 +3074,18 @@ fn advance_fallback_all_unready_exhausts_with_clear_reason() {
     // Chain: Openai (active, keyed) -> Openrouter (no key) -> Together (no key).
     // Every fallback entry is unready, so the chain exhausts.
     let mut app = app_with_fallback_chain(
-        ApiProvider::Openai,
+        ApiProvider::XiaomiMimo,
         &[
-            codewhale_config::ProviderKind::Openrouter,
-            codewhale_config::ProviderKind::Together,
+            mimofan_config::ProviderKind::XiaomiMimo,
+            mimofan_config::ProviderKind::XiaomiMimo,
         ],
-        &[ApiProvider::Openai],
+        &[ApiProvider::XiaomiMimo],
     );
 
     let next = app.advance_fallback("rate limited");
     assert_eq!(next, None, "no ready fallback remains");
     // Active provider is unchanged on exhaustion.
-    assert_eq!(app.api_provider, ApiProvider::Openai);
+    assert_eq!(app.api_provider, ApiProvider::XiaomiMimo);
 
     let reason = app.last_fallback_reason.as_deref().unwrap_or_default();
     assert!(

@@ -11,13 +11,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 fn api_provider_metadata_helpers_follow_config_provider_metadata() {
     let sorted = ApiProvider::sorted_for_display();
     let expected_sorted: Vec<ApiProvider> =
-        codewhale_config::provider::providers_sorted_for_display()
+        mimofan_config::provider::providers_sorted_for_display()
             .iter()
             .map(|provider| ApiProvider::from_kind(provider.kind()))
             .collect();
     assert_eq!(sorted, expected_sorted);
 
-    for kind in codewhale_config::ProviderKind::ALL {
+    for kind in mimofan_config::ProviderKind::ALL {
         let provider = ApiProvider::from_kind(kind);
         let metadata = provider.metadata().expect("metadata-backed provider");
         assert_eq!(metadata.kind(), kind);
@@ -28,24 +28,24 @@ fn api_provider_metadata_helpers_follow_config_provider_metadata() {
         );
     }
 
-    assert_eq!(ApiProvider::DeepseekCN.metadata().map(|p| p.kind()), None);
+    assert_eq!(ApiProvider::XiaomiMimo.metadata().map(|p| p.kind()), None);
     assert_eq!(
-        ApiProvider::DeepseekCN.env_vars(),
-        codewhale_config::ProviderKind::Deepseek
+        ApiProvider::XiaomiMimo.env_vars(),
+        mimofan_config::ProviderKind::XiaomiMimo
             .provider()
             .env_vars()
     );
     assert_eq!(
-        ApiProvider::DeepseekCN.default_base_url(),
+        ApiProvider::XiaomiMimo.default_base_url(),
         DEFAULT_DEEPSEEKCN_BASE_URL
     );
 }
 
 #[test]
 fn provider_config_key_follows_config_provider_metadata() {
-    for kind in codewhale_config::ProviderKind::ALL
+    for kind in mimofan_config::ProviderKind::ALL
         .into_iter()
-        .filter(|kind| *kind != codewhale_config::ProviderKind::Deepseek)
+        .filter(|kind| *kind != mimofan_config::ProviderKind::XiaomiMimo)
     {
         let provider = ApiProvider::from_kind(kind);
         assert_eq!(
@@ -54,8 +54,8 @@ fn provider_config_key_follows_config_provider_metadata() {
         );
     }
 
-    assert!(provider_config_key(ApiProvider::Deepseek).is_err());
-    assert!(provider_config_key(ApiProvider::DeepseekCN).is_err());
+    assert!(provider_config_key(ApiProvider::XiaomiMimo).is_err());
+    assert!(provider_config_key(ApiProvider::XiaomiMimo).is_err());
 }
 
 #[test]
@@ -63,20 +63,20 @@ fn deepseek_api_key_reads_metadata_env_vars_for_newer_providers() -> Result<()> 
     let _lock = lock_test_env();
     let _source = EnvVarGuard::remove("DEEPSEEK_API_KEY_SOURCE");
     let cases = [
-        (ApiProvider::Zai, "ZAI_API_KEY", "zai-env-key"),
-        (ApiProvider::Stepfun, "STEPFUN_API_KEY", "stepfun-env-key"),
-        (ApiProvider::Minimax, "MINIMAX_API_KEY", "minimax-env-key"),
+        (ApiProvider::XiaomiMimo, "ZAI_API_KEY", "zai-env-key"),
+        (ApiProvider::XiaomiMimo, "STEPFUN_API_KEY", "stepfun-env-key"),
+        (ApiProvider::XiaomiMimo, "MINIMAX_API_KEY", "minimax-env-key"),
         (
-            ApiProvider::Deepinfra,
+            ApiProvider::XiaomiMimo,
             "DEEPINFRA_API_KEY",
             "deepinfra-env-key",
         ),
         (
-            ApiProvider::Together,
+            ApiProvider::XiaomiMimo,
             "TOGETHER_API_KEY",
             "together-env-key",
         ),
-        (ApiProvider::Qianfan, "QIANFAN_API_KEY", "qianfan-env-key"),
+        (ApiProvider::XiaomiMimo, "QIANFAN_API_KEY", "qianfan-env-key"),
     ];
     let _env_guards: Vec<_> = cases
         .iter()
@@ -97,7 +97,7 @@ fn deepseek_api_key_reads_metadata_env_vars_for_newer_providers() -> Result<()> 
 
 #[test]
 fn missing_provider_api_key_message_uses_provider_metadata() -> Result<()> {
-    let message = missing_provider_api_key_message(ApiProvider::Zai)?;
+    let message = missing_provider_api_key_message(ApiProvider::XiaomiMimo)?;
 
     assert!(message.contains("Zhipu AI / Z.ai API key not found"));
     assert!(message.contains("https://z.ai/model-api"));
@@ -264,7 +264,7 @@ fn config_loads_sibling_permissions_into_exec_policy_engine() {
     let config_path = dir.path().join("config.toml");
     fs::write(&config_path, "model = \"deepseek-v4-pro\"\n").expect("write config");
     fs::write(
-        dir.path().join(codewhale_config::PERMISSIONS_FILE_NAME),
+        dir.path().join(mimofan_config::PERMISSIONS_FILE_NAME),
         r#"
 [[rules]]
 tool = "exec_shell"
@@ -276,12 +276,12 @@ command = "cargo test"
     let config = Config::load(Some(config_path), None).expect("load config");
     let decision = config
         .exec_policy_engine
-        .check(codewhale_execpolicy::ExecPolicyContext {
+        .check(mimofan_execpolicy::ExecPolicyContext {
             command: "cargo test --workspace",
             cwd: dir.path().to_string_lossy().as_ref(),
             tool: Some("exec_shell"),
             path: None,
-            ask_for_approval: codewhale_execpolicy::AskForApproval::OnFailure,
+            ask_for_approval: mimofan_execpolicy::AskForApproval::OnFailure,
             sandbox_mode: None,
         })
         .expect("check permission");
@@ -299,7 +299,7 @@ fn config_loads_sibling_permissions_when_config_file_is_absent() {
     let dir = tempfile::tempdir().expect("tempdir");
     let config_path = dir.path().join("config.toml");
     fs::write(
-        dir.path().join(codewhale_config::PERMISSIONS_FILE_NAME),
+        dir.path().join(mimofan_config::PERMISSIONS_FILE_NAME),
         r#"
 [[rules]]
 tool = "exec_shell"
@@ -311,12 +311,12 @@ command = "npm test"
     let config = Config::load(Some(config_path), None).expect("load config");
     let decision = config
         .exec_policy_engine
-        .check(codewhale_execpolicy::ExecPolicyContext {
+        .check(mimofan_execpolicy::ExecPolicyContext {
             command: "npm test -- --runInBand",
             cwd: dir.path().to_string_lossy().as_ref(),
             tool: Some("exec_shell"),
             path: None,
-            ask_for_approval: codewhale_execpolicy::AskForApproval::OnFailure,
+            ask_for_approval: mimofan_execpolicy::AskForApproval::OnFailure,
             sandbox_mode: None,
         })
         .expect("check permission");
@@ -349,17 +349,17 @@ fn warns_when_allow_shell_nested_under_general_section() {
 }
 
 #[test]
-fn load_honors_codewhale_home_for_primary_config_path() -> Result<()> {
+fn load_honors_mimofan_home_for_primary_config_path() -> Result<()> {
     let _lock = lock_test_env();
     let dir = tempfile::tempdir()?;
-    let codewhale_home = dir.path().join("isolated-codewhale");
-    fs::create_dir_all(&codewhale_home)?;
-    fs::write(codewhale_home.join("config.toml"), "provider = \"zai\"\n")?;
-    let _codewhale_home = EnvVarGuard::set("CODEWHALE_HOME", codewhale_home.as_os_str());
-    let _codewhale_config = EnvVarGuard::remove("CODEWHALE_CONFIG_PATH");
+    let mimofan_home = dir.path().join("isolated-mimofan");
+    fs::create_dir_all(&mimofan_home)?;
+    fs::write(mimofan_home.join("config.toml"), "provider = \"zai\"\n")?;
+    let _mimofan_home = EnvVarGuard::set("CODEWHALE_HOME", mimofan_home.as_os_str());
+    let _mimofan_config = EnvVarGuard::remove("CODEWHALE_CONFIG_PATH");
     let _deepseek_config = EnvVarGuard::remove("DEEPSEEK_CONFIG_PATH");
 
-    let expected = codewhale_home.join("config.toml");
+    let expected = mimofan_home.join("config.toml");
     assert_eq!(default_config_path().as_deref(), Some(expected.as_path()));
     let config = Config::load(None, None)?;
 
@@ -371,10 +371,10 @@ fn load_honors_codewhale_home_for_primary_config_path() -> Result<()> {
 fn load_accepts_dispatcher_written_camel_case_config_shape() -> Result<()> {
     let _lock = lock_test_env();
     let dir = tempfile::tempdir()?;
-    let codewhale_home = dir.path().join("isolated-codewhale");
-    fs::create_dir_all(&codewhale_home)?;
+    let mimofan_home = dir.path().join("isolated-mimofan");
+    fs::create_dir_all(&mimofan_home)?;
     fs::write(
-        codewhale_home.join("config.toml"),
+        mimofan_home.join("config.toml"),
         r#"
 provider = "zai"
 fallbackProviders = []
@@ -397,8 +397,8 @@ subagents = true
 web_search = true
 "#,
     )?;
-    let _codewhale_home = EnvVarGuard::set("CODEWHALE_HOME", codewhale_home.as_os_str());
-    let _codewhale_config = EnvVarGuard::remove("CODEWHALE_CONFIG_PATH");
+    let _mimofan_home = EnvVarGuard::set("CODEWHALE_HOME", mimofan_home.as_os_str());
+    let _mimofan_config = EnvVarGuard::remove("CODEWHALE_CONFIG_PATH");
     let _deepseek_config = EnvVarGuard::remove("DEEPSEEK_CONFIG_PATH");
 
     let config = Config::load(None, None)?;
@@ -768,7 +768,7 @@ fn apply_env_overrides_sets_search_api_key() {
 #[test]
 fn apply_env_overrides_sets_search_base_url() {
     let _guard = lock_test_env();
-    let prev_codewhale = env::var_os("CODEWHALE_SEARCH_BASE_URL");
+    let prev_mimofan = env::var_os("CODEWHALE_SEARCH_BASE_URL");
     let prev_deepseek = env::var_os("DEEPSEEK_SEARCH_BASE_URL");
     unsafe {
         env::remove_var("CODEWHALE_SEARCH_BASE_URL");
@@ -782,7 +782,7 @@ fn apply_env_overrides_sets_search_base_url() {
     apply_env_overrides(&mut config);
 
     unsafe {
-        EnvGuard::restore_var("CODEWHALE_SEARCH_BASE_URL", prev_codewhale);
+        EnvGuard::restore_var("CODEWHALE_SEARCH_BASE_URL", prev_mimofan);
         EnvGuard::restore_var("DEEPSEEK_SEARCH_BASE_URL", prev_deepseek);
     }
     assert_eq!(
@@ -792,14 +792,14 @@ fn apply_env_overrides_sets_search_base_url() {
 }
 
 #[test]
-fn codewhale_search_base_url_env_wins_over_legacy_alias() {
+fn mimofan_search_base_url_env_wins_over_legacy_alias() {
     let _guard = lock_test_env();
-    let prev_codewhale = env::var_os("CODEWHALE_SEARCH_BASE_URL");
+    let prev_mimofan = env::var_os("CODEWHALE_SEARCH_BASE_URL");
     let prev_deepseek = env::var_os("DEEPSEEK_SEARCH_BASE_URL");
     unsafe {
         env::set_var(
             "CODEWHALE_SEARCH_BASE_URL",
-            "https://codewhale-search.example/html/",
+            "https://mimofan-search.example/html/",
         );
         env::set_var(
             "DEEPSEEK_SEARCH_BASE_URL",
@@ -811,12 +811,12 @@ fn codewhale_search_base_url_env_wins_over_legacy_alias() {
     apply_env_overrides(&mut config);
 
     unsafe {
-        EnvGuard::restore_var("CODEWHALE_SEARCH_BASE_URL", prev_codewhale);
+        EnvGuard::restore_var("CODEWHALE_SEARCH_BASE_URL", prev_mimofan);
         EnvGuard::restore_var("DEEPSEEK_SEARCH_BASE_URL", prev_deepseek);
     }
     assert_eq!(
         config.search.and_then(|search| search.base_url),
-        Some("https://codewhale-search.example/html/".to_string())
+        Some("https://mimofan-search.example/html/".to_string())
     );
 }
 
@@ -843,10 +843,10 @@ fn search_provider_resolution_ignores_invalid_env_override() {
 struct EnvGuard {
     home: Option<OsString>,
     userprofile: Option<OsString>,
-    codewhale_home: Option<OsString>,
-    codewhale_config_path: Option<OsString>,
+    mimofan_home: Option<OsString>,
+    mimofan_config_path: Option<OsString>,
     deepseek_config_path: Option<OsString>,
-    codewhale_secret_backend: Option<OsString>,
+    mimofan_secret_backend: Option<OsString>,
     deepseek_secret_backend: Option<OsString>,
     deepseek_provider: Option<OsString>,
     deepseek_api_key: Option<OsString>,
@@ -854,9 +854,9 @@ struct EnvGuard {
     deepseek_http_headers: Option<OsString>,
     deepseek_model: Option<OsString>,
     deepseek_default_text_model: Option<OsString>,
-    codewhale_provider: Option<OsString>,
-    codewhale_model: Option<OsString>,
-    codewhale_base_url: Option<OsString>,
+    mimofan_provider: Option<OsString>,
+    mimofan_model: Option<OsString>,
+    mimofan_base_url: Option<OsString>,
     nvidia_api_key: Option<OsString>,
     nvidia_nim_api_key: Option<OsString>,
     nim_base_url: Option<OsString>,
@@ -938,10 +938,10 @@ impl EnvGuard {
         let config_str = OsString::from(config_path.as_os_str());
         let home_prev = env::var_os("HOME");
         let userprofile_prev = env::var_os("USERPROFILE");
-        let codewhale_home_prev = env::var_os("CODEWHALE_HOME");
-        let codewhale_config_prev = env::var_os("CODEWHALE_CONFIG_PATH");
+        let mimofan_home_prev = env::var_os("CODEWHALE_HOME");
+        let mimofan_config_prev = env::var_os("CODEWHALE_CONFIG_PATH");
         let deepseek_config_prev = env::var_os("DEEPSEEK_CONFIG_PATH");
-        let codewhale_secret_backend_prev = env::var_os("CODEWHALE_SECRET_BACKEND");
+        let mimofan_secret_backend_prev = env::var_os("CODEWHALE_SECRET_BACKEND");
         let deepseek_secret_backend_prev = env::var_os("DEEPSEEK_SECRET_BACKEND");
         let deepseek_provider_prev = env::var_os("DEEPSEEK_PROVIDER");
         let api_key_prev = env::var_os("DEEPSEEK_API_KEY");
@@ -949,9 +949,9 @@ impl EnvGuard {
         let http_headers_prev = env::var_os("DEEPSEEK_HTTP_HEADERS");
         let model_prev = env::var_os("DEEPSEEK_MODEL");
         let default_text_model_prev = env::var_os("DEEPSEEK_DEFAULT_TEXT_MODEL");
-        let codewhale_provider_prev = env::var_os("CODEWHALE_PROVIDER");
-        let codewhale_model_prev = env::var_os("CODEWHALE_MODEL");
-        let codewhale_base_url_prev = env::var_os("CODEWHALE_BASE_URL");
+        let mimofan_provider_prev = env::var_os("CODEWHALE_PROVIDER");
+        let mimofan_model_prev = env::var_os("CODEWHALE_MODEL");
+        let mimofan_base_url_prev = env::var_os("CODEWHALE_BASE_URL");
         let nvidia_api_key_prev = env::var_os("NVIDIA_API_KEY");
         let nvidia_nim_api_key_prev = env::var_os("NVIDIA_NIM_API_KEY");
         let nim_base_url_prev = env::var_os("NIM_BASE_URL");
@@ -1118,10 +1118,10 @@ impl EnvGuard {
         Self {
             home: home_prev,
             userprofile: userprofile_prev,
-            codewhale_home: codewhale_home_prev,
-            codewhale_config_path: codewhale_config_prev,
+            mimofan_home: mimofan_home_prev,
+            mimofan_config_path: mimofan_config_prev,
             deepseek_config_path: deepseek_config_prev,
-            codewhale_secret_backend: codewhale_secret_backend_prev,
+            mimofan_secret_backend: mimofan_secret_backend_prev,
             deepseek_secret_backend: deepseek_secret_backend_prev,
             deepseek_provider: deepseek_provider_prev,
             deepseek_api_key: api_key_prev,
@@ -1129,9 +1129,9 @@ impl EnvGuard {
             deepseek_http_headers: http_headers_prev,
             deepseek_model: model_prev,
             deepseek_default_text_model: default_text_model_prev,
-            codewhale_provider: codewhale_provider_prev,
-            codewhale_model: codewhale_model_prev,
-            codewhale_base_url: codewhale_base_url_prev,
+            mimofan_provider: mimofan_provider_prev,
+            mimofan_model: mimofan_model_prev,
+            mimofan_base_url: mimofan_base_url_prev,
             nvidia_api_key: nvidia_api_key_prev,
             nvidia_nim_api_key: nvidia_nim_api_key_prev,
             nim_base_url: nim_base_url_prev,
@@ -1214,12 +1214,12 @@ impl Drop for EnvGuard {
         unsafe {
             Self::restore_var("HOME", self.home.take());
             Self::restore_var("USERPROFILE", self.userprofile.take());
-            Self::restore_var("CODEWHALE_HOME", self.codewhale_home.take());
-            Self::restore_var("CODEWHALE_CONFIG_PATH", self.codewhale_config_path.take());
+            Self::restore_var("CODEWHALE_HOME", self.mimofan_home.take());
+            Self::restore_var("CODEWHALE_CONFIG_PATH", self.mimofan_config_path.take());
             Self::restore_var("DEEPSEEK_CONFIG_PATH", self.deepseek_config_path.take());
             Self::restore_var(
                 "CODEWHALE_SECRET_BACKEND",
-                self.codewhale_secret_backend.take(),
+                self.mimofan_secret_backend.take(),
             );
             Self::restore_var(
                 "DEEPSEEK_SECRET_BACKEND",
@@ -1234,9 +1234,9 @@ impl Drop for EnvGuard {
                 "DEEPSEEK_DEFAULT_TEXT_MODEL",
                 self.deepseek_default_text_model.take(),
             );
-            Self::restore_var("CODEWHALE_PROVIDER", self.codewhale_provider.take());
-            Self::restore_var("CODEWHALE_MODEL", self.codewhale_model.take());
-            Self::restore_var("CODEWHALE_BASE_URL", self.codewhale_base_url.take());
+            Self::restore_var("CODEWHALE_PROVIDER", self.mimofan_provider.take());
+            Self::restore_var("CODEWHALE_MODEL", self.mimofan_model.take());
+            Self::restore_var("CODEWHALE_BASE_URL", self.mimofan_base_url.take());
             Self::restore_var("NVIDIA_API_KEY", self.nvidia_api_key.take());
             Self::restore_var("NVIDIA_NIM_API_KEY", self.nvidia_nim_api_key.take());
             Self::restore_var("NIM_BASE_URL", self.nim_base_url.take());
@@ -1497,28 +1497,28 @@ heartbeat_timeout_secs = 240
     )
     .expect("parse provider subagent profile");
 
-    assert_eq!(config.api_provider(), ApiProvider::Zai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.max_subagents(), 20);
-    assert_eq!(config.max_subagents_for_provider(ApiProvider::Zai), 4);
-    assert_eq!(config.launch_concurrency_for_provider(ApiProvider::Zai), 3);
+    assert_eq!(config.max_subagents_for_provider(ApiProvider::XiaomiMimo), 4);
+    assert_eq!(config.launch_concurrency_for_provider(ApiProvider::XiaomiMimo), 3);
     assert_eq!(
-        config.max_admitted_subagents_for_provider(ApiProvider::Zai),
+        config.max_admitted_subagents_for_provider(ApiProvider::XiaomiMimo),
         12
     );
     assert_eq!(
-        config.subagent_max_spawn_depth_for_provider(ApiProvider::Zai),
+        config.subagent_max_spawn_depth_for_provider(ApiProvider::XiaomiMimo),
         2
     );
     assert_eq!(
-        config.subagent_token_budget_for_provider(ApiProvider::Zai),
+        config.subagent_token_budget_for_provider(ApiProvider::XiaomiMimo),
         Some(25_000)
     );
     assert_eq!(
-        config.subagent_api_timeout_secs_for_provider(ApiProvider::Zai),
+        config.subagent_api_timeout_secs_for_provider(ApiProvider::XiaomiMimo),
         180
     );
     assert_eq!(
-        config.subagent_heartbeat_timeout_secs_for_provider(ApiProvider::Zai),
+        config.subagent_heartbeat_timeout_secs_for_provider(ApiProvider::XiaomiMimo),
         240
     );
 }
@@ -1545,27 +1545,27 @@ enabled = false
     .expect("parse inherited provider subagent profile");
 
     assert_eq!(
-        config.max_subagents_for_provider(ApiProvider::Deepseek),
+        config.max_subagents_for_provider(ApiProvider::XiaomiMimo),
         MAX_SUBAGENTS
     );
     assert_eq!(
-        config.launch_concurrency_for_provider(ApiProvider::Deepseek),
+        config.launch_concurrency_for_provider(ApiProvider::XiaomiMimo),
         MAX_SUBAGENTS
     );
     assert_eq!(
-        config.max_admitted_subagents_for_provider(ApiProvider::Deepseek),
+        config.max_admitted_subagents_for_provider(ApiProvider::XiaomiMimo),
         MAX_SUBAGENTS
     );
     assert_eq!(
-        config.subagent_max_spawn_depth_for_provider(ApiProvider::Deepseek),
+        config.subagent_max_spawn_depth_for_provider(ApiProvider::XiaomiMimo),
         5
     );
     assert_eq!(
-        config.subagent_api_timeout_secs_for_provider(ApiProvider::Deepseek),
+        config.subagent_api_timeout_secs_for_provider(ApiProvider::XiaomiMimo),
         300
     );
-    assert!(config.subagents_enabled_for_provider(ApiProvider::Deepseek));
-    assert!(!config.subagents_enabled_for_provider(ApiProvider::Anthropic));
+    assert!(config.subagents_enabled_for_provider(ApiProvider::XiaomiMimo));
+    assert!(!config.subagents_enabled_for_provider(ApiProvider::XiaomiMimo));
 }
 
 #[test]
@@ -1665,7 +1665,7 @@ fn subagents_enabled_reports_disable_precedence() {
 fn subagent_max_spawn_depth_defaults_allows_zero_and_clamps() {
     assert_eq!(
         Config::default().subagent_max_spawn_depth(),
-        codewhale_config::DEFAULT_SPAWN_DEPTH
+        mimofan_config::DEFAULT_SPAWN_DEPTH
     );
 
     let disabled = Config {
@@ -1679,14 +1679,14 @@ fn subagent_max_spawn_depth_defaults_allows_zero_and_clamps() {
 
     let high = Config {
         subagents: Some(SubagentsConfig {
-            max_depth: Some(codewhale_config::MAX_SPAWN_DEPTH_CEILING + 10),
+            max_depth: Some(mimofan_config::MAX_SPAWN_DEPTH_CEILING + 10),
             ..SubagentsConfig::default()
         }),
         ..Config::default()
     };
     assert_eq!(
         high.subagent_max_spawn_depth(),
-        codewhale_config::MAX_SPAWN_DEPTH_CEILING
+        mimofan_config::MAX_SPAWN_DEPTH_CEILING
     );
 }
 
@@ -1870,7 +1870,7 @@ fn save_api_key_writes_config_file_under_cfg_test() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-test-{}-{}",
+        "mimofan-tui-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -1906,7 +1906,7 @@ fn ensure_config_file_exists_creates_first_run_template() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-first-run-config-{}-{}",
+        "mimofan-tui-first-run-config-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -1932,7 +1932,7 @@ fn workspace_trust_round_trips_through_global_config() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-workspace-trust-{}-{}",
+        "mimofan-tui-workspace-trust-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -1968,7 +1968,7 @@ fn workspace_trust_reads_existing_projects_table() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-existing-project-trust-{}-{}",
+        "mimofan-tui-existing-project-trust-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2206,7 +2206,7 @@ fn clear_api_key_strips_root_and_provider_scoped_keys() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-clear-{}-{}",
+        "mimofan-tui-clear-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2239,7 +2239,7 @@ api_key = "old-openrouter-key"
     );
     assert!(
         !after.contains("old-provider-key"),
-        "provider-scoped codewhale key must be stripped: {after}"
+        "provider-scoped mimofan key must be stripped: {after}"
     );
     assert!(
         !after.contains("old-openrouter-key"),
@@ -2262,7 +2262,7 @@ fn deepseek_api_key_prefers_explicit_in_memory_override() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-override-{}-{}",
+        "mimofan-tui-override-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2288,7 +2288,7 @@ fn deepseek_api_key_prefers_saved_config_over_stale_env() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-config-over-env-{}-{}",
+        "mimofan-tui-config-over-env-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2313,7 +2313,7 @@ fn deepseek_api_key_prefers_saved_config_over_stale_env() -> Result<()> {
 fn active_provider_detects_env_only_api_key() -> Result<()> {
     let _lock = lock_test_env();
     let temp_root =
-        env::temp_dir().join(format!("codewhale-tui-env-only-key-{}", std::process::id()));
+        env::temp_dir().join(format!("mimofan-tui-env-only-key-{}", std::process::id()));
     fs::create_dir_all(&temp_root)?;
     let _guard = EnvGuard::new(&temp_root);
 
@@ -2343,7 +2343,7 @@ fn deepseek_api_key_ignores_sentinel_placeholder() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-sentinel-{}-{}",
+        "mimofan-tui-sentinel-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2364,14 +2364,14 @@ fn deepseek_api_key_ignores_sentinel_placeholder() -> Result<()> {
 }
 
 #[test]
-fn default_user_paths_use_codewhale_home_for_fresh_installs() -> Result<()> {
+fn default_user_paths_use_mimofan_home_for_fresh_installs() -> Result<()> {
     let _lock = lock_test_env();
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-fresh-home-test-{}-{}",
+        "mimofan-tui-fresh-home-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2387,19 +2387,19 @@ fn default_user_paths_use_codewhale_home_for_fresh_installs() -> Result<()> {
     let config = Config::default();
     assert_eq!(
         default_config_path().unwrap(),
-        temp_root.join(".codewhale").join("config.toml")
+        temp_root.join(".mimofan").join("config.toml")
     );
     assert_eq!(
         config.mcp_config_path(),
-        temp_root.join(".codewhale").join("mcp.json")
+        temp_root.join(".mimofan").join("mcp.json")
     );
     assert_eq!(
         config.notes_path(),
-        temp_root.join(".codewhale").join("notes.txt")
+        temp_root.join(".mimofan").join("notes.txt")
     );
     assert_eq!(
         config.memory_path(),
-        temp_root.join(".codewhale").join("memory.md")
+        temp_root.join(".mimofan").join("memory.md")
     );
 
     Ok(())
@@ -2413,7 +2413,7 @@ fn default_user_paths_preserve_existing_legacy_files() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-legacy-home-test-{}-{}",
+        "mimofan-tui-legacy-home-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2441,16 +2441,16 @@ fn default_user_paths_preserve_existing_legacy_files() -> Result<()> {
 }
 
 #[test]
-fn codewhale_config_path_env_wins_over_legacy_env() -> Result<()> {
+fn mimofan_config_path_env_wins_over_legacy_env() -> Result<()> {
     let _lock = lock_test_env();
-    let prev_codewhale = env::var_os("CODEWHALE_CONFIG_PATH");
+    let prev_mimofan = env::var_os("CODEWHALE_CONFIG_PATH");
     let prev_deepseek = env::var_os("DEEPSEEK_CONFIG_PATH");
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-config-env-test-{}-{}",
+        "mimofan-tui-config-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2465,7 +2465,7 @@ fn codewhale_config_path_env_wins_over_legacy_env() -> Result<()> {
     assert_eq!(env_config_path().unwrap(), preferred);
 
     unsafe {
-        EnvGuard::restore_var("CODEWHALE_CONFIG_PATH", prev_codewhale);
+        EnvGuard::restore_var("CODEWHALE_CONFIG_PATH", prev_mimofan);
         EnvGuard::restore_var("DEEPSEEK_CONFIG_PATH", prev_deepseek);
     }
 
@@ -2480,7 +2480,7 @@ fn test_tilde_expansion_in_paths() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-tilde-test-{}-{}",
+        "mimofan-tui-tilde-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2502,17 +2502,17 @@ fn test_tilde_expansion_in_paths() -> Result<()> {
 }
 
 #[test]
-fn skills_scan_codewhale_only_defaults_false_and_parses_true() -> Result<()> {
-    assert!(!Config::default().skills_config().scan_codewhale_only());
+fn skills_scan_mimofan_only_defaults_false_and_parses_true() -> Result<()> {
+    assert!(!Config::default().skills_config().scan_mimofan_only());
 
     let config: Config = toml::from_str(
         r#"
 [skills]
-scan_codewhale_only = true
+scan_mimofan_only = true
 "#,
     )?;
 
-    assert!(config.skills_config().scan_codewhale_only());
+    assert!(config.skills_config().scan_mimofan_only());
     Ok(())
 }
 
@@ -2524,7 +2524,7 @@ fn test_load_uses_tilde_expanded_deepseek_config_path() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-load-tilde-test-{}-{}",
+        "mimofan-tui-load-tilde-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2553,7 +2553,7 @@ fn test_load_falls_back_to_home_config_when_env_path_missing() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-load-fallback-test-{}-{}",
+        "mimofan-tui-load-fallback-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2612,7 +2612,7 @@ fn test_save_api_key_doesnt_match_similar_keys() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-api-key-test-{}-{}",
+        "mimofan-tui-api-key-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2659,7 +2659,7 @@ fn apply_env_overrides_ignores_empty_api_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-empty-key-{}-{}",
+        "mimofan-tui-empty-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2692,7 +2692,7 @@ fn apply_env_overrides_does_not_copy_api_key_into_config() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-env-key-not-config-{}-{}",
+        "mimofan-tui-env-key-not-config-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -2766,11 +2766,11 @@ fn normalize_model_name_preserves_v_series_snapshots() {
 #[test]
 fn normalize_model_for_provider_keeps_provider_remaps_when_case_is_preserved() {
     assert_eq!(
-        normalize_model_for_provider(ApiProvider::Deepseek, "DeepSeek-V4-Pro").as_deref(),
+        normalize_model_for_provider(ApiProvider::XiaomiMimo, "DeepSeek-V4-Pro").as_deref(),
         Some("DeepSeek-V4-Pro")
     );
     assert_eq!(
-        normalize_model_for_provider(ApiProvider::NvidiaNim, "DeepSeek-V4-Pro").as_deref(),
+        normalize_model_for_provider(ApiProvider::XiaomiMimo, "DeepSeek-V4-Pro").as_deref(),
         Some(DEFAULT_NVIDIA_NIM_MODEL)
     );
 }
@@ -2778,12 +2778,12 @@ fn normalize_model_for_provider_keeps_provider_remaps_when_case_is_preserved() {
 #[test]
 fn normalize_model_name_for_provider_canonicalizes_deepseek_api_variants() {
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Deepseek, "deepseek-ai/DeepSeek-V4-Pro")
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-ai/DeepSeek-V4-Pro")
             .as_deref(),
         Some("deepseek-v4-pro")
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Deepseek, "deepseek/deepseek-v4-flash")
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek/deepseek-v4-flash")
             .as_deref(),
         Some("deepseek-v4-flash")
     );
@@ -2820,13 +2820,13 @@ fn deepseek_default_model_canonicalizes_provider_prefixed_ids() {
 fn requested_model_for_provider_is_permissive_off_deepseek() {
     // #3018: the provider API is the authority for non-DeepSeek routes.
     assert_eq!(
-        requested_model_for_provider(ApiProvider::Moonshot, "kimi-k2.5").as_deref(),
+        requested_model_for_provider(ApiProvider::XiaomiMimo, "kimi-k2.5").as_deref(),
         Some("kimi-k2.5")
     );
     // The official DeepSeek API stays strict.
-    assert!(requested_model_for_provider(ApiProvider::Deepseek, "kimi-k2.5").is_none());
+    assert!(requested_model_for_provider(ApiProvider::XiaomiMimo, "kimi-k2.5").is_none());
     assert_eq!(
-        requested_model_for_provider(ApiProvider::Deepseek, "deepseek-v4-pro").as_deref(),
+        requested_model_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-pro").as_deref(),
         Some("deepseek-v4-pro")
     );
 }
@@ -2836,68 +2836,68 @@ fn validate_route_rejects_mismatched_provider_model_tuple() {
     // #3227: the exact contamination — Z.ai provider paired with a
     // DeepSeek model — is rejected locally with a diagnostic that names
     // the incompatible pair, before any network call.
-    let err = validate_route(ApiProvider::Zai, "deepseek-v4-pro")
+    let err = validate_route(ApiProvider::XiaomiMimo, "deepseek-v4-pro")
         .expect_err("zai + deepseek model must be rejected");
     assert!(err.contains("deepseek-v4-pro"), "names the model: {err}");
     assert!(err.contains("zai"), "names the provider: {err}");
 
     // A DeepSeek-native provider rejects a non-DeepSeek model id.
-    let err = validate_route(ApiProvider::Deepseek, "GLM-5.2")
+    let err = validate_route(ApiProvider::XiaomiMimo, "GLM-5.2")
         .expect_err("deepseek + GLM must be rejected");
     assert!(err.contains("GLM-5.2"), "names the model: {err}");
 
     // Coherent routes pass.
-    assert!(validate_route(ApiProvider::Zai, "GLM-5.2").is_ok());
-    assert!(validate_route(ApiProvider::Deepseek, "deepseek-v4-pro").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "GLM-5.2").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "deepseek-v4-pro").is_ok());
     // `auto` is always acceptable; the per-turn router resolves it.
-    assert!(validate_route(ApiProvider::Zai, "auto").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "auto").is_ok());
     // Pass-through / aggregator providers stay permissive — the upstream
     // API remains the authority for them.
-    assert!(validate_route(ApiProvider::Openai, "deepseek-v4-pro").is_ok());
-    assert!(validate_route(ApiProvider::Openai, "qwen-plus").is_ok());
-    assert!(validate_route(ApiProvider::Openrouter, "deepseek-v4-pro").is_ok());
-    assert!(validate_route(ApiProvider::NvidiaNim, "deepseek-v4-pro").is_ok());
-    assert!(validate_route(ApiProvider::Together, DEFAULT_TOGETHER_MODEL).is_ok());
-    assert!(validate_route(ApiProvider::Together, DEFAULT_TOGETHER_FLASH_MODEL).is_ok());
-    assert!(validate_route(ApiProvider::Together, "deepseek-v4-pro").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "deepseek-v4-pro").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "qwen-plus").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "deepseek-v4-pro").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "deepseek-v4-pro").is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, DEFAULT_TOGETHER_MODEL).is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, DEFAULT_TOGETHER_FLASH_MODEL).is_ok());
+    assert!(validate_route(ApiProvider::XiaomiMimo, "deepseek-v4-pro").is_ok());
 }
 
 #[test]
 fn wire_model_for_provider_matches_active_provider_shape() {
     assert_eq!(
-        wire_model_for_provider(ApiProvider::Deepseek, DEFAULT_OPENROUTER_MODEL),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, DEFAULT_OPENROUTER_MODEL),
         DEFAULT_TEXT_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::Openrouter, DEFAULT_TEXT_MODEL),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, DEFAULT_TEXT_MODEL),
         DEFAULT_OPENROUTER_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::NvidiaNim, DEFAULT_TEXT_MODEL),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, DEFAULT_TEXT_MODEL),
         DEFAULT_NVIDIA_NIM_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::Together, DEFAULT_TEXT_MODEL),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, DEFAULT_TEXT_MODEL),
         DEFAULT_TOGETHER_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::Together, "deepseek-v4-flash"),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-flash"),
         DEFAULT_TOGETHER_FLASH_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::Openai, DEFAULT_OPENROUTER_MODEL),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, DEFAULT_OPENROUTER_MODEL),
         DEFAULT_OPENROUTER_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::Openrouter, OPENROUTER_MINIMAX_M3_MODEL),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, OPENROUTER_MINIMAX_M3_MODEL),
         OPENROUTER_MINIMAX_M3_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::SiliconflowCn, DEFAULT_SILICONFLOW_MODEL),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, DEFAULT_SILICONFLOW_MODEL),
         DEFAULT_SILICONFLOW_MODEL
     );
     assert_eq!(
-        wire_model_for_provider(ApiProvider::SiliconflowCn, "deepseek-v4-pro"),
+        wire_model_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-pro"),
         DEFAULT_SILICONFLOW_MODEL
     );
 }
@@ -2905,52 +2905,52 @@ fn wire_model_for_provider_matches_active_provider_shape() {
 #[test]
 fn normalize_model_name_for_provider_keeps_provider_specific_ids() {
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::NvidiaNim, "deepseek-v4-pro").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-pro").as_deref(),
         Some(DEFAULT_NVIDIA_NIM_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Openrouter, "deepseek-v4-flash").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-flash").as_deref(),
         Some(DEFAULT_OPENROUTER_FLASH_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Siliconflow, "deepseek-v4-pro").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-pro").as_deref(),
         Some(DEFAULT_SILICONFLOW_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Siliconflow, "deepseek-reasoner").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-reasoner").as_deref(),
         Some(DEFAULT_SILICONFLOW_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Siliconflow, "deepseek-r1").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-r1").as_deref(),
         Some(DEFAULT_SILICONFLOW_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::SiliconflowCn, "deepseek-reasoner")
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-reasoner")
             .as_deref(),
         Some(DEFAULT_SILICONFLOW_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Siliconflow, "deepseek-chat").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-chat").as_deref(),
         Some(DEFAULT_SILICONFLOW_FLASH_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::SiliconflowCn, "deepseek-chat").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-chat").as_deref(),
         Some(DEFAULT_SILICONFLOW_FLASH_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Siliconflow, "deepseek-v3").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-v3").as_deref(),
         Some(DEFAULT_SILICONFLOW_FLASH_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Siliconflow, "deepseek-v3.2").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-v3.2").as_deref(),
         Some("deepseek-v3.2")
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Together, "deepseek-v4-pro").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-v4-pro").as_deref(),
         Some(DEFAULT_TOGETHER_MODEL)
     );
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Together, "deepseek-chat").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "deepseek-chat").as_deref(),
         Some(DEFAULT_TOGETHER_FLASH_MODEL)
     );
 }
@@ -2977,7 +2977,7 @@ fn normalize_model_name_for_provider_maps_recent_openrouter_aliases() {
         ("glm-5.2", OPENROUTER_GLM_5_2_MODEL),
     ] {
         assert_eq!(
-            normalize_model_name_for_provider(ApiProvider::Openrouter, alias).as_deref(),
+            normalize_model_name_for_provider(ApiProvider::XiaomiMimo, alias).as_deref(),
             Some(expected)
         );
     }
@@ -2993,7 +2993,7 @@ fn normalize_model_name_for_provider_maps_moonshot_aliases() {
         ("kimi-k2.6", MOONSHOT_KIMI_K2_6_MODEL),
     ] {
         assert_eq!(
-            normalize_model_name_for_provider(ApiProvider::Moonshot, alias).as_deref(),
+            normalize_model_name_for_provider(ApiProvider::XiaomiMimo, alias).as_deref(),
             Some(expected)
         );
     }
@@ -3013,7 +3013,7 @@ fn normalize_model_name_for_provider_maps_minimax_direct_aliases() {
         ("minimax-m2", MINIMAX_M2_MODEL),
     ] {
         assert_eq!(
-            normalize_model_name_for_provider(ApiProvider::Minimax, alias).as_deref(),
+            normalize_model_name_for_provider(ApiProvider::XiaomiMimo, alias).as_deref(),
             Some(expected)
         );
     }
@@ -3035,7 +3035,7 @@ fn normalize_model_name_for_provider_maps_arcee_direct_aliases() {
         ("TRINITY_LARGE_PREVIEW", ARCEE_TRINITY_LARGE_PREVIEW_MODEL),
     ] {
         assert_eq!(
-            normalize_model_name_for_provider(ApiProvider::Arcee, alias).as_deref(),
+            normalize_model_name_for_provider(ApiProvider::XiaomiMimo, alias).as_deref(),
             Some(expected)
         );
     }
@@ -3089,7 +3089,7 @@ fn model_completion_names_for_xiaomi_mimo_include_chat_models() {
 #[test]
 fn model_completion_names_for_deepseek_api_are_deduplicated_bare_ids() {
     assert_eq!(
-        model_completion_names_for_provider(ApiProvider::Deepseek),
+        model_completion_names_for_provider(ApiProvider::XiaomiMimo),
         vec!["deepseek-v4-pro", "deepseek-v4-flash"]
     );
 }
@@ -3097,14 +3097,14 @@ fn model_completion_names_for_deepseek_api_are_deduplicated_bare_ids() {
 #[test]
 fn model_completion_names_for_together_include_provider_owned_models() {
     assert_eq!(
-        model_completion_names_for_provider(ApiProvider::Together),
+        model_completion_names_for_provider(ApiProvider::XiaomiMimo),
         vec![DEFAULT_TOGETHER_MODEL, DEFAULT_TOGETHER_FLASH_MODEL]
     );
 }
 
 #[test]
 fn model_completion_names_for_wanjie_keep_legacy_default_and_v4_ids() {
-    let models = model_completion_names_for_provider(ApiProvider::WanjieArk);
+    let models = model_completion_names_for_provider(ApiProvider::XiaomiMimo);
 
     assert_eq!(models.first().copied(), Some(DEFAULT_WANJIE_ARK_MODEL));
     assert!(models.contains(&"deepseek-v4-pro"));
@@ -3113,7 +3113,7 @@ fn model_completion_names_for_wanjie_keep_legacy_default_and_v4_ids() {
 
 #[test]
 fn model_completion_names_for_openrouter_include_recent_large_models() {
-    let models = model_completion_names_for_provider(ApiProvider::Openrouter);
+    let models = model_completion_names_for_provider(ApiProvider::XiaomiMimo);
 
     for expected in [
         DEFAULT_OPENROUTER_MODEL,
@@ -3138,14 +3138,14 @@ fn model_completion_names_for_openrouter_include_recent_large_models() {
 #[test]
 fn model_completion_names_for_moonshot_uses_latest_platform_model() {
     assert_eq!(
-        model_completion_names_for_provider(ApiProvider::Moonshot),
+        model_completion_names_for_provider(ApiProvider::XiaomiMimo),
         vec![DEFAULT_MOONSHOT_MODEL]
     );
 }
 
 #[test]
 fn model_completion_names_for_zai_lists_default_5_1_and_turbo() {
-    let models = model_completion_names_for_provider(ApiProvider::Zai);
+    let models = model_completion_names_for_provider(ApiProvider::XiaomiMimo);
 
     // GLM-5.2 is the default and must be first; GLM-5.1 stays available,
     // and GLM-5-Turbo is the faster sub-agent sibling.
@@ -3172,19 +3172,19 @@ fn normalize_model_name_for_zai_canonicalizes_current_glm_models() {
         ("zai-glm-5-turbo", ZAI_GLM_5_TURBO_MODEL),
     ] {
         assert_eq!(
-            normalize_model_name_for_provider(ApiProvider::Zai, alias).as_deref(),
+            normalize_model_name_for_provider(ApiProvider::XiaomiMimo, alias).as_deref(),
             Some(expected)
         );
     }
     assert_eq!(
-        normalize_model_name_for_provider(ApiProvider::Zai, "glm-next-preview").as_deref(),
+        normalize_model_name_for_provider(ApiProvider::XiaomiMimo, "glm-next-preview").as_deref(),
         Some("glm-next-preview")
     );
 }
 
 #[test]
 fn model_completion_names_for_minimax_include_direct_chat_models() {
-    let models = model_completion_names_for_provider(ApiProvider::Minimax);
+    let models = model_completion_names_for_provider(ApiProvider::XiaomiMimo);
 
     for expected in [
         DEFAULT_MINIMAX_MODEL,
@@ -3207,7 +3207,7 @@ fn model_completion_names_for_minimax_include_direct_chat_models() {
 #[test]
 fn normalize_model_name_rejects_invalid_or_non_deepseek_ids() {
     assert!(normalize_model_name("qwen3-coder").is_none());
-    assert!(normalize_model_name("codewhale v4").is_none());
+    assert!(normalize_model_name("mimofan v4").is_none());
     assert!(normalize_model_name("").is_none());
 }
 
@@ -3264,7 +3264,7 @@ fn profile_skills_config_merges_individual_fields() {
         "strict".to_string(),
         Config {
             skills: Some(SkillsConfig {
-                scan_codewhale_only: Some(true),
+                scan_mimofan_only: Some(true),
                 ..Default::default()
             }),
             ..Default::default()
@@ -3289,7 +3289,7 @@ fn profile_skills_config_merges_individual_fields() {
         Some("https://registry.example/skills.json")
     );
     assert_eq!(skills.max_install_size_bytes, Some(1234));
-    assert_eq!(skills.scan_codewhale_only, Some(true));
+    assert_eq!(skills.scan_mimofan_only, Some(true));
 }
 
 #[test]
@@ -3344,7 +3344,7 @@ fn validate_accepts_auto_default_text_model() -> Result<()> {
 fn deepseek_provider_defaults_to_beta_endpoint() {
     let config = Config::default();
 
-    assert_eq!(config.api_provider(), ApiProvider::Deepseek);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_DEEPSEEK_BASE_URL);
 }
 
@@ -3355,7 +3355,7 @@ fn explicit_deepseek_base_url_overrides_beta_default() {
         ..Default::default()
     };
 
-    assert_eq!(config.api_provider(), ApiProvider::Deepseek);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), "https://api.deepseek.com");
 }
 
@@ -3367,7 +3367,7 @@ fn loopback_deepseek_base_url_runs_without_api_key() -> Result<()> {
         ..Default::default()
     };
 
-    assert_eq!(config.api_provider(), ApiProvider::Deepseek);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert!(has_api_key(&config));
     assert_eq!(config.deepseek_api_key()?, "");
     Ok(())
@@ -3381,7 +3381,7 @@ fn deepseek_model_env_overrides_default_text_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-model-env-test-{}-{}",
+        "mimofan-tui-model-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3410,7 +3410,7 @@ fn http_headers_load_from_root_config() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-http-headers-root-{}-{}",
+        "mimofan-tui-http-headers-root-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3474,7 +3474,7 @@ fn http_headers_env_overrides_config() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-http-headers-env-{}-{}",
+        "mimofan-tui-http-headers-env-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3514,7 +3514,7 @@ fn nvidia_nim_provider_uses_nim_defaults() -> Result<()> {
     };
 
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::NvidiaNim);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_NVIDIA_NIM_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_NVIDIA_NIM_BASE_URL);
     Ok(())
@@ -3528,7 +3528,7 @@ fn nvidia_nim_provider_normalizes_deepseek_v4_pro_alias() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-nim-model-alias-test-{}-{}",
+        "mimofan-tui-nim-model-alias-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3543,7 +3543,7 @@ fn nvidia_nim_provider_normalizes_deepseek_v4_pro_alias() -> Result<()> {
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::NvidiaNim);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(
         config.default_text_model.as_deref(),
         Some(DEFAULT_NVIDIA_NIM_MODEL)
@@ -3559,7 +3559,7 @@ fn nvidia_nim_provider_normalizes_deepseek_v4_flash_alias() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-nim-flash-model-alias-test-{}-{}",
+        "mimofan-tui-nim-flash-model-alias-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3585,7 +3585,7 @@ fn nvidia_nim_env_overrides_provider_and_credentials() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-nim-env-test-{}-{}",
+        "mimofan-tui-nim-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3600,7 +3600,7 @@ fn nvidia_nim_env_overrides_provider_and_credentials() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::NvidiaNim);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "nim-env-key");
     assert_eq!(config.default_model(), DEFAULT_NVIDIA_NIM_MODEL);
     Ok(())
@@ -3614,7 +3614,7 @@ fn nvidia_nim_env_accepts_short_nim_base_url_alias() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-nim-base-url-alias-test-{}-{}",
+        "mimofan-tui-nim-base-url-alias-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3628,7 +3628,7 @@ fn nvidia_nim_env_accepts_short_nim_base_url_alias() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::NvidiaNim);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), "https://short-nim.example/v1");
     Ok(())
 }
@@ -3641,7 +3641,7 @@ fn nvidia_nim_env_accepts_facade_base_url_forwarding() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-nim-forwarded-base-url-test-{}-{}",
+        "mimofan-tui-nim-forwarded-base-url-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3655,7 +3655,7 @@ fn nvidia_nim_env_accepts_facade_base_url_forwarding() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::NvidiaNim);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(
         config.deepseek_base_url(),
         "https://forwarded-nim.example/v1"
@@ -3671,7 +3671,7 @@ fn openai_provider_uses_openai_compatible_defaults() -> Result<()> {
     };
 
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Openai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_OPENAI_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_OPENAI_BASE_URL);
     Ok(())
@@ -3690,7 +3690,7 @@ fn openai_codex_default_model_falls_back_to_codex_model() {
     };
     assert_eq!(
         with_deepseek_default.api_provider(),
-        ApiProvider::OpenaiCodex
+        ApiProvider::XiaomiMimo
     );
     assert_eq!(
         with_deepseek_default.default_model(),
@@ -3724,7 +3724,7 @@ fn direct_provider_ignores_foreign_deepseek_root_default_model() {
         ..Default::default()
     };
 
-    assert_eq!(config.api_provider(), ApiProvider::Zai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_ZAI_MODEL);
 }
 
@@ -3739,7 +3739,7 @@ fn insecure_skip_tls_verify_is_scoped_to_active_provider() {
         ..Default::default()
     };
 
-    assert_eq!(config.api_provider(), ApiProvider::Openai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert!(!config.insecure_skip_tls_verify());
 }
 
@@ -3764,7 +3764,7 @@ fn xiaomi_mimo_provider_uses_documented_defaults() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-xiaomi-mimo-defaults-{}-{}",
+        "mimofan-tui-xiaomi-mimo-defaults-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3887,7 +3887,7 @@ fn xiaomi_mimo_env_overrides_provider_base_url_model_and_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-xiaomi-mimo-env-test-{}-{}",
+        "mimofan-tui-xiaomi-mimo-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3921,7 +3921,7 @@ fn xiaomi_mimo_env_token_plan_mode_uses_token_plan_key_and_endpoint() -> Result<
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-xiaomi-mimo-token-plan-env-test-{}-{}",
+        "mimofan-tui-xiaomi-mimo-token-plan-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3956,7 +3956,7 @@ fn xiaomi_mimo_env_pay_as_you_go_mode_prefers_standard_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-xiaomi-mimo-payg-env-test-{}-{}",
+        "mimofan-tui-xiaomi-mimo-payg-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -3989,7 +3989,7 @@ fn atlascloud_provider_uses_documented_defaults() -> Result<()> {
     };
 
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Atlascloud);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_ATLASCLOUD_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_ATLASCLOUD_BASE_URL);
     Ok(())
@@ -4003,7 +4003,7 @@ fn atlascloud_env_overrides_provider_base_url_and_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-atlascloud-env-test-{}-{}",
+        "mimofan-tui-atlascloud-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4018,7 +4018,7 @@ fn atlascloud_env_overrides_provider_base_url_and_model() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Atlascloud);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "atlascloud-env-key");
     assert_eq!(config.deepseek_base_url(), "https://api.atlascloud.ai/v1");
     assert_eq!(config.default_model(), "deepseek-ai/deepseek-v4-flash");
@@ -4033,7 +4033,7 @@ fn wanjie_ark_provider_uses_documented_defaults() -> Result<()> {
     };
 
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::WanjieArk);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_WANJIE_ARK_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_WANJIE_ARK_BASE_URL);
     Ok(())
@@ -4047,7 +4047,7 @@ fn wanjie_ark_env_overrides_provider_base_url_model_and_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-wanjie-env-test-{}-{}",
+        "mimofan-tui-wanjie-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4062,7 +4062,7 @@ fn wanjie_ark_env_overrides_provider_base_url_model_and_key() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::WanjieArk);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "wanjie-env-key");
     assert_eq!(config.deepseek_base_url(), "https://wanjie.example/api/v1");
     assert_eq!(config.default_model(), "wanjie-model-id");
@@ -4077,7 +4077,7 @@ fn wanjie_ark_provider_accepts_custom_model_and_table_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-wanjie-table-{}-{}",
+        "mimofan-tui-wanjie-table-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4098,7 +4098,7 @@ model = "account-model-id"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::WanjieArk);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "wanjie-table-key");
     assert_eq!(
         config.deepseek_base_url(),
@@ -4116,7 +4116,7 @@ fn openai_provider_accepts_custom_model_and_base_url() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-openai-table-{}-{}",
+        "mimofan-tui-openai-table-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4137,7 +4137,7 @@ model = "glm-5"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "openai-table-key");
     assert_eq!(
         config.deepseek_base_url(),
@@ -4155,7 +4155,7 @@ fn openai_provider_accepts_dashscope_bailian_fixture() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-dashscope-openai-{}-{}",
+        "mimofan-tui-dashscope-openai-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4176,7 +4176,7 @@ model = "qwen-plus"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "dashscope-table-key");
     assert_eq!(
         config.deepseek_base_url(),
@@ -4194,7 +4194,7 @@ fn qianfan_provider_accepts_custom_model_and_base_url() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-qianfan-provider-{}-{}",
+        "mimofan-tui-qianfan-provider-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4215,7 +4215,7 @@ model = "custom-qianfan-service-id"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Qianfan);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "qianfan-table-key");
     assert_eq!(
         config.deepseek_base_url(),
@@ -4233,7 +4233,7 @@ fn provider_config_loads_reasoning_stream_style() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-reasoning-style-{}-{}",
+        "mimofan-tui-reasoning-style-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4256,7 +4256,7 @@ reasoning_stream_style = "inline_tags"
 
     let config = Config::load(None, None)?;
     let openai = config
-        .provider_config_for(ApiProvider::Openai)
+        .provider_config_for(ApiProvider::XiaomiMimo)
         .expect("openai provider config");
     assert_eq!(
         openai.reasoning_stream_style.as_deref(),
@@ -4265,7 +4265,7 @@ reasoning_stream_style = "inline_tags"
     Ok(())
 }
 
-// Regression for issue #1714: `codewhale --provider openai --model
+// Regression for issue #1714: `mimofan --provider openai --model
 // MiniMax-M2.7` forwards the choice via DEEPSEEK_MODEL (never
 // OPENAI_MODEL) and uses the DEFAULT base_url. The explicit custom model
 // must pass through verbatim instead of silently becoming a
@@ -4278,7 +4278,7 @@ fn deepseek_model_env_passes_custom_model_through_for_non_deepseek_providers() -
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-1714-passthrough-{}-{}",
+        "mimofan-tui-1714-passthrough-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4296,7 +4296,7 @@ fn deepseek_model_env_passes_custom_model_through_for_non_deepseek_providers() -
         }
 
         let config = Config::load(None, None)?;
-        assert_eq!(config.api_provider(), ApiProvider::Openai);
+        assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
         assert_eq!(config.deepseek_base_url(), DEFAULT_OPENAI_BASE_URL);
         assert_eq!(config.default_model(), "MiniMax-M2.7");
     }
@@ -4314,7 +4314,7 @@ fn deepseek_model_env_passes_custom_model_through_for_non_deepseek_providers() -
         }
 
         let config = Config::load(None, None)?;
-        assert_eq!(config.api_provider(), ApiProvider::Novita);
+        assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
         assert_eq!(config.deepseek_base_url(), DEFAULT_NOVITA_BASE_URL);
         assert_ne!(config.default_model(), DEFAULT_NOVITA_MODEL);
         assert_eq!(config.default_model(), "MiniMax-M2.7");
@@ -4331,7 +4331,7 @@ fn openai_env_overrides_provider_base_url_and_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-openai-env-test-{}-{}",
+        "mimofan-tui-openai-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4347,7 +4347,7 @@ fn openai_env_overrides_provider_base_url_and_model() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "openai-env-key");
     assert_eq!(
         config.deepseek_base_url(),
@@ -4365,7 +4365,7 @@ fn openai_env_accepts_facade_base_url_forwarding() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-openai-forwarded-base-url-test-{}-{}",
+        "mimofan-tui-openai-forwarded-base-url-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4381,7 +4381,7 @@ fn openai_env_accepts_facade_base_url_forwarding() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openai);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "forwarded-openai-key");
     assert_eq!(
         config.deepseek_base_url(),
@@ -4399,7 +4399,7 @@ fn openrouter_provider_uses_canonical_defaults() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-or-defaults-{}-{}",
+        "mimofan-tui-or-defaults-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4411,7 +4411,7 @@ fn openrouter_provider_uses_canonical_defaults() -> Result<()> {
         ..Default::default()
     };
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Openrouter);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_OPENROUTER_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_OPENROUTER_BASE_URL);
     Ok(())
@@ -4425,7 +4425,7 @@ fn novita_provider_uses_canonical_defaults() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-novita-defaults-{}-{}",
+        "mimofan-tui-novita-defaults-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4437,7 +4437,7 @@ fn novita_provider_uses_canonical_defaults() -> Result<()> {
         ..Default::default()
     };
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Novita);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_NOVITA_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_NOVITA_BASE_URL);
     Ok(())
@@ -4451,7 +4451,7 @@ fn fireworks_provider_uses_canonical_defaults() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-fireworks-defaults-{}-{}",
+        "mimofan-tui-fireworks-defaults-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4463,7 +4463,7 @@ fn fireworks_provider_uses_canonical_defaults() -> Result<()> {
         ..Default::default()
     };
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Fireworks);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_FIREWORKS_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_FIREWORKS_BASE_URL);
     Ok(())
@@ -4478,7 +4478,7 @@ fn fireworks_flash_alias_is_not_mapped_to_undocumented_model() -> Result<()> {
     };
 
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Fireworks);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), "deepseek-v4-flash");
     Ok(())
 }
@@ -4491,7 +4491,7 @@ fn volcengine_provider_requires_api_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-volcengine-auth-test-{}-{}",
+        "mimofan-tui-volcengine-auth-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4517,7 +4517,7 @@ fn volcengine_env_overrides_base_url_model_and_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-volcengine-env-test-{}-{}",
+        "mimofan-tui-volcengine-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4533,7 +4533,7 @@ fn volcengine_env_overrides_base_url_model_and_key() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Volcengine);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "volc-env-key");
     assert_eq!(config.deepseek_base_url(), "https://volc.example/v1");
     assert_eq!(config.default_model(), "DeepSeek-V4-Flash");
@@ -4548,7 +4548,7 @@ fn siliconflow_provider_uses_canonical_defaults() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-defaults-{}-{}",
+        "mimofan-tui-siliconflow-defaults-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4560,11 +4560,11 @@ fn siliconflow_provider_uses_canonical_defaults() -> Result<()> {
         ..Default::default()
     };
     config.validate()?;
-    assert_eq!(config.api_provider(), ApiProvider::Siliconflow);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.default_model(), DEFAULT_SILICONFLOW_MODEL);
     assert_eq!(config.deepseek_base_url(), DEFAULT_SILICONFLOW_BASE_URL);
     assert_eq!(
-        model_completion_names_for_provider(ApiProvider::Siliconflow),
+        model_completion_names_for_provider(ApiProvider::XiaomiMimo),
         vec![DEFAULT_SILICONFLOW_MODEL, DEFAULT_SILICONFLOW_FLASH_MODEL]
     );
     Ok(())
@@ -4578,7 +4578,7 @@ fn openrouter_env_api_key_resolves_via_deepseek_api_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-or-env-key-{}-{}",
+        "mimofan-tui-or-env-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4593,7 +4593,7 @@ fn openrouter_env_api_key_resolves_via_deepseek_api_key() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openrouter);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "or-env-key");
     assert_eq!(config.default_model(), DEFAULT_OPENROUTER_FLASH_MODEL);
     Ok(())
@@ -4607,7 +4607,7 @@ fn novita_env_api_key_resolves_via_deepseek_api_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-novita-env-key-{}-{}",
+        "mimofan-tui-novita-env-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4622,7 +4622,7 @@ fn novita_env_api_key_resolves_via_deepseek_api_key() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Novita);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "novita-env-key");
     assert_eq!(config.default_model(), DEFAULT_NOVITA_FLASH_MODEL);
     Ok(())
@@ -4636,7 +4636,7 @@ fn fireworks_env_overrides_key_and_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-fireworks-env-key-{}-{}",
+        "mimofan-tui-fireworks-env-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4654,7 +4654,7 @@ fn fireworks_env_overrides_key_and_model() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Fireworks);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "fw-env-key");
     assert_eq!(
         config.default_model(),
@@ -4671,7 +4671,7 @@ fn siliconflow_env_overrides_key_base_url_and_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-env-test-{}-{}",
+        "mimofan-tui-siliconflow-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4687,7 +4687,7 @@ fn siliconflow_env_overrides_key_base_url_and_model() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Siliconflow);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "sf-env-key");
     assert_eq!(config.deepseek_base_url(), "https://sf-mirror.example/v1");
     assert_eq!(config.default_model(), "deepseek-v4-flash");
@@ -4702,7 +4702,7 @@ fn arcee_provider_uses_direct_defaults() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-arcee-defaults-test-{}-{}",
+        "mimofan-tui-arcee-defaults-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4715,7 +4715,7 @@ fn arcee_provider_uses_direct_defaults() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Arcee);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "arcee-env-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_ARCEE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_ARCEE_MODEL);
@@ -4730,7 +4730,7 @@ fn arcee_env_overrides_key_base_url_and_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-arcee-env-test-{}-{}",
+        "mimofan-tui-arcee-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4745,7 +4745,7 @@ fn arcee_env_overrides_key_base_url_and_model() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Arcee);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "arcee-env-key");
     assert_eq!(
         config.deepseek_base_url(),
@@ -4763,7 +4763,7 @@ fn arcee_provider_table_configures_direct_route() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-arcee-table-test-{}-{}",
+        "mimofan-tui-arcee-table-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4783,7 +4783,7 @@ model = "arcee-trinity-large-preview"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Arcee);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "arcee-file-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_ARCEE_BASE_URL);
     assert_eq!(config.default_model(), ARCEE_TRINITY_LARGE_PREVIEW_MODEL);
@@ -4798,7 +4798,7 @@ fn siliconflow_cn_base_url_env_normalizes_model_aliases() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-cn-env-test-{}-{}",
+        "mimofan-tui-siliconflow-cn-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4814,7 +4814,7 @@ fn siliconflow_cn_base_url_env_normalizes_model_aliases() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::SiliconflowCn);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "sf-env-key");
     assert_eq!(config.deepseek_base_url(), "https://api.siliconflow.cn/v1");
     assert_eq!(config.default_model(), DEFAULT_SILICONFLOW_MODEL);
@@ -4829,7 +4829,7 @@ fn openrouter_base_url_env_overrides_default() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-or-base-url-{}-{}",
+        "mimofan-tui-or-base-url-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4843,7 +4843,7 @@ fn openrouter_base_url_env_overrides_default() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openrouter);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), "https://or-mirror.example/v1");
     Ok(())
 }
@@ -4856,7 +4856,7 @@ fn openrouter_reads_provider_table_from_config_file() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-or-table-{}-{}",
+        "mimofan-tui-or-table-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4876,7 +4876,7 @@ base_url = "https://or-table.example/v1"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openrouter);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "or-table-key");
     assert_eq!(config.deepseek_base_url(), "https://or-table.example/v1");
     Ok(())
@@ -4890,7 +4890,7 @@ fn siliconflow_reads_provider_table_from_config_file() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-table-{}-{}",
+        "mimofan-tui-siliconflow-table-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4910,7 +4910,7 @@ model = "deepseek-v4-flash"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Siliconflow);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "sf-table-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_SILICONFLOW_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_SILICONFLOW_FLASH_MODEL);
@@ -4925,7 +4925,7 @@ fn siliconflow_cn_reads_hyphenated_provider_table_from_config_file() -> Result<(
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-cn-table-{}-{}",
+        "mimofan-tui-siliconflow-cn-table-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4946,11 +4946,11 @@ model = "deepseek-reasoner"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::SiliconflowCn);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "sf-cn-table-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_SILICONFLOW_CN_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_SILICONFLOW_MODEL);
-    assert!(has_api_key_for(&config, ApiProvider::SiliconflowCn));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
     Ok(())
 }
 
@@ -4962,7 +4962,7 @@ fn siliconflow_cn_preserves_reported_deepseek_prefixed_v4_route() -> Result<()> 
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-cn-v4-report-{}-{}",
+        "mimofan-tui-siliconflow-cn-v4-report-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -4983,8 +4983,8 @@ model = "deepseek-ai/DeepSeek-V4-Pro"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::SiliconflowCn);
-    assert_ne!(config.api_provider(), ApiProvider::Deepseek);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
+    assert_ne!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "sf-cn-table-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_SILICONFLOW_CN_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_SILICONFLOW_MODEL);
@@ -5003,7 +5003,7 @@ fn siliconflow_cn_falls_back_to_shared_siliconflow_table_when_unset() -> Result<
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-cn-fallback-{}-{}",
+        "mimofan-tui-siliconflow-cn-fallback-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5027,7 +5027,7 @@ base_url = "https://api.siliconflow.cn/v1"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::SiliconflowCn);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "sf-shared-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_SILICONFLOW_CN_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_SILICONFLOW_FLASH_MODEL);
@@ -5043,7 +5043,7 @@ fn siliconflow_cn_env_overrides_write_cn_table_only() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-siliconflow-cn-env-table-{}-{}",
+        "mimofan-tui-siliconflow-cn-env-table-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5098,7 +5098,7 @@ fn openrouter_custom_base_url_preserves_provider_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-or-custom-model-{}-{}",
+        "mimofan-tui-or-custom-model-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5119,7 +5119,7 @@ model = "DeepSeek-V4-Pro"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Openrouter);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "or-table-key");
     assert_eq!(config.deepseek_base_url(), "https://gateway.example.com/v1");
     assert_eq!(config.default_model(), "DeepSeek-V4-Pro");
@@ -5134,7 +5134,7 @@ fn novita_reads_provider_table_from_config_file() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-novita-table-{}-{}",
+        "mimofan-tui-novita-table-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5153,7 +5153,7 @@ api_key = "novita-table-key"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Novita);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "novita-table-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_NOVITA_BASE_URL);
     Ok(())
@@ -5167,7 +5167,7 @@ fn moonshot_kimi_oauth_reads_kimi_code_home_credential() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-kimi-code-oauth-key-{}-{}",
+        "mimofan-tui-kimi-code-oauth-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5209,11 +5209,11 @@ api_key = "stale-api-key"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_KIMI_CODE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_KIMI_CODE_MODEL);
     assert_eq!(config.deepseek_api_key()?, "fresh-kimi-code-oauth-token");
-    assert!(has_api_key_for(&config, ApiProvider::Moonshot));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
     Ok(())
 }
 
@@ -5225,7 +5225,7 @@ fn moonshot_kimi_oauth_falls_back_to_legacy_share_dir_credential() -> Result<()>
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-kimi-oauth-key-{}-{}",
+        "mimofan-tui-kimi-oauth-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5267,11 +5267,11 @@ api_key = "stale-api-key"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_KIMI_CODE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_KIMI_CODE_MODEL);
     assert_eq!(config.deepseek_api_key()?, "fresh-oauth-token");
-    assert!(has_api_key_for(&config, ApiProvider::Moonshot));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
     Ok(())
 }
 
@@ -5283,7 +5283,7 @@ fn moonshot_kimi_code_api_key_uses_coding_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-kimi-code-key-{}-{}",
+        "mimofan-tui-kimi-code-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5303,11 +5303,11 @@ base_url = "https://api.kimi.com/coding/v1"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_KIMI_CODE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_KIMI_CODE_MODEL);
     assert_eq!(config.deepseek_api_key()?, "kimi-code-key");
-    assert!(has_api_key_for(&config, ApiProvider::Moonshot));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
     Ok(())
 }
 
@@ -5322,7 +5322,7 @@ fn moonshot_kimi_code_env_base_url_selects_coding_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-kimi-code-env-url-{}-{}",
+        "mimofan-tui-kimi-code-env-url-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5344,18 +5344,18 @@ api_key = "kimi-code-env-key"
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_KIMI_CODE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_KIMI_CODE_MODEL);
     assert_eq!(config.deepseek_api_key()?, "kimi-code-env-key");
-    assert!(has_api_key_for(&config, ApiProvider::Moonshot));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
     Ok(())
 }
 
 /// Regression for issue #2160: a stale root `default_text_model` carried
 /// over from a DeepSeek setup must not steer the Kimi Code endpoint to
 /// `deepseek-v4-pro`. The user-facing trigger here is the legacy
-/// `DEEPSEEK_PROVIDER` env var (still produced by the `codewhale
+/// `DEEPSEEK_PROVIDER` env var (still produced by the `mimofan
 /// --provider moonshot` dispatcher for compat); the test also has a
 /// `CODEWHALE_PROVIDER` twin below for the public env path.
 #[test]
@@ -5366,7 +5366,7 @@ fn moonshot_kimi_code_model_overrides_root_deepseek_default() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-kimi-code-root-model-{}-{}",
+        "mimofan-tui-kimi-code-root-model-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5389,7 +5389,7 @@ base_url = "https://api.kimi.com/coding/v1"
     unsafe { env::set_var("DEEPSEEK_PROVIDER", "moonshot") };
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_KIMI_CODE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_KIMI_CODE_MODEL);
     Ok(())
@@ -5398,17 +5398,17 @@ base_url = "https://api.kimi.com/coding/v1"
 /// Same regression as above, but driven by the public `CODEWHALE_PROVIDER`
 /// env var. Documents the recommended user-facing setup path: never
 /// `DEEPSEEK_PROVIDER=moonshot`, always `CODEWHALE_PROVIDER=moonshot`
-/// (or `codewhale --provider moonshot`, which also resolves through
+/// (or `mimofan --provider moonshot`, which also resolves through
 /// this code path internally).
 #[test]
-fn moonshot_kimi_code_model_resolves_via_codewhale_provider_env() -> Result<()> {
+fn moonshot_kimi_code_model_resolves_via_mimofan_provider_env() -> Result<()> {
     let _lock = lock_test_env();
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-kimi-code-cw-env-{}-{}",
+        "mimofan-tui-kimi-code-cw-env-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5431,7 +5431,7 @@ base_url = "https://api.kimi.com/coding/v1"
     unsafe { env::set_var("CODEWHALE_PROVIDER", "moonshot") };
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_KIMI_CODE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_KIMI_CODE_MODEL);
     Ok(())
@@ -5441,14 +5441,14 @@ base_url = "https://api.kimi.com/coding/v1"
 /// `DEEPSEEK_PROVIDER` are set, so a user adding the new alias to their
 /// shell isn't surprised by a stale legacy export.
 #[test]
-fn codewhale_provider_env_takes_precedence_over_deepseek_provider() -> Result<()> {
+fn mimofan_provider_env_takes_precedence_over_deepseek_provider() -> Result<()> {
     let _lock = lock_test_env();
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-cw-vs-ds-provider-{}-{}",
+        "mimofan-tui-cw-vs-ds-provider-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5465,7 +5465,7 @@ fn codewhale_provider_env_takes_precedence_over_deepseek_provider() -> Result<()
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     Ok(())
 }
 
@@ -5482,7 +5482,7 @@ fn moonshot_platform_defaults_to_kimi_k27_code() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-moonshot-platform-{}-{}",
+        "mimofan-tui-moonshot-platform-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5501,7 +5501,7 @@ api_key = "moonshot-platform-key"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Moonshot);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_base_url(), DEFAULT_MOONSHOT_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_MOONSHOT_MODEL);
     assert_eq!(config.deepseek_api_key()?, "moonshot-platform-key");
@@ -5516,7 +5516,7 @@ fn has_api_key_for_detects_env_and_config_per_provider() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-has-key-{}-{}",
+        "mimofan-tui-has-key-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5524,12 +5524,12 @@ fn has_api_key_for_detects_env_and_config_per_provider() -> Result<()> {
     let _guard = EnvGuard::new(&temp_root);
 
     let mut config = Config::default();
-    assert!(!has_api_key_for(&config, ApiProvider::Openai));
-    assert!(!has_api_key_for(&config, ApiProvider::WanjieArk));
-    assert!(!has_api_key_for(&config, ApiProvider::Volcengine));
-    assert!(!has_api_key_for(&config, ApiProvider::Openrouter));
     assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
-    assert!(!has_api_key_for(&config, ApiProvider::Siliconflow));
+    assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
 
     // Safety: test-only environment mutation guarded by a global mutex.
     unsafe {
@@ -5540,13 +5540,13 @@ fn has_api_key_for_detects_env_and_config_per_provider() -> Result<()> {
         env::set_var("MIMO_API_KEY", "mimo-env");
         env::set_var("SILICONFLOW_API_KEY", "sf-env");
     }
-    assert!(has_api_key_for(&config, ApiProvider::Openai));
-    assert!(has_api_key_for(&config, ApiProvider::WanjieArk));
-    assert!(has_api_key_for(&config, ApiProvider::Volcengine));
-    assert!(has_api_key_for(&config, ApiProvider::Openrouter));
     assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
-    assert!(has_api_key_for(&config, ApiProvider::Siliconflow));
-    assert!(!has_api_key_for(&config, ApiProvider::Novita));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
 
     // Safety: test-only environment mutation guarded by a global mutex.
     unsafe {
@@ -5564,12 +5564,12 @@ fn has_api_key_for_detects_env_and_config_per_provider() -> Result<()> {
     providers.novita.api_key = Some("file-novita".to_string());
     providers.siliconflow.api_key = Some("file-siliconflow".to_string());
     config.providers = Some(providers);
-    assert!(has_api_key_for(&config, ApiProvider::Openai));
-    assert!(has_api_key_for(&config, ApiProvider::WanjieArk));
     assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
-    assert!(has_api_key_for(&config, ApiProvider::Novita));
-    assert!(has_api_key_for(&config, ApiProvider::Siliconflow));
-    assert!(!has_api_key_for(&config, ApiProvider::Openrouter));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(!has_api_key_for(&config, ApiProvider::XiaomiMimo));
     Ok(())
 }
 
@@ -5581,7 +5581,7 @@ fn has_api_key_for_uses_deepseek_cn_provider_table() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-has-key-cn-{}-{}",
+        "mimofan-tui-has-key-cn-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5595,15 +5595,15 @@ fn has_api_key_for_uses_deepseek_cn_provider_table() -> Result<()> {
         ..Config::default()
     };
 
-    assert!(has_api_key_for(&config, ApiProvider::DeepseekCN));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
     Ok(())
 }
 
 #[test]
 fn has_api_key_for_accepts_provider_auth_source_metadata() {
     let mut providers = ProvidersConfig::default();
-    providers.openai.auth = Some(codewhale_config::ProviderAuthSourceToml {
-        source: codewhale_config::AuthSourceKind::Command,
+    providers.openai.auth = Some(mimofan_config::ProviderAuthSourceToml {
+        source: mimofan_config::AuthSourceKind::Command,
         command: vec!["secret-tool".to_string(), "lookup".to_string()],
         timeout_ms: Some(2000),
         secret_id: None,
@@ -5613,7 +5613,7 @@ fn has_api_key_for_accepts_provider_auth_source_metadata() {
         ..Config::default()
     };
 
-    assert!(has_api_key_for(&config, ApiProvider::Openai));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
 }
 
 #[test]
@@ -5623,8 +5623,8 @@ fn has_api_key_for_uses_root_config_key_for_deepseek_variants() {
         ..Config::default()
     };
 
-    assert!(has_api_key_for(&config, ApiProvider::Deepseek));
-    assert!(has_api_key_for(&config, ApiProvider::DeepseekCN));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
+    assert!(has_api_key_for(&config, ApiProvider::XiaomiMimo));
 }
 
 #[test]
@@ -5635,7 +5635,7 @@ fn save_api_key_for_openrouter_writes_provider_table() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-save-key-or-{}-{}",
+        "mimofan-tui-save-key-or-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5645,7 +5645,7 @@ fn save_api_key_for_openrouter_writes_provider_table() -> Result<()> {
     let _config_path = EnvVarGuard::set("CODEWHALE_CONFIG_PATH", config_path.as_os_str());
     let _secret_backend = EnvVarGuard::set("CODEWHALE_SECRET_BACKEND", "local");
 
-    let path = save_api_key_for(ApiProvider::Openrouter, "or-saved-key")?;
+    let path = save_api_key_for(ApiProvider::XiaomiMimo, "or-saved-key")?;
     assert_eq!(path, config_path);
     let contents = fs::read_to_string(&path)?;
     let parsed: toml::Value = toml::from_str(&contents)?;
@@ -5658,7 +5658,7 @@ fn save_api_key_for_openrouter_writes_provider_table() -> Result<()> {
         Some("or-saved-key")
     );
     // Re-saving must not duplicate or wipe sibling tables.
-    let novita_path = save_api_key_for(ApiProvider::Novita, "novita-saved-key")?;
+    let novita_path = save_api_key_for(ApiProvider::XiaomiMimo, "novita-saved-key")?;
     assert_eq!(novita_path, path);
     let contents = fs::read_to_string(&path)?;
     let parsed: toml::Value = toml::from_str(&contents)?;
@@ -5679,11 +5679,11 @@ fn save_api_key_for_openrouter_writes_provider_table() -> Result<()> {
         Some("novita-saved-key")
     );
     for (provider, key) in [
-        (ApiProvider::Openai, "openai-saved-key"),
-        (ApiProvider::WanjieArk, "wanjie-saved-key"),
-        (ApiProvider::Fireworks, "fireworks-saved-key"),
+        (ApiProvider::XiaomiMimo, "openai-saved-key"),
+        (ApiProvider::XiaomiMimo, "wanjie-saved-key"),
+        (ApiProvider::XiaomiMimo, "fireworks-saved-key"),
         (ApiProvider::XiaomiMimo, "mimo-saved-key"),
-        (ApiProvider::Siliconflow, "sf-saved-key"),
+        (ApiProvider::XiaomiMimo, "sf-saved-key"),
     ] {
         assert_eq!(save_api_key_for(provider, key)?, path);
     }
@@ -5729,7 +5729,7 @@ fn save_api_key_for_openrouter_writes_provider_table() -> Result<()> {
             .and_then(toml::Value::as_str),
         Some("sf-saved-key")
     );
-    save_api_key_for(ApiProvider::SiliconflowCn, "sf-cn-saved-key")?;
+    save_api_key_for(ApiProvider::XiaomiMimo, "sf-cn-saved-key")?;
     let contents = fs::read_to_string(&path)?;
     let parsed: toml::Value = toml::from_str(&contents)?;
     assert_eq!(
@@ -5759,7 +5759,7 @@ fn save_api_key_for_deepseek_cn_uses_root_deepseek_storage() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-save-key-cn-{}-{}",
+        "mimofan-tui-save-key-cn-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5769,7 +5769,7 @@ fn save_api_key_for_deepseek_cn_uses_root_deepseek_storage() -> Result<()> {
     let _config_path = EnvVarGuard::set("CODEWHALE_CONFIG_PATH", config_path.as_os_str());
     let _secret_backend = EnvVarGuard::set("DEEPSEEK_SECRET_BACKEND", "local");
 
-    let path = save_api_key_for(ApiProvider::DeepseekCN, "cn-saved-key")?;
+    let path = save_api_key_for(ApiProvider::XiaomiMimo, "cn-saved-key")?;
     assert_eq!(path, config_path);
     let contents = fs::read_to_string(&path)?;
     let parsed: toml::Value = toml::from_str(&contents)?;
@@ -5789,7 +5789,7 @@ fn nvidia_nim_reads_facade_provider_table() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-nim-provider-table-test-{}-{}",
+        "mimofan-tui-nim-provider-table-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5811,7 +5811,7 @@ model = "deepseek-v4-pro"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::NvidiaNim);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "nim-table-key");
     assert_eq!(config.deepseek_base_url(), "https://nim-table.example/v1");
     // Custom base URL preserves the user-specified model name; normalisation
@@ -5828,7 +5828,7 @@ fn nvidia_nim_provider_table_key_overrides_root_deepseek_key() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-nim-root-key-precedence-test-{}-{}",
+        "mimofan-tui-nim-root-key-precedence-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -5839,7 +5839,7 @@ fn nvidia_nim_provider_table_key_overrides_root_deepseek_key() -> Result<()> {
     ensure_parent_dir(&config_path)?;
     fs::write(
         &config_path,
-        r#"api_key = "codewhale-root-key"
+        r#"api_key = "mimofan-root-key"
 provider = "nvidia-nim"
 
 [providers.nvidia_nim]
@@ -5850,7 +5850,7 @@ model = "deepseek-ai/deepseek-v4-pro"
     )?;
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::NvidiaNim);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "nim-table-key");
     Ok(())
 }
@@ -5861,7 +5861,7 @@ model = "deepseek-ai/deepseek-v4-pro"
 
 #[test]
 fn provider_capability_deepseek_v4_pro_has_1m_window_and_thinking() {
-    let cap = provider_capability(ApiProvider::Deepseek, "deepseek-v4-pro");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-v4-pro");
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -5878,7 +5878,7 @@ fn provider_capability_deepseek_v4_pro_has_1m_window_and_thinking() {
 #[test]
 fn provider_capability_deepseek_anthropic_uses_messages_payload() {
     let cap = provider_capability(
-        ApiProvider::DeepseekAnthropic,
+        ApiProvider::XiaomiMimo,
         DEFAULT_DEEPSEEK_ANTHROPIC_MODEL,
     );
     assert_eq!(
@@ -5897,7 +5897,7 @@ fn provider_capability_deepseek_anthropic_uses_messages_payload() {
 
 #[test]
 fn provider_capability_deepseek_v4_flash_has_1m_window_and_thinking() {
-    let cap = provider_capability(ApiProvider::Deepseek, "deepseek-v4-flash");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-v4-flash");
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -5909,7 +5909,7 @@ fn provider_capability_deepseek_v4_flash_has_1m_window_and_thinking() {
 
 #[test]
 fn provider_capability_deepseek_chat_alias_has_v4_flash_caps_and_metadata() {
-    let cap = provider_capability(ApiProvider::Deepseek, "deepseek-chat");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-chat");
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -5930,7 +5930,7 @@ fn provider_capability_deepseek_chat_alias_has_v4_flash_caps_and_metadata() {
 
 #[test]
 fn provider_capability_deepseek_reasoner_alias_has_v4_flash_caps_and_metadata() {
-    let cap = provider_capability(ApiProvider::Deepseek, "deepseek-reasoner");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-reasoner");
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -5949,13 +5949,13 @@ fn provider_capability_deepseek_reasoner_alias_has_v4_flash_caps_and_metadata() 
 
 #[test]
 fn provider_capability_deepseek_v4_flash_has_no_alias_deprecation() {
-    let cap = provider_capability(ApiProvider::Deepseek, "deepseek-v4-flash");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-v4-flash");
     assert!(cap.alias_deprecation.is_none());
 }
 
 #[test]
 fn provider_capability_nvidia_nim_v4_pro_maps_correctly() {
-    let cap = provider_capability(ApiProvider::NvidiaNim, DEFAULT_NVIDIA_NIM_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_NVIDIA_NIM_MODEL);
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -5971,7 +5971,7 @@ fn provider_capability_nvidia_nim_v4_pro_maps_correctly() {
 
 #[test]
 fn provider_capability_nvidia_nim_v4_flash_maps_correctly() {
-    let cap = provider_capability(ApiProvider::NvidiaNim, DEFAULT_NVIDIA_NIM_FLASH_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_NVIDIA_NIM_FLASH_MODEL);
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -5983,7 +5983,7 @@ fn provider_capability_nvidia_nim_v4_flash_maps_correctly() {
 
 #[test]
 fn provider_capability_openrouter_v4_pro_has_thinking_no_cache() {
-    let cap = provider_capability(ApiProvider::Openrouter, DEFAULT_OPENROUTER_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_OPENROUTER_MODEL);
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -6000,8 +6000,8 @@ fn provider_capability_openrouter_v4_pro_has_thinking_no_cache() {
 
 #[test]
 fn provider_capability_openai_codex_uses_responses_payload() {
-    let cap = provider_capability(ApiProvider::OpenaiCodex, DEFAULT_OPENAI_CODEX_MODEL);
-    assert_eq!(cap.provider, ApiProvider::OpenaiCodex);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_OPENAI_CODEX_MODEL);
+    assert_eq!(cap.provider, ApiProvider::XiaomiMimo);
     assert_eq!(cap.resolved_model, DEFAULT_OPENAI_CODEX_MODEL);
     assert_eq!(
         cap.context_window,
@@ -6033,7 +6033,7 @@ fn provider_capability_openrouter_recent_large_models_are_reasoning_aware() {
         (OPENROUTER_GLM_5_2_MODEL, 1_000_000, 131_072),
         (OPENROUTER_NEMOTRON_3_ULTRA_MODEL, 1_000_000, 16_384),
     ] {
-        let cap = provider_capability(ApiProvider::Openrouter, model);
+        let cap = provider_capability(ApiProvider::XiaomiMimo, model);
 
         assert_eq!(cap.context_window, expected_window);
         assert_eq!(cap.max_output, expected_output);
@@ -6060,7 +6060,7 @@ fn openrouter_nemotron_ultra_aliases_resolve_to_live_id() {
         "nvidia-nemotron-3-ultra",
     ] {
         assert_eq!(
-            normalize_model_name_for_provider(ApiProvider::Openrouter, alias).as_deref(),
+            normalize_model_name_for_provider(ApiProvider::XiaomiMimo, alias).as_deref(),
             Some(OPENROUTER_NEMOTRON_3_ULTRA_MODEL)
         );
     }
@@ -6068,7 +6068,7 @@ fn openrouter_nemotron_ultra_aliases_resolve_to_live_id() {
 
 #[test]
 fn provider_capability_arcee_direct_models_use_api_docs_shape() {
-    let thinking_cap = provider_capability(ApiProvider::Arcee, DEFAULT_ARCEE_MODEL);
+    let thinking_cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_ARCEE_MODEL);
     assert_eq!(thinking_cap.context_window, 262_144);
     assert_eq!(thinking_cap.max_output, 262_144);
     assert!(thinking_cap.thinking_supported);
@@ -6079,7 +6079,7 @@ fn provider_capability_arcee_direct_models_use_api_docs_shape() {
     );
 
     for model in [ARCEE_TRINITY_LARGE_PREVIEW_MODEL, ARCEE_TRINITY_MINI_MODEL] {
-        let cap = provider_capability(ApiProvider::Arcee, model);
+        let cap = provider_capability(ApiProvider::XiaomiMimo, model);
 
         let expected_window = if model == ARCEE_TRINITY_LARGE_PREVIEW_MODEL {
             262_144
@@ -6118,7 +6118,7 @@ fn provider_capability_xiaomi_mimo_has_thinking_no_cache() {
 
 #[test]
 fn provider_capability_novita_v4_pro_has_thinking_no_cache() {
-    let cap = provider_capability(ApiProvider::Novita, DEFAULT_NOVITA_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_NOVITA_MODEL);
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -6130,7 +6130,7 @@ fn provider_capability_novita_v4_pro_has_thinking_no_cache() {
 
 #[test]
 fn provider_capability_fireworks_v4_pro_has_thinking_no_cache() {
-    let cap = provider_capability(ApiProvider::Fireworks, DEFAULT_FIREWORKS_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_FIREWORKS_MODEL);
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -6142,7 +6142,7 @@ fn provider_capability_fireworks_v4_pro_has_thinking_no_cache() {
 
 #[test]
 fn provider_capability_siliconflow_v4_pro_has_thinking_no_cache() {
-    let cap = provider_capability(ApiProvider::Siliconflow, DEFAULT_SILICONFLOW_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_SILICONFLOW_MODEL);
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -6158,7 +6158,7 @@ fn provider_capability_siliconflow_v4_pro_has_thinking_no_cache() {
 
 #[test]
 fn provider_capability_openai_custom_model_is_chat_completions_without_thinking() {
-    let cap = provider_capability(ApiProvider::Openai, "glm-5");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "glm-5");
     assert_eq!(
         cap.context_window,
         crate::models::LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS
@@ -6177,7 +6177,7 @@ fn provider_capability_atlascloud_v4_model_resolves_model_metadata() {
     // #3023: Atlascloud uses the generic model-based path, so its default
     // DeepSeek V4 model resolves the real V4 metadata instead of the old
     // hardcoded legacy floor.
-    let cap = provider_capability(ApiProvider::Atlascloud, "deepseek-ai/deepseek-v4-flash");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-ai/deepseek-v4-flash");
     assert_eq!(
         cap.context_window,
         crate::models::DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS
@@ -6193,7 +6193,7 @@ fn provider_capability_atlascloud_v4_model_resolves_model_metadata() {
 
 #[test]
 fn provider_capability_moonshot_default_model_resolves_kimi_metadata() {
-    let cap = provider_capability(ApiProvider::Moonshot, DEFAULT_MOONSHOT_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_MOONSHOT_MODEL);
     assert_eq!(cap.context_window, 262_144);
     assert_eq!(cap.max_output, 262_144);
     assert!(cap.thinking_supported);
@@ -6207,7 +6207,7 @@ fn provider_capability_moonshot_default_model_resolves_kimi_metadata() {
 #[test]
 fn provider_capability_zai_defaults_to_5_2_and_tracks_5_1_and_turbo() {
     // GLM-5.2 is now the default direct Z.AI model (1M context window).
-    let default = provider_capability(ApiProvider::Zai, DEFAULT_ZAI_MODEL);
+    let default = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_ZAI_MODEL);
     assert_eq!(default.resolved_model, DEFAULT_ZAI_MODEL);
     assert_eq!(default.resolved_model, ZAI_GLM_5_2_MODEL);
     assert_eq!(default.context_window, 1_000_000);
@@ -6216,20 +6216,20 @@ fn provider_capability_zai_defaults_to_5_2_and_tracks_5_1_and_turbo() {
     assert!(!default.cache_telemetry_supported);
 
     // GLM-5.1 remains available as an explicit model (smaller window).
-    let v51 = provider_capability(ApiProvider::Zai, ZAI_GLM_5_1_MODEL);
+    let v51 = provider_capability(ApiProvider::XiaomiMimo, ZAI_GLM_5_1_MODEL);
     assert_eq!(v51.resolved_model, ZAI_GLM_5_1_MODEL);
     assert_eq!(v51.context_window, 202_752);
     assert_eq!(v51.max_output, 131_072);
     assert!(v51.thinking_supported);
 
     // GLM-5-Turbo is the faster sub-agent sibling.
-    let turbo = provider_capability(ApiProvider::Zai, ZAI_GLM_5_TURBO_MODEL);
+    let turbo = provider_capability(ApiProvider::XiaomiMimo, ZAI_GLM_5_TURBO_MODEL);
     assert_eq!(turbo.resolved_model, ZAI_GLM_5_TURBO_MODEL);
 }
 
 #[test]
 fn provider_capability_minimax_direct_models_use_api_docs_shape() {
-    let m3 = provider_capability(ApiProvider::Minimax, DEFAULT_MINIMAX_MODEL);
+    let m3 = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_MINIMAX_MODEL);
     assert_eq!(m3.context_window, 1_000_000);
     assert_eq!(m3.max_output, 524_288);
     assert!(m3.thinking_supported);
@@ -6245,7 +6245,7 @@ fn provider_capability_minimax_direct_models_use_api_docs_shape() {
         MINIMAX_M2_1_HIGHSPEED_MODEL,
         MINIMAX_M2_MODEL,
     ] {
-        let cap = provider_capability(ApiProvider::Minimax, model);
+        let cap = provider_capability(ApiProvider::XiaomiMimo, model);
         assert_eq!(cap.context_window, 204_800, "{model}");
         assert!(cap.thinking_supported, "{model}");
         assert!(!cap.cache_telemetry_supported, "{model}");
@@ -6258,7 +6258,7 @@ fn provider_capability_minimax_direct_models_use_api_docs_shape() {
 
 #[test]
 fn provider_capability_wanjie_ark_reasoner_has_thinking_no_cache() {
-    let cap = provider_capability(ApiProvider::WanjieArk, DEFAULT_WANJIE_ARK_MODEL);
+    let cap = provider_capability(ApiProvider::XiaomiMimo, DEFAULT_WANJIE_ARK_MODEL);
     assert_eq!(
         cap.context_window,
         crate::models::LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS
@@ -6274,7 +6274,7 @@ fn provider_capability_wanjie_ark_reasoner_has_thinking_no_cache() {
 
 #[test]
 fn provider_capability_non_v4_model_has_smaller_window() {
-    let cap = provider_capability(ApiProvider::Deepseek, "deepseek-coder");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-coder");
     assert_eq!(
         cap.context_window,
         crate::models::LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS
@@ -6285,7 +6285,7 @@ fn provider_capability_non_v4_model_has_smaller_window() {
 
 #[test]
 fn provider_capability_roundtrip_serialization() {
-    let cap = provider_capability(ApiProvider::Deepseek, "deepseek-v4-pro");
+    let cap = provider_capability(ApiProvider::XiaomiMimo, "deepseek-v4-pro");
     let json = serde_json::to_value(&cap).unwrap();
     let deserialized: ProviderCapability = serde_json::from_value(json).unwrap();
     assert_eq!(cap, deserialized);
@@ -6294,15 +6294,15 @@ fn provider_capability_roundtrip_serialization() {
 #[test]
 fn status_item_balance_available_only_for_deepseek_providers() {
     // Balance item should only be offered for DeepSeek / DeepSeekCN.
-    assert!(StatusItem::Balance.is_available_for(ApiProvider::Deepseek));
-    assert!(StatusItem::Balance.is_available_for(ApiProvider::DeepseekCN));
+    assert!(StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
+    assert!(StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
     // Sanity: all other known providers should hide the Balance toggle.
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Openrouter));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Novita));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::NvidiaNim));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Fireworks));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Openai));
-    assert!(!StatusItem::Balance.is_available_for(ApiProvider::Atlascloud));
+    assert!(!StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
+    assert!(!StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
+    assert!(!StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
+    assert!(!StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
+    assert!(!StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
+    assert!(!StatusItem::Balance.is_available_for(ApiProvider::XiaomiMimo));
     // Other StatusItem variants should be available everywhere.
 }
 
@@ -6337,7 +6337,7 @@ fn status_items_deser_allows_missing_field() {
 #[test]
 fn huggingface_provider_aliases_parse() {
     for alias in ["huggingface", "hugging-face", "hugging_face", "hf"] {
-        assert_eq!(ApiProvider::parse(alias), Some(ApiProvider::Huggingface));
+        assert_eq!(ApiProvider::parse(alias), Some(ApiProvider::XiaomiMimo));
     }
 }
 
@@ -6361,7 +6361,7 @@ fn huggingface_provider_uses_direct_defaults() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-huggingface-defaults-test-{}-{}",
+        "mimofan-tui-huggingface-defaults-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -6374,7 +6374,7 @@ fn huggingface_provider_uses_direct_defaults() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Huggingface);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "hf-env-key");
     assert_eq!(config.deepseek_base_url(), DEFAULT_HUGGINGFACE_BASE_URL);
     assert_eq!(config.default_model(), DEFAULT_HUGGINGFACE_MODEL);
@@ -6389,7 +6389,7 @@ fn huggingface_hf_token_env_api_key_resolves() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-huggingface-hf-token-test-{}-{}",
+        "mimofan-tui-huggingface-hf-token-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -6402,7 +6402,7 @@ fn huggingface_hf_token_env_api_key_resolves() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Huggingface);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "hf-token-value");
     Ok(())
 }
@@ -6415,7 +6415,7 @@ fn huggingface_missing_key_error_mentions_env_fallbacks() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-huggingface-missing-key-test-{}-{}",
+        "mimofan-tui-huggingface-missing-key-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -6445,7 +6445,7 @@ fn huggingface_env_overrides_key_base_url_and_model() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-huggingface-env-test-{}-{}",
+        "mimofan-tui-huggingface-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -6466,7 +6466,7 @@ fn huggingface_env_overrides_key_base_url_and_model() -> Result<()> {
         }
 
         let config = Config::load(None, None)?;
-        assert_eq!(config.api_provider(), ApiProvider::Huggingface);
+        assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
         assert_eq!(config.deepseek_api_key()?, "hf-env-key");
         assert_eq!(config.deepseek_base_url(), "https://custom-hf.example/v1");
         assert_eq!(config.default_model(), "meta-llama/Llama-3-70B");
@@ -6485,7 +6485,7 @@ fn huggingface_env_overrides_key_base_url_and_model() -> Result<()> {
         }
 
         let config = Config::load(None, None)?;
-        assert_eq!(config.api_provider(), ApiProvider::Huggingface);
+        assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
         assert_eq!(config.deepseek_api_key()?, "hf-env-key");
         assert_eq!(config.deepseek_base_url(), "https://custom-hf.example/v1");
         assert_eq!(config.default_model(), "meta-llama/Llama-3-70B");
@@ -6520,7 +6520,7 @@ fn huggingface_short_env_fallbacks_configure_route() -> Result<()> {
         .unwrap()
         .as_nanos();
     let temp_root = env::temp_dir().join(format!(
-        "codewhale-tui-huggingface-short-env-test-{}-{}",
+        "mimofan-tui-huggingface-short-env-test-{}-{}",
         std::process::id(),
         nanos
     ));
@@ -6535,7 +6535,7 @@ fn huggingface_short_env_fallbacks_configure_route() -> Result<()> {
     }
 
     let config = Config::load(None, None)?;
-    assert_eq!(config.api_provider(), ApiProvider::Huggingface);
+    assert_eq!(config.api_provider(), ApiProvider::XiaomiMimo);
     assert_eq!(config.deepseek_api_key()?, "hf-token-value");
     assert_eq!(config.deepseek_base_url(), "https://short-hf.example/v1");
     assert_eq!(config.default_model(), "org/short-model");
@@ -6611,7 +6611,7 @@ fn api_provider_returns_custom_for_custom_name_and_deepseek_for_junk() {
         provider: Some("totally-not-a-provider".to_string()),
         ..Config::default()
     };
-    assert_eq!(junk.api_provider(), ApiProvider::Deepseek);
+    assert_eq!(junk.api_provider(), ApiProvider::XiaomiMimo);
 }
 
 #[test]

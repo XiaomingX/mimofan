@@ -74,12 +74,12 @@ function buildFromSourceHint() {
     "",
     "Or build from a checkout:",
     "",
-    "  git clone https://github.com/Hmbown/CodeWhale.git",
+    "  git clone https://github.com/XiaomingX/mimo-tui.git",
     "  cd CodeWhale",
     "  cargo install --path crates/cli --locked",
     "  cargo install --path crates/tui --locked",
     "",
-    "See https://github.com/Hmbown/CodeWhale/blob/main/docs/INSTALL.md",
+    "See https://github.com/XiaomingX/mimo-tui/blob/main/docs/INSTALL.md",
   ].join("\n");
 }
 

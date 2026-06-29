@@ -1464,4 +1464,4 @@ patches, retesting, and release-stabilization signals that shaped this pass.
 
 ---
 
-Older releases: [CHANGELOG.md](https://github.com/Hmbown/CodeWhale/blob/main/CHANGELOG.md) and [docs/CHANGELOG_ARCHIVE.md](https://github.com/Hmbown/CodeWhale/blob/main/docs/CHANGELOG_ARCHIVE.md).
+Older releases: [CHANGELOG.md](https://github.com/XiaomingX/mimo-tui/blob/main/CHANGELOG.md) and [docs/CHANGELOG_ARCHIVE.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/CHANGELOG_ARCHIVE.md).

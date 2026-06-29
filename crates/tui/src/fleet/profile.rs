@@ -9,11 +9,11 @@ use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
 
 #[allow(unused_imports)]
-pub use codewhale_config::{
+pub use mimofan_config::{
     FleetDelegationHints, FleetLoadout, FleetProfile, FleetProfilePermissions, FleetRole, FleetSlot,
 };
 
-pub const WORKSPACE_AGENT_PROFILE_DIR: &str = ".codewhale/agents";
+pub const WORKSPACE_AGENT_PROFILE_DIR: &str = ".mimofan/agents";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentProfile {

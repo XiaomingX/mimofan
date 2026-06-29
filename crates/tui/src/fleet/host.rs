@@ -14,7 +14,7 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use codewhale_protocol::fleet::FleetHostSpec;
+use mimofan_protocol::fleet::FleetHostSpec;
 use thiserror::Error;
 
 const DEFAULT_LOG_LIMIT_BYTES: usize = 64 * 1024;
@@ -236,7 +236,7 @@ impl LocalProcessFleetHostAdapter {
             FleetHostKind::Ssh => "ssh",
         };
         self.workspace
-            .join(".codewhale")
+            .join(".mimofan")
             .join("fleet-host")
             .join(host_dir)
             .join(format!("{}.log", safe_path_segment(worker_id)))
@@ -377,7 +377,7 @@ pub struct SshFleetHostConfig {
     pub host_key_fingerprint: Option<String>,
     pub working_directory: PathBuf,
     pub env_allowlist: BTreeSet<String>,
-    pub codewhale_binary: String,
+    pub mimofan_binary: String,
     pub ssh_binary: String,
     pub connect_timeout_seconds: u64,
 }
@@ -393,7 +393,7 @@ impl SshFleetHostConfig {
             host_key_fingerprint: None,
             working_directory: working_directory.into(),
             env_allowlist: BTreeSet::new(),
-            codewhale_binary: "codewhale".to_string(),
+            mimofan_binary: "mimofan".to_string(),
             ssh_binary: "ssh".to_string(),
             connect_timeout_seconds: DEFAULT_CONNECT_TIMEOUT_SECONDS,
         }
@@ -409,7 +409,7 @@ impl SshFleetHostConfig {
             host_key_fingerprint,
             working_directory,
             env_allowlist,
-            codewhale_binary,
+            mimofan_binary,
         } = spec
         else {
             return Err(FleetHostError::configuration(
@@ -419,8 +419,8 @@ impl SshFleetHostConfig {
         let working_directory = working_directory.clone().ok_or_else(|| {
             FleetHostError::configuration("SSH fleet host spec requires working_directory")
         })?;
-        let codewhale_binary = codewhale_binary.clone().ok_or_else(|| {
-            FleetHostError::configuration("SSH fleet host spec requires codewhale_binary")
+        let mimofan_binary = mimofan_binary.clone().ok_or_else(|| {
+            FleetHostError::configuration("SSH fleet host spec requires mimofan_binary")
         })?;
         let mut config = Self::new(host.clone(), working_directory);
         config.port = *port;
@@ -429,7 +429,7 @@ impl SshFleetHostConfig {
         config.known_hosts = known_hosts.clone();
         config.host_key_fingerprint = host_key_fingerprint.clone();
         config.env_allowlist = env_allowlist.iter().cloned().collect();
-        config.codewhale_binary = codewhale_binary;
+        config.mimofan_binary = mimofan_binary;
         config.validate()?;
         Ok(config)
     }
@@ -440,9 +440,9 @@ impl SshFleetHostConfig {
                 "SSH fleet host requires an explicit host",
             ));
         }
-        if self.codewhale_binary.trim().is_empty() {
+        if self.mimofan_binary.trim().is_empty() {
             return Err(FleetHostError::configuration(
-                "SSH fleet host requires an explicit codewhale binary path",
+                "SSH fleet host requires an explicit mimofan binary path",
             ));
         }
         if self.working_directory.as_os_str().is_empty() {
@@ -533,7 +533,7 @@ impl SshFleetHostAdapter {
             shell_quote(&self.config.working_directory.display().to_string()),
             "&&".to_string(),
             "exec".to_string(),
-            shell_quote(&self.config.codewhale_binary),
+            shell_quote(&self.config.mimofan_binary),
         ];
         parts.extend(request.command.args.iter().map(|arg| shell_quote(arg)));
         parts.join(" ")
@@ -882,16 +882,16 @@ mod tests {
     #[test]
     fn fleet_host_ssh_command_uses_sendenv_without_argv_secret_values() {
         let tmp = TempDir::new().unwrap();
-        let mut config = SshFleetHostConfig::new("builder.example.test", "/srv/codewhale");
+        let mut config = SshFleetHostConfig::new("builder.example.test", "/srv/mimofan");
         config.user = Some("fleet".to_string());
         config.port = Some(2222);
         config.identity = Some(PathBuf::from("/tmp/fleet_id"));
-        config.codewhale_binary = "/usr/local/bin/codewhale".to_string();
+        config.mimofan_binary = "/usr/local/bin/mimofan".to_string();
         config.env_allowlist = BTreeSet::from(["FLEET_PROFILE".to_string()]);
         let adapter = SshFleetHostAdapter::new(tmp.path(), config).unwrap();
         let mut request = FleetWorkerStartRequest::new(
             "ssh-1",
-            FleetWorkerCommand::new("codewhale", ["fleet-worker", "noop"]),
+            FleetWorkerCommand::new("mimofan", ["fleet-worker", "noop"]),
         );
         request.env.insert(
             "FLEET_PROFILE".to_string(),
@@ -905,7 +905,7 @@ mod tests {
         assert!(argv.contains("BatchMode=yes"));
         assert!(argv.contains("SendEnv=FLEET_PROFILE"));
         assert!(argv.contains("fleet@builder.example.test"));
-        assert!(argv.contains("/usr/local/bin/codewhale"));
+        assert!(argv.contains("/usr/local/bin/mimofan"));
         assert!(argv.contains("fleet-worker"));
         assert!(!argv.contains("super-secret-profile-value"));
     }
@@ -913,7 +913,7 @@ mod tests {
     #[test]
     fn fleet_host_ssh_config_requires_explicit_safe_fields() {
         let tmp = TempDir::new().unwrap();
-        let mut config = SshFleetHostConfig::new("", "/srv/codewhale");
+        let mut config = SshFleetHostConfig::new("", "/srv/mimofan");
         config.env_allowlist = BTreeSet::from(["SAFE_FLAG".to_string()]);
 
         let err = SshFleetHostAdapter::new(tmp.path(), config).unwrap_err();
@@ -931,9 +931,9 @@ mod tests {
             identity: Some(PathBuf::from("/tmp/fleet_id")),
             known_hosts: None,
             host_key_fingerprint: None,
-            working_directory: Some(PathBuf::from("/srv/codewhale")),
+            working_directory: Some(PathBuf::from("/srv/mimofan")),
             env_allowlist: vec!["FLEET_PROFILE".to_string()],
-            codewhale_binary: Some("/usr/local/bin/codewhale".to_string()),
+            mimofan_binary: Some("/usr/local/bin/mimofan".to_string()),
         };
 
         let config = SshFleetHostConfig::from_host_spec(&spec).unwrap();
@@ -941,8 +941,8 @@ mod tests {
         assert_eq!(config.host, "builder.example.test");
         assert_eq!(config.port, Some(2222));
         assert_eq!(config.user.as_deref(), Some("fleet"));
-        assert_eq!(config.working_directory, PathBuf::from("/srv/codewhale"));
+        assert_eq!(config.working_directory, PathBuf::from("/srv/mimofan"));
         assert!(config.env_allowlist.contains("FLEET_PROFILE"));
-        assert_eq!(config.codewhale_binary, "/usr/local/bin/codewhale");
+        assert_eq!(config.mimofan_binary, "/usr/local/bin/mimofan");
     }
 }

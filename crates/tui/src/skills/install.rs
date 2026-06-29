@@ -33,7 +33,7 @@
 //!   command writes a `.trusted` marker; tool-execution gating is a separate
 //!   concern that lives next to the tool registry.
 //! * Claude Code plugin archives that contain multiple skills are rejected with
-//!   an explicit migration message. CodeWhale can install individual
+//!   an explicit migration message. mimofan can install individual
 //!   `SKILL.md` bundles, including `.claude/skills/<name>/SKILL.md`, but it
 //!   does not execute `plugin.json` plugin runtimes or custom command bundles.
 
@@ -57,12 +57,12 @@ fn reqwest_client() -> reqwest::Client {
 
 /// Cache directory for registry-synced skills.
 ///
-/// Lives at `~/.codewhale/cache/skills/` so it's separate from user-installed
+/// Lives at `~/.mimofan/cache/skills/` so it's separate from user-installed
 /// skills and can be blown away without losing anything irreplaceable.
 pub fn default_cache_skills_dir() -> PathBuf {
     dirs::home_dir().map_or_else(
-        || PathBuf::from("/tmp/codewhale/cache/skills"),
-        |p| p.join(".codewhale").join("cache").join("skills"),
+        || PathBuf::from("/tmp/mimofan/cache/skills"),
+        |p| p.join(".mimofan").join("cache").join("skills"),
     )
 }
 

@@ -1,41 +1,41 @@
-# CodeWhale Release Runbook
+# mimo-tui Release Runbook
 
 This runbook is the source of truth for shipping Rust crates, GitHub release assets,
-and the `codewhale` npm wrapper.
+and the `mimo-tui` npm wrapper.
 
 Current packaging note:
-- `codewhale-tui` is the live runtime crate shipped to users today.
-- `codewhale-app-server` is a supporting library crate. The shipped entrypoint
-  is `codewhale app-server`; do not add or publish a standalone app-server binary.
+- `mimo-tui` is the live runtime crate shipped to users today.
+- `mimo-tui-app-server` is a supporting library crate. The shipped entrypoint
+  is `mimo-tui app-server`; do not add or publish a standalone app-server binary.
 
 ## Canonical Publish Targets
 
 - End-user crates:
-  - `codewhale-tui`
-  - `codewhale-cli`
+  - `mimo-tui`
+  - `mimo-tui-cli`
 - Supporting crates published from this workspace:
-  - `codewhale-secrets`
-  - `codewhale-config`
-  - `codewhale-protocol`
-  - `codewhale-state`
-  - `codewhale-agent`
-  - `codewhale-execpolicy`
-  - `codewhale-hooks`
-  - `codewhale-mcp`
-  - `codewhale-tools`
-  - `codewhale-core`
-  - `codewhale-app-server`
-  - `codewhale-whaleflow`
+  - `mimo-tui-secrets`
+  - `mimo-tui-config`
+  - `mimo-tui-protocol`
+  - `mimo-tui-state`
+  - `mimo-tui-agent`
+  - `mimo-tui-execpolicy`
+  - `mimo-tui-hooks`
+  - `mimo-tui-mcp`
+  - `mimo-tui-tools`
+  - `mimo-tui-core`
+  - `mimo-tui-app-server`
+  - `mimo-tui-whaleflow`
 
 ## Version Coordination
 
 - Rust crates inherit the shared workspace version from [Cargo.toml](../Cargo.toml).
 - Internal path dependency versions should match the shared workspace version; stale older pins are release blockers once the workspace version moves.
-- The npm wrapper version lives in [npm/codewhale/package.json](../npm/codewhale/package.json).
-- `codewhaleBinaryVersion` controls which GitHub release binaries the npm wrapper downloads.
+- The npm wrapper version lives in [npm/mimo-tui/package.json](../npm/mimo-tui/package.json).
+- `mimo-tuiBinaryVersion` controls which GitHub release binaries the npm wrapper downloads.
 - Packaging-only npm releases are allowed:
   - bump the npm package version
-  - leave `codewhaleBinaryVersion` pinned to the previously released Rust binaries
+  - leave `mimo-tuiBinaryVersion` pinned to the previously released Rust binaries
   - rerun `npm pack` smoke checks before `npm publish`
 
 ## Preflight
@@ -48,13 +48,13 @@ cargo fmt --all -- --check
 cargo check --workspace --all-targets --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
-cargo publish --dry-run --locked --allow-dirty -p codewhale-tui
+cargo publish --dry-run --locked --allow-dirty -p mimo-tui
 ./scripts/release/publish-crates.sh dry-run
 ```
 
 `check-versions.sh` also runs in CI on every push/PR (the `versions` job in
 `.github/workflows/ci.yml`), so drift between `Cargo.toml`, the per-crate
-manifests, `npm/codewhale/package.json`, and `Cargo.lock` is caught before
+manifests, `npm/mimo-tui/package.json`, and `Cargo.lock` is caught before
 release time rather than at it.
 
 The source-controlled CNB pipeline mirrors the heavy Linux version/fmt/check/
@@ -70,11 +70,11 @@ new workspace version while still validating package contents before publish.
 For npm wrapper verification, build the two shipped binaries and run the
 cross-platform smoke harness. This packs the npm wrapper, installs it into a
 clean temporary project, serves local release assets over HTTP, and checks both
-the dispatcher-to-TUI path (`codewhale doctor --help`) and the direct TUI
-entrypoint (`codewhale-tui --help`).
+the dispatcher-to-TUI path (`mimo-tui doctor --help`) and the direct TUI
+entrypoint (`mimo-tui --help`).
 
 ```bash
-cargo build --release --locked -p codewhale-cli -p codewhale-tui
+cargo build --release --locked -p mimo-tui-cli -p mimo-tui
 node scripts/release/npm-wrapper-smoke.js
 ```
 
@@ -86,7 +86,7 @@ directory with a full asset matrix fixture before starting the server:
 
 ```bash
 DEEPSEEK_TUI_PREPARE_ALL_ASSETS=1 node scripts/release/prepare-local-release-assets.js
-cd npm/codewhale
+cd npm/mimo-tui
 DEEPSEEK_TUI_VERSION=X.Y.Z DEEPSEEK_TUI_RELEASE_BASE_URL=http://127.0.0.1:8123/ npm run release:check
 ```
 
@@ -101,8 +101,8 @@ After publishing, prove the release is visible in both registries:
 ./scripts/release/check-published.sh X.Y.Z
 ```
 
-Do not mark a Rust release complete until that command sees `codewhale@X.Y.Z`
-on npm and every `codewhale-*` crate at `X.Y.Z` on crates.io. For a rare
+Do not mark a Rust release complete until that command sees `mimo-tui@X.Y.Z`
+on npm and every `mimo-tui-*` crate at `X.Y.Z` on crates.io. For a rare
 npm packaging-only release, run with `--allow-npm-binary-mismatch` and keep the
 release notes explicit that no new Rust binary version shipped.
 
@@ -161,21 +161,21 @@ and fails branch-only release sources before assets are published.
    main commit; see the npm wrapper release section below for the
    `RELEASE_TAG_PAT` requirement.
 4. Publish crates in this order with `./scripts/release/publish-crates.sh publish`:
-   - `codewhale-mcp`
-   - `codewhale-protocol`
-   - `codewhale-release`
-   - `codewhale-secrets`
-   - `codewhale-state`
-   - `codewhale-whaleflow`
-   - `codewhale-execpolicy`
-   - `codewhale-hooks`
-   - `codewhale-tools`
-   - `codewhale-config`
-   - `codewhale-agent`
-   - `codewhale-tui`
-   - `codewhale-core`
-   - `codewhale-app-server`
-   - `codewhale-cli`
+   - `mimo-tui-mcp`
+   - `mimo-tui-protocol`
+   - `mimo-tui-release`
+   - `mimo-tui-secrets`
+   - `mimo-tui-state`
+   - `mimo-tui-whaleflow`
+   - `mimo-tui-execpolicy`
+   - `mimo-tui-hooks`
+   - `mimo-tui-tools`
+   - `mimo-tui-config`
+   - `mimo-tui-agent`
+   - `mimo-tui`
+   - `mimo-tui-core`
+   - `mimo-tui-app-server`
+   - `mimo-tui-cli`
 5. Wait for each published crate version to appear on crates.io before publishing dependents.
 
 The publish helper is idempotent for reruns: already-published crate versions are skipped.
@@ -184,16 +184,16 @@ The publish helper is idempotent for reruns: already-published crate versions ar
 
 `.github/workflows/release.yml` builds these binaries:
 
-- `codewhale-linux-x64`
-- `codewhale-macos-x64`
-- `codewhale-macos-arm64`
-- `codewhale-windows-x64.exe`
-- `codewhale-tui-linux-x64`
-- `codewhale-tui-macos-x64`
-- `codewhale-tui-macos-arm64`
-- `codewhale-tui-windows-x64.exe`
+- `mimo-tui-linux-x64`
+- `mimo-tui-macos-x64`
+- `mimo-tui-macos-arm64`
+- `mimo-tui-windows-x64.exe`
+- `mimo-tui-linux-x64`
+- `mimo-tui-macos-x64`
+- `mimo-tui-macos-arm64`
+- `mimo-tui-windows-x64.exe`
 
-The release job also uploads `codewhale-artifacts-sha256.txt`. The npm installer and
+The release job also uploads `mimo-tui-artifacts-sha256.txt`. The npm installer and
 release verification script both depend on that checksum manifest.
 
 ## npm Wrapper Release
@@ -206,14 +206,14 @@ on a workstation with `npm login` and an authenticator app.
 
 ### Steps
 
-1. Set the npm package version in [npm/codewhale/package.json](../npm/codewhale/package.json) to match the workspace `Cargo.toml`. CI's version-drift guard will catch mismatches before tag.
-2. Set `codewhaleBinaryVersion` to the GitHub release tag that should supply binaries.
+1. Set the npm package version in [npm/mimo-tui/package.json](../npm/mimo-tui/package.json) to match the workspace `Cargo.toml`. CI's version-drift guard will catch mismatches before tag.
+2. Set `mimo-tuiBinaryVersion` to the GitHub release tag that should supply binaries.
 3. Push the version bump to `main`. `auto-tag.yml` creates the matching `vX.Y.Z` tag, and `release.yml` builds the binary matrix and drafts the GitHub Release.
-4. **Wait for the GitHub Release to finalize** with all eight signed binaries plus `codewhale-artifacts-sha256.txt`. The npm `prepublishOnly` hook (`scripts/verify-release-assets.js`) requires every asset to be present.
+4. **Wait for the GitHub Release to finalize** with all eight signed binaries plus `mimo-tui-artifacts-sha256.txt`. The npm `prepublishOnly` hook (`scripts/verify-release-assets.js`) requires every asset to be present.
 5. From a developer machine, publish the npm wrapper manually:
 
 ```bash
-cd npm/codewhale
+cd npm/mimo-tui
 npm publish --access public
 # (you will be prompted for the npm OTP from your authenticator)
 ```
@@ -230,13 +230,13 @@ To re-enable automated publish: provision an npm automation token with "Bypass 2
 ## CNB Cool mirror
 
 Every push to `main`, `fix/*`, `rebrand/*`, `work/v*`, and every `v*` tag is mirrored to
-`cnb.cool/codewhale.net/codewhale` via the `Sync to CNB` workflow
+`cnb.cool/mimo-tui.net/mimo-tui` via the `Sync to CNB` workflow
 so users behind GitHub-blocking networks can fetch the source and so CNB can
 run the heavy Linux CI lane. After a release tag, **verify the mirror caught
 it** before declaring the release shipped:
 
 ```bash
-git ls-remote https://cnb.cool/codewhale.net/codewhale.git refs/tags/vX.Y.Z
+git ls-remote https://cnb.cool/mimo-tui.net/mimo-tui.git refs/tags/vX.Y.Z
 ```
 
 If the workflow failed for the release tag, the manual fallback is
@@ -246,12 +246,12 @@ remote add cnb …`, then `git push cnb vX.Y.Z`).
 ## Recovery and Rollback
 
 - User-facing rollback:
-  - npm: `npm install -g codewhale@X.Y.Z`
-  - Cargo: `cargo install codewhale-cli --version X.Y.Z --locked --force`
-    and `cargo install codewhale-tui --version X.Y.Z --locked --force`
+  - npm: `npm install -g mimo-tui@X.Y.Z`
+  - Cargo: `cargo install mimo-tui-cli --version X.Y.Z --locked --force`
+    and `cargo install mimo-tui --version X.Y.Z --locked --force`
   - manual assets: download binaries or the platform archive plus the matching
-    `codewhale-artifacts-sha256.txt` or `codewhale-bundles-sha256.txt`
-    manifest from `https://github.com/Hmbown/CodeWhale/releases/tag/vX.Y.Z`
+    `mimo-tui-artifacts-sha256.txt` or `mimo-tui-bundles-sha256.txt`
+    manifest from `https://github.com/XiaomingX/mimo-tui/releases/tag/vX.Y.Z`
   - workspace files: use `/restore list [N]` and `/restore <N>` for side-git
     snapshots; this does not change the installed binary version or rewrite
     conversation history
@@ -265,7 +265,7 @@ remote add cnb …`, then `git push cnb vX.Y.Z`).
   - retag or upload corrected assets before `npm publish`
 - npm packaging-only problem:
   - bump only the npm package version
-  - keep `codewhaleBinaryVersion` on the last known-good Rust release
+  - keep `mimo-tuiBinaryVersion` on the last known-good Rust release
   - repack and republish the wrapper
 - A bad npm publish cannot be overwritten:
   - publish a new npm version with corrected metadata or install logic

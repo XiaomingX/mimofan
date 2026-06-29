@@ -277,7 +277,7 @@ pub struct StateStore {
 impl StateStore {
     /// Open (or create) a state store at the given database path.
     ///
-    /// If `path` is `None`, the default location (`~/.codewhale/state.db`, with
+    /// If `path` is `None`, the default location (`~/.mimofan/state.db`, with
     /// `~/.deepseek/state.db` as a legacy fallback) is used.
     /// The database schema is created automatically if it does not exist.
     pub fn open(path: Option<PathBuf>) -> Result<Self> {
@@ -1591,13 +1591,13 @@ fn default_state_db_path() -> PathBuf {
     // defeat the isolation the override promises (CI, containers, multi-project,
     // test harnesses). Legacy ~/.deepseek migration only applies to the default
     // home location.
-    if let Some(overridden) = codewhale_home_override() {
+    if let Some(overridden) = mimofan_home_override() {
         return overridden.join("state.db");
     }
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    // Prefer the CodeWhale directory, falling back to legacy DeepSeek path
+    // Prefer the mimofan directory, falling back to legacy DeepSeek path
     // so existing installs don't lose their session history.
-    let primary = home.join(".codewhale").join("state.db");
+    let primary = home.join(".mimofan").join("state.db");
     if primary.exists() || !home.join(".deepseek").join("state.db").exists() {
         primary
     } else {
@@ -1608,13 +1608,13 @@ fn default_state_db_path() -> PathBuf {
 /// Resolve `$CODEWHALE_HOME` as a hard override of the data directory root.
 ///
 /// Returns the path verbatim (the env var IS the home dir, matching
-/// `codewhale_home()` in config — `$CODEWHALE_HOME=/data/cw` means the home is
-/// `/data/cw`, not `/data/cw/.codewhale`). Returns `None` when unset/empty so
+/// `mimofan_home()` in config — `$CODEWHALE_HOME=/data/cw` means the home is
+/// `/data/cw`, not `/data/cw/.mimofan`). Returns `None` when unset/empty so
 /// callers can branch on "explicit override" vs "default home + legacy
 /// fallback." Mirrors config's helper without taking a dependency on it (state
 /// is a low-level leaf crate; config cannot be a dependency here without
 /// inverting the layering).
-fn codewhale_home_override() -> Option<PathBuf> {
+fn mimofan_home_override() -> Option<PathBuf> {
     std::env::var_os("CODEWHALE_HOME")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
@@ -1777,7 +1777,7 @@ mod tests {
             .expect("system time")
             .as_nanos();
         let dir = std::env::temp_dir().join(format!(
-            "codewhale-state-{name}-{}-{suffix}",
+            "mimofan-state-{name}-{}-{suffix}",
             std::process::id()
         ));
         fs::create_dir_all(&dir).expect("create temp state dir");
@@ -1795,7 +1795,7 @@ mod tests {
             updated_at: 10,
             status: ThreadStatus::Running,
             path: None,
-            cwd: PathBuf::from("/tmp/codewhale"),
+            cwd: PathBuf::from("/tmp/mimofan"),
             cli_version: "0.0.0-test".to_string(),
             source: SessionSource::Interactive,
             name: None,
@@ -2068,41 +2068,41 @@ mod tests {
     }
 
     #[test]
-    fn codewhale_home_override_returns_the_env_value_verbatim() {
+    fn mimofan_home_override_returns_the_env_value_verbatim() {
         let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
         let _g = CodeWhaleHomeGuard::set("/tmp/cw-isolated-state");
-        // The env var IS the home dir — no ".codewhale" appended. This matches
-        // codewhale_home() in config ($CODEWHALE_HOME=/x means home is /x).
+        // The env var IS the home dir — no ".mimofan" appended. This matches
+        // mimofan_home() in config ($CODEWHALE_HOME=/x means home is /x).
         assert_eq!(
-            codewhale_home_override().as_deref(),
+            mimofan_home_override().as_deref(),
             Some(std::path::Path::new("/tmp/cw-isolated-state"))
         );
     }
 
     #[test]
-    fn codewhale_home_override_none_when_unset() {
+    fn mimofan_home_override_none_when_unset() {
         let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
         let _g = CodeWhaleHomeGuard::remove();
-        assert!(codewhale_home_override().is_none());
+        assert!(mimofan_home_override().is_none());
     }
 
     #[test]
-    fn codewhale_home_override_none_when_empty() {
+    fn mimofan_home_override_none_when_empty() {
         let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
         let _g = CodeWhaleHomeGuard::set("   ");
         // The helper filters empty values (after the OsString check). Note:
         // var_os returns the raw "   ", and our filter only catches truly-empty,
         // so this documents that whitespace-only is NOT treated as unset at the
-        // override layer (config's codewhale_home trims; we don't here — the
+        // override layer (config's mimofan_home trims; we don't here — the
         // branch is "was it set at all").
         assert!(
-            codewhale_home_override().is_some(),
+            mimofan_home_override().is_some(),
             "non-empty (even whitespace) counts as set; trimming is the caller's job"
         );
     }
 
     #[test]
-    fn default_state_db_path_uses_codewhale_home_when_set() {
+    fn default_state_db_path_uses_mimofan_home_when_set() {
         let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
         let dir = std::env::temp_dir().join(format!(
             "cw-home-state-{}-{}",
@@ -2114,7 +2114,7 @@ mod tests {
         ));
         let _g = CodeWhaleHomeGuard::set(dir.to_str().unwrap());
         // Hard override: the DB is <CODEWHALE_HOME>/state.db, NOT
-        // <CODEWHALE_HOME>/.codewhale/state.db, and the legacy ~/.deepseek
+        // <CODEWHALE_HOME>/.mimofan/state.db, and the legacy ~/.deepseek
         // fallback is bypassed entirely.
         assert_eq!(default_state_db_path(), dir.join("state.db"));
     }

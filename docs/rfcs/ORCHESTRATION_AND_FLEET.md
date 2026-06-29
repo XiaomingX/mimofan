@@ -5,7 +5,7 @@ Related: constitution `## Orchestration` regulation; EPIC #3154; #3167; #3205
 
 ## Why this note exists
 
-A CodeWhale agent, given a build larger than one context could hold,
+A mimo-tui agent, given a build larger than one context could hold,
 spontaneously orchestrated it: it read the dependency shape, fanned the
 independent work out to sub-agents across isolated git worktrees, kept its
 own context for deciding and verifying, refused to trust any worker's

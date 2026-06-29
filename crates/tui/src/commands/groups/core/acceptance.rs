@@ -45,8 +45,8 @@ impl std::fmt::Debug for CoreCommandWorld {
 fn core_command_workspace(world: &mut CoreCommandWorld) {
     let tmpdir = TempDir::new().expect("core command TempDir");
     let mut app = create_test_app_with_tmpdir(&tmpdir);
-    app.ui_locale = crate::localization::Locale::En;
-    app.api_provider = ApiProvider::Deepseek;
+    app.ui_locale = crate::localization::Locale::ZhHans;
+    app.api_provider = ApiProvider::XiaomiMimo;
     app.model = "deepseek-v4-pro".to_string();
     app.auto_model = false;
     app.model_ids_passthrough = false;
@@ -163,7 +163,7 @@ fn execute_isolated(world: &mut CoreCommandWorld, command: &str) -> CommandResul
 
     let _lock = lock_test_env();
     let _home = EnvVarGuard::set("HOME", &home);
-    let _codewhale_home = EnvVarGuard::set("CODEWHALE_HOME", home.join(".codewhale"));
+    let _mimofan_home = EnvVarGuard::set("CODEWHALE_HOME", home.join(".mimofan"));
 
     let app = world.app.as_deref_mut().expect("app should exist");
     commands::user_registry::reload(Some(&app.workspace));

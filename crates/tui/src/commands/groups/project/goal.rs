@@ -199,7 +199,7 @@ fn parse_hunt_budget(text: &str) -> (String, Option<u32>) {
     }
 }
 
-/// Write a legacy trophy card to `~/.codewhale/trophies/<date>-<time>-<slug>.md`
+/// Write a legacy trophy card to `~/.mimofan/trophies/<date>-<time>-<slug>.md`
 /// for the current goal result (#2092).
 fn write_trophy_card(app: &App, verdict: HuntVerdict) -> Result<std::path::PathBuf, String> {
     let quarry = app
@@ -230,7 +230,7 @@ fn write_trophy_card(app: &App, verdict: HuntVerdict) -> Result<std::path::PathB
     let date = now.format("%Y-%m-%d");
     let date_str = date.to_string();
     let now_str = now.to_string();
-    let dir = codewhale_config::ensure_state_dir("trophies")
+    let dir = mimofan_config::ensure_state_dir("trophies")
         .map_err(|err| format!("Could not resolve trophy directory: {err}"))?;
     // Include time in filename to avoid collisions on same-date hunts.
     let filename = format!("{date}-{time}-{slug}.md");

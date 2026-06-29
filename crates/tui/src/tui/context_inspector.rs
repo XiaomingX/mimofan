@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn inspector_formats_empty_state() {
         let app = test_app();
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("Session Context"));
         assert!(text.contains("No file, directory, or media references recorded yet."));
         assert!(text.contains("No tool activity recorded yet."));
@@ -502,7 +502,7 @@ mod tests {
         let mut app = test_app();
         app.current_session_id = Some("1234567890abcdef".to_string());
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
 
         assert!(text.contains("Session: 12345678"), "{text}");
         assert!(!text.contains("1234567890abcdef"), "{text}");
@@ -529,7 +529,7 @@ mod tests {
                 },
             });
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("[file] @src/main.rs -> /tmp/project/src/main.rs"));
     }
 
@@ -544,7 +544,7 @@ mod tests {
             }],
         });
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("Context: critical"), "{text}");
     }
 
@@ -555,7 +555,7 @@ mod tests {
         app.auto_model = true;
         app.last_effective_model = Some("deepseek-v4-pro".to_string());
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("Model: auto"), "{text}");
         assert!(text.contains("/1000000 tokens"), "{text}");
     }
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     fn inspector_no_system_prompt_shows_section() {
         let app = test_app();
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("System Prompt Structure"));
         assert!(text.contains("No system prompt set."));
     }
@@ -575,7 +575,7 @@ mod tests {
         app.system_prompt = Some(SystemPrompt::Blocks(vec![
             SystemBlock {
                 block_type: "text".to_string(),
-                text: "## Stable Base\n\nYou are CodeWhale.".to_string(),
+                text: "## Stable Base\n\nYou are mimofan.".to_string(),
                 cache_control: None,
             },
             SystemBlock {
@@ -585,7 +585,7 @@ mod tests {
             },
         ]));
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("System Prompt Structure"));
         assert!(
             text.contains("Stable prefix: 1 block"),
@@ -626,7 +626,7 @@ mod tests {
             },
         ]));
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("Stable prefix: 2 block(s)"));
         assert!(text.contains("Volatile working set: none"));
     }
@@ -635,10 +635,10 @@ mod tests {
     fn inspector_text_prompt_shows_layer_map() {
         let mut app = test_app();
         app.system_prompt = Some(SystemPrompt::Text(
-            "You are CodeWhale.\n\n<project_instructions source=\"AGENTS.md\">\nRules\n</project_instructions>\n\n## Project Context Pack\n{}\n\n## Environment\n- lang: en\n\n## Skills\n- rust\n\n## Context Management\nKeep compact\n\n## Compact\nTemplate\n\n## Repo Working Set\nsrc/".to_string(),
+            "You are mimofan.\n\n<project_instructions source=\"AGENTS.md\">\nRules\n</project_instructions>\n\n## Project Context Pack\n{}\n\n## Environment\n- lang: en\n\n## Skills\n- rust\n\n## Context Management\nKeep compact\n\n## Compact\nTemplate\n\n## Repo Working Set\nsrc/".to_string(),
         ));
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("System Prompt Structure"));
         assert!(text.contains("Text prompt layers"));
         assert!(text.contains("Global system prefix"));
@@ -655,9 +655,9 @@ mod tests {
     #[test]
     fn inspector_text_prompt_without_markers_shows_single_blob() {
         let mut app = test_app();
-        app.system_prompt = Some(SystemPrompt::Text("You are CodeWhale.".to_string()));
+        app.system_prompt = Some(SystemPrompt::Text("You are mimofan.".to_string()));
 
-        let text = build_context_inspector_text(&app, Locale::En);
+        let text = build_context_inspector_text(&app, Locale::ZhHans);
         assert!(text.contains("Single text blob"));
         assert!(text.contains("stable prefix only"));
     }
@@ -669,7 +669,7 @@ mod tests {
         app.system_prompt = Some(SystemPrompt::Blocks(vec![
             SystemBlock {
                 block_type: "text".to_string(),
-                text: "## Base\nYou are CodeWhale.".to_string(),
+                text: "## Base\nYou are mimofan.".to_string(),
                 cache_control: None,
             },
             SystemBlock {

@@ -94,9 +94,9 @@ fn workspace_status_reports_head_and_dirty_counts() -> Result<()> {
         &repo,
         &[
             "-c",
-            "user.name=CodeWhale Test",
+            "user.name=mimofan Test",
             "-c",
-            "user.email=codewhale@example.invalid",
+            "user.email=mimofan@example.invalid",
             "commit",
             "-m",
             "init",
@@ -400,12 +400,12 @@ fn url_query_component_percent_encodes_token() {
 fn token_from_cookie_header_decodes_percent_encoded_token() {
     assert_eq!(
         token_from_cookie_header(Some(
-            "theme=dark; codewhale_runtime_token=abc%20ABC%2B%2F%3F%3A%3D%26%25"
+            "theme=dark; mimofan_runtime_token=abc%20ABC%2B%2F%3F%3A%3D%26%25"
         )),
         Some("abc ABC+/?:=&%".to_string())
     );
     assert_eq!(
-        token_from_cookie_header(Some("codewhale_runtime_token=bad%ZZ")),
+        token_from_cookie_header(Some("mimofan_runtime_token=bad%ZZ")),
         None
     );
 }
@@ -693,7 +693,7 @@ async fn health_and_tasks_endpoints_work() -> Result<()> {
         .json()
         .await?;
     assert_eq!(health["status"], "ok");
-    assert_eq!(health["service"], "codewhale-runtime-api");
+    assert_eq!(health["service"], "mimofan-runtime-api");
 
     let created: serde_json::Value = client
         .post(format!("http://{addr}/v1/tasks"))
@@ -782,20 +782,20 @@ async fn runtime_token_guard_protects_v1_routes() -> Result<()> {
         .get(format!("http://{addr}/v1/threads/summary"))
         .header(
             header::COOKIE,
-            format!("codewhale_runtime_token={}", url_query_component(&token)),
+            format!("mimofan_runtime_token={}", url_query_component(&token)),
         )
         .send()
         .await?
         .error_for_status()?;
     assert_eq!(cookie_token.status(), StatusCode::OK);
 
-    let codewhale_header = client
+    let mimofan_header = client
         .get(format!("http://{addr}/v1/threads/summary"))
-        .header("x-codewhale-runtime-token", &token)
+        .header("x-mimofan-runtime-token", &token)
         .send()
         .await?
         .error_for_status()?;
-    assert_eq!(codewhale_header.status(), StatusCode::OK);
+    assert_eq!(mimofan_header.status(), StatusCode::OK);
 
     let deepseek_header = client
         .get(format!("http://{addr}/v1/threads/summary"))
@@ -824,9 +824,9 @@ async fn thread_summary_includes_workspace_branch_metadata() -> Result<()> {
         &repo,
         &[
             "-c",
-            "user.name=CodeWhale Test",
+            "user.name=mimofan Test",
             "-c",
-            "user.email=codewhale@example.invalid",
+            "user.email=mimofan@example.invalid",
             "commit",
             "-m",
             "init",
@@ -1045,17 +1045,17 @@ async fn fleet_status_runtime_api_exposes_state_and_actions() -> Result<()> {
     use crate::tools::subagent::{AgentWorkerSpec, AgentWorkerToolProfile, SubAgentType};
     use crate::worker_profile::WorkerRuntimeProfile;
 
-    let root = std::env::temp_dir().join(format!("codewhale-fleet-api-{}", Uuid::new_v4()));
+    let root = std::env::temp_dir().join(format!("mimofan-fleet-api-{}", Uuid::new_v4()));
     let workspace = root.join("workspace");
     fs::create_dir_all(&workspace)?;
     let manager = FleetManager::open(&workspace)?;
-    let task = codewhale_protocol::fleet::FleetTaskSpec {
+    let task = mimofan_protocol::fleet::FleetTaskSpec {
         id: "task-a".to_string(),
         name: "Task A".to_string(),
         description: None,
         objective: Some("Inspect fleet status through Runtime API".to_string()),
         instructions: "Stay running for inspection.".to_string(),
-        worker: Some(codewhale_protocol::fleet::FleetTaskWorkerProfile {
+        worker: Some(mimofan_protocol::fleet::FleetTaskWorkerProfile {
             agent_profile: None,
             role: Some("status-reviewer".to_string()),
             loadout: None,
@@ -1109,7 +1109,7 @@ async fn fleet_status_runtime_api_exposes_state_and_actions() -> Result<()> {
             runtime_profile: WorkerRuntimeProfile::for_role(SubAgentType::Review),
             max_steps: 8,
             spawn_depth: 0,
-            max_spawn_depth: codewhale_config::DEFAULT_SPAWN_DEPTH,
+            max_spawn_depth: mimofan_config::DEFAULT_SPAWN_DEPTH,
         });
     }
     let Some((addr, _runtime_threads, handle)) =
@@ -1242,9 +1242,9 @@ async fn agent_runs_runtime_api_exposes_persisted_worker_receipts() -> Result<()
     use crate::worker_profile::{ModelRoute, ToolScope, WorkerRuntimeProfile};
     use std::collections::VecDeque;
 
-    let root = std::env::temp_dir().join(format!("codewhale-agent-runs-api-{}", Uuid::new_v4()));
+    let root = std::env::temp_dir().join(format!("mimofan-agent-runs-api-{}", Uuid::new_v4()));
     let workspace = root.join("workspace");
-    fs::create_dir_all(workspace.join(".codewhale/state"))?;
+    fs::create_dir_all(workspace.join(".mimofan/state"))?;
 
     let record = AgentWorkerRecord {
         spec: AgentWorkerSpec {
@@ -1341,7 +1341,7 @@ async fn agent_runs_runtime_api_exposes_persisted_worker_receipts() -> Result<()
         "workers": [record],
     });
     fs::write(
-        workspace.join(".codewhale/state/subagents.v1.json"),
+        workspace.join(".mimofan/state/subagents.v1.json"),
         serde_json::to_vec_pretty(&state_payload)?,
     )?;
 
@@ -3122,9 +3122,9 @@ async fn runtime_info_reports_bind_state() -> Result<()> {
         .error_for_status()?
         .json()
         .await?;
-    assert_eq!(info["service"], "codewhale-runtime-api");
+    assert_eq!(info["service"], "mimofan-runtime-api");
     assert_eq!(info["runtime_api_version"], "1.0");
-    assert_eq!(info["codewhale_version"], info["version"]);
+    assert_eq!(info["mimofan_version"], info["version"]);
     assert_eq!(info["bind_host"], "127.0.0.1");
     assert_eq!(info["auth_required"], false);
     assert!(info["version"].is_string());
@@ -3244,7 +3244,7 @@ async fn mobile_page_is_available_only_when_enabled() -> Result<()> {
         .await?
         .error_for_status()?;
     let html = enabled.text().await?;
-    assert!(html.contains("CodeWhale Mobile"));
+    assert!(html.contains("mimofan Mobile"));
     assert!(html.contains("/v1/approvals/"));
     assert!(html.contains("MAX_VISIBLE_EVENTS = 100"));
     assert!(html.contains("replay_limit="));
@@ -3273,7 +3273,7 @@ async fn mobile_page_serves_shell_when_auth_enabled() -> Result<()> {
         .await?
         .error_for_status()?;
     let html = shell.text().await?;
-    assert!(html.contains("CodeWhale Mobile"));
+    assert!(html.contains("mimofan Mobile"));
     assert!(html.contains("TOKEN_COOKIE"));
 
     let bearer = client
@@ -3282,7 +3282,7 @@ async fn mobile_page_serves_shell_when_auth_enabled() -> Result<()> {
         .send()
         .await?
         .error_for_status()?;
-    assert!(bearer.text().await?.contains("CodeWhale Mobile"));
+    assert!(bearer.text().await?.contains("mimofan Mobile"));
 
     handle.abort();
     Ok(())
@@ -3305,7 +3305,7 @@ async fn mobile_insecure_mode_allows_page_and_v1_routes_without_token() -> Resul
         .send()
         .await?
         .error_for_status()?;
-    assert!(page.text().await?.contains("CodeWhale Mobile"));
+    assert!(page.text().await?.contains("mimofan Mobile"));
 
     let summary = client
         .get(format!("http://{addr}/v1/threads/summary"))
@@ -3487,40 +3487,40 @@ fn resolve_skills_dir_finds_workspace_local_skills_fallback() {
 }
 
 #[test]
-fn resolve_skills_dir_respects_codewhale_only_scan() {
+fn resolve_skills_dir_respects_mimofan_only_scan() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let workspace = tmp.path();
     let agents_skills = workspace.join(".agents").join("skills");
-    let codewhale_skills = workspace.join(".codewhale").join("skills");
+    let mimofan_skills = workspace.join(".mimofan").join("skills");
     fs::create_dir_all(&agents_skills).expect("create agents skills dir");
-    fs::create_dir_all(&codewhale_skills).expect("create codewhale skills dir");
+    fs::create_dir_all(&mimofan_skills).expect("create mimofan skills dir");
 
     let config = Config {
         skills: Some(crate::config::SkillsConfig {
-            scan_codewhale_only: Some(true),
+            scan_mimofan_only: Some(true),
             ..Default::default()
         }),
         ..Default::default()
     };
     let resolved = resolve_skills_dir(&config, workspace);
 
-    let expected = fs::canonicalize(&codewhale_skills).expect("canonical codewhale skills");
+    let expected = fs::canonicalize(&mimofan_skills).expect("canonical mimofan skills");
     assert_eq!(resolved, expected);
 }
 
 #[test]
-fn resolve_skills_dir_preserves_explicit_dir_in_codewhale_only_scan() {
+fn resolve_skills_dir_preserves_explicit_dir_in_mimofan_only_scan() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let workspace = tmp.path().join("workspace");
-    let codewhale_skills = workspace.join(".codewhale").join("skills");
+    let mimofan_skills = workspace.join(".mimofan").join("skills");
     let configured_skills = tmp.path().join("configured-skills");
-    fs::create_dir_all(&codewhale_skills).expect("create codewhale skills dir");
+    fs::create_dir_all(&mimofan_skills).expect("create mimofan skills dir");
     fs::create_dir_all(&configured_skills).expect("create configured skills dir");
 
     let config = Config {
         skills_dir: Some(configured_skills.to_string_lossy().into_owned()),
         skills: Some(crate::config::SkillsConfig {
-            scan_codewhale_only: Some(true),
+            scan_mimofan_only: Some(true),
             ..Default::default()
         }),
         ..Default::default()
@@ -3635,21 +3635,21 @@ fn resolve_skills_dir_rejects_symlink_escaping_workspace() {
 
 #[cfg(unix)]
 #[test]
-fn resolve_skills_dir_rejects_codewhale_only_symlink_escaping_workspace() {
+fn resolve_skills_dir_rejects_mimofan_only_symlink_escaping_workspace() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let workspace_root = tmp.path().join("workspace");
     let escape_target = tmp.path().join("escape_target");
     fs::create_dir_all(&workspace_root).expect("create workspace");
     fs::create_dir_all(&escape_target).expect("create escape target");
 
-    let dotcodewhale = workspace_root.join(".codewhale");
-    fs::create_dir_all(&dotcodewhale).expect("create .codewhale");
-    let bad_link = dotcodewhale.join("skills");
+    let dotmimofan = workspace_root.join(".mimofan");
+    fs::create_dir_all(&dotmimofan).expect("create .mimofan");
+    let bad_link = dotmimofan.join("skills");
     std::os::unix::fs::symlink(&escape_target, &bad_link).expect("symlink");
 
     let config = Config {
         skills: Some(crate::config::SkillsConfig {
-            scan_codewhale_only: Some(true),
+            scan_mimofan_only: Some(true),
             ..Default::default()
         }),
         ..Default::default()
@@ -3659,7 +3659,7 @@ fn resolve_skills_dir_rejects_codewhale_only_symlink_escaping_workspace() {
     let canon_escape = fs::canonicalize(&escape_target).expect("canon escape");
     assert_ne!(
         resolved, canon_escape,
-        "CodeWhale-only symlink escaping workspace must not be resolved as skills dir"
+        "mimofan-only symlink escaping workspace must not be resolved as skills dir"
     );
     assert_eq!(
         resolved,

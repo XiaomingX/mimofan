@@ -1,4 +1,4 @@
-use codewhale_config::ProviderKind;
+use mimofan_config::ProviderKind;
 
 use crate::ModelInfo;
 
@@ -31,7 +31,7 @@ pub(crate) fn atlascloud_passthrough_model(requested: &str) -> Option<ModelInfo>
 
     Some(ModelInfo {
         id: requested.to_string(),
-        provider: ProviderKind::Atlascloud,
+        provider: ProviderKind::XiaomiMimo,
         aliases: Vec::new(),
         supports_tools: true,
         supports_reasoning: true,
@@ -47,7 +47,7 @@ pub(crate) fn arcee_passthrough_model(requested: &str) -> Option<ModelInfo> {
 
     Some(ModelInfo {
         id: requested.to_string(),
-        provider: ProviderKind::Arcee,
+        provider: ProviderKind::XiaomiMimo,
         aliases: Vec::new(),
         supports_tools: true,
         supports_reasoning,

@@ -26,29 +26,7 @@ const REVIEW_MAX_TOKENS: u32 = 2048;
 const FALLBACK_MAX_CHARS: usize = 4000;
 const REVIEW_RECEIPT_SCHEMA_VERSION: u32 = 1;
 
-const REVIEW_SYSTEM_PROMPT: &str = "You are a senior code reviewer. Return ONLY valid JSON with \
-the following schema:\n\
-{\n\
-  \"summary\": \"short overview\",\n\
-  \"issues\": [\n\
-    {\n\
-      \"severity\": \"error|warning|info\",\n\
-      \"title\": \"issue title\",\n\
-      \"description\": \"details and impact\",\n\
-      \"path\": \"relative/file/path or null\",\n\
-      \"line\": 123\n\
-    }\n\
-  ],\n\
-  \"suggestions\": [\n\
-    {\n\
-      \"path\": \"relative/file/path or null\",\n\
-      \"line\": 123,\n\
-      \"suggestion\": \"actionable improvement\"\n\
-    }\n\
-  ],\n\
-  \"overall_assessment\": \"final assessment\"\n\
-}\n\
-If a field is unknown, use an empty string or null. Prioritize correctness and missing tests.";
+const REVIEW_SYSTEM_PROMPT: &str = include_str!("../prompts/code_reviewer.md");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewIssue {
@@ -261,7 +239,7 @@ pub fn write_review_receipt(
         }
         path.to_path_buf()
     } else {
-        let dir = codewhale_config::ensure_state_dir("review-receipts")?;
+        let dir = mimofan_config::ensure_state_dir("review-receipts")?;
         let digest = receipt
             .diff_fingerprint
             .strip_prefix("sha256:")
@@ -283,7 +261,7 @@ pub fn read_review_receipt(path: &Path) -> anyhow::Result<ReviewReceipt> {
 pub fn latest_review_receipt_for_diff(
     diff: &str,
 ) -> anyhow::Result<Option<(PathBuf, ReviewReceipt)>> {
-    let dir = codewhale_config::resolve_state_dir("review-receipts")?;
+    let dir = mimofan_config::resolve_state_dir("review-receipts")?;
     if !dir.is_dir() {
         return Ok(None);
     }
@@ -953,7 +931,7 @@ mod tests {
             &output,
             "review body",
             vec![ReviewReceiptCheck {
-                name: "cargo test -p codewhale-tui".to_string(),
+                name: "cargo test -p mimofan-tui".to_string(),
                 status: "passed".to_string(),
             }],
         );

@@ -267,11 +267,11 @@ pub struct McpServerConfig {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env_headers: HashMap<String, String>,
     /// Environment variable containing a bearer token. When present and set,
-    /// CodeWhale sends `Authorization: Bearer <value>` for URL-based servers.
+    /// mimofan sends `Authorization: Bearer <value>` for URL-based servers.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bearer_token_env_var: Option<String>,
-    /// OAuth scopes requested during `codewhale mcp login`.
+    /// OAuth scopes requested during `mimofan mcp login`.
     #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub scopes: Vec<String>,
@@ -1556,7 +1556,7 @@ impl McpConnection {
             "params": {
                 "protocolVersion": "2024-11-05",
                 "clientInfo": {
-                    "name": "codewhale-tui",
+                    "name": "mimofan-tui",
                     "version": env!("CARGO_PKG_VERSION")
                 },
                 "capabilities": {
@@ -2040,7 +2040,7 @@ impl McpPool {
     }
 
     /// Create a pool from global MCP config plus workspace-local
-    /// `.codewhale/mcp.json`. Project servers override same-name global
+    /// `.mimofan/mcp.json`. Project servers override same-name global
     /// servers and default stdio `cwd` to the workspace root.
     pub fn from_config_path_with_workspace(
         path: &std::path::Path,
@@ -2798,7 +2798,7 @@ fn open_mcp_config_file(path: &Path) -> std::io::Result<fs::File> {
 
 pub fn workspace_mcp_config_path(workspace: &Path) -> PathBuf {
     normalize_workspace_path(workspace)
-        .join(".codewhale")
+        .join(".mimofan")
         .join("mcp.json")
 }
 
@@ -2834,7 +2834,7 @@ fn workspace_allows_project_mcp_config(workspace: &Path) -> bool {
 
 fn checked_workspace_mcp_config_path(workspace: &Path) -> Result<PathBuf> {
     Ok(checked_workspace_path(workspace)?
-        .join(".codewhale")
+        .join(".mimofan")
         .join("mcp.json"))
 }
 

@@ -518,7 +518,7 @@ mod tests {
     fn probe_executable_returns_false_for_unknown_binary() {
         // Pick a name we're confident isn't on any developer's PATH.
         // If this ever starts failing locally, rename it.
-        assert!(!probe_executable("codewhale-tui-imaginary-binary-xyz123"));
+        assert!(!probe_executable("mimofan-tui-imaginary-binary-xyz123"));
     }
 
     #[test]
@@ -532,7 +532,7 @@ mod tests {
     #[test]
     fn probe_executable_with_flag_returns_false_for_unknown_binary() {
         assert!(!probe_executable_with_flag(
-            "codewhale-tui-imaginary-binary-xyz123",
+            "mimofan-tui-imaginary-binary-xyz123",
             "-v"
         ));
     }
@@ -541,7 +541,7 @@ mod tests {
     fn probe_executable_delegates_to_double_dash_version() {
         // `probe_executable` must remain exactly
         // `probe_executable_with_flag(.., "--version")`.
-        let spec = "codewhale-tui-imaginary-binary-xyz123";
+        let spec = "mimofan-tui-imaginary-binary-xyz123";
         assert_eq!(
             probe_executable(spec),
             probe_executable_with_flag(spec, "--version")

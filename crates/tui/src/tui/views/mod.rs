@@ -109,7 +109,7 @@ pub enum ViewEvent {
         /// Lossy / arity-aware fingerprint, used to scope *approvals*.
         approval_grouping_key: String,
         /// Ask-only permission rules to append when the decision approves.
-        persistent_ask_rules: Vec<codewhale_config::ToolAskRule>,
+        persistent_ask_rules: Vec<mimofan_config::ToolAskRule>,
     },
     ElevationDecision {
         tool_id: String,
@@ -280,7 +280,7 @@ impl ViewStack {
     pub fn push<V: ModalView + 'static>(&mut self, view: V) {
         let kind = view.kind();
         self.views.push(Box::new(view));
-        tracing::debug!(target: "codewhale_tui::view_stack", action = "push", kind = ?kind, depth = self.views.len(), "view pushed");
+        tracing::debug!(target: "mimofan_tui::view_stack", action = "push", kind = ?kind, depth = self.views.len(), "view pushed");
     }
 
     /// Push an already-boxed view back onto the stack. Used by call sites
@@ -289,13 +289,13 @@ impl ViewStack {
     pub fn push_boxed(&mut self, view: Box<dyn ModalView>) {
         let kind = view.kind();
         self.views.push(view);
-        tracing::debug!(target: "codewhale_tui::view_stack", action = "push_boxed", kind = ?kind, depth = self.views.len(), "view pushed");
+        tracing::debug!(target: "mimofan_tui::view_stack", action = "push_boxed", kind = ?kind, depth = self.views.len(), "view pushed");
     }
 
     pub fn pop(&mut self) -> Option<Box<dyn ModalView>> {
         let popped = self.views.pop();
         if let Some(view) = popped.as_ref() {
-            tracing::debug!(target: "codewhale_tui::view_stack", action = "pop", kind = ?view.kind(), depth = self.views.len(), "view popped");
+            tracing::debug!(target: "mimofan_tui::view_stack", action = "pop", kind = ?view.kind(), depth = self.views.len(), "view popped");
         }
         popped
     }
@@ -353,7 +353,7 @@ impl ViewStack {
             ViewAction::None => {}
             ViewAction::Close => {
                 if let Some(view) = self.views.pop() {
-                    tracing::debug!(target: "codewhale_tui::view_stack", action = "close", kind = ?view.kind(), depth = self.views.len(), "view closed via action");
+                    tracing::debug!(target: "mimofan_tui::view_stack", action = "close", kind = ?view.kind(), depth = self.views.len(), "view closed via action");
                 }
             }
             ViewAction::Emit(event) => {
@@ -362,7 +362,7 @@ impl ViewStack {
             ViewAction::EmitAndClose(event) => {
                 events.push(event);
                 if let Some(view) = self.views.pop() {
-                    tracing::debug!(target: "codewhale_tui::view_stack", action = "emit_and_close", kind = ?view.kind(), depth = self.views.len(), "view closed via action");
+                    tracing::debug!(target: "mimofan_tui::view_stack", action = "emit_and_close", kind = ?view.kind(), depth = self.views.len(), "view closed via action");
                 }
             }
         }
@@ -784,7 +784,7 @@ impl ConfigView {
                     .fleet
                     .as_ref()
                     .map(|fleet| fleet.exec.max_spawn_depth)
-                    .unwrap_or_else(|| codewhale_config::FleetExecConfig::default().max_spawn_depth)
+                    .unwrap_or_else(|| mimofan_config::FleetExecConfig::default().max_spawn_depth)
                     .to_string(),
                 editable: false,
                 scope: ConfigScope::Saved,
@@ -822,11 +822,11 @@ impl ConfigView {
         }
 
         let section = row.section.label(self.locale).to_lowercase();
-        let section_en = row.section.label(Locale::En).to_lowercase();
+        let section_en = row.section.label(Locale::ZhHans).to_lowercase();
         let key = row.key.to_lowercase();
         let value = self.row_display_value(row).to_lowercase();
         let scope = row.scope.label(self.locale).to_lowercase();
-        let scope_en = row.scope.label(Locale::En).to_lowercase();
+        let scope_en = row.scope.label(Locale::ZhHans).to_lowercase();
 
         filter.split_whitespace().all(|term| {
             section.contains(term)
@@ -1103,7 +1103,7 @@ impl ConfigView {
         let initial_value = match config_default_placeholder_message(&key) {
             Some(message_id)
                 if original_value == tr(self.locale, message_id)
-                    || original_value == tr(Locale::En, message_id) =>
+                    || original_value == tr(Locale::ZhHans, message_id) =>
             {
                 String::new()
             }
@@ -1150,7 +1150,7 @@ impl ConfigView {
 }
 
 fn config_base_url_row_key(provider: ApiProvider) -> &'static str {
-    if matches!(provider, ApiProvider::Deepseek | ApiProvider::DeepseekCN) {
+    if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
         "base_url"
     } else {
         "provider_url"
@@ -2292,7 +2292,7 @@ mod tests {
             initial_input: None,
         };
         let mut app = App::new(options, &Config::default());
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app
     }
 
@@ -2451,7 +2451,7 @@ mod tests {
 
     #[test]
     fn config_view_groups_rows_by_expected_sections() {
-        let view = create_config_view(Locale::En);
+        let view = create_config_view(Locale::ZhHans);
         assert_eq!(
             visible_section_labels(&view),
             vec![
@@ -2537,7 +2537,7 @@ mod tests {
     #[test]
     fn config_view_experimental_features_show_effective_state_and_overrides() {
         let temp_root = std::env::temp_dir().join(format!(
-            "codewhale-experimental-config-view-test-{}",
+            "mimofan-experimental-config-view-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2583,7 +2583,7 @@ vision_model = true
     #[test]
     fn config_view_shows_fleet_max_spawn_depth_from_config() {
         let temp_root = std::env::temp_dir().join(format!(
-            "codewhale-fleet-config-view-test-{}",
+            "mimofan-fleet-config-view-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2612,7 +2612,7 @@ max_spawn_depth = 2
 
     #[test]
     fn config_view_experimental_section_is_searchable() {
-        let mut view = create_config_view(Locale::En);
+        let mut view = create_config_view(Locale::ZhHans);
 
         view.update_filter(|filter| filter.push_str("experimental"));
         assert_eq!(visible_section_labels(&view), vec!["Experimental"]);
@@ -2663,7 +2663,7 @@ max_spawn_depth = 2
     #[test]
     fn config_view_uses_provider_url_for_non_deepseek_provider() {
         let temp_root = std::env::temp_dir().join(format!(
-            "codewhale-provider-url-view-test-{}",
+            "mimofan-provider-url-view-test-{}",
             std::process::id()
         ));
         fs::create_dir_all(&temp_root).unwrap();
@@ -2744,7 +2744,7 @@ base_url = "https://api.xiaomimimo.com/v1"
         let (saved_value, display_value, effective_currency, locale) =
             cost_currency_row_for_settings("locale = \"en\"\ncost_currency = \"cny\"\n");
 
-        assert_eq!(locale, Locale::En);
+        assert_eq!(locale, Locale::ZhHans);
         assert_eq!(effective_currency, crate::pricing::CostCurrency::Cny);
         assert_eq!(saved_value, "cny");
         assert_eq!(display_value, "cny");
@@ -2766,7 +2766,7 @@ base_url = "https://api.xiaomimimo.com/v1"
     fn config_view_displays_saved_codex_reasoning_effort_label() {
         let _guard = ConfigSettingsEnvGuard::new("reasoning_effort = \"max\"\n");
         let mut app = create_test_app();
-        app.api_provider = crate::config::ApiProvider::OpenaiCodex;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
 
         let view = ConfigView::new_for_app(&app);
         let row = view
@@ -2809,7 +2809,7 @@ base_url = "https://api.xiaomimimo.com/v1"
 
     #[test]
     fn config_view_filter_matches_group_and_rows() {
-        let mut view = create_config_view(Locale::En);
+        let mut view = create_config_view(Locale::ZhHans);
 
         type_filter(&mut view, "side");
 
@@ -2824,7 +2824,7 @@ base_url = "https://api.xiaomimimo.com/v1"
 
     #[test]
     fn localized_config_view_filter_matches_english_section_and_scope_labels() {
-        let mut view = create_config_view(Locale::PtBr);
+        let mut view = create_config_view(Locale::ZhHans);
 
         type_filter(&mut view, "sidebar saved");
 
@@ -2853,7 +2853,7 @@ base_url = "https://api.xiaomimimo.com/v1"
     #[test]
     fn localized_config_view_renders_at_narrow_width() {
         let mut app = create_test_app();
-        app.ui_locale = Locale::PtBr;
+        app.ui_locale = Locale::ZhHans;
         let view = ConfigView::new_for_app(&app);
         let area = Rect::new(0, 0, 60, 18);
         let mut buf = Buffer::empty(area);
@@ -2873,7 +2873,7 @@ base_url = "https://api.xiaomimimo.com/v1"
 
     #[test]
     fn config_view_selected_row_uses_muted_selection_highlight() {
-        let mut view = create_config_view(Locale::En);
+        let mut view = create_config_view(Locale::ZhHans);
         view.selected = view
             .rows
             .iter()
@@ -3086,7 +3086,7 @@ base_url = "https://api.xiaomimimo.com/v1"
     #[test]
     fn config_view_escape_cancels_editing() {
         let mut app = create_test_app();
-        app.ui_locale = Locale::En;
+        app.ui_locale = Locale::ZhHans;
         let mut view = ConfigView::new_for_app(&app);
         let _ = view.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         assert!(view.editing.is_some());
@@ -3096,7 +3096,7 @@ base_url = "https://api.xiaomimimo.com/v1"
         assert!(view.editing.is_none());
         assert_eq!(
             view.status.as_deref(),
-            Some(tr(Locale::En, MessageId::ConfigEditCancelled))
+            Some(tr(Locale::ZhHans, MessageId::ConfigEditCancelled))
         );
     }
 
@@ -3107,7 +3107,7 @@ base_url = "https://api.xiaomimimo.com/v1"
     #[test]
     fn default_modal_does_not_consume_paste() {
         let mut stack = ViewStack::new();
-        stack.push(HelpView::new_for_locale(crate::localization::Locale::En));
+        stack.push(HelpView::new_for_locale(crate::localization::Locale::ZhHans));
         assert!(!stack.handle_paste("hello"));
         assert_eq!(stack.top_kind(), Some(ModalKind::Help));
     }

@@ -3,25 +3,10 @@
 //! This module is a metadata foundation for collapsing provider drift over
 //! time. It deliberately does not mutate request bodies or choose fallback
 //! providers; runtime routing remains in `ConfigToml::resolve_runtime_options`.
+//!
+//! mimofan 仅内置 XiaomiMiMo provider，以及 Custom 用于用户自定义 OpenAI-compatible endpoint。
 
-use super::{
-    DEFAULT_ARCEE_BASE_URL, DEFAULT_ARCEE_MODEL, DEFAULT_ATLASCLOUD_BASE_URL,
-    DEFAULT_ATLASCLOUD_MODEL, DEFAULT_DEEPINFRA_BASE_URL, DEFAULT_DEEPINFRA_MODEL,
-    DEFAULT_DEEPSEEK_ANTHROPIC_BASE_URL, DEFAULT_DEEPSEEK_ANTHROPIC_MODEL,
-    DEFAULT_DEEPSEEK_BASE_URL, DEFAULT_DEEPSEEK_MODEL, DEFAULT_FIREWORKS_BASE_URL,
-    DEFAULT_FIREWORKS_MODEL, DEFAULT_HUGGINGFACE_BASE_URL, DEFAULT_HUGGINGFACE_MODEL,
-    DEFAULT_MINIMAX_BASE_URL, DEFAULT_MINIMAX_MODEL, DEFAULT_MOONSHOT_BASE_URL,
-    DEFAULT_MOONSHOT_MODEL, DEFAULT_NOVITA_BASE_URL, DEFAULT_NOVITA_MODEL,
-    DEFAULT_NVIDIA_NIM_BASE_URL, DEFAULT_NVIDIA_NIM_MODEL, DEFAULT_OPENAI_BASE_URL,
-    DEFAULT_OPENAI_CODEX_BASE_URL, DEFAULT_OPENAI_CODEX_MODEL, DEFAULT_OPENAI_MODEL,
-    DEFAULT_OPENROUTER_BASE_URL, DEFAULT_OPENROUTER_MODEL, DEFAULT_QIANFAN_BASE_URL,
-    DEFAULT_QIANFAN_MODEL, DEFAULT_SILICONFLOW_BASE_URL, DEFAULT_SILICONFLOW_CN_BASE_URL,
-    DEFAULT_SILICONFLOW_MODEL, DEFAULT_STEPFUN_BASE_URL, DEFAULT_STEPFUN_MODEL,
-    DEFAULT_TOGETHER_BASE_URL, DEFAULT_TOGETHER_MODEL, DEFAULT_VOLCENGINE_BASE_URL,
-    DEFAULT_VOLCENGINE_MODEL, DEFAULT_WANJIE_ARK_BASE_URL, DEFAULT_WANJIE_ARK_MODEL,
-    DEFAULT_XIAOMI_MIMO_BASE_URL, DEFAULT_XIAOMI_MIMO_MODEL, DEFAULT_ZAI_BASE_URL,
-    DEFAULT_ZAI_MODEL, ProviderKind,
-};
+use super::{DEFAULT_XIAOMI_MIMO_BASE_URL, DEFAULT_XIAOMI_MIMO_MODEL, ProviderKind};
 
 /// Wire protocol spoken by a provider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -123,132 +108,6 @@ macro_rules! provider {
 }
 
 provider!(
-    Deepseek,
-    Deepseek,
-    "deepseek",
-    "DeepSeek",
-    DEFAULT_DEEPSEEK_BASE_URL,
-    DEFAULT_DEEPSEEK_MODEL,
-    ["DEEPSEEK_API_KEY"],
-    "deepseek",
-    aliases: ["deep-seek", "deepseek-cn", "deepseek_china", "deepseekcn", "deepseek-china"]
-);
-
-/// Opt-in DeepSeek route that speaks the Anthropic Messages wire protocol.
-pub struct DeepseekAnthropic;
-
-impl Provider for DeepseekAnthropic {
-    fn id(&self) -> &'static str {
-        "deepseek-anthropic"
-    }
-
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::DeepseekAnthropic
-    }
-
-    fn display_name(&self) -> &'static str {
-        "DeepSeek (Anthropic-compatible)"
-    }
-
-    fn default_base_url(&self) -> &'static str {
-        DEFAULT_DEEPSEEK_ANTHROPIC_BASE_URL
-    }
-
-    fn default_model(&self) -> &'static str {
-        DEFAULT_DEEPSEEK_ANTHROPIC_MODEL
-    }
-
-    fn env_vars(&self) -> &'static [&'static str] {
-        &["DEEPSEEK_API_KEY"]
-    }
-
-    fn provider_config_key(&self) -> &'static str {
-        "deepseek_anthropic"
-    }
-
-    fn aliases(&self) -> &'static [&'static str] {
-        &["deepseek_anthropic", "deepseek-claude", "deepseek_claude"]
-    }
-
-    fn wire(&self) -> WireFormat {
-        WireFormat::AnthropicMessages
-    }
-}
-provider!(
-    NvidiaNim,
-    NvidiaNim,
-    "nvidia-nim",
-    "NVIDIA NIM",
-    DEFAULT_NVIDIA_NIM_BASE_URL,
-    DEFAULT_NVIDIA_NIM_MODEL,
-    ["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY", "DEEPSEEK_API_KEY"],
-    "nvidia_nim",
-    aliases: ["nvidia", "nvidia_nim", "nim"]
-);
-provider!(
-    Openai,
-    Openai,
-    "openai",
-    "OpenAI-compatible",
-    DEFAULT_OPENAI_BASE_URL,
-    DEFAULT_OPENAI_MODEL,
-    ["OPENAI_API_KEY"],
-    "openai",
-    aliases: ["open-ai"]
-);
-provider!(
-    Atlascloud,
-    Atlascloud,
-    "atlascloud",
-    "AtlasCloud",
-    DEFAULT_ATLASCLOUD_BASE_URL,
-    DEFAULT_ATLASCLOUD_MODEL,
-    ["ATLASCLOUD_API_KEY"],
-    "atlascloud",
-    aliases: ["atlas-cloud", "atlas_cloud", "atlas"]
-);
-provider!(
-    WanjieArk,
-    WanjieArk,
-    "wanjie-ark",
-    "Wanjie Ark",
-    DEFAULT_WANJIE_ARK_BASE_URL,
-    DEFAULT_WANJIE_ARK_MODEL,
-    [
-        "WANJIE_ARK_API_KEY",
-        "WANJIE_API_KEY",
-        "WANJIE_MAAS_API_KEY"
-    ],
-    "wanjie_ark",
-    aliases: ["wanjie", "wanjie_ark", "ark-wanjie", "ark_wanjie", "wanjieark", "wanjie-maas", "wanjie_maas", "wanjiemaas"]
-);
-provider!(
-    Volcengine,
-    Volcengine,
-    "volcengine",
-    "Volcengine Ark",
-    DEFAULT_VOLCENGINE_BASE_URL,
-    DEFAULT_VOLCENGINE_MODEL,
-    [
-        "VOLCENGINE_API_KEY",
-        "VOLCENGINE_ARK_API_KEY",
-        "ARK_API_KEY"
-    ],
-    "volcengine",
-    aliases: ["volcengine-ark", "volcengine_ark", "ark", "volc-ark", "volcengineark"]
-);
-provider!(
-    Openrouter,
-    Openrouter,
-    "openrouter",
-    "OpenRouter",
-    DEFAULT_OPENROUTER_BASE_URL,
-    DEFAULT_OPENROUTER_MODEL,
-    ["OPENROUTER_API_KEY"],
-    "openrouter",
-    aliases: ["open_router"]
-);
-provider!(
     XiaomiMimo,
     XiaomiMimo,
     "xiaomi-mimo",
@@ -264,245 +123,6 @@ provider!(
     ],
     "xiaomi_mimo",
     aliases: ["xiaomi_mimo", "xiaomimimo", "mimo", "xiaomi"]
-);
-provider!(
-    Novita,
-    Novita,
-    "novita",
-    "Novita AI",
-    DEFAULT_NOVITA_BASE_URL,
-    DEFAULT_NOVITA_MODEL,
-    ["NOVITA_API_KEY"],
-    "novita",
-    aliases: []
-);
-provider!(
-    Fireworks,
-    Fireworks,
-    "fireworks",
-    "Fireworks AI",
-    DEFAULT_FIREWORKS_BASE_URL,
-    DEFAULT_FIREWORKS_MODEL,
-    ["FIREWORKS_API_KEY"],
-    "fireworks",
-    aliases: ["fireworks-ai"]
-);
-provider!(
-    Siliconflow,
-    Siliconflow,
-    "siliconflow",
-    "SiliconFlow",
-    DEFAULT_SILICONFLOW_BASE_URL,
-    DEFAULT_SILICONFLOW_MODEL,
-    ["SILICONFLOW_API_KEY"],
-    "siliconflow",
-    aliases: ["silicon-flow", "silicon_flow"]
-);
-provider!(
-    SiliconflowCN,
-    SiliconflowCN,
-    "siliconflow-CN",
-    "SiliconFlow (China)",
-    DEFAULT_SILICONFLOW_CN_BASE_URL,
-    DEFAULT_SILICONFLOW_MODEL,
-    ["SILICONFLOW_API_KEY"],
-    "siliconflow_cn",
-    aliases: [
-        "silicon-flow-cn",
-        "silicon-flow-CN",
-        "silicon_flow_cn",
-        "silicon_flow_CN",
-        "siliconflow-china",
-    ]
-);
-provider!(
-    Arcee,
-    Arcee,
-    "arcee",
-    "Arcee AI",
-    DEFAULT_ARCEE_BASE_URL,
-    DEFAULT_ARCEE_MODEL,
-    ["ARCEE_API_KEY"],
-    "arcee",
-    aliases: ["arcee-ai", "arcee_ai"]
-);
-provider!(
-    Moonshot,
-    Moonshot,
-    "moonshot",
-    "Moonshot/Kimi",
-    DEFAULT_MOONSHOT_BASE_URL,
-    DEFAULT_MOONSHOT_MODEL,
-    ["MOONSHOT_API_KEY", "KIMI_API_KEY"],
-    "moonshot",
-    aliases: ["moonshot-ai", "kimi", "kimi-k2"]
-);
-provider!(
-    Huggingface,
-    Huggingface,
-    "huggingface",
-    "Hugging Face",
-    DEFAULT_HUGGINGFACE_BASE_URL,
-    DEFAULT_HUGGINGFACE_MODEL,
-    ["HUGGINGFACE_API_KEY", "HF_TOKEN"],
-    "huggingface",
-    aliases: ["hugging-face", "hugging_face", "hf"]
-);
-provider!(
-    Together,
-    Together,
-    "together",
-    "Together AI",
-    DEFAULT_TOGETHER_BASE_URL,
-    DEFAULT_TOGETHER_MODEL,
-    ["TOGETHER_API_KEY"],
-    "together",
-    aliases: ["together-ai", "together_ai"]
-);
-provider!(
-    Qianfan,
-    Qianfan,
-    "qianfan",
-    "Baidu Qianfan",
-    DEFAULT_QIANFAN_BASE_URL,
-    DEFAULT_QIANFAN_MODEL,
-    ["QIANFAN_API_KEY", "BAIDU_QIANFAN_API_KEY"],
-    "qianfan",
-    aliases: ["baidu-qianfan", "baidu_qianfan", "baidu"]
-);
-
-/// OpenAI Codex / ChatGPT OAuth provider using the Responses API.
-pub struct OpenaiCodex;
-
-impl Provider for OpenaiCodex {
-    fn id(&self) -> &'static str {
-        "openai-codex"
-    }
-
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::OpenaiCodex
-    }
-
-    fn display_name(&self) -> &'static str {
-        "OpenAI Codex (ChatGPT)"
-    }
-
-    fn default_base_url(&self) -> &'static str {
-        DEFAULT_OPENAI_CODEX_BASE_URL
-    }
-
-    fn default_model(&self) -> &'static str {
-        DEFAULT_OPENAI_CODEX_MODEL
-    }
-
-    fn env_vars(&self) -> &'static [&'static str] {
-        &["OPENAI_CODEX_ACCESS_TOKEN", "CODEX_ACCESS_TOKEN"]
-    }
-
-    fn provider_config_key(&self) -> &'static str {
-        "openai_codex"
-    }
-
-    fn aliases(&self) -> &'static [&'static str] {
-        &[
-            "openai_codex",
-            "openaicodex",
-            "codex",
-            "chatgpt",
-            "chatgpt-codex",
-            "chatgpt_codex",
-            "chatgptcodex",
-        ]
-    }
-
-    fn wire(&self) -> WireFormat {
-        WireFormat::Responses
-    }
-}
-
-/// Native Anthropic Messages API provider (#3014).
-pub struct Anthropic;
-
-impl Provider for Anthropic {
-    fn id(&self) -> &'static str {
-        "anthropic"
-    }
-
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::Anthropic
-    }
-
-    fn display_name(&self) -> &'static str {
-        "Anthropic"
-    }
-
-    fn default_base_url(&self) -> &'static str {
-        crate::DEFAULT_ANTHROPIC_BASE_URL
-    }
-
-    fn default_model(&self) -> &'static str {
-        crate::DEFAULT_ANTHROPIC_MODEL
-    }
-
-    fn env_vars(&self) -> &'static [&'static str] {
-        &["ANTHROPIC_API_KEY"]
-    }
-
-    fn provider_config_key(&self) -> &'static str {
-        "anthropic"
-    }
-
-    fn wire(&self) -> WireFormat {
-        WireFormat::AnthropicMessages
-    }
-}
-
-provider!(
-    Zai,
-    Zai,
-    "zai",
-    "Zhipu AI / Z.ai",
-    DEFAULT_ZAI_BASE_URL,
-    DEFAULT_ZAI_MODEL,
-    ["ZAI_API_KEY", "Z_AI_API_KEY", "ZHIPU_API_KEY", "GLM_API_KEY"],
-    "zai",
-    aliases: ["z-ai", "z_ai", "z.ai", "zhipu", "zhipuai", "bigmodel", "big-model"]
-);
-
-provider!(
-    Stepfun,
-    Stepfun,
-    "stepfun",
-    "StepFun / StepFlash",
-    DEFAULT_STEPFUN_BASE_URL,
-    DEFAULT_STEPFUN_MODEL,
-    ["STEPFUN_API_KEY", "STEP_API_KEY"],
-    "stepfun",
-    aliases: ["step-fun", "step_fun", "stepflash", "step-flash", "step_flash"]
-);
-
-provider!(
-    Minimax,
-    Minimax,
-    "minimax",
-    "MiniMax",
-    DEFAULT_MINIMAX_BASE_URL,
-    DEFAULT_MINIMAX_MODEL,
-    ["MINIMAX_API_KEY"],
-    "minimax",
-    aliases: ["mini-max", "mini_max"]
-);
-
-provider!(
-    Deepinfra,
-    Deepinfra,
-    "deepinfra",
-    "DeepInfra",
-    DEFAULT_DEEPINFRA_BASE_URL,
-    DEFAULT_DEEPINFRA_MODEL,
-    ["DEEPINFRA_API_KEY", "DEEPINFRA_TOKEN"],
-    "deepinfra",
-    aliases: ["deep-infra", "deep_infra"]
 );
 
 /// User-defined OpenAI-compatible endpoint (#1519).
@@ -558,59 +178,10 @@ impl Provider for Custom {
     }
 }
 
-static DEEPSEEK: Deepseek = Deepseek;
-static DEEPSEEK_ANTHROPIC: DeepseekAnthropic = DeepseekAnthropic;
-static NVIDIA_NIM: NvidiaNim = NvidiaNim;
-static OPENAI: Openai = Openai;
-static ATLASCLOUD: Atlascloud = Atlascloud;
-static WANJIE_ARK: WanjieArk = WanjieArk;
-static VOLCENGINE: Volcengine = Volcengine;
-static OPENROUTER: Openrouter = Openrouter;
 static XIAOMI_MIMO: XiaomiMimo = XiaomiMimo;
-static NOVITA: Novita = Novita;
-static FIREWORKS: Fireworks = Fireworks;
-static SILICONFLOW: Siliconflow = Siliconflow;
-static SILICONFLOW_CN: SiliconflowCN = SiliconflowCN;
-static ARCEE: Arcee = Arcee;
-static MOONSHOT: Moonshot = Moonshot;
-static HUGGINGFACE: Huggingface = Huggingface;
-static TOGETHER: Together = Together;
-static QIANFAN: Qianfan = Qianfan;
-static OPENAI_CODEX: OpenaiCodex = OpenaiCodex;
-static ANTHROPIC: Anthropic = Anthropic;
-static ZAI: Zai = Zai;
-static STEPFUN: Stepfun = Stepfun;
-static MINIMAX: Minimax = Minimax;
-static DEEPINFRA: Deepinfra = Deepinfra;
 static CUSTOM: Custom = Custom;
 
-static PROVIDER_REGISTRY: [&dyn Provider; 25] = [
-    &DEEPSEEK,
-    &DEEPSEEK_ANTHROPIC,
-    &NVIDIA_NIM,
-    &OPENAI,
-    &ATLASCLOUD,
-    &WANJIE_ARK,
-    &VOLCENGINE,
-    &OPENROUTER,
-    &XIAOMI_MIMO,
-    &NOVITA,
-    &FIREWORKS,
-    &SILICONFLOW,
-    &ARCEE,
-    &SILICONFLOW_CN,
-    &MOONSHOT,
-    &HUGGINGFACE,
-    &TOGETHER,
-    &QIANFAN,
-    &OPENAI_CODEX,
-    &ANTHROPIC,
-    &ZAI,
-    &STEPFUN,
-    &MINIMAX,
-    &DEEPINFRA,
-    &CUSTOM,
-];
+static PROVIDER_REGISTRY: [&dyn Provider; 2] = [&XIAOMI_MIMO, &CUSTOM];
 
 /// Return all built-in provider metadata entries in `ProviderKind::ALL` order.
 ///
@@ -627,14 +198,13 @@ pub fn all_providers() -> &'static [&'static dyn Provider] {
 /// Providers are sorted alphabetically (case-insensitively) by
 /// [`Provider::display_name`] so model/provider browsing surfaces present a
 /// neutral, predictable list rather than leading with whichever provider
-/// happens to sit first in [`ProviderKind::ALL`] (historically DeepSeek). The
-/// ordering policy intentionally differs from internal parsing/default order:
+/// happens to sit first in [`ProviderKind::ALL`]. The ordering policy
+/// intentionally differs from internal parsing/default order:
 ///
 /// - [`all_providers`] / [`ProviderKind::ALL`] — stable order for internal
 ///   matching, parsing, and default selection. Do not reorder.
 /// - [`providers_sorted_for_display`] — neutral alphabetical order for UI
-///   browsing. DeepSeek stays present and searchable but is not hard-coded
-///   first; a caller may still highlight/pin the active provider separately.
+///   browsing.
 ///
 /// Returns an owned `Vec` because the sorted order is computed, not static.
 #[must_use]
@@ -694,23 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn display_order_differs_from_internal_all_order() {
-        // The whole point of the helper is that UI ordering is NOT the
-        // internal ProviderKind::ALL / all_providers() insertion order.
-        let display_ids: Vec<&str> = providers_sorted_for_display()
-            .iter()
-            .map(|p| p.id())
-            .collect();
-        let internal_ids: Vec<&str> = all_providers().iter().map(|p| p.id()).collect();
-        assert_ne!(
-            display_ids, internal_ids,
-            "display order should not match internal ALL order"
-        );
-    }
-
-    #[test]
     fn display_order_is_complete_and_unique() {
-        // No provider is dropped or duplicated by the sort.
         let display = providers_sorted_for_display();
         assert_eq!(
             display.len(),
@@ -729,30 +283,9 @@ mod tests {
     }
 
     #[test]
-    fn deepseek_is_present_but_not_first_in_display_order() {
-        // Acceptance: DeepSeek stays searchable but is no longer hard-coded
-        // first in provider browsing UI. (It is first in internal ALL order.)
-        let display = providers_sorted_for_display();
-        assert_eq!(
-            all_providers()[0].kind(),
-            ProviderKind::Deepseek,
-            "DeepSeek is expected to remain first in the stable internal order"
-        );
-        assert!(
-            display.iter().any(|p| p.kind() == ProviderKind::Deepseek),
-            "DeepSeek must remain present in display order"
-        );
-        assert_ne!(
-            display[0].kind(),
-            ProviderKind::Deepseek,
-            "DeepSeek must not be hard-coded first in display order"
-        );
-        // Anthropic ('Anthropic') sorts before 'DeepSeek' alphabetically, so it
-        // is a stable check that the neutral ordering actually took effect.
-        assert_eq!(
-            display[0].display_name(),
-            "Anthropic",
-            "alphabetical display order should lead with Anthropic"
-        );
+    fn xiaomi_mimo_and_custom_present() {
+        let providers = all_providers();
+        assert!(providers.iter().any(|p| p.kind() == ProviderKind::XiaomiMimo));
+        assert!(providers.iter().any(|p| p.kind() == ProviderKind::Custom));
     }
 }

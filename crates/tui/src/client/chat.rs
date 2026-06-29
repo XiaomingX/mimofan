@@ -68,7 +68,7 @@ fn apply_provider_token_limit(
     max_tokens: u32,
 ) {
     let use_max_completion_tokens = provider == ApiProvider::XiaomiMimo
-        || (provider == ApiProvider::Openai && model_is_openai_reasoning_family(model));
+        || (provider == ApiProvider::XiaomiMimo && model_is_openai_reasoning_family(model));
     if !use_max_completion_tokens {
         return;
     }
@@ -85,7 +85,7 @@ fn apply_openai_reasoning_effort(
     model: &str,
     effort: Option<&str>,
 ) {
-    if provider != ApiProvider::Openai || !model_is_openai_reasoning_family(model) {
+    if provider != ApiProvider::XiaomiMimo || !model_is_openai_reasoning_family(model) {
         return;
     }
     let Some(effort) = effort.and_then(openai_chat_reasoning_effort) else {
@@ -132,7 +132,7 @@ fn mirror_minimax_reasoning_details_for_messages(messages: &mut [Value]) {
 }
 
 fn mirror_minimax_reasoning_details_for_body(body: &mut Value, provider: ApiProvider) {
-    if provider != ApiProvider::Minimax {
+    if provider != ApiProvider::XiaomiMimo {
         return;
     }
     let Some(messages) = body.get_mut("messages").and_then(Value::as_array_mut) else {
@@ -169,7 +169,7 @@ impl DeepSeekClient {
                 .collect();
             // Kimi / Moonshot enforces stricter JSON Schema: `type` must be
             // inside `anyOf` / `oneOf` items, not on the parent (#2438).
-            if matches!(self.api_provider, crate::config::ApiProvider::Moonshot) {
+            if matches!(self.api_provider, crate::config::ApiProvider::XiaomiMimo) {
                 for t in &mut chat_tools {
                     if let Some(fn_obj) = t
                         .as_object_mut()
@@ -235,8 +235,8 @@ impl DeepSeekClient {
             Err(_elapsed) => {
                 anyhow::bail!(
                     "SSE stream request did not receive response headers after {}s. \
-                     `codewhale doctor` can still pass when non-streaming requests work; \
-                     on Windows or proxy networks, try `DEEPSEEK_FORCE_HTTP1=1` and rerun `codewhale`.",
+                     `mimofan doctor` can still pass when non-streaming requests work; \
+                     on Windows or proxy networks, try `DEEPSEEK_FORCE_HTTP1=1` and rerun `mimofan`.",
                     open_timeout.as_secs()
                 );
             }
@@ -299,7 +299,7 @@ impl DeepSeekClient {
                 .collect();
             // Kimi / Moonshot enforces stricter JSON Schema: `type` must be
             // inside `anyOf` / `oneOf` items, not on the parent (#2438).
-            if matches!(self.api_provider, crate::config::ApiProvider::Moonshot) {
+            if matches!(self.api_provider, crate::config::ApiProvider::XiaomiMimo) {
                 for t in &mut chat_tools {
                     if let Some(fn_obj) = t
                         .as_object_mut()
@@ -644,10 +644,10 @@ impl<'a> PromptBuilder<'a> {
             false,
         );
         dump_system_prompt_if_requested(&messages);
-        if provider == ApiProvider::Arcee {
+        if provider == ApiProvider::XiaomiMimo {
             apply_arcee_waf_safe_message_encoding(&mut messages);
         }
-        if provider == ApiProvider::Minimax {
+        if provider == ApiProvider::XiaomiMimo {
             mirror_minimax_reasoning_details_for_messages(&mut messages);
         }
         messages
@@ -1903,7 +1903,7 @@ fn map_tool_choice_for_chat(choice: &Value) -> Option<Value> {
 }
 
 fn should_send_tool_choice_for_chat(provider: ApiProvider, effort: Option<&str>) -> bool {
-    if !matches!(provider, ApiProvider::Deepseek | ApiProvider::DeepseekCN) {
+    if !matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
         return true;
     }
     !reasoning_effort_enables_thinking(effort)
@@ -1927,7 +1927,7 @@ fn reasoning_effort_enables_thinking(effort: Option<&str>) -> bool {
 /// reasoning can stay omitted once a later user text turn begins.
 ///
 /// Also tallies the size of all replayed `reasoning_content` and logs it, so
-/// users on `RUST_LOG=codewhale_tui=debug` can see how much of their input
+/// users on `RUST_LOG=mimofan_tui=debug` can see how much of their input
 /// budget is being spent re-sending prior thinking traces.
 pub(super) fn sanitize_thinking_mode_messages(
     body: &mut Value,
@@ -2193,20 +2193,20 @@ fn parse_reasoning_stream_style(value: &str) -> Option<ReasoningStreamStyle> {
 fn provider_accepts_reasoning_content(provider: ApiProvider) -> bool {
     matches!(
         provider,
-        ApiProvider::Deepseek
-            | ApiProvider::DeepseekCN
-            | ApiProvider::NvidiaNim
-            | ApiProvider::Openrouter
+        ApiProvider::XiaomiMimo
             | ApiProvider::XiaomiMimo
-            | ApiProvider::Novita
-            | ApiProvider::Fireworks
-            | ApiProvider::Siliconflow
-            | ApiProvider::SiliconflowCn
-            | ApiProvider::Volcengine
-            | ApiProvider::Arcee
-            | ApiProvider::Minimax
-            | ApiProvider::Zai
-            | ApiProvider::Moonshot // #3016: Kimi thinking traces use reasoning_content
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo
+            | ApiProvider::XiaomiMimo // #3016: Kimi thinking traces use reasoning_content
     )
 }
 
@@ -3000,11 +3000,11 @@ mod stream_diagnostics_tests {
     fn deepseek_thinking_omits_tool_choice() {
         for effort in [Some("high"), Some("max"), Some("medium"), Some("")] {
             assert!(
-                !should_send_tool_choice_for_chat(ApiProvider::Deepseek, effort),
+                !should_send_tool_choice_for_chat(ApiProvider::XiaomiMimo, effort),
                 "DeepSeek thinking rejects explicit tool_choice for {effort:?}"
             );
             assert!(
-                !should_send_tool_choice_for_chat(ApiProvider::DeepseekCN, effort),
+                !should_send_tool_choice_for_chat(ApiProvider::XiaomiMimo, effort),
                 "DeepSeek CN thinking rejects explicit tool_choice for {effort:?}"
             );
         }
@@ -3017,12 +3017,12 @@ mod stream_diagnostics_tests {
             Some("false"),
         ] {
             assert!(should_send_tool_choice_for_chat(
-                ApiProvider::Deepseek,
+                ApiProvider::XiaomiMimo,
                 effort
             ));
         }
         assert!(should_send_tool_choice_for_chat(
-            ApiProvider::Openrouter,
+            ApiProvider::XiaomiMimo,
             Some("high")
         ));
     }
@@ -3131,7 +3131,7 @@ mod arcee_waf_message_encoding_tests {
         let system = "Run calculations with `python -c 'print(1)'` when a tool is available.";
         let request = request_with_system(system);
 
-        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::Arcee);
+        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::XiaomiMimo);
         let content = &messages[0]["content"];
 
         assert!(
@@ -3151,7 +3151,7 @@ mod arcee_waf_message_encoding_tests {
         let system = "Run calculations with `python -c 'print(1)'` when a tool is available.";
         let request = request_with_system(system);
 
-        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::Openai);
+        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::XiaomiMimo);
 
         assert_eq!(messages[0]["content"].as_str(), Some(system));
     }
@@ -3161,7 +3161,7 @@ mod arcee_waf_message_encoding_tests {
         let system = "Use read-only tools to inspect files before reporting results.";
         let request = request_with_system(system);
 
-        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::Arcee);
+        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::XiaomiMimo);
 
         assert_eq!(messages[0]["content"].as_str(), Some(system));
     }
@@ -3206,7 +3206,7 @@ mod minimax_reasoning_replay_tests {
     fn minimax_history_replays_thinking_as_reasoning_details() {
         let request = request_with_assistant_thinking();
 
-        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::Minimax);
+        let messages = build_chat_messages_for_request_and_provider(&request, ApiProvider::XiaomiMimo);
         let assistant = &messages[0];
 
         assert_eq!(
@@ -3387,7 +3387,7 @@ mod stream_decoder_tests {
         ];
 
         let is_reasoning =
-            is_reasoning_model_for_stream(crate::config::ApiProvider::Moonshot, "kimi-k2.6");
+            is_reasoning_model_for_stream(crate::config::ApiProvider::XiaomiMimo, "kimi-k2.6");
         let mut content_index = 0u32;
         let mut text_started = false;
         let mut thinking_started = false;
@@ -3475,7 +3475,7 @@ mod stream_decoder_tests {
             r#"{"id":"minimax-1","choices":[{"index":0,"delta":{"content":"Done."}}]}"#,
         ];
 
-        let is_reasoning = is_reasoning_model_for_stream(ApiProvider::Minimax, "MiniMax-M3");
+        let is_reasoning = is_reasoning_model_for_stream(ApiProvider::XiaomiMimo, "MiniMax-M3");
         let mut content_index = 0u32;
         let mut text_started = false;
         let mut thinking_started = false;
@@ -3670,12 +3670,12 @@ mod stream_decoder_tests {
     #[test]
     fn configured_reasoning_style_overrides_route_default() {
         assert_eq!(
-            reasoning_stream_style_for_stream(ApiProvider::Openai, "custom-minimax", None),
+            reasoning_stream_style_for_stream(ApiProvider::XiaomiMimo, "custom-minimax", None),
             ReasoningStreamStyle::None
         );
         assert_eq!(
             reasoning_stream_style_for_stream(
-                ApiProvider::Openai,
+                ApiProvider::XiaomiMimo,
                 "custom-minimax",
                 Some("inline-tags")
             ),
@@ -4502,27 +4502,27 @@ mod alias_thinking_detection_tests {
 
     #[test]
     fn generic_openai_provider_does_not_accept_reasoning_content_semantics() {
-        assert!(!provider_accepts_reasoning_content(ApiProvider::Openai));
-        assert!(provider_accepts_reasoning_content(ApiProvider::Deepseek));
-        assert!(provider_accepts_reasoning_content(ApiProvider::NvidiaNim));
+        assert!(!provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
         assert!(provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
-        assert!(provider_accepts_reasoning_content(ApiProvider::Arcee));
-        assert!(provider_accepts_reasoning_content(ApiProvider::Minimax));
-        assert!(provider_accepts_reasoning_content(ApiProvider::Zai));
+        assert!(provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
+        assert!(provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
+        assert!(provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
+        assert!(provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
+        assert!(provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
         // #3016: Moonshot's native endpoint streams Kimi thinking as
         // reasoning_content.
-        assert!(provider_accepts_reasoning_content(ApiProvider::Moonshot));
+        assert!(provider_accepts_reasoning_content(ApiProvider::XiaomiMimo));
     }
 
     #[test]
     fn stream_classifies_moonshot_kimi_as_reasoning() {
         // #3016: without this, Kimi thinking leaked into answer text.
         assert!(is_reasoning_model_for_stream(
-            ApiProvider::Moonshot,
+            ApiProvider::XiaomiMimo,
             "kimi-k2.6"
         ));
         assert!(
-            is_reasoning_model_for_stream(ApiProvider::Moonshot, "kimi-for-coding"),
+            is_reasoning_model_for_stream(ApiProvider::XiaomiMimo, "kimi-for-coding"),
             "Kimi Code's stable model id now maps to K2.7 Code and streams reasoning_content"
         );
     }
@@ -4530,27 +4530,27 @@ mod alias_thinking_detection_tests {
     #[test]
     fn moonshot_and_minimax_replay_reasoning_content_for_supported_models() {
         assert!(should_replay_reasoning_content_for_provider(
-            ApiProvider::Moonshot,
+            ApiProvider::XiaomiMimo,
             "kimi-k2.7-code",
             None,
         ));
         assert!(should_replay_reasoning_content_for_provider(
-            ApiProvider::Moonshot,
+            ApiProvider::XiaomiMimo,
             "kimi-for-coding",
             None,
         ));
         assert!(should_replay_reasoning_content_for_provider(
-            ApiProvider::Minimax,
+            ApiProvider::XiaomiMimo,
             "MiniMax-M3",
             None,
         ));
         assert!(should_replay_reasoning_content_for_provider(
-            ApiProvider::Zai,
+            ApiProvider::XiaomiMimo,
             "GLM-5.2",
             None,
         ));
         assert!(!should_replay_reasoning_content_for_provider(
-            ApiProvider::Moonshot,
+            ApiProvider::XiaomiMimo,
             "kimi-for-coding",
             Some("off"),
         ));
@@ -4582,8 +4582,8 @@ mod alias_thinking_detection_tests {
             "max_tokens": 4096,
         });
 
-        apply_provider_token_limit(&mut body, ApiProvider::Openai, "gpt-5.5", 4096);
-        apply_openai_reasoning_effort(&mut body, ApiProvider::Openai, "gpt-5.5", Some("high"));
+        apply_provider_token_limit(&mut body, ApiProvider::XiaomiMimo, "gpt-5.5", 4096);
+        apply_openai_reasoning_effort(&mut body, ApiProvider::XiaomiMimo, "gpt-5.5", Some("high"));
 
         assert!(body.get("max_tokens").is_none());
         assert_eq!(
@@ -4606,8 +4606,8 @@ mod alias_thinking_detection_tests {
             "max_tokens": 4096,
         });
 
-        apply_provider_token_limit(&mut body, ApiProvider::Openai, "gpt-4o", 4096);
-        apply_openai_reasoning_effort(&mut body, ApiProvider::Openai, "gpt-4o", Some("high"));
+        apply_provider_token_limit(&mut body, ApiProvider::XiaomiMimo, "gpt-4o", 4096);
+        apply_openai_reasoning_effort(&mut body, ApiProvider::XiaomiMimo, "gpt-4o", Some("high"));
 
         assert_eq!(
             body.get("max_tokens").and_then(serde_json::Value::as_u64),
@@ -4625,10 +4625,10 @@ mod alias_thinking_detection_tests {
             "max_tokens": 4096,
         });
 
-        apply_provider_token_limit(&mut body, ApiProvider::Openai, "deepseek-v4-pro", 4096);
+        apply_provider_token_limit(&mut body, ApiProvider::XiaomiMimo, "deepseek-v4-pro", 4096);
         apply_openai_reasoning_effort(
             &mut body,
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-pro",
             Some("high"),
         );
@@ -4648,23 +4648,23 @@ mod alias_thinking_detection_tests {
         // still replay reasoning_content, even though the provider itself does
         // not accept the field. Otherwise the thinking-mode API returns 400.
         assert!(should_replay_reasoning_content_for_provider(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-flash",
             None,
         ));
         assert!(should_replay_reasoning_content_for_provider(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-pro",
             None,
         ));
         assert!(should_replay_reasoning_content_for_provider(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-reasoner",
             Some("medium"),
         ));
         // The documented escape hatch still wins over model detection.
         assert!(!should_replay_reasoning_content_for_provider(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-flash",
             Some("off"),
         ));
@@ -4675,12 +4675,12 @@ mod alias_thinking_detection_tests {
         // #1542 no-regression guard: a genuine non-DeepSeek model on the
         // openai provider must continue to have reasoning_content stripped.
         assert!(!should_replay_reasoning_content_for_provider(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "qwen3-coder",
             None,
         ));
         assert!(!should_replay_reasoning_content_for_provider(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "claude-sonnet-4-6",
             None,
         ));
@@ -4693,20 +4693,20 @@ mod alias_thinking_detection_tests {
         // reasoning model, or incoming `reasoning_content` tokens are stored
         // as answer text and the subsequent replay still 400s.
         assert!(is_reasoning_model_for_stream(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-flash"
         ));
         assert!(is_reasoning_model_for_stream(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-pro"
         ));
         assert!(is_reasoning_model_for_stream(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "deepseek-reasoner"
         ));
         // Native DeepSeek provider was already correct; stays correct.
         assert!(is_reasoning_model_for_stream(
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-pro"
         ));
     }
@@ -4722,11 +4722,11 @@ mod alias_thinking_detection_tests {
             "mimo-v2.5-pro should stream reasoning as thinking on Xiaomi MiMo"
         );
         assert!(
-            is_reasoning_model_for_stream(ApiProvider::Arcee, "trinity-large-thinking"),
+            is_reasoning_model_for_stream(ApiProvider::XiaomiMimo, "trinity-large-thinking"),
             "trinity-large-thinking should stream reasoning as thinking on direct Arcee"
         );
         assert!(
-            is_reasoning_model_for_stream(ApiProvider::Zai, "GLM-5.2"),
+            is_reasoning_model_for_stream(ApiProvider::XiaomiMimo, "GLM-5.2"),
             "GLM-5.2 should stream reasoning_content as thinking on direct Z.ai"
         );
         for model in [
@@ -4735,7 +4735,7 @@ mod alias_thinking_detection_tests {
             "xiaomi/mimo-v2.5-pro",
         ] {
             assert!(
-                is_reasoning_model_for_stream(ApiProvider::Openrouter, model),
+                is_reasoning_model_for_stream(ApiProvider::XiaomiMimo, model),
                 "{model} should stream reasoning as thinking on OpenRouter"
             );
         }
@@ -4747,16 +4747,16 @@ mod alias_thinking_detection_tests {
         // openai provider must NOT be treated as a reasoning model, so the
         // parser keeps inlining any `reasoning_content` it emits as text.
         assert!(!is_reasoning_model_for_stream(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "qwen3-coder"
         ));
         assert!(!is_reasoning_model_for_stream(
-            ApiProvider::Openai,
+            ApiProvider::XiaomiMimo,
             "claude-sonnet-4-6"
         ));
         // Non-DeepSeek model on a reasoning-aware provider is also unchanged.
         assert!(!is_reasoning_model_for_stream(
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
             "qwen3-coder"
         ));
     }
@@ -4768,7 +4768,7 @@ mod alias_thinking_detection_tests {
         // about where reasoning tokens live. Effort=None isolates the
         // model/provider dimension shared by both.
         for model in ["deepseek-v4-pro", "deepseek-reasoner", "qwen3-coder"] {
-            for provider in [ApiProvider::Openai, ApiProvider::Deepseek] {
+            for provider in [ApiProvider::XiaomiMimo, ApiProvider::XiaomiMimo] {
                 assert_eq!(
                     is_reasoning_model_for_stream(provider, model),
                     should_replay_reasoning_content_for_provider(provider, model, None),

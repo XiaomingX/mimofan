@@ -3,7 +3,7 @@
 //! Sandbox module for secure command execution.
 //!
 //! This module provides sandboxing capabilities for shell commands executed by
-//! CodeWhale. Sandboxing restricts what system resources a command can access,
+//! mimofan. Sandboxing restricts what system resources a command can access,
 //! preventing accidental or malicious damage to the system.
 //!
 //! # Platform Support

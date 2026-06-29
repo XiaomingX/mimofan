@@ -1,5 +1,5 @@
 [package]
-name = "codewhale-hooks"
+name = "mimofan-hooks"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ description = "Hook dispatch and notifications support for CodeWhale"
 anyhow.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
-codewhale-protocol = { path = "../protocol", version = "0.8.65" }
+mimofan-protocol = { path = "../protocol", version = "0.8.65" }
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true

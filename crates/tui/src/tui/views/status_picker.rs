@@ -304,14 +304,14 @@ mod tests {
     #[test]
     fn opens_with_active_items_pre_selected() {
         let active = StatusItem::default_footer();
-        let view = StatusPickerView::new(&active, ApiProvider::Deepseek, Locale::En);
+        let view = StatusPickerView::new(&active, ApiProvider::XiaomiMimo, Locale::ZhHans);
         assert_eq!(view.current_selection(), active);
     }
 
     #[test]
     fn space_toggles_current_row_and_emits_live_preview() {
         let active = StatusItem::default_footer();
-        let mut view = StatusPickerView::new(&active, ApiProvider::Deepseek, Locale::En);
+        let mut view = StatusPickerView::new(&active, ApiProvider::XiaomiMimo, Locale::ZhHans);
         let action = view.handle_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
         match action {
             ViewAction::Emit(ViewEvent::StatusItemsUpdated { items, final_save }) => {
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn enter_emits_final_save() {
         let active = StatusItem::default_footer();
-        let mut view = StatusPickerView::new(&active, ApiProvider::Deepseek, Locale::En);
+        let mut view = StatusPickerView::new(&active, ApiProvider::XiaomiMimo, Locale::ZhHans);
         let action = view.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         match action {
             ViewAction::EmitAndClose(ViewEvent::StatusItemsUpdated { final_save, .. }) => {
@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn esc_reverts_to_snapshot() {
         let active = StatusItem::default_footer();
-        let mut view = StatusPickerView::new(&active, ApiProvider::Deepseek, Locale::En);
+        let mut view = StatusPickerView::new(&active, ApiProvider::XiaomiMimo, Locale::ZhHans);
         view.handle_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
         view.move_down();
         view.handle_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE));
@@ -355,7 +355,7 @@ mod tests {
     #[test]
     fn select_all_and_select_none_keys_work() {
         let active: Vec<StatusItem> = Vec::new();
-        let mut view = StatusPickerView::new(&active, ApiProvider::Deepseek, Locale::En);
+        let mut view = StatusPickerView::new(&active, ApiProvider::XiaomiMimo, Locale::ZhHans);
         let action = view.handle_key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
         match action {
             ViewAction::Emit(ViewEvent::StatusItemsUpdated { items, .. }) => {
@@ -375,7 +375,7 @@ mod tests {
     #[test]
     fn arrow_keys_wrap_cursor_at_edges() {
         let active = StatusItem::default_footer();
-        let mut view = StatusPickerView::new(&active, ApiProvider::Deepseek, Locale::En);
+        let mut view = StatusPickerView::new(&active, ApiProvider::XiaomiMimo, Locale::ZhHans);
         assert_eq!(view.cursor, 0);
         view.handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
         assert_eq!(view.cursor, StatusItem::all().len() - 1);
@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn balance_excluded_for_non_deepseek_provider() {
         let active = StatusItem::default_footer();
-        let view = StatusPickerView::new(&active, ApiProvider::Openrouter, Locale::En);
+        let view = StatusPickerView::new(&active, ApiProvider::XiaomiMimo, Locale::ZhHans);
         assert!(!view.rows.contains(&StatusItem::Balance));
         assert!(view.rows.contains(&StatusItem::Mode));
     }
@@ -418,12 +418,12 @@ mod tests {
     #[test]
     fn status_picker_no_english_leak_in_non_en_locales() {
         for locale in [
-            Locale::Ja,
             Locale::ZhHans,
-            Locale::ZhHant,
-            Locale::PtBr,
-            Locale::Es419,
-            Locale::Vi,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
         ] {
             let title = tr(locale, MessageId::StatusPickerTitle);
             assert!(

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use codewhale_state::{JobStateRecord, JobStateStatus, StateStore};
+use mimofan_state::{JobStateRecord, JobStateStatus, StateStore};
 use serde_json::{Value, json};
 use uuid::Uuid;
 

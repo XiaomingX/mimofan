@@ -8,7 +8,7 @@
 #[cfg(test)]
 use chrono::TimeZone;
 use chrono::{DateTime, Utc};
-use codewhale_config::pricing::TokenUsage;
+use mimofan_config::pricing::TokenUsage;
 
 use crate::models::Usage;
 
@@ -301,7 +301,7 @@ pub fn calculate_turn_cost_estimate_from_usage(model: &str, usage: &Usage) -> Op
 /// classes for the shared config pricing layer (#2961).
 ///
 /// `Usage::prompt_cache_miss_tokens` is billed as ordinary non-cached input in
-/// current CodeWhale pricing rows. `cache_write` remains zero because the TUI
+/// current mimofan pricing rows. `cache_write` remains zero because the TUI
 /// `Usage` shape does not yet distinguish cache creation/write tokens from
 /// ordinary cache misses.
 #[must_use]

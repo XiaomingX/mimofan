@@ -1,4 +1,4 @@
-//! Runtime HTTP/SSE API for local CodeWhale automation.
+//! Runtime HTTP/SSE API for local mimofan automation.
 
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -19,7 +19,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::Utc;
-use codewhale_protocol::runtime::{
+use mimofan_protocol::runtime::{
     DynamicToolCallResult, RUNTIME_API_VERSION, RUNTIME_EVENT_ENVELOPE_SCHEMA_VERSION,
     RuntimeCapabilities, RuntimeEventEnvelope, RuntimeExperimentalCapabilities,
 };
@@ -61,7 +61,7 @@ use crate::tools::subagent::{
     AgentWorkerRecord, SharedSubAgentManager, load_persisted_agent_worker_records,
     new_shared_subagent_manager_with_timeout,
 };
-use codewhale_protocol::fleet::{
+use mimofan_protocol::fleet::{
     FleetArtifactKind, FleetRun, FleetRunId, FleetWorkerEventPayload, FleetWorkerStatus,
 };
 
@@ -401,7 +401,7 @@ struct SubmitUserInputResponse {
 struct RuntimeInfoResponse {
     service: &'static str,
     runtime_api_version: &'static str,
-    codewhale_version: &'static str,
+    mimofan_version: &'static str,
     bind_host: String,
     port: u16,
     auth_required: bool,
@@ -734,7 +734,7 @@ fn request_has_runtime_token(req: &Request, expected: &str) -> bool {
         .is_some_and(|token| token == expected)
         || req
             .headers()
-            .get("x-codewhale-runtime-token")
+            .get("x-mimofan-runtime-token")
             .and_then(|value| value.to_str().ok())
             .is_some_and(|token| token == expected)
         || req
@@ -806,7 +806,7 @@ async fn mobile_page(State(state): State<RuntimeApiState>, req: Request) -> Resp
     if !state.mobile_enabled {
         return (
             StatusCode::NOT_FOUND,
-            "mobile control is disabled; start with `codewhale serve --mobile`",
+            "mobile control is disabled; start with `mimo serve --mobile`",
         )
             .into_response();
     }
@@ -885,7 +885,7 @@ fn detect_lan_ip() -> Option<String> {
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
-        service: "codewhale-runtime-api",
+        service: "mimofan-runtime-api",
         mode: "local",
     })
 }
@@ -1927,7 +1927,7 @@ fn fleet_worker_runtime_json(runtime: &FleetWorkerRuntimeProjection) -> Value {
     })
 }
 
-fn fleet_artifact_json(artifact: &codewhale_protocol::fleet::FleetArtifactRef) -> Value {
+fn fleet_artifact_json(artifact: &mimofan_protocol::fleet::FleetArtifactRef) -> Value {
     json!({
         "kind": artifact_kind_label(&artifact.kind),
         "path": artifact.path.clone(),
@@ -1937,7 +1937,7 @@ fn fleet_artifact_json(artifact: &codewhale_protocol::fleet::FleetArtifactRef) -
     })
 }
 
-fn fleet_event_json(event: &codewhale_protocol::fleet::FleetWorkerEvent) -> Value {
+fn fleet_event_json(event: &mimofan_protocol::fleet::FleetWorkerEvent) -> Value {
     json!({
         "seq": event.seq,
         "run_id": event.run_id.0.clone(),
@@ -2039,8 +2039,8 @@ async fn list_skills(
     State(state): State<RuntimeApiState>,
 ) -> Result<Json<SkillsResponse>, ApiError> {
     let skills_dir = resolve_skills_dir(&state.config, &state.workspace);
-    let mode = crate::skills::SkillDiscoveryMode::from_codewhale_only(
-        state.config.skills_config().scan_codewhale_only(),
+    let mode = crate::skills::SkillDiscoveryMode::from_mimofan_only(
+        state.config.skills_config().scan_mimofan_only(),
     );
     let (registry, directories) =
         discover_skills_for_runtime_api(&state.workspace, &skills_dir, mode);
@@ -2070,8 +2070,8 @@ async fn set_skill_enabled(
     Json(req): Json<SetSkillEnabledRequest>,
 ) -> Result<Json<SetSkillEnabledResponse>, ApiError> {
     let skills_dir = resolve_skills_dir(&state.config, &state.workspace);
-    let mode = crate::skills::SkillDiscoveryMode::from_codewhale_only(
-        state.config.skills_config().scan_codewhale_only(),
+    let mode = crate::skills::SkillDiscoveryMode::from_mimofan_only(
+        state.config.skills_config().scan_mimofan_only(),
     );
     let (registry, directories) =
         discover_skills_for_runtime_api(&state.workspace, &skills_dir, mode);
@@ -2158,9 +2158,9 @@ async fn submit_user_input(
 async fn runtime_info(State(state): State<RuntimeApiState>) -> Json<RuntimeInfoResponse> {
     let version = env!("CARGO_PKG_VERSION");
     Json(RuntimeInfoResponse {
-        service: "codewhale-runtime-api",
+        service: "mimofan-runtime-api",
         runtime_api_version: RUNTIME_API_VERSION,
-        codewhale_version: version,
+        mimofan_version: version,
         bind_host: state.bind_host.clone(),
         port: state.bind_port,
         auth_required: state.auth_required,
@@ -3143,12 +3143,12 @@ fn current_git_head(workspace: &std::path::Path) -> Option<String> {
 }
 
 fn resolve_skills_dir(config: &Config, workspace: &std::path::Path) -> PathBuf {
-    if config.skills_config().scan_codewhale_only() {
+    if config.skills_config().scan_mimofan_only() {
         if config.skills_dir.is_some() {
             return config.skills_dir();
         }
-        if let Some(codewhale_skills_dir) = crate::skills::codewhale_workspace_skills_dir(workspace)
-            && let Ok(canonical_skills) = fs::canonicalize(&codewhale_skills_dir)
+        if let Some(mimofan_skills_dir) = crate::skills::mimofan_workspace_skills_dir(workspace)
+            && let Ok(canonical_skills) = fs::canonicalize(&mimofan_skills_dir)
         {
             return canonical_skills;
         }
@@ -3351,7 +3351,7 @@ fn snapshot_entries_for_workspace(
 }
 
 const MOBILE_HTML: &str = include_str!("runtime_mobile.html");
-const RUNTIME_TOKEN_COOKIE: &str = "codewhale_runtime_token";
+const RUNTIME_TOKEN_COOKIE: &str = "mimofan_runtime_token";
 
 /// Built-in dev origins always allowed by the runtime API (whalescale#255).
 const DEFAULT_CORS_ORIGINS: &[&str] = &[

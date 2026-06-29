@@ -618,12 +618,12 @@ fn is_git_metadata_entry(path: &Path) -> bool {
 
 /// Resolve the default session directory path.
 ///
-/// v0.8.44: prefers `~/.codewhale/sessions`, falls back to
-/// `~/.deepseek/sessions` for existing installs. Uses the write-path resolver
-/// so the first access relocates any legacy `~/.deepseek/sessions` into
-/// `~/.codewhale/sessions` (#3240); reads still surface migrated data.
+/// v0.8.44: prefers `~/.mimo/sessions`, falls back to
+/// `~/.mimofan/sessions` and `~/.deepseek/sessions` for existing installs.
+/// Uses the write-path resolver so the first access relocates any legacy
+/// directories into `~/.mimo/sessions` (#3240); reads still surface migrated data.
 pub fn default_sessions_dir() -> std::io::Result<PathBuf> {
-    codewhale_config::ensure_state_dir("sessions")
+    mimofan_config::ensure_state_dir("sessions")
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e.to_string()))
 }
 
@@ -1179,7 +1179,7 @@ mod tests {
                 content: vec![ContentBlock::ToolUse {
                     id: "call-big".to_string(),
                     name: "exec_shell".to_string(),
-                    input: serde_json::json!({"command": "cargo test -p codewhale-tui"}),
+                    input: serde_json::json!({"command": "cargo test -p mimofan-tui"}),
                     caller: None,
                 }],
             },

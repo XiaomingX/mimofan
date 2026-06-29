@@ -30,7 +30,7 @@ use crate::localization::Locale;
 use crate::sandbox::SandboxPolicy;
 use crate::tui::views::{ModalKind, ModalView, ViewAction, ViewEvent};
 use crate::tui::widgets::{ApprovalWidget, ElevationWidget, Renderable};
-use codewhale_config::ToolAskRule;
+use mimofan_config::ToolAskRule;
 use crossterm::event::{KeyCode, KeyEvent};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -241,7 +241,7 @@ impl ApprovalRequest {
         if self.persistent_ask_rules.is_empty() {
             return None;
         }
-        let permissions = codewhale_config::PermissionsToml {
+        let permissions = mimofan_config::PermissionsToml {
             rules: self.persistent_ask_rules.clone(),
         };
         toml::to_string_pretty(&permissions).ok()
@@ -310,7 +310,7 @@ fn build_file_write_ask_rules(
     // preview stay disabled.
     let workspace = workspace.to_string_lossy();
     let Some(relative) =
-        codewhale_execpolicy::normalize_workspace_relative_path(path, workspace.as_ref())
+        mimofan_execpolicy::normalize_workspace_relative_path(path, workspace.as_ref())
             .filter(|relative| !relative.is_empty())
     else {
         return Vec::new();
@@ -924,7 +924,7 @@ pub struct ApprovalView {
 impl ApprovalView {
     #[cfg(test)]
     pub fn new(request: ApprovalRequest) -> Self {
-        Self::new_for_locale(request, Locale::En)
+        Self::new_for_locale(request, Locale::ZhHans)
     }
 
     pub fn new_for_locale(request: ApprovalRequest, locale: Locale) -> Self {
@@ -1609,7 +1609,7 @@ mod tests {
             "test_key",
         );
 
-        let details = request.prominent_detail_items(Locale::En);
+        let details = request.prominent_detail_items(Locale::ZhHans);
 
         assert_eq!(details[0].label, "Command");
         assert_eq!(details[0].value, command);
@@ -1634,7 +1634,7 @@ mod tests {
             "test_key",
         );
 
-        let details = request.prominent_detail_items(Locale::En);
+        let details = request.prominent_detail_items(Locale::ZhHans);
 
         assert_eq!(details[0].label, "File");
         assert_eq!(details[0].value, "src/main.rs");
@@ -2250,7 +2250,7 @@ mod tests {
     fn test_elevation_view_initial_state() {
         let request =
             ElevationRequest::for_shell("test-id", "cargo build", "network blocked", true, false);
-        let view = ElevationView::new(request, Locale::En);
+        let view = ElevationView::new(request, Locale::ZhHans);
         assert_eq!(view.selected, 0);
     }
 
@@ -2258,7 +2258,7 @@ mod tests {
     fn test_elevation_view_keybindings() {
         let request =
             ElevationRequest::for_shell("test-id", "cargo test", "write blocked", false, true);
-        let mut view = ElevationView::new(request, Locale::En);
+        let mut view = ElevationView::new(request, Locale::ZhHans);
 
         let action = view.handle_key(create_key_event(KeyCode::Char('n')));
         assert!(matches!(
@@ -2271,7 +2271,7 @@ mod tests {
 
         let request =
             ElevationRequest::for_shell("test-id", "cargo build", "write blocked", false, true);
-        let mut view = ElevationView::new(request, Locale::En);
+        let mut view = ElevationView::new(request, Locale::ZhHans);
         let action = view.handle_key(create_key_event(KeyCode::Char('w')));
         assert!(matches!(
             action,
@@ -2283,7 +2283,7 @@ mod tests {
 
         let request =
             ElevationRequest::for_shell("test-id", "cargo build", "blocked", false, false);
-        let mut view = ElevationView::new(request, Locale::En);
+        let mut view = ElevationView::new(request, Locale::ZhHans);
         let action = view.handle_key(create_key_event(KeyCode::Char('f')));
         assert!(matches!(
             action,
@@ -2295,7 +2295,7 @@ mod tests {
 
         let request =
             ElevationRequest::for_shell("test-id", "cargo build", "blocked", false, false);
-        let mut view = ElevationView::new(request, Locale::En);
+        let mut view = ElevationView::new(request, Locale::ZhHans);
         let action = view.handle_key(create_key_event(KeyCode::Esc));
         assert!(matches!(
             action,
@@ -2307,7 +2307,7 @@ mod tests {
 
         let request =
             ElevationRequest::for_shell("test-id", "cargo build", "blocked", false, false);
-        let mut view = ElevationView::new(request, Locale::En);
+        let mut view = ElevationView::new(request, Locale::ZhHans);
         let action = view.handle_key(create_key_event(KeyCode::Char('a')));
         assert!(matches!(
             action,
@@ -2321,7 +2321,7 @@ mod tests {
     #[test]
     fn test_elevation_view_navigation() {
         let request = ElevationRequest::for_shell("test-id", "cargo build", "blocked", true, false);
-        let mut view = ElevationView::new(request, Locale::En);
+        let mut view = ElevationView::new(request, Locale::ZhHans);
 
         assert_eq!(view.selected, 0);
 
@@ -2341,7 +2341,7 @@ mod tests {
     #[test]
     fn test_elevation_view_enter_uses_selected_option() {
         let request = ElevationRequest::for_shell("test-id", "cargo build", "blocked", true, false);
-        let mut view = ElevationView::new(request, Locale::En);
+        let mut view = ElevationView::new(request, Locale::ZhHans);
 
         view.handle_key(create_key_event(KeyCode::Down));
         assert_eq!(view.selected, 1);
@@ -2380,7 +2380,7 @@ mod tests {
 
     #[test]
     fn test_elevation_render_en_has_expected_strings() {
-        let view = ElevationView::new(elevation_shell_request(), Locale::En);
+        let view = ElevationView::new(elevation_shell_request(), Locale::ZhHans);
         let lines = render_elevation_lines(&view, 70, 22);
         let joined = compact_elevation_text(&lines);
         assert!(
@@ -2436,7 +2436,7 @@ mod tests {
 
     #[test]
     fn test_elevation_render_ja_has_translated_copy() {
-        let view = ElevationView::new(elevation_shell_request(), Locale::Ja);
+        let view = ElevationView::new(elevation_shell_request(), Locale::ZhHans);
         let lines = render_elevation_lines(&view, 70, 22);
         let joined = compact_elevation_text(&lines);
         assert!(
@@ -2465,7 +2465,7 @@ mod tests {
 
     #[test]
     fn test_elevation_render_zh_hant_has_translated_copy() {
-        let view = ElevationView::new(elevation_shell_request(), Locale::ZhHant);
+        let view = ElevationView::new(elevation_shell_request(), Locale::ZhHans);
         let lines = render_elevation_lines(&view, 70, 22);
         let joined = compact_elevation_text(&lines);
         assert!(

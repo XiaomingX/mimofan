@@ -302,15 +302,15 @@ mod tests {
         );
 
         assert_eq!(
-            tool_activity_label_for_name("exec_shell", Locale::En),
+            tool_activity_label_for_name("exec_shell", Locale::ZhHans),
             "run"
         );
         assert_eq!(
-            tool_activity_label_for_name("run_verifiers", Locale::En),
+            tool_activity_label_for_name("run_verifiers", Locale::ZhHans),
             "verify"
         );
         assert_eq!(
-            tool_activity_label_for_name("future_private_tool", Locale::En),
+            tool_activity_label_for_name("future_private_tool", Locale::ZhHans),
             "tool future_private_tool"
         );
     }
@@ -418,12 +418,12 @@ mod tests {
             ),
         ];
         for locale in [
-            Locale::Ja,
             Locale::ZhHans,
-            Locale::ZhHant,
-            Locale::PtBr,
-            Locale::Es419,
-            Locale::Vi,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
         ] {
             for (id, eng, _) in checks {
                 let msg = tr(locale, *id);
@@ -449,12 +449,12 @@ mod tests {
         ];
         let english_labels = ["run", "read", "patch", "find", "verify"];
         for locale in [
-            Locale::Ja,
             Locale::ZhHans,
-            Locale::ZhHant,
-            Locale::PtBr,
-            Locale::Es419,
-            Locale::Vi,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
+            Locale::ZhHans,
         ] {
             for (tool, eng) in known.iter().zip(english_labels.iter()) {
                 let label = tool_activity_label_for_name(tool, locale);

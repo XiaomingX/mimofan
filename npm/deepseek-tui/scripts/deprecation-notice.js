@@ -13,7 +13,7 @@ const notice = [
   "  │                                                                   │",
   "  │  codewhale ships the same `codewhale` and `codewhale-tui`         │",
   "  │  binaries plus deprecation shims under the old names. See:        │",
-  "  │  https://github.com/Hmbown/CodeWhale/blob/main/docs/REBRAND.md │",
+  "  │  https://github.com/XiaomingX/mimo-tui/blob/main/docs/REBRAND.md │",
   "  │                                                                   │",
   "  ╰───────────────────────────────────────────────────────────────────╯",
   "",

@@ -172,7 +172,7 @@ pub fn model(app: &mut App, model_name: Option<&str>) -> CommandResult {
         let strict_direct_custom_endpoint = app.accepts_custom_model_ids()
             && matches!(
                 app.api_provider,
-                ApiProvider::Deepseek | ApiProvider::DeepseekCN | ApiProvider::Zai
+                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
             );
         let route_limits = if strict_direct_custom_endpoint {
             None
@@ -243,7 +243,7 @@ pub fn profile_switch(_app: &mut App, arg: Option<&str>) -> CommandResult {
         Some(name) if !name.trim().is_empty() => name.trim().to_string(),
         _ => {
             return CommandResult::error(
-                "Usage: /profile <name>\n\nSwitch to a named config profile. Profiles are defined in ~/.codewhale/config.toml under [profiles] sections.",
+                "Usage: /profile <name>\n\nSwitch to a named config profile. Profiles are defined in ~/.mimofan/config.toml under [profiles] sections.",
             );
         }
     };
@@ -436,7 +436,7 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
         },
         _ => ProviderLinkInfo {
             key_url: None,
-            docs_url: "https://codewhale.dev/docs/providers",
+            docs_url: "https://mimofan.dev/docs/providers",
             note: "Use the provider console for credentials, then configure the matching env var.",
         },
     }
@@ -451,7 +451,7 @@ pub fn deepseek_links(app: &mut App) -> CommandResult {
         tr(locale, MessageId::LinksTitle)
     );
 
-    for provider in codewhale_config::provider::providers_sorted_for_display() {
+    for provider in mimofan_config::provider::providers_sorted_for_display() {
         let links = provider_link_info(provider.id());
         let active_marker = if provider.id() == active_provider {
             " <- current"
@@ -697,8 +697,8 @@ mod tests {
             initial_input: None,
         };
         let mut app = App::new(options, &Config::default());
-        app.ui_locale = crate::localization::Locale::En;
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.ui_locale = crate::localization::Locale::ZhHans;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model = "deepseek-v4-pro".to_string();
         app.auto_model = false;
         app.model_ids_passthrough = false;
@@ -995,7 +995,7 @@ mod tests {
             seed.save().expect("seed settings");
         }
         let mut app = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Zai;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = false;
         app.model = crate::config::DEFAULT_ZAI_MODEL.to_string();
         app.auto_model = false;
@@ -1029,18 +1029,18 @@ mod tests {
 
         // Terminal A: Z.ai / GLM.
         let mut app_a = create_test_app();
-        app_a.api_provider = crate::config::ApiProvider::Zai;
+        app_a.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app_a.model_ids_passthrough = false;
         app_a.model = crate::config::DEFAULT_ZAI_MODEL.to_string();
         app_a.auto_model = false;
         let result_a = model(&mut app_a, Some("GLM-5.2"));
         assert!(!result_a.is_error, "GLM-5.2 is valid on Z.ai");
-        assert_eq!(app_a.api_provider, crate::config::ApiProvider::Zai);
+        assert_eq!(app_a.api_provider, crate::config::ApiProvider::XiaomiMimo);
         assert_eq!(app_a.model, "GLM-5.2");
 
         // Terminal B: DeepSeek / deepseek-v4-flash.
         let mut app_b = create_test_app();
-        app_b.api_provider = crate::config::ApiProvider::Deepseek;
+        app_b.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app_b.model_ids_passthrough = false;
         app_b.model = "deepseek-v4-pro".to_string();
         app_b.auto_model = false;
@@ -1048,11 +1048,11 @@ mod tests {
         assert!(!result_b.is_error, "deepseek-v4-flash is valid on DeepSeek");
 
         // B's route is a coherent DeepSeek route — never Z.ai + a DeepSeek model.
-        assert_eq!(app_b.api_provider, crate::config::ApiProvider::Deepseek);
+        assert_eq!(app_b.api_provider, crate::config::ApiProvider::XiaomiMimo);
         assert_eq!(app_b.model, "deepseek-v4-flash");
 
         // A is untouched by B's selection — still Z.ai / GLM.
-        assert_eq!(app_a.api_provider, crate::config::ApiProvider::Zai);
+        assert_eq!(app_a.api_provider, crate::config::ApiProvider::XiaomiMimo);
         assert_eq!(app_a.model, "GLM-5.2");
 
         // Shared settings: per-provider scoped models recorded for both, and
@@ -1076,7 +1076,7 @@ mod tests {
         // rejected locally with a precise diagnostic, before any network call.
         let _settings = SettingsPathGuard::new();
         let mut app = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Zai;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = false;
         app.model = crate::config::DEFAULT_ZAI_MODEL.to_string();
         app.auto_model = false;
@@ -1089,7 +1089,7 @@ mod tests {
         assert!(msg.contains("deepseek-v4-pro"), "names the model: {msg}");
         assert!(msg.contains("zai"), "names the provider: {msg}");
         // The session route is unchanged — still Z.ai / GLM.
-        assert_eq!(app.api_provider, crate::config::ApiProvider::Zai);
+        assert_eq!(app.api_provider, crate::config::ApiProvider::XiaomiMimo);
         assert_eq!(app.model, crate::config::DEFAULT_ZAI_MODEL);
     }
 
@@ -1171,7 +1171,7 @@ mod tests {
     fn test_model_change_accepts_custom_id_for_openai_compatible_provider() {
         let _settings = SettingsPathGuard::new();
         let mut app = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Openai;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = true;
 
         let result = model(&mut app, Some("opencode-go/glm-5.1"));
@@ -1217,7 +1217,7 @@ mod tests {
     #[test]
     fn model_command_rejects_saved_model_from_other_provider() {
         let mut app = create_test_app();
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.provider_models
             .insert("moonshot".to_string(), "kimi-k2.6".to_string());
 
@@ -1227,7 +1227,7 @@ mod tests {
         assert!(message.contains("Invalid model"));
         assert!(message.contains("active provider"));
         assert!(result.action.is_none());
-        assert_eq!(app.api_provider, crate::config::ApiProvider::Deepseek);
+        assert_eq!(app.api_provider, crate::config::ApiProvider::XiaomiMimo);
         assert_eq!(app.model, "deepseek-v4-pro");
     }
 
@@ -1283,7 +1283,7 @@ mod tests {
         let result = home_dashboard(&mut app);
         assert!(result.message.is_some());
         let msg = result.message.unwrap();
-        assert!(msg.contains("codewhale Home Dashboard"));
+        assert!(msg.contains("mimofan Home Dashboard"));
         assert!(msg.contains("Model:"));
         assert!(msg.contains("Mode:"));
         assert!(msg.contains("Workspace:"));
@@ -1332,7 +1332,7 @@ mod tests {
             !msg.lines()
                 .any(|line| line.trim_start().starts_with("/set "))
         );
-        assert!(!msg.contains("/codewhale"));
+        assert!(!msg.contains("/mimofan"));
     }
 
     #[test]

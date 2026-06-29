@@ -1,4 +1,4 @@
-use codewhale_config::route::RouteLimits;
+use mimofan_config::route::RouteLimits;
 
 use crate::config::{ApiProvider, provider_capability};
 use crate::context_budget::ContextBudget;

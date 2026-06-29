@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
-use codewhale_protocol::fleet::{
+use mimofan_protocol::fleet::{
     FleetAlertEventClass, FleetReceipt, FleetRunId, FleetTaskFailureKind, FleetWorkerEvent,
     FleetWorkerEventPayload,
 };
@@ -250,9 +250,9 @@ impl FleetAlertEvent {
     }
 
     pub fn inspection_commands(&self) -> Vec<String> {
-        let mut commands = vec!["codewhale fleet status".to_string()];
+        let mut commands = vec!["mimofan fleet status".to_string()];
         if let Some(worker_id) = &self.worker_id {
-            commands.push(format!("codewhale fleet inspect {worker_id}"));
+            commands.push(format!("mimofan fleet inspect {worker_id}"));
         }
         commands
     }
@@ -294,7 +294,7 @@ fn prepare_alert(
             secret_env,
         } => {
             let body = json!({
-                "source": "codewhale",
+                "source": "mimofan",
                 "event": safe_event,
             });
             let redacted_payload = json!({
@@ -456,7 +456,7 @@ fn pagerduty_body(event: &FleetAlertEvent, severity: &str, routing_key: String) 
         "payload": {
             "summary": format!("CodeWhale fleet {}: {}", alert_class_label(event.class), short_reason(&event.reason)),
             "severity": severity,
-            "source": "codewhale",
+            "source": "mimofan",
             "custom_details": safe_event_payload(event),
         }
     })
@@ -529,7 +529,7 @@ fn default_pagerduty_severity() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codewhale_protocol::fleet::{FleetScore, FleetTaskResult};
+    use mimofan_protocol::fleet::{FleetScore, FleetTaskResult};
 
     #[derive(Default)]
     struct MapResolver {
@@ -647,7 +647,7 @@ mod tests {
 
         assert!(payload.contains("<redacted:env:FLEET_PD_ROUTING_KEY>"));
         assert!(!payload.contains("real-routing-key-secret"));
-        assert!(payload.contains("codewhale fleet inspect worker-1"));
+        assert!(payload.contains("mimofan fleet inspect worker-1"));
     }
 
     #[test]
@@ -695,8 +695,8 @@ mod tests {
         assert_eq!(
             alert.inspection_commands(),
             vec![
-                "codewhale fleet status".to_string(),
-                "codewhale fleet inspect worker-1".to_string()
+                "mimofan fleet status".to_string(),
+                "mimofan fleet inspect worker-1".to_string()
             ]
         );
     }

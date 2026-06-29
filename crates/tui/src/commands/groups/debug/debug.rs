@@ -847,9 +847,9 @@ mod tests {
             initial_input: None,
         };
         let mut app = App::new(options, &Config::default());
-        app.ui_locale = crate::localization::Locale::En;
+        app.ui_locale = crate::localization::Locale::ZhHans;
         app.cost_currency = crate::pricing::CostCurrency::Usd;
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app
     }
 

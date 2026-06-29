@@ -346,8 +346,8 @@ mod tests {
             crate::localization::MessageId::KbThinkingPager
         );
         assert_eq!(
-            crate::localization::tr(crate::localization::Locale::En, ctrl_o.description_id,),
-            "Open Activity Detail"
+            crate::localization::tr(crate::localization::Locale::ZhHans, ctrl_o.description_id,),
+            "打开活动详情"
         );
     }
 

@@ -1,4 +1,4 @@
-//! Secret storage for CodeWhale API keys.
+//! Secret storage for mimofan API keys.
 //!
 //! Provides a small abstraction (`KeyringStore`) plus a default
 //! file-based implementation (`FileKeyringStore`), an opt-in OS keyring
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Default OS keychain service name. Kept as `deepseek` for compatibility
-/// with credentials saved before the CodeWhale rename. macOS users can verify
+/// with credentials saved before the mimofan rename. macOS users can verify
 /// entries with `security find-generic-password -s deepseek -a <provider>`.
 pub const DEFAULT_SERVICE: &str = "deepseek";
 /// Select the secret storage backend. Supported values are `file` (default)
@@ -28,7 +28,7 @@ pub const DEFAULT_SERVICE: &str = "deepseek";
 pub const SECRET_BACKEND_ENV: &str = "CODEWHALE_SECRET_BACKEND";
 /// Legacy alias for [`SECRET_BACKEND_ENV`].
 pub const LEGACY_SECRET_BACKEND_ENV: &str = "DEEPSEEK_SECRET_BACKEND";
-const FILE_BACKEND_LABEL: &str = "file-based (~/.codewhale/secrets/)";
+const FILE_BACKEND_LABEL: &str = "file-based (~/.mimofan/secrets/)";
 
 /// Errors that may arise from a [`KeyringStore`] backend.
 #[derive(Debug, Error)]
@@ -55,7 +55,7 @@ pub enum SecretsError {
 /// Abstract secret store trait.
 ///
 /// Concrete implementations may use the OS keyring ([`DefaultKeyringStore`]),
-/// a JSON file under `~/.codewhale/secrets/` ([`FileKeyringStore`]), or an
+/// a JSON file under `~/.mimofan/secrets/` ([`FileKeyringStore`]), or an
 /// in-memory map for tests ([`InMemoryKeyringStore`]).
 ///
 /// All implementations must be [`Send`] + [`Sync`] so they can be shared
@@ -82,7 +82,7 @@ pub trait KeyringStore: Send + Sync {
     /// Short, human-readable label for this backend.
     ///
     /// Used by diagnostic output (e.g. `doctor` command) to indicate which
-    /// storage backend is active. Examples: `"file-based (~/.codewhale/secrets/)"`,
+    /// storage backend is active. Examples: `"file-based (~/.mimofan/secrets/)"`,
     /// `"system keyring"`, `"in-memory (test)"`.
     fn backend_name(&self) -> &'static str;
 }
@@ -343,7 +343,7 @@ impl KeyringStore for InMemoryKeyringStore {
 /// JSON-on-disk secret store for headless environments.
 ///
 /// This is the default backend. Secrets are serialised as a JSON object
-/// at `<home>/.codewhale/secrets/secrets.json` with Unix file mode `0600`
+/// at `<home>/.mimofan/secrets/secrets.json` with Unix file mode `0600`
 /// (owner read/write only). The parent directory is created with mode `0700`
 /// if it does not exist.
 ///
@@ -371,13 +371,13 @@ impl FileKeyringStore {
         Self { path: path.into() }
     }
 
-    /// Default path: `<home>/.codewhale/secrets/secrets.json`. Honours
+    /// Default path: `<home>/.mimofan/secrets/secrets.json`. Honours
     /// `CODEWHALE_HOME`, then `HOME`, `USERPROFILE`, and finally the platform
     /// home directory from the `dirs` crate. On first use, non-conflicting
     /// entries from the legacy `<home>/.deepseek/secrets/secrets.json` file are
-    /// copied into the CodeWhale store.
+    /// copied into the mimofan store.
     pub fn default_path() -> Result<PathBuf, SecretsError> {
-        let primary = default_codewhale_secrets_path()?;
+        let primary = default_mimofan_secrets_path()?;
         let legacy = legacy_deepseek_secrets_path()?;
         if let Err(err) = Self::migrate_legacy_file_if_needed(&primary, &legacy) {
             tracing::warn!(
@@ -552,7 +552,7 @@ impl KeyringStore for FileKeyringStore {
     }
 }
 
-fn default_codewhale_secrets_path() -> Result<PathBuf, SecretsError> {
+fn default_mimofan_secrets_path() -> Result<PathBuf, SecretsError> {
     if let Ok(value) = std::env::var("CODEWHALE_HOME") {
         let trimmed = value.trim();
         if !trimmed.is_empty() {
@@ -560,7 +560,7 @@ fn default_codewhale_secrets_path() -> Result<PathBuf, SecretsError> {
         }
     }
     Ok(FileKeyringStore::home_dir()?
-        .join(".codewhale")
+        .join(".mimofan")
         .join("secrets")
         .join("secrets.json"))
 }
@@ -606,7 +606,7 @@ fn configured_secret_backend() -> Option<String> {
 /// # Examples
 ///
 /// ```no_run
-/// use codewhale_secrets::Secrets;
+/// use mimofan_secrets::Secrets;
 ///
 /// let secrets = Secrets::auto_detect();
 /// if let Some(key) = secrets.resolve("deepseek") {
@@ -693,7 +693,7 @@ impl Secrets {
 
     fn file_backed_default() -> Self {
         let path = FileKeyringStore::default_path()
-            .unwrap_or_else(|_| PathBuf::from(".codewhale-secrets.json"));
+            .unwrap_or_else(|_| PathBuf::from(".mimofan-secrets.json"));
         Self::new(Arc::new(FileKeyringStore::new(path)))
     }
 
@@ -1009,7 +1009,7 @@ mod tests {
     }
 
     #[test]
-    fn file_default_path_uses_codewhale_home() {
+    fn file_default_path_uses_mimofan_home() {
         let _lock = env_lock();
         clear_known_envs();
         let tmp = tempfile::tempdir().unwrap();
@@ -1021,21 +1021,21 @@ mod tests {
         assert_eq!(
             path,
             tmp.path()
-                .join(".codewhale")
+                .join(".mimofan")
                 .join("secrets")
                 .join("secrets.json")
         );
     }
 
     #[test]
-    fn file_default_path_honors_codewhale_home() {
+    fn file_default_path_honors_mimofan_home() {
         let _lock = env_lock();
         clear_known_envs();
         let tmp = tempfile::tempdir().unwrap();
-        let custom = tmp.path().join("custom-codewhale");
+        let custom = tmp.path().join("custom-mimofan");
         let _home = EnvVarGuard::set("HOME", tmp.path());
         let _userprofile = EnvVarGuard::set("USERPROFILE", tmp.path());
-        let _codewhale_home = EnvVarGuard::set("CODEWHALE_HOME", &custom);
+        let _mimofan_home = EnvVarGuard::set("CODEWHALE_HOME", &custom);
 
         let path = FileKeyringStore::default_path().unwrap();
 
@@ -1043,7 +1043,7 @@ mod tests {
     }
 
     #[test]
-    fn file_default_path_migrates_legacy_entries_to_codewhale() {
+    fn file_default_path_migrates_legacy_entries_to_mimofan() {
         let _lock = env_lock();
         clear_known_envs();
         let tmp = tempfile::tempdir().unwrap();
@@ -1064,7 +1064,7 @@ mod tests {
         assert_eq!(
             primary,
             tmp.path()
-                .join(".codewhale")
+                .join(".mimofan")
                 .join("secrets")
                 .join("secrets.json")
         );
@@ -1092,7 +1092,7 @@ mod tests {
             .join("secrets.json");
         let primary = tmp
             .path()
-            .join(".codewhale")
+            .join(".mimofan")
             .join("secrets")
             .join("secrets.json");
         FileKeyringStore::new(legacy)
@@ -1454,7 +1454,7 @@ mod tests {
         assert_eq!(
             path,
             tmp.path()
-                .join(".codewhale")
+                .join(".mimofan")
                 .join("secrets")
                 .join("secrets.json")
         );

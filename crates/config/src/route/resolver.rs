@@ -66,7 +66,7 @@ impl Default for RouteResolver {
 }
 
 impl RouteResolver {
-    /// Construct a resolver with CodeWhale's bundled offline offerings.
+    /// Construct a resolver with mimofan's bundled offline offerings.
     ///
     /// The default offerings are the committed Models.dev-shaped catalog asset
     /// (`crate::catalog::bundled_catalog_offerings`, real context windows and
@@ -254,33 +254,6 @@ impl RouteResolver {
 
         // No catalog match. Apply class-specific pass-through rules.
         match class {
-            ProviderClass::StrictDirect => {
-                if self.selector_matches_other_provider_offering(provider_id, raw) {
-                    return Err(RouteError::ForeignModelForDirectProvider {
-                        provider: provider_id.clone(),
-                        model: raw.to_string(),
-                    });
-                }
-                // A clearly-foreign selector for a strict direct provider is
-                // rejected. "Clearly foreign" = it carries an aggregator/org
-                // namespace prefix, which a direct provider never expects.
-                if logical_model.namespace_hint().is_some() {
-                    return Err(RouteError::ForeignModelForDirectProvider {
-                        provider: provider_id.clone(),
-                        model: raw.to_string(),
-                    });
-                }
-                // A bare, unknown model on a strict direct provider is passed
-                // through verbatim (the provider validates it server-side). No
-                // offering matched, so pricing is honestly unknown (#3085).
-                Ok((
-                    WireModelId::from(raw),
-                    None,
-                    "chat".to_string(),
-                    RouteLimits::default(),
-                    PricingSku::UnknownOrStale,
-                ))
-            }
             // Aggregators, local runtimes, and custom OpenAI-compatible
             // endpoints legitimately accept arbitrary / prefixed ids verbatim.
             ProviderClass::Aggregator | ProviderClass::LocalOrCustom => {
@@ -363,8 +336,6 @@ fn default_offerings() -> Vec<ProviderModelOffering> {
 /// Intentionally narrower than tui's `validate_route`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ProviderClass {
-    /// Strict direct provider: rejects clearly-foreign (prefixed) selectors.
-    StrictDirect,
     /// Aggregator: serves many catalogs under prefixed wire ids.
     Aggregator,
     /// Local runtime or custom OpenAI-compatible endpoint: pass-through.
@@ -377,12 +348,11 @@ enum ProviderClass {
 /// through, so the resolver stays permissive by default.
 fn classify(kind: ProviderKind) -> ProviderClass {
     match kind {
-        // Strict first-party direct providers.
-        ProviderKind::Deepseek | ProviderKind::Zai => ProviderClass::StrictDirect,
-        // Local runtimes / custom OpenAI-compatible endpoints.
-        ProviderKind::Openai => ProviderClass::LocalOrCustom,
-        // Everything else is treated as an aggregator-style pass-through.
-        _ => ProviderClass::Aggregator,
+        // Custom OpenAI-compatible endpoints: pass-through.
+        ProviderKind::Custom => ProviderClass::LocalOrCustom,
+        // XiaomiMiMo (and anything else) is treated as an aggregator-style
+        // pass-through.
+        ProviderKind::XiaomiMimo => ProviderClass::Aggregator,
     }
 }
 

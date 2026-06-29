@@ -1,5 +1,5 @@
 [package]
-name = "codewhale-agent"
+name = "mimofan-agent"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,5 +7,5 @@ repository.workspace = true
 description = "Model/provider registry and fallback strategy for CodeWhale"
 
 [dependencies]
-codewhale-config = { path = "../config", version = "0.8.65" }
+mimofan-config = { path = "../config", version = "0.8.65" }
 serde.workspace = true

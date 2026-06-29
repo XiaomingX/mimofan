@@ -53,7 +53,7 @@ pub(crate) fn provider_router_candidates(
     current_model: &str,
 ) -> RouterCandidates {
     use crate::config::ApiProvider;
-    if provider == ApiProvider::Zai {
+    if provider == ApiProvider::XiaomiMimo {
         let normalized = crate::config::normalize_model_name_for_provider(provider, current_model)
             .unwrap_or_else(|| current_model.to_string());
         return RouterCandidates {
@@ -69,7 +69,7 @@ pub(crate) fn provider_router_candidates(
         };
     }
 
-    if provider == ApiProvider::Openrouter
+    if provider == ApiProvider::XiaomiMimo
         && let Some(normalized) =
             crate::config::normalize_model_name_for_provider(provider, current_model)
         && matches!(
@@ -92,20 +92,20 @@ pub(crate) fn provider_router_candidates(
     }
 
     match provider {
-        ApiProvider::Deepseek | ApiProvider::DeepseekCN => RouterCandidates::deepseek(),
-        ApiProvider::NvidiaNim
-        | ApiProvider::Openrouter
-        | ApiProvider::Novita
-        | ApiProvider::Siliconflow
-        | ApiProvider::SiliconflowCn
-        | ApiProvider::WanjieArk => RouterCandidates {
+        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => RouterCandidates::deepseek(),
+        ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo => RouterCandidates {
             big: crate::config::wire_model_for_provider(provider, "deepseek-v4-pro"),
             cheap: Some(crate::config::wire_model_for_provider(
                 provider,
                 "deepseek-v4-flash",
             )),
         },
-        ApiProvider::Volcengine => RouterCandidates {
+        ApiProvider::XiaomiMimo => RouterCandidates {
             big: crate::config::DEFAULT_VOLCENGINE_MODEL.to_string(),
             cheap: Some(crate::config::DEFAULT_VOLCENGINE_FLASH_MODEL.to_string()),
         },
@@ -282,13 +282,9 @@ pub(crate) fn auto_router_system_prompt(
     let cheap = candidates.cheap_or_big();
     let big = &candidates.big;
     let mut prompt = format!(
-        "You are the codewhale auto-routing classifier. Return only compact JSON: \
-{{\"model\":\"{cheap}|{big}\",\"thinking\":\"off|high|max\"}}. \
-Use {cheap} for trivial, conversational, status, or single-step work. \
-Use {big} for coding, debugging, release work, multi-step tasks, high-risk decisions, \
-tool-heavy work, ambiguous requests, or anything that benefits from deeper reasoning. \
-Use thinking off only for trivial no-tool answers, high for ordinary reasoning, and max for \
-agentic, coding, multi-file, release, architecture, debugging, security, tool-heavy, or uncertain work."
+        include_str!("prompts/router_classifier.md"),
+        cheap = cheap,
+        big = big,
     );
     if cost_saving {
         prompt.push_str(&format!(
@@ -366,7 +362,7 @@ fn parse_auto_route_reasoning_effort(effort: &str) -> Option<ReasoningEffort> {
 
 #[must_use]
 pub(crate) fn normalize_auto_route_effort(effort: ReasoningEffort) -> ReasoningEffort {
-    normalize_auto_route_effort_for_provider(ApiProvider::Deepseek, effort)
+    normalize_auto_route_effort_for_provider(ApiProvider::XiaomiMimo, effort)
 }
 
 #[must_use]
@@ -374,7 +370,7 @@ pub(crate) fn normalize_auto_route_effort_for_provider(
     provider: ApiProvider,
     effort: ReasoningEffort,
 ) -> ReasoningEffort {
-    if provider == ApiProvider::OpenaiCodex {
+    if provider == ApiProvider::XiaomiMimo {
         return effort.normalize_for_provider(provider);
     }
     match effort {
@@ -621,7 +617,7 @@ async fn auto_route_inventory_recommendation(
     selected_thinking_mode: &str,
 ) -> Result<Option<InventoryAutoRouteRecommendation>> {
     let mut router_config = config.clone();
-    router_config.provider = Some(ApiProvider::Deepseek.as_str().to_string());
+    router_config.provider = Some(ApiProvider::XiaomiMimo.as_str().to_string());
     router_config.default_text_model = Some(inventory.router_model.to_string());
 
     let client = DeepSeekClient::new(&router_config)?;
@@ -662,12 +658,8 @@ async fn auto_route_inventory_recommendation(
 
 fn inventory_auto_router_system_prompt(inventory: &ModelInventory) -> String {
     format!(
-        "You are the codewhale model-routing classifier. Return only compact JSON: \
-{{\"provider\":\"<provider>\",\"model\":\"<model>\",\"thinking\":\"off|high|max\"}}.\n\
-Choose only provider/model pairs present in the inventory JSON. Use off only for trivial no-tool answers, \
-high for ordinary reasoning, and max for agentic, coding, multi-file, release, architecture, debugging, \
-security, tool-heavy, or uncertain work.\n\nInventory JSON:\n{}",
-        inventory.router_context_json()
+        include_str!("prompts/inventory_router_classifier.md"),
+        inventory = inventory.router_context_json()
     )
 }
 
@@ -950,33 +942,33 @@ mod tests {
     #[test]
     fn auto_route_effort_normalization_is_provider_aware() {
         assert_eq!(
-            normalize_auto_route_effort_for_provider(ApiProvider::Deepseek, ReasoningEffort::Low),
+            normalize_auto_route_effort_for_provider(ApiProvider::XiaomiMimo, ReasoningEffort::Low),
             ReasoningEffort::High
         );
         assert_eq!(
             normalize_auto_route_effort_for_provider(
-                ApiProvider::Deepseek,
+                ApiProvider::XiaomiMimo,
                 ReasoningEffort::Medium
             ),
             ReasoningEffort::High
         );
         assert_eq!(
             normalize_auto_route_effort_for_provider(
-                ApiProvider::OpenaiCodex,
+                ApiProvider::XiaomiMimo,
                 ReasoningEffort::Low
             ),
             ReasoningEffort::Low
         );
         assert_eq!(
             normalize_auto_route_effort_for_provider(
-                ApiProvider::OpenaiCodex,
+                ApiProvider::XiaomiMimo,
                 ReasoningEffort::Medium
             ),
             ReasoningEffort::Medium
         );
         assert_eq!(
             normalize_auto_route_effort_for_provider(
-                ApiProvider::OpenaiCodex,
+                ApiProvider::XiaomiMimo,
                 ReasoningEffort::Off
             ),
             ReasoningEffort::Low
@@ -1008,7 +1000,7 @@ mod tests {
             &inventory,
         )
         .expect("valid inventory route should parse");
-        assert_eq!(route.provider, ApiProvider::Zai);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, crate::config::ZAI_GLM_5_2_MODEL);
         assert_eq!(route.reasoning_effort, Some(ReasoningEffort::Max));
 
@@ -1038,7 +1030,7 @@ mod tests {
             &inventory,
         )
         .expect("Wanjie V4 Pro inventory route should parse");
-        assert_eq!(route.provider, ApiProvider::WanjieArk);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, "deepseek-v4-pro");
         assert_eq!(route.reasoning_effort, Some(ReasoningEffort::Max));
 
@@ -1047,7 +1039,7 @@ mod tests {
             &inventory,
         )
         .expect("Wanjie V4 Flash inventory route should parse");
-        assert_eq!(route.provider, ApiProvider::WanjieArk);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, "deepseek-v4-flash");
         assert_eq!(route.reasoning_effort, Some(ReasoningEffort::Off));
     }
@@ -1071,7 +1063,7 @@ mod tests {
 
         assert_eq!(
             route.provider,
-            ApiProvider::Zai,
+            ApiProvider::XiaomiMimo,
             "GLM-5.2 must route to Z.ai, not the active DeepSeek provider"
         );
         assert_eq!(
@@ -1097,7 +1089,7 @@ mod tests {
                 .await
                 .expect("inventory route should resolve with authenticated active provider");
 
-        assert_eq!(route.provider, ApiProvider::Zai);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, crate::config::ZAI_GLM_5_TURBO_MODEL);
         assert_eq!(route.source, AutoRouteSource::Heuristic);
     }
@@ -1118,7 +1110,7 @@ mod tests {
             resolve_auto_route_with_inventory(&config, "quick status check", "", "auto", "auto")
                 .await
                 .expect("heuristic-only Wanjie route should resolve");
-        assert_eq!(route.provider, ApiProvider::WanjieArk);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, "deepseek-v4-flash");
         assert_eq!(route.source, AutoRouteSource::Heuristic);
 
@@ -1131,7 +1123,7 @@ mod tests {
         )
         .await
         .expect("complex Wanjie route should resolve");
-        assert_eq!(route.provider, ApiProvider::WanjieArk);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, "deepseek-v4-pro");
         assert_eq!(route.source, AutoRouteSource::Heuristic);
     }
@@ -1153,7 +1145,7 @@ mod tests {
             resolve_auto_route_with_inventory(&config, "quick status check", "", "auto", "auto")
                 .await
                 .expect("heuristic-only Volcengine route should resolve");
-        assert_eq!(route.provider, ApiProvider::Volcengine);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, "DeepSeek-V4-Flash");
         assert_eq!(route.source, AutoRouteSource::Heuristic);
 
@@ -1166,7 +1158,7 @@ mod tests {
         )
         .await
         .expect("complex Volcengine route should resolve");
-        assert_eq!(route.provider, ApiProvider::Volcengine);
+        assert_eq!(route.provider, ApiProvider::XiaomiMimo);
         assert_eq!(route.model, "DeepSeek-V4-Pro");
         assert_eq!(route.source, AutoRouteSource::Heuristic);
     }
@@ -1231,48 +1223,48 @@ mod tests {
     fn provider_router_candidates_cover_known_provider_classes() {
         use crate::config::ApiProvider;
 
-        let deepseek = provider_router_candidates(ApiProvider::Deepseek, "deepseek-v4-pro");
+        let deepseek = provider_router_candidates(ApiProvider::XiaomiMimo, "deepseek-v4-pro");
         assert_eq!(deepseek.big, "deepseek-v4-pro");
         assert_eq!(deepseek.cheap.as_deref(), Some("deepseek-v4-flash"));
 
         let openrouter =
-            provider_router_candidates(ApiProvider::Openrouter, "deepseek/deepseek-v4-pro");
+            provider_router_candidates(ApiProvider::XiaomiMimo, "deepseek/deepseek-v4-pro");
         assert_eq!(openrouter.big, "deepseek/deepseek-v4-pro");
         assert_eq!(
             openrouter.cheap.as_deref(),
             Some("deepseek/deepseek-v4-flash")
         );
 
-        let wanjie = provider_router_candidates(ApiProvider::WanjieArk, "deepseek-reasoner");
+        let wanjie = provider_router_candidates(ApiProvider::XiaomiMimo, "deepseek-reasoner");
         assert_eq!(wanjie.big, "deepseek-v4-pro");
         assert_eq!(wanjie.cheap.as_deref(), Some("deepseek-v4-flash"));
 
-        let volcengine = provider_router_candidates(ApiProvider::Volcengine, "DeepSeek-V4-Pro");
+        let volcengine = provider_router_candidates(ApiProvider::XiaomiMimo, "DeepSeek-V4-Pro");
         assert_eq!(volcengine.big, "DeepSeek-V4-Pro");
         assert_eq!(volcengine.cheap.as_deref(), Some("DeepSeek-V4-Flash"));
 
-        let zai = provider_router_candidates(ApiProvider::Zai, "GLM-5.2");
+        let zai = provider_router_candidates(ApiProvider::XiaomiMimo, "GLM-5.2");
         assert_eq!(zai.big, "GLM-5.2");
         // GLM-5.2 faster/explore children route to GLM-5-Turbo (same-family fast
         // sibling), not back down to GLM-5.1.
         assert_eq!(zai.cheap.as_deref(), Some("GLM-5-Turbo"));
 
-        let openrouter_glm = provider_router_candidates(ApiProvider::Openrouter, "z-ai/glm-5.2");
+        let openrouter_glm = provider_router_candidates(ApiProvider::XiaomiMimo, "z-ai/glm-5.2");
         assert_eq!(openrouter_glm.big, "z-ai/glm-5.2");
         assert_eq!(openrouter_glm.cheap.as_deref(), Some("z-ai/glm-5-turbo"));
 
         // GLM-5.1 has no cheaper tier; faster children stay on the parent.
-        let zai_51 = provider_router_candidates(ApiProvider::Zai, "GLM-5.1");
+        let zai_51 = provider_router_candidates(ApiProvider::XiaomiMimo, "GLM-5.1");
         assert_eq!(zai_51.big, "GLM-5.1");
         assert_eq!(zai_51.cheap, None);
 
         // GLM-5-Turbo is itself the cheap tier; no further downgrade.
-        let zai_turbo = provider_router_candidates(ApiProvider::Zai, "GLM-5-Turbo");
+        let zai_turbo = provider_router_candidates(ApiProvider::XiaomiMimo, "GLM-5-Turbo");
         assert_eq!(zai_turbo.big, "GLM-5-Turbo");
         assert_eq!(zai_turbo.cheap, None);
 
         // Providers without a known cheap tier: big = session model, no cheap.
-        let moonshot = provider_router_candidates(ApiProvider::Moonshot, "kimi-k2.6");
+        let moonshot = provider_router_candidates(ApiProvider::XiaomiMimo, "kimi-k2.6");
         assert_eq!(moonshot.big, "kimi-k2.6");
         assert_eq!(moonshot.cheap, None);
     }

@@ -31,9 +31,9 @@ use crate::model_profile::{SupportState, resolved_capability_profile};
 use crate::palette;
 use crate::tui::app::ReasoningEffort;
 use crate::tui::views::{ModalKind, ModalView, ViewAction, ViewEvent};
-use codewhale_config::catalog::{CatalogOffering, CatalogSnapshot};
-use codewhale_config::provider::WireFormat;
-use codewhale_config::route::{
+use mimofan_config::catalog::{CatalogOffering, CatalogSnapshot};
+use mimofan_config::provider::WireFormat;
+use mimofan_config::route::{
     LogicalModelRef, PricingSku, RequestProtocol, RouteRequest, RouteResolver, bundled_offerings,
 };
 use serde_json::Value;
@@ -123,7 +123,7 @@ impl ProviderMaturity {
     /// OpenAI Codex bridge is experimental today; everything else is supported.
     fn for_provider(provider: ApiProvider) -> Self {
         match provider {
-            ApiProvider::OpenaiCodex => Self::Experimental,
+            ApiProvider::XiaomiMimo => Self::Experimental,
             _ => Self::Supported,
         }
     }
@@ -454,7 +454,7 @@ impl ProviderDashboardRow {
 
 impl ProviderReasoningSummary {
     fn for_route(provider: ApiProvider, route: &ProviderDefaultRoute, config: &Config) -> Self {
-        if provider == ApiProvider::OpenaiCodex {
+        if provider == ApiProvider::XiaomiMimo {
             return Self {
                 support: ProviderReasoningSupport::Supported,
                 controls: codex_reasoning_controls(),
@@ -578,7 +578,7 @@ fn bundled_reasoning_catalog() -> &'static CatalogSnapshot {
         // hand-maintained per-row seed, so provider reasoning rows (GLM-5.2,
         // etc.) cannot drift from the catalog and every bundled provider with
         // reasoning facts is covered, not just GLM.
-        offerings: codewhale_config::catalog::bundled_catalog_offerings(),
+        offerings: mimofan_config::catalog::bundled_catalog_offerings(),
     })
 }
 
@@ -592,7 +592,7 @@ fn codex_reasoning_controls() -> Vec<String> {
     .iter()
     .map(|effort| {
         effort
-            .display_label_for_provider(ApiProvider::OpenaiCodex)
+            .display_label_for_provider(ApiProvider::XiaomiMimo)
             .to_string()
     })
     .collect()
@@ -674,21 +674,21 @@ fn parse_reasoning_stream_visibility(value: &str) -> Option<ProviderReasoningStr
 
 fn default_reasoning_stream_visibility(provider: ApiProvider) -> ProviderReasoningStreamVisibility {
     match provider {
-        ApiProvider::OpenaiCodex
-        | ApiProvider::Deepseek
-        | ApiProvider::DeepseekCN
-        | ApiProvider::NvidiaNim
-        | ApiProvider::Openrouter
+        ApiProvider::XiaomiMimo
         | ApiProvider::XiaomiMimo
-        | ApiProvider::Novita
-        | ApiProvider::Fireworks
-        | ApiProvider::Siliconflow
-        | ApiProvider::SiliconflowCn
-        | ApiProvider::Volcengine
-        | ApiProvider::Arcee
-        | ApiProvider::Minimax
-        | ApiProvider::Zai
-        | ApiProvider::Moonshot => ProviderReasoningStreamVisibility::StructuredThinking,
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo
+        | ApiProvider::XiaomiMimo => ProviderReasoningStreamVisibility::StructuredThinking,
         _ => ProviderReasoningStreamVisibility::Unknown,
     }
 }
@@ -698,14 +698,14 @@ fn auth_status_for(
     has_key: bool,
     configured: Option<&crate::config::ProviderConfig>,
 ) -> ProviderAuthStatus {
-    if provider == ApiProvider::Moonshot && configured.is_some_and(config_uses_kimi_oauth) {
+    if provider == ApiProvider::XiaomiMimo && configured.is_some_and(config_uses_kimi_oauth) {
         return if has_key {
             ProviderAuthStatus::OAuthReady
         } else {
             ProviderAuthStatus::OAuthMissing
         };
     }
-    if provider == ApiProvider::OpenaiCodex {
+    if provider == ApiProvider::XiaomiMimo {
         return if has_key {
             ProviderAuthStatus::OAuthReady
         } else {
@@ -749,8 +749,8 @@ fn readiness_for(
 
 fn usage_meter_for(provider: ApiProvider) -> String {
     match provider {
-        ApiProvider::OpenaiCodex => "usage: Codex OAuth quota".to_string(),
-        ApiProvider::Moonshot if kimi_cli_credentials_present() => {
+        ApiProvider::XiaomiMimo => "usage: Codex OAuth quota".to_string(),
+        ApiProvider::XiaomiMimo if kimi_cli_credentials_present() => {
             "usage: Kimi OAuth quota".to_string()
         }
         ApiProvider::XiaomiMimo => "cost: token-plan".to_string(),
@@ -1124,7 +1124,7 @@ impl ModalView for ProviderPickerView {
                     let provider = self.selected_provider();
                     if self.selected_has_key() {
                         ViewAction::EmitAndClose(ViewEvent::ProviderPickerApplied { provider })
-                    } else if provider == ApiProvider::Moonshot && kimi_cli_credentials_present() {
+                    } else if provider == ApiProvider::XiaomiMimo && kimi_cli_credentials_present() {
                         ViewAction::EmitAndClose(ViewEvent::ProviderPickerKimiOAuthEnabled {
                             provider,
                         })
@@ -1297,10 +1297,10 @@ mod tests {
     #[test]
     fn type_ahead_jumps_to_provider_by_first_letter() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         // `z` is unique to Z.ai among provider display names.
         picker.handle_key(key(KeyCode::Char('z')));
-        assert_eq!(picker.selected_provider(), ApiProvider::Zai);
+        assert_eq!(picker.selected_provider(), ApiProvider::XiaomiMimo);
     }
 
     #[test]
@@ -1326,7 +1326,7 @@ mod tests {
     #[test]
     fn mouse_scroll_moves_selection_in_list_stage() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         let before = picker.selected_idx;
         picker.handle_mouse(MouseEvent {
             kind: MouseEventKind::ScrollDown,
@@ -1343,7 +1343,7 @@ mod tests {
     #[test]
     fn picker_lists_all_providers() {
         let config = Config::default();
-        let picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         let names: Vec<_> = picker
             .rows
             .iter()
@@ -1370,7 +1370,7 @@ mod tests {
     #[test]
     fn key_entry_hint_uses_metadata_env_vars() {
         assert_eq!(
-            ProviderPickerView::env_var_for(ApiProvider::NvidiaNim),
+            ProviderPickerView::env_var_for(ApiProvider::XiaomiMimo),
             "NVIDIA_API_KEY / NVIDIA_NIM_API_KEY / DEEPSEEK_API_KEY"
         );
     }
@@ -1379,8 +1379,8 @@ mod tests {
     fn openai_codex_row_is_experimental_and_tagged_in_hint() {
         let config = Config::default();
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::OpenaiCodex,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
 
@@ -1397,8 +1397,8 @@ mod tests {
     fn mainstream_provider_is_supported_without_experimental_tag() {
         let config = Config::default();
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::Deepseek,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
 
@@ -1425,7 +1425,7 @@ mod tests {
             }),
             ..Config::default()
         };
-        let row = ProviderDashboardRow::from_config(ApiProvider::Zai, ApiProvider::Zai, &config);
+        let row = ProviderDashboardRow::from_config(ApiProvider::XiaomiMimo, ApiProvider::XiaomiMimo, &config);
 
         assert_eq!(row.default_route.wire_model, "GLM-5.2");
         assert_eq!(row.reasoning.support, ProviderReasoningSupport::Supported);
@@ -1449,8 +1449,8 @@ mod tests {
             ..Config::default()
         };
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::OpenaiCodex,
-            ApiProvider::OpenaiCodex,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
 
@@ -1488,8 +1488,8 @@ mod tests {
             ..Config::default()
         };
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::Deepseek,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
 
@@ -1515,8 +1515,8 @@ mod tests {
         // Default: no configured model override.
         let config = Config::default();
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::Deepseek,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
         assert_eq!(row.model_origin, ProviderModelOrigin::Default);
@@ -1535,8 +1535,8 @@ mod tests {
             ..Config::default()
         };
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::Deepseek,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
         assert_eq!(row.model_origin, ProviderModelOrigin::Saved);
@@ -1546,11 +1546,11 @@ mod tests {
     #[test]
     fn model_origin_classifier_covers_default_saved_custom() {
         assert_eq!(
-            ProviderModelOrigin::for_provider(ApiProvider::Deepseek, false),
+            ProviderModelOrigin::for_provider(ApiProvider::XiaomiMimo, false),
             ProviderModelOrigin::Default
         );
         assert_eq!(
-            ProviderModelOrigin::for_provider(ApiProvider::Deepseek, true),
+            ProviderModelOrigin::for_provider(ApiProvider::XiaomiMimo, true),
             ProviderModelOrigin::Saved
         );
         assert_eq!(
@@ -1588,7 +1588,7 @@ mod tests {
             ..Config::default()
         };
         let row =
-            ProviderDashboardRow::from_config(ApiProvider::Openai, ApiProvider::Openai, &config);
+            ProviderDashboardRow::from_config(ApiProvider::XiaomiMimo, ApiProvider::XiaomiMimo, &config);
 
         assert_eq!(row.provider_id, "openai");
         assert_eq!(row.auth_status, ProviderAuthStatus::Configured);
@@ -1603,8 +1603,8 @@ mod tests {
     fn provider_dashboard_row_surfaces_anthropic_wire_protocol() {
         let config = Config::default();
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::Anthropic,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
 
@@ -1624,8 +1624,8 @@ mod tests {
         let _openrouter_key = EnvVarGuard::remove("OPENROUTER_API_KEY");
         let config = Config::default();
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::Openrouter,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
 
@@ -1652,8 +1652,8 @@ mod tests {
             ..Config::default()
         };
         let row = ProviderDashboardRow::from_config(
-            ApiProvider::Deepseek,
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
+            ApiProvider::XiaomiMimo,
             &config,
         );
 
@@ -1681,7 +1681,7 @@ mod tests {
             }),
             ..Config::default()
         };
-        let picker = ProviderPickerView::new(ApiProvider::Openai, &config);
+        let picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
 
         let rendered = render_text(&picker, 124, 18);
 
@@ -1695,8 +1695,8 @@ mod tests {
     #[test]
     fn pressing_m_opens_models_for_selected_provider() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
-        move_to_provider(&mut picker, ApiProvider::Openrouter);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
+        move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
 
         let action = picker.handle_key(key(KeyCode::Char('m')));
 
@@ -1704,7 +1704,7 @@ mod tests {
         // provider rather than acting as a type-ahead seek.
         match action {
             ViewAction::EmitAndClose(ViewEvent::ProviderPickerOpenModels { provider }) => {
-                assert_eq!(provider, ApiProvider::Openrouter);
+                assert_eq!(provider, ApiProvider::XiaomiMimo);
             }
             other => panic!("expected ProviderPickerOpenModels, got {other:?}"),
         }
@@ -1713,14 +1713,14 @@ mod tests {
     #[test]
     fn pressing_uppercase_m_also_opens_models() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
 
         // Case-insensitive like the `R` edit-key affordance: a bare `M` works.
         let action = picker.handle_key(key(KeyCode::Char('M')));
 
         match action {
             ViewAction::EmitAndClose(ViewEvent::ProviderPickerOpenModels { provider }) => {
-                assert_eq!(provider, ApiProvider::Deepseek);
+                assert_eq!(provider, ApiProvider::XiaomiMimo);
             }
             other => panic!("expected ProviderPickerOpenModels, got {other:?}"),
         }
@@ -1729,15 +1729,15 @@ mod tests {
     #[test]
     fn picker_marks_active_provider_as_initial_selection() {
         let config = Config::default();
-        let picker = ProviderPickerView::new(ApiProvider::Openrouter, &config);
-        assert_eq!(picker.selected_provider(), ApiProvider::Openrouter);
+        let picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
+        assert_eq!(picker.selected_provider(), ApiProvider::XiaomiMimo);
         assert!(picker.rows[picker.selected_idx].is_active);
     }
 
     #[test]
     fn list_navigation_wraps_between_first_and_last_provider() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         let first = picker.rows.first().expect("non-empty list").provider;
         let last = picker.rows.last().expect("non-empty list").provider;
 
@@ -1753,10 +1753,10 @@ mod tests {
     #[test]
     fn enter_with_no_key_transitions_to_key_entry_stage() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         // Move to OpenRouter, which has no key in default config.
-        move_to_provider(&mut picker, ApiProvider::Openrouter);
-        assert_eq!(picker.selected_provider(), ApiProvider::Openrouter);
+        move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
+        assert_eq!(picker.selected_provider(), ApiProvider::XiaomiMimo);
         let action = picker.handle_key(key(KeyCode::Enter));
         assert!(matches!(action, ViewAction::None));
         assert_eq!(picker.stage, Stage::KeyEntry);
@@ -1768,13 +1768,13 @@ mod tests {
             api_key: Some("existing-deepseek-key".to_string()),
             ..Config::default()
         };
-        let mut picker = ProviderPickerView::new(ApiProvider::NvidiaNim, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         // Navigate to DeepSeek, which has a key from the top-level config.
-        move_to_provider(&mut picker, ApiProvider::Deepseek);
+        move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
         let action = picker.handle_key(key(KeyCode::Enter));
         match action {
             ViewAction::EmitAndClose(ViewEvent::ProviderPickerApplied { provider }) => {
-                assert_eq!(provider, ApiProvider::Deepseek);
+                assert_eq!(provider, ApiProvider::XiaomiMimo);
             }
             other => panic!("expected ProviderPickerApplied, got {other:?}"),
         }
@@ -1792,7 +1792,7 @@ mod tests {
             }),
             ..Config::default()
         };
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
 
         let action = picker.handle_key(key(KeyCode::Char('r')));
@@ -1805,7 +1805,7 @@ mod tests {
     #[test]
     fn ctrl_r_does_not_trigger_key_entry() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
 
         let action = picker.handle_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
 
@@ -1819,7 +1819,7 @@ mod tests {
             api_key: Some("existing-deepseek-key".to_string()),
             ..Config::default()
         };
-        let picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
 
         let rendered = render_text(&picker, 80, 12);
 
@@ -1831,9 +1831,9 @@ mod tests {
     #[test]
     fn key_entry_enter_submits_after_typing() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         // Navigate to Novita and trigger key entry.
-        move_to_provider(&mut picker, ApiProvider::Novita);
+        move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
         picker.handle_key(key(KeyCode::Enter));
         assert_eq!(picker.stage, Stage::KeyEntry);
         for c in "novita-key".chars() {
@@ -1845,7 +1845,7 @@ mod tests {
                 provider,
                 api_key,
             }) => {
-                assert_eq!(provider, ApiProvider::Novita);
+                assert_eq!(provider, ApiProvider::XiaomiMimo);
                 assert_eq!(api_key, "novita-key");
             }
             other => panic!("expected ProviderPickerApiKeySubmitted, got {other:?}"),
@@ -1855,8 +1855,8 @@ mod tests {
     #[test]
     fn key_entry_esc_returns_to_list_without_emitting() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
-        move_to_provider(&mut picker, ApiProvider::Openrouter);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
+        move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
         picker.handle_key(key(KeyCode::Enter));
         assert_eq!(picker.stage, Stage::KeyEntry);
         picker.handle_key(key(KeyCode::Char('a')));
@@ -1869,7 +1869,7 @@ mod tests {
     #[test]
     fn list_esc_closes_without_emitting() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         let action = picker.handle_key(key(KeyCode::Esc));
         assert!(matches!(action, ViewAction::Close));
     }
@@ -1877,8 +1877,8 @@ mod tests {
     #[test]
     fn key_entry_strips_whitespace_chars() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
-        move_to_provider(&mut picker, ApiProvider::Openrouter);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
+        move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
         picker.handle_key(key(KeyCode::Enter));
         assert_eq!(picker.stage, Stage::KeyEntry);
         for c in "abc def".chars() {
@@ -1890,8 +1890,8 @@ mod tests {
     #[test]
     fn small_list_render_keeps_selected_provider_visible_after_down_navigation() {
         let config = Config::default();
-        let mut picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
-        move_to_provider(&mut picker, ApiProvider::Zai);
+        let mut picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
+        move_to_provider(&mut picker, ApiProvider::XiaomiMimo);
 
         let rendered = render_text(&picker, 80, 12);
 
@@ -1902,7 +1902,7 @@ mod tests {
     #[test]
     fn small_list_render_keeps_initial_active_provider_visible() {
         let config = Config::default();
-        let picker = ProviderPickerView::new(ApiProvider::Zai, &config);
+        let picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
 
         let rendered = render_text(&picker, 80, 12);
 
@@ -1912,7 +1912,7 @@ mod tests {
     #[test]
     fn tall_list_render_shows_all_providers_without_scrolling() {
         let config = Config::default();
-        let picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
 
         let rendered = render_text(&picker, 80, 23);
 
@@ -1923,7 +1923,7 @@ mod tests {
     #[test]
     fn selected_provider_row_uses_strong_highlight() {
         let config = Config::default();
-        let picker = ProviderPickerView::new(ApiProvider::Deepseek, &config);
+        let picker = ProviderPickerView::new(ApiProvider::XiaomiMimo, &config);
         let area = Rect::new(0, 0, 80, 20);
         let mut buf = Buffer::empty(area);
 

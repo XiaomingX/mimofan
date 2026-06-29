@@ -390,7 +390,7 @@ async fn process_voice_control(
         "messages": [
             {
                 "role": "system",
-                "content": "You are a voice input assistant. Transcribe the user's speech. Output JSON: {\"text\": \"transcribed text\"}."
+                "content": include_str!("../../../prompts/voice_transcription.md").trim()
             },
             {
                 "role": "user",

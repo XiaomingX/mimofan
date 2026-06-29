@@ -621,7 +621,7 @@ mod tests {
         let ctx = ToolContext::new(tmp.path());
         let err = GitShowTool
             .execute(
-                json!({ "rev": "HEAD --output=/tmp/codewhale-git-show" }),
+                json!({ "rev": "HEAD --output=/tmp/mimofan-git-show" }),
                 &ctx,
             )
             .await
@@ -687,7 +687,7 @@ mod tests {
         let ctx = ToolContext::new(tmp.path());
         let err = GitBlameTool
             .execute(
-                json!({ "path": "file.txt", "rev": "HEAD --contents=/tmp/codewhale-git-blame" }),
+                json!({ "path": "file.txt", "rev": "HEAD --contents=/tmp/mimofan-git-blame" }),
                 &ctx,
             )
             .await

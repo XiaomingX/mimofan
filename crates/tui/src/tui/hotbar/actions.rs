@@ -275,7 +275,7 @@ impl HotbarAction for AppHotbarAction {
                     .push(CommandPaletteView::new(build_command_palette_entries(
                         app.ui_locale,
                         &app.skills_dir,
-                        app.skills_scan_codewhale_only,
+                        app.skills_scan_mimofan_only,
                         &app.workspace,
                         &app.mcp_config_path,
                         app.mcp_snapshot.as_ref(),
@@ -386,7 +386,7 @@ mod tests {
             initial_input: None,
         };
         let mut app = App::new(options, &Config::default());
-        app.ui_locale = crate::localization::Locale::En;
+        app.ui_locale = crate::localization::Locale::ZhHans;
         app
     }
 
@@ -557,7 +557,7 @@ mod tests {
         let registry = HotbarActionRegistry::with_builtins();
         let reasoning = registry.get("reasoning.cycle").expect("reasoning action");
         let mut app = test_app();
-        app.api_provider = ApiProvider::Deepseek;
+        app.api_provider = ApiProvider::XiaomiMimo;
         app.reasoning_effort = ReasoningEffort::Off;
 
         assert!(!reasoning.is_active(&app));
@@ -582,7 +582,7 @@ mod tests {
         let registry = HotbarActionRegistry::with_builtins();
         let reasoning = registry.get("reasoning.cycle").expect("reasoning action");
         let mut app = test_app();
-        app.api_provider = ApiProvider::OpenaiCodex;
+        app.api_provider = ApiProvider::XiaomiMimo;
         app.auto_model = false;
         app.reasoning_effort = ReasoningEffort::Low;
 

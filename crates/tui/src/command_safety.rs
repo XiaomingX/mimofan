@@ -256,7 +256,7 @@ pub static COMMAND_ARITY: &[(&str, u8)] = &[
 /// # Examples
 ///
 /// ```
-/// # use codewhale_tui::command_safety::classify_command;
+/// # use mimofan_tui::command_safety::classify_command;
 /// assert_eq!(classify_command(&["git", "status", "-s"]),            "git status");
 /// assert_eq!(classify_command(&["git", "push", "origin"]),          "git push");
 /// assert_eq!(classify_command(&["cargo", "check", "--workspace"]),  "cargo check");
@@ -317,7 +317,7 @@ pub fn classify_command(tokens: &[&str]) -> String {
 /// # Examples
 ///
 /// ```
-/// # use codewhale_tui::command_safety::prefix_allow_matches;
+/// # use mimofan_tui::command_safety::prefix_allow_matches;
 /// assert!( prefix_allow_matches("git status",    "git status --porcelain"));
 /// assert!(!prefix_allow_matches("git status",    "git push origin main"));
 /// assert!( prefix_allow_matches("cargo check",   "cargo check --workspace"));
@@ -1224,7 +1224,7 @@ mod tests {
             SafetyLevel::Dangerous
         );
         assert_ne!(
-            analyze_command("cargo run --bin codewhale -- eval").level,
+            analyze_command("cargo run --bin mimofan -- eval").level,
             SafetyLevel::Dangerous
         );
     }
@@ -1248,7 +1248,7 @@ mod tests {
         // contain the substring "eval" but are not eval invocations.
         // Guard against the naive `command.contains("eval")` regression
         // — these should stay safe / workspace-safe, never Dangerous.
-        let evaluate_safe = analyze_command("cargo run --bin codewhale -- eval").level;
+        let evaluate_safe = analyze_command("cargo run --bin mimofan -- eval").level;
         assert_ne!(
             evaluate_safe,
             SafetyLevel::Dangerous,

@@ -1,6 +1,6 @@
 # Security Policy
 
-codewhale is a coding agent with direct access to file operations, shell execution, and the network. Security disclosures are taken seriously.
+mimo-tui is a coding agent with direct access to file operations, shell execution, and the network. Security disclosures are taken seriously.
 
 ## Supported Versions
 
@@ -11,7 +11,7 @@ Only the latest stable release receives security patches. No backports to older 
 | latest stable | :white_check_mark: |
 | < latest | :x: |
 
-Check the [releases page](https://github.com/Hmbown/CodeWhale/releases) for the current version.
+Check the [releases page](https://github.com/XiaomingX/mimo-tui/releases) for the current version.
 
 ## Reporting a Vulnerability
 
@@ -19,7 +19,7 @@ Check the [releases page](https://github.com/Hmbown/CodeWhale/releases) for the 
 
 Report privately via one of:
 
-- **GitHub private advisory**: [github.com/Hmbown/CodeWhale/security/advisories/new](https://github.com/Hmbown/CodeWhale/security/advisories/new)
+- **GitHub private advisory**: [github.com/XiaomingX/mimo-tui/security/advisories/new](https://github.com/XiaomingX/mimo-tui/security/advisories/new)
 - **Email**: [hmbown@gmail.com](mailto:hmbown@gmail.com) — include `[SECURITY]` in the subject line
 
 Include in your report:
@@ -58,7 +58,7 @@ You will receive status updates at each phase. If the timeline slips, we will co
 - Denial of service / rate-limit exhaustion against the DeepSeek API
 - Vulnerabilities in third-party dependencies (report to the upstream project)
 - Attacks requiring physical access to the victim's machine
-- Theoretical ML-model injection attacks not demonstrated in the codewhale context
+- Theoretical ML-model injection attacks not demonstrated in the mimo-tui context
 
 If you are unsure whether a bug is in scope, report it anyway. We will triage and respond.
 

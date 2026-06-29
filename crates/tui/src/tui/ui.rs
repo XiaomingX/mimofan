@@ -187,23 +187,23 @@ const SESSION_TITLE_MAX_CHARS: usize = 32;
 const VERSION_HINT_TOAST_TTL_MS: u64 = 12_000;
 
 const REQUIRED_RELEASE_ASSETS: &[&str] = &[
-    "codewhale-artifacts-sha256.txt",
-    "codewhale-linux-arm64",
-    "codewhale-linux-arm64.tar.gz",
-    "codewhale-linux-x64",
-    "codewhale-linux-x64.tar.gz",
-    "codewhale-macos-arm64",
-    "codewhale-macos-arm64.tar.gz",
-    "codewhale-macos-x64",
-    "codewhale-macos-x64.tar.gz",
-    "codewhale-tui-linux-arm64",
-    "codewhale-tui-linux-x64",
-    "codewhale-tui-macos-arm64",
-    "codewhale-tui-macos-x64",
-    "codewhale-tui-windows-x64.exe",
-    "codewhale-windows-x64.exe",
-    "codewhale-windows-x64-portable.zip",
-    "codewhale-windows-x64.zip",
+    "mimofan-artifacts-sha256.txt",
+    "mimofan-linux-arm64",
+    "mimofan-linux-arm64.tar.gz",
+    "mimofan-linux-x64",
+    "mimofan-linux-x64.tar.gz",
+    "mimofan-macos-arm64",
+    "mimofan-macos-arm64.tar.gz",
+    "mimofan-macos-x64",
+    "mimofan-macos-x64.tar.gz",
+    "mimofan-tui-linux-arm64",
+    "mimofan-tui-linux-x64",
+    "mimofan-tui-macos-arm64",
+    "mimofan-tui-macos-x64",
+    "mimofan-tui-windows-x64.exe",
+    "mimofan-windows-x64.exe",
+    "mimofan-windows-x64-portable.zip",
+    "mimofan-windows-x64.zip",
 ];
 
 fn is_session_approved_for_tool(app: &App, tool_name: &str, grouping_key: &str) -> bool {
@@ -366,7 +366,7 @@ impl TerminalInputPump {
         let stop = Arc::new(AtomicBool::new(false));
         let thread_stop = Arc::clone(&stop);
         let handle = thread::Builder::new()
-            .name("codewhale-terminal-input".to_string())
+            .name("mimofan-terminal-input".to_string())
             .spawn(move || {
                 let mut last_heartbeat = Instant::now();
                 while !thread_stop.load(Ordering::Acquire) {
@@ -594,7 +594,7 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
     };
     if use_alt_screen {
         execute!(stdout, EnterAlternateScreen)?;
-        // Windows also suppresses CodeWhale's own verbose CLI logger while
+        // Windows also suppresses mimofan's own verbose CLI logger while
         // the alt-screen is active. The stderr redirect above catches raw
         // writes; this prevents the known verbose source at the origin.
         #[cfg(windows)]
@@ -897,7 +897,7 @@ fn should_show_resume_hint(session_id: Option<&str>) -> bool {
 }
 
 fn resume_hint_text() -> &'static str {
-    "To continue this session, execute codewhale run --continue"
+    "To continue this session, execute mimofan run --continue"
 }
 
 fn terminal_probe_timeout(config: &Config) -> Duration {
@@ -1006,8 +1006,8 @@ fn bounded_subagent_hook_preview(text: &str) -> (String, bool) {
 }
 
 fn subagent_completion_status(result: &str) -> Option<String> {
-    const START: &str = "<codewhale:subagent.done>";
-    const END: &str = "</codewhale:subagent.done>";
+    const START: &str = "<mimo:subagent.done>";
+    const END: &str = "</mimo:subagent.done>";
 
     if let Some(start) = result.find(START).map(|idx| idx + START.len())
         && let Some(end) = result[start..].find(END).map(|idx| idx + start)
@@ -1124,7 +1124,7 @@ fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         notes_path: config.notes_path(),
         mcp_config_path: config.mcp_config_path(),
         skills_dir: app.skills_dir.clone(),
-        skills_scan_codewhale_only: app.skills_scan_codewhale_only,
+        skills_scan_mimofan_only: app.skills_scan_mimofan_only,
         instructions: configured_instruction_sources(config),
         project_context_pack_enabled: config.project_context_pack_enabled(),
         translation_enabled: app.translation_enabled,
@@ -1229,7 +1229,7 @@ fn build_app_system_prompt(app: &App, config: &Config) -> SystemPrompt {
             ),
             show_thinking: app.show_thinking,
             verbosity: app.verbosity.as_deref(),
-            skills_scan_codewhale_only: app.skills_scan_codewhale_only,
+            skills_scan_mimofan_only: app.skills_scan_mimofan_only,
         },
     )
 }
@@ -1526,7 +1526,7 @@ fn should_fetch_deepseek_balance(app: &App) -> bool {
     app.status_items.contains(&StatusItem::Balance)
         && matches!(
             app.api_provider,
-            ApiProvider::Deepseek | ApiProvider::DeepseekCN
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
         )
 }
 
@@ -1616,7 +1616,7 @@ async fn run_event_loop(
         if done && let Ok(Some(hint)) = version_check.take().unwrap().await {
             app.push_status_toast(
                 hint,
-                StatusToastLevel::Info,
+                StatusToastLevel::Warning,
                 Some(VERSION_HINT_TOAST_TTL_MS),
             );
         }
@@ -3708,7 +3708,7 @@ async fn run_event_loop(
                     .push(CommandPaletteView::new(build_command_palette_entries(
                         app.ui_locale,
                         &app.skills_dir,
-                        app.skills_scan_codewhale_only,
+                        app.skills_scan_mimofan_only,
                         &app.workspace,
                         &app.mcp_config_path,
                         app.mcp_snapshot.as_ref(),
@@ -5356,7 +5356,7 @@ fn recover_engine_event_disconnect(app: &mut App) -> bool {
     }
 
     app.add_message(HistoryCell::Error {
-        message: "Engine stopped before completing the turn. Check ~/.codewhale/crashes and retry."
+        message: "Engine stopped before completing the turn. Check ~/.mimofan/crashes and retry."
             .to_string(),
         severity: crate::error_taxonomy::ErrorSeverity::Error,
     });
@@ -5474,7 +5474,7 @@ pub(crate) fn apply_engine_error_to_app(
         app.onboarding_needs_api_key = true;
         app.onboarding = OnboardingState::ApiKey;
         app.status_message = Some(
-            "The API key from DEEPSEEK_API_KEY was rejected. Paste a valid key to save it to ~/.codewhale/config.toml, or update the environment variable.".to_string(),
+            "The API key from DEEPSEEK_API_KEY was rejected. Paste a valid key to save it to ~/.mimofan/config.toml, or update the environment variable.".to_string(),
         );
         return;
     }
@@ -5545,7 +5545,7 @@ fn rollback_provider_after_auth_failure(app: &mut App, config: &mut Config) -> O
         );
         if matches!(
             previous_provider,
-            ApiProvider::Deepseek | ApiProvider::DeepseekCN
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
         ) {
             settings.set("default_model", &app.model_selection_for_persistence())?;
         }
@@ -6390,7 +6390,7 @@ async fn apply_model_and_compaction_update(
     engine_handle: &EngineHandle,
     compaction: crate::compaction::CompactionConfig,
     mode: AppMode,
-    route_limits: Option<codewhale_config::route::RouteLimits>,
+    route_limits: Option<mimofan_config::route::RouteLimits>,
 ) {
     let _ = engine_handle
         .send(Op::SetModel {
@@ -6481,7 +6481,7 @@ async fn drain_web_config_events(
 
 /// Apply the choice made in the `/model` picker (#39): mutate App state so
 /// the next turn uses the new model/effort, persist the selection to
-/// `~/.codewhale/settings.toml` (legacy: `~/.deepseek/settings.toml`) so it survives a restart, push the change to
+/// `~/.mimofan/settings.toml` (legacy: `~/.deepseek/settings.toml`) so it survives a restart, push the change to
 /// the running engine via `Op::SetModel`/`Op::SetCompaction`, and surface
 /// a one-line status describing what changed.
 // The model/effort transition needs both the previous and next model+effort
@@ -6581,7 +6581,7 @@ async fn apply_model_picker_choice(
         if model_changed {
             if matches!(
                 app.api_provider,
-                ApiProvider::Deepseek | ApiProvider::DeepseekCN
+                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
             ) {
                 settings.set("default_model", &resolved_model)?;
             }
@@ -6758,7 +6758,7 @@ async fn switch_provider(
         .clamp(1, crate::config::MAX_SUBAGENTS);
     app.provider_chain = target
         .kind()
-        .map(|kind| codewhale_config::ProviderChain::new(kind, &config.fallback_providers))
+        .map(|kind| mimofan_config::ProviderChain::new(kind, &config.fallback_providers))
         .filter(|chain| chain.providers().len() > 1);
     app.last_fallback_reason = None;
     app.model_ids_passthrough = config.model_ids_pass_through();
@@ -6811,7 +6811,7 @@ async fn switch_provider(
         settings.default_provider = Some(target.as_str().to_string());
         if model_override.is_some() {
             settings.set_model_for_provider(target.as_str(), &new_model);
-            if matches!(target, ApiProvider::Deepseek | ApiProvider::DeepseekCN) {
+            if matches!(target, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
                 settings.set("default_model", &new_model)?;
             }
         }
@@ -7539,7 +7539,7 @@ fn apply_workspace_runtime_state(app: &mut App, config: &Config, workspace: Path
         workspace.clone(),
     );
     app.skills_dir = crate::tui::app::resolve_skills_dir(&workspace, &config.skills_dir(), config);
-    app.skills_scan_codewhale_only = config.skills_config().scan_codewhale_only();
+    app.skills_scan_mimofan_only = config.skills_config().scan_mimofan_only();
     app.refresh_skill_cache();
     app.workspace_context = None;
     if let Ok(mut cell) = app.workspace_context_cell.lock() {
@@ -8325,32 +8325,32 @@ fn render(f: &mut Frame, app: &mut App) {
         let model_label = app.model_display_label();
         let effort_label = app.reasoning_effort_display_label();
         let provider_label = match app.api_provider {
-            crate::config::ApiProvider::Deepseek => None,
-            crate::config::ApiProvider::DeepseekCN => None,
-            crate::config::ApiProvider::DeepseekAnthropic => Some("DS-A"),
-            crate::config::ApiProvider::NvidiaNim => Some("NIM"),
-            crate::config::ApiProvider::Openai => Some("OpenAI"),
-            crate::config::ApiProvider::Anthropic => Some("Claude"),
-            crate::config::ApiProvider::Atlascloud => Some("Atlas"),
-            crate::config::ApiProvider::WanjieArk => Some("Wanjie"),
-            crate::config::ApiProvider::Volcengine => Some("Volc"),
-            crate::config::ApiProvider::Openrouter => Some("OR"),
+            crate::config::ApiProvider::XiaomiMimo => None,
+            crate::config::ApiProvider::XiaomiMimo => None,
+            crate::config::ApiProvider::XiaomiMimo => Some("DS-A"),
+            crate::config::ApiProvider::XiaomiMimo => Some("NIM"),
+            crate::config::ApiProvider::XiaomiMimo => Some("OpenAI"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Claude"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Atlas"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Wanjie"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Volc"),
+            crate::config::ApiProvider::XiaomiMimo => Some("OR"),
             crate::config::ApiProvider::XiaomiMimo => Some("MiMo"),
-            crate::config::ApiProvider::Novita => Some("Novita"),
-            crate::config::ApiProvider::Fireworks => Some("Fireworks"),
-            crate::config::ApiProvider::Siliconflow | ApiProvider::SiliconflowCn => {
+            crate::config::ApiProvider::XiaomiMimo => Some("Novita"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Fireworks"),
+            crate::config::ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 Some("SiliconFlow")
             }
-            crate::config::ApiProvider::Arcee => Some("Arcee"),
-            crate::config::ApiProvider::Moonshot => Some("Kimi"),
-            crate::config::ApiProvider::Huggingface => Some("HF"),
-            crate::config::ApiProvider::Deepinfra => Some("DeepInfra"),
-            crate::config::ApiProvider::Together => Some("Together"),
-            crate::config::ApiProvider::Qianfan => Some("Qianfan"),
-            crate::config::ApiProvider::OpenaiCodex => Some("Codex"),
-            crate::config::ApiProvider::Zai => Some("Z.ai"),
-            crate::config::ApiProvider::Stepfun => Some("StepFun"),
-            crate::config::ApiProvider::Minimax => Some("MiniMax"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Arcee"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Kimi"),
+            crate::config::ApiProvider::XiaomiMimo => Some("HF"),
+            crate::config::ApiProvider::XiaomiMimo => Some("DeepInfra"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Together"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Qianfan"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Codex"),
+            crate::config::ApiProvider::XiaomiMimo => Some("Z.ai"),
+            crate::config::ApiProvider::XiaomiMimo => Some("StepFun"),
+            crate::config::ApiProvider::XiaomiMimo => Some("MiniMax"),
             crate::config::ApiProvider::Custom => Some("Custom"),
         };
         let status_indicator_started_at = if app.low_motion {
@@ -9213,7 +9213,7 @@ struct ApprovalDecisionEvent {
     timed_out: bool,
     approval_key: String,
     approval_grouping_key: String,
-    persistent_ask_rules: Vec<codewhale_config::ToolAskRule>,
+    persistent_ask_rules: Vec<mimofan_config::ToolAskRule>,
 }
 
 async fn apply_approval_decision(
@@ -9266,9 +9266,9 @@ async fn apply_approval_decision(
 fn persist_ask_rules_from_approval(
     app: &mut App,
     config: &mut Config,
-    rules: &[codewhale_config::ToolAskRule],
+    rules: &[mimofan_config::ToolAskRule],
 ) {
-    match codewhale_config::ConfigStore::load(app.config_path.clone()).and_then(|mut store| {
+    match mimofan_config::ConfigStore::load(app.config_path.clone()).and_then(|mut store| {
         let added = store.append_ask_rules(rules)?;
         let permissions_path = store.permissions_path();
         config.exec_policy_engine = store.exec_policy_engine();
@@ -9450,7 +9450,7 @@ fn apply_backtrack(app: &mut App, depth: usize) {
     app.needs_redraw = true;
 }
 
-/// Persist the typed API key to `~/.codewhale/config.toml`, refresh the
+/// Persist the typed API key to `~/.mimofan/config.toml`, refresh the
 /// in-memory config so the engine can see it, then switch to the provider.
 async fn apply_provider_picker_api_key(
     app: &mut App,
@@ -9483,7 +9483,7 @@ async fn apply_provider_picker_api_key(
 
     // Mirror the saved key into the in-memory config so the engine sees it
     // immediately without a reload — `save_api_key_for` only touches disk.
-    if matches!(provider, ApiProvider::Deepseek | ApiProvider::DeepseekCN) {
+    if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
         config.api_key = Some(api_key);
     } else {
         // Capture the custom entry key before borrowing `providers` (#1519).
@@ -9497,7 +9497,7 @@ async fn apply_provider_picker_api_key(
             .providers
             .get_or_insert_with(ProvidersConfig::default);
         let entry: &mut ProviderConfig = match provider {
-            ApiProvider::Deepseek | ApiProvider::DeepseekCN => {
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
                 // Guarded by the outer `if` above; safety net against refactors.
                 return;
             }
@@ -9505,28 +9505,28 @@ async fn apply_provider_picker_api_key(
                 .custom
                 .entry(custom_key.expect("custom key captured for custom provider"))
                 .or_default(),
-            ApiProvider::DeepseekAnthropic => &mut providers.deepseek_anthropic,
-            ApiProvider::NvidiaNim => &mut providers.nvidia_nim,
-            ApiProvider::Openai => &mut providers.openai,
-            ApiProvider::Atlascloud => &mut providers.atlascloud,
-            ApiProvider::WanjieArk => &mut providers.wanjie_ark,
-            ApiProvider::Volcengine => &mut providers.volcengine,
-            ApiProvider::Openrouter => &mut providers.openrouter,
+            ApiProvider::XiaomiMimo => &mut providers.deepseek_anthropic,
+            ApiProvider::XiaomiMimo => &mut providers.nvidia_nim,
+            ApiProvider::XiaomiMimo => &mut providers.openai,
+            ApiProvider::XiaomiMimo => &mut providers.atlascloud,
+            ApiProvider::XiaomiMimo => &mut providers.wanjie_ark,
+            ApiProvider::XiaomiMimo => &mut providers.volcengine,
+            ApiProvider::XiaomiMimo => &mut providers.openrouter,
             ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-            ApiProvider::Novita => &mut providers.novita,
-            ApiProvider::Fireworks => &mut providers.fireworks,
-            ApiProvider::Siliconflow | ApiProvider::SiliconflowCn => &mut providers.siliconflow,
-            ApiProvider::Arcee => &mut providers.arcee,
-            ApiProvider::Moonshot => &mut providers.moonshot,
-            ApiProvider::Huggingface => &mut providers.huggingface,
-            ApiProvider::Deepinfra => &mut providers.deepinfra,
-            ApiProvider::Together => &mut providers.together,
-            ApiProvider::Qianfan => &mut providers.qianfan,
-            ApiProvider::OpenaiCodex => &mut providers.openai_codex,
-            ApiProvider::Anthropic => &mut providers.anthropic,
-            ApiProvider::Zai => &mut providers.zai,
-            ApiProvider::Stepfun => &mut providers.stepfun,
-            ApiProvider::Minimax => &mut providers.minimax,
+            ApiProvider::XiaomiMimo => &mut providers.novita,
+            ApiProvider::XiaomiMimo => &mut providers.fireworks,
+            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => &mut providers.siliconflow,
+            ApiProvider::XiaomiMimo => &mut providers.arcee,
+            ApiProvider::XiaomiMimo => &mut providers.moonshot,
+            ApiProvider::XiaomiMimo => &mut providers.huggingface,
+            ApiProvider::XiaomiMimo => &mut providers.deepinfra,
+            ApiProvider::XiaomiMimo => &mut providers.together,
+            ApiProvider::XiaomiMimo => &mut providers.qianfan,
+            ApiProvider::XiaomiMimo => &mut providers.openai_codex,
+            ApiProvider::XiaomiMimo => &mut providers.anthropic,
+            ApiProvider::XiaomiMimo => &mut providers.zai,
+            ApiProvider::XiaomiMimo => &mut providers.stepfun,
+            ApiProvider::XiaomiMimo => &mut providers.minimax,
         };
         entry.api_key = Some(api_key);
     }
@@ -9575,33 +9575,33 @@ fn set_provider_auth_mode_in_memory(config: &mut Config, provider: ApiProvider, 
         .providers
         .get_or_insert_with(ProvidersConfig::default);
     let entry: &mut ProviderConfig = match provider {
-        ApiProvider::Deepseek | ApiProvider::DeepseekCN => return,
+        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => return,
         ApiProvider::Custom => providers
             .custom
             .entry(custom_key.expect("custom key captured for custom provider"))
             .or_default(),
-        ApiProvider::DeepseekAnthropic => &mut providers.deepseek_anthropic,
-        ApiProvider::NvidiaNim => &mut providers.nvidia_nim,
-        ApiProvider::Openai => &mut providers.openai,
-        ApiProvider::Atlascloud => &mut providers.atlascloud,
-        ApiProvider::WanjieArk => &mut providers.wanjie_ark,
-        ApiProvider::Volcengine => &mut providers.volcengine,
-        ApiProvider::Openrouter => &mut providers.openrouter,
+        ApiProvider::XiaomiMimo => &mut providers.deepseek_anthropic,
+        ApiProvider::XiaomiMimo => &mut providers.nvidia_nim,
+        ApiProvider::XiaomiMimo => &mut providers.openai,
+        ApiProvider::XiaomiMimo => &mut providers.atlascloud,
+        ApiProvider::XiaomiMimo => &mut providers.wanjie_ark,
+        ApiProvider::XiaomiMimo => &mut providers.volcengine,
+        ApiProvider::XiaomiMimo => &mut providers.openrouter,
         ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-        ApiProvider::Novita => &mut providers.novita,
-        ApiProvider::Fireworks => &mut providers.fireworks,
-        ApiProvider::Siliconflow | ApiProvider::SiliconflowCn => &mut providers.siliconflow,
-        ApiProvider::Arcee => &mut providers.arcee,
-        ApiProvider::Moonshot => &mut providers.moonshot,
-        ApiProvider::Huggingface => &mut providers.huggingface,
-        ApiProvider::Deepinfra => &mut providers.deepinfra,
-        ApiProvider::Together => &mut providers.together,
-        ApiProvider::Qianfan => &mut providers.qianfan,
-        ApiProvider::OpenaiCodex => &mut providers.openai_codex,
-        ApiProvider::Anthropic => &mut providers.anthropic,
-        ApiProvider::Zai => &mut providers.zai,
-        ApiProvider::Stepfun => &mut providers.stepfun,
-        ApiProvider::Minimax => &mut providers.minimax,
+        ApiProvider::XiaomiMimo => &mut providers.novita,
+        ApiProvider::XiaomiMimo => &mut providers.fireworks,
+        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => &mut providers.siliconflow,
+        ApiProvider::XiaomiMimo => &mut providers.arcee,
+        ApiProvider::XiaomiMimo => &mut providers.moonshot,
+        ApiProvider::XiaomiMimo => &mut providers.huggingface,
+        ApiProvider::XiaomiMimo => &mut providers.deepinfra,
+        ApiProvider::XiaomiMimo => &mut providers.together,
+        ApiProvider::XiaomiMimo => &mut providers.qianfan,
+        ApiProvider::XiaomiMimo => &mut providers.openai_codex,
+        ApiProvider::XiaomiMimo => &mut providers.anthropic,
+        ApiProvider::XiaomiMimo => &mut providers.zai,
+        ApiProvider::XiaomiMimo => &mut providers.stepfun,
+        ApiProvider::XiaomiMimo => &mut providers.minimax,
     };
     entry.auth_mode = Some(auth_mode);
 }
@@ -11283,8 +11283,8 @@ async fn version_hint_from_startup_source(
                 return version_hint_from_release_mirror_env(current).await;
             }
 
-            let body = codewhale_release::fetch_release_json_async(
-                codewhale_release::LATEST_RELEASE_URL,
+            let body = mimofan_release::fetch_release_json_async(
+                mimofan_release::LATEST_RELEASE_URL,
                 "latest release",
             )
             .await
@@ -11300,23 +11300,23 @@ async fn version_hint_from_release_mirror_env(current: &str) -> Option<String> {
         return None;
     }
     let tag =
-        codewhale_release::latest_release_tag_async(codewhale_release::ReleaseChannel::Stable)
+        mimofan_release::latest_release_tag_async(mimofan_release::ReleaseChannel::Stable)
             .await
             .ok()?;
     version_hint_from_latest_tag(&tag, current)
 }
 
 fn release_mirror_env_configured() -> bool {
-    let version = codewhale_release::update_version_from_env()
+    let version = mimofan_release::update_version_from_env()
         .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
-    codewhale_release::release_base_url_from_env(&version).is_some()
+    mimofan_release::release_base_url_from_env(&version).is_some()
 }
 
 async fn version_hint_from_configured_update_uri(
     update_uri: &str,
     current: &str,
 ) -> Result<Option<String>> {
-    let body = codewhale_release::fetch_release_json_async(update_uri, "configured latest release")
+    let body = mimofan_release::fetch_release_json_async(update_uri, "configured latest release")
         .await?;
     let json: serde_json::Value = serde_json::from_str(&body).with_context(|| {
         format!("failed to parse release JSON from configured URI {update_uri}")
@@ -11354,7 +11354,7 @@ fn version_hint_from_latest_tag(tag: &str, current: &str) -> Option<String> {
     }
 
     Some(format!(
-        "v{latest} available - run `codewhale update` and restart"
+        "新版本 v{latest} 已发布，请运行 mimofan update 升级后重启"
     ))
 }
 

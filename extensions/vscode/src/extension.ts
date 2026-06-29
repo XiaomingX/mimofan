@@ -198,7 +198,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("codewhale.openRuntimeDocs", () => {
       void vscode.env.openExternal(
         vscode.Uri.parse(
-          "https://github.com/Hmbown/CodeWhale/blob/main/docs/RUNTIME_API.md",
+          "https://github.com/XiaomingX/mimo-tui/blob/main/docs/RUNTIME_API.md",
         ),
       );
     }),

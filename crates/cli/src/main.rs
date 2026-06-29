@@ -1,3 +1,3 @@
 fn main() -> std::process::ExitCode {
-    codewhale_cli::run_cli()
+    mimofan_cli::run_cli()
 }

@@ -1,4 +1,4 @@
-//! Single source of model facts for CodeWhale (#3071, #3073).
+//! Single source of model facts for mimofan (#3071, #3073).
 //!
 //! Historically, "what is this model's context window / max output / does it
 //! reason?" was answered by several hard-coded sites:
@@ -77,17 +77,17 @@ pub enum ModelProvider {
 #[must_use]
 pub fn serving_provider(provider: ModelProvider) -> crate::config::ApiProvider {
     match provider {
-        ModelProvider::DeepSeek => crate::config::ApiProvider::Deepseek,
-        ModelProvider::Anthropic => crate::config::ApiProvider::Anthropic,
-        ModelProvider::OpenAi => crate::config::ApiProvider::Openai,
-        ModelProvider::OpenAiCodex => crate::config::ApiProvider::OpenaiCodex,
-        ModelProvider::Moonshot => crate::config::ApiProvider::Moonshot,
-        ModelProvider::Zai => crate::config::ApiProvider::Zai,
-        ModelProvider::Minimax => crate::config::ApiProvider::Minimax,
-        ModelProvider::Qwen => crate::config::ApiProvider::Openrouter,
-        ModelProvider::Arcee => crate::config::ApiProvider::Arcee,
+        ModelProvider::DeepSeek => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::Anthropic => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::OpenAi => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::OpenAiCodex => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::Moonshot => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::Zai => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::Minimax => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::Qwen => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::Arcee => crate::config::ApiProvider::XiaomiMimo,
         ModelProvider::XiaomiMimo => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Other => crate::config::ApiProvider::Openrouter,
+        ModelProvider::Other => crate::config::ApiProvider::XiaomiMimo,
     }
 }
 
@@ -325,38 +325,38 @@ mod tests {
 
         assert_eq!(
             serving_provider(ModelProvider::DeepSeek),
-            ApiProvider::Deepseek
+            ApiProvider::XiaomiMimo
         );
         assert_eq!(
             serving_provider(ModelProvider::Anthropic),
-            ApiProvider::Anthropic
+            ApiProvider::XiaomiMimo
         );
-        assert_eq!(serving_provider(ModelProvider::OpenAi), ApiProvider::Openai);
+        assert_eq!(serving_provider(ModelProvider::OpenAi), ApiProvider::XiaomiMimo);
         assert_eq!(
             serving_provider(ModelProvider::OpenAiCodex),
-            ApiProvider::OpenaiCodex
+            ApiProvider::XiaomiMimo
         );
         assert_eq!(
             serving_provider(ModelProvider::Moonshot),
-            ApiProvider::Moonshot
+            ApiProvider::XiaomiMimo
         );
-        assert_eq!(serving_provider(ModelProvider::Zai), ApiProvider::Zai);
+        assert_eq!(serving_provider(ModelProvider::Zai), ApiProvider::XiaomiMimo);
         assert_eq!(
             serving_provider(ModelProvider::Minimax),
-            ApiProvider::Minimax
+            ApiProvider::XiaomiMimo
         );
         assert_eq!(
             serving_provider(ModelProvider::Qwen),
-            ApiProvider::Openrouter
+            ApiProvider::XiaomiMimo
         );
-        assert_eq!(serving_provider(ModelProvider::Arcee), ApiProvider::Arcee);
+        assert_eq!(serving_provider(ModelProvider::Arcee), ApiProvider::XiaomiMimo);
         assert_eq!(
             serving_provider(ModelProvider::XiaomiMimo),
             ApiProvider::XiaomiMimo
         );
         assert_eq!(
             serving_provider(ModelProvider::Other),
-            ApiProvider::Openrouter
+            ApiProvider::XiaomiMimo
         );
     }
 

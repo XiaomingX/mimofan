@@ -1,11 +1,11 @@
-# CodeWhale 使用说明
+# mimo-tui 使用说明
 
 > 面向中国开发者的使用指南，说人话，不绕弯子。
 > 最后更新：2026-06-28
 
 ---
 
-## CodeWhale 能干什么？
+## mimo-tui 能干什么？
 
 简单说：**你用自然语言告诉它要做什么，它帮你写代码、改文件、跑命令。**
 
@@ -24,20 +24,20 @@
 ### 方式 1：npm 全局安装（推荐）
 
 ```bash
-npm install -g codewhale
+npm install -g mimo-tui
 ```
 
 安装后你会得到两个命令：
-- `codewhale` — 完整功能的 TUI 终端界面
+- `mimo-tui` — 完整功能的 TUI 终端界面
 - `codew` — 轻量 CLI 工具
 
 ### 方式 2：从源码编译
 
 ```bash
 # 需要 Rust 1.88+
-git clone https://github.com/Hmbown/CodeWhale.git
-cd CodeWhale
-cargo build --release -p codewhale-cli -p codewhale-tui
+git clone https://github.com/XiaomingX/mimo-tui.git
+cd mimo-tui
+cargo build --release -p mimo-tui-cli -p mimo-tui
 ```
 
 编译产物在 `target/release/` 下。
@@ -45,8 +45,8 @@ cargo build --release -p codewhale-cli -p codewhale-tui
 ### 方式 3：Docker
 
 ```bash
-docker build -t codewhale .
-docker run -it codewhale
+docker build -t mimo-tui .
+docker run -it mimo-tui
 ```
 
 ---
@@ -72,13 +72,13 @@ export ANTHROPIC_API_KEY="sk-ant-你的key"
 
 ```bash
 # 复制示例配置
-cp config.example.toml ~/.codewhale/config.toml
+cp config.example.toml ~/.mimo-tui/config.toml
 
 # 编辑配置（至少填好 api_key）
-vim ~/.codewhale/config.toml
+vim ~/.mimo-tui/config.toml
 ```
 
-**最小配置**（`~/.codewhale/config.toml`）：
+**最小配置**（`~/.mimo-tui/config.toml`）：
 
 ```toml
 provider = "deepseek"
@@ -135,7 +135,7 @@ MiMo API 端点：
 ### 启动 TUI 终端界面
 
 ```bash
-codewhale
+mimo-tui
 ```
 
 进入后你会看到一个终端界面，直接打字跟 AI 对话就行。
@@ -182,14 +182,14 @@ codew --provider openai "用 GPT 帮我写个 API"
 codew --resume
 
 # 启动 HTTP 服务器模式
-codewhale serve --http
+mimo-tui serve --http
 ```
 
 ---
 
 ## 三种运行模式
 
-CodeWhale 有三种模式，控制 AI 的行为方式：
+mimo-tui 有三种模式，控制 AI 的行为方式：
 
 ### Agent 模式（默认）
 
@@ -221,7 +221,7 @@ AI 自己决定一切，不问你。适合你信任 AI 的场景。
 
 ```bash
 # 启动时指定
-codewhale --yolo
+mimo-tui --yolo
 
 # 或在 TUI 中切换
 /mode yolo
@@ -252,7 +252,7 @@ codewhale --yolo
 有些命令你确定安全，可以配置自动放行：
 
 ```toml
-# ~/.codewhale/config.toml
+# ~/.mimo-tui/config.toml
 auto_allow = ["git status", "cargo check", "npm test"]
 ```
 
@@ -260,7 +260,7 @@ auto_allow = ["git status", "cargo check", "npm test"]
 
 ## 子代理系统
 
-CodeWhale 可以派生子代理来并行处理复杂任务。
+mimo-tui 可以派生子代理来并行处理复杂任务。
 
 ### 什么时候会派生子代理？
 
@@ -283,7 +283,7 @@ AI：我会派生 3 个子代理并行处理：
 ### 子代理配置
 
 ```toml
-# ~/.codewhale/config.toml
+# ~/.mimo-tui/config.toml
 [subagent]
 max_concurrent = 20        # 最大并发数
 max_depth = 3              # 最大嵌套深度
@@ -293,11 +293,11 @@ max_depth = 3              # 最大嵌套深度
 
 ## 配置 MCP 工具服务器
 
-MCP（Model Context Protocol）让 CodeWhale 能调用外部工具。
+MCP（Model Context Protocol）让 mimo-tui 能调用外部工具。
 
 ### 配置方法
 
-创建 `~/.codewhale/mcp.json`：
+创建 `~/.mimo-tui/mcp.json`：
 
 ```json
 {
@@ -310,7 +310,7 @@ MCP（Model Context Protocol）让 CodeWhale 能调用外部工具。
 }
 ```
 
-配置后重启 CodeWhale，MCP 工具自动对 AI 可见。
+配置后重启 mimo-tui，MCP 工具自动对 AI 可见。
 
 ### 常用 MCP 服务器
 
@@ -336,10 +336,10 @@ Skills 是可复用的提示词模板，让 AI 专注于特定任务。
 
 ### 创建自定义 Skills
 
-在 `~/.codewhale/skills/` 下创建目录：
+在 `~/.mimo-tui/skills/` 下创建目录：
 
 ```
-~/.codewhale/skills/
+~/.mimo-tui/skills/
   my-skill/
     SKILL.md          # 技能提示词（必须）
     helper-script.sh  # 辅助脚本（可选）
@@ -365,7 +365,7 @@ Hooks 让你在工具执行前后自动运行自定义脚本。
 
 ### 配置方法
 
-在 `~/.codewhale/config.toml` 中添加：
+在 `~/.mimo-tui/config.toml` 中添加：
 
 ```toml
 [[hooks]]
@@ -388,7 +388,7 @@ command = "echo '工具执行完成: $TOOL_NAME, 结果: $TOOL_RESULT'"
 
 ## 后台任务
 
-CodeWhale 可以在后台运行长时间任务。
+mimo-tui 可以在后台运行长时间任务。
 
 ### 使用方法
 
@@ -407,7 +407,7 @@ CodeWhale 可以在后台运行长时间任务。
 
 ```bash
 # 启动 HTTP 服务器
-codewhale serve --http
+mimo-tui serve --http
 
 # 创建任务
 curl -X POST http://localhost:3000/v1/tasks \
@@ -434,9 +434,9 @@ codew --resume
 
 ### 会话存储位置
 
-- `~/.codewhale/sessions/` — 会话历史
-- `~/.codewhale/sessions/checkpoints/` — 崩溃恢复点
-- `~/.codewhale/snapshots/` — 工作区快照
+- `~/.mimo-tui/sessions/` — 会话历史
+- `~/.mimo-tui/sessions/checkpoints/` — 崩溃恢复点
+- `~/.mimo-tui/snapshots/` — 工作区快照
 
 ### 上下文压缩
 
@@ -455,7 +455,7 @@ codew --resume
 三种方式（优先级从高到低）：
 1. 环境变量：`export DEEPSEEK_API_KEY="sk-xxx"`
 2. `.env` 文件：在项目根目录创建 `.env`
-3. 配置文件：`~/.codewhale/config.toml` 中的 `api_key` 字段
+3. 配置文件：`~/.mimo-tui/config.toml` 中的 `api_key` 字段
 
 ### Q: 怎么切换模型？
 
@@ -475,11 +475,11 @@ TUI 中输入 `/model deepseek-v4-flash` 或 `/model gpt-4.1`。
 
 ### Q: 文件被改坏了怎么恢复？
 
-CodeWhale 会自动创建快照。用 `/restore` 命令恢复到操作前的状态。
+mimo-tui 会自动创建快照。用 `/restore` 命令恢复到操作前的状态。
 
 ### Q: 怎么在团队中共享配置？
 
-在项目根目录创建 `.codewhale/config.toml`，团队成员自动继承。
+在项目根目录创建 `.mimo-tui/config.toml`，团队成员自动继承。
 
 ### Q: 怎么查看 AI 用了多少钱？
 
@@ -487,7 +487,7 @@ TUI 中输入 `/cost` 查看本次会话的 token 用量和费用。
 
 ### Q: 支持中文对话吗？
 
-完全支持。CodeWhale 会自动跟随你的语言，你用中文它就回中文。
+完全支持。mimo-tui 会自动跟随你的语言，你用中文它就回中文。
 
 ---
 
@@ -512,7 +512,7 @@ TUI 中输入 `/cost` 查看本次会话的 token 用量和费用。
 
 ## HTTP API 接口
 
-启动服务器：`codewhale serve --http`
+启动服务器：`mimo-tui serve --http`
 
 ### 主要端点
 

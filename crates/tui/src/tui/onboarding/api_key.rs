@@ -151,7 +151,7 @@ mod tests {
             "expected zh-Hans footer, got: {body}"
         );
 
-        let ja = test_app_with_locale(Locale::Ja);
+        let ja = test_app_with_locale(Locale::ZhHans);
         let body: String = lines(&ja)
             .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.to_string()))
@@ -162,7 +162,7 @@ mod tests {
             "expected ja 'key' label, got: {body}"
         );
 
-        let en = test_app_with_locale(Locale::En);
+        let en = test_app_with_locale(Locale::ZhHans);
         let body: String = lines(&en)
             .iter()
             .flat_map(|l| l.spans.iter().map(|s| s.content.to_string()))

@@ -14,8 +14,8 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::{HeaderMap, HeaderName, StatusCode};
 use axum::response::IntoResponse;
-use codewhale_agent::ModelRegistry;
-use codewhale_config::{ConfigToml, ProviderKind, provider::WireFormat};
+use mimofan_agent::ModelRegistry;
+use mimofan_config::{ConfigToml, ProviderKind, provider::WireFormat};
 use serde_json::Value;
 
 use super::AppState;
@@ -333,7 +333,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Method, Request};
-    use codewhale_config::provider::WireFormat;
+    use mimofan_config::provider::WireFormat;
     use std::fs;
     use std::sync::OnceLock;
     use tower::ServiceExt;
@@ -697,7 +697,7 @@ api_key = "arcee-configured-key"
         // Use the test to verify WireFormat checks work for non-ChatCompletions providers.
         // Anthropic's wire format is AnthropicMessages; OpenaiCodex is Responses.
         let endpoint = ResolvedModelEndpoint {
-            provider: ProviderKind::Anthropic,
+            provider: ProviderKind::XiaomiMimo,
             base_url: "https://api.anthropic.com".to_string(),
             model: "claude-sonnet-4-20250514".to_string(),
             api_key: Some("sk-ant-test".to_string()),
@@ -715,7 +715,7 @@ api_key = "arcee-configured-key"
     #[test]
     fn upstream_url_defaults_to_v1_chat_completions() {
         let endpoint = ResolvedModelEndpoint {
-            provider: ProviderKind::Arcee,
+            provider: ProviderKind::XiaomiMimo,
             base_url: "https://api.arcee.ai".to_string(),
             model: "trinity".to_string(),
             api_key: None,
@@ -733,7 +733,7 @@ api_key = "arcee-configured-key"
     #[test]
     fn upstream_url_preserves_arcee_api_v1_base() {
         let endpoint = ResolvedModelEndpoint {
-            provider: ProviderKind::Arcee,
+            provider: ProviderKind::XiaomiMimo,
             base_url: "https://api.arcee.ai/api/v1".to_string(),
             model: "trinity".to_string(),
             api_key: None,
@@ -751,7 +751,7 @@ api_key = "arcee-configured-key"
     #[test]
     fn upstream_url_respects_path_suffix() {
         let endpoint = ResolvedModelEndpoint {
-            provider: ProviderKind::Openrouter,
+            provider: ProviderKind::XiaomiMimo,
             base_url: "https://openrouter.ai/api/v1".to_string(),
             model: "deepseek/deepseek-v4-pro".to_string(),
             api_key: None,
@@ -769,7 +769,7 @@ api_key = "arcee-configured-key"
     #[test]
     fn upstream_url_beta_base_uses_standard_v1_chat_completions() {
         let endpoint = ResolvedModelEndpoint {
-            provider: ProviderKind::Deepseek,
+            provider: ProviderKind::XiaomiMimo,
             base_url: "https://api.deepseek.com/beta".to_string(),
             model: "deepseek-chat".to_string(),
             api_key: None,
@@ -787,7 +787,7 @@ api_key = "arcee-configured-key"
     #[test]
     fn upstream_url_strips_trailing_slash() {
         let endpoint = ResolvedModelEndpoint {
-            provider: ProviderKind::Deepseek,
+            provider: ProviderKind::XiaomiMimo,
             base_url: "https://api.deepseek.com/".to_string(),
             model: "deepseek-chat".to_string(),
             api_key: None,

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-repo="Hmbown/CodeWhale"
+repo="XiaomingX/mimo-tui"
 version="${CODEWHALE_VERSION:-latest}"
 release_base="${CODEWHALE_RELEASE_BASE_URL:-${DEEPSEEK_TUI_RELEASE_BASE_URL:-}}"
 

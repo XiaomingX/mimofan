@@ -14,7 +14,7 @@
 import type { RepoFacts, ProviderFact } from "./facts.generated";
 import { FACTS as BUILD_FACTS } from "./facts.generated";
 
-const RAW_BASE = "https://raw.githubusercontent.com/Hmbown/CodeWhale/main";
+const RAW_BASE = "https://raw.githubusercontent.com/XiaomingX/mimo-tui/main";
 const KV_KEY = "facts:current";
 const LOG_KEY = "facts:drift-log";
 
@@ -39,7 +39,7 @@ async function fetchText(path: string, ghToken?: string): Promise<string | null>
 
 async function fetchListing(dir: string, ghToken?: string): Promise<string[] | null> {
   // Use GitHub Contents API to list a directory.
-  const url = `https://api.github.com/repos/Hmbown/CodeWhale/contents/${dir}?ref=main`;
+  const url = `https://api.github.com/repos/XiaomingX/mimo-tui/contents/${dir}?ref=main`;
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github+json",
     "User-Agent": "codewhale-web-drift",
@@ -146,7 +146,7 @@ async function fetchLatestRelease(ghToken?: string): Promise<string | null> {
   };
   if (ghToken) headers["Authorization"] = `Bearer ${ghToken}`;
   try {
-    const r = await fetch("https://api.github.com/repos/Hmbown/CodeWhale/releases/latest", { headers });
+    const r = await fetch("https://api.github.com/repos/XiaomingX/mimo-tui/releases/latest", { headers });
     if (!r.ok) return null;
     const j = (await r.json()) as { tag_name?: string };
     return j.tag_name ?? null;

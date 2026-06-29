@@ -287,31 +287,31 @@ pub(crate) fn persist_provider_base_url_key(
 
 fn provider_base_url_table_key(provider: ApiProvider) -> anyhow::Result<&'static str> {
     match provider {
-        ApiProvider::Deepseek | ApiProvider::DeepseekCN => {
+        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
             anyhow::bail!("DeepSeek uses the root base_url setting")
         }
-        ApiProvider::DeepseekAnthropic => Ok("deepseek_anthropic"),
-        ApiProvider::NvidiaNim => Ok("nvidia_nim"),
-        ApiProvider::Openai => Ok("openai"),
-        ApiProvider::Anthropic => Ok("anthropic"),
-        ApiProvider::Atlascloud => Ok("atlascloud"),
-        ApiProvider::WanjieArk => Ok("wanjie_ark"),
-        ApiProvider::Volcengine => Ok("volcengine"),
-        ApiProvider::Openrouter => Ok("openrouter"),
+        ApiProvider::XiaomiMimo => Ok("deepseek_anthropic"),
+        ApiProvider::XiaomiMimo => Ok("nvidia_nim"),
+        ApiProvider::XiaomiMimo => Ok("openai"),
+        ApiProvider::XiaomiMimo => Ok("anthropic"),
+        ApiProvider::XiaomiMimo => Ok("atlascloud"),
+        ApiProvider::XiaomiMimo => Ok("wanjie_ark"),
+        ApiProvider::XiaomiMimo => Ok("volcengine"),
+        ApiProvider::XiaomiMimo => Ok("openrouter"),
         ApiProvider::XiaomiMimo => Ok("xiaomi_mimo"),
-        ApiProvider::Novita => Ok("novita"),
-        ApiProvider::Fireworks => Ok("fireworks"),
-        ApiProvider::Siliconflow | ApiProvider::SiliconflowCn => Ok("siliconflow"),
-        ApiProvider::Arcee => Ok("arcee"),
-        ApiProvider::Huggingface => Ok("huggingface"),
-        ApiProvider::Deepinfra => Ok("deepinfra"),
-        ApiProvider::Moonshot => Ok("moonshot"),
-        ApiProvider::Together => Ok("together"),
-        ApiProvider::Qianfan => Ok("qianfan"),
-        ApiProvider::OpenaiCodex => Ok("openai_codex"),
-        ApiProvider::Zai => Ok("zai"),
-        ApiProvider::Stepfun => Ok("stepfun"),
-        ApiProvider::Minimax => Ok("minimax"),
+        ApiProvider::XiaomiMimo => Ok("novita"),
+        ApiProvider::XiaomiMimo => Ok("fireworks"),
+        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => Ok("siliconflow"),
+        ApiProvider::XiaomiMimo => Ok("arcee"),
+        ApiProvider::XiaomiMimo => Ok("huggingface"),
+        ApiProvider::XiaomiMimo => Ok("deepinfra"),
+        ApiProvider::XiaomiMimo => Ok("moonshot"),
+        ApiProvider::XiaomiMimo => Ok("together"),
+        ApiProvider::XiaomiMimo => Ok("qianfan"),
+        ApiProvider::XiaomiMimo => Ok("openai_codex"),
+        ApiProvider::XiaomiMimo => Ok("zai"),
+        ApiProvider::XiaomiMimo => Ok("stepfun"),
+        ApiProvider::XiaomiMimo => Ok("minimax"),
         // Custom providers live under a user-chosen `[providers.<name>]` table,
         // not a fixed key. Persisting base_url through this static-key path is
         // out of scope for the #1519 constrained slice; users edit the named
@@ -342,7 +342,7 @@ pub(crate) fn config_toml_path(config_path: Option<&Path>) -> anyhow::Result<Pat
     }
     let home =
         effective_home_dir().context("failed to resolve home directory for config.toml path")?;
-    let primary = home.join(".codewhale").join("config.toml");
+    let primary = home.join(".mimofan").join("config.toml");
     if primary.exists() {
         return Ok(primary);
     }
@@ -362,7 +362,7 @@ fn save_toml_preserving_comments(
 ) -> anyhow::Result<()> {
     use anyhow::Context;
     let serialized = toml::to_string_pretty(doc).context("failed to serialize config.toml")?;
-    let body = codewhale_config::merge_and_preserve_comments(&serialized, original_raw)
+    let body = mimofan_config::merge_and_preserve_comments(&serialized, original_raw)
         .unwrap_or_else(|e| {
             tracing::warn!("failed to merge config comments, saving without them: {e:#}");
             serialized
@@ -384,7 +384,7 @@ mod tests {
     struct EnvGuard {
         home: Option<OsString>,
         userprofile: Option<OsString>,
-        codewhale_config_path: Option<OsString>,
+        mimofan_config_path: Option<OsString>,
         deepseek_config_path: Option<OsString>,
         _lock: std::sync::MutexGuard<'static, ()>,
     }
@@ -397,7 +397,7 @@ mod tests {
             let config_str = OsString::from(config_path.as_os_str());
             let home_prev = env::var_os("HOME");
             let userprofile_prev = env::var_os("USERPROFILE");
-            let codewhale_config_prev = env::var_os("CODEWHALE_CONFIG_PATH");
+            let mimofan_config_prev = env::var_os("CODEWHALE_CONFIG_PATH");
             let deepseek_config_prev = env::var_os("DEEPSEEK_CONFIG_PATH");
 
             // Safety: test-only environment mutation guarded by process-wide mutex.
@@ -411,7 +411,7 @@ mod tests {
             Self {
                 home: home_prev,
                 userprofile: userprofile_prev,
-                codewhale_config_path: codewhale_config_prev,
+                mimofan_config_path: mimofan_config_prev,
                 deepseek_config_path: deepseek_config_prev,
                 _lock: lock,
             }
@@ -444,7 +444,7 @@ mod tests {
                 }
             }
 
-            if let Some(value) = self.codewhale_config_path.take() {
+            if let Some(value) = self.mimofan_config_path.take() {
                 // Safety: test-only environment mutation guarded by a global mutex.
                 unsafe {
                     env::set_var("CODEWHALE_CONFIG_PATH", value);
@@ -480,7 +480,7 @@ mod tests {
 
     #[test]
     fn persist_status_items_writes_tui_section_to_config_toml() {
-        let temp_root = temp_root("codewhale-statusline-persist");
+        let temp_root = temp_root("mimofan-statusline-persist");
         fs::create_dir_all(&temp_root).unwrap();
         let _guard = EnvGuard::new(&temp_root);
 
@@ -502,8 +502,8 @@ mod tests {
     }
 
     #[test]
-    fn config_toml_path_uses_codewhale_home_for_fresh_installs() {
-        let temp_root = temp_root("codewhale-config-path-fresh");
+    fn config_toml_path_uses_mimofan_home_for_fresh_installs() {
+        let temp_root = temp_root("mimofan-config-path-fresh");
         fs::create_dir_all(&temp_root).unwrap();
         let _guard = EnvGuard::new(&temp_root);
 
@@ -513,13 +513,13 @@ mod tests {
 
         assert_eq!(
             config_toml_path(None).unwrap(),
-            temp_root.join(".codewhale").join("config.toml")
+            temp_root.join(".mimofan").join("config.toml")
         );
     }
 
     #[test]
     fn config_toml_path_preserves_legacy_config_when_it_exists() {
-        let temp_root = temp_root("codewhale-config-path-legacy");
+        let temp_root = temp_root("mimofan-config-path-legacy");
         let legacy_config = temp_root.join(".deepseek").join("config.toml");
         fs::create_dir_all(legacy_config.parent().unwrap()).unwrap();
         fs::write(&legacy_config, "").unwrap();
@@ -533,8 +533,8 @@ mod tests {
     }
 
     #[test]
-    fn config_toml_path_prefers_codewhale_env_over_legacy_env() {
-        let temp_root = temp_root("codewhale-config-path-env");
+    fn config_toml_path_prefers_mimofan_env_over_legacy_env() {
+        let temp_root = temp_root("mimofan-config-path-env");
         fs::create_dir_all(&temp_root).unwrap();
         let _guard = EnvGuard::new(&temp_root);
         let preferred = temp_root.join("preferred.toml");
@@ -550,7 +550,7 @@ mod tests {
 
     #[test]
     fn persist_status_items_preserves_existing_unrelated_keys() {
-        let temp_root = temp_root("codewhale-statusline-preserve");
+        let temp_root = temp_root("mimofan-statusline-preserve");
         fs::create_dir_all(&temp_root).unwrap();
         let _guard = EnvGuard::new(&temp_root);
 
@@ -581,7 +581,7 @@ mod tests {
 
     #[test]
     fn persist_bool_key_preserves_comments() {
-        let temp_root = temp_root("codewhale-persist-comments");
+        let temp_root = temp_root("mimofan-persist-comments");
         fs::create_dir_all(&temp_root).unwrap();
         let _guard = EnvGuard::new(&temp_root);
 

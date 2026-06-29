@@ -3,7 +3,7 @@
 //!
 //! Usage: `/change [version]`
 //!
-//! Uses the CodeWhale changelog embedded at compile time. With no argument,
+//! Uses the mimofan changelog embedded at compile time. With no argument,
 //! extracts the most recent section. With a version argument like `0.8.32`,
 //! extracts that specific version's section. When the UI locale is not
 //! English and the current session can reach a model, the command also fires a
@@ -72,7 +72,7 @@ pub fn change(app: &mut App, version: Option<&str>) -> CommandResult {
 
     // If the user's locale is English, just display.
     // Otherwise, also ask the model to translate.
-    if locale == Locale::En {
+    if locale == Locale::ZhHans {
         CommandResult::message(format!(
             "{header}\n─────────────────────────────\n{section_text}{prev_hint}"
         ))
@@ -95,13 +95,9 @@ pub fn change(app: &mut App, version: Option<&str>) -> CommandResult {
         let translation_source = format!("{latest_section}{prev_hint}");
         let lang_name = match locale {
             Locale::ZhHans => "Simplified Chinese (中文)",
-            Locale::ZhHant => "Traditional Chinese (繁體中文)",
-            Locale::Ja => "Japanese (日本語)",
-            Locale::PtBr => "Brazilian Portuguese (Português)",
-            Locale::Es419 => "Latin American Spanish (Español latinoamericano)",
-            Locale::Vi => "Vietnamese (Tiếng Việt)",
+            Locale::ZhHans => "Traditional Chinese (繁體中文)",
             // Fallback — should never reach here since we check En above.
-            Locale::En => "English",
+            Locale::ZhHans => "English",
         };
 
         let translation_prompt = format!(
@@ -342,7 +338,7 @@ mod tests {
             &config,
         );
         app.ui_locale = locale;
-        app.api_provider = crate::config::ApiProvider::Deepseek;
+        app.api_provider = crate::config::ApiProvider::XiaomiMimo;
         app.model_ids_passthrough = false;
         app.onboarding_needs_api_key = !has_api_key;
         app
@@ -431,7 +427,7 @@ Previous release.\n";
     #[test]
     fn change_uses_bundled_release_notes_without_workspace_changelog() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::En, false);
+        let mut app = make_app(&tmp, Locale::ZhHans, false);
         let result = change(&mut app, None);
         assert!(!result.is_error);
         let msg = result.message.expect("should have a message");
@@ -448,7 +444,7 @@ Previous release.\n";
             "\n## [9.9.9] - 2099-01-01\n\nWorkspace changelog.\n",
         )
         .unwrap();
-        let mut app = make_app(&tmp, Locale::En, false);
+        let mut app = make_app(&tmp, Locale::ZhHans, false);
         let result = change(&mut app, None);
         assert!(!result.is_error);
         let msg = result.message.expect("should have a message");
@@ -459,7 +455,7 @@ Previous release.\n";
     #[test]
     fn change_in_english_returns_message_without_action() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::En, true);
+        let mut app = make_app(&tmp, Locale::ZhHans, true);
         let result = change(&mut app, None);
         assert!(!result.is_error);
         let msg = result.message.expect("should have a message");
@@ -476,8 +472,8 @@ Previous release.\n";
     fn change_in_non_english_also_sends_translation_action() {
         for (locale, _label) in [
             (Locale::ZhHans, "zh-Hans"),
-            (Locale::Ja, "ja"),
-            (Locale::PtBr, "pt-BR"),
+            (Locale::ZhHans, "ja"),
+            (Locale::ZhHans, "pt-BR"),
         ] {
             let tmp = tempfile::TempDir::new().unwrap();
             let mut app = make_app(&tmp, locale, true);
@@ -511,7 +507,7 @@ Previous release.\n";
         let _config_path = EnvVarGuard::set("DEEPSEEK_CONFIG_PATH", tmp.path().join("config.toml"));
         let _deepseek_key = EnvVarGuard::remove("DEEPSEEK_API_KEY");
         let _deepseek_provider = EnvVarGuard::remove("DEEPSEEK_PROVIDER");
-        let _codewhale_provider = EnvVarGuard::remove("CODEWHALE_PROVIDER");
+        let _mimofan_provider = EnvVarGuard::remove("CODEWHALE_PROVIDER");
         let mut app = make_app(&tmp, Locale::ZhHans, false);
         let result = change(&mut app, None);
         assert!(!result.is_error);
@@ -529,12 +525,12 @@ Previous release.\n";
     #[test]
     fn change_in_non_english_offline_uses_explicit_fallback() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::Ja, true);
+        let mut app = make_app(&tmp, Locale::ZhHans, true);
         app.offline_mode = true;
         let result = change(&mut app, None);
         assert!(!result.is_error);
         let msg = result.message.expect("should have a message");
-        assert!(msg.contains(tr(Locale::Ja, MessageId::CmdChangeTranslationUnavailable)));
+        assert!(msg.contains(tr(Locale::ZhHans, MessageId::CmdChangeTranslationUnavailable)));
         assert!(
             result.action.is_none(),
             "offline mode should not send translation"
@@ -668,7 +664,7 @@ Content.\n";
     #[test]
     fn change_with_version_arg_shows_older_release() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::En, false);
+        let mut app = make_app(&tmp, Locale::ZhHans, false);
         let result = change(&mut app, Some("0.8.1"));
         // 0.8.1 is a very old release; if it exists, the result should not be an error.
         // If that exact version doesn't exist in the bundled changelog, we still
@@ -685,11 +681,11 @@ Content.\n";
     #[test]
     fn change_with_empty_version_arg_acts_as_default() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::En, false);
+        let mut app = make_app(&tmp, Locale::ZhHans, false);
         let result_default = change(&mut app, None);
         assert!(!result_default.is_error);
 
-        let mut app2 = make_app(&tmp, Locale::En, false);
+        let mut app2 = make_app(&tmp, Locale::ZhHans, false);
         let result_empty = change(&mut app2, Some(""));
         assert!(!result_empty.is_error);
 
@@ -702,7 +698,7 @@ Content.\n";
     #[test]
     fn change_with_nonexistent_version_returns_error() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::En, false);
+        let mut app = make_app(&tmp, Locale::ZhHans, false);
         let result = change(&mut app, Some("99.99.99"));
         assert!(result.is_error);
         let msg = result.message.as_deref().unwrap_or("");
@@ -850,7 +846,7 @@ Older release.\n";
     #[test]
     fn change_without_args_includes_previous_version_hint() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::En, false);
+        let mut app = make_app(&tmp, Locale::ZhHans, false);
         let result = change(&mut app, None);
         assert!(!result.is_error);
         let msg = result.message.expect("should have a message");
@@ -866,7 +862,7 @@ Older release.\n";
     #[test]
     fn change_with_explicit_version_includes_previous_hint() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::En, false);
+        let mut app = make_app(&tmp, Locale::ZhHans, false);
         // Derive versions from the bundled changelog: it only embeds a recent
         // slice of releases, so hardcoded versions would age out of it.
         let explicit = extract_previous_version_number(CODEWHALE_CHANGELOG)
@@ -900,7 +896,7 @@ Older release.\n";
     #[test]
     fn change_hint_in_japanese() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::Ja, true);
+        let mut app = make_app(&tmp, Locale::ZhHans, true);
         let result = change(&mut app, None);
         assert!(!result.is_error);
         let msg = result.message.expect("should have a message");
@@ -913,7 +909,7 @@ Older release.\n";
     #[test]
     fn change_hint_in_portuguese() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let mut app = make_app(&tmp, Locale::PtBr, true);
+        let mut app = make_app(&tmp, Locale::ZhHans, true);
         let result = change(&mut app, None);
         assert!(!result.is_error);
         let msg = result.message.expect("should have a message");

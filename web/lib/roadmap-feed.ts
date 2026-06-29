@@ -1,7 +1,7 @@
 /**
  * roadmap-feed.ts — fetch the live roadmap from GitHub.
  *
- *   "Shipped"    ← last 8 published Releases on Hmbown/CodeWhale
+ *   "Shipped"    ← last 8 published Releases on XiaomingX/mimo-tui
  *   "Underway"   ← open issues with label `roadmap:underway`
  *   "Considered" ← open issues with label `roadmap:considered`
  *   "Ruled out"  ← issues (open or closed) with label `roadmap:ruled-out`
@@ -12,7 +12,7 @@
  * Categories that come back empty fall through to the page's static items —
  * the maintainer can adopt label-driven roadmap incrementally.
  */
-const REPO = process.env.GITHUB_REPO ?? "Hmbown/CodeWhale";
+const REPO = process.env.GITHUB_REPO ?? "XiaomingX/mimo-tui";
 const KV_KEY = "roadmap:feed";
 const KV_TTL = 60 * 30;
 
@@ -59,7 +59,7 @@ const FALLBACK_SHIPPED: RoadmapItem[] = [
   {
     title: "v0.8.45",
     note: "Moonshot/Kimi provider support, API-key setup guidance, provider-surface sync, and current Windows install/runtime guidance",
-    href: "https://github.com/Hmbown/CodeWhale/releases/tag/v0.8.45",
+    href: "https://github.com/XiaomingX/mimo-tui/releases/tag/v0.8.45",
   },
 ];
 

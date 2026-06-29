@@ -807,8 +807,8 @@ async fn create_thread_defaults_auto_approve_to_false() -> Result<()> {
 #[tokio::test]
 async fn update_thread_workspace_persists_event_and_evicts_idle_engine() -> Result<()> {
     let manager = test_manager(test_runtime_dir())?;
-    let old_workspace = std::env::temp_dir().join("codewhale-runtime-old-workspace");
-    let new_workspace = std::env::temp_dir().join("codewhale-runtime-new-workspace");
+    let old_workspace = std::env::temp_dir().join("mimofan-runtime-old-workspace");
+    let new_workspace = std::env::temp_dir().join("mimofan-runtime-new-workspace");
     let thread = manager
         .create_thread(CreateThreadRequest {
             model: None,
@@ -908,8 +908,8 @@ async fn update_thread_workspace_rejects_empty_path() -> Result<()> {
 #[tokio::test]
 async fn update_thread_workspace_rejects_active_turn() -> Result<()> {
     let manager = test_manager(test_runtime_dir())?;
-    let old_workspace = std::env::temp_dir().join("codewhale-runtime-active-old");
-    let new_workspace = std::env::temp_dir().join("codewhale-runtime-active-new");
+    let old_workspace = std::env::temp_dir().join("mimofan-runtime-active-old");
+    let new_workspace = std::env::temp_dir().join("mimofan-runtime-active-new");
     let thread = manager
         .create_thread(CreateThreadRequest {
             model: None,

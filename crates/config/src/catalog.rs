@@ -57,7 +57,7 @@ pub enum CatalogSource {
 /// One catalog-layer offering row.
 ///
 /// This carries the routing identity (provider + wire id + optional canonical
-/// model + endpoint) plus the offering-owned Models.dev facts CodeWhale wants to
+/// model + endpoint) plus the offering-owned Models.dev facts mimofan wants to
 /// preserve (family, limits, cost, reasoning support/options). It is a superset
 /// of [`ProviderModelOffering`]; use [`CatalogOffering::to_offering`] to project
 /// the minimal routing identity the resolver consumes.
@@ -145,7 +145,7 @@ impl CatalogOffering {
 /// Curated from in-repo verified model facts (context windows / output caps from
 /// `crates/tui/src/models.rs`, USD pricing from `crates/tui/src/pricing.rs`)
 /// rather than a live models.dev dump, because the public catalog tracks a
-/// different real model generation than CodeWhale's curated forward-dated set.
+/// different real model generation than mimofan's curated forward-dated set.
 /// This is the default bundled layer feeding [`crate::route::RouteResolver::new`].
 /// See the asset's `_meta` block for sourcing and the honesty rule on omitted
 /// pricing (`UnknownOrStale`, never a fabricated zero).

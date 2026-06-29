@@ -1,20 +1,20 @@
-# CodeWhale User Guide
+# mimo-tui User Guide
 
-This guide is for your first hour with CodeWhale. It explains the main
+This guide is for your first hour with mimo-tui. It explains the main
 workflow, the important safety controls, and where to go next when you need a
 complete reference.
 
-CodeWhale has deeper reference documents for installation, configuration,
+mimo-tui has deeper reference documents for installation, configuration,
 providers, modes, keybindings, tools, and operations. Use this page as a guided
 walkthrough, then follow the "Next" links when you need every option.
 
-## 1. Welcome to CodeWhale
+## 1. Welcome to mimo-tui
 
-CodeWhale is a terminal coding agent. You run it from a workspace, give it a
+mimo-tui is a terminal coding agent. You run it from a workspace, give it a
 task, and it can use structured tools to inspect files, run commands, edit
 code, and report back with evidence.
 
-The important difference from a normal chat model is that CodeWhale is built
+The important difference from a normal chat model is that mimo-tui is built
 around a harness:
 
 - It keeps the active workspace and session visible.
@@ -23,7 +23,7 @@ around a harness:
 - It can preserve sessions, fork conversations, and continue later.
 - It can run sub-agents for focused background work.
 
-You can use CodeWhale for small questions:
+You can use mimo-tui for small questions:
 
 ```text
 Explain the authentication flow in this repository.
@@ -36,7 +36,7 @@ Find the failing validation path, propose a fix, and wait for my approval
 before editing files.
 ```
 
-For a new repository, start conservatively. Ask CodeWhale to explore and plan
+For a new repository, start conservatively. Ask mimo-tui to explore and plan
 before asking it to change files. That gives you a reviewable path and makes it
 easier to catch wrong assumptions early.
 
@@ -45,16 +45,16 @@ runtime model.
 
 ## 2. First Launch
 
-Install CodeWhale with the path that fits your machine. Each supported install
-path provides both the `codewhale` dispatcher and the `codewhale-tui` runtime.
+Install mimo-tui with the path that fits your machine. Each supported install
+path provides both the `mimo-tui` dispatcher and the `mimo-tui` runtime.
 
 ```bash
 # npm
-npm install -g codewhale
+npm install -g mimo-tui
 
 # Cargo
-cargo install codewhale-cli --locked
-cargo install codewhale-tui --locked
+cargo install mimo-tui-cli --locked
+cargo install mimo-tui --locked
 
 # Homebrew, legacy installs only
 # The tap/formula still uses the old deepseek-tui name. Prefer npm, Cargo,
@@ -66,49 +66,49 @@ brew install deepseek-tui
 Docker is also available when you want an isolated runtime:
 
 ```bash
-docker volume create codewhale-home
+docker volume create mimo-tui-home
 docker run --rm -it \
   -e DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" \
-  -v codewhale-home:/home/codewhale/.codewhale \
+  -v mimo-tui-home:/home/mimo-tui/.mimo-tui \
   -v "$PWD:/workspace" \
   -w /workspace \
-  ghcr.io/hmbown/codewhale:latest
+  ghcr.io/hmbown/mimo-tui:latest
 ```
 
-Launch CodeWhale from the repository or directory you want it to work in:
+Launch mimo-tui from the repository or directory you want it to work in:
 
 ```bash
-codewhale
+mimo-tui
 ```
 
-On first launch, CodeWhale needs an API key for the active provider. DeepSeek is
+On first launch, mimo-tui needs an API key for the active provider. DeepSeek is
 the default provider. The most direct setup path is:
 
 ```bash
-codewhale auth set --provider deepseek
+mimo-tui auth set --provider deepseek
 ```
 
 You can also provide a key through the environment:
 
 ```bash
 export DEEPSEEK_API_KEY="your-key"
-codewhale
+mimo-tui
 ```
 
-New CodeWhale config is stored under `~/.codewhale/config.toml`. Legacy
+New mimo-tui config is stored under `~/.mimo-tui/config.toml`. Legacy
 `~/.deepseek/config.toml` files are still supported for users migrating from
 the old name.
 
 After setup, run a doctor check:
 
 ```bash
-codewhale doctor
+mimo-tui doctor
 ```
 
 Use the JSON form when you need a machine-readable report for an issue:
 
 ```bash
-codewhale doctor --json
+mimo-tui doctor --json
 ```
 
 If the doctor command reports that a rejected key came from the environment,
@@ -157,11 +157,11 @@ provider registry. Add a regression test and run only the config crate tests.
 If you are not sure where the bug is, say that:
 
 ```text
-Investigate why `codewhale doctor` reports the wrong provider. Do not edit
+Investigate why `mimo-tui doctor` reports the wrong provider. Do not edit
 files yet. Return the likely cause, evidence, and a proposed patch plan.
 ```
 
-CodeWhale works best when you let investigation and implementation happen in
+mimo-tui works best when you let investigation and implementation happen in
 separate steps for unfamiliar code. For small, well-understood changes, a
 single implementation request is fine.
 
@@ -189,7 +189,7 @@ control both selection and order. Supported keys currently include `mode`,
 and `tokens`. Omit `status_items` to keep the built-in default order; set it to
 `[]` to hide configurable chips.
 
-The transcript is the audit trail. When CodeWhale reads files, runs commands,
+The transcript is the audit trail. When mimo-tui reads files, runs commands,
 or edits code, the action appears there. If a command fails, use the visible
 failure output as part of your next instruction instead of starting over.
 
@@ -208,7 +208,7 @@ Next: [KEYBINDINGS.md](KEYBINDINGS.md) is the complete shortcut reference.
 
 ## 5. Modes
 
-CodeWhale has three visible TUI modes:
+mimo-tui has three visible TUI modes:
 
 | Mode | Use it for | Default posture |
 | --- | --- | --- |
@@ -238,7 +238,7 @@ approach, verification plan, risks, and handoff notes. Empty sections are
 visible when the agent uses the rich artifact shape, so you can ask for a
 revision instead of accepting an under-specified plan.
 
-Agent mode is the default for most contribution work. It lets CodeWhale read,
+Agent mode is the default for most contribution work. It lets mimo-tui read,
 run checks, and edit files while keeping risky actions behind approval gates.
 
 YOLO mode is for trusted workspaces where you intentionally want the model to
@@ -258,7 +258,7 @@ reference.
 ## 6. Slash Commands
 
 Slash commands are typed into the composer. They are useful when you want to
-change CodeWhale state directly instead of asking the model in natural
+change mimo-tui state directly instead of asking the model in natural
 language.
 
 Common commands for first-time users:
@@ -281,7 +281,7 @@ Use `/provider` when you want to switch away from the default DeepSeek route.
 Provider IDs, environment variables, model defaults, and capability notes are
 kept in the provider registry document.
 
-Use `/model auto` when you want CodeWhale to choose the model and thinking
+Use `/model auto` when you want mimo-tui to choose the model and thinking
 level per turn. Use a fixed model when you need repeatable comparisons or a
 strict cost profile.
 
@@ -297,7 +297,7 @@ Next: [CONFIGURATION.md](CONFIGURATION.md) covers runtime settings and
 
 ## 7. Working with Tools
 
-CodeWhale tools are structured actions. Instead of only producing prose, the
+mimo-tui tools are structured actions. Instead of only producing prose, the
 model can call tools to inspect and change the workspace.
 
 Examples of tool-backed work include:
@@ -313,7 +313,7 @@ depends on the current mode and config, but the basic rule is simple: start in
 Plan for read-only exploration, use Agent for normal changes, and reserve YOLO
 for trusted automation.
 
-The workspace boundary matters. CodeWhale is expected to work in the directory
+The workspace boundary matters. mimo-tui is expected to work in the directory
 you launched it from or the workspace you configured. Be explicit when a task
 should stay inside a repo:
 
@@ -380,7 +380,7 @@ output contracts.
 ## 9. Skills
 
 Skills are reusable instruction packs. A skill is usually a `SKILL.md` file
-that teaches CodeWhale how to perform a recurring workflow, use a tool family,
+that teaches mimo-tui how to perform a recurring workflow, use a tool family,
 or follow a project convention.
 
 Use skills when a task has a repeatable process:
@@ -412,13 +412,13 @@ for config paths and project authority.
 Start with doctor output:
 
 ```bash
-codewhale doctor
+mimo-tui doctor
 ```
 
 Use JSON when filing a detailed issue:
 
 ```bash
-codewhale doctor --json
+mimo-tui doctor --json
 ```
 
 For authentication problems, check which source is winning: saved config,
@@ -437,7 +437,7 @@ start a fresh session in the same workspace and summarize what you need.
 
 When reporting an issue, include:
 
-- CodeWhale version.
+- mimo-tui version.
 - Install method.
 - Operating system and terminal.
 - Provider and model.
@@ -452,11 +452,11 @@ recovery steps.
 
 ## FAQ
 
-### Is CodeWhale only for DeepSeek?
+### Is mimo-tui only for DeepSeek?
 
-DeepSeek is the default and first-class route, but CodeWhale also supports
+DeepSeek is the default and first-class route, but mimo-tui also supports
 other hosted and local OpenAI-compatible providers. Use `/provider` or
-`codewhale --provider <id>` to choose a provider. Keep the provider registry
+`mimo-tui --provider <id>` to choose a provider. Keep the provider registry
 open when configuring a non-default route.
 
 ### Which mode should I use first?
@@ -464,7 +464,7 @@ open when configuring a non-default route.
 Use Plan for unfamiliar code, Agent for normal implementation, and YOLO only
 for trusted repositories where automatic execution is acceptable.
 
-### Why does CodeWhale ask before running commands?
+### Why does mimo-tui ask before running commands?
 
 Approvals are part of the safety model. Shell commands, paid tools, writes, and
 actions outside the expected workspace can have side effects. Approval prompts
@@ -485,7 +485,7 @@ If macOS says `python3` is missing, install Python from
 brew install python
 ```
 
-Inside CodeWhale, ask the agent to inspect the file and run it with
+Inside mimo-tui, ask the agent to inspect the file and run it with
 `python3 your_file.py`. If the script needs packages, install them in a virtual
 environment first:
 
@@ -498,32 +498,32 @@ python3 your_file.py
 
 ### Where is my config stored?
 
-New CodeWhale config uses `~/.codewhale/config.toml`. Legacy
+New mimo-tui config uses `~/.mimo-tui/config.toml`. Legacy
 `~/.deepseek/config.toml` remains supported for compatibility. Project overlays
 can also affect behavior when a workspace config exists.
 
 ### How do I keep costs predictable?
 
 Use `/model auto` for routing, choose a fixed model when you need a strict
-profile, and compact long sessions. For larger tasks, ask CodeWhale to plan
+profile, and compact long sessions. For larger tasks, ask mimo-tui to plan
 before implementing so you do not spend tokens on the wrong path.
 
 ### How do I continue previous work?
 
-CodeWhale saves sessions. Use the session picker or resume/continue CLI paths
+mimo-tui saves sessions. Use the session picker or resume/continue CLI paths
 documented in the README and modes guide. For a risky experiment, fork the
 session before changing direction.
 
 The `/sessions` picker starts scoped to the current workspace so resumes stay
 attached to the project you opened. Press `a` in the picker to show sessions
-from every workspace, or run `codewhale sessions` to list all saved sessions
+from every workspace, or run `mimo-tui sessions` to list all saved sessions
 with last-updated timestamps before resuming a specific id.
 
 ### What should I do when the model gets confused?
 
 Stop and restate the goal, constraints, and current evidence. If the transcript
 is long, use `/compact` or start a fresh session with a short handoff. If the
-problem is operational, run `codewhale doctor` and inspect the reported config
+problem is operational, run `mimo-tui doctor` and inspect the reported config
 and provider state.
 
 ### Should I put project rules in prompts or files?
@@ -532,7 +532,7 @@ Use repository files for durable project rules and prompts for turn-specific
 intent. If a workflow repeats across projects, consider turning it into a
 skill.
 
-### Can CodeWhale edit files outside the current repository?
+### Can mimo-tui edit files outside the current repository?
 
 That depends on workspace boundaries, sandbox settings, trust mode, and
 approval policy. For contribution work, keep instructions scoped to the current

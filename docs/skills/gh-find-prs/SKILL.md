@@ -1,6 +1,6 @@
 ---
 name: gh-find-prs
-description: "Survey open CodeWhale PRs and triage each for mergeability and disposition against the real landing branch."
+description: "Survey open mimo-tui PRs and triage each for mergeability and disposition against the real landing branch."
 ---
 
 # gh-find-prs
@@ -19,7 +19,7 @@ This is read-and-recommend. You do NOT merge, close, tag, or publish. You surfac
 
 1. **Inventory the queue.** One call, structured:
    ```
-   gh pr list --repo Hmbown/CodeWhale --state open \
+   gh pr list --repo XiaomingX/mimo-tui --state open \
      --json number,title,author,headRefName,baseRefName,isDraft,mergeStateStatus,statusCheckRollup
    ```
    Note `mergeStateStatus` (CLEAN / BLOCKED / DIRTY / UNKNOWN) but treat it as a hint only — it is computed against `main`, and the real landing target is usually a different branch.
@@ -33,13 +33,13 @@ This is read-and-recommend. You do NOT merge, close, tag, or publish. You surfac
 
 3. **Read each candidate from code, not title.** For every non-trivial PR:
    ```
-   gh pr view <N> --repo Hmbown/CodeWhale \
+   gh pr view <N> --repo XiaomingX/mimo-tui \
      --json files,additions,deletions,statusCheckRollup,body,comments
-   gh pr diff <N> --repo Hmbown/CodeWhale
+   gh pr diff <N> --repo XiaomingX/mimo-tui
    ```
    Read the diff. A "fix(exec): ..." can be a no-op or a regression; a "chore" can be the real fix. Judge the change, the tests it adds, and any review comments.
 
-4. **Decode check failures — distinguish trivial from real.** In `statusCheckRollup`, find each `conclusion: FAILURE` and read its job. CodeWhale's CI jobs are `Lint`, `Test (ubuntu-latest|macos-latest|windows-latest)`, `Version drift`, `gate` (Contribution gate), `npm wrapper smoke`, `Mobile runtime smoke`, `Documentation`, `GitGuardian Security Checks`.
+4. **Decode check failures — distinguish trivial from real.** In `statusCheckRollup`, find each `conclusion: FAILURE` and read its job. mimo-tui's CI jobs are `Lint`, `Test (ubuntu-latest|macos-latest|windows-latest)`, `Version drift`, `gate` (Contribution gate), `npm wrapper smoke`, `Mobile runtime smoke`, `Documentation`, `GitGuardian Security Checks`.
    - A `Lint` failure that is only `cargo fmt` drift is trivial — harvestable, fix on landing with `cargo fmt --all`.
    - A failing `Test (...)` or `clippy` under Lint is real — read the log before trusting it.
    - `Version drift` failing on a community PR is expected (they bumped, or didn't); not a blocker for harvest.

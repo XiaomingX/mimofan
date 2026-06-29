@@ -38,7 +38,7 @@ use crate::tools::plan::new_shared_plan_state;
 use crate::tools::subagent::SubAgentStatus;
 use crate::tools::todo::new_shared_todo_list;
 use crate::tui::app::AppMode;
-use codewhale_protocol::runtime::{
+use mimofan_protocol::runtime::{
     DynamicToolCallContent, DynamicToolCallParams, DynamicToolCallResult, DynamicToolSpec,
     TurnEnvironmentParams,
 };
@@ -2414,7 +2414,7 @@ impl RuntimeThreadManager {
             notes_path: self.config.notes_path(),
             mcp_config_path: self.config.mcp_config_path(),
             skills_dir: self.config.skills_dir(),
-            skills_scan_codewhale_only: self.config.skills_config().scan_codewhale_only(),
+            skills_scan_mimofan_only: self.config.skills_config().scan_mimofan_only(),
             instructions: self
                 .config
                 .instructions_paths()

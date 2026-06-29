@@ -10,14 +10,14 @@ describes *what will be done* and the invariants any future diet PR must hold.
   Legacy subagent-name cleanup + guardrail tests in this policy rebase on #2684.
 - PR **#2685** — git-history active + RLM/field errors.
 
-All file:line citations are against the verified tree at the current CodeWhale
+All file:line citations are against the verified tree at the current mimo-tui
 checkout as of v0.8.52/0.8.53.
 
 ---
 
 ## 1. Purpose and the weaker-model problem
 
-CodeWhale ships a large native tool surface. The first-turn *active* partition
+mimo-tui ships a large native tool surface. The first-turn *active* partition
 of that surface is what every model sees before it has run a single
 `tool_search_*` call. Today that active set contains several **near-duplicate
 tools** that map to the *same* implementation under different names:

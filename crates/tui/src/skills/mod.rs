@@ -29,8 +29,8 @@ const MAX_AVAILABLE_SKILLS_CHARS: usize = 12_000;
 #[must_use]
 pub fn default_skills_dir() -> PathBuf {
     dirs::home_dir().map_or_else(
-        || PathBuf::from("/tmp/codewhale/skills"),
-        |p| p.join(".codewhale").join("skills"),
+        || PathBuf::from("/tmp/mimofan/skills"),
+        |p| p.join(".mimofan").join("skills"),
     )
 }
 
@@ -45,17 +45,17 @@ pub fn agents_global_skills_dir() -> Option<PathBuf> {
 /// Session-time skill discovery scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillDiscoveryMode {
-    /// Preserve the existing broad compatibility scan across CodeWhale,
+    /// Preserve the existing broad compatibility scan across mimofan,
     /// agentskills.io, Claude, OpenCode, Cursor, and legacy DeepSeek roots.
     Compatible,
-    /// Scan only CodeWhale-owned roots. Callers that also pass an explicit
+    /// Scan only mimofan-owned roots. Callers that also pass an explicit
     /// `skills_dir` still get that directory because it is user configuration.
     CodeWhaleOnly,
 }
 
 impl SkillDiscoveryMode {
     #[must_use]
-    pub fn from_codewhale_only(value: bool) -> Self {
+    pub fn from_mimofan_only(value: bool) -> Self {
         if value {
             Self::CodeWhaleOnly
         } else {
@@ -467,10 +467,10 @@ impl SkillRegistry {
 /// 3. `<workspace>/.opencode/skills` — OpenCode interop.
 /// 4. `<workspace>/.claude/skills` — Claude Code interop.
 /// 5. `<workspace>/.cursor/skills` — Cursor interop.
-/// 6. `<workspace>/.codewhale/skills` — CodeWhale workspace skills.
+/// 6. `<workspace>/.mimofan/skills` — mimofan workspace skills.
 /// 7. [`agents_global_skills_dir`] — agentskills.io global.
 /// 8. `~/.claude/skills` — Claude-ecosystem global (#902).
-/// 9. `~/.codewhale/skills` — CodeWhale global, primary install target.
+/// 9. `~/.mimofan/skills` — mimofan global, primary install target.
 /// 10. `~/.deepseek/skills` — legacy DeepSeek global fallback.
 ///
 /// Only directories that exist on disk are returned — callers don't
@@ -500,9 +500,9 @@ fn skills_directories_with_home_and_mode(
             workspace.join(".opencode").join("skills"),
             workspace.join(".claude").join("skills"),
             workspace.join(".cursor").join("skills"),
-            workspace.join(".codewhale").join("skills"),
+            workspace.join(".mimofan").join("skills"),
         ],
-        SkillDiscoveryMode::CodeWhaleOnly => codewhale_workspace_skills_dir(workspace)
+        SkillDiscoveryMode::CodeWhaleOnly => mimofan_workspace_skills_dir(workspace)
             .into_iter()
             .collect(),
     };
@@ -511,21 +511,21 @@ fn skills_directories_with_home_and_mode(
             SkillDiscoveryMode::Compatible => {
                 candidates.push(home.join(".agents").join("skills"));
                 candidates.push(home.join(".claude").join("skills"));
-                candidates.push(home.join(".codewhale").join("skills"));
+                candidates.push(home.join(".mimofan").join("skills"));
                 candidates.push(home.join(".deepseek").join("skills"));
             }
             SkillDiscoveryMode::CodeWhaleOnly => {
-                candidates.push(home.join(".codewhale").join("skills"));
+                candidates.push(home.join(".mimofan").join("skills"));
             }
         }
     } else {
-        candidates.push(PathBuf::from("/tmp/codewhale/skills"));
+        candidates.push(PathBuf::from("/tmp/mimofan/skills"));
     }
     existing_skill_dirs(candidates)
 }
 
-pub(crate) fn codewhale_workspace_skills_dir(workspace: &Path) -> Option<PathBuf> {
-    let skills_dir = workspace.join(".codewhale").join("skills");
+pub(crate) fn mimofan_workspace_skills_dir(workspace: &Path) -> Option<PathBuf> {
+    let skills_dir = workspace.join(".mimofan").join("skills");
     let canonical_workspace = fs::canonicalize(workspace).ok()?;
     let canonical_skills = fs::canonicalize(&skills_dir).ok()?;
     (canonical_skills.is_dir() && canonical_skills.starts_with(canonical_workspace))
@@ -1255,11 +1255,11 @@ mod tests {
     }
 
     #[test]
-    fn codewhale_only_mode_ignores_cross_tool_skill_dirs() {
+    fn mimofan_only_mode_ignores_cross_tool_skill_dirs() {
         let tmpdir = TempDir::new().unwrap();
         let workspace = tmpdir.path().join("workspace");
         let home = tmpdir.path().join("home");
-        let configured_dir = home.join(".codewhale").join("skills");
+        let configured_dir = home.join(".mimofan").join("skills");
         std::fs::create_dir_all(&workspace).unwrap();
         write_skill(
             &workspace.join(".claude").join("skills"),
@@ -1268,9 +1268,9 @@ mod tests {
             "body",
         );
         write_skill(
-            &workspace.join(".codewhale").join("skills"),
-            "from-codewhale",
-            "codewhale skill",
+            &workspace.join(".mimofan").join("skills"),
+            "from-mimofan",
+            "mimofan skill",
             "body",
         );
         write_skill(
@@ -1281,7 +1281,7 @@ mod tests {
         );
         write_skill(
             &configured_dir,
-            "configured-codewhale",
+            "configured-mimofan",
             "configured skill",
             "body",
         );
@@ -1294,8 +1294,8 @@ mod tests {
         );
         let names: Vec<&str> = registry.list().iter().map(|s| s.name.as_str()).collect();
 
-        assert!(names.contains(&"from-codewhale"));
-        assert!(names.contains(&"configured-codewhale"));
+        assert!(names.contains(&"from-mimofan"));
+        assert!(names.contains(&"configured-mimofan"));
         assert!(
             !names.contains(&"from-claude") && !names.contains(&"from-agents"),
             "CodeWhale-only mode must not import cross-tool skills: {names:?}"
@@ -1303,7 +1303,7 @@ mod tests {
     }
 
     #[test]
-    fn codewhale_only_mode_still_honors_explicit_configured_dir() {
+    fn mimofan_only_mode_still_honors_explicit_configured_dir() {
         let tmpdir = TempDir::new().unwrap();
         let workspace = tmpdir.path().join("workspace");
         let home = tmpdir.path().join("home");
@@ -1328,15 +1328,15 @@ mod tests {
     }
 
     #[test]
-    fn codewhale_only_mode_rejects_workspace_codewhale_symlink_escape() {
+    fn mimofan_only_mode_rejects_workspace_mimofan_symlink_escape() {
         let tmpdir = TempDir::new().unwrap();
         let workspace = tmpdir.path().join("workspace");
         let home = tmpdir.path().join("home");
         let escape_target = tmpdir.path().join("escape-target");
-        std::fs::create_dir_all(workspace.join(".codewhale")).unwrap();
+        std::fs::create_dir_all(workspace.join(".mimofan")).unwrap();
         write_skill(&escape_target, "escaped-skill", "escaped skill", "body");
 
-        let link_path = workspace.join(".codewhale").join("skills");
+        let link_path = workspace.join(".mimofan").join("skills");
         if let Err(err) = create_dir_symlink(&escape_target, &link_path) {
             eprintln!("skipping symlink escape assertion: {err}");
             return;
@@ -1351,7 +1351,7 @@ mod tests {
 
         assert!(
             registry.get("escaped-skill").is_none(),
-            "CodeWhale-only mode must not follow workspace .codewhale/skills outside the workspace"
+            "CodeWhale-only mode must not follow workspace .mimofan/skills outside the workspace"
         );
     }
 
@@ -1607,7 +1607,7 @@ mod tests {
 
     /// Mirrors the qa_pty `skills_menu_shows_local_and_global_skills`
     /// scenario without the PTY harness: a workspace-level skill in
-    /// `.agents/skills/` and a global skill in `~/.codewhale/skills/`
+    /// `.agents/skills/` and a global skill in `~/.mimofan/skills/`
     /// must both be discoverable.
     #[test]
     fn discover_finds_both_workspace_and_global_skills() {

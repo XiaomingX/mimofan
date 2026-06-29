@@ -96,7 +96,7 @@ impl ToolSpec for LoadSkillTool {
         // already lists, so the model never asks for a name it
         // can't find.
         let discovery_mode =
-            SkillDiscoveryMode::from_codewhale_only(context.skills_scan_codewhale_only);
+            SkillDiscoveryMode::from_mimofan_only(context.skills_scan_mimofan_only);
         let registry = if let Some(skills_dir) = context.skills_dir.as_deref() {
             discover_for_workspace_and_dir_with_mode(&context.workspace, skills_dir, discovery_mode)
         } else {
@@ -122,11 +122,11 @@ impl ToolSpec for LoadSkillTool {
                     .map(|p| p.display().to_string())
                     .collect();
                 if dirs.is_empty() {
-                    if context.skills_scan_codewhale_only {
-                        "no skills directories found; install skills under `<workspace>/.codewhale/skills/<name>/SKILL.md` or `~/.codewhale/skills/<name>/SKILL.md`"
+                    if context.skills_scan_mimofan_only {
+                        "no skills directories found; install skills under `<workspace>/.mimofan/skills/<name>/SKILL.md` or `~/.mimofan/skills/<name>/SKILL.md`"
                             .to_string()
                     } else {
-                        "no skills directories found; install skills under `<workspace>/.agents/skills/<name>/SKILL.md`, `~/.codewhale/skills/<name>/SKILL.md`, or `~/.deepseek/skills/<name>/SKILL.md`"
+                        "no skills directories found; install skills under `<workspace>/.agents/skills/<name>/SKILL.md`, `~/.mimofan/skills/<name>/SKILL.md`, or `~/.deepseek/skills/<name>/SKILL.md`"
                             .to_string()
                     }
                 } else {
@@ -367,7 +367,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn execute_respects_codewhale_only_skill_discovery() {
+    async fn execute_respects_mimofan_only_skill_discovery() {
         let tmp = tempdir().unwrap();
         let workspace = tmp.path().to_path_buf();
         write_skill(
@@ -376,30 +376,30 @@ mod tests {
             "Claude skill",
             "Body content marker.",
         );
-        let codewhale_dir = workspace.join(".codewhale").join("skills");
+        let mimofan_dir = workspace.join(".mimo").join("skills");
         write_skill(
-            &codewhale_dir,
-            "codewhale-only",
-            "CodeWhale skill",
+            &mimofan_dir,
+            "mimofan-only",
+            "mimofan skill",
             "Body content marker.",
         );
 
-        let context = ToolContext::new(workspace).with_skills_config(codewhale_dir, true);
+        let context = ToolContext::new(workspace).with_skills_config(mimofan_dir, true);
         let tool = LoadSkillTool;
 
         let result = tool
-            .execute(json!({"name": "codewhale-only"}), &context)
+            .execute(json!({"name": "mimofan-only"}), &context)
             .await
-            .expect("CodeWhale skill should load");
+            .expect("mimofan skill should load");
         assert!(result.success);
 
         let err = tool
             .execute(json!({"name": "claude-only"}), &context)
             .await
-            .expect_err("Claude skill should be hidden in CodeWhale-only mode");
+            .expect_err("Claude skill should be hidden in mimofan-only mode");
         let msg = err.to_string();
         assert!(
-            msg.contains("claude-only") && msg.contains("codewhale-only"),
+            msg.contains("claude-only") && msg.contains("mimofan-only"),
             "error should name the missing skill and available strict catalog: {msg}"
         );
     }

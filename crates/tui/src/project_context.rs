@@ -1,17 +1,17 @@
-//! Project context loading for CodeWhale.
+//! Project context loading for mimofan.
 //!
 //! This module handles loading project-specific context files that provide
 //! instructions and context to the AI agent. These include:
 //!
 //! - `AGENTS.md` - Cross-agent project instructions (canonical, highest priority)
-//! - `WHALE.md` - **Deprecated** legacy CodeWhale-native instructions (read-only fallback)
+//! - `WHALE.md` - **Deprecated** legacy mimofan-native instructions (read-only fallback)
 //! - `.claude/instructions.md` - Claude-style hidden instructions (compat)
 //! - `CLAUDE.md` - Claude-style instructions (compat)
-//! - `.codewhale/instructions.md` - Hidden instructions file (compat)
+//! - `.mimofan/instructions.md` - Hidden instructions file (compat)
 //! - `.deepseek/instructions.md` - Hidden instructions file (legacy)
 //!
-//! CodeWhale-specific repo authority/prioritization policy lives separately in
-//! `.codewhale/constitution.json` and is rendered as its own higher-authority
+//! mimofan-specific repo authority/prioritization policy lives separately in
+//! `.mimofan/constitution.json` and is rendered as its own higher-authority
 //! block. The loaded content is injected into the system prompt to give the
 //! agent context about the project's conventions, structure, and requirements.
 
@@ -27,28 +27,28 @@ use thiserror::Error;
 ///
 /// `AGENTS.md` is the canonical cross-agent project-instructions file.
 /// `WHALE.md` is **deprecated** (kept only as a read-only legacy fallback, now
-/// below `AGENTS.md`) — CodeWhale-specific repo authority now lives in
-/// `.codewhale/constitution.json`, not a bespoke markdown file. `CLAUDE.md` and
+/// below `AGENTS.md`) — mimofan-specific repo authority now lives in
+/// `.mimofan/constitution.json`, not a bespoke markdown file. `CLAUDE.md` and
 /// the `*/instructions.md` variants are read-only compatibility fallbacks;
-/// CodeWhale never creates or recommends them.
+/// mimofan never creates or recommends them.
 const PROJECT_CONTEXT_FILES: &[&str] = &[
     "AGENTS.md",
     "WHALE.md", // deprecated: legacy CodeWhale-native, read-only fallback (#WHALE.md deprecation)
     ".claude/instructions.md",
     "CLAUDE.md",
-    ".codewhale/instructions.md",
+    ".mimofan/instructions.md",
     ".deepseek/instructions.md",
 ];
 
-/// File name of the deprecated CodeWhale-native instructions file.
+/// File name of the deprecated mimofan-native instructions file.
 const DEPRECATED_WHALE_FILENAME: &str = "WHALE.md";
 
 /// Warning surfaced when a `WHALE.md` is still the active instruction source.
-const WHALE_DEPRECATION_WARNING: &str = "WHALE.md is deprecated; move project instructions to AGENTS.md, or CodeWhale-specific authority policy to .codewhale/constitution.json. WHALE.md is still read for now but will be dropped from default discovery in a future release.";
+const WHALE_DEPRECATION_WARNING: &str = "WHALE.md is deprecated; move project instructions to AGENTS.md, or mimofan-specific authority policy to .mimo/constitution.json. WHALE.md is still read for now but will be dropped from default discovery in a future release.";
 
 /// Relative path (within a workspace or one of its parents) to the
-/// CodeWhale-specific repo authority/prioritization policy.
-const REPO_CONSTITUTION_RELATIVE_PATH: &[&str] = &[".codewhale", "constitution.json"];
+/// mimofan-specific repo authority/prioritization policy.
+const REPO_CONSTITUTION_RELATIVE_PATH: &[&str] = &[".mimofan", "constitution.json"];
 
 /// `schema_version` understood by this build of the constitution loader.
 const SUPPORTED_CONSTITUTION_SCHEMA: u32 = 1;
@@ -57,18 +57,18 @@ const SUPPORTED_CONSTITUTION_SCHEMA: u32 = 1;
 /// its parents do not define project context. Any global AGENTS.md takes
 /// priority over a global instructions.md (#3012), which takes priority over
 /// any deprecated global WHALE.md; within each file name,
-/// `.codewhale/` takes priority over vendor-neutral `.agents/`, which takes
+/// `.mimofan/` takes priority over vendor-neutral `.agents/`, which takes
 /// priority over legacy `.deepseek/`.
-const GLOBAL_AGENTS_RELATIVE_PATH: &[&str] = &[".codewhale", "AGENTS.md"];
+const GLOBAL_AGENTS_RELATIVE_PATH: &[&str] = &[".mimofan", "AGENTS.md"];
 const GLOBAL_AGENTS_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "AGENTS.md"];
 const GLOBAL_AGENTS_LEGACY_PATH: &[&str] = &[".deepseek", "AGENTS.md"];
-const GLOBAL_WHALE_RELATIVE_PATH: &[&str] = &[".codewhale", "WHALE.md"];
+const GLOBAL_WHALE_RELATIVE_PATH: &[&str] = &[".mimofan", "WHALE.md"];
 const GLOBAL_WHALE_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "WHALE.md"];
 const GLOBAL_WHALE_LEGACY_PATH: &[&str] = &[".deepseek", "WHALE.md"];
 /// Global `instructions.md` (#3012): auto-loaded as a fallback context layer,
 /// ranked between AGENTS.md (higher priority) and the deprecated WHALE.md
 /// (lower), mirroring the project-level precedence.
-const GLOBAL_INSTRUCTIONS_RELATIVE_PATH: &[&str] = &[".codewhale", "instructions.md"];
+const GLOBAL_INSTRUCTIONS_RELATIVE_PATH: &[&str] = &[".mimofan", "instructions.md"];
 const GLOBAL_INSTRUCTIONS_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "instructions.md"];
 const GLOBAL_INSTRUCTIONS_LEGACY_PATH: &[&str] = &[".deepseek", "instructions.md"];
 
@@ -139,8 +139,8 @@ pub struct ProjectContext {
     pub source_path: Option<PathBuf>,
     /// Any warnings during loading
     pub warnings: Vec<String>,
-    /// Rendered `.codewhale/constitution.json` authority block, if present.
-    /// CodeWhale-specific repo authority/prioritization policy — distinct from
+    /// Rendered `.mimofan/constitution.json` authority block, if present.
+    /// mimofan-specific repo authority/prioritization policy — distinct from
     /// the cross-agent prose in `instructions`.
     pub constitution_block: Option<String>,
     /// Project root directory
@@ -170,7 +170,7 @@ impl ProjectContext {
 
     /// Get the instructions as a formatted block for system prompt.
     ///
-    /// The CodeWhale repo constitution (`.codewhale/constitution.json`), when
+    /// The mimofan repo constitution (`.mimofan/constitution.json`), when
     /// present, is emitted first as a higher-authority block, followed by the
     /// cross-agent `<project_instructions>` prose. Either may be absent.
     pub fn as_system_block(&self) -> Option<String> {
@@ -196,8 +196,8 @@ impl ProjectContext {
     }
 }
 
-/// CodeWhale-specific repo authority/prioritization policy, loaded from
-/// `.codewhale/constitution.json`. All fields are optional so a minimal file
+/// mimofan-specific repo authority/prioritization policy, loaded from
+/// `.mimofan/constitution.json`. All fields are optional so a minimal file
 /// (or a future schema) still parses; unknown fields are ignored.
 #[derive(Debug, Clone, Default, Deserialize)]
 struct RepoConstitution {
@@ -285,14 +285,14 @@ impl RepoConstitution {
             }
         }
         format!(
-            "<codewhale_repo_constitution source=\"{}\">\nCodeWhale-specific repo authority policy (local law: subordinate to the global Constitution and the current user request, but above memory and old handoffs; takes precedence over a legacy WHALE.md).\n\n{}</codewhale_repo_constitution>",
+            "<mimofan_repo_constitution source=\"{}\">\nCodeWhale-specific repo authority policy (local law: subordinate to the global Constitution and the current user request, but above memory and old handoffs; takes precedence over a legacy WHALE.md).\n\n{}</mimofan_repo_constitution>",
             source.display(),
             body.trim_end()
         )
     }
 }
 
-/// Discover and render `.codewhale/constitution.json` from `workspace` or, if
+/// Discover and render `.mimofan/constitution.json` from `workspace` or, if
 /// absent, its parent directories up to the git root. Returns the rendered
 /// authority block plus any parse warnings.
 fn load_repo_constitution_block(workspace: &Path) -> (Option<String>, Vec<String>) {
@@ -754,7 +754,7 @@ fn load_project_context_with_parents_and_home(
 
     // Generate a bounded in-memory fallback when no context file exists
     // anywhere. This keeps prompt shape stable without creating project-local
-    // `.codewhale/` files merely because CodeWhale was opened in a directory.
+    // `.mimofan/` files merely because mimofan was opened in a directory.
     if !ctx.has_instructions()
         && let Some(generated) = generate_ephemeral_context(workspace)
     {
@@ -762,8 +762,8 @@ fn load_project_context_with_parents_and_home(
         ctx.source_path = None;
     }
 
-    // Load the CodeWhale-specific repo authority policy
-    // (.codewhale/constitution.json) independently of the prose instructions —
+    // Load the mimofan-specific repo authority policy
+    // (.mimofan/constitution.json) independently of the prose instructions —
     // it is a distinct, higher-authority artifact and may exist with or without
     // an AGENTS.md. When present it takes precedence over a legacy WHALE.md.
     // Loaded last so the auto-generate fallback above (which rebuilds `ctx`)
@@ -889,13 +889,13 @@ fn load_global_agents_context(workspace: &Path, home_dir: Option<&Path>) -> Opti
 
     // Priority order (AGENTS.md preferred; instructions.md next, #3012;
     // WHALE.md deprecated and last):
-    // 1. ~/.codewhale/AGENTS.md       (canonical)
+    // 1. ~/.mimofan/AGENTS.md       (canonical)
     // 2. ~/.agents/AGENTS.md          (vendor-neutral fallback)
     // 3. ~/.deepseek/AGENTS.md        (legacy fallback)
-    // 4. ~/.codewhale/instructions.md (canonical)
+    // 4. ~/.mimofan/instructions.md (canonical)
     // 5. ~/.agents/instructions.md    (vendor-neutral fallback)
     // 6. ~/.deepseek/instructions.md  (legacy fallback)
-    // 7. ~/.codewhale/WHALE.md        (deprecated, legacy fallback)
+    // 7. ~/.mimofan/WHALE.md        (deprecated, legacy fallback)
     // 8. ~/.agents/WHALE.md           (deprecated, vendor-neutral legacy)
     // 9. ~/.deepseek/WHALE.md         (deprecated, legacy)
     let mut warnings = Vec::new();
@@ -938,8 +938,8 @@ fn generate_ephemeral_context(workspace: &Path) -> Option<String> {
 
     Some(format!(
         "# Project Context (Auto-generated, ephemeral)\n\n\
-         > This context was generated in memory by CodeWhale.\n\
-         > No .codewhale/instructions.md file was written.\n\n\
+         > This context was generated in memory by mimofan.\n\
+         > No .mimo/instructions.md file was written.\n\n\
          {overview}"
     ))
 }
@@ -1052,7 +1052,7 @@ pub fn create_default_agents_md(workspace: &Path) -> std::io::Result<PathBuf> {
 
     let default_content = r#"# Project Agent Instructions
 
-This file provides guidance to AI agents (CodeWhale, Claude Code, etc.) when working with code in this repository.
+This file provides guidance to AI agents (mimofan, Claude Code, etc.) when working with code in this repository.
 
 ## File Location
 
@@ -1379,9 +1379,9 @@ mod tests {
     fn constitution_json_renders_authority_block() {
         let tmp = tempdir().expect("tempdir");
         fs::create_dir(tmp.path().join(".git")).expect("mkdir .git");
-        fs::create_dir(tmp.path().join(".codewhale")).expect("mkdir .codewhale");
+        fs::create_dir(tmp.path().join(".mimofan")).expect("mkdir .mimofan");
         fs::write(
-            tmp.path().join(".codewhale").join("constitution.json"),
+            tmp.path().join(".mimofan").join("constitution.json"),
             r#"{
                 "schema_version": 1,
                 "authority": ["current user request", "live code and tests", "AGENTS.md"],
@@ -1398,7 +1398,7 @@ mod tests {
             .constitution_block
             .as_deref()
             .expect("constitution block rendered");
-        assert!(block.contains("<codewhale_repo_constitution"));
+        assert!(block.contains("<mimofan_repo_constitution"));
         assert!(block.contains("current user request"));
         assert!(block.contains("run focused tests"));
         assert!(block.contains("keep the tool-catalog head byte-stable"));
@@ -1409,7 +1409,7 @@ mod tests {
         assert!(
             ctx.as_system_block()
                 .expect("system block")
-                .contains("codewhale_repo_constitution")
+                .contains("mimofan_repo_constitution")
         );
     }
 
@@ -1417,9 +1417,9 @@ mod tests {
     fn malformed_constitution_warns_without_crashing() {
         let tmp = tempdir().expect("tempdir");
         fs::create_dir(tmp.path().join(".git")).expect("mkdir .git");
-        fs::create_dir(tmp.path().join(".codewhale")).expect("mkdir .codewhale");
+        fs::create_dir(tmp.path().join(".mimofan")).expect("mkdir .mimofan");
         fs::write(
-            tmp.path().join(".codewhale").join("constitution.json"),
+            tmp.path().join(".mimofan").join("constitution.json"),
             "{ not valid json",
         )
         .expect("write bad constitution");
@@ -1442,7 +1442,7 @@ mod tests {
         let workspace = tempdir().expect("workspace tempdir");
         let outside = tempdir().expect("outside tempdir");
         fs::create_dir(workspace.path().join(".git")).expect("mkdir .git");
-        fs::create_dir(workspace.path().join(".codewhale")).expect("mkdir .codewhale");
+        fs::create_dir(workspace.path().join(".mimofan")).expect("mkdir .mimofan");
         let outside_constitution = outside.path().join("constitution.json");
         fs::write(
             &outside_constitution,
@@ -1453,7 +1453,7 @@ mod tests {
             &outside_constitution,
             workspace
                 .path()
-                .join(".codewhale")
+                .join(".mimofan")
                 .join("constitution.json"),
         )
         .expect("symlink constitution");
@@ -1612,15 +1612,15 @@ mod tests {
         );
         assert!(ctx.has_instructions());
 
-        let generated_path = workspace.path().join(".codewhale").join("instructions.md");
+        let generated_path = workspace.path().join(".mimofan").join("instructions.md");
         assert_eq!(ctx.source_path, None);
         assert!(
             !generated_path.exists(),
             "generated project context should stay ephemeral"
         );
         assert!(
-            !workspace.path().join(".codewhale").exists(),
-            "loading context should not create a .codewhale directory"
+            !workspace.path().join(".mimofan").exists(),
+            "loading context should not create a .mimofan directory"
         );
         let generated = ctx.instructions.as_ref().expect("generated instructions");
         assert!(generated.contains("Project Context (Auto-generated, ephemeral)"));
@@ -1680,10 +1680,10 @@ mod tests {
         let workspace = tempdir().expect("workspace tempdir");
         let home = tempdir().expect("home tempdir");
         fs::create_dir(workspace.path().join(".git")).expect("mkdir git");
-        fs::create_dir(workspace.path().join(".codewhale")).expect("mkdir codewhale");
+        fs::create_dir(workspace.path().join(".mimofan")).expect("mkdir mimofan");
         let constitution = workspace
             .path()
-            .join(".codewhale")
+            .join(".mimofan")
             .join("constitution.json");
         fs::write(
             &constitution,
@@ -1729,7 +1729,7 @@ mod tests {
         let first =
             load_project_context_with_parents_cached_and_home(workspace.path(), Some(home.path()));
         assert!(first.has_instructions());
-        let generated_path = workspace.path().join(".codewhale").join("instructions.md");
+        let generated_path = workspace.path().join(".mimofan").join("instructions.md");
         assert!(
             !generated_path.exists(),
             "first load should not write generated instructions"
@@ -1859,15 +1859,14 @@ mod tests {
     }
 
     #[test]
-    fn test_codewhale_specific_path_wins_over_agents_path() {
+    fn test_mimofan_specific_path_wins_over_agents_path() {
         let workspace = tempdir().expect("workspace tempdir");
         let home = tempdir().expect("home tempdir");
 
-        let codewhale_dir = home.path().join(".codewhale");
-        fs::create_dir(&codewhale_dir).expect("mkdir .codewhale");
-        let codewhale_agents = codewhale_dir.join("AGENTS.md");
-        fs::write(&codewhale_agents, "CodeWhale-specific instructions")
-            .expect("write codewhale agents");
+        let mimofan_dir = home.path().join(".mimo");
+        fs::create_dir(&mimofan_dir).expect("mkdir .mimo");
+        let mimofan_agents = mimofan_dir.join("AGENTS.md");
+        fs::write(&mimofan_agents, "mimofan-specific instructions").expect("write mimo agents");
 
         let agents_dir = home.path().join(".agents");
         fs::create_dir(&agents_dir).expect("mkdir .agents");
@@ -1879,14 +1878,14 @@ mod tests {
         assert!(ctx.has_instructions());
         let instructions = ctx.instructions.as_ref().unwrap();
         assert!(
-            instructions.contains("CodeWhale-specific instructions"),
-            "CodeWhale-specific global file should win:\n{instructions}"
+            instructions.contains("mimofan-specific instructions"),
+            "mimofan-specific global file should win:\n{instructions}"
         );
         assert!(
             !instructions.contains("Vendor-neutral instructions"),
             "lower-priority .agents file should be skipped:\n{instructions}"
         );
-        assert_eq!(ctx.source_path, Some(codewhale_agents));
+        assert_eq!(ctx.source_path, Some(mimofan_agents));
     }
 
     #[test]
@@ -1894,10 +1893,10 @@ mod tests {
         let workspace = tempdir().expect("workspace tempdir");
         let home = tempdir().expect("home tempdir");
 
-        let codewhale_dir = home.path().join(".codewhale");
-        fs::create_dir(&codewhale_dir).expect("mkdir .codewhale");
-        fs::write(codewhale_dir.join("WHALE.md"), "Global WHALE legacy")
-            .expect("write codewhale whale");
+        let mimofan_dir = home.path().join(".mimofan");
+        fs::create_dir(&mimofan_dir).expect("mkdir .mimofan");
+        fs::write(mimofan_dir.join("WHALE.md"), "Global WHALE legacy")
+            .expect("write mimofan whale");
 
         let agents_dir = home.path().join(".agents");
         fs::create_dir(&agents_dir).expect("mkdir .agents");
@@ -1931,10 +1930,10 @@ mod tests {
         let workspace = tempdir().expect("workspace tempdir");
         let home = tempdir().expect("home tempdir");
 
-        let codewhale_dir = home.path().join(".codewhale");
-        fs::create_dir(&codewhale_dir).expect("mkdir .codewhale");
-        let global_whale = codewhale_dir.join("WHALE.md");
-        fs::write(&global_whale, "Global WHALE legacy").expect("write codewhale whale");
+        let mimofan_dir = home.path().join(".mimofan");
+        fs::create_dir(&mimofan_dir).expect("mkdir .mimofan");
+        let global_whale = mimofan_dir.join("WHALE.md");
+        fs::write(&global_whale, "Global WHALE legacy").expect("write mimofan whale");
 
         let ctx = load_project_context_with_parents_and_home(workspace.path(), Some(home.path()));
 
@@ -1956,16 +1955,16 @@ mod tests {
 
     #[test]
     fn test_global_instructions_md_is_autoloaded_and_outranks_whale() {
-        // #3012: a global ~/.codewhale/instructions.md should be auto-loaded as
+        // #3012: a global ~/.mimofan/instructions.md should be auto-loaded as
         // a fallback context layer, ahead of the deprecated WHALE.md.
         let workspace = tempdir().expect("workspace tempdir");
         let home = tempdir().expect("home tempdir");
 
-        let codewhale_dir = home.path().join(".codewhale");
-        fs::create_dir(&codewhale_dir).expect("mkdir .codewhale");
-        fs::write(codewhale_dir.join("WHALE.md"), "Global WHALE legacy")
-            .expect("write codewhale whale");
-        let global_instructions = codewhale_dir.join("instructions.md");
+        let mimofan_dir = home.path().join(".mimofan");
+        fs::create_dir(&mimofan_dir).expect("mkdir .mimofan");
+        fs::write(mimofan_dir.join("WHALE.md"), "Global WHALE legacy")
+            .expect("write mimofan whale");
+        let global_instructions = mimofan_dir.join("instructions.md");
         fs::write(&global_instructions, "Global instructions body")
             .expect("write global instructions");
 
@@ -1997,12 +1996,12 @@ mod tests {
         let workspace = tempdir().expect("workspace tempdir");
         let home = tempdir().expect("home tempdir");
 
-        let codewhale_dir = home.path().join(".codewhale");
-        fs::create_dir(&codewhale_dir).expect("mkdir .codewhale");
-        let global_agents = codewhale_dir.join("AGENTS.md");
+        let mimofan_dir = home.path().join(".mimofan");
+        fs::create_dir(&mimofan_dir).expect("mkdir .mimofan");
+        let global_agents = mimofan_dir.join("AGENTS.md");
         fs::write(&global_agents, "Global AGENTS canonical").expect("write global agents");
         fs::write(
-            codewhale_dir.join("instructions.md"),
+            mimofan_dir.join("instructions.md"),
             "Global instructions body",
         )
         .expect("write global instructions");

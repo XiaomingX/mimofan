@@ -32,7 +32,7 @@ pub struct PromptSessionContext<'a> {
     /// ({context_window_note} and friends). v4's constitution is
     /// model-agnostic and no longer prints the id in its preamble, but the
     /// id still selects model-accurate context-window / pricing / thinking
-    /// facts. Defaults to `"codewhale"` when the caller doesn't supply one.
+    /// facts. Defaults to `"mimo"` when the caller doesn't supply one.
     pub model_id: &'a str,
     /// Route-effective context window, when known. This can differ from the
     /// model-family maximum when a provider wrapper exposes a smaller envelope.
@@ -44,9 +44,9 @@ pub struct PromptSessionContext<'a> {
     /// Optional output-verbosity mode. `concise` appends a short output
     /// discipline block; unset keeps the normal conversational prompt.
     pub verbosity: Option<&'a str>,
-    /// Restrict skill discovery to CodeWhale-owned roots plus explicit
+    /// Restrict skill discovery to mimofan-owned roots plus explicit
     /// `skills_dir` configuration.
-    pub skills_scan_codewhale_only: bool,
+    pub skills_scan_mimofan_only: bool,
 }
 
 impl Default for PromptSessionContext<'_> {
@@ -57,11 +57,11 @@ impl Default for PromptSessionContext<'_> {
             project_context_pack_enabled: true,
             locale_tag: "en",
             translation_enabled: false,
-            model_id: "codewhale",
+            model_id: "mimo",
             context_window_override: None,
             show_thinking: true,
             verbosity: None,
-            skills_scan_codewhale_only: false,
+            skills_scan_mimofan_only: false,
         }
     }
 }
@@ -70,7 +70,7 @@ impl Default for PromptSessionContext<'_> {
 /// A previous session writes it on exit / `/compact`; the next session reads
 /// it back on startup and prepends it to the system prompt so a fresh agent
 /// doesn't have to re-discover open blockers from scratch.
-pub const HANDOFF_RELATIVE_PATH: &str = ".codewhale/handoff.md";
+pub const HANDOFF_RELATIVE_PATH: &str = ".mimo/handoff.md";
 /// Legacy handoff path for reading from existing installs.
 const LEGACY_HANDOFF_RELATIVE_PATH: &str = ".deepseek/handoff.md";
 
@@ -122,9 +122,7 @@ fn is_concise_verbosity(value: Option<&str>) -> bool {
 
 fn translation_target_language_for_tag(locale_tag: &str) -> &'static str {
     let normalized = locale_tag.trim().to_ascii_lowercase();
-    if normalized.starts_with("ja") {
-        "Japanese (日本語)"
-    } else if normalized.starts_with("zh-hant")
+    if normalized.starts_with("zh-hant")
         || normalized.contains("-tw")
         || normalized.contains("-hk")
         || normalized.contains("-mo")
@@ -132,10 +130,6 @@ fn translation_target_language_for_tag(locale_tag: &str) -> &'static str {
         "Traditional Chinese (繁體中文)"
     } else if normalized.starts_with("zh") {
         "Simplified Chinese (简体中文)"
-    } else if normalized.starts_with("pt") {
-        "Brazilian Portuguese (Português do Brasil)"
-    } else if normalized.starts_with("vi") {
-        "Vietnamese (Tiếng Việt)"
     } else {
         "English"
     }
@@ -170,7 +164,7 @@ for the current turn."
 /// guess from the user's first message. `locale_tag` is resolved by
 /// the caller from `Settings` so this function stays I/O-free.
 fn render_environment_block(_workspace: &Path, locale_tag: &str) -> String {
-    let codewhale_version = env!("CARGO_PKG_VERSION");
+    let mimofan_version = env!("CARGO_PKG_VERSION");
     let platform = std::env::consts::OS;
     let shell = crate::shell_dispatcher::global_dispatcher()
         .kind()
@@ -194,7 +188,7 @@ fn render_environment_block(_workspace: &Path, locale_tag: &str) -> String {
         "## Environment\n\
          \n\
          - lang: {locale_tag}\n\
-         - codewhale_version: {codewhale_version}\n\
+         - mimofan_version: {mimofan_version}\n\
          - platform: {platform}\n\
          - shell: {shell}"
     )
@@ -339,13 +333,7 @@ pub const BASE_PROMPT: &str = include_str!("prompts/constitution.md");
 // any engine spawns; later sets return the rejected override string.
 static BASE_PROMPT_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 static LOCALE_PREAMBLE_ZH_HANS_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-static LOCALE_PREAMBLE_JA_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-static LOCALE_PREAMBLE_PT_BR_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-static LOCALE_PREAMBLE_VI_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 static LOCALE_CLOSER_ZH_HANS_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-static LOCALE_CLOSER_JA_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-static LOCALE_CLOSER_PT_BR_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-static LOCALE_CLOSER_VI_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 static AUTHORITY_RECAP_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 static STATIC_PROMPT_COMPOSER: std::sync::OnceLock<Box<StaticPromptComposer>> =
     std::sync::OnceLock::new();
@@ -354,7 +342,7 @@ static STATIC_PROMPT_COMPOSER: std::sync::OnceLock<Box<StaticPromptComposer>> =
 ///
 /// This hook only replaces the byte-stable base/personality prompt segment.
 /// Mode deltas, approval policy, tool taxonomy, Context Management, and the
-/// Compaction Relay stay owned by CodeWhale's system prompt assembly.
+/// Compaction Relay stay owned by mimofan's system prompt assembly.
 #[non_exhaustive]
 #[derive(Debug)]
 pub struct StaticPromptCtx<'a> {
@@ -367,7 +355,7 @@ pub struct StaticPromptCtx<'a> {
     pub default_layers: &'a str,
 }
 
-/// Embedder hook for replacing CodeWhale's byte-stable base/personality prompt
+/// Embedder hook for replacing mimofan's byte-stable base/personality prompt
 /// segment.
 pub type StaticPromptComposer = dyn Fn(&StaticPromptCtx<'_>) -> String + Send + Sync + 'static;
 
@@ -383,39 +371,9 @@ pub fn set_locale_preamble_zh_hans_override(s: String) -> Result<(), String> {
     set_prompt_override(&LOCALE_PREAMBLE_ZH_HANS_OVERRIDE, s)
 }
 
-/// Replace the Japanese locale preamble.
-pub fn set_locale_preamble_ja_override(s: String) -> Result<(), String> {
-    set_prompt_override(&LOCALE_PREAMBLE_JA_OVERRIDE, s)
-}
-
-/// Replace the Brazilian-Portuguese locale preamble.
-pub fn set_locale_preamble_pt_br_override(s: String) -> Result<(), String> {
-    set_prompt_override(&LOCALE_PREAMBLE_PT_BR_OVERRIDE, s)
-}
-
-/// Replace the Vietnamese locale preamble.
-pub fn set_locale_preamble_vi_override(s: String) -> Result<(), String> {
-    set_prompt_override(&LOCALE_PREAMBLE_VI_OVERRIDE, s)
-}
-
 /// Replace the Simplified-Chinese locale closer (`## 语言再次提醒`).
 pub fn set_locale_closer_zh_hans_override(s: String) -> Result<(), String> {
     set_prompt_override(&LOCALE_CLOSER_ZH_HANS_OVERRIDE, s)
-}
-
-/// Replace the Japanese locale closer.
-pub fn set_locale_closer_ja_override(s: String) -> Result<(), String> {
-    set_prompt_override(&LOCALE_CLOSER_JA_OVERRIDE, s)
-}
-
-/// Replace the Brazilian-Portuguese locale closer.
-pub fn set_locale_closer_pt_br_override(s: String) -> Result<(), String> {
-    set_prompt_override(&LOCALE_CLOSER_PT_BR_OVERRIDE, s)
-}
-
-/// Replace the Vietnamese locale closer.
-pub fn set_locale_closer_vi_override(s: String) -> Result<(), String> {
-    set_prompt_override(&LOCALE_CLOSER_VI_OVERRIDE, s)
 }
 
 /// Replace the trailing `## Authority Recap` block.
@@ -462,32 +420,8 @@ fn effective_locale_preamble_zh_hans() -> &'static str {
     effective_prompt_override(&LOCALE_PREAMBLE_ZH_HANS_OVERRIDE, LOCALE_PREAMBLE_ZH_HANS)
 }
 
-fn effective_locale_preamble_ja() -> &'static str {
-    effective_prompt_override(&LOCALE_PREAMBLE_JA_OVERRIDE, LOCALE_PREAMBLE_JA)
-}
-
-fn effective_locale_preamble_pt_br() -> &'static str {
-    effective_prompt_override(&LOCALE_PREAMBLE_PT_BR_OVERRIDE, LOCALE_PREAMBLE_PT_BR)
-}
-
-fn effective_locale_preamble_vi() -> &'static str {
-    effective_prompt_override(&LOCALE_PREAMBLE_VI_OVERRIDE, LOCALE_PREAMBLE_VI)
-}
-
 fn effective_locale_closer_zh_hans() -> &'static str {
     effective_prompt_override(&LOCALE_CLOSER_ZH_HANS_OVERRIDE, LOCALE_CLOSER_ZH_HANS)
-}
-
-fn effective_locale_closer_ja() -> &'static str {
-    effective_prompt_override(&LOCALE_CLOSER_JA_OVERRIDE, LOCALE_CLOSER_JA)
-}
-
-fn effective_locale_closer_pt_br() -> &'static str {
-    effective_prompt_override(&LOCALE_CLOSER_PT_BR_OVERRIDE, LOCALE_CLOSER_PT_BR)
-}
-
-fn effective_locale_closer_vi() -> &'static str {
-    effective_prompt_override(&LOCALE_CLOSER_VI_OVERRIDE, LOCALE_CLOSER_VI)
 }
 
 fn effective_authority_recap() -> &'static str {
@@ -560,9 +494,6 @@ fn effective_authority_recap() -> &'static str {
 pub(crate) fn locale_reinforcement_preamble(locale_tag: &str) -> Option<&'static str> {
     match locale_tag {
         "zh-Hans" | "zh-CN" | "zh" => Some(effective_locale_preamble_zh_hans()),
-        "ja" | "ja-JP" => Some(effective_locale_preamble_ja()),
-        "pt-BR" | "pt" => Some(effective_locale_preamble_pt_br()),
-        "vi" | "vi-VN" => Some(effective_locale_preamble_vi()),
         _ => None,
     }
 }
@@ -586,93 +517,15 @@ pub(crate) fn locale_reinforcement_preamble(locale_tag: &str) -> Option<&'static
 pub(crate) fn locale_reinforcement_closer(locale_tag: &str) -> Option<&'static str> {
     match locale_tag {
         "zh-Hans" | "zh-CN" | "zh" => Some(effective_locale_closer_zh_hans()),
-        "ja" | "ja-JP" => Some(effective_locale_closer_ja()),
-        "pt-BR" | "pt" => Some(effective_locale_closer_pt_br()),
-        "vi" | "vi-VN" => Some(effective_locale_closer_vi()),
         _ => None,
     }
 }
 
-const LOCALE_PREAMBLE_ZH_HANS: &str = "## 语言要求\n\n\
-你正在 codewhale 中运行。无论任务上下文（代码、错误日志、文件名）\
-是英文，无论系统提示的其余部分是英文，你都必须用简体中文进行 \
-`reasoning_content`（内部思考）和最终回复。代码、文件路径、工具名称\
-（例如 `read_file`、`exec_shell`）、环境变量、命令行参数和 URL \
-保持原样 —— 只有自然语言散文要切换到简体中文。\n\n\
-如果用户在会话中切换到另一种语言，从下一轮开始跟随切换。\
-如果用户明确要求（例如 \"think in English\"），则覆盖此规则。";
-
-const LOCALE_PREAMBLE_JA: &str = "## 言語要件\n\n\
-codewhale を実行しています。タスクコンテキスト（コード、エラーログ、\
-ファイル名）が英語であっても、システムプロンプトの他の部分が英語で\
-あっても、`reasoning_content`（内部思考）と最終的な返信は日本語で\
-行ってください。コード、ファイルパス、ツール名（例：`read_file`、\
-`exec_shell`）、環境変数、コマンドライン引数、URL は元のまま —— \
-自然言語の文章のみ日本語に切り替えます。\n\n\
-ユーザーがセッション中に別の言語に切り替えた場合は、次のターンから\
-それに従ってください。ユーザーが明示的に要求した場合（例：\
-\"think in English\"）はこのルールを上書きします。";
-
-const LOCALE_PREAMBLE_PT_BR: &str = "## Requisito de Idioma\n\n\
-Você está rodando dentro do codewhale. Escreva tanto \
-`reasoning_content` (seu pensamento interno) quanto a resposta final \
-em português do Brasil, mesmo quando o contexto da tarefa (código, \
-logs de erro, nomes de arquivos) estiver em inglês e mesmo quando o \
-resto do system prompt for em inglês. Mantenha código, caminhos de \
-arquivos, nomes de ferramentas (por exemplo `read_file`, \
-`exec_shell`), variáveis de ambiente, flags de linha de comando e \
-URLs no formato original — apenas a prosa em linguagem natural muda \
-para português do Brasil.\n\n\
-Se o usuário mudar de idioma no meio da sessão, mude no próximo turno. \
-Se o usuário pedir explicitamente (por exemplo, \"think in English\"), \
-isso sobrescreve esta regra.";
+const LOCALE_PREAMBLE_ZH_HANS: &str = include_str!("prompts/locale_preamble_zh_hans.md");
 
 // ── Closing bookends (appended to the very end of the system prompt) ──
 
-const LOCALE_CLOSER_ZH_HANS: &str = "## 语言再次提醒\n\n\
-**重要：你的 `reasoning_content`（内部思考）和最终回复必须保持简体中文。** \
-无论你在这次会话中读到了多少英文代码、错误日志或文档，无论项目上下文 \
-是英文，思考过程不能漂移到英文。这是会话级硬性要求 —— 用户的语言决定 \
-你的语言，与上下文中累积的英文内容无关。除非用户明确要求切换（例如 \
-\"think in English\"），否则继续用简体中文思考和回答。";
-
-const LOCALE_CLOSER_JA: &str = "## 言語再確認\n\n\
-**重要：`reasoning_content`（内部思考）と最終的な返信は日本語で行ってください。** \
-このセッションで読み込んだ英語のコード、エラーログ、ドキュメントの量に \
-関係なく、プロジェクトコンテキストが英語であっても、思考プロセスを \
-英語に逸らさないでください。これはセッションレベルの厳格な要件であり、 \
-ユーザーの言語があなたの言語を決定します。ユーザーが明示的に切り替えを \
-要求しない限り（例：\"think in English\"）、日本語で思考し、回答し続けて \
-ください。";
-
-const LOCALE_CLOSER_PT_BR: &str = "## Reforço de Idioma\n\n\
-**Importante: seu `reasoning_content` (pensamento interno) e a resposta \
-final devem permanecer em português do Brasil.** Independentemente de \
-quanto código em inglês, logs de erro ou documentação você ler nesta \
-sessão, e independentemente de o contexto do projeto ser em inglês, o \
-processo de pensamento não pode derivar para o inglês. Este é um \
-requisito rígido em nível de sessão — o idioma do usuário define seu \
-idioma. A menos que o usuário peça explicitamente a troca (por exemplo, \
-\"think in English\"), continue pensando e respondendo em português do \
-Brasil.";
-
-const LOCALE_PREAMBLE_VI: &str = "## Yêu cầu ngôn ngữ\n\n\
-Bạn đang chạy trong codewhale. Cho dù ngữ cảnh tác vụ (mã nguồn, nhật ký lỗi, tên tệp) \
-là tiếng Anh, cho dù phần còn lại của system prompt là tiếng Anh, bạn đều phải sử dụng \
-tiếng Việt cho phần `reasoning_content` (suy nghĩ nội bộ) và câu trả lời cuối cùng. Các từ \
-mã nguồn, đường dẫn tệp, tên công cụ (ví dụ `read_file`, `exec_shell`), biến môi trường, \
-tham số dòng lệnh và URL giữ nguyên dạng gốc —— chỉ các văn bản giải thích bằng ngôn ngữ \
-tự nhiên mới được chuyển sang tiếng Việt.\n\n\
-Nếu người dùng chuyển sang ngôn ngữ khác trong phiên làm việc, hãy chuyển theo từ lượt tiếp theo. \
-Nếu người dùng yêu cầu rõ ràng (ví dụ \"think in English\"), hãy ghi đè quy tắc này.";
-
-const LOCALE_CLOSER_VI: &str = "## Nhắc nhở ngôn ngữ một lần nữa\n\n\
-**Quan trọng: phần `reasoning_content` (suy nghĩ nội bộ) và phản hồi cuối cùng của bạn phải được viết bằng tiếng Việt.** \
-Dù bạn có đọc bao nhiêu mã nguồn tiếng Anh, nhật ký lỗi hay tài liệu trong phiên làm việc này, và dù ngữ cảnh \
-dự án có là tiếng Anh, quá trình suy nghĩ của bạn cũng không được chuyển sang tiếng Anh. Đây là yêu cầu cứng \
-ở cấp phiên làm việc —— ngôn ngữ của người dùng quyết định ngôn ngữ của bạn, không phụ thuộc vào nội dung tiếng Anh \
-tích lũy trong ngữ cảnh. Trừ khi người dùng yêu cầu rõ ràng việc chuyển đổi (ví dụ \"think in English\"), \
-hãy tiếp tục suy nghĩ và trả lời bằng tiếng Việt.";
+const LOCALE_CLOSER_ZH_HANS: &str = include_str!("prompts/locale_closer_zh_hans.md");
 
 /// Personality overlays — voice and tone.
 pub const CALM_PERSONALITY: &str = include_str!("prompts/personalities/calm.md");
@@ -693,12 +546,10 @@ pub const NEVER_APPROVAL: &str = include_str!("prompts/approvals/never.md");
 /// Runtime Policy Reference so the model can adapt without mutating the
 /// static system-prompt prefix (preserves DeepSeek prefix cache across
 /// shell-access toggles).
-pub const SHELL_POLICY_DISABLED: &str = "Shell tools unavailable. For mandatory-use items referencing \
-`exec_shell`, use `code_execution` (Python sandbox). For GitHub triage, use \
-`github_issue_context` / `github_pr_context` as primary route.";
+pub const SHELL_POLICY_DISABLED: &str = include_str!("prompts/shell_policy_disabled.md");
 
 /// Compaction relay template — written into the system prompt so the
-/// model knows the format to use when writing `.codewhale/handoff.md`.
+/// model knows the format to use when writing `.mimo/handoff.md`.
 pub const COMPACT_TEMPLATE: &str = include_str!("prompts/compact.md");
 
 /// Goal continuation audit template — injected by the engine when a runtime
@@ -834,26 +685,13 @@ fn apply_model_template(
 
 /// Architecture self-management section injected for DeepSeek V4 model ids
 /// (the original hardcoded constitution.md section, now model-gated — #3025).
-const V4_MODEL_CHARACTERISTICS: &str = "## Your V4 Characteristics
-
-You run on V4 architecture. Understanding the internals helps you self-manage:
-
-**Degradation curve.** Retrieval quality holds well through large V4 contexts and remains usable deep into the 1M window. Do not summarize or delete earlier turns just because the transcript has crossed an older 128K-era threshold. Prefer appending stable evidence and suggest `/compact` only near real pressure or when the user asks.
-
-**Prefix cache economics.** V4 caches shared prefixes at 128-token granularity with ~90% cost discount. Prefer appending to existing messages over mutating old ones — deletion or replacement breaks the cache and increases cost. Structure output to maximize prefix reuse across turns.
-
-**Thinking token strategy.** Thinking tokens count against context and replay across turns (the `reasoning_content` rule). Use them strategically: skip for lookups, light for simple code generation, deep for architecture and debugging. Cache conclusions in concise inline summaries rather than re-deriving each turn.
-
-**Parallel execution.** Batch independent reads, searches, and greps into a single turn. Never serialize operations that can run concurrently — parallel tool calls share the same turn and finish faster.";
+const V4_MODEL_CHARACTERISTICS: &str = include_str!("prompts/v4_model_characteristics.md");
 
 /// Provider-neutral fallback for non-V4 models: only claims that hold across
 /// providers (prefix caching is widespread; parallel tool calls are harness
 /// behavior, not model behavior).
-const GENERIC_MODEL_CHARACTERISTICS: &str = "## Model Characteristics
-
-**Prefix-cache hygiene.** Many providers cache shared prompt prefixes. Prefer appending to existing messages over mutating old ones — deletion or replacement can break the cache and increase cost. Structure output to maximize prefix reuse across turns.
-
-**Parallel execution.** Batch independent reads, searches, and greps into a single turn. Never serialize operations that can run concurrently — parallel tool calls share the same turn and finish faster.";
+const GENERIC_MODEL_CHARACTERISTICS: &str =
+    include_str!("prompts/generic_model_characteristics.md");
 
 const TOOL_TAXONOMY_DISCOVERY: &[&str] = &["grep_files", "file_search"];
 const TOOL_TAXONOMY_GIT: &[&str] = &["git_status", "git_diff"];
@@ -914,18 +752,10 @@ fn render_core_tool_group(group: &[&str], core_tools: &[&str]) -> Option<String>
 /// this is the last thing the model reads before generating, so it
 /// reinforces the Constitutional hierarchy without occupying cache-stable
 /// prefix space.
-const AUTHORITY_RECAP: &str = "\
-## Authority Recap
-
-The Constitution of CodeWhale governs your behavior. Ground truth is the
-ground everything stands on: you may be ordered past a fact, but you may
-never report one that isn't there. When instructions conflict, the
-operator's words this turn outrank project instructions, which outrank
-memory, which outranks handoffs — the nearest scope and the most recent
-breaking ties. When in doubt, consult Article VI: Priority.";
+const AUTHORITY_RECAP: &str = include_str!("prompts/authority_recap.md");
 
 pub fn compose_prompt(personality: Personality) -> String {
-    compose_prompt_with_approval_model_and_shell(personality, "codewhale")
+    compose_prompt_with_approval_model_and_shell(personality, "mimofan")
 }
 
 pub(crate) fn compose_prompt_with_approval_model_and_shell(
@@ -1012,11 +842,11 @@ pub fn system_prompt_for_mode_with_context_and_skills(
             project_context_pack_enabled: true,
             locale_tag: "en",
             translation_enabled: false,
-            model_id: "codewhale",
+            model_id: "mimo",
             context_window_override: None,
             show_thinking: true,
             verbosity: None,
-            skills_scan_codewhale_only: false,
+            skills_scan_mimofan_only: false,
         },
     )
 }
@@ -1117,13 +947,13 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
 
     // 3. Skills block. #432: default discovery walks every compatible
     // workspace/global skill directory so skills installed for other AI-tool
-    // conventions show up in the catalogue. Users can opt into a CodeWhale-only
-    // scan with `[skills] scan_codewhale_only = true`. When an explicit
+    // conventions show up in the catalogue. Users can opt into a mimofan-only
+    // scan with `[skills] scan_mimofan_only = true`. When an explicit
     // `skills_dir` is configured, union it with the workspace view instead of
     // treating it as a fallback; the workspace view often returns Some and
     // would otherwise shadow the configured directory entirely.
-    let skill_discovery_mode = crate::skills::SkillDiscoveryMode::from_codewhale_only(
-        session_context.skills_scan_codewhale_only,
+    let skill_discovery_mode = crate::skills::SkillDiscoveryMode::from_mimofan_only(
+        session_context.skills_scan_mimofan_only,
     );
     let skills_block = match skills_dir {
         Some(dir) => {
@@ -1163,7 +993,7 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
     }
 
     // 5. Compaction relay template — so the model knows the format to use
-    //    when writing `.codewhale/handoff.md` on exit / `/compact`.
+    //    when writing `.mimo/handoff.md` on exit / `/compact`.
     full_prompt.push_str("\n\n");
     full_prompt.push_str(COMPACT_TEMPLATE);
 
@@ -1282,7 +1112,7 @@ mod tests {
 
     /// Discriminator unique to the injected relay block (not present in the
     /// agent prompt's own discussion of the convention).
-    const HANDOFF_BLOCK_MARKER: &str = "left a relay artifact at `.codewhale/handoff.md`";
+    const HANDOFF_BLOCK_MARKER: &str = "left a relay artifact at `.mimo/handoff.md`";
 
     #[test]
     fn prompt_override_storage_reports_duplicate_sets() {
@@ -1702,7 +1532,7 @@ mod tests {
             "full system prompt must contain the authority recap"
         );
         assert!(
-            text.contains("The Constitution of CodeWhale governs your behavior"),
+            text.contains("The Constitution of mimofan governs your behavior"),
             "authority recap must reference the Constitution"
         );
         assert!(
@@ -1834,7 +1664,7 @@ mod tests {
         assert!(block.starts_with("## Environment"));
         assert!(block.contains("- lang: zh-Hans"));
         assert!(block.contains(&format!(
-            "- codewhale_version: {}",
+            "- mimofan_version: {}",
             env!("CARGO_PKG_VERSION")
         )));
         // pwd is now delivered per-turn via `turn_meta`, not in the static block.
@@ -1874,17 +1704,6 @@ mod tests {
                 "zh preamble must call out tool-name immutability: {preamble:?}"
             );
         }
-
-        let ja = locale_reinforcement_preamble("ja").expect("ja preamble");
-        assert!(ja.contains("日本語"), "ja preamble must be in Japanese");
-        assert!(ja.contains("reasoning_content"));
-
-        let pt = locale_reinforcement_preamble("pt-BR").expect("pt-BR preamble");
-        assert!(
-            pt.contains("português do Brasil"),
-            "pt preamble must call out pt-BR explicitly"
-        );
-        assert!(pt.contains("reasoning_content"));
     }
 
     #[test]
@@ -1905,11 +1724,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "zh-Hans",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -1936,7 +1755,7 @@ mod tests {
         assert!(locale_reinforcement_closer("fr-FR").is_none());
         assert!(locale_reinforcement_closer("").is_none());
 
-        // Each supported locale gets a closer in its own script that
+        // zh-Hans gets a closer in Simplified Chinese that
         // explicitly tells the model "don't drift to English even as
         // English context accumulates" — that's the load-bearing claim
         // behind the bookend pattern.
@@ -1949,12 +1768,6 @@ mod tests {
             zh.contains("reasoning_content"),
             "zh closer must steer reasoning_content"
         );
-        let ja = locale_reinforcement_closer("ja").expect("ja closer");
-        assert!(ja.contains("日本語"), "ja closer must be in Japanese");
-        assert!(ja.contains("reasoning_content"));
-        let pt = locale_reinforcement_closer("pt-BR").expect("pt-BR closer");
-        assert!(pt.contains("português do Brasil"));
-        assert!(pt.contains("reasoning_content"));
     }
 
     #[test]
@@ -1977,11 +1790,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "zh-Hans",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2022,11 +1835,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "zh-Hans",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: false,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2077,11 +1890,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2181,21 +1994,21 @@ mod tests {
                 user_memory_block: None,
                 goal_objective: None,
                 project_context_pack_enabled: true,
-                locale_tag: "ja",
+                locale_tag: "zh-Hans",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
             SystemPrompt::Blocks(_) => panic!("expected text system prompt"),
         };
         assert!(prompt.contains("## Environment"));
-        assert!(prompt.contains("- lang: ja"));
-        assert!(prompt.contains("- codewhale_version:"));
+        assert!(prompt.contains("- lang: zh-Hans"));
+        assert!(prompt.contains("- mimofan_version:"));
     }
 
     #[test]
@@ -2222,11 +2035,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2253,11 +2066,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2313,11 +2126,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2344,11 +2157,11 @@ mod tests {
                 project_context_pack_enabled: true,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2616,11 +2429,11 @@ mod tests {
                 project_context_pack_enabled: true,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2653,11 +2466,11 @@ mod tests {
                 project_context_pack_enabled: true,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: None,
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,
@@ -2877,7 +2690,7 @@ mod tests {
     fn subagent_done_sentinel_section_present() {
         let prompt = compose_prompt(Personality::Calm);
         assert!(prompt.contains("Internal Sub-agent Completion Events"));
-        assert!(prompt.contains("<codewhale:subagent.done>"));
+        assert!(prompt.contains("<mimo:subagent.done>"));
         assert!(prompt.contains("not user input"));
         assert!(prompt.contains("Integration protocol"));
         assert!(prompt.contains("Do not tell the user they pasted sentinels"));
@@ -3225,11 +3038,11 @@ mod tests {
                 project_context_pack_enabled: false,
                 locale_tag: "en",
                 translation_enabled: false,
-                model_id: "codewhale",
+                model_id: "mimo",
                 context_window_override: None,
                 show_thinking: true,
                 verbosity: Some(" Concise "),
-                skills_scan_codewhale_only: false,
+                skills_scan_mimofan_only: false,
             },
         ) {
             SystemPrompt::Text(text) => text,

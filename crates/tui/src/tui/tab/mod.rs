@@ -1,4 +1,4 @@
-//! Multi-tab system for CodeWhale TUI
+//! Multi-tab system for mimofan TUI
 //!
 //! This module provides support for multiple concurrent agent sessions
 //! in a tabbed interface, similar to Claude Code Windows.

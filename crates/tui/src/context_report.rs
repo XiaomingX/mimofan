@@ -2,7 +2,7 @@
 //!
 //! The report is intentionally approximate for v0.8.59. It uses the same
 //! conservative token heuristic as compaction and describes the runtime sources
-//! CodeWhale already tracks, without claiming provider-tokenizer parity.
+//! mimofan already tracks, without claiming provider-tokenizer parity.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -10,7 +10,7 @@ use std::path::Path;
 use chrono::{SecondsFormat, Utc};
 use serde::Serialize;
 
-use codewhale_config::route::RouteLimits;
+use mimofan_config::route::RouteLimits;
 
 use crate::compaction::{estimate_input_tokens_conservative, estimate_text_tokens_conservative};
 use crate::config::{ApiProvider, Config, provider_capability};
@@ -721,7 +721,7 @@ mod tests {
             Some(1),
         ));
         add_message_entries(&mut builder, &messages);
-        let report = builder.finish(ApiProvider::Deepseek, "deepseek-v4-pro", None, 123, "test");
+        let report = builder.finish(ApiProvider::XiaomiMimo, "deepseek-v4-pro", None, 123, "test");
         let json = context_report_json(&report);
 
         assert!(json.contains("\"source_kind\": \"tool_result\""));
@@ -749,7 +749,7 @@ mod tests {
             CountingConfidence::High,
             Some(7),
         ));
-        let report = builder.finish(ApiProvider::Deepseek, "deepseek-v4-pro", None, 525, "test");
+        let report = builder.finish(ApiProvider::XiaomiMimo, "deepseek-v4-pro", None, 525, "test");
         let summary = format_context_summary(&report);
 
         assert!(summary.contains("Context Summary"));
@@ -776,7 +776,7 @@ mod tests {
         };
         let builder = ReportBuilder::new();
         let report = builder.finish(
-            ApiProvider::Deepseek,
+            ApiProvider::XiaomiMimo,
             "deepseek-v4-pro",
             Some(limits),
             10_000,

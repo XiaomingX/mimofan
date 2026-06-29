@@ -877,7 +877,7 @@ pub(crate) fn handle_context_menu_action(app: &mut App, action: ContextMenuActio
                 .push(CommandPaletteView::new(build_command_palette_entries(
                     app.ui_locale,
                     &app.skills_dir,
-                    app.skills_scan_codewhale_only,
+                    app.skills_scan_mimofan_only,
                     &app.workspace,
                     &app.mcp_config_path,
                     app.mcp_snapshot.as_ref(),

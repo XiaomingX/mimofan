@@ -10,7 +10,7 @@ use crate::context_budget::ContextBudget;
 use crate::error_taxonomy::ErrorCategory;
 use crate::models::{Message, SystemPrompt, context_window_for_model};
 use crate::tools::spec::ToolResult;
-use codewhale_config::route::RouteLimits;
+use mimofan_config::route::RouteLimits;
 use serde_json::Value;
 
 /// Max output tokens requested for normal agent turns. Generous on purpose:

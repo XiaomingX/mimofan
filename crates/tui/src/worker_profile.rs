@@ -1,4 +1,4 @@
-//! Worker runtime profile — the per-role capability contract for a CodeWhale
+//! Worker runtime profile — the per-role capability contract for a mimofan
 //! worker (#3217, #3211, #3213, and the child-permission-intersection issues
 //! #414 / #426 / #1186).
 //!
@@ -170,7 +170,7 @@ impl WorkerRuntimeProfile {
             tools: ToolScope::Inherit,
             model: ModelRoute::Inherit,
             provider: None,
-            max_spawn_depth: codewhale_config::DEFAULT_SPAWN_DEPTH,
+            max_spawn_depth: mimofan_config::DEFAULT_SPAWN_DEPTH,
             background: true,
         }
     }
@@ -211,7 +211,7 @@ impl WorkerRuntimeProfile {
         let max_spawn_depth = requested
             .max_spawn_depth
             .min(self.max_spawn_depth.saturating_sub(1))
-            .min(codewhale_config::MAX_SPAWN_DEPTH_CEILING);
+            .min(mimofan_config::MAX_SPAWN_DEPTH_CEILING);
         WorkerRuntimeProfile {
             role: requested.role.clone(),
             permissions,

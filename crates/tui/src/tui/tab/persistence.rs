@@ -94,10 +94,10 @@ impl Default for PersistedTabState {
 }
 
 /// Get the default path for the tab state file
-/// `~/.codewhale/tabs.json`
+/// `~/.mimofan/tabs.json`
 pub fn default_tab_state_path() -> Option<PathBuf> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
-    Some(PathBuf::from(home).join(".codewhale").join("tabs.json"))
+    Some(PathBuf::from(home).join(".mimofan").join("tabs.json"))
 }
 
 /// Save the tab state to a file.
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     fn test_save_and_load() {
-        let dir = std::env::temp_dir().join("codewhale_tab_test");
+        let dir = std::env::temp_dir().join("mimofan_tab_test");
         let path = dir.join("tabs.json");
 
         // Clean up any leftover
@@ -309,7 +309,7 @@ mod tests {
     #[test]
     fn test_load_oversized_file_rejected() {
         // Create a file that exceeds MAX_FILE_SIZE
-        let dir = std::env::temp_dir().join("codewhale_tab_oversize");
+        let dir = std::env::temp_dir().join("mimofan_tab_oversize");
         let path = dir.join("tabs.json");
         std::fs::create_dir_all(&dir).unwrap();
         let _ = std::fs::remove_file(&path);
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_load_corrupted_file() {
-        let dir = std::env::temp_dir().join("codewhale_tab_corrupt");
+        let dir = std::env::temp_dir().join("mimofan_tab_corrupt");
         let path = dir.join("tabs.json");
         std::fs::create_dir_all(&dir).unwrap();
         let _ = std::fs::remove_file(&path);
@@ -356,7 +356,7 @@ mod tests {
     fn test_save_is_atomic() {
         // Verify that save_to_file uses a temp + rename pattern.
         // The test ensures the final file exists and no .tmp file remains.
-        let dir = std::env::temp_dir().join("codewhale_tab_atomic");
+        let dir = std::env::temp_dir().join("mimofan_tab_atomic");
         let path = dir.join("tabs.json");
         let tmp_path = path.with_extension("json.tmp");
         std::fs::create_dir_all(&dir).unwrap();
@@ -376,7 +376,7 @@ mod tests {
     #[test]
     fn test_load_newer_schema_logs_warning_but_loads() {
         // Simulate a file from a future version
-        let dir = std::env::temp_dir().join("codewhale_tab_newer");
+        let dir = std::env::temp_dir().join("mimofan_tab_newer");
         let path = dir.join("tabs.json");
         std::fs::create_dir_all(&dir).unwrap();
         let _ = std::fs::remove_file(&path);

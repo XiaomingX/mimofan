@@ -26,10 +26,10 @@ use std::sync::OnceLock;
 
 use anyhow::{Context, Result, bail};
 pub use auth_source::{AuthSourceKind, ProviderAuthSourceToml};
-pub use codewhale_execpolicy::ToolAskRule;
-use codewhale_execpolicy::{ExecPolicyEngine, Ruleset};
-use codewhale_secrets::SecretSource;
-pub use codewhale_secrets::Secrets;
+pub use mimofan_execpolicy::ToolAskRule;
+use mimofan_execpolicy::{ExecPolicyEngine, Ruleset};
+use mimofan_secrets::SecretSource;
+pub use mimofan_secrets::Secrets;
 use serde::{Deserialize, Serialize};
 
 #[cfg(unix)]
@@ -55,89 +55,8 @@ pub struct ProviderConfigToml {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProvidersToml {
-    #[serde(default)]
-    pub deepseek: ProviderConfigToml,
-    #[serde(
-        default,
-        alias = "deepseek-anthropic",
-        alias = "deepseekAnthropic",
-        alias = "deepseek-claude",
-        alias = "deepseek_claude"
-    )]
-    pub deepseek_anthropic: ProviderConfigToml,
-    #[serde(default)]
-    pub nvidia_nim: ProviderConfigToml,
-    #[serde(default)]
-    pub openai: ProviderConfigToml,
-    #[serde(default)]
-    pub atlascloud: ProviderConfigToml,
-    #[serde(default)]
-    pub wanjie_ark: ProviderConfigToml,
-    #[serde(default)]
-    pub volcengine: ProviderConfigToml,
-    #[serde(default)]
-    pub openrouter: ProviderConfigToml,
     #[serde(default, alias = "xiaomi", alias = "mimo", alias = "xiaomimimo")]
     pub xiaomi_mimo: ProviderConfigToml,
-    #[serde(default)]
-    pub novita: ProviderConfigToml,
-    #[serde(default)]
-    pub fireworks: ProviderConfigToml,
-    #[serde(default)]
-    pub siliconflow: ProviderConfigToml,
-    #[serde(default, alias = "siliconflow-CN", alias = "siliconflow-cn")]
-    pub siliconflow_cn: ProviderConfigToml,
-    #[serde(default)]
-    pub arcee: ProviderConfigToml,
-    #[serde(default)]
-    pub moonshot: ProviderConfigToml,
-    #[serde(default)]
-    pub huggingface: ProviderConfigToml,
-    #[serde(default)]
-    pub together: ProviderConfigToml,
-    #[serde(
-        default,
-        alias = "baidu-qianfan",
-        alias = "baidu_qianfan",
-        alias = "baidu"
-    )]
-    pub qianfan: ProviderConfigToml,
-    #[serde(
-        default,
-        alias = "openai-codex",
-        alias = "openai_codex",
-        alias = "codex",
-        alias = "chatgpt",
-        alias = "chatgpt-codex"
-    )]
-    pub openai_codex: ProviderConfigToml,
-    #[serde(default)]
-    pub anthropic: ProviderConfigToml,
-    #[serde(
-        default,
-        alias = "z-ai",
-        alias = "z_ai",
-        alias = "z.ai",
-        alias = "zhipu",
-        alias = "zhipuai",
-        alias = "bigmodel",
-        alias = "big-model"
-    )]
-    pub zai: ProviderConfigToml,
-    #[serde(
-        default,
-        alias = "step-fun",
-        alias = "step_fun",
-        alias = "stepfun",
-        alias = "stepflash",
-        alias = "step-flash",
-        alias = "step_flash"
-    )]
-    pub stepfun: ProviderConfigToml,
-    #[serde(default, alias = "mini-max", alias = "mini_max", alias = "minimax")]
-    pub minimax: ProviderConfigToml,
-    #[serde(default, alias = "deep-infra", alias = "deep_infra")]
-    pub deepinfra: ProviderConfigToml,
     /// Catch-all table for the dynamic OpenAI-compatible custom provider
     /// identity (#1519). Arbitrary `[providers.<name>]` tables are handled by
     /// the tui-side flatten map; this named slot keeps the canonical
@@ -175,60 +94,14 @@ impl ProvidersToml {
     #[must_use]
     pub fn for_provider(&self, provider: ProviderKind) -> &ProviderConfigToml {
         match provider {
-            ProviderKind::Deepseek => &self.deepseek,
-            ProviderKind::DeepseekAnthropic => &self.deepseek_anthropic,
-            ProviderKind::NvidiaNim => &self.nvidia_nim,
-            ProviderKind::Openai => &self.openai,
-            ProviderKind::Atlascloud => &self.atlascloud,
-            ProviderKind::WanjieArk => &self.wanjie_ark,
-            ProviderKind::Volcengine => &self.volcengine,
-            ProviderKind::Openrouter => &self.openrouter,
             ProviderKind::XiaomiMimo => &self.xiaomi_mimo,
-            ProviderKind::Novita => &self.novita,
-            ProviderKind::Fireworks => &self.fireworks,
-            ProviderKind::Siliconflow => &self.siliconflow,
-            ProviderKind::SiliconflowCN => &self.siliconflow_cn,
-            ProviderKind::Arcee => &self.arcee,
-            ProviderKind::Moonshot => &self.moonshot,
-            ProviderKind::Huggingface => &self.huggingface,
-            ProviderKind::Together => &self.together,
-            ProviderKind::Qianfan => &self.qianfan,
-            ProviderKind::OpenaiCodex => &self.openai_codex,
-            ProviderKind::Anthropic => &self.anthropic,
-            ProviderKind::Zai => &self.zai,
-            ProviderKind::Stepfun => &self.stepfun,
-            ProviderKind::Minimax => &self.minimax,
-            ProviderKind::Deepinfra => &self.deepinfra,
             ProviderKind::Custom => &self.custom,
         }
     }
 
     pub fn for_provider_mut(&mut self, provider: ProviderKind) -> &mut ProviderConfigToml {
         match provider {
-            ProviderKind::Deepseek => &mut self.deepseek,
-            ProviderKind::DeepseekAnthropic => &mut self.deepseek_anthropic,
-            ProviderKind::NvidiaNim => &mut self.nvidia_nim,
-            ProviderKind::Openai => &mut self.openai,
-            ProviderKind::Atlascloud => &mut self.atlascloud,
-            ProviderKind::WanjieArk => &mut self.wanjie_ark,
-            ProviderKind::Volcengine => &mut self.volcengine,
-            ProviderKind::Openrouter => &mut self.openrouter,
             ProviderKind::XiaomiMimo => &mut self.xiaomi_mimo,
-            ProviderKind::Novita => &mut self.novita,
-            ProviderKind::Fireworks => &mut self.fireworks,
-            ProviderKind::Siliconflow => &mut self.siliconflow,
-            ProviderKind::SiliconflowCN => &mut self.siliconflow_cn,
-            ProviderKind::Arcee => &mut self.arcee,
-            ProviderKind::Moonshot => &mut self.moonshot,
-            ProviderKind::Huggingface => &mut self.huggingface,
-            ProviderKind::Together => &mut self.together,
-            ProviderKind::Qianfan => &mut self.qianfan,
-            ProviderKind::OpenaiCodex => &mut self.openai_codex,
-            ProviderKind::Anthropic => &mut self.anthropic,
-            ProviderKind::Zai => &mut self.zai,
-            ProviderKind::Stepfun => &mut self.stepfun,
-            ProviderKind::Minimax => &mut self.minimax,
-            ProviderKind::Deepinfra => &mut self.deepinfra,
             ProviderKind::Custom => &mut self.custom,
         }
     }
@@ -237,7 +110,7 @@ impl ProvidersToml {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ConfigToml {
     /// TUI-compatible DeepSeek API key. Kept at the root so both `deepseek`
-    /// and `codewhale-tui` can share a single config file.
+    /// and `mimofan` can share a single config file.
     pub api_key: Option<String>,
     /// TUI-compatible DeepSeek base URL.
     pub base_url: Option<String>,
@@ -256,7 +129,7 @@ pub struct ConfigToml {
     pub telemetry: Option<bool>,
     pub approval_policy: Option<String>,
     pub sandbox_mode: Option<String>,
-    /// Native tool catalog controls shared with `codewhale-tui`.
+    /// Native tool catalog controls shared with `mimofan`.
     #[serde(default)]
     pub tools: Option<ToolsToml>,
     #[serde(default)]
@@ -404,21 +277,21 @@ fn set_provider_config_value(
         ProviderConfigField::ApiKey => {
             let value = value.to_string();
             config.providers.for_provider_mut(provider).api_key = Some(value.clone());
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.api_key = Some(value);
             }
         }
         ProviderConfigField::BaseUrl => {
             let value = value.to_string();
             config.providers.for_provider_mut(provider).base_url = Some(value.clone());
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.base_url = Some(value);
             }
         }
         ProviderConfigField::Model => {
             let value = value.to_string();
             config.providers.for_provider_mut(provider).model = Some(value.clone());
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.default_text_model = Some(value);
             }
         }
@@ -437,7 +310,7 @@ fn set_provider_config_value(
         ProviderConfigField::HttpHeaders => {
             let headers = parse_http_headers(value)?;
             config.providers.for_provider_mut(provider).http_headers = headers.clone();
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.http_headers = headers;
             }
         }
@@ -456,19 +329,19 @@ fn unset_provider_config_value(
     match field {
         ProviderConfigField::ApiKey => {
             config.providers.for_provider_mut(provider).api_key = None;
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.api_key = None;
             }
         }
         ProviderConfigField::BaseUrl => {
             config.providers.for_provider_mut(provider).base_url = None;
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.base_url = None;
             }
         }
         ProviderConfigField::Model => {
             config.providers.for_provider_mut(provider).model = None;
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.default_text_model = None;
             }
         }
@@ -490,7 +363,7 @@ fn unset_provider_config_value(
                 .for_provider_mut(provider)
                 .http_headers
                 .clear();
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 config.http_headers.clear();
             }
         }
@@ -1430,8 +1303,8 @@ pub struct LspConfigToml {
 }
 
 impl ConfigToml {
-    /// Merge safe project-level overrides from `$WORKSPACE/.codewhale/config.toml`
-    /// or legacy `$WORKSPACE/.deepseek/config.toml`.
+    /// Merge safe project-level overrides from `$WORKSPACE/.mimo/config.toml`,
+    /// `$WORKSPACE/.mimofan/config.toml`, or legacy `$WORKSPACE/.deepseek/config.toml`.
     ///
     /// Repo-local config is untrusted input. This helper intentionally ignores
     /// credentials, endpoints, provider selection, auth/session values, telemetry,
@@ -1576,7 +1449,7 @@ impl ConfigToml {
         }
 
         match key {
-            "provider" => self.provider = ProviderKind::Deepseek,
+            "provider" => self.provider = ProviderKind::XiaomiMimo,
             "api_key" => self.api_key = None,
             "base_url" => self.base_url = None,
             "http_headers" => self.http_headers.clear(),
@@ -1676,7 +1549,7 @@ impl ConfigToml {
     #[must_use]
     pub fn resolve_runtime_options(&self, cli: &CliRuntimeOverrides) -> ResolvedRuntimeOptions {
         let no_keyring = Secrets::new(std::sync::Arc::new(
-            codewhale_secrets::InMemoryKeyringStore::new(),
+            mimofan_secrets::InMemoryKeyringStore::new(),
         ));
         self.resolve_runtime_options_with_secrets(cli, &no_keyring)
     }
@@ -1696,32 +1569,20 @@ impl ConfigToml {
         } else if let Some(provider) = env.provider {
             (
                 provider,
-                ProviderSource::Env(env.provider_source.unwrap_or("CODEWHALE_PROVIDER")),
+                ProviderSource::Env(env.provider_source.unwrap_or("MIMO_PROVIDER")),
             )
         } else {
             (self.provider, ProviderSource::Config)
         };
 
-        let mut provider_cfg = self.providers.for_provider(provider).clone();
-        if provider == ProviderKind::SiliconflowCN {
-            let fb = &self.providers.siliconflow;
-            if provider_cfg.api_key.is_none() {
-                provider_cfg.api_key = fb.api_key.clone();
-            }
-            if provider_cfg.base_url.is_none() {
-                provider_cfg.base_url = fb.base_url.clone();
-            }
-            if provider_cfg.model.is_none() {
-                provider_cfg.model = fb.model.clone();
-            }
-        }
-        let root_deepseek_api_key = (provider == ProviderKind::Deepseek)
+        let provider_cfg = self.providers.for_provider(provider).clone();
+        let root_xiaomi_mimo_api_key = (provider == ProviderKind::XiaomiMimo)
             .then(|| self.api_key.clone())
             .flatten();
-        let root_deepseek_base_url = (provider == ProviderKind::Deepseek)
+        let root_xiaomi_mimo_base_url = (provider == ProviderKind::XiaomiMimo)
             .then(|| self.base_url.clone())
             .flatten();
-        let root_deepseek_model = (provider == ProviderKind::Deepseek)
+        let root_xiaomi_mimo_model = (provider == ProviderKind::XiaomiMimo)
             .then(|| self.default_text_model.clone())
             .flatten();
         let auth_mode = cli
@@ -1730,13 +1591,13 @@ impl ConfigToml {
             .or_else(|| env.auth_mode.clone())
             .or_else(|| provider_cfg.auth_mode.clone())
             .or_else(|| self.auth_mode.clone());
-        let from_file = provider_cfg.api_key.clone().or(root_deepseek_api_key);
+        let from_file = provider_cfg.api_key.clone().or(root_xiaomi_mimo_api_key);
         let configured_base_url = cli
             .base_url
             .clone()
             .or_else(|| env.base_url_for(provider))
             .or_else(|| provider_cfg.base_url.clone())
-            .or(root_deepseek_base_url);
+            .or(root_xiaomi_mimo_base_url);
         let xiaomi_mimo_mode = if provider == ProviderKind::XiaomiMimo {
             env.xiaomi_mimo_mode
                 .clone()
@@ -1765,36 +1626,7 @@ impl ConfigToml {
             )
         } else {
             configured_base_url.unwrap_or_else(|| match provider {
-                ProviderKind::Deepseek => DEFAULT_DEEPSEEK_BASE_URL.to_string(),
-                ProviderKind::DeepseekAnthropic => DEFAULT_DEEPSEEK_ANTHROPIC_BASE_URL.to_string(),
-                ProviderKind::NvidiaNim => DEFAULT_NVIDIA_NIM_BASE_URL.to_string(),
-                ProviderKind::Openai => DEFAULT_OPENAI_BASE_URL.to_string(),
-                ProviderKind::Atlascloud => DEFAULT_ATLASCLOUD_BASE_URL.to_string(),
-                ProviderKind::WanjieArk => DEFAULT_WANJIE_ARK_BASE_URL.to_string(),
-                ProviderKind::Volcengine => DEFAULT_VOLCENGINE_BASE_URL.to_string(),
-                ProviderKind::Openrouter => DEFAULT_OPENROUTER_BASE_URL.to_string(),
                 ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL.to_string(),
-                ProviderKind::Novita => DEFAULT_NOVITA_BASE_URL.to_string(),
-                ProviderKind::Fireworks => DEFAULT_FIREWORKS_BASE_URL.to_string(),
-                ProviderKind::Siliconflow => DEFAULT_SILICONFLOW_BASE_URL.to_string(),
-                ProviderKind::SiliconflowCN => DEFAULT_SILICONFLOW_CN_BASE_URL.to_string(),
-                ProviderKind::Arcee => DEFAULT_ARCEE_BASE_URL.to_string(),
-                ProviderKind::Moonshot => {
-                    if auth_mode.as_deref().is_some_and(auth_mode_uses_kimi_oauth) {
-                        DEFAULT_KIMI_CODE_BASE_URL.to_string()
-                    } else {
-                        DEFAULT_MOONSHOT_BASE_URL.to_string()
-                    }
-                }
-                ProviderKind::Huggingface => DEFAULT_HUGGINGFACE_BASE_URL.to_string(),
-                ProviderKind::Together => DEFAULT_TOGETHER_BASE_URL.to_string(),
-                ProviderKind::Qianfan => DEFAULT_QIANFAN_BASE_URL.to_string(),
-                ProviderKind::OpenaiCodex => DEFAULT_OPENAI_CODEX_BASE_URL.to_string(),
-                ProviderKind::Anthropic => DEFAULT_ANTHROPIC_BASE_URL.to_string(),
-                ProviderKind::Zai => DEFAULT_ZAI_BASE_URL.to_string(),
-                ProviderKind::Stepfun => DEFAULT_STEPFUN_BASE_URL.to_string(),
-                ProviderKind::Minimax => DEFAULT_MINIMAX_BASE_URL.to_string(),
-                ProviderKind::Deepinfra => DEFAULT_DEEPINFRA_BASE_URL.to_string(),
                 // The custom provider has no built-in endpoint; fall back to its
                 // descriptor placeholder so the lookup is total. Real custom
                 // routes always supply a configured base_url before this point.
@@ -1802,16 +1634,10 @@ impl ConfigToml {
             })
         };
         // CLI flag wins outright. Otherwise: config-file → injected secrets/env.
-        // This makes `deepseek auth set` a reliable fix even when the user's
-        // shell still exports an old key. When the file is empty, the injected
-        // secrets façade recovers configured secret-store credentials before
-        // falling back to ambient env.
-        let uses_kimi_oauth = provider == ProviderKind::Moonshot
-            && auth_mode.as_deref().is_some_and(auth_mode_uses_kimi_oauth);
+        // When the file is empty, the injected secrets façade recovers
+        // configured secret-store credentials before falling back to ambient env.
         let (api_key, api_key_source) = if let Some(value) = cli.api_key.clone() {
             (Some(value), Some(RuntimeApiKeySource::Cli))
-        } else if uses_kimi_oauth {
-            (None, None)
         } else if let Some(value) = from_file.clone().filter(|v| !v.trim().is_empty()) {
             (Some(value), Some(RuntimeApiKeySource::ConfigFile))
         } else if let Some(value) = xiaomi_mimo_env_api_key.filter(|v| !v.trim().is_empty()) {
@@ -1842,7 +1668,7 @@ impl ConfigToml {
             || env.model.is_some()
             || env_provider_model.is_some()
             || provider_cfg.model.is_some()
-            || root_deepseek_model.is_some()
+            || root_xiaomi_mimo_model.is_some()
             || self.model.is_some();
         let model = cli
             .model
@@ -1850,18 +1676,9 @@ impl ConfigToml {
             .or_else(|| env.model.clone())
             .or(env_provider_model)
             .or_else(|| provider_cfg.model.clone())
-            .or(root_deepseek_model)
+            .or(root_xiaomi_mimo_model)
             .or_else(|| self.model.clone())
-            .unwrap_or_else(|| {
-                if provider == ProviderKind::Moonshot
-                    && (auth_mode.as_deref().is_some_and(auth_mode_uses_kimi_oauth)
-                        || moonshot_base_url_uses_kimi_code(&base_url))
-                {
-                    DEFAULT_KIMI_CODE_MODEL.to_string()
-                } else {
-                    default_model_for_provider(provider).to_string()
-                }
-            });
+            .unwrap_or_else(|| default_model_for_provider(provider).to_string());
         let model =
             if explicit_model && provider_preserves_custom_base_url_model(provider, &base_url) {
                 model.trim().to_string()
@@ -1985,11 +1802,11 @@ fn sandbox_mode_rank(value: &str) -> Option<u8> {
 
 /// Load a project-level config from the workspace.
 ///
-/// Checks `$WORKSPACE/.codewhale/config.toml` first, falling back to
-/// `$WORKSPACE/.deepseek/config.toml` for backward compatibility.
-/// Returns `None` if neither file exists or can't be parsed.
+/// Checks `$WORKSPACE/.mimo/config.toml` first, then `$WORKSPACE/.mimofan/config.toml`,
+/// falling back to `$WORKSPACE/.deepseek/config.toml` for backward compatibility.
+/// Returns `None` if none of the files exist or can't be parsed.
 pub fn load_project_config(workspace: &Path) -> Option<ConfigToml> {
-    for dir in [CODEWHALE_APP_DIR, LEGACY_APP_DIR] {
+    for dir in [CODEWHALE_APP_DIR, PREVIOUS_APP_DIR, LEGACY_APP_DIR] {
         let path = workspace.join(dir).join(CONFIG_FILE_NAME);
         if !project_config_candidate_exists(&path) {
             continue;
@@ -2020,128 +1837,14 @@ fn project_config_candidate_exists(path: &Path) -> bool {
 }
 
 fn normalize_model_for_provider(provider: ProviderKind, model: &str) -> String {
-    if matches!(provider, ProviderKind::XiaomiMimo)
-        && let Some(canonical) = canonical_xiaomi_mimo_model_id(model)
-    {
-        return canonical.to_string();
-    }
-    if matches!(provider, ProviderKind::Minimax)
-        && let Some(canonical) = canonical_minimax_model_id(model)
-    {
-        return canonical.to_string();
-    }
-    if matches!(provider, ProviderKind::Zai)
-        && let Some(canonical) = canonical_zai_model_id(model)
-    {
-        return canonical.to_string();
-    }
-
-    if matches!(
-        provider,
-        ProviderKind::Atlascloud
-            | ProviderKind::WanjieArk
-            | ProviderKind::Volcengine
-            | ProviderKind::XiaomiMimo
-            | ProviderKind::Zai
-            | ProviderKind::Stepfun
-            | ProviderKind::Minimax
-            | ProviderKind::Qianfan
-    ) {
+    if matches!(provider, ProviderKind::XiaomiMimo) {
+        if let Some(canonical) = canonical_xiaomi_mimo_model_id(model) {
+            return canonical.to_string();
+        }
         return model.to_string();
     }
-
-    let normalized = model.trim().to_ascii_lowercase();
-    if provider == ProviderKind::Openrouter
-        && let Some(canonical) = canonical_openrouter_recent_model_id(&normalized)
-    {
-        return canonical.to_string();
-    }
-    match (provider, normalized.as_str()) {
-        (ProviderKind::NvidiaNim, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_NVIDIA_NIM_MODEL.to_string()
-        }
-        (
-            ProviderKind::NvidiaNim,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_NVIDIA_NIM_FLASH_MODEL.to_string(),
-        (ProviderKind::Openrouter, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_OPENROUTER_MODEL.to_string()
-        }
-        (
-            ProviderKind::Openrouter,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_OPENROUTER_FLASH_MODEL.to_string(),
-        (ProviderKind::Novita, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_NOVITA_MODEL.to_string()
-        }
-        (
-            ProviderKind::Novita,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_NOVITA_FLASH_MODEL.to_string(),
-        (ProviderKind::Fireworks, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_FIREWORKS_MODEL.to_string()
-        }
-        (
-            ProviderKind::Siliconflow | ProviderKind::SiliconflowCN,
-            "deepseek-v4-pro" | "deepseek-v4pro" | "deepseek-reasoner" | "deepseek-r1",
-        ) => DEFAULT_SILICONFLOW_MODEL.to_string(),
-        (
-            ProviderKind::Siliconflow | ProviderKind::SiliconflowCN,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-v3",
-        ) => DEFAULT_SILICONFLOW_FLASH_MODEL.to_string(),
-        (
-            ProviderKind::Arcee,
-            "trinity" | "arcee-trinity" | "trinity-large-thinking" | "arcee-trinity-large-thinking",
-        ) => DEFAULT_ARCEE_MODEL.to_string(),
-        (ProviderKind::Arcee, "trinity-mini" | "arcee-trinity-mini") => {
-            ARCEE_TRINITY_MINI_MODEL.to_string()
-        }
-        (ProviderKind::Arcee, "arcee-trinity-large-preview") => {
-            ARCEE_TRINITY_LARGE_PREVIEW_MODEL.to_string()
-        }
-        (
-            ProviderKind::Moonshot,
-            "kimi"
-            | "kimi-k2"
-            | "kimi-k2.7"
-            | "kimi-k2-7"
-            | "kimi-k2.7-code"
-            | "kimi-k2-7-code"
-            | "kimi-code"
-            | "moonshot-kimi-k2.7-code",
-        ) => DEFAULT_MOONSHOT_MODEL.to_string(),
-        (ProviderKind::Moonshot, "kimi-k2.6" | "kimi-k2-6" | "moonshot-kimi-k2.6") => {
-            MOONSHOT_KIMI_K2_6_MODEL.to_string()
-        }
-        (ProviderKind::Huggingface, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_HUGGINGFACE_MODEL.to_string()
-        }
-        (
-            ProviderKind::Huggingface,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_HUGGINGFACE_FLASH_MODEL.to_string(),
-        (ProviderKind::Together, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_TOGETHER_MODEL.to_string()
-        }
-        (
-            ProviderKind::Together,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_TOGETHER_FLASH_MODEL.to_string(),
-        (ProviderKind::Deepinfra, "deepseek-v4-pro" | "deepseek-v4pro") => {
-            DEFAULT_DEEPINFRA_MODEL.to_string()
-        }
-        (
-            ProviderKind::Deepinfra,
-            "deepseek-v4-flash" | "deepseek-v4flash" | "deepseek-chat" | "deepseek-reasoner"
-            | "deepseek-r1" | "deepseek-v3" | "deepseek-v3.2",
-        ) => DEFAULT_DEEPINFRA_FLASH_MODEL.to_string(),
-        _ => model.to_string(),
-    }
+    // Custom provider: pass model through verbatim
+    model.to_string()
 }
 
 fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
@@ -2196,159 +1899,9 @@ fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
     }
 }
 
-fn canonical_minimax_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "minimax" | "minimax-m3" | "minimax-m-3" | "minimax-m-3-thinking" => {
-            Some(DEFAULT_MINIMAX_MODEL)
-        }
-        "minimax-m2.7" | "minimax-m2-7" | "minimax-m-2.7" | "minimax-m-2-7" => {
-            Some(MINIMAX_M2_7_MODEL)
-        }
-        "minimax-m2.7-highspeed"
-        | "minimax-m2-7-highspeed"
-        | "minimax-m-2.7-highspeed"
-        | "minimax-m-2-7-highspeed" => Some(MINIMAX_M2_7_HIGHSPEED_MODEL),
-        "minimax-m2.5" | "minimax-m2-5" | "minimax-m-2.5" | "minimax-m-2-5" => {
-            Some(MINIMAX_M2_5_MODEL)
-        }
-        "minimax-m2.5-highspeed"
-        | "minimax-m2-5-highspeed"
-        | "minimax-m-2.5-highspeed"
-        | "minimax-m-2-5-highspeed" => Some(MINIMAX_M2_5_HIGHSPEED_MODEL),
-        "minimax-m2.1" | "minimax-m2-1" | "minimax-m-2.1" | "minimax-m-2-1" => {
-            Some(MINIMAX_M2_1_MODEL)
-        }
-        "minimax-m2.1-highspeed"
-        | "minimax-m2-1-highspeed"
-        | "minimax-m-2.1-highspeed"
-        | "minimax-m-2-1-highspeed" => Some(MINIMAX_M2_1_HIGHSPEED_MODEL),
-        "minimax-m2" | "minimax-m-2" => Some(MINIMAX_M2_MODEL),
-        _ => None,
-    }
-}
-
-fn canonical_zai_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "glm-5.1" | "glm-5-1" | "zai-glm-5.1" | "zai-glm-5-1" => Some(ZAI_GLM_5_1_MODEL),
-        "glm-5.2" | "glm-5-2" | "zai-glm-5.2" | "zai-glm-5-2" => Some(DEFAULT_ZAI_MODEL),
-        "glm-5-turbo" | "glm-5turbo" | "zai-glm-5-turbo" => Some(ZAI_GLM_5_TURBO_MODEL),
-        _ => None,
-    }
-}
-
-fn canonical_openrouter_recent_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        OPENROUTER_ARCEE_TRINITY_LARGE_THINKING_MODEL
-        | "trinity"
-        | "trinity-large-thinking"
-        | "arcee-trinity"
-        | "arcee-trinity-large-thinking" => Some(OPENROUTER_ARCEE_TRINITY_LARGE_THINKING_MODEL),
-        OPENROUTER_GEMMA_4_31B_MODEL | "gemma-4-31b" | "gemma-4-31b-it" => {
-            Some(OPENROUTER_GEMMA_4_31B_MODEL)
-        }
-        OPENROUTER_GEMMA_4_26B_A4B_MODEL | "gemma-4-26b-a4b" | "gemma-4-26b-a4b-it" => {
-            Some(OPENROUTER_GEMMA_4_26B_A4B_MODEL)
-        }
-        OPENROUTER_GLM_5_1_MODEL | "glm-5.1" | "glm-5-1" | "zai-glm-5.1" | "zai-glm-5-1" => {
-            Some(OPENROUTER_GLM_5_1_MODEL)
-        }
-        OPENROUTER_GLM_5_2_MODEL | "glm-5.2" | "glm-5-2" | "zai-glm-5.2" | "zai-glm-5-2" => {
-            Some(OPENROUTER_GLM_5_2_MODEL)
-        }
-        OPENROUTER_KIMI_K2_7_CODE_MODEL
-        | "kimi"
-        | "kimi-k2"
-        | "kimi-k2.7"
-        | "kimi-k2-7"
-        | "kimi-k2.7-code"
-        | "kimi-k2-7-code"
-        | "kimi-code"
-        | "moonshot-kimi-k2.7-code"
-        | "openrouter-kimi-k2.7-code" => Some(OPENROUTER_KIMI_K2_7_CODE_MODEL),
-        OPENROUTER_KIMI_K2_6_MODEL | "kimi-k2.6" | "kimi-k2-6" | "moonshot-kimi-k2.6" => {
-            Some(OPENROUTER_KIMI_K2_6_MODEL)
-        }
-        OPENROUTER_MINIMAX_M3_MODEL | "minimax-m3" | "minimax-m-3" => {
-            Some(OPENROUTER_MINIMAX_M3_MODEL)
-        }
-        OPENROUTER_MINIMAX_M2_7_MODEL
-        | "minimax-2.7"
-        | "minimax-2-7"
-        | "minimax-m2.7"
-        | "minimax-m2-7"
-        | "minimax-m-2.7"
-        | "minimax-m-2-7" => Some(OPENROUTER_MINIMAX_M2_7_MODEL),
-        OPENROUTER_NEMOTRON_3_NANO_OMNI_MODEL
-        | "nemotron-3-nano-omni"
-        | "nemotron-3-nano-omni-reasoning" => Some(OPENROUTER_NEMOTRON_3_NANO_OMNI_MODEL),
-        OPENROUTER_QWEN_3_6_35B_A3B_MODEL
-        | "qwen3.6-35b-a3b"
-        | "qwen-3.6-35b-a3b"
-        | "qwen3-6-35b-a3b" => Some(OPENROUTER_QWEN_3_6_35B_A3B_MODEL),
-        OPENROUTER_QWEN_3_6_FLASH_MODEL | "qwen3.6-flash" | "qwen-3.6-flash" => {
-            Some(OPENROUTER_QWEN_3_6_FLASH_MODEL)
-        }
-        OPENROUTER_QWEN_3_6_MAX_PREVIEW_MODEL
-        | "qwen3.6-max-preview"
-        | "qwen-3.6-max-preview"
-        | "qwen-max-preview" => Some(OPENROUTER_QWEN_3_6_MAX_PREVIEW_MODEL),
-        OPENROUTER_QWEN_3_6_27B_MODEL | "qwen3.6-27b" | "qwen-3.6-27b" | "qwen3-6-27b" => {
-            Some(OPENROUTER_QWEN_3_6_27B_MODEL)
-        }
-        OPENROUTER_QWEN_3_6_PLUS_MODEL | "qwen3.6-plus" | "qwen-3.6-plus" => {
-            Some(OPENROUTER_QWEN_3_6_PLUS_MODEL)
-        }
-        OPENROUTER_QWEN_3_7_MAX_MODEL | "qwen3.7-max" | "qwen-3.7-max" => {
-            Some(OPENROUTER_QWEN_3_7_MAX_MODEL)
-        }
-        OPENROUTER_TENCENT_HY3_PREVIEW_MODEL | "hy3-preview" | "tencent-hy3-preview" => {
-            Some(OPENROUTER_TENCENT_HY3_PREVIEW_MODEL)
-        }
-        OPENROUTER_XIAOMI_MIMO_V2_5_PRO_MODEL
-        | "mimo-v2.5-pro"
-        | "mimo-v2-5-pro"
-        | "xiaomi-mimo-v2.5-pro"
-        | "xiaomi-mimo-v2-5-pro" => Some(OPENROUTER_XIAOMI_MIMO_V2_5_PRO_MODEL),
-        OPENROUTER_XIAOMI_MIMO_V2_5_MODEL
-        | "mimo-v2.5"
-        | "mimo-v2-5"
-        | "xiaomi-mimo-v2.5"
-        | "xiaomi-mimo-v2-5" => Some(OPENROUTER_XIAOMI_MIMO_V2_5_MODEL),
-        _ => None,
-    }
-}
-
 fn default_model_for_provider(provider: ProviderKind) -> &'static str {
     match provider {
-        ProviderKind::Deepseek => DEFAULT_DEEPSEEK_MODEL,
-        ProviderKind::DeepseekAnthropic => DEFAULT_DEEPSEEK_ANTHROPIC_MODEL,
-        ProviderKind::NvidiaNim => DEFAULT_NVIDIA_NIM_MODEL,
-        ProviderKind::Openai => DEFAULT_OPENAI_MODEL,
-        ProviderKind::Atlascloud => DEFAULT_ATLASCLOUD_MODEL,
-        ProviderKind::WanjieArk => DEFAULT_WANJIE_ARK_MODEL,
-        ProviderKind::Volcengine => DEFAULT_VOLCENGINE_MODEL,
-        ProviderKind::Openrouter => DEFAULT_OPENROUTER_MODEL,
         ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_MODEL,
-        ProviderKind::Novita => DEFAULT_NOVITA_MODEL,
-        ProviderKind::Fireworks => DEFAULT_FIREWORKS_MODEL,
-        ProviderKind::Siliconflow | ProviderKind::SiliconflowCN => DEFAULT_SILICONFLOW_MODEL,
-        ProviderKind::Arcee => DEFAULT_ARCEE_MODEL,
-        ProviderKind::Moonshot => DEFAULT_MOONSHOT_MODEL,
-        ProviderKind::Huggingface => DEFAULT_HUGGINGFACE_MODEL,
-        ProviderKind::Together => DEFAULT_TOGETHER_MODEL,
-        ProviderKind::Qianfan => DEFAULT_QIANFAN_MODEL,
-        ProviderKind::OpenaiCodex => DEFAULT_OPENAI_CODEX_MODEL,
-        ProviderKind::Anthropic => DEFAULT_ANTHROPIC_MODEL,
-        ProviderKind::Zai => DEFAULT_ZAI_MODEL,
-        ProviderKind::Stepfun => DEFAULT_STEPFUN_MODEL,
-        ProviderKind::Minimax => DEFAULT_MINIMAX_MODEL,
-        ProviderKind::Deepinfra => DEFAULT_DEEPINFRA_MODEL,
         // No built-in default model; the registry placeholder keeps this total.
         ProviderKind::Custom => provider.provider().default_model(),
     }
@@ -2356,40 +1909,10 @@ fn default_model_for_provider(provider: ProviderKind) -> &'static str {
 
 fn default_base_url_for_provider(provider: ProviderKind) -> &'static str {
     match provider {
-        ProviderKind::Deepseek => DEFAULT_DEEPSEEK_BASE_URL,
-        ProviderKind::DeepseekAnthropic => DEFAULT_DEEPSEEK_ANTHROPIC_BASE_URL,
-        ProviderKind::NvidiaNim => DEFAULT_NVIDIA_NIM_BASE_URL,
-        ProviderKind::Openai => DEFAULT_OPENAI_BASE_URL,
-        ProviderKind::Atlascloud => DEFAULT_ATLASCLOUD_BASE_URL,
-        ProviderKind::WanjieArk => DEFAULT_WANJIE_ARK_BASE_URL,
-        ProviderKind::Volcengine => DEFAULT_VOLCENGINE_BASE_URL,
-        ProviderKind::Openrouter => DEFAULT_OPENROUTER_BASE_URL,
         ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL,
-        ProviderKind::Novita => DEFAULT_NOVITA_BASE_URL,
-        ProviderKind::Fireworks => DEFAULT_FIREWORKS_BASE_URL,
-        ProviderKind::Siliconflow => DEFAULT_SILICONFLOW_BASE_URL,
-        ProviderKind::SiliconflowCN => DEFAULT_SILICONFLOW_CN_BASE_URL,
-        ProviderKind::Arcee => DEFAULT_ARCEE_BASE_URL,
-        ProviderKind::Moonshot => DEFAULT_MOONSHOT_BASE_URL,
-        ProviderKind::Huggingface => DEFAULT_HUGGINGFACE_BASE_URL,
-        ProviderKind::Together => DEFAULT_TOGETHER_BASE_URL,
-        ProviderKind::Qianfan => DEFAULT_QIANFAN_BASE_URL,
-        ProviderKind::OpenaiCodex => DEFAULT_OPENAI_CODEX_BASE_URL,
-        ProviderKind::Anthropic => DEFAULT_ANTHROPIC_BASE_URL,
-        ProviderKind::Zai => DEFAULT_ZAI_BASE_URL,
-        ProviderKind::Stepfun => DEFAULT_STEPFUN_BASE_URL,
-        ProviderKind::Minimax => DEFAULT_MINIMAX_BASE_URL,
-        ProviderKind::Deepinfra => DEFAULT_DEEPINFRA_BASE_URL,
         // No built-in default base URL; the registry placeholder keeps this total.
         ProviderKind::Custom => provider.provider().default_base_url(),
     }
-}
-
-fn moonshot_base_url_uses_kimi_code(base_url: &str) -> bool {
-    let normalized = base_url.trim_end_matches('/').to_ascii_lowercase();
-    normalized == DEFAULT_KIMI_CODE_BASE_URL
-        || normalized == "https://api.kimi.com/coding"
-        || normalized.starts_with("https://api.kimi.com/coding/")
 }
 
 fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
@@ -2525,9 +2048,6 @@ fn xiaomi_mimo_base_url_is_pay_as_you_go(base_url: &str) -> bool {
 }
 
 fn base_url_is_custom_for_provider(provider: ProviderKind, base_url: &str) -> bool {
-    if provider.is_siliconflow() && siliconflow_base_url_is_official(base_url) {
-        return false;
-    }
     if provider == ProviderKind::XiaomiMimo
         && (xiaomi_mimo_base_url_uses_token_plan(base_url)
             || xiaomi_mimo_base_url_is_pay_as_you_go(base_url))
@@ -2537,13 +2057,6 @@ fn base_url_is_custom_for_provider(provider: ProviderKind, base_url: &str) -> bo
     let actual = base_url.trim_end_matches('/');
     let default = default_base_url_for_provider(provider).trim_end_matches('/');
     actual != default
-}
-
-fn siliconflow_base_url_is_official(base_url: &str) -> bool {
-    matches!(
-        base_url.trim_end_matches('/').to_ascii_lowercase().as_str(),
-        "https://api.siliconflow.com/v1" | "https://api.siliconflow.cn/v1"
-    )
 }
 
 fn provider_preserves_custom_base_url_model(provider: ProviderKind, base_url: &str) -> bool {
@@ -2566,18 +2079,7 @@ fn should_skip_secret_store_for_provider(
 }
 
 fn env_api_key_for_provider(provider: ProviderKind) -> Option<String> {
-    if provider == ProviderKind::Huggingface {
-        return std::env::var("HUGGINGFACE_API_KEY")
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-            .or_else(|| {
-                std::env::var("HF_TOKEN")
-                    .ok()
-                    .filter(|value| !value.trim().is_empty())
-            });
-    }
-
-    codewhale_secrets::env_for(provider.as_str())
+    mimofan_secrets::env_for(provider.as_str())
 }
 
 fn auth_mode_requires_api_key(auth_mode: Option<&str>) -> bool {
@@ -2605,17 +2107,6 @@ fn auth_mode_disables_api_key(auth_mode: Option<&str>) -> bool {
                 value.as_str(),
                 "none" | "off" | "disabled" | "no_auth" | "no-auth" | "anonymous"
             )
-    )
-}
-
-fn auth_mode_uses_kimi_oauth(auth_mode: &str) -> bool {
-    matches!(
-        auth_mode
-            .trim()
-            .to_ascii_lowercase()
-            .replace('-', "_")
-            .as_str(),
-        "kimi" | "kimi_oauth" | "kimi_cli" | "oauth"
     )
 }
 
@@ -3019,7 +2510,7 @@ fn copy_item_decor_table(target: &mut toml_edit::Table, source: &toml_edit::Tabl
 
 /// Process-wide default [`Secrets`] façade. The first caller wins; the
 /// lock is exposed so test or CLI code can install an explicit
-/// backend (e.g. an [`codewhale_secrets::InMemoryKeyringStore`]) before
+/// backend (e.g. an [`mimofan_secrets::InMemoryKeyringStore`]) before
 /// any resolver runs.
 pub fn default_secrets() -> &'static Secrets {
     static SECRETS: OnceLock<Secrets> = OnceLock::new();
@@ -3031,7 +2522,7 @@ pub fn default_secrets() -> &'static Secrets {
         #[cfg(test)]
         {
             Secrets::new(std::sync::Arc::new(
-                codewhale_secrets::InMemoryKeyringStore::new(),
+                mimofan_secrets::InMemoryKeyringStore::new(),
             ))
         }
         #[cfg(not(test))]
@@ -3041,33 +2532,38 @@ pub fn default_secrets() -> &'static Secrets {
     })
 }
 
-// ── CodeWhale state root (v0.8.44) ──────────────────────────────────
+// ── mimofan state root (v0.8.44) ──────────────────────────────────
 //
 // v0.8.44 migrates product-owned app state from ~/.deepseek/ to
-// ~/.codewhale/ while keeping ~/.deepseek/ as a compatibility fallback.
-// New installs write to ~/.codewhale/. Existing installs with only
-// ~/.deepseek/ continue working without data loss.
+// ~/.mimo/ while keeping ~/.deepseek/ as a compatibility fallback.
+// New installs write to ~/.mimo/. Existing installs with only
+// ~/.deepseek/ or ~/.mimofan/ continue working without data loss.
 
-/// Canonical CodeWhale app directory name under $HOME.
-pub const CODEWHALE_APP_DIR: &str = ".codewhale";
+/// Canonical mimofan app directory name under $HOME.
+pub const CODEWHALE_APP_DIR: &str = ".mimo";
+
+/// Previous mimofan-branded app directory name (compatibility fallback).
+pub const PREVIOUS_APP_DIR: &str = ".mimofan";
 
 /// Legacy DeepSeek-branded app directory name (compatibility fallback).
 pub const LEGACY_APP_DIR: &str = ".deepseek";
 
-/// Resolve the primary CodeWhale home directory.
+/// Resolve the primary mimofan home directory.
 ///
-/// `$CODEWHALE_HOME` takes precedence when set. Otherwise defaults to
-/// `$HOME/.codewhale`. This is the write target for new product state.
-pub fn codewhale_home() -> Result<PathBuf> {
-    if let Some(path) = codewhale_home_env_override() {
+/// `$MIMO_HOME` (or `$CODEWHALE_HOME` as fallback) takes precedence when set.
+/// Otherwise defaults to `$HOME/.mimo`. This is the write target for new product state.
+pub fn mimofan_home() -> Result<PathBuf> {
+    if let Some(path) = mimofan_home_env_override() {
         return Ok(path);
     }
     let home = effective_home_dir().context("failed to resolve home directory")?;
     Ok(home.join(CODEWHALE_APP_DIR))
 }
 
-fn codewhale_home_env_override() -> Option<PathBuf> {
-    let val = std::env::var("CODEWHALE_HOME").ok()?;
+fn mimofan_home_env_override() -> Option<PathBuf> {
+    let val = std::env::var("MIMO_HOME")
+        .or_else(|_| std::env::var("CODEWHALE_HOME"))
+        .ok()?;
     let trimmed = val.trim();
     if trimmed.is_empty() {
         None
@@ -3123,64 +2619,72 @@ fn ensure_safe_state_subdir(subdir: &str) -> Result<()> {
     Ok(())
 }
 
-/// Resolve a state subdirectory, preferring the CodeWhale root if
-/// it already exists, otherwise falling back to the legacy root.
+/// Resolve a state subdirectory, preferring the mimofan root if
+/// it already exists, then `.mimofan`, otherwise falling back to the
+/// legacy `.deepseek` root.
 ///
 /// This is the read-path resolver: it returns the primary path when
 /// migration has occurred or on a fresh install, but keeps reading
-/// from the legacy path for users who haven't migrated yet.
+/// from legacy paths for users who haven't migrated yet.
 pub fn resolve_state_dir(subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
-    let explicit_codewhale_home = codewhale_home_env_override().is_some();
-    let primary = codewhale_home()?.join(subdir);
-    if explicit_codewhale_home || primary.exists() {
+    let explicit_home = mimofan_home_env_override().is_some();
+    let primary = mimofan_home()?.join(subdir);
+    if explicit_home || primary.exists() {
         return Ok(primary);
     }
+    // Check previous .mimofan directory
+    if let Ok(home) = effective_home_dir().context("failed to resolve home directory") {
+        let previous = home.join(PREVIOUS_APP_DIR).join(subdir);
+        if previous.exists() {
+            return Ok(previous);
+        }
+    }
+    // Check legacy .deepseek directory
     let legacy = legacy_deepseek_home()?.join(subdir);
     if legacy.exists() {
         return Ok(legacy);
     }
-    // Neither exists — return primary for first-write creation.
+    // None exists — return primary for first-write creation.
     Ok(primary)
 }
 
-/// Ensure a state subdirectory exists under the primary CodeWhale root,
+/// Ensure a state subdirectory exists under the primary mimofan root,
 /// creating it if necessary. This is the write-path resolver.
 ///
 /// On the first creation of a real subdirectory (not the root sentinel `"."`),
-/// if a legacy `~/.deepseek/<subdir>` exists but the primary
-/// `~/.codewhale/<subdir>` does not, the legacy directory is relocated into
-/// the primary location so the user keeps their data and the legacy tree
-/// stops growing (#3240). After migration, [`resolve_state_dir`] finds the
-/// data in the primary location; the read resolver itself is unchanged.
+/// legacy directories (`~/.mimofan/<subdir>` and `~/.deepseek/<subdir>`)
+/// are relocated into the primary `~/.mimo/<subdir>` location so the user
+/// keeps their data and legacy trees stop growing.
 pub fn ensure_state_dir(subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
-    let explicit_codewhale_home = codewhale_home_env_override().is_some();
-    let dir = codewhale_home()?.join(subdir);
-    if !explicit_codewhale_home {
-        migrate_legacy_state_dir(&dir, subdir)?;
+    let explicit_home = mimofan_home_env_override().is_some();
+    let dir = mimofan_home()?.join(subdir);
+    if !explicit_home {
+        // Migrate from .mimofan first (more recent), then .deepseek
+        let home = effective_home_dir().context("failed to resolve home directory")?;
+        let previous = home.join(PREVIOUS_APP_DIR).join(subdir);
+        migrate_legacy_state_dir(&dir, subdir, &previous)?;
+        let legacy = home.join(LEGACY_APP_DIR).join(subdir);
+        migrate_legacy_state_dir(&dir, subdir, &legacy)?;
     }
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("failed to create {}/", dir.display()))?;
     Ok(dir)
 }
 
-/// One-time relocation of a legacy `~/.deepseek/<subdir>` state directory into
-/// the primary `~/.codewhale/<subdir>` location (#3240). No-op once the primary
-/// exists, for the root sentinel `"."` (a whole-tree move is owned by the
-/// config-file migration), or when no legacy directory is present.
-fn migrate_legacy_state_dir(primary: &Path, subdir: &str) -> Result<()> {
+/// One-time relocation of a legacy state directory into the primary
+/// `~/.mimo/<subdir>` location. No-op once the primary exists, for the
+/// root sentinel `"."` (a whole-tree move is owned by the config-file
+/// migration), or when no legacy directory is present.
+fn migrate_legacy_state_dir(primary: &Path, subdir: &str, legacy: &Path) -> Result<()> {
     if primary.exists() || subdir == "." || subdir.is_empty() {
         return Ok(());
     }
-    let legacy = match legacy_deepseek_home() {
-        Ok(home) => home.join(subdir),
-        Err(_) => return Ok(()),
-    };
     if !legacy.exists() {
         return Ok(());
     }
-    // The primary's parent (the ~/.codewhale root) must exist for the rename.
+    // The primary's parent (the ~/.mimo root) must exist for the rename.
     if let Some(parent) = primary.parent() {
         if let Err(err) = std::fs::create_dir_all(parent) {
             tracing::warn!(
@@ -3254,11 +2758,12 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Resolve a project-local state subdirectory, preferring `.codewhale/`
-/// when it exists, falling back to `.deepseek/` for legacy projects.
+/// Resolve a project-local state subdirectory, preferring `.mimo/`
+/// when it exists, then `.mimofan/`, falling back to `.deepseek/` for
+/// legacy projects.
 ///
-/// Returns `(true, path)` when the primary `.codewhale/` path is used,
-/// `(false, path)` for the legacy fallback. The boolean helps callers
+/// Returns `(true, path)` when the primary `.mimo/` path is used,
+/// `(false, path)` for a legacy fallback. The boolean helps callers
 /// emit a deprecation notice on legacy paths.
 pub fn resolve_project_state_dir(workspace: &Path, subdir: &str) -> Result<(bool, PathBuf)> {
     ensure_safe_state_subdir(subdir)?;
@@ -3267,11 +2772,16 @@ pub fn resolve_project_state_dir(workspace: &Path, subdir: &str) -> Result<(bool
     if primary.exists() {
         return Ok((true, primary));
     }
+    // Check previous .mimofan directory
+    let previous = workspace.join(PREVIOUS_APP_DIR).join(subdir);
+    if previous.exists() {
+        return Ok((false, previous));
+    }
     let legacy = workspace.join(LEGACY_APP_DIR).join(subdir);
     Ok((false, legacy))
 }
 
-/// Ensure a project-local state subdirectory exists under `.codewhale/`,
+/// Ensure a project-local state subdirectory exists under `.mimo/`,
 /// creating it if necessary. Returns the directory path.
 pub fn ensure_project_state_dir(workspace: &Path, subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
@@ -3285,6 +2795,12 @@ pub fn ensure_project_state_dir(workspace: &Path, subdir: &str) -> Result<PathBu
 pub fn resolve_config_path(explicit: Option<PathBuf>) -> Result<PathBuf> {
     if let Some(path) = explicit {
         return normalize_config_file_path(path);
+    }
+    if let Ok(path) = std::env::var("MIMO_CONFIG_PATH") {
+        if let Some(path) = config_path_from_env_value(&path)? {
+            return Ok(path);
+        }
+        return default_config_path();
     }
     if let Ok(path) = std::env::var("CODEWHALE_CONFIG_PATH") {
         if let Some(path) = config_path_from_env_value(&path)? {
@@ -3424,9 +2940,9 @@ fn write_permissions_atomic(path: &Path, body: &[u8]) -> Result<()> {
 }
 
 pub fn default_config_path() -> Result<PathBuf> {
-    // Prefer ~/.codewhale/config.toml when it exists (fresh install or
-    // migrated), otherwise fall back to ~/.deepseek/config.toml.
-    let primary = codewhale_home()?.join(CONFIG_FILE_NAME);
+    // Prefer ~/.mimo/config.toml when it exists (fresh install or
+    // migrated), otherwise fall back to ~/.mimofan/config.toml and ~/.deepseek/config.toml.
+    let primary = mimofan_home()?.join(CONFIG_FILE_NAME);
     if primary.exists() {
         return Ok(primary);
     }
@@ -3447,7 +2963,7 @@ pub struct ConfigMigration {
 impl ConfigMigration {
     pub fn user_notice(&self) -> String {
         format!(
-            "Migrated legacy config from {} to {}. Use the .codewhale path for future edits; the .deepseek file remains only as a compatibility fallback.",
+            "Migrated legacy config from {} to {}. Use the .mimo path for future edits; the .deepseek file remains only as a compatibility fallback.",
             self.legacy_path.display(),
             self.primary_path.display()
         )
@@ -3455,11 +2971,11 @@ impl ConfigMigration {
 }
 
 /// v0.8.44: one-time migration from `~/.deepseek/config.toml` to
-/// `~/.codewhale/config.toml`. Called on first launch after the config
+/// `~/.mimo/config.toml`. Called on first launch after the config
 /// is loaded; copies the legacy file if the primary doesn't exist yet.
 /// Never overwrites an existing primary config.
 pub fn migrate_config_if_needed() -> Result<Option<ConfigMigration>> {
-    let primary = codewhale_home()?.join(CONFIG_FILE_NAME);
+    let primary = mimofan_home()?.join(CONFIG_FILE_NAME);
     if primary.exists() {
         return Ok(None);
     }
@@ -3469,10 +2985,10 @@ pub fn migrate_config_if_needed() -> Result<Option<ConfigMigration>> {
     }
     // Copy the config to the new home.
     if let Some(parent) = primary.parent() {
-        std::fs::create_dir_all(parent).context("failed to create codewhale config directory")?;
+        std::fs::create_dir_all(parent).context("failed to create mimofan config directory")?;
     }
     std::fs::copy(&legacy, &primary)
-        .context("failed to migrate config from deepseek to codewhale home")?;
+        .context("failed to migrate config from deepseek to mimofan home")?;
     tracing::info!(
         "Migrated config from {} to {}",
         legacy.display(),
@@ -3783,15 +3299,8 @@ struct EnvRuntimeOverrides {
     provider: Option<ProviderKind>,
     provider_source: Option<&'static str>,
     model: Option<String>,
-    volcengine_model: Option<String>,
-    wanjie_ark_model: Option<String>,
-    openrouter_model: Option<String>,
-    moonshot_model: Option<String>,
     xiaomi_mimo_model: Option<String>,
     xiaomi_mimo_mode: Option<String>,
-    novita_model: Option<String>,
-    fireworks_model: Option<String>,
-    arcee_model: Option<String>,
     output_mode: Option<String>,
     auth_mode: Option<String>,
     log_level: Option<String>,
@@ -3801,39 +3310,7 @@ struct EnvRuntimeOverrides {
     yolo: Option<bool>,
     verbosity: Option<String>,
     http_headers: Option<BTreeMap<String, String>>,
-    deepseek_base_url: Option<String>,
-    deepseek_anthropic_base_url: Option<String>,
-    nvidia_base_url: Option<String>,
-    openai_base_url: Option<String>,
-    atlascloud_base_url: Option<String>,
-    volcengine_base_url: Option<String>,
-    wanjie_ark_base_url: Option<String>,
-    openrouter_base_url: Option<String>,
     xiaomi_mimo_base_url: Option<String>,
-    novita_base_url: Option<String>,
-    fireworks_base_url: Option<String>,
-    siliconflow_base_url: Option<String>,
-    siliconflow_model: Option<String>,
-    arcee_base_url: Option<String>,
-    moonshot_base_url: Option<String>,
-    huggingface_base_url: Option<String>,
-    huggingface_model: Option<String>,
-    together_base_url: Option<String>,
-    together_model: Option<String>,
-    qianfan_base_url: Option<String>,
-    qianfan_model: Option<String>,
-    openai_codex_base_url: Option<String>,
-    openai_codex_model: Option<String>,
-    anthropic_base_url: Option<String>,
-    anthropic_model: Option<String>,
-    zai_base_url: Option<String>,
-    zai_model: Option<String>,
-    stepfun_base_url: Option<String>,
-    stepfun_model: Option<String>,
-    minimax_base_url: Option<String>,
-    minimax_model: Option<String>,
-    deepinfra_base_url: Option<String>,
-    deepinfra_model: Option<String>,
 }
 
 impl EnvRuntimeOverrides {
@@ -3847,38 +3324,12 @@ impl EnvRuntimeOverrides {
                 .or_else(|_| std::env::var("DEEPSEEK_DEFAULT_TEXT_MODEL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
-            volcengine_model: std::env::var("VOLCENGINE_MODEL")
-                .or_else(|_| std::env::var("VOLCENGINE_ARK_MODEL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            wanjie_ark_model: std::env::var("WANJIE_ARK_MODEL")
-                .or_else(|_| std::env::var("WANJIE_MODEL"))
-                .or_else(|_| std::env::var("WANJIE_MAAS_MODEL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            openrouter_model: std::env::var("OPENROUTER_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            moonshot_model: std::env::var("MOONSHOT_MODEL")
-                .or_else(|_| std::env::var("KIMI_MODEL_NAME"))
-                .or_else(|_| std::env::var("KIMI_MODEL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
             xiaomi_mimo_model: std::env::var("XIAOMI_MIMO_MODEL")
                 .or_else(|_| std::env::var("MIMO_MODEL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             xiaomi_mimo_mode: std::env::var("XIAOMI_MIMO_MODE")
                 .or_else(|_| std::env::var("MIMO_MODE"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            novita_model: std::env::var("NOVITA_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            fireworks_model: std::env::var("FIREWORKS_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            arcee_model: std::env::var("ARCEE_MODEL")
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             verbosity: std::env::var("CODEWHALE_VERBOSITY")
@@ -3917,144 +3368,19 @@ impl EnvRuntimeOverrides {
                     }
                 })
                 .filter(|headers| !headers.is_empty()),
-            deepseek_base_url: std::env::var("CODEWHALE_BASE_URL")
-                .or_else(|_| std::env::var("DEEPSEEK_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            deepseek_anthropic_base_url: std::env::var("DEEPSEEK_ANTHROPIC_BASE_URL")
-                .or_else(|_| std::env::var("DEEPSEEK_CLAUDE_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            nvidia_base_url: std::env::var("NVIDIA_NIM_BASE_URL")
-                .or_else(|_| std::env::var("NIM_BASE_URL"))
-                .or_else(|_| std::env::var("NVIDIA_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            openai_base_url: std::env::var("OPENAI_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            atlascloud_base_url: std::env::var("ATLASCLOUD_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            volcengine_base_url: std::env::var("VOLCENGINE_BASE_URL")
-                .or_else(|_| std::env::var("VOLCENGINE_ARK_BASE_URL"))
-                .or_else(|_| std::env::var("ARK_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            wanjie_ark_base_url: std::env::var("WANJIE_ARK_BASE_URL")
-                .or_else(|_| std::env::var("WANJIE_BASE_URL"))
-                .or_else(|_| std::env::var("WANJIE_MAAS_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            openrouter_base_url: std::env::var("OPENROUTER_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
             xiaomi_mimo_base_url: std::env::var("XIAOMI_MIMO_BASE_URL")
                 .or_else(|_| std::env::var("MIMO_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            novita_base_url: std::env::var("NOVITA_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            fireworks_base_url: std::env::var("FIREWORKS_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            siliconflow_base_url: std::env::var("SILICONFLOW_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            siliconflow_model: std::env::var("SILICONFLOW_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            arcee_base_url: std::env::var("ARCEE_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            moonshot_base_url: std::env::var("MOONSHOT_BASE_URL")
-                .or_else(|_| std::env::var("KIMI_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            huggingface_base_url: std::env::var("HUGGINGFACE_BASE_URL")
-                .or_else(|_| std::env::var("HF_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            huggingface_model: std::env::var("HUGGINGFACE_MODEL")
-                .or_else(|_| std::env::var("HF_MODEL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            together_base_url: std::env::var("TOGETHER_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            together_model: std::env::var("TOGETHER_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            qianfan_base_url: std::env::var("QIANFAN_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty())
-                .or_else(|| {
-                    std::env::var("BAIDU_QIANFAN_BASE_URL")
-                        .ok()
-                        .filter(|v| !v.trim().is_empty())
-                }),
-            qianfan_model: std::env::var("QIANFAN_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty())
-                .or_else(|| {
-                    std::env::var("BAIDU_QIANFAN_MODEL")
-                        .ok()
-                        .filter(|v| !v.trim().is_empty())
-                }),
-            openai_codex_base_url: std::env::var("OPENAI_CODEX_BASE_URL")
-                .or_else(|_| std::env::var("CODEX_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            openai_codex_model: std::env::var("OPENAI_CODEX_MODEL")
-                .or_else(|_| std::env::var("CODEX_MODEL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            anthropic_base_url: std::env::var("ANTHROPIC_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            anthropic_model: std::env::var("ANTHROPIC_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            zai_base_url: std::env::var("ZAI_BASE_URL")
-                .or_else(|_| std::env::var("Z_AI_BASE_URL"))
-                .or_else(|_| std::env::var("ZHIPU_BASE_URL"))
-                .or_else(|_| std::env::var("ZHIPUAI_BASE_URL"))
-                .or_else(|_| std::env::var("BIGMODEL_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            zai_model: std::env::var("ZAI_MODEL")
-                .or_else(|_| std::env::var("Z_AI_MODEL"))
-                .or_else(|_| std::env::var("ZHIPU_MODEL"))
-                .or_else(|_| std::env::var("ZHIPUAI_MODEL"))
-                .or_else(|_| std::env::var("BIGMODEL_MODEL"))
-                .or_else(|_| std::env::var("GLM_MODEL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            stepfun_base_url: std::env::var("STEPFUN_BASE_URL")
-                .or_else(|_| std::env::var("STEP_BASE_URL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            stepfun_model: std::env::var("STEPFUN_MODEL")
-                .or_else(|_| std::env::var("STEP_MODEL"))
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            minimax_base_url: std::env::var("MINIMAX_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            minimax_model: std::env::var("MINIMAX_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            deepinfra_base_url: std::env::var("DEEPINFRA_BASE_URL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            deepinfra_model: std::env::var("DEEPINFRA_MODEL")
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
         }
     }
 
     fn load_provider() -> (Option<ProviderKind>, Option<&'static str>) {
+        if let Ok(value) = std::env::var("MIMO_PROVIDER") {
+            let parsed = ProviderKind::parse(&value);
+            return (parsed, parsed.map(|_| "MIMO_PROVIDER"));
+        }
+
         if let Ok(value) = std::env::var("CODEWHALE_PROVIDER") {
             let parsed = ProviderKind::parse(&value);
             return (parsed, parsed.map(|_| "CODEWHALE_PROVIDER"));
@@ -4072,59 +3398,16 @@ impl EnvRuntimeOverrides {
         // Defaults belong in the resolver's final fallback so config-file
         // values (`providers.<name>.base_url`) still win when env is unset.
         match provider {
-            ProviderKind::Deepseek => self.deepseek_base_url.clone(),
-            ProviderKind::DeepseekAnthropic => self.deepseek_anthropic_base_url.clone(),
-            ProviderKind::NvidiaNim => self.nvidia_base_url.clone(),
-            ProviderKind::Openai => self.openai_base_url.clone(),
-            ProviderKind::Atlascloud => self.atlascloud_base_url.clone(),
-            ProviderKind::WanjieArk => self.wanjie_ark_base_url.clone(),
-            ProviderKind::Volcengine => self.volcengine_base_url.clone(),
-            ProviderKind::Openrouter => self.openrouter_base_url.clone(),
             ProviderKind::XiaomiMimo => self.xiaomi_mimo_base_url.clone(),
-            ProviderKind::Novita => self.novita_base_url.clone(),
-            ProviderKind::Fireworks => self.fireworks_base_url.clone(),
-            ProviderKind::Siliconflow | ProviderKind::SiliconflowCN => {
-                self.siliconflow_base_url.clone()
-            }
-            ProviderKind::Arcee => self.arcee_base_url.clone(),
-            ProviderKind::Moonshot => self.moonshot_base_url.clone(),
-            ProviderKind::Huggingface => self.huggingface_base_url.clone(),
-            ProviderKind::Together => self.together_base_url.clone(),
-            ProviderKind::Qianfan => self.qianfan_base_url.clone(),
-            ProviderKind::OpenaiCodex => self.openai_codex_base_url.clone(),
-            ProviderKind::Anthropic => self.anthropic_base_url.clone(),
-            ProviderKind::Zai => self.zai_base_url.clone(),
-            ProviderKind::Stepfun => self.stepfun_base_url.clone(),
-            ProviderKind::Minimax => self.minimax_base_url.clone(),
-            ProviderKind::Deepinfra => self.deepinfra_base_url.clone(),
-            // No dedicated CODEWHALE_CUSTOM_BASE_URL env override: a custom
-            // provider's base URL comes from its `[providers.<name>]` table.
+            // No dedicated env override: a custom provider's base URL comes
+            // from its `[providers.<name>]` table.
             ProviderKind::Custom => None,
         }
     }
 
     fn model_for(&self, provider: ProviderKind, base_url: &str) -> Option<String> {
         let model = match provider {
-            ProviderKind::WanjieArk => self.wanjie_ark_model.clone(),
-            ProviderKind::Volcengine => self.volcengine_model.clone(),
-            ProviderKind::Openrouter => self.openrouter_model.clone(),
-            ProviderKind::Siliconflow | ProviderKind::SiliconflowCN => {
-                self.siliconflow_model.clone()
-            }
-            ProviderKind::Arcee => self.arcee_model.clone(),
-            ProviderKind::Moonshot => self.moonshot_model.clone(),
             ProviderKind::XiaomiMimo => self.xiaomi_mimo_model.clone(),
-            ProviderKind::Novita => self.novita_model.clone(),
-            ProviderKind::Fireworks => self.fireworks_model.clone(),
-            ProviderKind::Huggingface => self.huggingface_model.clone(),
-            ProviderKind::Together => self.together_model.clone(),
-            ProviderKind::Qianfan => self.qianfan_model.clone(),
-            ProviderKind::OpenaiCodex => self.openai_codex_model.clone(),
-            ProviderKind::Anthropic => self.anthropic_model.clone(),
-            ProviderKind::Zai => self.zai_model.clone(),
-            ProviderKind::Stepfun => self.stepfun_model.clone(),
-            ProviderKind::Minimax => self.minimax_model.clone(),
-            ProviderKind::Deepinfra => self.deepinfra_model.clone(),
             _ => None,
         }?;
 

@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-//! Request-tuning capability foundation for CodeWhale providers (#3024).
+//! Request-tuning capability foundation for mimofan providers (#3024).
 //!
 //! Request "tuning" here means the optional knobs a caller can attach to an
 //! outbound model request that shape *how* the model responds without changing

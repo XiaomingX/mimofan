@@ -5,23 +5,23 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use codewhale_agent::ModelRegistry;
-use codewhale_config::{CliRuntimeOverrides, ConfigToml, ProviderKind};
-use codewhale_execpolicy::{
+use mimofan_agent::ModelRegistry;
+use mimofan_config::{CliRuntimeOverrides, ConfigToml, ProviderKind};
+use mimofan_execpolicy::{
     AskForApproval, ExecApprovalRequirement, ExecPolicyContext, ExecPolicyDecision,
     ExecPolicyEngine,
 };
-use codewhale_hooks::{HookDispatcher, HookEvent};
-use codewhale_mcp::{
+use mimofan_hooks::{HookDispatcher, HookEvent};
+use mimofan_mcp::{
     McpManager, McpStartupCompleteEvent, McpStartupStatus as McpManagerStartupStatus,
 };
-use codewhale_protocol::{
+use mimofan_protocol::{
     AppResponse, EventFrame, ExecApprovalRequestEvent, PromptRequest, PromptResponse,
     ResponseChannel, ReviewDecision, ThreadRequest, ThreadResponse, ToolPayload,
     UserInputRequestEvent,
 };
-use codewhale_state::StateStore;
-use codewhale_tools::{ToolCall, ToolRegistry};
+use mimofan_state::StateStore;
+use mimofan_tools::{ToolCall, ToolRegistry};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -767,19 +767,19 @@ impl Runtime {
         });
         for update in updates {
             let status = match update.status {
-                McpManagerStartupStatus::Starting => codewhale_protocol::McpStartupStatus::Starting,
-                McpManagerStartupStatus::Ready => codewhale_protocol::McpStartupStatus::Ready,
+                McpManagerStartupStatus::Starting => mimofan_protocol::McpStartupStatus::Starting,
+                McpManagerStartupStatus::Ready => mimofan_protocol::McpStartupStatus::Ready,
                 McpManagerStartupStatus::Failed { error } => {
-                    codewhale_protocol::McpStartupStatus::Failed { error }
+                    mimofan_protocol::McpStartupStatus::Failed { error }
                 }
                 McpManagerStartupStatus::Cancelled => {
-                    codewhale_protocol::McpStartupStatus::Cancelled
+                    mimofan_protocol::McpStartupStatus::Cancelled
                 }
             };
             self.hooks
                 .emit(HookEvent::GenericEventFrame {
                     frame: Box::new(EventFrame::McpStartupUpdate {
-                        update: codewhale_protocol::McpStartupUpdateEvent {
+                        update: mimofan_protocol::McpStartupUpdateEvent {
                             server_name: update.server_name,
                             status,
                         },
@@ -790,12 +790,12 @@ impl Runtime {
         self.hooks
             .emit(HookEvent::GenericEventFrame {
                 frame: Box::new(EventFrame::McpStartupComplete {
-                    summary: codewhale_protocol::McpStartupCompleteEvent {
+                    summary: mimofan_protocol::McpStartupCompleteEvent {
                         ready: summary.ready.clone(),
                         failed: summary
                             .failed
                             .iter()
-                            .map(|f| codewhale_protocol::McpStartupFailure {
+                            .map(|f| mimofan_protocol::McpStartupFailure {
                                 server_name: f.server_name.clone(),
                                 error: f.error.clone(),
                             })
@@ -1121,7 +1121,7 @@ fn tool_payload_value(payload: &ToolPayload) -> Value {
     )
 }
 
-fn tool_output_value(output: &codewhale_protocol::ToolOutput) -> Value {
+fn tool_output_value(output: &mimofan_protocol::ToolOutput) -> Value {
     serde_json::to_value(output).unwrap_or_else(
         |_| json!({"type":"serialization_error","message":"tool output unavailable"}),
     )
@@ -1138,8 +1138,8 @@ const REQUEST_USER_INPUT_TOOL_NAME: &str = "request_user_input";
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codewhale_state::{SessionSource, ThreadMetadata, ThreadStatus as PersistedThreadStatus};
-    use codewhale_tools::ToolCallSource;
+    use mimofan_state::{SessionSource, ThreadMetadata, ThreadStatus as PersistedThreadStatus};
+    use mimofan_tools::ToolCallSource;
     use std::path::PathBuf;
 
     fn temp_core_state(name: &str) -> StateStore {
@@ -1160,7 +1160,7 @@ mod tests {
             updated_at: 10,
             status: PersistedThreadStatus::Running,
             path: None,
-            cwd: PathBuf::from("/tmp/codewhale"),
+            cwd: PathBuf::from("/tmp/mimo"),
             cli_version: "0.0.0-test".to_string(),
             source: SessionSource::Interactive,
             name: None,
@@ -1218,7 +1218,7 @@ mod tests {
         let call = ToolCall {
             name: "exec_shell".to_string(),
             payload: ToolPayload::LocalShell {
-                params: codewhale_protocol::LocalShellParams {
+                params: mimofan_protocol::LocalShellParams {
                     command: "cargo test".to_string(),
                     cwd: None,
                     timeout_ms: None,

@@ -46,7 +46,7 @@ The same toggles are reachable from the command palette:
 * `/settings set calm_mode on`
 * `/settings set status_indicator off`
 
-Settings written this way persist to `~/.codewhale/settings.toml` on new
+Settings written this way persist to `~/.mimo-tui/settings.toml` on new
 installs, with legacy `~/.deepseek/settings.toml` and platform config-dir
 settings kept as compatibility fallbacks.
 The `NO_ANIMATIONS` env var still wins at startup if it's set, so
@@ -70,14 +70,14 @@ version renders cleanly.
   Terminal) will pass the rendered content straight through.
 * If you find a UI surface that still produces motion when
   `low_motion = true`, please file an issue against
-  [`PRIOR: Screen-reader / accessibility flag`](https://github.com/Hmbown/CodeWhale/issues/450)
+  [`PRIOR: Screen-reader / accessibility flag`](https://github.com/XiaomingX/mimo-tui/issues/450)
   with a screenshot or terminal recording.
 
 ## Related issues / history
 
-* [#450](https://github.com/Hmbown/CodeWhale/issues/450) —
+* [#450](https://github.com/XiaomingX/mimo-tui/issues/450) —
   documenting the existing flag, adding the `NO_ANIMATIONS`
   startup overlay, and writing this page.
-* [#449](https://github.com/Hmbown/CodeWhale/issues/449) —
+* [#449](https://github.com/XiaomingX/mimo-tui/issues/449) —
   footer statusline now uses the active theme's contrast pair
   instead of a bespoke palette.

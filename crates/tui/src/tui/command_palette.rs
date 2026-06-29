@@ -49,7 +49,7 @@ pub struct CommandPaletteView {
 pub fn build_entries(
     locale: Locale,
     skills_dir: &Path,
-    skills_scan_codewhale_only: bool,
+    skills_scan_mimofan_only: bool,
     workspace: &Path,
     mcp_config_path: &Path,
     mcp_snapshot: Option<&crate::mcp::McpManagerSnapshot>,
@@ -118,7 +118,7 @@ pub fn build_entries(
     let skills = skills::discover_for_workspace_and_dir_with_mode(
         workspace,
         skills_dir,
-        skills::SkillDiscoveryMode::from_codewhale_only(skills_scan_codewhale_only),
+        skills::SkillDiscoveryMode::from_mimofan_only(skills_scan_mimofan_only),
     );
     for skill in skills.list() {
         entries.push(CommandPaletteEntry {
@@ -1179,7 +1179,7 @@ mod tests {
         .expect("write configured skill");
 
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             configured_dir.as_path(),
             false,
             workspace.as_path(),
@@ -1197,7 +1197,7 @@ mod tests {
     }
 
     #[test]
-    fn command_palette_skills_respect_codewhale_only_scan() {
+    fn command_palette_skills_respect_mimofan_only_scan() {
         let tmp = TempDir::new().expect("tempdir");
         let workspace = tmp.path().join("workspace");
         let claude_skill_dir = workspace
@@ -1210,20 +1210,20 @@ mod tests {
             "---\nname: claude-skill\ndescription: Claude skill\n---\nbody",
         )
         .expect("write claude skill");
-        let codewhale_skill_dir = workspace
-            .join(".codewhale")
+        let mimofan_skill_dir = workspace
+            .join(".mimofan")
             .join("skills")
-            .join("codewhale-skill");
-        std::fs::create_dir_all(&codewhale_skill_dir).expect("create codewhale skill dir");
+            .join("mimofan-skill");
+        std::fs::create_dir_all(&mimofan_skill_dir).expect("create mimofan skill dir");
         std::fs::write(
-            codewhale_skill_dir.join("SKILL.md"),
-            "---\nname: codewhale-skill\ndescription: CodeWhale skill\n---\nbody",
+            mimofan_skill_dir.join("SKILL.md"),
+            "---\nname: mimofan-skill\ndescription: CodeWhale skill\n---\nbody",
         )
-        .expect("write codewhale skill");
+        .expect("write mimofan skill");
 
         let entries = build_entries(
-            Locale::En,
-            workspace.join(".codewhale").join("skills").as_path(),
+            Locale::ZhHans,
+            workspace.join(".mimofan").join("skills").as_path(),
             true,
             workspace.as_path(),
             Path::new("mcp.json"),
@@ -1235,14 +1235,14 @@ mod tests {
             .map(|entry| entry.label.as_str())
             .collect();
 
-        assert!(skill_labels.contains(&"$codewhale-skill"));
+        assert!(skill_labels.contains(&"$mimofan-skill"));
         assert!(!skill_labels.contains(&"$claude-skill"));
     }
 
     #[test]
     fn command_palette_command_entries_include_links_and_config_but_not_removed_commands() {
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             Path::new("."),
             false,
             Path::new("."),
@@ -1266,7 +1266,7 @@ mod tests {
     fn command_palette_includes_workspace_user_commands() {
         let tmp = TempDir::new().expect("tempdir");
         let workspace = tmp.path().join("workspace");
-        let commands_dir = workspace.join(".codewhale").join("commands");
+        let commands_dir = workspace.join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).expect("create commands dir");
         std::fs::write(
             commands_dir.join("review.md"),
@@ -1275,7 +1275,7 @@ mod tests {
         .expect("write user command");
 
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             tmp.path().join("skills").as_path(),
             false,
             workspace.as_path(),
@@ -1299,7 +1299,7 @@ mod tests {
     fn command_palette_excludes_hidden_user_commands() {
         let tmp = TempDir::new().expect("tempdir");
         let workspace = tmp.path().join("workspace");
-        let commands_dir = workspace.join(".codewhale").join("commands");
+        let commands_dir = workspace.join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).expect("create commands dir");
         std::fs::write(
             commands_dir.join("secret.md"),
@@ -1308,7 +1308,7 @@ mod tests {
         .expect("write hidden user command");
 
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             tmp.path().join("skills").as_path(),
             false,
             workspace.as_path(),
@@ -1327,7 +1327,7 @@ mod tests {
     fn command_palette_filters_shadowed_builtin_aliases_from_description() {
         let tmp = TempDir::new().expect("tempdir");
         let workspace = tmp.path().join("workspace");
-        let commands_dir = workspace.join(".codewhale").join("commands");
+        let commands_dir = workspace.join(".mimofan").join("commands");
         std::fs::create_dir_all(&commands_dir).expect("create commands dir");
         std::fs::write(
             commands_dir.join("image-review.md"),
@@ -1336,7 +1336,7 @@ mod tests {
         .expect("write user command");
 
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             tmp.path().join("skills").as_path(),
             false,
             workspace.as_path(),
@@ -1370,7 +1370,7 @@ mod tests {
         let skills_dir = tmp.path().join("skills");
         let mcp_config_path = tmp.path().join("mcp.json");
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             skills_dir.as_path(),
             false,
             tmp.path(),
@@ -1417,7 +1417,7 @@ mod tests {
             assert!(
                 entry
                     .description
-                    .contains(command.description_for(Locale::En)),
+                    .contains(command.description_for(Locale::ZhHans)),
                 "/{} palette description should include command help text",
                 command.name
             );
@@ -1435,7 +1435,7 @@ mod tests {
     #[test]
     fn command_palette_inserts_model_command_for_argument_entry() {
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             Path::new("."),
             false,
             Path::new("."),
@@ -1457,7 +1457,7 @@ mod tests {
     #[test]
     fn command_palette_runs_change_without_requiring_version() {
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             Path::new("."),
             false,
             Path::new("."),
@@ -1519,7 +1519,7 @@ mod tests {
             ],
         };
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             Path::new("."),
             false,
             Path::new("."),
@@ -1574,7 +1574,7 @@ mod tests {
             }],
         };
         let entries = build_entries(
-            Locale::En,
+            Locale::ZhHans,
             Path::new("."),
             false,
             Path::new("."),

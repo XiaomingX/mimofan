@@ -146,7 +146,7 @@ impl AcpServer {
             .and_then(Value::as_str)
             .map(PathBuf::from)
             .unwrap_or_else(|| self.default_cwd.clone());
-        let session_id = format!("codewhale-{}", uuid::Uuid::new_v4());
+        let session_id = format!("mimofan-{}", uuid::Uuid::new_v4());
         self.sessions.insert(
             session_id.clone(),
             AcpSession {
@@ -249,7 +249,9 @@ impl AcpServer {
             messages: messages.to_vec(),
             max_tokens: 4096,
             system: Some(SystemPrompt::Text(
-                "You are a coding assistant inside an ACP-compatible editor. Give concise, actionable responses.".to_string(),
+                include_str!("prompts/acp_coding_assistant.md")
+                    .trim()
+                    .to_string(),
             )),
             tools: None,
             tool_choice: None,
@@ -336,8 +338,8 @@ fn initialize_result(client_protocol_version: Option<u64>, config: &Config) -> V
             "sessionCapabilities": {}
         },
         "agentInfo": {
-            "name": "codewhale",
-            "title": "codewhale",
+            "name": "mimofan",
+            "title": "mimofan",
             "version": env!("CARGO_PKG_VERSION")
         },
         "authMethods": acp_auth_methods(config)
@@ -348,9 +350,9 @@ fn acp_auth_methods(config: &Config) -> Value {
     let provider = config.api_provider().as_str();
     json!([
         {
-            "id": "codewhale-terminal-auth",
-            "name": "Set CodeWhale API key",
-            "description": format!("Run CodeWhale's terminal credential setup for the {provider} provider."),
+            "id": "mimo-terminal-auth",
+            "name": "Set mimofan API key",
+            "description": format!("Run mimofan's terminal credential setup for the {provider} provider."),
             "type": "terminal",
             "args": ["auth", "set", "--provider", provider],
             "env": {}
@@ -489,7 +491,7 @@ mod tests {
         let result = initialize_result(Some(1), &Config::default());
 
         assert_eq!(result["protocolVersion"], 1);
-        assert_eq!(result["agentInfo"]["name"], "codewhale");
+        assert_eq!(result["agentInfo"]["name"], "mimofan");
         assert_eq!(result["agentCapabilities"]["loadSession"], false);
         assert_eq!(
             result["agentCapabilities"]["promptCapabilities"]["embeddedContext"],

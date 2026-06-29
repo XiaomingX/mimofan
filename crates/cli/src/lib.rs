@@ -11,17 +11,17 @@ use std::process::Command;
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate};
-use codewhale_agent::ModelRegistry;
-use codewhale_app_server::{
+use mimofan_agent::ModelRegistry;
+use mimofan_app_server::{
     AppServerOptions, run as run_app_server, run_stdio as run_app_server_stdio,
 };
-use codewhale_config::{
+use mimofan_config::{
     CliRuntimeOverrides, ConfigStore, ProviderKind, ResolvedRuntimeOptions, RuntimeApiKeySource,
 };
-use codewhale_execpolicy::{AskForApproval, ExecPolicyContext, ExecPolicyEngine};
-use codewhale_mcp::{McpServerDefinition, run_stdio_server};
-use codewhale_secrets::Secrets;
-use codewhale_state::{StateStore, ThreadListFilters};
+use mimofan_execpolicy::{AskForApproval, ExecPolicyContext, ExecPolicyEngine};
+use mimofan_mcp::{McpServerDefinition, run_stdio_server};
+use mimofan_secrets::Secrets;
+use mimofan_state::{StateStore, ThreadListFilters};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum ProviderArg {
@@ -61,38 +61,38 @@ enum ProviderArg {
 impl From<ProviderArg> for ProviderKind {
     fn from(value: ProviderArg) -> Self {
         match value {
-            ProviderArg::Deepseek => ProviderKind::Deepseek,
-            ProviderArg::NvidiaNim => ProviderKind::NvidiaNim,
-            ProviderArg::Openai => ProviderKind::Openai,
-            ProviderArg::Atlascloud => ProviderKind::Atlascloud,
-            ProviderArg::WanjieArk => ProviderKind::WanjieArk,
-            ProviderArg::Volcengine => ProviderKind::Volcengine,
-            ProviderArg::Openrouter => ProviderKind::Openrouter,
+            ProviderArg::Deepseek => ProviderKind::XiaomiMimo,
+            ProviderArg::NvidiaNim => ProviderKind::XiaomiMimo,
+            ProviderArg::Openai => ProviderKind::XiaomiMimo,
+            ProviderArg::Atlascloud => ProviderKind::XiaomiMimo,
+            ProviderArg::WanjieArk => ProviderKind::XiaomiMimo,
+            ProviderArg::Volcengine => ProviderKind::XiaomiMimo,
+            ProviderArg::Openrouter => ProviderKind::XiaomiMimo,
             ProviderArg::XiaomiMimo => ProviderKind::XiaomiMimo,
-            ProviderArg::Novita => ProviderKind::Novita,
-            ProviderArg::Fireworks => ProviderKind::Fireworks,
-            ProviderArg::Siliconflow => ProviderKind::Siliconflow,
-            ProviderArg::SiliconflowCn => ProviderKind::SiliconflowCN,
-            ProviderArg::Arcee => ProviderKind::Arcee,
-            ProviderArg::Moonshot => ProviderKind::Moonshot,
-            ProviderArg::Huggingface => ProviderKind::Huggingface,
-            ProviderArg::Together => ProviderKind::Together,
-            ProviderArg::OpenaiCodex => ProviderKind::OpenaiCodex,
-            ProviderArg::Anthropic => ProviderKind::Anthropic,
-            ProviderArg::Zai => ProviderKind::Zai,
-            ProviderArg::Stepfun => ProviderKind::Stepfun,
-            ProviderArg::Minimax => ProviderKind::Minimax,
-            ProviderArg::Deepinfra => ProviderKind::Deepinfra,
+            ProviderArg::Novita => ProviderKind::XiaomiMimo,
+            ProviderArg::Fireworks => ProviderKind::XiaomiMimo,
+            ProviderArg::Siliconflow => ProviderKind::XiaomiMimo,
+            ProviderArg::SiliconflowCn => ProviderKind::XiaomiMimo,
+            ProviderArg::Arcee => ProviderKind::XiaomiMimo,
+            ProviderArg::Moonshot => ProviderKind::XiaomiMimo,
+            ProviderArg::Huggingface => ProviderKind::XiaomiMimo,
+            ProviderArg::Together => ProviderKind::XiaomiMimo,
+            ProviderArg::OpenaiCodex => ProviderKind::XiaomiMimo,
+            ProviderArg::Anthropic => ProviderKind::XiaomiMimo,
+            ProviderArg::Zai => ProviderKind::XiaomiMimo,
+            ProviderArg::Stepfun => ProviderKind::XiaomiMimo,
+            ProviderArg::Minimax => ProviderKind::XiaomiMimo,
+            ProviderArg::Deepinfra => ProviderKind::XiaomiMimo,
         }
     }
 }
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "codewhale",
+    name = "mimofan",
     version = env!("DEEPSEEK_BUILD_VERSION"),
-    bin_name = "codewhale",
-    override_usage = "codewhale [OPTIONS] [PROMPT]\n       codewhale [OPTIONS] <COMMAND> [ARGS]"
+    bin_name = "mimofan",
+    override_usage = "mimofan [OPTIONS] [PROMPT]\n       mimofan [OPTIONS] <COMMAND> [ARGS]"
 )]
 struct Cli {
     #[arg(long)]
@@ -160,7 +160,7 @@ struct Cli {
 enum Commands {
     /// Run interactive/non-interactive flows via the TUI binary.
     Run(RunArgs),
-    /// Run CodeWhale diagnostics.
+    /// Run mimofan diagnostics.
     Doctor(TuiPassthroughArgs),
     /// List live provider API models via the TUI binary.
     Models(TuiPassthroughArgs),
@@ -177,14 +177,14 @@ enum Commands {
     Init(TuiPassthroughArgs),
     /// Bootstrap MCP config and/or skills directories.
     Setup(TuiPassthroughArgs),
-    /// Generate a remote CodeWhale agent deploy bundle (cloud + chat bridge).
+    /// Generate a remote mimofan agent deploy bundle (cloud + chat bridge).
     RemoteSetup(RemoteSetupArgs),
     /// Run a non-interactive prompt through the TUI runtime.
     #[command(after_help = "\
 Examples:
-  codewhale exec \"explain this function\"
-  codewhale exec --auto \"list crates/ with ls\"
-  codewhale exec --auto --output-format stream-json \"fix the failing test\"
+  mimofan exec \"explain this function\"
+  mimofan exec --auto \"list crates/ with ls\"
+  mimofan exec --auto --output-format stream-json \"fix the failing test\"
 
 Common forwarded flags:
   --auto                           Enable tool-backed agent mode with auto-approvals
@@ -194,14 +194,14 @@ Common forwarded flags:
   --continue                       Continue the most recent session for this workspace
   --output-format <FORMAT>         Output format: text or stream-json
 
-Plain `codewhale exec` is a one-shot model response. Use `--auto` for
+Plain `mimofan exec` is a one-shot model response. Use `--auto` for
 non-interactive filesystem/shell tool use, matching the supported automation
 path used by stream-json wrappers.
 ")]
     Exec(TuiPassthroughArgs),
     /// Manage durable Agent Fleet runs via the TUI runtime.
     Fleet(TuiPassthroughArgs),
-    /// Run a CodeWhale-powered code review over a git diff.
+    /// Run a mimofan-powered code review over a git diff.
     Review(TuiPassthroughArgs),
     /// Apply a patch file or stdin to the working tree.
     Apply(TuiPassthroughArgs),
@@ -226,9 +226,9 @@ Forwarded serve options:
       --auth-token <TOKEN>  Require this bearer token for /v1/* runtime API routes
       --insecure            Disable runtime API auth when no token is configured
 
-`codewhale serve --http` and `codewhale serve --mobile` remain compatibility
-aliases for `codewhale app-server --http` and `codewhale app-server --mobile`.
-New integrations should prefer `codewhale app-server`.")]
+`mimofan serve --http` and `mimofan serve --mobile` remain compatibility
+aliases for `mimofan app-server --http` and `mimofan app-server --mobile`.
+New integrations should prefer `mimofan app-server`.")]
     Serve(TuiPassthroughArgs),
     /// Generate shell completions for the TUI binary.
     Completions(TuiPassthroughArgs),
@@ -251,12 +251,12 @@ New integrations should prefer `codewhale app-server`.")]
     /// Run the canonical runtime API / control plane (HTTP/SSE, mobile, stdio).
     #[command(after_help = "\
 Transports:
-  codewhale app-server --http              Full HTTP/SSE runtime API (/v1/*) on 127.0.0.1:7878
-  codewhale app-server --mobile            Runtime API + phone control page (binds 0.0.0.0)
-  codewhale app-server --stdio             JSON-RPC control transport over stdio (no listener)
-  codewhale app-server                     Legacy in-process app-server HTTP on 127.0.0.1:8787
+  mimofan app-server --http              Full HTTP/SSE runtime API (/v1/*) on 127.0.0.1:7878
+  mimofan app-server --mobile            Runtime API + phone control page (binds 0.0.0.0)
+  mimofan app-server --stdio             JSON-RPC control transport over stdio (no listener)
+  mimofan app-server                     Legacy in-process app-server HTTP on 127.0.0.1:8787
 
-`--http` and `--mobile` serve the same mature runtime API as `codewhale serve
+`--http` and `--mobile` serve the same mature runtime API as `mimofan serve
 --http`/`--mobile`, which remain as compatibility aliases. The runtime API token
 is read from --auth-token, CODEWHALE_RUNTIME_TOKEN, or DEEPSEEK_RUNTIME_TOKEN.
 
@@ -265,26 +265,26 @@ See docs/RUNTIME_API.md.")]
     /// Generate shell completions.
     #[command(after_help = r#"Examples:
   Bash (current shell only):
-    source <(codewhale completion bash)
+    source <(mimofan completion bash)
 
   Bash (persistent, Linux/bash-completion):
     mkdir -p ~/.local/share/bash-completion/completions
-    codewhale completion bash > ~/.local/share/bash-completion/completions/codewhale
+    mimofan completion bash > ~/.local/share/bash-completion/completions/mimofan
     # Requires bash-completion to be installed and loaded by your shell.
 
   Zsh:
     mkdir -p ~/.zfunc
-    codewhale completion zsh > ~/.zfunc/_codewhale
+    mimofan completion zsh > ~/.zfunc/_mimofan
     # Add to ~/.zshrc if needed:
     #   fpath=(~/.zfunc $fpath)
     #   autoload -Uz compinit && compinit
 
   Fish:
     mkdir -p ~/.config/fish/completions
-    codewhale completion fish > ~/.config/fish/completions/codewhale.fish
+    mimofan completion fish > ~/.config/fish/completions/mimofan.fish
 
   PowerShell (current shell only):
-    codewhale completion powershell | Out-String | Invoke-Expression
+    mimofan completion powershell | Out-String | Invoke-Expression
 
 The command prints the completion script to stdout; redirect it to a path your shell loads automatically."#)]
     Completion {
@@ -293,7 +293,7 @@ The command prints the completion script to stdout; redirect it to a path your s
     },
     /// Print a usage rollup from the audit log and session store.
     Metrics(MetricsArgs),
-    /// Check for and apply updates to the `codewhale` binary.
+    /// Check for and apply updates to the `mimofan` binary.
     Update(UpdateArgs),
 }
 
@@ -332,7 +332,7 @@ struct TuiPassthroughArgs {
     args: Vec<String>,
 }
 
-/// Flags for `codewhale remote-setup`. Forwarded to the TUI binary, which owns
+/// Flags for `mimofan remote-setup`. Forwarded to the TUI binary, which owns
 /// the interactive wizard and bundle generation.
 #[derive(Debug, Args, Clone, Default)]
 struct RemoteSetupArgs {
@@ -345,7 +345,7 @@ struct RemoteSetupArgs {
     /// Provider slug; validated against the provider registry. Skips the prompt.
     #[arg(long)]
     provider: Option<String>,
-    /// Bundle output directory (default `./codewhale-deploy/<cloud>-<bridge>`).
+    /// Bundle output directory (default `./mimofan-deploy/<cloud>-<bridge>`).
     #[arg(long, value_name = "DIR")]
     out: Option<PathBuf>,
     /// Emit the bundle, do not provision (default).
@@ -572,11 +572,11 @@ impl From<ApprovalModeArg> for AskForApproval {
 struct AppServerArgs {
     /// Serve the full HTTP/SSE runtime API (`/v1/*`: sessions, threads, turns,
     /// approvals, events, usage, fleet, tasks). This is the canonical runtime
-    /// API surface; it delegates to the same server as `codewhale serve --http`.
+    /// API surface; it delegates to the same server as `mimofan serve --http`.
     #[arg(long, conflicts_with_all = ["stdio", "mobile"])]
     http: bool,
     /// Serve the runtime API plus the phone-friendly mobile control page.
-    /// Equivalent to the legacy `codewhale serve --mobile`.
+    /// Equivalent to the legacy `mimofan serve --mobile`.
     #[arg(long, conflicts_with = "stdio")]
     mobile: bool,
     /// Run the app-server JSON-RPC control transport over stdio (no listener).
@@ -758,7 +758,7 @@ fn run() -> Result<()> {
         }
         Some(Commands::Completion { shell }) => {
             let mut cmd = Cli::command();
-            generate(shell, &mut cmd, "codewhale", &mut io::stdout());
+            generate(shell, &mut cmd, "mimofan", &mut io::stdout());
             Ok(())
         }
         Some(Commands::Metrics(args)) => run_metrics_command(args),
@@ -791,7 +791,7 @@ fn root_tui_passthrough(cli: &Cli) -> Result<Vec<String>> {
     if !prompt.is_empty() {
         if cli.continue_session {
             bail!(
-                "`codewhale --continue` resumes the interactive TUI. Use `codewhale exec --continue <PROMPT>` to continue a session non-interactively."
+                "`mimofan --continue` resumes the interactive TUI. Use `mimofan exec --continue <PROMPT>` to continue a session non-interactively."
             );
         }
         forwarded.push("--prompt".to_string());
@@ -874,7 +874,7 @@ fn run_login_command_with_secrets(
     } else {
         store.path().display().to_string()
     };
-    if provider == ProviderKind::Deepseek {
+    if provider == ProviderKind::XiaomiMimo {
         println!("logged in using API key mode (deepseek); saved key to {destination}");
     } else {
         println!(
@@ -906,7 +906,7 @@ fn run_logout_command_with_secrets(store: &mut ConfigStore, secrets: &Secrets) -
 fn provider_slot(provider: ProviderKind) -> &'static str {
     match provider {
         // Keep the historical shared credential slot for the China endpoint.
-        ProviderKind::SiliconflowCN => "siliconflow",
+        ProviderKind::XiaomiMimo => "siliconflow",
         _ => provider.provider().id(),
     }
 }
@@ -914,7 +914,7 @@ fn provider_slot(provider: ProviderKind) -> &'static str {
 #[cfg(test)]
 fn no_keyring_secrets() -> Secrets {
     Secrets::new(std::sync::Arc::new(
-        codewhale_secrets::InMemoryKeyringStore::new(),
+        mimofan_secrets::InMemoryKeyringStore::new(),
     ))
 }
 
@@ -925,17 +925,17 @@ fn write_provider_api_key_to_config(
 ) {
     store.config.auth_mode = Some("api_key".to_string());
     store.config.providers.for_provider_mut(provider).api_key = Some(api_key.to_string());
-    if provider == ProviderKind::Deepseek {
+    if provider == ProviderKind::XiaomiMimo {
         store.config.api_key = Some(api_key.to_string());
         if store.config.default_text_model.is_none() {
             store.config.default_text_model = Some(
                 store
                     .config
                     .providers
-                    .deepseek
+                    .xiaomi_mimo
                     .model
                     .clone()
-                    .unwrap_or_else(|| "deepseek-v4-pro".to_string()),
+                    .unwrap_or_else(|| "mimo-v2-pro".to_string()),
             );
         }
     }
@@ -943,7 +943,7 @@ fn write_provider_api_key_to_config(
 
 fn clear_provider_api_key_from_config(store: &mut ConfigStore, provider: ProviderKind) {
     store.config.providers.for_provider_mut(provider).api_key = None;
-    if provider == ProviderKind::Deepseek {
+    if provider == ProviderKind::XiaomiMimo {
         store.config.api_key = None;
     }
 }
@@ -984,7 +984,7 @@ fn openai_codex_auth_file_path() -> PathBuf {
 }
 
 fn provider_oauth_file_path(provider: ProviderKind) -> Option<PathBuf> {
-    (provider == ProviderKind::OpenaiCodex).then(openai_codex_auth_file_path)
+    (provider == ProviderKind::XiaomiMimo).then(openai_codex_auth_file_path)
 }
 
 fn provider_config_api_key(store: &ConfigStore, provider: ProviderKind) -> Option<&str> {
@@ -994,7 +994,7 @@ fn provider_config_api_key(store: &ConfigStore, provider: ProviderKind) -> Optio
         .for_provider(provider)
         .api_key
         .as_deref();
-    let root = (provider == ProviderKind::Deepseek)
+    let root = (provider == ProviderKind::XiaomiMimo)
         .then_some(store.config.api_key.as_deref())
         .flatten();
     slot.or(root).filter(|v| !v.trim().is_empty())
@@ -1052,7 +1052,7 @@ fn auth_status_all_providers(store: &ConfigStore, secrets: &Secrets) -> Vec<Stri
         let keyring_status = keyring_key.as_ref().map(|_| "set").unwrap_or("-");
         let env_status = env_key.as_ref().map(|_| "set").unwrap_or("-");
 
-        let source = if provider == ProviderKind::OpenaiCodex {
+        let source = if provider == ProviderKind::XiaomiMimo {
             // Keep the summary consistent with `auth status`: Codex auth is
             // OAuth-file (or env token) based — config/keyring keys are not
             // consulted for it.
@@ -1094,7 +1094,7 @@ fn auth_status_all_providers(store: &ConfigStore, secrets: &Secrets) -> Vec<Stri
 
     lines.push(String::new());
     lines.push("* = active provider (from config or CODEWHALE_PROVIDER)".to_string());
-    lines.push("Run `codewhale auth status --provider <id>` for detailed info.".to_string());
+    lines.push("Run `mimofan auth status --provider <id>` for detailed info.".to_string());
     lines
 }
 
@@ -1109,7 +1109,7 @@ fn auth_status_lines_for_provider(
     let oauth_file = provider_oauth_file_path(provider);
     let oauth_file_present = oauth_file.as_ref().is_some_and(|path| path.exists());
 
-    let active_source = if provider == ProviderKind::OpenaiCodex {
+    let active_source = if provider == ProviderKind::XiaomiMimo {
         if env_key.is_some() {
             "env"
         } else if oauth_file_present {
@@ -1126,7 +1126,7 @@ fn auth_status_lines_for_provider(
     } else {
         "missing"
     };
-    let active_last4 = if provider == ProviderKind::OpenaiCodex {
+    let active_last4 = if provider == ProviderKind::XiaomiMimo {
         env_key.as_ref().map(|(_, value)| last4_label(value))
     } else {
         config_key
@@ -1154,12 +1154,12 @@ fn auth_status_lines_for_provider(
     let base_url = provider_cfg.base_url.as_deref().unwrap_or("(default)");
     let model = provider_cfg.model.as_deref().unwrap_or("(default)");
 
-    let lookup_order = if provider == ProviderKind::OpenaiCodex {
+    let lookup_order = if provider == ProviderKind::XiaomiMimo {
         "lookup order: env -> Codex OAuth file".to_string()
     } else {
         "lookup order: config -> secret store -> env".to_string()
     };
-    let auth_mode = if provider == ProviderKind::OpenaiCodex {
+    let auth_mode = if provider == ProviderKind::XiaomiMimo {
         "codex_oauth"
     } else {
         store.config.auth_mode.as_deref().unwrap_or("api_key")
@@ -1366,7 +1366,7 @@ fn run_auth_migrate(store: &mut ConfigStore, secrets: &Secrets, dry_run: bool) -
             .api_key
             .clone()
             .filter(|v| !v.trim().is_empty());
-        let from_root = (provider == ProviderKind::Deepseek)
+        let from_root = (provider == ProviderKind::XiaomiMimo)
             .then(|| store.config.api_key.clone())
             .flatten()
             .filter(|v| !v.trim().is_empty());
@@ -1388,7 +1388,7 @@ fn run_auth_migrate(store: &mut ConfigStore, secrets: &Secrets, dry_run: bool) -
         }
         if !dry_run {
             store.config.providers.for_provider_mut(provider).api_key = None;
-            if provider == ProviderKind::Deepseek {
+            if provider == ProviderKind::XiaomiMimo {
                 store.config.api_key = None;
             }
         }
@@ -1640,7 +1640,7 @@ fn run_app_server_command(
 }
 
 /// Build the `serve` argv forwarded to the TUI binary for
-/// `codewhale app-server --http`/`--mobile`. Maps app-server flags onto the
+/// `mimofan app-server --http`/`--mobile`. Maps app-server flags onto the
 /// matching `serve` flags (note `--insecure-no-auth` → `--insecure`). The
 /// subcommand-level `--config` is bridged through the global `--config` in the
 /// dispatcher, so it is intentionally not part of this passthrough. An auth
@@ -2053,7 +2053,7 @@ fn run_dispatcher_resume_picker(
 
     println!();
     println!("Windows note: enter a session id or prefix from the list above.");
-    println!("You can also run `codewhale resume --last` to skip this prompt.");
+    println!("You can also run `mimofan resume --last` to skip this prompt.");
     print!("Session id/prefix (Enter to cancel): ");
     io::stdout().flush()?;
 
@@ -2185,7 +2185,7 @@ fn build_tui_command(
 fn exit_with_tui_status(status: std::process::ExitStatus) -> Result<()> {
     match status.code() {
         Some(code) => std::process::exit(code),
-        None => bail!("codewhale-tui terminated by signal"),
+        None => bail!("mimofan-tui terminated by signal"),
     }
 }
 
@@ -2197,7 +2197,7 @@ fn delegate_simple_tui(args: Vec<String>) -> Result<()> {
         .map_err(|err| anyhow!("{}", tui_spawn_error(&tui, &err)))?;
     match status.code() {
         Some(code) => std::process::exit(code),
-        None => bail!("codewhale-tui terminated by signal"),
+        None => bail!("mimofan-tui terminated by signal"),
     }
 }
 
@@ -2205,23 +2205,23 @@ fn tui_spawn_error(tui: &Path, err: &io::Error) -> String {
     format!(
         "failed to spawn companion TUI binary at {}: {err}\n\
 \n\
-The `codewhale` dispatcher found a `codewhale-tui` file, but the OS refused \
+The `mimofan` dispatcher found a `mimofan-tui` file, but the OS refused \
 to execute it. Common fixes:\n\
-  - Reinstall with `npm install -g codewhale`, or run `codewhale update`.\n\
-  - On Windows, run `where codewhale` and `where codewhale-tui`; both should \
+  - Reinstall with `npm install -g mimofan`, or run `mimofan update`.\n\
+  - On Windows, run `where mimofan` and `where mimofan-tui`; both should \
 come from the same install directory.\n\
-  - If you downloaded release assets manually, keep both `codewhale` and \
-`codewhale-tui` binaries together and make sure the TUI binary is executable.\n\
-  - Set DEEPSEEK_TUI_BIN to the absolute path of a working `codewhale-tui` \
+  - If you downloaded release assets manually, keep both `mimofan` and \
+`mimofan-tui` binaries together and make sure the TUI binary is executable.\n\
+  - Set DEEPSEEK_TUI_BIN to the absolute path of a working `mimofan-tui` \
 binary.",
         tui.display()
     )
 }
 
-/// Resolve the sibling `codewhale-tui` executable next to the running
+/// Resolve the sibling `mimofan` executable next to the running
 /// dispatcher. Honours platform executable suffix (`.exe` on Windows) so
 /// the npm-distributed Windows package — which ships
-/// `bin/downloads/codewhale-tui.exe` — is found by `Path::exists` (#247).
+/// `bin/downloads/mimofan.exe` — is found by `Path::exists` (#247).
 ///
 /// `DEEPSEEK_TUI_BIN` is consulted first as an explicit override for
 /// custom installs and CI test layouts. On Windows we additionally try
@@ -2245,39 +2245,39 @@ fn locate_sibling_tui_binary() -> Result<PathBuf> {
     }
 
     // Build a stable error path so the user sees the platform-correct
-    // expected name, not "codewhale-tui" on Windows.
-    let expected = current.with_file_name(format!("codewhale-tui{}", std::env::consts::EXE_SUFFIX));
+    // expected name, not "mimofan" on Windows.
+    let expected = current.with_file_name(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX));
     bail!(
-        "Companion `codewhale-tui` binary not found at {}.\n\
+        "Companion `mimofan-tui` binary not found at {}.\n\
 \n\
-The `codewhale` dispatcher delegates interactive sessions to a sibling \
-`codewhale-tui` binary. To fix this, install one of:\n\
-  • npm:    npm install -g codewhale                (downloads both binaries)\n\
-  • cargo:  cargo install codewhale-cli codewhale-tui --locked\n\
-  • GitHub Releases: download BOTH `codewhale-<platform>` AND \
-`codewhale-tui-<platform>` from https://github.com/Hmbown/CodeWhale/releases/latest \
+The `mimofan` dispatcher delegates interactive sessions to a sibling \
+`mimofan-tui` binary. To fix this, install one of:\n\
+  • npm:    npm install -g mimofan                (downloads both binaries)\n\
+  • cargo:  cargo install mimofan-cli mimofan-tui --locked\n\
+  • GitHub Releases: download BOTH `mimofan-<platform>` AND \
+`mimofan-tui-<platform>` from https://github.com/XiaomingX/mimofan/releases/latest \
 and place them in the same directory.\n\
 \n\
-Or set DEEPSEEK_TUI_BIN to the absolute path of an existing `codewhale-tui` binary.",
+Or set DEEPSEEK_TUI_BIN to the absolute path of an existing `mimofan-tui` binary.",
         expected.display()
     );
 }
 
 /// Return the first existing sibling-binary path under any of the names
-/// `codewhale-tui` might use on this platform. Pure function to keep
+/// `mimofan` might use on this platform. Pure function to keep
 /// `locate_sibling_tui_binary` testable.
 fn sibling_tui_candidate(dispatcher: &Path) -> Option<PathBuf> {
     // Primary: platform-correct name. EXE_SUFFIX is "" on Unix and ".exe"
     // on Windows.
     let primary =
-        dispatcher.with_file_name(format!("codewhale-tui{}", std::env::consts::EXE_SUFFIX));
+        dispatcher.with_file_name(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX));
     if primary.is_file() {
         return Some(primary);
     }
     // Windows fallback: a user who manually renamed `.exe` away (per the
     // workaround in #247) still launches successfully under the new code.
     if cfg!(windows) {
-        let suffixless = dispatcher.with_file_name("codewhale-tui");
+        let suffixless = dispatcher.with_file_name("mimofan-tui");
         if suffixless.is_file() {
             return Some(suffixless);
         }
@@ -2314,7 +2314,7 @@ fn read_api_key_from_stdin() -> Result<String> {
 mod tests {
     use super::*;
     use clap::error::ErrorKind;
-    use codewhale_config::ProviderSource;
+    use mimofan_config::ProviderSource;
     use std::ffi::OsString;
     use std::sync::{Mutex, OnceLock};
 
@@ -2481,7 +2481,7 @@ mod tests {
 
     #[test]
     fn parses_update_beta_flag() {
-        let cli = parse_ok(&["codewhale", "update"]);
+        let cli = parse_ok(&["mimofan", "update"]);
         assert!(matches!(
             cli.command,
             Some(Commands::Update(UpdateArgs {
@@ -2491,7 +2491,7 @@ mod tests {
             }))
         ));
 
-        let cli = parse_ok(&["codewhale", "update", "--beta"]);
+        let cli = parse_ok(&["mimofan", "update", "--beta"]);
         assert!(matches!(
             cli.command,
             Some(Commands::Update(UpdateArgs {
@@ -2501,7 +2501,7 @@ mod tests {
             }))
         ));
 
-        let cli = parse_ok(&["codewhale", "update", "--check"]);
+        let cli = parse_ok(&["mimofan", "update", "--check"]);
         assert!(matches!(
             cli.command,
             Some(Commands::Update(UpdateArgs {
@@ -2511,7 +2511,7 @@ mod tests {
             }))
         ));
 
-        let cli = parse_ok(&["codewhale", "update", "--proxy", "socks5://127.0.0.1:1080"]);
+        let cli = parse_ok(&["mimofan", "update", "--proxy", "socks5://127.0.0.1:1080"]);
         let Some(Commands::Update(args)) = cli.command else {
             panic!("expected update command");
         };
@@ -2581,16 +2581,16 @@ mod tests {
     #[test]
     fn model_command_provider_hint_uses_subcommand_then_top_level_provider() {
         assert_eq!(
-            model_command_provider_hint(None, Some(ProviderKind::Zai)),
-            Some(ProviderKind::Zai)
+            model_command_provider_hint(None, Some(ProviderKind::XiaomiMimo)),
+            Some(ProviderKind::XiaomiMimo)
         );
         assert_eq!(
-            model_command_provider_hint(Some(ProviderArg::Minimax), Some(ProviderKind::Zai)),
-            Some(ProviderKind::Minimax)
+            model_command_provider_hint(Some(ProviderArg::Minimax), Some(ProviderKind::XiaomiMimo)),
+            Some(ProviderKind::XiaomiMimo)
         );
         assert_eq!(model_command_provider_hint(None, None), None);
 
-        let cli = parse_ok(&["codewhale", "--provider", "zai", "model", "list"]);
+        let cli = parse_ok(&["mimofan", "--provider", "zai", "model", "list"]);
         assert_eq!(cli.provider, Some(ProviderArg::Zai));
         assert!(matches!(
             cli.command,
@@ -2834,7 +2834,7 @@ mod tests {
 
     #[test]
     fn serve_help_documents_forwarded_runtime_modes() {
-        let help = help_for(&["codewhale", "serve", "--help"]);
+        let help = help_for(&["mimofan", "serve", "--help"]);
         for flag in ["--http", "--mobile", "--mcp", "--acp"] {
             assert!(
                 help.contains(flag),
@@ -2871,7 +2871,7 @@ mod tests {
                 if args == &["--skills", "--local"]
         ));
 
-        let cli = parse_ok(&["codewhale", "fleet", "init"]);
+        let cli = parse_ok(&["mimofan", "fleet", "init"]);
         assert!(cli.prompt.is_empty());
         assert!(matches!(
             cli.command,
@@ -2879,7 +2879,7 @@ mod tests {
         ));
 
         let cli = parse_ok(&[
-            "codewhale",
+            "mimofan",
             "fleet",
             "run",
             "tasks.json",
@@ -3131,7 +3131,7 @@ mod tests {
 
     #[test]
     fn auth_set_writes_to_shared_config_file() {
-        use codewhale_secrets::{InMemoryKeyringStore, KeyringStore};
+        use mimofan_secrets::{InMemoryKeyringStore, KeyringStore};
         use std::sync::Arc;
 
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -3177,7 +3177,7 @@ mod tests {
             std::process::id()
         ));
         let mut store = ConfigStore::load(Some(path.clone())).expect("store should load");
-        store.config.provider = ProviderKind::Deepseek;
+        store.config.provider = ProviderKind::XiaomiMimo;
         let secrets = no_keyring_secrets();
 
         run_auth_command_with_secrets(
@@ -3191,14 +3191,14 @@ mod tests {
         )
         .expect("set should succeed");
 
-        assert_eq!(store.config.provider, ProviderKind::Deepseek);
+        assert_eq!(store.config.provider, ProviderKind::XiaomiMimo);
         assert_eq!(
             store.config.providers.arcee.api_key.as_deref(),
             Some("arcee-key")
         );
 
         let reloaded = ConfigStore::load(Some(path.clone())).expect("store should reload");
-        assert_eq!(reloaded.config.provider, ProviderKind::Deepseek);
+        assert_eq!(reloaded.config.provider, ProviderKind::XiaomiMimo);
         assert_eq!(
             reloaded.config.providers.arcee.api_key.as_deref(),
             Some("arcee-key")
@@ -3209,7 +3209,7 @@ mod tests {
 
     #[test]
     fn auth_clear_removes_from_config() {
-        use codewhale_secrets::{InMemoryKeyringStore, KeyringStore};
+        use mimofan_secrets::{InMemoryKeyringStore, KeyringStore};
         use std::sync::Arc;
 
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -3244,7 +3244,7 @@ mod tests {
 
     #[test]
     fn auth_status_scoped_probe_and_list_all_provider_keyrings() {
-        use codewhale_secrets::{KeyringStore, SecretsError};
+        use mimofan_secrets::{KeyringStore, SecretsError};
         use std::sync::{Arc, Mutex};
 
         #[derive(Default)]
@@ -3277,7 +3277,7 @@ mod tests {
             std::process::id()
         ));
         let mut store = ConfigStore::load(Some(path.clone())).expect("store should load");
-        store.config.provider = ProviderKind::Deepseek;
+        store.config.provider = ProviderKind::XiaomiMimo;
         let inner = Arc::new(RecordingStore::default());
         let secrets = Secrets::new(inner.clone());
 
@@ -3311,7 +3311,7 @@ mod tests {
 
     #[test]
     fn auth_status_reports_all_active_provider_sources_with_last4() {
-        use codewhale_secrets::{InMemoryKeyringStore, KeyringStore};
+        use mimofan_secrets::{InMemoryKeyringStore, KeyringStore};
         use std::sync::Arc;
 
         let _lock = env_lock();
@@ -3323,7 +3323,7 @@ mod tests {
             std::process::id()
         ));
         let mut store = ConfigStore::load(Some(path.clone())).expect("store should load");
-        store.config.provider = ProviderKind::Deepseek;
+        store.config.provider = ProviderKind::XiaomiMimo;
         store.config.api_key = Some("sk-config-3333".to_string());
         store.config.providers.deepseek.api_key = Some("sk-config-3333".to_string());
 
@@ -3332,7 +3332,7 @@ mod tests {
         let secrets = Secrets::new(inner);
 
         let output =
-            auth_status_lines_for_provider(&store, &secrets, ProviderKind::Deepseek).join("\n");
+            auth_status_lines_for_provider(&store, &secrets, ProviderKind::XiaomiMimo).join("\n");
 
         assert!(output.contains("provider: deepseek"));
         assert!(output.contains("active source: config (last4: ...3333)"));
@@ -3350,7 +3350,7 @@ mod tests {
 
     #[test]
     fn auth_status_all_providers_lists_every_known_provider() {
-        use codewhale_secrets::{InMemoryKeyringStore, KeyringStore};
+        use mimofan_secrets::{InMemoryKeyringStore, KeyringStore};
         use std::sync::Arc;
 
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -3359,7 +3359,7 @@ mod tests {
             std::process::id()
         ));
         let mut store = ConfigStore::load(Some(path.clone())).expect("store should load");
-        store.config.provider = ProviderKind::Deepseek;
+        store.config.provider = ProviderKind::XiaomiMimo;
         store.config.providers.arcee.api_key = Some("sk-arcee-test1234".to_string());
 
         let inner = Arc::new(InMemoryKeyringStore::new());
@@ -3389,7 +3389,7 @@ mod tests {
 
     #[test]
     fn auth_status_openai_codex_reports_codex_oauth_file() {
-        use codewhale_secrets::InMemoryKeyringStore;
+        use mimofan_secrets::InMemoryKeyringStore;
         use std::sync::Arc;
 
         let _lock = env_lock();
@@ -3405,11 +3405,11 @@ mod tests {
         let _auth_file = ScopedEnvVar::set("OPENAI_CODEX_AUTH_FILE", &auth_path_str);
 
         let mut store = ConfigStore::load(Some(config_path)).expect("store should load");
-        store.config.provider = ProviderKind::OpenaiCodex;
+        store.config.provider = ProviderKind::XiaomiMimo;
         let secrets = Secrets::new(Arc::new(InMemoryKeyringStore::new()));
 
         let output =
-            auth_status_lines_for_provider(&store, &secrets, ProviderKind::OpenaiCodex).join("\n");
+            auth_status_lines_for_provider(&store, &secrets, ProviderKind::XiaomiMimo).join("\n");
 
         assert!(output.contains("provider: openai-codex"));
         assert!(output.contains("auth mode: codex_oauth"));
@@ -3424,7 +3424,7 @@ mod tests {
 
     #[test]
     fn auth_status_scoped_provider_shows_detailed_info() {
-        use codewhale_secrets::InMemoryKeyringStore;
+        use mimofan_secrets::InMemoryKeyringStore;
         use std::sync::Arc;
 
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -3433,13 +3433,13 @@ mod tests {
             std::process::id()
         ));
         let mut store = ConfigStore::load(Some(path.clone())).expect("store should load");
-        store.config.provider = ProviderKind::Deepseek;
+        store.config.provider = ProviderKind::XiaomiMimo;
         store.config.providers.arcee.api_key = Some("sk-arcee-9999".to_string());
 
         let secrets = Secrets::new(Arc::new(InMemoryKeyringStore::new()));
 
         let output =
-            auth_status_lines_for_provider(&store, &secrets, ProviderKind::Arcee).join("\n");
+            auth_status_lines_for_provider(&store, &secrets, ProviderKind::XiaomiMimo).join("\n");
 
         assert!(output.contains("provider: arcee"));
         assert!(output.contains("active source: config (last4: ...9999)"));
@@ -3452,7 +3452,7 @@ mod tests {
 
     #[test]
     fn dispatch_keyring_recovery_self_heals_into_config_file() {
-        use codewhale_secrets::{InMemoryKeyringStore, KeyringStore};
+        use mimofan_secrets::{InMemoryKeyringStore, KeyringStore};
         use std::sync::Arc;
 
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -3525,7 +3525,7 @@ mod tests {
 
     #[test]
     fn auth_migrate_moves_plaintext_keys_into_keyring_and_strips_file() {
-        use codewhale_secrets::{InMemoryKeyringStore, KeyringStore};
+        use mimofan_secrets::{InMemoryKeyringStore, KeyringStore};
         use std::sync::Arc;
 
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -3570,7 +3570,7 @@ mod tests {
 
     #[test]
     fn auth_migrate_dry_run_does_not_modify_anything() {
-        use codewhale_secrets::{InMemoryKeyringStore, KeyringStore};
+        use mimofan_secrets::{InMemoryKeyringStore, KeyringStore};
         use std::sync::Arc;
 
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default();
@@ -3659,7 +3659,7 @@ mod tests {
 
     #[test]
     fn cli_provider_helpers_follow_config_metadata() {
-        let registry_kinds: Vec<ProviderKind> = codewhale_config::provider::all_providers()
+        let registry_kinds: Vec<ProviderKind> = mimofan_config::provider::all_providers()
             .iter()
             .map(|provider| provider.kind())
             .collect();
@@ -3667,10 +3667,10 @@ mod tests {
 
         for provider in ProviderKind::ALL {
             assert_eq!(provider_env_vars(provider), provider.provider().env_vars());
-            if provider == ProviderKind::SiliconflowCN {
+            if provider == ProviderKind::XiaomiMimo {
                 assert_eq!(
                     provider_slot(provider),
-                    provider_slot(ProviderKind::Siliconflow)
+                    provider_slot(ProviderKind::XiaomiMimo)
                 );
             } else {
                 assert_eq!(provider_slot(provider), provider.provider().id());
@@ -3694,10 +3694,10 @@ mod tests {
             "--provider",
             "openai",
             "--workspace",
-            "/tmp/codewhale-workspace",
+            "/tmp/mimofan-workspace",
         ]);
         let resolved = ResolvedRuntimeOptions {
-            provider: ProviderKind::Openai,
+            provider: ProviderKind::XiaomiMimo,
             provider_source: ProviderSource::Cli,
             model: "glm-5".to_string(),
             api_key: Some("resolved-openai-key".to_string()),
@@ -3739,7 +3739,7 @@ mod tests {
             .collect();
         assert!(
             args.windows(2)
-                .any(|pair| pair == ["--workspace", "/tmp/codewhale-workspace"]),
+                .any(|pair| pair == ["--workspace", "/tmp/mimofan-workspace"]),
             "expected workspace forwarding in args: {args:?}"
         );
     }
@@ -3755,9 +3755,9 @@ mod tests {
         let custom_str = custom.to_string_lossy().into_owned();
         let _bin = ScopedEnvVar::set("DEEPSEEK_TUI_BIN", &custom_str);
 
-        let cli = parse_ok(&["codewhale", "doctor"]);
+        let cli = parse_ok(&["mimofan", "doctor"]);
         let resolved = ResolvedRuntimeOptions {
-            provider: ProviderKind::OpenaiCodex,
+            provider: ProviderKind::XiaomiMimo,
             provider_source: ProviderSource::Config,
             model: "gpt-5.5".to_string(),
             api_key: None,
@@ -3796,9 +3796,9 @@ mod tests {
         let custom_str = custom.to_string_lossy().into_owned();
         let _bin = ScopedEnvVar::set("DEEPSEEK_TUI_BIN", &custom_str);
 
-        let cli = parse_ok(&["codewhale", "--provider", "openai-codex", "doctor"]);
+        let cli = parse_ok(&["mimofan", "--provider", "openai-codex", "doctor"]);
         let resolved = ResolvedRuntimeOptions {
-            provider: ProviderKind::OpenaiCodex,
+            provider: ProviderKind::XiaomiMimo,
             provider_source: ProviderSource::Cli,
             model: "gpt-5.5".to_string(),
             api_key: None,
@@ -3829,8 +3829,8 @@ mod tests {
         let _lock = env_lock();
         let (_dir, _bin) = install_fake_tui_binary();
 
-        let cli = parse_ok(&["codewhale", "--provider", "anthropic", "doctor"]);
-        let resolved = resolved_runtime_for_test(ProviderKind::Anthropic, ProviderSource::Cli);
+        let cli = parse_ok(&["mimofan", "--provider", "anthropic", "doctor"]);
+        let resolved = resolved_runtime_for_test(ProviderKind::XiaomiMimo, ProviderSource::Cli);
 
         let cmd = build_tui_command(&cli, &resolved, vec!["doctor".to_string()])
             .expect("anthropic should be accepted by the facade");
@@ -3845,9 +3845,9 @@ mod tests {
         let _lock = env_lock();
         let (_dir, _bin) = install_fake_tui_binary();
 
-        let cli = parse_ok(&["codewhale", "doctor"]);
+        let cli = parse_ok(&["mimofan", "doctor"]);
         let resolved = resolved_runtime_for_test(
-            ProviderKind::Anthropic,
+            ProviderKind::XiaomiMimo,
             ProviderSource::Env("DEEPSEEK_PROVIDER"),
         );
 
@@ -3860,9 +3860,9 @@ mod tests {
         let _lock = env_lock();
         let (_dir, _bin) = install_fake_tui_binary();
 
-        let cli = parse_ok(&["codewhale", "doctor"]);
+        let cli = parse_ok(&["mimofan", "doctor"]);
         let mut resolved =
-            resolved_runtime_for_test(ProviderKind::Anthropic, ProviderSource::Config);
+            resolved_runtime_for_test(ProviderKind::XiaomiMimo, ProviderSource::Config);
         resolved.api_key = Some("anthropic-keyring-secret".to_string());
         resolved.api_key_source = Some(RuntimeApiKeySource::Keyring);
 
@@ -3899,7 +3899,7 @@ mod tests {
         let mut resolved_headers = std::collections::BTreeMap::new();
         resolved_headers.insert("X-From-Base".to_string(), "base".to_string());
         let resolved = ResolvedRuntimeOptions {
-            provider: ProviderKind::Deepseek,
+            provider: ProviderKind::XiaomiMimo,
             provider_source: ProviderSource::Config,
             model: "deepseek-v4-pro".to_string(),
             api_key: Some("config-file-key".to_string()),
@@ -3941,8 +3941,8 @@ mod tests {
         let _lock = env_lock();
         let (_dir, _bin) = install_fake_tui_binary();
 
-        let cli = parse_ok(&["codewhale"]);
-        let resolved = resolved_runtime_for_test(ProviderKind::Deepseek, ProviderSource::Config);
+        let cli = parse_ok(&["mimofan"]);
+        let resolved = resolved_runtime_for_test(ProviderKind::XiaomiMimo, ProviderSource::Config);
 
         let cmd = build_tui_command(
             &cli,
@@ -3966,9 +3966,9 @@ mod tests {
         let _lock = env_lock();
         let (_dir, _bin) = install_fake_tui_binary();
 
-        let cli = parse_ok(&["codewhale"]);
+        let cli = parse_ok(&["mimofan"]);
         let mut resolved =
-            resolved_runtime_for_test(ProviderKind::Deepseek, ProviderSource::Config);
+            resolved_runtime_for_test(ProviderKind::XiaomiMimo, ProviderSource::Config);
         resolved.verbosity = Some("normal".to_string());
 
         let cmd = build_tui_command(&cli, &resolved, vec!["exec".to_string()]).expect("command");
@@ -3995,16 +3995,16 @@ mod tests {
         let _bin = ScopedEnvVar::set("DEEPSEEK_TUI_BIN", &custom_str);
 
         let cli = parse_ok(&[
-            "codewhale",
+            "mimofan",
             "--provider",
             "moonshot",
             "--model",
             "kimi-k2.7-code",
             "--workspace",
-            "/tmp/codewhale-workspace",
+            "/tmp/mimofan-workspace",
         ]);
         let resolved = ResolvedRuntimeOptions {
-            provider: ProviderKind::Moonshot,
+            provider: ProviderKind::XiaomiMimo,
             provider_source: ProviderSource::Cli,
             model: "kimi-k2.7-code".to_string(),
             api_key: Some("resolved-kimi-key".to_string()),
@@ -4062,16 +4062,16 @@ mod tests {
         let _bin = ScopedEnvVar::set("DEEPSEEK_TUI_BIN", &custom_str);
 
         let cli = parse_ok(&[
-            "codewhale",
+            "mimofan",
             "--provider",
             "volcengine",
             "--model",
             "DeepSeek-V4-Pro",
             "--workspace",
-            "/tmp/codewhale-workspace",
+            "/tmp/mimofan-workspace",
         ]);
         let resolved = ResolvedRuntimeOptions {
-            provider: ProviderKind::Volcengine,
+            provider: ProviderKind::XiaomiMimo,
             provider_source: ProviderSource::Cli,
             model: "DeepSeek-V4-Pro".to_string(),
             api_key: Some("resolved-ark-key".to_string()),
@@ -4139,7 +4139,7 @@ mod tests {
             "https://openai-compatible.example/v4",
         ]);
         let resolved = ResolvedRuntimeOptions {
-            provider: ProviderKind::Openai,
+            provider: ProviderKind::XiaomiMimo,
             provider_source: ProviderSource::Cli,
             model: "glm-5".to_string(),
             api_key: None,
@@ -4185,7 +4185,7 @@ mod tests {
         let _bin = ScopedEnvVar::set("DEEPSEEK_TUI_BIN", &custom_str);
 
         for provider in ProviderKind::ALL {
-            let cli = parse_ok(&["codewhale", "--workspace", "/tmp/codewhale-workspace"]);
+            let cli = parse_ok(&["mimofan", "--workspace", "/tmp/mimofan-workspace"]);
             let resolved = ResolvedRuntimeOptions {
                 provider,
                 provider_source: ProviderSource::Config,
@@ -4254,7 +4254,7 @@ mod tests {
 
     #[test]
     fn parses_top_level_continue_for_interactive_resume() {
-        let cli = parse_ok(&["codewhale", "--continue"]);
+        let cli = parse_ok(&["mimofan", "--continue"]);
 
         assert!(cli.continue_session);
         assert!(cli.prompt_flag.is_none());
@@ -4264,12 +4264,12 @@ mod tests {
 
     #[test]
     fn top_level_continue_rejects_startup_prompt() {
-        let cli = parse_ok(&["codewhale", "--continue", "-p", "follow up"]);
+        let cli = parse_ok(&["mimofan", "--continue", "-p", "follow up"]);
 
         let err = root_tui_passthrough(&cli).expect_err("prompted continue should be rejected");
         assert!(
             err.to_string()
-                .contains("codewhale exec --continue <PROMPT>")
+                .contains("mimofan exec --continue <PROMPT>")
         );
     }
 
@@ -4391,11 +4391,11 @@ mod tests {
                 vec![
                     "<SHELL>",
                     "bash",
-                    "source <(codewhale completion bash)",
-                    "~/.local/share/bash-completion/completions/codewhale",
+                    "source <(mimofan completion bash)",
+                    "~/.local/share/bash-completion/completions/mimofan",
                     "fpath=(~/.zfunc $fpath)",
-                    "codewhale completion fish > ~/.config/fish/completions/codewhale.fish",
-                    "codewhale completion powershell | Out-String | Invoke-Expression",
+                    "mimofan completion fish > ~/.config/fish/completions/mimofan.fish",
+                    "mimofan completion powershell | Out-String | Invoke-Expression",
                 ],
             ),
             ("metrics", vec!["--json", "--since"]),
@@ -4414,8 +4414,8 @@ mod tests {
     }
 
     /// Regression for issue #247: on Windows the dispatcher must find the
-    /// sibling `codewhale-tui.exe`, not bail out looking for an
-    /// extension-less `codewhale-tui`. The candidate resolver also accepts
+    /// sibling `mimofan.exe`, not bail out looking for an
+    /// extension-less `mimofan`. The candidate resolver also accepts
     /// the suffix-less name on Windows so users who manually renamed the
     /// file as a workaround keep working after the upgrade.
     #[test]
@@ -4423,7 +4423,7 @@ mod tests {
         let dir = tempfile::TempDir::new().expect("tempdir");
         let dispatcher = dir
             .path()
-            .join("codewhale")
+            .join("mimofan")
             .with_extension(std::env::consts::EXE_EXTENSION);
         // Touch the dispatcher so its parent dir is the lookup root.
         std::fs::write(&dispatcher, b"").unwrap();
@@ -4432,7 +4432,7 @@ mod tests {
         assert!(sibling_tui_candidate(&dispatcher).is_none());
 
         let target =
-            dispatcher.with_file_name(format!("codewhale-tui{}", std::env::consts::EXE_SUFFIX));
+            dispatcher.with_file_name(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX));
         std::fs::write(&target, b"").unwrap();
 
         let found = sibling_tui_candidate(&dispatcher).expect("must locate sibling");
@@ -4442,11 +4442,11 @@ mod tests {
     #[test]
     fn dispatcher_spawn_error_names_path_and_recovery_checks() {
         let err = io::Error::new(io::ErrorKind::PermissionDenied, "access is denied");
-        let message = tui_spawn_error(Path::new("C:/tools/codewhale-tui.exe"), &err);
+        let message = tui_spawn_error(Path::new("C:/tools/mimofan-tui.exe"), &err);
 
-        assert!(message.contains("C:/tools/codewhale-tui.exe"));
+        assert!(message.contains("C:/tools/mimofan-tui.exe"));
         assert!(message.contains("access is denied"));
-        assert!(message.contains("where codewhale"));
+        assert!(message.contains("where mimofan"));
         assert!(message.contains("DEEPSEEK_TUI_BIN"));
     }
 
@@ -4458,15 +4458,15 @@ mod tests {
     #[test]
     fn sibling_tui_candidate_windows_falls_back_to_suffixless() {
         let dir = tempfile::TempDir::new().expect("tempdir");
-        let dispatcher = dir.path().join("codewhale.exe");
+        let dispatcher = dir.path().join("mimofan.exe");
         std::fs::write(&dispatcher, b"").unwrap();
 
         // Only the suffixless name exists — emulates the manual rename.
-        let suffixless = dispatcher.with_file_name("codewhale-tui");
+        let suffixless = dispatcher.with_file_name("mimofan-tui");
         std::fs::write(&suffixless, b"").unwrap();
 
         let found = sibling_tui_candidate(&dispatcher)
-            .expect("Windows fallback must locate suffixless codewhale-tui");
+            .expect("Windows fallback must locate suffixless mimofan-tui");
         assert_eq!(found, suffixless);
     }
 
