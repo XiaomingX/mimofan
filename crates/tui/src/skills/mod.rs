@@ -50,14 +50,14 @@ pub enum SkillDiscoveryMode {
     Compatible,
     /// Scan only mimofan-owned roots. Callers that also pass an explicit
     /// `skills_dir` still get that directory because it is user configuration.
-    CodeWhaleOnly,
+    mimofanOnly,
 }
 
 impl SkillDiscoveryMode {
     #[must_use]
     pub fn from_mimofan_only(value: bool) -> Self {
         if value {
-            Self::CodeWhaleOnly
+            Self::mimofanOnly
         } else {
             Self::Compatible
         }
@@ -502,7 +502,7 @@ fn skills_directories_with_home_and_mode(
             workspace.join(".cursor").join("skills"),
             workspace.join(".mimofan").join("skills"),
         ],
-        SkillDiscoveryMode::CodeWhaleOnly => mimofan_workspace_skills_dir(workspace)
+        SkillDiscoveryMode::mimofanOnly => mimofan_workspace_skills_dir(workspace)
             .into_iter()
             .collect(),
     };
@@ -514,7 +514,7 @@ fn skills_directories_with_home_and_mode(
                 candidates.push(home.join(".mimofan").join("skills"));
                 candidates.push(home.join(".deepseek").join("skills"));
             }
-            SkillDiscoveryMode::CodeWhaleOnly => {
+            SkillDiscoveryMode::mimofanOnly => {
                 candidates.push(home.join(".mimofan").join("skills"));
             }
         }
@@ -1290,7 +1290,7 @@ mod tests {
             &workspace,
             &configured_dir,
             Some(&home),
-            super::SkillDiscoveryMode::CodeWhaleOnly,
+            super::SkillDiscoveryMode::mimofanOnly,
         );
         let names: Vec<&str> = registry.list().iter().map(|s| s.name.as_str()).collect();
 
@@ -1298,7 +1298,7 @@ mod tests {
         assert!(names.contains(&"configured-mimofan"));
         assert!(
             !names.contains(&"from-claude") && !names.contains(&"from-agents"),
-            "CodeWhale-only mode must not import cross-tool skills: {names:?}"
+            "mimofan-only mode must not import cross-tool skills: {names:?}"
         );
     }
 
@@ -1320,7 +1320,7 @@ mod tests {
             &workspace,
             &configured_dir,
             Some(&home),
-            super::SkillDiscoveryMode::CodeWhaleOnly,
+            super::SkillDiscoveryMode::mimofanOnly,
         );
         let names: Vec<&str> = registry.list().iter().map(|s| s.name.as_str()).collect();
 
@@ -1346,12 +1346,12 @@ mod tests {
             &workspace,
             &tmpdir.path().join("missing-configured-skills"),
             Some(&home),
-            super::SkillDiscoveryMode::CodeWhaleOnly,
+            super::SkillDiscoveryMode::mimofanOnly,
         );
 
         assert!(
             registry.get("escaped-skill").is_none(),
-            "CodeWhale-only mode must not follow workspace .mimofan/skills outside the workspace"
+            "mimofan-only mode must not follow workspace .mimofan/skills outside the workspace"
         );
     }
 

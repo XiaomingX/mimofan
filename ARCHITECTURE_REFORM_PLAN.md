@@ -208,9 +208,9 @@ match provider {
 
 ### Phase 4: 错误处理规范化（提升稳定性）
 
-- [ ] 替换关键路径的 `unwrap()` 为 `?` 或 `.expect("reason")`
-- [ ] 统一错误类型：library crate 用 `thiserror`，binary crate 用 `anyhow`
-- [ ] 添加错误上下文链（`.context("xxx")`）
+- [ ] 替换关键路径的 `unwrap()` 为 `?` 或 `.expect("reason")` — 当前仍有 356 次调用
+- [x] 统一错误类型：library crate 用 `thiserror`，binary crate 用 `anyhow` — 已实现：`tools`、`config` 等 crate 使用 `thiserror`，`tui` 使用 `anyhow`
+- [x] 添加错误上下文链（`.context("xxx")`）— 已实现：`config/src/lib.rs` 等多处使用 `.context()`
 
 ### Phase 5: 性能优化（降低资源消耗）
 

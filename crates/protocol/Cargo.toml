@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "App-server protocol frames for CodeWhale runtime integrations"
+description = "App-server protocol frames for mimofan runtime integrations"
 
 [dependencies]
 chrono.workspace = true

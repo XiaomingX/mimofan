@@ -681,7 +681,7 @@ fn profile_authoring_prompt(
 ) -> String {
     let file_stem = profile_file_stem(role);
     format!(
-        "Create a safe CodeWhale Fleet agent profile file for this workspace.\n\n\
+        "Create a safe mimofan Fleet agent profile file for this workspace.\n\n\
          Selected planner role: {role}. Selected model class: {model_class}.\n\
          Target path: {PROFILE_DIR}/{file_stem}.toml\n\
          Current route context only: provider = {provider}, model = {model}, reasoning = {reasoning}\n\n\

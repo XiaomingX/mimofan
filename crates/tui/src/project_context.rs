@@ -33,7 +33,7 @@ use thiserror::Error;
 /// mimofan never creates or recommends them.
 const PROJECT_CONTEXT_FILES: &[&str] = &[
     "AGENTS.md",
-    "WHALE.md", // deprecated: legacy CodeWhale-native, read-only fallback (#WHALE.md deprecation)
+    "WHALE.md", // deprecated: legacy mimofan-native, read-only fallback (#WHALE.md deprecation)
     ".claude/instructions.md",
     "CLAUDE.md",
     ".mimofan/instructions.md",
@@ -285,7 +285,7 @@ impl RepoConstitution {
             }
         }
         format!(
-            "<mimofan_repo_constitution source=\"{}\">\nCodeWhale-specific repo authority policy (local law: subordinate to the global Constitution and the current user request, but above memory and old handoffs; takes precedence over a legacy WHALE.md).\n\n{}</mimofan_repo_constitution>",
+            "<mimofan_repo_constitution source=\"{}\">\nmimofan-specific repo authority policy (local law: subordinate to the global Constitution and the current user request, but above memory and old handoffs; takes precedence over a legacy WHALE.md).\n\n{}</mimofan_repo_constitution>",
             source.display(),
             body.trim_end()
         )

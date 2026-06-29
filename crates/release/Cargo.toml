@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Shared CodeWhale release discovery and version comparison helpers"
+description = "Shared mimofan release discovery and version comparison helpers"
 
 [dependencies]
 anyhow.workspace = true

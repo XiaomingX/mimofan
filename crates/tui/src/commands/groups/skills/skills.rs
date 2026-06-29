@@ -993,7 +993,7 @@ mod tests {
         std::fs::create_dir_all(&mimofan_skill_dir).unwrap();
         std::fs::write(
             mimofan_skill_dir.join("SKILL.md"),
-            "---\nname: mimofan-skill\ndescription: CodeWhale skill\n---\nbody",
+            "---\nname: mimofan-skill\ndescription: mimofan skill\n---\nbody",
         )
         .unwrap();
 

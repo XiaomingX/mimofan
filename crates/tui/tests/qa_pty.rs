@@ -47,7 +47,7 @@ fn boot_minimal_without_retry() -> anyhow::Result<(qa_harness::harness::SealedWo
 fn spawn_minimal(
     ws: qa_harness::harness::SealedWorkspace,
 ) -> anyhow::Result<(qa_harness::harness::SealedWorkspace, Harness)> {
-    let h = Harness::builder(Harness::cargo_bin("codewhale-tui"))
+    let h = Harness::builder(Harness::cargo_bin("mimofan"))
         .cwd(ws.workspace())
         .clear_env()
         .seal_home(ws.home())
@@ -132,7 +132,7 @@ fn interactive_init_accepts_input_with_dispatcher_written_config() -> anyhow::Re
     let _guard = qa_pty_test_lock();
     let ws = make_sealed_workspace()?;
     std::fs::write(
-        ws.home().join(".codewhale").join("config.toml"),
+        ws.home().join(".mimofan").join("config.toml"),
         r#"
 provider = "zai"
 fallbackProviders = []
@@ -153,7 +153,7 @@ web_search = true
 "#,
     )?;
 
-    let mut h = Harness::builder(Harness::cargo_bin("codewhale-tui"))
+    let mut h = Harness::builder(Harness::cargo_bin("mimofan"))
         .cwd(ws.workspace())
         .clear_env()
         .seal_home(ws.home())
@@ -233,7 +233,7 @@ fn skills_menu_shows_local_and_global_skills() -> anyhow::Result<()> {
         "Workspace beta skill",
     )?;
 
-    let mut h = Harness::builder(Harness::cargo_bin("codewhale-tui"))
+    let mut h = Harness::builder(Harness::cargo_bin("mimofan"))
         .cwd(ws.workspace())
         .clear_env()
         .seal_home(ws.home())

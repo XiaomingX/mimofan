@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Execution policy and approval model for CodeWhale"
+description = "Execution policy and approval model for mimofan"
 
 [dependencies]
 anyhow.workspace = true

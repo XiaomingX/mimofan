@@ -243,8 +243,8 @@ pub fn verify_task_result(
             format!("external scorer command configured: {command}"),
             "run the configured scorer command to finalize this receipt",
         ),
-        Some(FleetScorerSpec::CodeWhaleVerifierPrompt { .. }) => partial(
-            "CodeWhale verifier prompt configured",
+        Some(FleetScorerSpec::mimofanVerifierPrompt { .. }) => partial(
+            "mimofan verifier prompt configured",
             "run a verifier prompt pass to finalize this receipt",
         ),
         Some(FleetScorerSpec::Manual) => partial(

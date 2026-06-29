@@ -272,7 +272,7 @@ pub enum FleetScorerSpec {
         #[serde(default)]
         args: Vec<String>,
     },
-    CodeWhaleVerifierPrompt {
+    mimofanVerifierPrompt {
         prompt: String,
     },
     Manual,

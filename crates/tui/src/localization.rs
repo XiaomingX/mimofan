@@ -1618,7 +1618,7 @@ fn english(id: MessageId) -> &'static str {
         }
 
         // App mode picker (prompt, names, hints) and composer vim indicator.
-        MessageId::ModePickerPrompt => "Choose how CodeWhale should operate:",
+        MessageId::ModePickerPrompt => "Choose how mimofan should operate:",
         MessageId::AppModeAgent => "Agent",
         MessageId::AppModeYolo => "YOLO",
         MessageId::AppModePlan => "Plan",
@@ -2264,7 +2264,7 @@ fn vietnamese(id: MessageId) -> Option<&'static str> {
         }
 
         // App mode picker (prompt, names, hints) and composer vim indicator.
-        MessageId::ModePickerPrompt => "Chọn cách CodeWhale hoạt động:",
+        MessageId::ModePickerPrompt => "Chọn cách mimofan hoạt động:",
         MessageId::AppModeAgent => "Tác nhân",
         MessageId::AppModeYolo => "YOLO",
         MessageId::AppModePlan => "Kế hoạch",
@@ -2441,7 +2441,7 @@ fn traditional_chinese(id: MessageId) -> Option<&'static str> {
         }
 
         // App mode picker (prompt, names, hints) and composer vim indicator.
-        MessageId::ModePickerPrompt => "選擇 CodeWhale 的運作方式：",
+        MessageId::ModePickerPrompt => "選擇 mimofan 的運作方式：",
         MessageId::AppModeAgent => "智能體",
         MessageId::AppModeYolo => "YOLO",
         MessageId::AppModePlan => "計畫",
@@ -3077,7 +3077,7 @@ fn japanese(id: MessageId) -> Option<&'static str> {
         }
 
         // App mode picker (prompt, names, hints) and composer vim indicator.
-        MessageId::ModePickerPrompt => "CodeWhale の動作方法を選択してください:",
+        MessageId::ModePickerPrompt => "mimofan の動作方法を選択してください:",
         MessageId::AppModeAgent => "エージェント",
         MessageId::AppModeYolo => "YOLO",
         MessageId::AppModePlan => "プラン",
@@ -3728,7 +3728,7 @@ fn portuguese_brazil(id: MessageId) -> Option<&'static str> {
         }
 
         // App mode picker (prompt, names, hints) and composer vim indicator.
-        MessageId::ModePickerPrompt => "Escolha como o CodeWhale deve operar:",
+        MessageId::ModePickerPrompt => "Escolha como o mimofan deve operar:",
         MessageId::AppModeAgent => "Agente",
         MessageId::AppModeYolo => "YOLO",
         MessageId::AppModePlan => "Plano",
@@ -4376,7 +4376,7 @@ fn spanish_latin_america(id: MessageId) -> Option<&'static str> {
         }
 
         // App mode picker (prompt, names, hints) and composer vim indicator.
-        MessageId::ModePickerPrompt => "Elige cómo debe funcionar CodeWhale:",
+        MessageId::ModePickerPrompt => "Elige cómo debe funcionar mimofan:",
         MessageId::AppModeAgent => "Agente",
         MessageId::AppModeYolo => "YOLO",
         MessageId::AppModePlan => "Plan",

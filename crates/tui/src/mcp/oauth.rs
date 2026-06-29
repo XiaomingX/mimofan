@@ -774,7 +774,7 @@ async fn start_authorization(
     let Some(client_id) = oauth_client_id.filter(|client_id| !client_id.trim().is_empty()) else {
         let mut oauth_state = OAuthState::new(server_url, Some(client)).await?;
         oauth_state
-            .start_authorization(scopes, redirect_uri, Some("CodeWhale"))
+            .start_authorization(scopes, redirect_uri, Some("mimofan"))
             .await?;
         return Ok(oauth_state);
     };

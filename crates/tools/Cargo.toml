@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Tool invocation lifecycle, schema validation, and scheduler parallelism for CodeWhale"
+description = "Tool invocation lifecycle, schema validation, and scheduler parallelism for mimofan"
 
 [dependencies]
 anyhow.workspace = true

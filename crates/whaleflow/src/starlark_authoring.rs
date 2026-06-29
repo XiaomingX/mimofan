@@ -686,7 +686,7 @@ workflow(
             condition = "checks pass",
             max_iterations = 1,
             children = [
-                test(id = "run-tests", command = "cargo test -p codewhale-whaleflow --locked"),
+                test(id = "run-tests", command = "cargo test -p mimofan-whaleflow --locked"),
             ],
         ),
     ],

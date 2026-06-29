@@ -217,7 +217,7 @@ fn legacy_binary_message(current_exe: &Path) -> String {
 this binary ({exe}) is using the legacy deepseek/deepseek-tui command name.
 
 The package has been renamed to `mimofan`. This update will install canonical
-CodeWhale binaries (`mimofan` and, when present, `mimofan-tui`) beside the
+mimofan binaries (`mimofan` and, when present, `mimofan-tui`) beside the
 legacy command when the install directory is writable. DeepSeek provider support
 is unchanged.
 
@@ -900,7 +900,7 @@ fn glibc_compatibility_message(
     };
     format!(
         "\
-Prebuilt CodeWhale asset `{asset_name}` requires GLIBC_{required}, but {host_line}
+Prebuilt mimofan asset `{asset_name}` requires GLIBC_{required}, but {host_line}
 
 Official Linux release binaries are GNU libc builds. Ubuntu 22.04 ships glibc
 2.35, so it cannot run a binary that was built against Ubuntu 24.04/glibc 2.39.
@@ -1044,7 +1044,7 @@ mod tests {
             "mimofan-tui"
         );
         assert_eq!(
-            binary_prefix_for_exe(Path::new("CodeWhale-TUI.exe")),
+            binary_prefix_for_exe(Path::new("mimofan-TUI.exe")),
             "mimofan-tui"
         );
         assert_eq!(
@@ -1316,7 +1316,7 @@ mod tests {
             Some(GlibcVersion::new(2, 35, 0)),
         );
 
-        assert!(message.contains("Prebuilt CodeWhale asset `mimofan-linux-x64`"));
+        assert!(message.contains("Prebuilt mimofan asset `mimofan-linux-x64`"));
         assert!(message.contains("requires GLIBC_2.39"));
         assert!(message.contains("this system has glibc 2.35"));
         assert!(message.contains("cargo install mimofan-cli --locked"));

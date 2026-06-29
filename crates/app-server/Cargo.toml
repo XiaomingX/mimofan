@@ -4,8 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "App-server transport for CodeWhale runtime integrations"
-# `codewhale app-server` is owned by mimofan-cli; this crate is library-only.
+description = "App-server transport for mimofan runtime integrations"
+# `mimofan app-server` is owned by mimofan-cli; this crate is library-only.
 autobins = false
 
 [dependencies]

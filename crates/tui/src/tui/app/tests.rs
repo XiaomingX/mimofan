@@ -1015,7 +1015,7 @@ fn cached_skills_respect_mimofan_only_scan_config() {
     std::fs::create_dir_all(&mimofan_dir).expect("mimofan skill dir");
     std::fs::write(
         mimofan_dir.join("SKILL.md"),
-        "---\nname: mimofan-skill\ndescription: CodeWhale skill\n---\nbody\n",
+        "---\nname: mimofan-skill\ndescription: mimofan skill\n---\nbody\n",
     )
     .expect("write mimofan skill");
 
@@ -1038,7 +1038,7 @@ fn cached_skills_respect_mimofan_only_scan_config() {
         app.cached_skills
             .iter()
             .any(|(name, _)| name == "mimofan-skill"),
-        "CodeWhale skill should be cached: {:?}",
+        "mimofan skill should be cached: {:?}",
         app.cached_skills
     );
     assert!(
@@ -1120,7 +1120,7 @@ fn cached_skills_preserve_configured_directory_in_mimofan_only_scan() {
     std::fs::create_dir_all(&mimofan_skill_dir).expect("workspace mimofan skill dir");
     std::fs::write(
         mimofan_skill_dir.join("SKILL.md"),
-        "---\nname: workspace-mimofan\ndescription: Workspace CodeWhale skill\n---\nbody\n",
+        "---\nname: workspace-mimofan\ndescription: Workspace mimofan skill\n---\nbody\n",
     )
     .expect("write workspace mimofan skill");
 
@@ -1151,7 +1151,7 @@ fn cached_skills_preserve_configured_directory_in_mimofan_only_scan() {
         app.cached_skills
             .iter()
             .any(|(name, _)| name == "workspace-mimofan"),
-        "workspace CodeWhale skill should still be cached: {:?}",
+        "workspace mimofan skill should still be cached: {:?}",
         app.cached_skills
     );
     assert!(
@@ -1200,7 +1200,7 @@ fn cached_skills_reject_mimofan_only_workspace_symlink_escape() {
         !app.cached_skills
             .iter()
             .any(|(name, _)| name == "escaped-skill"),
-        "strict app cache must not follow escaped workspace CodeWhale symlinks: {:?}",
+        "strict app cache must not follow escaped workspace mimofan symlinks: {:?}",
         app.cached_skills
     );
 }

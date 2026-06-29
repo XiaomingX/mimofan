@@ -98,7 +98,7 @@ impl HarnessBuilder {
         }
         if let Some(home) = self.seal_home.as_deref() {
             std::fs::create_dir_all(home).context("create sealed HOME")?;
-            let mimofan_config = home.join(".codewhale").join("config.toml");
+            let mimofan_config = home.join(".mimofan").join("config.toml");
             let deepseek_config = home.join(".deepseek").join("config.toml");
             builder = builder
                 .env("HOME", home.to_string_lossy())
@@ -225,8 +225,8 @@ impl Harness {
         if let Some(path) = std::env::var_os(&key) {
             return PathBuf::from(path);
         }
-        if name == "codewhale-tui"
-            && let Some(path) = option_env!("CARGO_BIN_EXE_codewhale-tui")
+        if name == "mimofan"
+            && let Some(path) = option_env!("CARGO_BIN_EXE_mimofan")
         {
             return PathBuf::from(path);
         }
@@ -256,7 +256,7 @@ pub fn make_sealed_workspace() -> Result<SealedWorkspace> {
     let workspace = tmp.path().join("workspace");
     let home = tmp.path().join("home");
     std::fs::create_dir_all(&workspace).context("mkdir workspace")?;
-    std::fs::create_dir_all(home.join(".codewhale")).context("mkdir home/.codewhale")?;
+    std::fs::create_dir_all(home.join(".mimofan")).context("mkdir home/.mimofan")?;
     std::fs::create_dir_all(home.join(".deepseek")).context("mkdir home/.deepseek")?;
     Ok(SealedWorkspace {
         _tmp: tmp,

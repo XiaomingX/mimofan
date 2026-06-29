@@ -1144,7 +1144,7 @@ mod tests {
 
     fn temp_core_state(name: &str) -> StateStore {
         let dir =
-            std::env::temp_dir().join(format!("codewhale-core-{name}-{}", Uuid::new_v4().simple()));
+            std::env::temp_dir().join(format!("mimofan-core-{name}-{}", Uuid::new_v4().simple()));
         std::fs::create_dir_all(&dir).expect("create temp state dir");
         StateStore::open(Some(dir.join("state.db"))).expect("open state store")
     }

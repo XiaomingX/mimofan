@@ -71,7 +71,7 @@ fn provider_command_auth_source_deserializes() {
         r#"
         [providers.xiaomi_mimo.auth]
         source = "command"
-        command = ["keepassxc-cli", "show", "CodeWhale/MiMo", "--attribute", "password"]
+        command = ["keepassxc-cli", "show", "mimofan/MiMo", "--attribute", "password"]
         timeout_ms = 2000
         "#,
     )

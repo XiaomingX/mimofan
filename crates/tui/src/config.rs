@@ -4318,7 +4318,7 @@ fn warn_on_misplaced_top_level_keys(raw: &str) -> Option<String> {
         return None;
     }
     Some(format!(
-        "Ignoring {} — CodeWhale has no `[general]` or `[sandbox]` section, so these \
+        "Ignoring {} — mimofan has no `[general]` or `[sandbox]` section, so these \
          keys are silently dropped. Move them to the TOP of the config file (above any \
          `[section]` header), e.g. `allow_shell = true`. Until then, shell tools stay \
          disabled. (#2589)",

@@ -41,7 +41,7 @@ impl std::fmt::Debug for CoreCommandWorld {
     }
 }
 
-#[given("a CodeWhale core command workspace")]
+#[given("a mimofan core command workspace")]
 fn core_command_workspace(world: &mut CoreCommandWorld) {
     let tmpdir = TempDir::new().expect("core command TempDir");
     let mut app = create_test_app_with_tmpdir(&tmpdir);
@@ -56,7 +56,7 @@ fn core_command_workspace(world: &mut CoreCommandWorld) {
     world.tmpdir = Some(tmpdir);
 }
 
-#[given("a CodeWhale core command workspace with one visible user message")]
+#[given("a mimofan core command workspace with one visible user message")]
 fn core_command_workspace_with_one_visible_user_message(world: &mut CoreCommandWorld) {
     core_command_workspace(world);
     let app = world.app.as_deref_mut().expect("app should exist");

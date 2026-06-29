@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 /// variants are read-only compatibility fallbacks.
 pub const DOC_FILENAMES: &[&str] = &[
     "AGENTS.md",
-    "WHALE.md", // deprecated: legacy CodeWhale-native, read-only fallback
+    "WHALE.md", // deprecated: legacy mimofan-native, read-only fallback
     ".claude/instructions.md",
     "CLAUDE.md",
     ".mimo/instructions.md",

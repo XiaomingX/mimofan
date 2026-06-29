@@ -338,7 +338,7 @@ pub fn stop_title_animation() {
     // terminal-level visual indicator (flash/icon).
     let mode = COMPLETION_SOUND_MODE.load(Ordering::SeqCst);
     if mode == 1 {
-        set_terminal_title("✅ CodeWhale");
+        set_terminal_title("✅ mimofan");
     }
     play_completion_sound();
 }
@@ -350,7 +350,7 @@ pub fn stop_title_animation() {
 pub fn stop_title_animation_quietly() {
     TITLE_ANIMATION_RUNNING.store(false, Ordering::SeqCst);
     COMPLETION_MARKER_SHOWN.store(false, Ordering::SeqCst);
-    set_terminal_title("CodeWhale");
+    set_terminal_title("mimofan");
 }
 
 /// Clear the ✅ completion marker from the title when the user interacts.
@@ -359,7 +359,7 @@ pub fn stop_title_animation_quietly() {
 /// marker doesn't persist once the user is back at the terminal.
 pub fn reset_title_on_interaction() {
     if COMPLETION_MARKER_SHOWN.swap(false, Ordering::SeqCst) {
-        set_terminal_title("CodeWhale");
+        set_terminal_title("mimofan");
     }
 }
 
@@ -526,7 +526,7 @@ fn macos_display_notification(msg: &str) {
                 "-e".to_string(),
                 "set theSubtitle to item 2 of argv".to_string(),
                 "-e".to_string(),
-                "display notification theBody with title \"CodeWhale\" subtitle theSubtitle sound name \"default\"".to_string(),
+                "display notification theBody with title \"mimofan\" subtitle theSubtitle sound name \"default\"".to_string(),
                 "-e".to_string(),
                 "end run".to_string(),
                 "--".to_string(),
@@ -563,7 +563,7 @@ fn macos_notification_parts(msg: &str) -> (String, String) {
         .collect();
 
     if lines.is_empty() {
-        return ("CodeWhale".to_string(), String::new());
+        return ("mimofan".to_string(), String::new());
     }
 
     let subtitle = truncate_notification_text(lines[0], SUBTITLE_MAX_CHARS);

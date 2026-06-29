@@ -16,9 +16,9 @@
 | 大型数据复制 | LLM 响应、工具输出 | 大字符串跨 async 边界复制 | 改用 `Bytes` 或 `Cow<'static, str>` |
 
 **改进计划**：
-- [ ] 审计热路径的 `clone()` 调用，改用 `&str` 或 `Arc`
-- [ ] 为大型数据（LLM 响应、工具输出）使用 `Bytes` 或 `Cow`
-- [ ] 优化 UI 渲染的 `to_string()` 调用
+- [ ] 审计热路径的 `clone()` 调用，改用 `&str` 或 `Arc` — 当前仍有 790 次调用
+- [ ] 为大型数据（LLM 响应、工具输出）使用 `Bytes` 或 `Cow` — 部分实现：`clipboard.rs` 使用 `Cow`，`shell.rs` 使用 `Bytes`
+- [ ] 优化 UI 渲染的 `to_string()` 调用 — 当前仍有 200 次调用
 
 ### 1.2 锁竞争
 
@@ -59,8 +59,8 @@
 
 **改进计划**：
 - [ ] 替换关键路径的 `unwrap()` 为 `?` 或 `.expect("reason")`
-- [ ] 统一错误类型：library crate 用 `thiserror`，binary crate 用 `anyhow`
-- [ ] 添加错误上下文链（`.context("xxx")`）
+- [x] 统一错误类型：library crate 用 `thiserror`，binary crate 用 `anyhow` — 已实现：`tools`、`config` 等 crate 使用 `thiserror`，`tui` 使用 `anyhow`
+- [x] 添加错误上下文链（`.context("xxx")`）— 已实现：`config/src/lib.rs` 等多处使用 `.context()`
 
 ### 2.2 并发安全
 
@@ -72,8 +72,8 @@
 
 **改进计划**：
 - [ ] 记录锁获取顺序，添加注释
-- [ ] 统一使用 `CancellationToken` 管理任务生命周期
-- [ ] 使用 `spawn_supervised` 模式管理 spawned 任务
+- [x] 统一使用 `CancellationToken` 管理任务生命周期 — 已实现：`runtime_threads.rs` 和 `runtime_api.rs` 中使用
+- [x] 使用 `spawn_supervised` 模式管理 spawned 任务 — 已实现：`utils.rs` 中有 `spawn_supervised` 函数
 
 ### 2.3 资源泄漏
 
@@ -84,8 +84,8 @@
 | SQLite 连接未关闭 | 数据库锁 | 使用连接池或 RAII |
 
 **改进计划**：
-- [ ] 验证所有文件操作使用 RAII（`File` 自动 drop）
-- [ ] 验证 `reqwest::Client` 通过 `Arc` 共享
+- [x] 验证所有文件操作使用 RAII（`File` 自动 drop）— 已实现：所有文件操作使用 `File` 类型，自动 drop
+- [ ] 验证 `reqwest::Client` 通过 `Arc` 共享 — 未实现：当前直接存储在结构体中
 - [x] 验证 SQLite 连接使用 RAII — 已实现：`Connection` 类型自动管理生命周期
 
 ---
@@ -133,15 +133,15 @@
 | `run_verifiers_background_*` | 全量并行偶发失败 | CI 不稳定 |
 
 **改进计划**：
-- [ ] 为 `config_command_allow_shell_*` 添加 hermetic 测试环境
-- [ ] 为 `run_verifiers_background_*` 修复并行竞争问题
+- [ ] 为 `config_command_allow_shell_*` 添加 hermetic 测试环境 — 部分实现：使用 `create_test_app()`，但仍依赖环境变量
+- [ ] 为 `run_verifiers_background_*` 修复并行竞争问题 — 部分实现：使用 `tempdir()` 隔离，但仍可能有竞争
 
 ### 4.2 测试覆盖率
 
 当前：5,654 sync tests + 531 async tests
 
 **改进计划**：
-- [ ] 增加集成测试覆盖率
+- [ ] 增加集成测试覆盖率 — 当前只有 1 个集成测试文件
 - [ ] 为关键路径添加 snapshot 测试
 
 ---
@@ -157,7 +157,7 @@
 | 链路追踪 | 无分布式追踪 |
 
 **改进计划**：
-- [ ] 添加关键路径的结构化日志
+- [x] 添加关键路径的结构化日志 — 已实现：使用 `tracing` 进行日志记录
 - [ ] 考虑添加 Prometheus 指标暴露
 - [ ] 考虑添加 OpenTelemetry 集成
 
@@ -179,13 +179,13 @@
 
 ### P2（中期改进）
 
-- [ ] 从 `config.rs` 抽取独立模块
+- [ ] 从 `config.rs` 抽取独立模块 — 部分实现：已有 `config/models.rs`、`config_ui.rs` 等模块
 - [ ] 从 `ui.rs` 抽取独立模块
-- [ ] 添加关键路径的结构化日志
+- [x] 添加关键路径的结构化日志 — 已实现：使用 `tracing` 进行日志记录
 
 ### P3（长期改进）
 
-- [ ] 考虑使用配置驱动的模型注册
+- [ ] 考虑使用配置驱动的模型注册 — 未实现：模型仍硬编码在 `models.rs` 中
 - [ ] 考虑添加 Prometheus 指标暴露
 - [ ] 考虑添加 OpenTelemetry 集成
 

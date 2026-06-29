@@ -3232,7 +3232,7 @@ async fn run_event_loop(
                     Err(err) => {
                         tracing::warn!(error = %err, "failed to restart terminal input pump");
                         app.push_status_toast(
-                            "Terminal input stalled; recovery failed. Restart CodeWhale if keys stop responding.",
+                            "Terminal input stalled; recovery failed. Restart mimofan if keys stop responding.",
                             StatusToastLevel::Error,
                             None,
                         );
@@ -6030,7 +6030,7 @@ fn paused_command_note(title: &str, resume: bool) -> String {
         "The user is not resuming that paused command. Answer only the new message and do not continue the paused command."
     };
     format!(
-        "\n\nCodeWhale paused custom slash command context:\n\
+        "\n\nmimofan paused custom slash command context:\n\
 Paused custom slash command: {title}\n\
 Paused command: {title}\n\
 {instruction}"

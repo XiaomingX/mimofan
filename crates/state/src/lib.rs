@@ -2038,10 +2038,10 @@ mod tests {
 
     static CODEWHALE_HOME_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    struct CodeWhaleHomeGuard {
+    struct mimofanHomeGuard {
         prior: Option<std::ffi::OsString>,
     }
-    impl CodeWhaleHomeGuard {
+    impl mimofanHomeGuard {
         fn set(value: &str) -> Self {
             let prior = std::env::var_os("CODEWHALE_HOME");
             // SAFETY: serialised by CODEWHALE_HOME_TEST_LOCK.
@@ -2055,7 +2055,7 @@ mod tests {
             Self { prior }
         }
     }
-    impl Drop for CodeWhaleHomeGuard {
+    impl Drop for mimofanHomeGuard {
         fn drop(&mut self) {
             // SAFETY: serialised by CODEWHALE_HOME_TEST_LOCK.
             unsafe {
@@ -2070,7 +2070,7 @@ mod tests {
     #[test]
     fn mimofan_home_override_returns_the_env_value_verbatim() {
         let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
-        let _g = CodeWhaleHomeGuard::set("/tmp/cw-isolated-state");
+        let _g = mimofanHomeGuard::set("/tmp/cw-isolated-state");
         // The env var IS the home dir — no ".mimofan" appended. This matches
         // mimofan_home() in config ($CODEWHALE_HOME=/x means home is /x).
         assert_eq!(
@@ -2082,14 +2082,14 @@ mod tests {
     #[test]
     fn mimofan_home_override_none_when_unset() {
         let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
-        let _g = CodeWhaleHomeGuard::remove();
+        let _g = mimofanHomeGuard::remove();
         assert!(mimofan_home_override().is_none());
     }
 
     #[test]
     fn mimofan_home_override_none_when_empty() {
         let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
-        let _g = CodeWhaleHomeGuard::set("   ");
+        let _g = mimofanHomeGuard::set("   ");
         // The helper filters empty values (after the OsString check). Note:
         // var_os returns the raw "   ", and our filter only catches truly-empty,
         // so this documents that whitespace-only is NOT treated as unset at the
@@ -2112,7 +2112,7 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let _g = CodeWhaleHomeGuard::set(dir.to_str().unwrap());
+        let _g = mimofanHomeGuard::set(dir.to_str().unwrap());
         // Hard override: the DB is <CODEWHALE_HOME>/state.db, NOT
         // <CODEWHALE_HOME>/.mimofan/state.db, and the legacy ~/.deepseek
         // fallback is bypassed entirely.

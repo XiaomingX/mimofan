@@ -43,14 +43,14 @@ pub fn change(app: &mut App, version: Option<&str>) -> CommandResult {
             let msg = if let Some(ver) = version {
                 let ver = ver.trim();
                 if ver.is_empty() {
-                    "Could not find a version section in the bundled CodeWhale changelog. \
+                    "Could not find a version section in the bundled mimofan changelog. \
                      Expected a line starting with `## [`."
                         .to_string()
                 } else {
-                    format!("Could not find version \"{ver}\" in the bundled CodeWhale changelog.")
+                    format!("Could not find version \"{ver}\" in the bundled mimofan changelog.")
                 }
             } else {
-                "Could not find a version section in the bundled CodeWhale changelog. \
+                "Could not find a version section in the bundled mimofan changelog. \
                  Expected a line starting with `## [`."
                     .to_string()
             };
@@ -124,7 +124,7 @@ fn inline_changelog_section(section: &str) -> String {
     format!(
         "{truncated}\n\
 \n\
-[... {} characters omitted from the bundled CodeWhale changelog]",
+[... {} characters omitted from the bundled mimofan changelog]",
         section.len() - MAX_INLINE_CHANGELOG_CHARS
     )
 }

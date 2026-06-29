@@ -46,7 +46,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
     if !lines.is_empty() {
         let mut panel = Block::default()
             .title(Line::from(Span::styled(
-                " CodeWhale ",
+                " mimofan ",
                 Style::default()
                     .fg(palette::WHALE_ACCENT_PRIMARY)
                     .add_modifier(Modifier::BOLD),

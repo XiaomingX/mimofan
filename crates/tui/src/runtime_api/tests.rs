@@ -3664,6 +3664,6 @@ fn resolve_skills_dir_rejects_mimofan_only_symlink_escaping_workspace() {
     assert_eq!(
         resolved,
         config.skills_dir(),
-        "with no valid in-workspace CodeWhale skills dir, resolution should fall back to config"
+        "with no valid in-workspace mimofan skills dir, resolution should fall back to config"
     );
 }
