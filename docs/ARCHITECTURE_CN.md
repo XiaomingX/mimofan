@@ -540,6 +540,96 @@ cargo build --release -p mimofan-cli -p mimofan
 
 ---
 
+---
+
+## 性能优化指南
+
+### 内存优化
+
+```rust
+// ❌ 不好：频繁 clone
+let data = large_string.clone();
+process(data);
+
+// ✅ 好：使用引用
+process(&large_string);
+
+// ✅ 好：使用 Arc 共享所有权
+let data = Arc::new(large_string);
+process(data.clone());  // Arc clone 只增加引用计数
+```
+
+### 异步优化
+
+```rust
+// ❌ 不好：顺序 await
+let a = fetch_a().await;
+let b = fetch_b().await;
+let c = fetch_c().await;
+
+// ✅ 好：并行 await
+let (a, b, c) = tokio::join!(
+    fetch_a(),
+    fetch_b(),
+    fetch_c()
+);
+```
+
+### 锁优化
+
+```rust
+// ❌ 不好：长时间持有锁
+let mut state = self.state.lock();
+state.update();
+state.validate();
+state.persist();  // 这里持有锁太久
+
+// ✅ 好：缩小锁范围
+let data = {
+    let state = self.state.lock();
+    state.get_data()
+};  // 锁在这里释放
+self.persist(data);
+```
+
+---
+
+## 稳定性最佳实践
+
+### 错误处理
+
+```rust
+// ❌ 不好：unwrap 导致 panic
+let config = load_config().unwrap();
+
+// ✅ 好：使用 ? 传播错误
+let config = load_config()
+    .context("加载配置文件失败")?;
+
+// ✅ 好：使用 expect 提供上下文
+let config = load_config()
+    .expect("配置文件必须存在且格式正确");
+```
+
+### 并发安全
+
+```rust
+// ❌ 不好：嵌套锁可能导致死锁
+let a = self.a.lock();
+let b = self.b.lock();  // 如果其他地方顺序相反，死锁
+
+// ✅ 好：全局锁顺序
+// 规则：总是先获取 a，再获取 b
+let a = self.a.lock();
+let b = self.b.lock();
+
+// ✅ 好：使用 RwLock（读多写少）
+let state = self.state.read();  // 多个读者可以并发
+let mut state = self.state.write();  // 写者独占
+```
+
+---
+
 ## 附录：关键类型速查
 
 | 类型 | 所在 crate | 用途 |
