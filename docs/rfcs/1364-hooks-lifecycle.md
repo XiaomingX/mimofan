@@ -6,7 +6,7 @@
 
 ## 1. Problem
 
-mimo-tui already has lifecycle hooks and MCP support, but the current hook
+mimofan already has lifecycle hooks and MCP support, but the current hook
 surface is mostly observer-only. This blocks portable extensions that need to
 participate in the agent data flow:
 

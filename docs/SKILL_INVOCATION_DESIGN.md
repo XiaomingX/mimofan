@@ -25,7 +25,7 @@ surfaces all compete with each other:
   `/config`, `/provider`, `/workflow`, `/overlay` each map to one subsystem;
   jamming skill invocation into `/`-space forces a weaker model to disambiguate
   "is this a command or a skill?" on every keystroke.
-- Weaker / smaller models (the cheaper providers mimo-tui targets) do not
+- Weaker / smaller models (the cheaper providers mimofan targets) do not
   reliably pick the right mechanism. They will free-text "let me use systematic
   debugging" instead of actually loading the skill body, so the guidance never
   enters the context window.

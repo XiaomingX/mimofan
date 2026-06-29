@@ -1,6 +1,6 @@
 # Sandbox threat model
 
-mimo-tui executes shell commands spawned by AI reasoning. The sandbox
+mimofan executes shell commands spawned by AI reasoning. The sandbox
 module restricts what those commands can do to the host system. This
 document describes what each platform's sandbox actually enforces,
 what is best-effort, and what is explicitly out of scope.
@@ -121,7 +121,7 @@ the child command.
 - Fedora: `dnf install bubblewrap`
 - Arch: `pacman -S bubblewrap`
 
-mimo-tui does NOT vendor bwrap.
+mimofan does NOT vendor bwrap.
 
 **Fallback:** If bwrap is not installed, the sandbox falls back to Landlock
 only.
@@ -190,7 +190,7 @@ neither Landlock nor seccomp can provide.
 
 ## Configuration
 
-Relevant config keys in `~/.mimo-tui/config.toml`:
+Relevant config keys in `~/.mimofan/config.toml`:
 
 ```toml
 # Sandbox policy mode

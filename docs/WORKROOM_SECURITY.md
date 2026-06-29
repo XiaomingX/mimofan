@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document covers the security boundaries of mimo-tui Workrooms — the
+This document covers the security boundaries of mimofan Workrooms — the
 durable, addressable containers for threaded agent conversations described
 in [RFC 3209](rfcs/3209-workrooms.md).
 
@@ -18,10 +18,10 @@ model-visible link resolution remain follow-up work.
 ## Principles
 
 1. **Local-first.** Future persisted workroom state should live under the
-   mimo-tui home directory, protected by user-only filesystem permissions.
+   mimofan home directory, protected by user-only filesystem permissions.
    No cloud sync, no telemetry, no third-party hosting.
 
-2. **No secrets in links.** `mimo-tui://workroom/wr_...` URLs contain only
+2. **No secrets in links.** `mimofan://workroom/wr_...` URLs contain only
    opaque UUIDs. They carry no API keys, bearer tokens, passwords, or file
    paths. An adversary with a workroom link can do nothing without Runtime
    API access.

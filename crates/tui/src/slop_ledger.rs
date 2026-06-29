@@ -957,9 +957,14 @@ fn redact_exported_text(text: &mut String) {
         }
         if !matched {
             // Advance by one char (preserving multi-byte UTF-8 safety).
-            let ch = text[i..].chars().next().unwrap();
-            result.push(ch);
-            i += ch.len_utf8();
+            if let Some(ch) = text[i..].chars().next() {
+                result.push(ch);
+                i += ch.len_utf8();
+            } else {
+                // Safety: i < bytes.len() guarantees at least one byte remains.
+                // This branch is unreachable for valid UTF-8 strings.
+                break;
+            }
         }
     }
 

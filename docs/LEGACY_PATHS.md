@@ -1,8 +1,8 @@
 # Legacy `.deepseek/` compatibility paths — audit & migration status (#3068)
 
-mimo-tui was renamed from DeepSeek-TUI. To avoid breaking existing installs, the runtime reads
-state from the new `~/.mimo-tui/` location but **falls back** to the legacy `~/.deepseek/` location,
-and always **writes** to `~/.mimo-tui/`. This doc audits each legacy reference and records a
+mimofan was renamed from DeepSeek-TUI. To avoid breaking existing installs, the runtime reads
+state from the new `~/.mimofan/` location but **falls back** to the legacy `~/.deepseek/` location,
+and always **writes** to `~/.mimofan/`. This doc audits each legacy reference and records a
 keep / deprecate / remove decision so the migration is auditable.
 
 ## The canonical resolver (use this for new code)
@@ -11,21 +11,21 @@ State-dir resolution is consolidated in `crates/config/src/lib.rs`:
 
 | Symbol | Line | Purpose |
 |---|---|---|
-| `CODEWHALE_APP_DIR = ".mimo-tui"` | 3428 | canonical app dir |
+| `CODEWHALE_APP_DIR = ".mimofan"` | 3428 | canonical app dir |
 | `LEGACY_APP_DIR = ".deepseek"` | 3431 | legacy app dir (fallback only) |
-| `mimo-tui_home()` | 3437 | `~/.mimo-tui` |
+| `mimofan_home()` | 3437 | `~/.mimofan` |
 | `legacy_deepseek_home()` | 3451 | `~/.deepseek` (legacy) |
-| `resolve_state_dir(subdir)` | 3469 | **read** path: `~/.mimo-tui/<subdir>`, falling back to `~/.deepseek/<subdir>` when only the legacy dir exists |
-| `ensure_state_dir(subdir)` | 3484 | **write** path: always creates under `~/.mimo-tui/<subdir>` |
+| `resolve_state_dir(subdir)` | 3469 | **read** path: `~/.mimofan/<subdir>`, falling back to `~/.deepseek/<subdir>` when only the legacy dir exists |
+| `ensure_state_dir(subdir)` | 3484 | **write** path: always creates under `~/.mimofan/<subdir>` |
 
 Migration contract: read-with-fallback, write-to-new. This preserves the v0.8.44 migration for
-users who still have `~/.deepseek/` while steering all new writes to `~/.mimo-tui/`.
+users who still have `~/.deepseek/` while steering all new writes to `~/.mimofan/`.
 
 ## Per-path decisions
 
 **Decision for all legacy references below: keep-as-fallback.** Removing the `.deepseek` fallback
 would strand users who upgraded in place and never re-ran onboarding. Revisit only after a release
-that actively migrates `~/.deepseek/` → `~/.mimo-tui/` on first run and a deprecation window.
+that actively migrates `~/.deepseek/` → `~/.mimofan/` on first run and a deprecation window.
 
 | Reference | Routed through `resolve_state_dir`? | Decision |
 |---|---|---|
@@ -42,7 +42,7 @@ that actively migrates `~/.deepseek/` → `~/.mimo-tui/` on first run and a depr
 ## Follow-up (separate, non-doc change — out of scope for #3068)
 
 The optional consolidation the issue mentions — routing the hardcoded sites above through
-`resolve_state_dir`/`ensure_state_dir` instead of joining `.deepseek`/`.mimo-tui` by hand — is a
+`resolve_state_dir`/`ensure_state_dir` instead of joining `.deepseek`/`.mimofan` by hand — is a
 small refactor that should land as its own PR with tests asserting read-fallback + write-to-new for
 each migrated site. It is intentionally kept out of this audit so the documentation can land safely
 on its own.

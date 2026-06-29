@@ -6,7 +6,7 @@ profiles, and user-visible status surfaces are explicit and tested.
 
 ## Decision
 
-For v0.9.0, mimo-tui should treat harness profiles as typed policy data first.
+For v0.9.0, mimofan should treat harness profiles as typed policy data first.
 Automatic profile evolution is deferred until replay evidence, candidate
 manifests, and promotion gates exist.
 
@@ -19,7 +19,7 @@ The first implementation lane stops at:
 5. Repo constitution overlay input.
 6. Status/UX display of the resolved provider, model, profile, and repo law.
 
-Only after those surfaces are visible and tested should mimo-tui add evidence
+Only after those surfaces are visible and tested should mimofan add evidence
 stores, candidate manifests, promotion gates, or an agentic Harness Creator.
 
 ## Required Seed Profiles
@@ -39,12 +39,12 @@ permissions.
 
 ## Repo Constitution Boundary
 
-`.mimo-tui/constitution.json` is local repo law, not another provider profile.
+`.mimofan/constitution.json` is local repo law, not another provider profile.
 The resolver may read it as an input after project trust checks, but profile
 selection must show both:
 
 - the model-facing posture, such as `cache-heavy` or `lean`;
-- the repo-law source, such as `.mimo-tui/constitution.json` or none.
+- the repo-law source, such as `.mimofan/constitution.json` or none.
 
 ## Automatic Evolution Boundary
 

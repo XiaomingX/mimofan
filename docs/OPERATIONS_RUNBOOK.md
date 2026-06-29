@@ -1,4 +1,4 @@
-# mimo-tui Operations Runbook
+# mimofan Operations Runbook
 
 This runbook covers practical debugging and incident response for the local CLI/TUI runtime.
 
@@ -6,14 +6,14 @@ This runbook covers practical debugging and incident response for the local CLI/
 
 1. Confirm binary + config:
    - `cargo run -- --version`
-   - `cat ~/.mimo-tui/config.toml` (or inspect configured profile)
+   - `cat ~/.mimofan/config.toml` (or inspect configured profile)
 2. Enable verbose logs:
    - `RUST_LOG=deepseek_cli=debug cargo run`
    - For HTTP retries/reconnects: `RUST_LOG=deepseek_cli::client=debug cargo run`
 3. Capture current state:
-   - `ls ~/.mimo-tui/sessions`
-   - `ls ~/.mimo-tui/sessions/checkpoints`
-   - `ls ~/.mimo-tui/tasks`
+   - `ls ~/.mimofan/sessions`
+   - `ls ~/.mimofan/sessions/checkpoints`
+   - `ls ~/.mimofan/tasks`
 
 ## Incident: Turn Hangs or Stream Stops
 
@@ -38,7 +38,7 @@ Actions:
 
 Expected behavior:
 - New prompts are queued while offline mode is active
-- Queue state persists to `~/.mimo-tui/sessions/checkpoints/offline_queue.json`
+- Queue state persists to `~/.mimofan/sessions/checkpoints/offline_queue.json`
 
 Checks:
 1. Open queue in TUI: `/queue list`
@@ -52,11 +52,11 @@ Actions:
 ## Incident: Crash Recovery Needed
 
 Expected behavior:
-- Checkpoint stored at `~/.mimo-tui/sessions/checkpoints/latest.json`
+- Checkpoint stored at `~/.mimofan/sessions/checkpoints/latest.json`
 - Startup begins a fresh session unless `--resume`/`--continue` is supplied
 
 Actions:
-1. Resume prior work explicitly via `mimo-tui --resume <id>` or `Ctrl+R` in TUI
+1. Resume prior work explicitly via `mimofan --resume <id>` or `Ctrl+R` in TUI
 2. If checkpoint inspection is needed, inspect `latest.json` for schema mismatch/details
 3. If schema is newer than binary supports, upgrade binary or remove stale checkpoint
 
@@ -66,9 +66,9 @@ Symptoms:
 - Errors like `schema vX is newer than supported vY`
 
 Affected stores:
-- sessions (`~/.mimo-tui/sessions/*.json`)
+- sessions (`~/.mimofan/sessions/*.json`)
 - runtime thread/turn/item records
-- tasks (`~/.mimo-tui/tasks/tasks/*.json`)
+- tasks (`~/.mimofan/tasks/tasks/*.json`)
 
 Actions:
 1. Confirm binary version and migration expectations
@@ -80,7 +80,7 @@ Actions:
 ## Incident: MCP/Tool Execution Failures
 
 Checks:
-1. Validate `~/.mimo-tui/mcp.json` schema and server command paths
+1. Validate `~/.mimofan/mcp.json` schema and server command paths
 2. Confirm server process can start manually
 3. Check sandbox denials in TUI history / logs
 

@@ -1,4 +1,4 @@
-# RFC: mimo-tui Workrooms — Chat-native Threaded Agent Work
+# RFC: mimofan Workrooms — Chat-native Threaded Agent Work
 
 **Issue:** #3209
 **Status:** Draft
@@ -11,7 +11,7 @@ integration, persistent state, and model-visible tools remain follow-up work.
 
 ## 1. Problem
 
-mimo-tui agent work currently lives in transient TUI sessions, local Runtime API
+mimofan agent work currently lives in transient TUI sessions, local Runtime API
 threads, Fleet runs, and chat-bridge message loops — each with its own lifecycle,
 state representation, and context boundary. There is no first-class abstraction
 that:
@@ -133,9 +133,9 @@ pub struct WorkroomLink {
 ### 2.2 Link Format
 
 ```
-mimo-tui://workroom/wr_abc123def456
-mimo-tui://workroom/wr_abc123def456/thread/thr_xyz
-mimo-tui://workroom/wr_abc123def456/event/evt_789
+mimofan://workroom/wr_abc123def456
+mimofan://workroom/wr_abc123def456/thread/thr_xyz
+mimofan://workroom/wr_abc123def456/event/evt_789
 ```
 
 ### 2.3 Mapping to Existing Infrastructure
@@ -173,21 +173,21 @@ Response:
 
 List active threads within a workroom.
 
-### 3.3 `GET /workroom/resolve?link=mimo-tui://workroom/wr_abc/thread/thr_x`
+### 3.3 `GET /workroom/resolve?link=mimofan://workroom/wr_abc/thread/thr_x`
 
 Resolve a workroom link to scoped context (thread metadata, recent events)
 without replaying the full transcript.
 
 ### 3.4 Planned tool: `resolve_workroom_link`
 
-A model-visible tool that takes a `mimo-tui://workroom/...` URL and returns
+A model-visible tool that takes a `mimofan://workroom/...` URL and returns
 the scoped context (thread title, recent event summaries, external refs). This
 should not be registered until the backing runtime resolution behavior exists.
 
 ## 4. Security Model
 
 - **Local-first by default.** Persisted workroom state should live under the
-  mimo-tui home directory alongside existing state. No cloud service is
+  mimofan home directory alongside existing state. No cloud service is
   assumed.
 - **Runtime API auth required.** Planned workroom endpoints must use the same
   `Authorization: Bearer <token>` protection as other runtime surfaces.
@@ -218,7 +218,7 @@ as bridge notifications.
 ### 5.3 TUI
 
 The TUI should surface workroom inbox events (mentions, approvals) in the
-sidebar, and allow pasting `mimo-tui://` links into the composer for
+sidebar, and allow pasting `mimofan://` links into the composer for
 context resolution.
 
 ## 6. Implementation Plan
@@ -242,7 +242,7 @@ context resolution.
 
 ## 7. Non-goals for Phase 1
 
-- No hosted public mimo-tui cloud service
+- No hosted public mimofan cloud service
 - No default-on Slack/Discord/Feishu/Telegram/GitHub App integration
 - No arbitrary public share links without explicit auth story
 - No model-specific workroom format

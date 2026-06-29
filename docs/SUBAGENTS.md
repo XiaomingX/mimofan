@@ -16,7 +16,7 @@ The current `agent` implementation delegates to the durable sub-agent runtime
 while that cutover completes. It can still be useful for short in-session
 delegation. Transient provider header/stream/time-out failures are retried with
 backoff inside the child runtime before the worker is marked interrupted; if the
-retry budget is exhausted, mimo-tui preserves a checkpoint and returns a
+retry budget is exhausted, mimofan preserves a checkpoint and returns a
 continuation handle instead of leaving the parent to infer what happened. For
 work that must survive process restarts, sleep, or remote execution, prefer
 Fleet or a WhaleFlow-backed fleet run.
@@ -39,7 +39,7 @@ stance toward the work — not just a different label.
 
 ## Maintainer posture
 
-Sub-agents help mimo-tui move faster, but the parent agent still owns the
+Sub-agents help mimofan move faster, but the parent agent still owns the
 maintainer decision. Use children to gather evidence, review patches, and run
 verification while keeping the community posture in
 [`AGENT_ETHOS.md`](AGENT_ETHOS.md): issues are open intake, PR gates are
@@ -88,19 +88,19 @@ approach.
 
 ## Worktree isolation
 
-For parallel edit lanes, launch the child with `worktree: true`. mimo-tui
+For parallel edit lanes, launch the child with `worktree: true`. mimofan
 creates a fresh git worktree and branch for that child, runs the child from the
 isolated checkout, and reports the resulting workspace/branch in the returned
 session projection and worker record. By default the branch is
 `codex/agent-<name>-<id>` and the checkout lives beside the parent repo under
-`.mimo-tui-worktrees/`, so the parent checkout stays clean.
+`.mimofan-worktrees/`, so the parent checkout stays clean.
 
 Optional fields:
 
 - `worktree_branch`: exact branch to create.
 - `worktree_base`: git ref to branch from; defaults to `HEAD`.
 - `worktree_path`: exact checkout path. Relative paths stay under the default
-  sibling `.mimo-tui-worktrees/` root.
+  sibling `.mimofan-worktrees/` root.
 
 Do not combine `cwd` with `worktree`; `cwd` remains the manual escape hatch for
 an already-created directory inside the parent workspace.
@@ -149,7 +149,7 @@ OUTPUT: VERDICT, EVIDENCE, GAPS, NEXT.
 
 ```text
 QUESTION: Is the focused prompt/subagent test filter valid, and what fails if not?
-SCOPE: cargo test -p mimo-tui --bin mimo-tui --locked prompt; subagent filter if needed.
+SCOPE: cargo test -p mimofan --bin mimofan --locked prompt; subagent filter if needed.
 ALREADY_KNOWN: Do not fix failures; capture exact command, exit code, and first relevant assertion.
 EFFORT: medium
 STOP_CONDITION: Stop after one clean PASS or one reproducible failing assertion with command evidence.
@@ -208,7 +208,7 @@ the next turn.
 ## Concurrency cap
 
 Up to **20** sub-agents can run concurrently by default (configurable via
-`[subagents].max_concurrent` in `~/.mimo-tui/config.toml`; the default equals
+`[subagents].max_concurrent` in `~/.mimofan/config.toml`; the default equals
 the hard instantaneous-concurrency ceiling of 20). The session admits a bounded
 queue of up to **200** running plus queued sub-agents by default, so a turn can
 request broad fan-out and let the manager drain it without creating an
@@ -338,7 +338,7 @@ per-step timeout so a single stuck request can't pin the parent's
 completion wakeup channel indefinitely. The default is `120` seconds,
 which matches the legacy hardcoded value. Long-thinking children that
 legitimately exceed that, for example heavy plan or review work behind
-`agent`, can extend the timeout in `~/.mimo-tui/config.toml`:
+`agent`, can extend the timeout in `~/.mimofan/config.toml`:
 
 ```toml
 [subagents]
@@ -374,7 +374,7 @@ Pending → Running → (Completed | Failed(reason) | Cancelled | Interrupted(re
 
 `Interrupted` fires when the manager detects a `Running` agent whose task
 handle is gone — typically after a process restart that loaded the workspace's
-persisted state from `.mimo-tui/state/subagents.v1.json`. The parent can open a
+persisted state from `.mimofan/state/subagents.v1.json`. The parent can open a
 replacement session with the same assignment or treat it as a terminal state.
 
 ### Session boundaries (#405)
@@ -394,7 +394,7 @@ manager can't match them to the current boot.
 ## Run receipts, follow-up, and takeover
 
 Each compatibility sub-agent has a persisted worker record in
-`.mimo-tui/state/subagents.v1.json`. The record is the current run-ledger
+`.mimofan/state/subagents.v1.json`. The record is the current run-ledger
 slice for sub-agent lanes until those lanes are backed directly by the fleet
 ledger: it stores `run_id`, objective, role/model,
 workspace/branch, lifecycle events, artifact refs, follow-up target, takeover
@@ -448,7 +448,7 @@ don't go through the standard write-approval flow.
 ## Implementation notes
 
 - Source: `crates/tui/src/tools/subagent/mod.rs`.
-- Persisted state: `<workspace>/.mimo-tui/state/subagents.v1.json`. Schema
+- Persisted state: `<workspace>/.mimofan/state/subagents.v1.json`. Schema
   version `1` (forward-compatible — new optional fields use
   `#[serde(default)]`).
 - `SubAgentRuntime::background_runtime()` starts from `child_runtime()` but

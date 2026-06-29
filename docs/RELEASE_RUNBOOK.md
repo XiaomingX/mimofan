@@ -1,41 +1,41 @@
-# mimo-tui Release Runbook
+# mimofan Release Runbook
 
 This runbook is the source of truth for shipping Rust crates, GitHub release assets,
-and the `mimo-tui` npm wrapper.
+and the `mimofan` npm wrapper.
 
 Current packaging note:
-- `mimo-tui` is the live runtime crate shipped to users today.
-- `mimo-tui-app-server` is a supporting library crate. The shipped entrypoint
-  is `mimo-tui app-server`; do not add or publish a standalone app-server binary.
+- `mimofan` is the live runtime crate shipped to users today.
+- `mimofan-app-server` is a supporting library crate. The shipped entrypoint
+  is `mimofan app-server`; do not add or publish a standalone app-server binary.
 
 ## Canonical Publish Targets
 
 - End-user crates:
-  - `mimo-tui`
-  - `mimo-tui-cli`
+  - `mimofan`
+  - `mimofan-cli`
 - Supporting crates published from this workspace:
-  - `mimo-tui-secrets`
-  - `mimo-tui-config`
-  - `mimo-tui-protocol`
-  - `mimo-tui-state`
-  - `mimo-tui-agent`
-  - `mimo-tui-execpolicy`
-  - `mimo-tui-hooks`
-  - `mimo-tui-mcp`
-  - `mimo-tui-tools`
-  - `mimo-tui-core`
-  - `mimo-tui-app-server`
-  - `mimo-tui-whaleflow`
+  - `mimofan-secrets`
+  - `mimofan-config`
+  - `mimofan-protocol`
+  - `mimofan-state`
+  - `mimofan-agent`
+  - `mimofan-execpolicy`
+  - `mimofan-hooks`
+  - `mimofan-mcp`
+  - `mimofan-tools`
+  - `mimofan-core`
+  - `mimofan-app-server`
+  - `mimofan-whaleflow`
 
 ## Version Coordination
 
 - Rust crates inherit the shared workspace version from [Cargo.toml](../Cargo.toml).
 - Internal path dependency versions should match the shared workspace version; stale older pins are release blockers once the workspace version moves.
-- The npm wrapper version lives in [npm/mimo-tui/package.json](../npm/mimo-tui/package.json).
-- `mimo-tuiBinaryVersion` controls which GitHub release binaries the npm wrapper downloads.
+- The npm wrapper version lives in [npm/mimofan/package.json](../npm/mimofan/package.json).
+- `mimofanBinaryVersion` controls which GitHub release binaries the npm wrapper downloads.
 - Packaging-only npm releases are allowed:
   - bump the npm package version
-  - leave `mimo-tuiBinaryVersion` pinned to the previously released Rust binaries
+  - leave `mimofanBinaryVersion` pinned to the previously released Rust binaries
   - rerun `npm pack` smoke checks before `npm publish`
 
 ## Preflight
@@ -48,13 +48,13 @@ cargo fmt --all -- --check
 cargo check --workspace --all-targets --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
-cargo publish --dry-run --locked --allow-dirty -p mimo-tui
+cargo publish --dry-run --locked --allow-dirty -p mimofan
 ./scripts/release/publish-crates.sh dry-run
 ```
 
 `check-versions.sh` also runs in CI on every push/PR (the `versions` job in
 `.github/workflows/ci.yml`), so drift between `Cargo.toml`, the per-crate
-manifests, `npm/mimo-tui/package.json`, and `Cargo.lock` is caught before
+manifests, `npm/mimofan/package.json`, and `Cargo.lock` is caught before
 release time rather than at it.
 
 The source-controlled CNB pipeline mirrors the heavy Linux version/fmt/check/
@@ -70,11 +70,11 @@ new workspace version while still validating package contents before publish.
 For npm wrapper verification, build the two shipped binaries and run the
 cross-platform smoke harness. This packs the npm wrapper, installs it into a
 clean temporary project, serves local release assets over HTTP, and checks both
-the dispatcher-to-TUI path (`mimo-tui doctor --help`) and the direct TUI
-entrypoint (`mimo-tui --help`).
+the dispatcher-to-TUI path (`mimofan doctor --help`) and the direct TUI
+entrypoint (`mimofan --help`).
 
 ```bash
-cargo build --release --locked -p mimo-tui-cli -p mimo-tui
+cargo build --release --locked -p mimofan-cli -p mimofan
 node scripts/release/npm-wrapper-smoke.js
 ```
 
@@ -86,7 +86,7 @@ directory with a full asset matrix fixture before starting the server:
 
 ```bash
 DEEPSEEK_TUI_PREPARE_ALL_ASSETS=1 node scripts/release/prepare-local-release-assets.js
-cd npm/mimo-tui
+cd npm/mimofan
 DEEPSEEK_TUI_VERSION=X.Y.Z DEEPSEEK_TUI_RELEASE_BASE_URL=http://127.0.0.1:8123/ npm run release:check
 ```
 
@@ -101,8 +101,8 @@ After publishing, prove the release is visible in both registries:
 ./scripts/release/check-published.sh X.Y.Z
 ```
 
-Do not mark a Rust release complete until that command sees `mimo-tui@X.Y.Z`
-on npm and every `mimo-tui-*` crate at `X.Y.Z` on crates.io. For a rare
+Do not mark a Rust release complete until that command sees `mimofan@X.Y.Z`
+on npm and every `mimofan-*` crate at `X.Y.Z` on crates.io. For a rare
 npm packaging-only release, run with `--allow-npm-binary-mismatch` and keep the
 release notes explicit that no new Rust binary version shipped.
 
@@ -161,21 +161,21 @@ and fails branch-only release sources before assets are published.
    main commit; see the npm wrapper release section below for the
    `RELEASE_TAG_PAT` requirement.
 4. Publish crates in this order with `./scripts/release/publish-crates.sh publish`:
-   - `mimo-tui-mcp`
-   - `mimo-tui-protocol`
-   - `mimo-tui-release`
-   - `mimo-tui-secrets`
-   - `mimo-tui-state`
-   - `mimo-tui-whaleflow`
-   - `mimo-tui-execpolicy`
-   - `mimo-tui-hooks`
-   - `mimo-tui-tools`
-   - `mimo-tui-config`
-   - `mimo-tui-agent`
-   - `mimo-tui`
-   - `mimo-tui-core`
-   - `mimo-tui-app-server`
-   - `mimo-tui-cli`
+   - `mimofan-mcp`
+   - `mimofan-protocol`
+   - `mimofan-release`
+   - `mimofan-secrets`
+   - `mimofan-state`
+   - `mimofan-whaleflow`
+   - `mimofan-execpolicy`
+   - `mimofan-hooks`
+   - `mimofan-tools`
+   - `mimofan-config`
+   - `mimofan-agent`
+   - `mimofan`
+   - `mimofan-core`
+   - `mimofan-app-server`
+   - `mimofan-cli`
 5. Wait for each published crate version to appear on crates.io before publishing dependents.
 
 The publish helper is idempotent for reruns: already-published crate versions are skipped.
@@ -184,16 +184,16 @@ The publish helper is idempotent for reruns: already-published crate versions ar
 
 `.github/workflows/release.yml` builds these binaries:
 
-- `mimo-tui-linux-x64`
-- `mimo-tui-macos-x64`
-- `mimo-tui-macos-arm64`
-- `mimo-tui-windows-x64.exe`
-- `mimo-tui-linux-x64`
-- `mimo-tui-macos-x64`
-- `mimo-tui-macos-arm64`
-- `mimo-tui-windows-x64.exe`
+- `mimofan-linux-x64`
+- `mimofan-macos-x64`
+- `mimofan-macos-arm64`
+- `mimofan-windows-x64.exe`
+- `mimofan-linux-x64`
+- `mimofan-macos-x64`
+- `mimofan-macos-arm64`
+- `mimofan-windows-x64.exe`
 
-The release job also uploads `mimo-tui-artifacts-sha256.txt`. The npm installer and
+The release job also uploads `mimofan-artifacts-sha256.txt`. The npm installer and
 release verification script both depend on that checksum manifest.
 
 ## npm Wrapper Release
@@ -206,14 +206,14 @@ on a workstation with `npm login` and an authenticator app.
 
 ### Steps
 
-1. Set the npm package version in [npm/mimo-tui/package.json](../npm/mimo-tui/package.json) to match the workspace `Cargo.toml`. CI's version-drift guard will catch mismatches before tag.
-2. Set `mimo-tuiBinaryVersion` to the GitHub release tag that should supply binaries.
+1. Set the npm package version in [npm/mimofan/package.json](../npm/mimofan/package.json) to match the workspace `Cargo.toml`. CI's version-drift guard will catch mismatches before tag.
+2. Set `mimofanBinaryVersion` to the GitHub release tag that should supply binaries.
 3. Push the version bump to `main`. `auto-tag.yml` creates the matching `vX.Y.Z` tag, and `release.yml` builds the binary matrix and drafts the GitHub Release.
-4. **Wait for the GitHub Release to finalize** with all eight signed binaries plus `mimo-tui-artifacts-sha256.txt`. The npm `prepublishOnly` hook (`scripts/verify-release-assets.js`) requires every asset to be present.
+4. **Wait for the GitHub Release to finalize** with all eight signed binaries plus `mimofan-artifacts-sha256.txt`. The npm `prepublishOnly` hook (`scripts/verify-release-assets.js`) requires every asset to be present.
 5. From a developer machine, publish the npm wrapper manually:
 
 ```bash
-cd npm/mimo-tui
+cd npm/mimofan
 npm publish --access public
 # (you will be prompted for the npm OTP from your authenticator)
 ```
@@ -230,13 +230,13 @@ To re-enable automated publish: provision an npm automation token with "Bypass 2
 ## CNB Cool mirror
 
 Every push to `main`, `fix/*`, `rebrand/*`, `work/v*`, and every `v*` tag is mirrored to
-`cnb.cool/mimo-tui.net/mimo-tui` via the `Sync to CNB` workflow
+`cnb.cool/mimofan.net/mimofan` via the `Sync to CNB` workflow
 so users behind GitHub-blocking networks can fetch the source and so CNB can
 run the heavy Linux CI lane. After a release tag, **verify the mirror caught
 it** before declaring the release shipped:
 
 ```bash
-git ls-remote https://cnb.cool/mimo-tui.net/mimo-tui.git refs/tags/vX.Y.Z
+git ls-remote https://cnb.cool/mimofan.net/mimofan.git refs/tags/vX.Y.Z
 ```
 
 If the workflow failed for the release tag, the manual fallback is
@@ -246,12 +246,12 @@ remote add cnb …`, then `git push cnb vX.Y.Z`).
 ## Recovery and Rollback
 
 - User-facing rollback:
-  - npm: `npm install -g mimo-tui@X.Y.Z`
-  - Cargo: `cargo install mimo-tui-cli --version X.Y.Z --locked --force`
-    and `cargo install mimo-tui --version X.Y.Z --locked --force`
+  - npm: `npm install -g mimofan@X.Y.Z`
+  - Cargo: `cargo install mimofan-cli --version X.Y.Z --locked --force`
+    and `cargo install mimofan --version X.Y.Z --locked --force`
   - manual assets: download binaries or the platform archive plus the matching
-    `mimo-tui-artifacts-sha256.txt` or `mimo-tui-bundles-sha256.txt`
-    manifest from `https://github.com/XiaomingX/mimo-tui/releases/tag/vX.Y.Z`
+    `mimofan-artifacts-sha256.txt` or `mimofan-bundles-sha256.txt`
+    manifest from `https://github.com/XiaomingX/mimofan/releases/tag/vX.Y.Z`
   - workspace files: use `/restore list [N]` and `/restore <N>` for side-git
     snapshots; this does not change the installed binary version or rewrite
     conversation history
@@ -265,7 +265,7 @@ remote add cnb …`, then `git push cnb vX.Y.Z`).
   - retag or upload corrected assets before `npm publish`
 - npm packaging-only problem:
   - bump only the npm package version
-  - keep `mimo-tuiBinaryVersion` on the last known-good Rust release
+  - keep `mimofanBinaryVersion` on the last known-good Rust release
   - repack and republish the wrapper
 - A bad npm publish cannot be overwritten:
   - publish a new npm version with corrected metadata or install logic

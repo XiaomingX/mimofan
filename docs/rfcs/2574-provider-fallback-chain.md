@@ -8,7 +8,7 @@
 
 ## Problem
 
-mimo-tui can store credentials and defaults for several providers, but a
+mimofan can store credentials and defaults for several providers, but a
 running session uses one active provider route at a time. When that provider
 hits a rate limit, temporary outage, or transport failure, the user must notice
 the failure, run `/provider`, choose another route, and resubmit the turn.
@@ -72,7 +72,7 @@ each case before any fallback execution is wired into the turn loop.
 
 ## Capability Gate
 
-Before switching to a fallback provider/model, mimo-tui checks that the
+Before switching to a fallback provider/model, mimofan checks that the
 candidate can support the current request shape:
 
 | Requirement | Gate |
@@ -83,7 +83,7 @@ candidate can support the current request shape:
 | Image inputs | Candidate must support vision if the turn includes images. |
 | Provider-specific headers | Candidate request must be rebuilt from that provider's own auth/base-url/header rules. |
 
-If no fallback candidate passes the gate, mimo-tui surfaces the original
+If no fallback candidate passes the gate, mimofan surfaces the original
 provider error with a clear "fallback chain exhausted or incompatible" note.
 
 ## Runtime Behavior

@@ -1,6 +1,6 @@
 # DeepSeek Anthropic-Compatible Endpoint — Comparison Report & Decision (#2963)
 
-- **Issue:** [#2963](https://github.com/XiaomingX/mimo-tui/issues/2963) — *v0.8.65: DeepSeek Anthropic-compatible endpoint wire-protocol spike*
+- **Issue:** [#2963](https://github.com/XiaomingX/mimofan/issues/2963) — *v0.8.65: DeepSeek Anthropic-compatible endpoint wire-protocol spike*
 - **Release lane:** v0.8.65
 - **Date:** 2026-06-24
 - **Status:** Implementation **landed and Experimental**. Keep-vs-promote decision **PENDING live numbers** (Section 4).
@@ -8,7 +8,7 @@
 
 > Do **not** reimplement the route. It already exists on `main` (commit
 > `5b8a5ac0b2c478261740f49756d29c4a7f83d89c`, PR
-> [#3449](https://github.com/XiaomingX/mimo-tui/pull/3449)). This document
+> [#3449](https://github.com/XiaomingX/mimofan/pull/3449)). This document
 > verifies what landed, derives what can be concluded from the code without a
 > network, and specifies the exact live procedure to settle the open question.
 
@@ -521,4 +521,4 @@ Rationale, grounded in code:
 | Anthropic usage normalizer | `crates/tui/src/client/anthropic.rs:499-523` |
 | Error-envelope parser | `crates/tui/src/client/anthropic.rs:528-548` |
 | Docs framing | `docs/PROVIDERS.md:48-51,81,111-112,237` |
-| Landed commit / PR | `5b8a5ac0b2c478261740f49756d29c4a7f83d89c` / [#3449](https://github.com/XiaomingX/mimo-tui/pull/3449) |
+| Landed commit / PR | `5b8a5ac0b2c478261740f49756d29c4a7f83d89c` / [#3449](https://github.com/XiaomingX/mimofan/pull/3449) |

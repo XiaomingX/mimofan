@@ -1,10 +1,10 @@
 # Recursive self-improvement prompt
 
-mimo-tui is built for open-source and open-weight coding models. DeepSeek V4
+mimofan is built for open-source and open-weight coding models. DeepSeek V4
 Pro is the first-class path today because its cache economics make long agent
 loops practical, but the contribution shape should remain portable to other
 open/open-weight paths as they mature. One practical way to help is to let
-mimo-tui inspect itself and return a small, reviewable improvement.
+mimofan inspect itself and return a small, reviewable improvement.
 
 This is the "100-to-1 model": one clear prompt, many bounded agent runs, one
 artifact a maintainer can review. It is not a scorecard and not permission to
@@ -13,17 +13,17 @@ rewrite the project. It is a contribution shape.
 > [!Tip]
 > The **100-to-1 model** is a nod to Ralph Bown's 1948 public demonstration of
 > the transistor. The device itself was tiny; the large model made the structure
-> easy to inspect. mimo-tui uses the metaphor in the same practical sense: the
+> easy to inspect. mimofan uses the metaphor in the same practical sense: the
 > agent may do a lot of cached, tool-using, sub-agent work, but the contribution
 > should arrive as one visible artifact a maintainer can review.
 >
 > **100:1 模型**致敬 Ralph Bown 在 1948 年对晶体管的公开演示。晶体管本身很小，
-> 大比例模型让结构更容易被观察和理解。mimo-tui 借用这个比喻：智能体可以进行大量
+> 大比例模型让结构更容易被观察和理解。mimofan 借用这个比喻：智能体可以进行大量
 > 带缓存、带工具、带子智能体的工作，但最终交付应当是一个维护者可以审查的清晰产物。
 >
 > **100:1 モデル**は、1948年にラルフ・ボーンが行ったトランジスタの公開デモへの
 > オマージュです。実物は小さく、大きな模型は構造を観察しやすくするためのものでした。
-> mimo-tui はこの比喩を実務的に使います。エージェントはキャッシュ、ツール、サブ
+> mimofan はこの比喩を実務的に使います。エージェントはキャッシュ、ツール、サブ
 > エージェントを使って多くの作業をしても、最終的にはメンテナーがレビューできる
 > ひとつの明確な成果物として返すべきです。
 
@@ -41,12 +41,12 @@ rewrite the project. It is a contribution shape.
 
 ## English
 
-Paste this into mimo-tui from the repository root:
+Paste this into mimofan from the repository root:
 
 ```text
-You are running inside mimo-tui on DeepSeek V4 Pro.
+You are running inside mimofan on DeepSeek V4 Pro.
 
-Your task is to improve mimo-tui itself by finding exactly one small,
+Your task is to improve mimofan itself by finding exactly one small,
 reviewable place where the harness, docs, tests, or contributor workflow causes
 friction.
 
@@ -80,12 +80,12 @@ Output:
 
 ## 简体中文
 
-从仓库根目录把这段粘贴到 mimo-tui：
+从仓库根目录把这段粘贴到 mimofan：
 
 ```text
-你正在 DeepSeek V4 Pro 驱动的 mimo-tui 中运行。
+你正在 DeepSeek V4 Pro 驱动的 mimofan 中运行。
 
-你的任务是改进 mimo-tui 本身：只找一个很小、可审查的点，看看这个
+你的任务是改进 mimofan 本身：只找一个很小、可审查的点，看看这个
 智能体框架、文档、测试或贡献流程哪里让人不顺手，然后产出一个维护者
 可以快速审查的补丁。
 
@@ -116,12 +116,12 @@ Output:
 
 ## 日本語
 
-リポジトリのルートで、このプロンプトを mimo-tui に貼り付けます。
+リポジトリのルートで、このプロンプトを mimofan に貼り付けます。
 
 ```text
-あなたは DeepSeek V4 Pro 上の mimo-tui の中で動いています。
+あなたは DeepSeek V4 Pro 上の mimofan の中で動いています。
 
-目的は mimo-tui 自体を改善することです。ただし、対象はひとつだけに
+目的は mimofan 自体を改善することです。ただし、対象はひとつだけに
 絞ります。ハーネス、ドキュメント、テスト、またはコントリビューター
 体験の中から、小さくレビューしやすい摩擦点を見つけてください。
 

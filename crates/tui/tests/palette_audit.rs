@@ -2,7 +2,7 @@
 //!
 //! These tests ensure that deprecated colors are not used directly in
 //! user-visible code. Backward-compatible DeepSeek aliases should point
-//! at the current mimo-tui semantic tokens instead of stale brand RGBs.
+//! at the current mimofan semantic tokens instead of stale brand RGBs.
 
 use ratatui::style::Color;
 
