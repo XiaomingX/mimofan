@@ -538,7 +538,10 @@ fn remove_char_at(text: &mut String, char_index: usize) -> bool {
     if start >= text.len() {
         return false;
     }
-    let ch = text[start..].chars().next().unwrap();
+    let ch = text[start..]
+        .chars()
+        .next()
+        .expect("start < text.len() ensures non-empty slice");
     let end = start + ch.len_utf8();
     text.replace_range(start..end, "");
     true

@@ -146,7 +146,11 @@ fn collapse_nullable_unions(schema: &mut Value) {
         let (nulls, nons): (Vec<_>, Vec<_>) = members.into_iter().partition(is_null_type);
         if nulls.len() == 1 && nons.len() == 1 {
             obj.remove(key);
-            if let Value::Object(non_obj) = nons.into_iter().next().unwrap() {
+            if let Value::Object(non_obj) = nons
+                .into_iter()
+                .next()
+                .expect("nons.len() == 1")
+            {
                 for (k, v) in non_obj {
                     if k != "type" || v != "null" {
                         obj.insert(k, v);

@@ -745,7 +745,11 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
                     }
                     if split_at == 0 {
                         // Even one character is wider than width; take it anyway.
-                        split_at = remaining.chars().next().unwrap().len_utf8();
+                        split_at = remaining
+                            .chars()
+                            .next()
+                            .expect("remaining is non-empty inside loop")
+                            .len_utf8();
                     }
                     lines.push(remaining[..split_at].to_string());
                     remaining = &remaining[split_at..];

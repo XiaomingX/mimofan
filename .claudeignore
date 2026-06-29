@@ -33,8 +33,23 @@ crates/tui/src/config/tests.rs
 crates/tui/src/runtime_api/tests.rs
 crates/tui/src/tools/subagent/tests.rs
 crates/tui/src/core/engine/tests.rs
+crates/tui/src/mcp/tests.rs
+crates/tui/src/runtime_threads/tests.rs
+crates/tui/src/tools/shell/tests.rs
+crates/tui/src/tui/history/tests.rs
+crates/tui/src/test_support.rs
+crates/tui/src/tools/test_runner.rs
 crates/config/src/tests.rs
 crates/config/src/route/tests.rs
+crates/config/src/route/conformance_tests.rs
+crates/config/src/catalog/tests.rs
+crates/config/src/pricing/tests.rs
+
+# ── 超大文件（稳定模块，摘要见 CLAUDE.md）──
+crates/tui/src/localization.rs
+crates/tui/src/prompts.rs
+crates/tui/src/tui/widgets/mod.rs
+crates/tui/src/tui/views/mod.rs
 
 # ── AI 记忆文件（已自动注入上下文，重复读取浪费 token）──
 **/CLAUDE.local.md

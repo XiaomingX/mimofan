@@ -104,7 +104,9 @@ pub(super) fn decode_bare_hex_escapes(input: &str) -> String {
     use std::sync::OnceLock;
 
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"x([0-9A-Fa-f]{6})-?").unwrap());
+    let re = RE.get_or_init(|| {
+        Regex::new(r"x([0-9A-Fa-f]{6})-?").expect("valid regex pattern")
+    });
 
     let result = re.replace_all(input, |caps: &regex::Captures| {
         let hex = &caps[1];

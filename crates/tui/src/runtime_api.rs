@@ -2206,7 +2206,8 @@ async fn list_mcp_tools(
                 .map_err(|e| ApiError::internal(format!("Failed to load MCP config: {e}")))?;
         pool_guard.replace(new_pool);
     }
-    let pool = pool_guard.as_mut().unwrap();
+    // SAFETY: pool_guard is guaranteed to be Some after the initialization block above.
+    let pool = pool_guard.as_mut().expect("pool initialized above");
     let _errors = pool.connect_all().await;
 
     let mut tools = Vec::new();

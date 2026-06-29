@@ -1843,7 +1843,7 @@ impl RuntimeThreadManager {
                                     "tool_name": name,
                                 })
                                 .as_object()
-                                .unwrap()
+                                .expect("json! with object literal always produces Value::Object")
                                 .clone(),
                             )),
                             artifact_refs: Vec::new(),

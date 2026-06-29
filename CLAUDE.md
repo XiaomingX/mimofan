@@ -125,6 +125,18 @@ config.example.toml       Example configuration
 ~/.codewhale/constitution.json      Constitution (base prompt)
 ```
 
+### Large Files (excluded from .claudeignore)
+
+These files are stable and rarely modified. Their summaries are provided here
+to avoid loading thousands of lines into context:
+
+| File | Lines | Purpose | Key APIs |
+|------|-------|---------|----------|
+| `localization.rs` | 4,698 | TUI string translations (zh-Hans) | `tr(MessageId)`, `Locale`, `MessageId` enum |
+| `prompts.rs` | 3,071 | System prompts for modes | `PromptSessionContext`, `build_system_prompt()` |
+| `tui/widgets/mod.rs` | 4,848 | UI widget implementations | `FooterWidget`, `HeaderWidget`, `AgentCard`, `ToolCard` |
+| `tui/views/mod.rs` | 3,125 | Modal/dialog view system | `ModalKind` enum, `CommandPaletteAction`, view rendering |
+
 ## Detailed Docs
 
 For deep dives, read the corresponding doc under `docs/`:

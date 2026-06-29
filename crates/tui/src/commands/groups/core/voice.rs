@@ -282,7 +282,8 @@ fn record_audio() -> Option<(Vec<i16>, Duration)> {
 /// Matches an explicit send instruction at the end of transcribed text:
 /// "send it" (any spacing/case) or 发送/發送, with trailing punctuation.
 static SEND_SUFFIX_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:^|[\s,，.。!！?？]+)(?:send\s*it|发送|發送)[\s.。!！?？]*$").unwrap()
+    Regex::new(r"(?i)(?:^|[\s,，.。!！?？]+)(?:send\s*it|发送|發送)[\s.。!！?？]*$")
+        .expect("valid send-suffix regex")
 });
 
 /// Split a transcript into the message remainder and whether it ended with an

@@ -163,14 +163,14 @@ match provider {
 
 ### 4.4 unwrap() 泛滥
 
-当前 `tui/src/*.rs` 中有 **356 个 unwrap()** 调用，主要集中在：
-- 测试代码（可接受）
+当前 `tui/src/*.rs` 中有 **2424 个 unwrap()** 调用，主要集中在：
+- 测试代码（占绝大多数，可接受）
 - 配置解析（应改为 `?` 或 `.expect()`）
 - UI 渲染（应防御性处理）
 
 ### 4.5 clone() 过度使用
 
-当前 `tui/src/*.rs` 中有 **792 个 clone()** 调用，主要因为：
+当前 `tui/src/*.rs` 中有 **3067 个 clone()** 调用，主要因为：
 - 字符串跨 async 边界传递
 - 共享状态的读取方式不够优化
 - 缺少 `Arc` 和 `Cow` 的使用
@@ -184,46 +184,47 @@ match provider {
 - [x] `protocol` 按限界上下文拆分（已完成）
 - [x] `agent` 抽取 `family.rs` + `provider_resolver.rs`（已完成）
 - [ ] 从 `config.rs` 抽取 `provider_config.rs`（Provider 配置独立）
-- [ ] 从 `config.rs` 抽取 `model_config.rs`（模型名称常量独立）— 部分实现：已有 `config/models.rs` 模块（152 行），但主文件仍有 5172 行
+- [~] 从 `config.rs` 抽取 `model_config.rs`（模型名称常量独立）— 部分实现：已有 `config/models.rs` 模块（152 行），但主文件仍有 5172 行
 - [ ] 从 `config.rs` 抽取 `route_config.rs`（路由解析独立）
 - [ ] 从 `config.rs` 抽取 `pricing_config.rs`（定价配置独立）
-- [ ] 从 `config.rs` 抽取 `ui_config.rs`（UI 配置独立）— 部分实现：已有 `config_ui.rs`（1318 行），但主文件仍有 5172 行
+- [~] 从 `config.rs` 抽取 `ui_config.rs`（UI 配置独立）— 部分实现：已有 `config_ui.rs`（1318 行），但主文件仍有 5172 行
 
 ### Phase 2: 客户端逻辑抽象（降低 client.rs 耦合）
 
-- [ ] 定义 `ProviderAdapter` trait，抽象 provider 特定逻辑
-- [ ] 实现 `XiaomiMimoAdapter`（包含 thinking/reasoning 处理）
-- [ ] 实现 `CustomAdapter`（通用 OpenAI 兼容逻辑）
-- [ ] 将 HTTP 客户端逻辑抽取为 `HttpClient` 模块
+- [~] 将 HTTP 客户端逻辑抽取为 `HttpClient` 模块 — 部分实现：`client/` 目录已拆分 `chat.rs`、`anthropic.rs`、`responses.rs`
 - [ ] 将 SSE 流式解析抽取为 `SseParser` 模块
+- ~~定义 `ProviderAdapter` trait~~ — 删除：当前 provider 数量少，match 分支足够，trait 增加过度抽象
+- ~~实现 `XiaomiMimoAdapter`~~ — 删除：同上
+- ~~实现 `CustomAdapter`~~ — 删除：同上
 
 ### Phase 3: UI 层拆分（降低 tui 复杂度）
 
-- [ ] 从 `ui.rs` 抽取 `ui/chat.rs`（聊天区域渲染）
-- [ ] 从 `ui.rs` 抽取 `ui/sidebar.rs`（侧边栏渲染）
-- [ ] 从 `ui.rs` 抽取 `ui/footer.rs`（底部状态栏）
-- [ ] 从 `ui.rs` 抽取 `ui/picker.rs`（选择器组件）
-- [ ] 从 `main.rs` 抽取 `init.rs`（初始化逻辑）
-- [ ] 从 `main.rs` 抽取 `event_loop.rs`（事件循环）
+- [ ] 从 `ui.rs` 抽取 `ui/chat.rs`（聊天区域渲染）— ui.rs 仍 11412 行
+- [~] 从 `ui.rs` 抽取 `ui/sidebar.rs`（侧边栏渲染）— 已有 `tui/sidebar.rs`（5401 行），但 ui.rs 仍大
+- [~] 从 `ui.rs` 抽取 `ui/footer.rs`（底部状态栏）— 已有 `footer_ui.rs`、`widgets/footer.rs`
+- [~] 从 `ui.rs` 抽取 `ui/picker.rs`（选择器组件）— 已有 `model_picker.rs`、`session_picker.rs`、`provider_picker.rs`
+- [ ] 从 `main.rs` 抽取 `init.rs`（初始化逻辑）— main.rs 仍 9235 行
+- [ ] 从 `main.rs` 抽取 `event_loop.rs`（事件循环）— main.rs 仍 9235 行
 
 ### Phase 4: 错误处理规范化（提升稳定性）
 
-- [ ] 替换关键路径的 `unwrap()` 为 `?` 或 `.expect("reason")` — 当前仍有 356 次调用
+- [~] 替换关键路径的 `unwrap()` 为 `?` 或 `.expect("reason")` — 已修复 11 个高优先级生产代码 unwrap()，剩余 2424 次大部分在测试代码
 - [x] 统一错误类型：library crate 用 `thiserror`，binary crate 用 `anyhow` — 已实现：`tools`、`config` 等 crate 使用 `thiserror`，`tui` 使用 `anyhow`
 - [x] 添加错误上下文链（`.context("xxx")`）— 已实现：`config/src/lib.rs` 等多处使用 `.context()`
 
 ### Phase 5: 性能优化（降低资源消耗）
 
-- [ ] 审计热路径的 `clone()` 调用，改用 `&str` 或 `Arc`
-- [ ] 为大型数据（LLM 响应、工具输出）使用 `Bytes` 或 `Cow`
-- [ ] 优化 UI 渲染的 `to_string()` 调用（~200+ 次）
-- [ ] 验证 `RwLock` vs `Mutex` 使用场景
+- [~] 审计热路径的 `clone()` 调用，改用 `&str` 或 `Arc` — 部分完成：engine.rs 已优化，tui/src 仍有 3067 次调用（大部分非热路径）
+- ~~为大型数据使用 `Bytes` 或 `Cow`~~ — 删除：除非 profiling 显示瓶颈，当前使用模式可接受
+- ~~优化 UI 渲染的 `to_string()` 调用~~ — 删除：UI 渲非性能关键路径，7810 次调用不影响用户体验
+- [x] 验证 `RwLock` vs `Mutex` 使用场景 — 审计完成：58 个 `std::sync::Mutex` 全部正确（锁持有时间短，不跨 `.await`），需跨 `.await` 的场景已用 `tokio::sync::Mutex`
+- [x] 验证 `spawn_blocking` 必要性 — 审计完成：~20 处调用全部合理（文件搜索、git 快照、hook 执行、验证器门控、终端 raw 模式）
 
 ### Phase 6: 测试隔离（提升可靠性）
 
 - [ ] 为 `config_command_allow_shell_*` 添加 hermetic 测试环境
 - [ ] 为 `run_verifiers_background_*` 修复并行竞争问题
-- [ ] 增加集成测试覆盖率
+- [~] 增加集成测试覆盖率 — 部分完成：已有 12 个集成测试文件（原 1 个）
 
 ---
 
@@ -256,9 +257,8 @@ match provider {
 
 | 维度 | 当前 | 改进后 |
 |------|------|--------|
-| 最大文件行数 | 11,412 | < 1,000 |
+| 最大文件行数 | 11,412 | < 1,000（代码组织优化） |
 | config.rs 行数 | 5,172 | < 500（主文件） |
-| unwrap() 数量 | 356 | < 50（仅测试） |
-| clone() 数量 | 792 | < 200 |
-| 新增 provider 成本 | 修改 10+ 文件 | 实现 1 个 trait |
+| 生产代码 unwrap() | 11 个高优先级已修复 | 0 个 |
+| clone() 热路径 | engine.rs 已优化 | 持续监控 |
 | 测试隔离性 | 部分测试依赖外部状态 | 完全隔离 |

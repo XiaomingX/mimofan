@@ -754,7 +754,12 @@ fn trim_unquoted_mention(raw: &str) -> &str {
             .last()
             .is_some_and(|ch| matches!(ch, ',' | ';' | ':' | '!' | '?' | ')' | ']' | '}'))
     {
-        trimmed = &trimmed[..trimmed.len() - trimmed.chars().last().unwrap().len_utf8()];
+        trimmed = &trimmed[..trimmed.len()
+            - trimmed
+                .chars()
+                .last()
+                .expect("trimmed has >1 chars inside loop")
+                .len_utf8()];
     }
     trimmed
 }

@@ -1391,15 +1391,21 @@ fn get_block_re() -> &'static Regex {
 }
 
 fn get_script_re() -> &'static Regex {
-    SCRIPT_RE.get_or_init(|| Regex::new(r"(?is)<script[^>]*>.*?</script>").unwrap())
+    SCRIPT_RE.get_or_init(|| {
+        Regex::new(r"(?is)<script[^>]*>.*?</script>").expect("valid script regex")
+    })
 }
 
 fn get_style_re() -> &'static Regex {
-    STYLE_RE.get_or_init(|| Regex::new(r"(?is)<style[^>]*>.*?</style>").unwrap())
+    STYLE_RE.get_or_init(|| {
+        Regex::new(r"(?is)<style[^>]*>.*?</style>").expect("valid style regex")
+    })
 }
 
 fn get_title_re() -> &'static Regex {
-    TITLE_RE.get_or_init(|| Regex::new(r"(?is)<title[^>]*>(.*?)</title>").unwrap())
+    TITLE_RE.get_or_init(|| {
+        Regex::new(r"(?is)<title[^>]*>(.*?)</title>").expect("valid title regex")
+    })
 }
 
 fn get_search_title_re() -> &'static Regex {

@@ -1609,16 +1609,15 @@ async fn run_event_loop(
     loop {
         // Drain the version-check handle once; re-assign None so we
         // don't poll it again.
-        let mut done = false;
-        if let Some(ref handle) = version_check {
-            done = handle.is_finished();
-        }
-        if done && let Ok(Some(hint)) = version_check.take().unwrap().await {
-            app.push_status_toast(
-                hint,
-                StatusToastLevel::Warning,
-                Some(VERSION_HINT_TOAST_TTL_MS),
-            );
+        let should_check = version_check.as_ref().is_some_and(|h| h.is_finished());
+        if should_check {
+            if let Ok(Some(hint)) = version_check.take().expect("checked above").await {
+                app.push_status_toast(
+                    hint,
+                    StatusToastLevel::Warning,
+                    Some(VERSION_HINT_TOAST_TTL_MS),
+                );
+            }
         }
 
         if !drain_web_config_events(&mut web_config_session, app, config, &engine_handle).await {
