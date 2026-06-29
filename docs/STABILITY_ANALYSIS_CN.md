@@ -42,8 +42,8 @@
 
 **改进计划**：
 - [ ] 验证 `spawn_blocking` 必要性（仅 CPU-bound 工作）
-- [ ] 使用 `spawn_supervised` 模式管理 spawned 任务
-- [ ] 识别可并行的 sequential await，改用 `FuturesUnordered`
+- [x] 使用 `spawn_supervised` 模式管理 spawned 任务 — 已实现：`utils.rs` 中有 `spawn_supervised` 函数
+- [x] 识别可并行的 sequential await，改用 `FuturesUnordered` — 已实现：`engine.rs` 中使用 `FuturesUnordered`
 
 ---
 
@@ -86,7 +86,7 @@
 **改进计划**：
 - [ ] 验证所有文件操作使用 RAII（`File` 自动 drop）
 - [ ] 验证 `reqwest::Client` 通过 `Arc` 共享
-- [ ] 验证 SQLite 连接使用 RAII
+- [x] 验证 SQLite 连接使用 RAII — 已实现：`Connection` 类型自动管理生命周期
 
 ---
 

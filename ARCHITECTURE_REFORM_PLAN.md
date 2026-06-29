@@ -184,10 +184,10 @@ match provider {
 - [x] `protocol` 按限界上下文拆分（已完成）
 - [x] `agent` 抽取 `family.rs` + `provider_resolver.rs`（已完成）
 - [ ] 从 `config.rs` 抽取 `provider_config.rs`（Provider 配置独立）
-- [ ] 从 `config.rs` 抽取 `model_config.rs`（模型名称常量独立）
+- [ ] 从 `config.rs` 抽取 `model_config.rs`（模型名称常量独立）— 部分实现：已有 `config/models.rs` 模块（152 行），但主文件仍有 5172 行
 - [ ] 从 `config.rs` 抽取 `route_config.rs`（路由解析独立）
 - [ ] 从 `config.rs` 抽取 `pricing_config.rs`（定价配置独立）
-- [ ] 从 `config.rs` 抽取 `ui_config.rs`（UI 配置独立）
+- [ ] 从 `config.rs` 抽取 `ui_config.rs`（UI 配置独立）— 部分实现：已有 `config_ui.rs`（1318 行），但主文件仍有 5172 行
 
 ### Phase 2: 客户端逻辑抽象（降低 client.rs 耦合）
 
