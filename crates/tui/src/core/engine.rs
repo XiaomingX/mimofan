@@ -2955,10 +2955,10 @@ impl Engine {
     /// assistant message. Called from `handle_deepseek_turn` before each API
     /// request so the model always has the latest navigation aids.
     async fn layered_context_checkpoint(&mut self) {
-        if self.seam_manager.is_none() {
+        let Some(seam_mgr) = &self.seam_manager else {
             return;
-        }
-        if !self.seam_manager.as_ref().unwrap().config().enabled {
+        };
+        if !seam_mgr.config().enabled {
             return;
         }
 
@@ -2966,7 +2966,7 @@ impl Engine {
         // `&SeamManager` borrow — `estimated_input_tokens` mutates the
         // engine's token-estimate cache, which would conflict.
         let estimated_tokens = self.estimated_input_tokens();
-        let seam_mgr = self.seam_manager.as_ref().unwrap();
+        let seam_mgr = self.seam_manager.as_ref().expect("checked above");
         let highest = seam_mgr.highest_level().await;
         let Some(level) = seam_mgr.seam_level_for(estimated_tokens, highest) else {
             return;
