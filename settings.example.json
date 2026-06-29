@@ -1,0 +1,28 @@
+{
+  "env": {
+    "MIMOFAN_API_KEY": "your-api-key-here",
+    "MIMOFAN_BASE_URL": "https://api.xiaomi.com/v1"
+  },
+  "mcpServers": {
+    "github": {
+      "command": "mcp-server-github",
+      "args": ["--verbose"],
+      "env": {
+        "GITHUB_TOKEN": "your-github-token"
+      },
+      "enabled": true
+    },
+    "filesystem": {
+      "command": "mcp-server-filesystem",
+      "args": ["--root", "/path/to/workspace"],
+      "enabled": true
+    }
+  },
+  "enabledPlugins": {
+    "claude-mem": true
+  },
+  "language": "Chinese",
+  "instructions": [
+    "~/.mimofan/instructions.md"
+  ]
+}
