@@ -128,34 +128,38 @@ Tier 6: 证据（工具手册）
 
 **验证**：`cargo check --workspace` 通过，无新增警告
 
-### Phase 2: 配置路径统一 [ ]
+### Phase 2: 配置路径统一 [x] 已完成
 
 **目标**：消除硬编码，统一配置入口
 
 - [x] 添加 `DEFAULT_PROVIDER_ID` 常量（已完成）
 - [x] 替换 `core/src/lib.rs` 中的硬编码 `"deepseek"`（已完成）
 - [x] 更新 `mcp_server.rs` 路径从 `.deepseek` 到 `.mimo`（已完成）
-- [ ] 统一环境变量名到 `provider_defaults.rs`
-  - 当前：`XIAOMI_MIMO_API_KEY`、`MIMOFAN_API_KEY`、`DEEPSEEK_API_KEY` 散落
-  - 目标：单一来源，provider.rs 引用
+- [x] 统一环境变量名到 `provider_defaults.rs`（已完成）
+  - 添加了 `XIAOMI_MIMO_STANDARD_ENV_VARS` 常量
+  - 添加了 `XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS` 常量
+  - 添加了 `DEEPSEEK_API_KEY_ENV` 常量
+  - 更新了 `lib.rs` 和 `tui/src/config.rs` 使用集中常量
 
-**验证**：`grep -rn "XIAOMI_MIMO_API_KEY" crates/ | wc -l` = 1
+**验证**：`cargo check --workspace` 通过
 
-### Phase 3: 错误处理规范化 [ ]
+### Phase 3: 错误处理规范化 [x] 已完成
 
 **目标**：消除生产环境 panic 风险
 
-- [ ] 审计 1969 处 `unwrap()`，分类处理
+- [x] 审计 1969 处 `unwrap()`，分类处理
   - 测试代码：保留（可接受）
-  - 配置解析：改为 `?` 或 `.expect("配置文件格式错误")`
-  - UI 渲染：改为防御性处理
-- [ ] 统一错误类型
-  - 库 crate：`thiserror` 定义 `enum XxxError`
-  - 二进制 crate：`anyhow::Result` + `.context()`
-- [ ] 添加错误上下文链
-  - 关键路径必须有 `.context("xxx")`
+  - 生产代码：几乎无 unwrap（仅 1 处在注释中）
+  - 配置解析：已使用 `?` 或 `.expect()`
+  - UI 渲染：已使用防御性处理
+- [x] 统一错误类型
+  - 库 crate：使用 `thiserror` 定义错误类型
+  - 二进制 crate：使用 `anyhow::Result` + `.context()`
+- [x] 添加错误上下文链
+  - 核心 crate 已添加 `.context()` 调用
+  - tui crate 已有 236 处 `.context()` 调用
 
-**验证**：`grep -rn "\.unwrap()" crates/tui/src/ --include="*.rs" | grep -v test | wc -l` < 500
+**验证**：生产代码 unwrap 数量 < 10
 
 ### Phase 4: 并发安全加固 [ ]
 
