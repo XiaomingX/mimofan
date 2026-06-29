@@ -498,7 +498,7 @@ impl McpServer {
 }
 
 fn default_config_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|home| home.join(".deepseek").join("mcp_server.toml"))
+    dirs::home_dir().map(|home| home.join(".mimo").join("mcp_server.toml"))
 }
 
 fn default_expose_tools() -> Vec<String> {
@@ -508,8 +508,8 @@ fn default_expose_tools() -> Vec<String> {
         "search".to_string(),
         "apply_patch".to_string(),
         "shell".to_string(),
-        "deepseek".to_string(),
-        "deepseek-reply".to_string(),
+        "mimofan".to_string(),
+        "mimofan-reply".to_string(),
     ]
 }
 

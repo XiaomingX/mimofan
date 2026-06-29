@@ -11,7 +11,7 @@ pub use harness::{
     HarnessCompactionStrategy, HarnessPosture, HarnessPostureKind, HarnessProfile,
     HarnessSafetyPosture, HarnessToolSurface, built_in_harness_profiles,
 };
-pub(crate) use provider_defaults::*;
+pub use provider_defaults::*;
 pub use provider_kind::ProviderKind;
 
 use std::collections::{BTreeMap, BTreeSet};

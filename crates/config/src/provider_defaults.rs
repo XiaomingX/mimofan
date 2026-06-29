@@ -5,6 +5,10 @@
 //! are unchanged. Re-exported `pub(crate)` at the crate root so existing
 //! `crate::DEFAULT_*` references keep resolving.
 
+// ── Default provider ────────────────────────────────────────────────
+/// Default provider ID used when no provider is specified.
+pub const DEFAULT_PROVIDER_ID: &str = "xiaomi-mimo";
+
 // ── Xiaomi MiMo defaults ────────────────────────────────────────────
 pub(crate) const DEFAULT_XIAOMI_MIMO_MODEL: &str = "mimo-v2.5-pro";
 pub(crate) const XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL: &str = "mimo-v2.5-pro-ultraspeed";

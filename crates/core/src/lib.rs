@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use mimofan_agent::ModelRegistry;
-use mimofan_config::{CliRuntimeOverrides, ConfigToml, ProviderKind};
+use mimofan_config::{CliRuntimeOverrides, ConfigToml, DEFAULT_PROVIDER_ID, ProviderKind};
 use mimofan_execpolicy::{
     AskForApproval, ExecApprovalRequirement, ExecPolicyContext, ExecPolicyDecision,
     ExecPolicyEngine,
@@ -136,7 +136,7 @@ impl Runtime {
             ThreadRequest::Create { .. } => {
                 let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
                 let new = self.thread_manager.spawn_thread_with_history(
-                    "deepseek".to_string(),
+                    DEFAULT_PROVIDER_ID.to_string(),
                     cwd,
                     InitialHistory::New,
                     false,
@@ -153,7 +153,7 @@ impl Runtime {
                     params
                         .model_provider
                         .clone()
-                        .unwrap_or_else(|| "deepseek".to_string()),
+                        .unwrap_or_else(|| DEFAULT_PROVIDER_ID.to_string()),
                     cwd,
                     InitialHistory::New,
                     params.persist_extended_history,
@@ -168,7 +168,7 @@ impl Runtime {
                 if let Some(new) = self.thread_manager.resume_thread_with_history(
                     &params,
                     &fallback_cwd,
-                    "deepseek".to_string(),
+                    DEFAULT_PROVIDER_ID.to_string(),
                 )? {
                     let mut response = thread_response_from_new("resumed", new);
                     response.data = self.persisted_thread_data(&response.thread_id)?;
