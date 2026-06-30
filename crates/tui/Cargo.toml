@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "MiMo 专属中文编码助手 TUI"
-default-run = "mimofan"
+default-run = "mimofan-tui"
 
 [features]
 default = ["tui", "json", "toml"]
@@ -16,7 +16,7 @@ toml = ["schemaui/toml"]
 long-running-tests = []
 
 [[bin]]
-name = "mimofan"
+name = "mimofan-tui"
 path = "src/main.rs"
 
 [dependencies]
