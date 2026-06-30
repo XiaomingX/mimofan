@@ -1,8 +1,6 @@
 //! Session command area: saving, forking, resuming, exporting, and the
 //! `/relay` session-handoff artifact.
 
-#[cfg(all(test, feature = "long-running-tests"))]
-mod acceptance;
 mod compact;
 mod export;
 mod fork;

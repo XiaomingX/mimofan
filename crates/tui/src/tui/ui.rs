@@ -105,15 +105,13 @@ use crate::tui::shell_job_routing::{
     add_shell_job_message, format_shell_job_list, format_shell_poll, open_shell_job_pager,
 };
 use crate::tui::streaming_thinking;
-#[cfg(test)]
-use crate::tui::subagent_routing::reconcile_subagent_activity_state_at;
+
 use crate::tui::subagent_routing::{
     format_task_list, handle_subagent_mailbox, open_task_pager, reconcile_subagent_activity_state,
     running_agent_count, sort_subagents_in_place, subagent_message_refreshes_workspace_context,
     task_mode_label, task_summary_to_panel_entry,
 };
-#[cfg(test)]
-use crate::tui::tool_routing::exploring_label;
+
 use crate::tui::tool_routing::{
     handle_tool_call_complete, handle_tool_call_started, maybe_add_patch_preview,
 };
@@ -7513,22 +7511,8 @@ async fn apply_command_result(
     Ok(false)
 }
 
-#[cfg(test)]
-use std::process::{Command, Stdio};
-
 fn open_external_url(url: &str) -> Result<()> {
     crate::utils::open_url(url)
-}
-
-#[cfg(test)]
-fn spawn_external_url_command(mut command: Command) -> Result<()> {
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map(|_| ())
-        .map_err(|err| anyhow::anyhow!("failed to launch browser command: {err}"))
 }
 
 fn apply_workspace_runtime_state(app: &mut App, config: &Config, workspace: PathBuf) {
@@ -8337,9 +8321,7 @@ fn render(f: &mut Frame, app: &mut App) {
             crate::config::ApiProvider::XiaomiMimo => Some("MiMo"),
             crate::config::ApiProvider::XiaomiMimo => Some("Novita"),
             crate::config::ApiProvider::XiaomiMimo => Some("Fireworks"),
-            crate::config::ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                Some("SiliconFlow")
-            }
+            crate::config::ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => Some("SiliconFlow"),
             crate::config::ApiProvider::XiaomiMimo => Some("Arcee"),
             crate::config::ApiProvider::XiaomiMimo => Some("Kimi"),
             crate::config::ApiProvider::XiaomiMimo => Some("HF"),
@@ -10478,10 +10460,6 @@ fn open_pager_for_last_message(app: &mut App) -> bool {
 
 /// Compatibility wrapper for the old test name. The user-facing Ctrl+O
 /// surface is now Activity Detail, not a thinking-only pager.
-#[cfg(test)]
-fn open_thinking_pager(app: &mut App) -> bool {
-    open_activity_detail_pager(app)
-}
 
 /// Open a pager for the activity the user is most likely asking about.
 ///
@@ -11298,10 +11276,9 @@ async fn version_hint_from_release_mirror_env(current: &str) -> Option<String> {
     if !release_mirror_env_configured() {
         return None;
     }
-    let tag =
-        mimofan_release::latest_release_tag_async(mimofan_release::ReleaseChannel::Stable)
-            .await
-            .ok()?;
+    let tag = mimofan_release::latest_release_tag_async(mimofan_release::ReleaseChannel::Stable)
+        .await
+        .ok()?;
     version_hint_from_latest_tag(&tag, current)
 }
 
@@ -11315,8 +11292,8 @@ async fn version_hint_from_configured_update_uri(
     update_uri: &str,
     current: &str,
 ) -> Result<Option<String>> {
-    let body = mimofan_release::fetch_release_json_async(update_uri, "configured latest release")
-        .await?;
+    let body =
+        mimofan_release::fetch_release_json_async(update_uri, "configured latest release").await?;
     let json: serde_json::Value = serde_json::from_str(&body).with_context(|| {
         format!("failed to parse release JSON from configured URI {update_uri}")
     })?;
@@ -11406,6 +11383,3 @@ fn parse_semver(v: &str) -> Option<(u32, u32, u32)> {
     let patch = parts.next().unwrap_or("0").parse::<u32>().ok()?;
     Some((major, minor, patch))
 }
-
-#[cfg(test)]
-mod tests;

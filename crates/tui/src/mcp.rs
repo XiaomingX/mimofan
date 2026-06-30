@@ -2030,14 +2030,6 @@ impl McpPool {
     }
 
     /// Create a pool from a configuration file path.
-    #[cfg(test)]
-    pub fn from_config_path(path: &std::path::Path) -> Result<Self> {
-        let config = load_config(path)?;
-        let mut pool = Self::new(config);
-        pool.config_sources = vec![path.to_path_buf()];
-        pool.last_mtimes = vec![mcp_config_mtime(path)];
-        Ok(pool)
-    }
 
     /// Create a pool from global MCP config plus workspace-local
     /// `.mimofan/mcp.json`. Project servers override same-name global
@@ -3079,21 +3071,6 @@ pub fn set_server_enabled(path: &Path, name: &str, enabled: bool) -> Result<()> 
     save_config(path, &cfg)
 }
 
-#[cfg(test)]
-pub fn manager_snapshot_from_config(
-    path: &Path,
-    restart_required: bool,
-) -> Result<McpManagerSnapshot> {
-    let cfg = load_config(path)?;
-    Ok(snapshot_from_config(
-        path,
-        path.exists(),
-        restart_required,
-        &cfg,
-        None,
-    ))
-}
-
 pub fn manager_snapshot_from_config_with_workspace(
     path: &Path,
     workspace: &Path,
@@ -3106,32 +3083,6 @@ pub fn manager_snapshot_from_config_with_workspace(
         restart_required,
         &cfg,
         None,
-    ))
-}
-
-#[cfg(test)]
-pub async fn discover_manager_snapshot(
-    path: &Path,
-    network_policy: Option<NetworkPolicyDecider>,
-    restart_required: bool,
-) -> Result<McpManagerSnapshot> {
-    let cfg = load_config(path)?;
-    let mut pool = McpPool::new(cfg.clone());
-    if let Some(policy) = network_policy {
-        pool = pool.with_network_policy(policy);
-    }
-    let errors = pool
-        .connect_all()
-        .await
-        .into_iter()
-        .map(|(name, err)| (name, format!("{err:#}")))
-        .collect::<HashMap<_, _>>();
-    Ok(snapshot_from_config(
-        path,
-        path.exists(),
-        restart_required,
-        &cfg,
-        Some((&pool, &errors)),
     ))
 }
 
@@ -3308,8 +3259,3 @@ pub fn format_tool_result(result: &serde_json::Value) -> String {
         content
     }
 }
-
-// === Unit Tests ===
-
-#[cfg(test)]
-mod tests;

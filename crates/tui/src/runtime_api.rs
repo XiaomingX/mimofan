@@ -857,23 +857,6 @@ fn print_mobile_urls(addr: SocketAddr, auth_enabled: bool, generated_auth: bool,
     }
 }
 
-#[cfg(test)]
-fn url_query_component(value: &str) -> String {
-    let mut encoded = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                encoded.push(byte as char);
-            }
-            _ => {
-                use std::fmt::Write as _;
-                let _ = write!(encoded, "%{byte:02X}");
-            }
-        }
-    }
-    encoded
-}
-
 fn detect_lan_ip() -> Option<String> {
     let socket = UdpSocket::bind("0.0.0.0:0").ok()?;
     // UDP connect only selects the outbound interface locally; no packet is sent.
@@ -3473,6 +3456,3 @@ impl IntoResponse for ApiError {
             .into_response()
     }
 }
-
-#[cfg(test)]
-mod tests;

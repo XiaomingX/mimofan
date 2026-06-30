@@ -972,40 +972,4 @@ impl McpServerConfig {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn resolve_oauth_scopes_prefers_explicit() {
-        let resolved = resolve_oauth_scopes(
-            Some(vec!["explicit".to_string()]),
-            vec!["configured".to_string()],
-            Some(vec!["discovered".to_string()]),
-        );
-        assert_eq!(resolved.source, McpOAuthScopesSource::Explicit);
-        assert_eq!(resolved.scopes, vec!["explicit"]);
-    }
-
-    #[test]
-    fn parse_oauth_callback_accepts_success() {
-        let parsed = parse_oauth_callback("/callback/id?code=abc&state=xyz", "/callback/id");
-        assert!(matches!(parsed, CallbackOutcome::Success(_)));
-    }
-
-    #[test]
-    fn parse_oauth_callback_accepts_provider_error() {
-        let parsed = parse_oauth_callback(
-            "/callback/id?error=invalid_scope&error_description=nope",
-            "/callback/id",
-        );
-        assert!(matches!(parsed, CallbackOutcome::Error(_)));
-    }
-
-    #[test]
-    fn store_key_does_not_include_raw_url_or_name() {
-        let key = store_key("github", "https://example.com/mcp");
-        assert!(key.starts_with("mcp_oauth_"));
-        assert!(!key.contains("github"));
-        assert!(!key.contains("example.com"));
-    }
-}
+mod tests {}

@@ -1,7 +1,12 @@
 # ============================================
-# mimofan .claudeignore
+# mimofan .cursorignore
 # 排除 AI 不需要读取的文件，减少 token 浪费
 # ============================================
+
+# ── 排除辅助/入口 crate（保留核心引擎和工具链）──
+crates/app-server/
+crates/cli/
+crates/whaleflow/
 
 # ── 构建产物 ──
 target/
@@ -33,18 +38,35 @@ crates/tui/src/config/tests.rs
 crates/tui/src/runtime_api/tests.rs
 crates/tui/src/tools/subagent/tests.rs
 crates/tui/src/core/engine/tests.rs
+crates/tui/src/mcp/tests.rs
+crates/tui/src/runtime_threads/tests.rs
+crates/tui/src/tools/shell/tests.rs
+crates/tui/src/tui/history/tests.rs
+crates/test_support.rs
+crates/tui/src/tools/test_runner.rs
 crates/config/src/tests.rs
 crates/config/src/route/tests.rs
+crates/config/src/route/conformance_tests.rs
+crates/config/src/catalog/tests.rs
+crates/config/src/pricing/tests.rs
 
-# ── AI 记忆文件（已自动注入上下文，重复读取浪费 token）──
+# ── 超大文件（稳定模块，摘要见 CLAUDE.md）──
+crates/tui/src/localization.rs
+crates/tui/src/prompts.rs
+crates/tui/src/tui/widgets/mod.rs
+crates/tui/src/tui/views/mod.rs
+
+# ── AI 记忆文件与本地设置（避免污染上下文）──
 **/CLAUDE.local.md
+AGENTS.md
+settings.example.json
 
-# ── 变更日志（历史记录，不影响代码理解）──
+# ── 变更日志与历史记录 ──
 CHANGELOG.md
 docs/CHANGELOG_ARCHIVE.md
 crates/tui/CHANGELOG.md
 
-# ── 非核心文档（不影响代码理解）──
+# ── 非核心文档与本地凭证 ──
 docs/rfcs/
 docs/evidence/
 docs/skills/
@@ -102,35 +124,16 @@ Dockerfile
 .github/dependabot.yml
 .github/FUNDING.yml
 
-# ── 资源文件（图片等，不影响代码理解）──
+# ── 资源文件（图片等）──
 assets/
 
-# ── 脚本文件（发布/部署/CI 脚本，不影响代码理解）──
+# ── 脚本文件（CI 脚本）──
 scripts/
 
-# ── 工作流定义（JS/Star 脚本）──
+# ── 工作流定义 ──
 workflows/
 
-# ── 临时/生成文件 ──
+# ── 临时/生成文件与调试日志 ──
 *.sh
 *.cmd
-
-# ── Git 内部目录 ──
-.git/
-
-# ── 项目本地配置 ──
-.env.example
-.mailmap
-.gitattributes
-
-# ============================================
-# 保留（不排除）：
-# - crates/              Rust 源代码（含 prompts/ 提示词模板）
-# - docs/ 核心文档       ARCHITECTURE_CN.md, CONFIGURATION.md,
-#                        SUBAGENTS.md, MCP.md, MODES.md, USAGE_CN.md,
-#                        TOOL_SURFACE.md, KEYBINDINGS.md, MEMORY.md
-# - config.example.toml  配置示例
-# - AGENTS.md            AI 代理工作规范
-# - CLAUDE.md            项目级 AI 指引
-# - Cargo.toml           工作区配置
-# ============================================
+*.log

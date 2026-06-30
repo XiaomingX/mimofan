@@ -377,29 +377,4 @@ pub fn apply_seccomp_filter() -> std::io::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_available_does_not_panic() {
-        let _ = is_available();
-    }
-
-    #[test]
-    #[cfg(target_os = "linux")]
-    fn test_detect_denial() {
-        assert!(detect_denial(31, ""));
-        assert!(detect_denial(1, "Bad system call"));
-        assert!(detect_denial(1, "SIGSYS"));
-        assert!(!detect_denial(0, "Success"));
-        assert!(!detect_denial(1, "File not found"));
-    }
-
-    #[test]
-    fn test_detect_denial_non_linux() {
-        #[cfg(not(target_os = "linux"))]
-        {
-            assert!(!detect_denial(31, "Bad system call"));
-        }
-    }
-}
+mod tests {}

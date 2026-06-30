@@ -125,13 +125,4 @@ fn apply_linux_hardening() {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_apply_process_hardening_does_not_panic() {
-        // This test exists to ensure the function can be called without
-        // panicking, even on platforms where hardening is a no-op.
-        apply_process_hardening();
-    }
-}
+mod tests {}

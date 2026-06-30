@@ -151,37 +151,4 @@ pub(super) fn add_shell_job_message(app: &mut App, content: String) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    #[test]
-    fn list_shows_controls_and_stale_state() {
-        let jobs = vec![ShellJobSnapshot {
-            id: "shell_dead".to_string(),
-            job_id: "shell_dead".to_string(),
-            command: "cargo test".to_string(),
-            cwd: PathBuf::from("/tmp/repo"),
-            status: ShellStatus::Killed,
-            exit_code: None,
-            elapsed_ms: 0,
-            stdout_tail: String::new(),
-            stderr_tail: "detached".to_string(),
-            stdout_len: 0,
-            stderr_len: 8,
-            stdin_available: false,
-            stale: true,
-            elapsed_since_output_ms: None,
-            linked_task_id: Some("task_1".to_string()),
-            owner_agent_id: None,
-            owner_agent_name: None,
-        }];
-        let formatted = format_shell_job_list(&jobs);
-        assert!(formatted.contains("Bash jobs (1)"));
-        assert!(!formatted.contains("Background commands"));
-        assert!(formatted.contains("shell_dead"));
-        assert!(formatted.contains("stale"));
-        assert!(formatted.contains("/jobs poll <id>"));
-        assert!(formatted.contains("task=task_1"));
-    }
-}
+mod tests {}

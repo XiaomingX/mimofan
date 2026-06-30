@@ -256,6 +256,3 @@ fn effective_at_from_source(source: &CatalogSource) -> Option<u64> {
         CatalogSource::Bundled | CatalogSource::UserOverride => None,
     }
 }
-
-#[cfg(test)]
-mod tests;

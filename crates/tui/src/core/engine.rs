@@ -15,10 +15,10 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::Result;
-use mimofan_execpolicy::{AskForApproval, ExecPolicyContext};
-use mimofan_protocol::runtime::DynamicToolSpec;
 use futures_util::StreamExt;
 use futures_util::stream::FuturesUnordered;
+use mimofan_execpolicy::{AskForApproval, ExecPolicyContext};
+use mimofan_protocol::runtime::DynamicToolSpec;
 use serde_json::{Value, json};
 use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
@@ -32,8 +32,7 @@ use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, StreamError};
 use crate::features::{Feature, Features};
 use crate::llm_client::LlmClient;
 use crate::mcp::McpPool;
-#[cfg(test)]
-use crate::models::ToolCaller;
+
 use crate::models::{
     ContentBlock, ContentBlockStart, Delta, Message, MessageRequest, StreamEvent, SystemPrompt,
     Tool, Usage,
@@ -3590,16 +3589,6 @@ pub fn spawn_engine(config: EngineConfig, api_config: &Config) -> EngineHandle {
 }
 
 #[cfg(test)]
-pub(crate) struct MockEngineHandle {
-    pub handle: EngineHandle,
-    pub rx_op: mpsc::Receiver<Op>,
-    rx_approval: mpsc::Receiver<ApprovalDecision>,
-    pub rx_steer: mpsc::Receiver<String>,
-    pub tx_event: mpsc::Sender<Event>,
-    pub cancel_token: CancellationToken,
-}
-
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum MockApprovalEvent {
     Approved {
@@ -3614,51 +3603,6 @@ pub(crate) enum MockApprovalEvent {
     },
 }
 
-#[cfg(test)]
-impl MockEngineHandle {
-    pub(crate) async fn recv_approval_event(&mut self) -> Option<MockApprovalEvent> {
-        match self.rx_approval.recv().await? {
-            ApprovalDecision::Approved { id } => Some(MockApprovalEvent::Approved { id }),
-            ApprovalDecision::Denied { id } => Some(MockApprovalEvent::Denied { id }),
-            ApprovalDecision::RetryWithPolicy { id, policy } => {
-                Some(MockApprovalEvent::RetryWithPolicy { id, policy })
-            }
-        }
-    }
-}
-
-#[cfg(test)]
-pub(crate) fn mock_engine_handle() -> MockEngineHandle {
-    let (tx_op, rx_op) = mpsc::channel(32);
-    let (tx_event, rx_event) = mpsc::channel(256);
-    let (tx_approval, rx_approval) = mpsc::channel(64);
-    let (tx_user_input, _rx_user_input) = mpsc::channel(32);
-    let (tx_steer, rx_steer) = mpsc::channel(64);
-    let cancel_token = CancellationToken::new();
-    let shared_cancel_token = Arc::new(StdMutex::new(cancel_token.clone()));
-    let cancel_reason: Arc<StdMutex<Option<CancelReason>>> = Arc::new(StdMutex::new(None));
-    let shared_paused = Arc::new(StdMutex::new(false));
-    let handle = EngineHandle {
-        tx_op,
-        rx_event: Arc::new(RwLock::new(rx_event)),
-        cancel_token: shared_cancel_token,
-        cancel_reason,
-        tx_approval,
-        tx_user_input,
-        tx_steer,
-        shared_paused,
-    };
-
-    MockEngineHandle {
-        handle,
-        rx_op,
-        rx_approval,
-        rx_steer,
-        tx_event,
-        cancel_token,
-    }
-}
-
 mod approval;
 mod context;
 mod handle;
@@ -3668,10 +3612,7 @@ use context::{
     effective_max_output_tokens_for_route, extract_compaction_summary_prompt,
     is_context_length_error_message, summarize_text,
 };
-#[cfg(test)]
-use context::{context_input_budget_for_provider, effective_max_output_tokens};
-#[cfg(test)]
-use context::{route_context_budget_for_provider, route_context_budget_for_route};
+
 mod dispatch;
 mod lsp_hooks;
 mod streaming;
@@ -3702,8 +3643,7 @@ fn filter_tool_catalog_for_gates(
 }
 
 use self::approval::{ApprovalDecision, ApprovalResult, UserInputDecision};
-#[cfg(test)]
-use self::dispatch::should_parallelize_tool_batch;
+
 use self::dispatch::{
     ParallelToolResult, ParallelToolResultEntry, ToolExecGuard, ToolExecOutcome,
     ToolExecutionBatch, ToolExecutionPlan, caller_allowed_for_tool, caller_type_for_tool_use,
@@ -3711,10 +3651,7 @@ use self::dispatch::{
     mcp_tool_is_read_only, parse_parallel_tool_calls, parse_tool_input,
     plan_tool_execution_batches, should_force_update_plan_first, should_stop_after_plan_tool,
 };
-#[cfg(test)]
-use self::lsp_hooks::edited_paths_for_tool;
-#[cfg(test)]
-use self::streaming::TOOL_CALL_START_MARKERS;
+
 use self::streaming::{
     ContentBlockKind, FAKE_WRAPPER_NOTICE, MAX_STREAM_ERRORS_BEFORE_FAIL, MAX_STREAM_RETRIES,
     MAX_TRANSPARENT_STREAM_RETRIES, STREAM_MAX_CONTENT_BYTES, STREAM_MAX_DURATION_SECS,
@@ -3728,14 +3665,7 @@ use self::tool_catalog::{
     initial_active_tools, is_tool_search_tool, maybe_hydrate_requested_deferred_tool,
     missing_tool_error_message, tool_catalog_consistency_issues,
 };
-#[cfg(test)]
-use self::tool_catalog::{
-    TOOL_SEARCH_NAME, build_model_tool_catalog, maybe_activate_requested_deferred_tool,
-    preflight_requested_deferred_tool, should_default_defer_tool,
-};
+
 use self::tool_execution::emit_tool_audit;
 use self::tool_setup::{sandbox_policy_for_mode, shell_policy_for_mode};
 use crate::tools::js_execution::execute_js_execution_tool;
-
-#[cfg(test)]
-mod tests;

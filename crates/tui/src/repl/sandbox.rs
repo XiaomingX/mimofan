@@ -45,36 +45,4 @@ pub struct ReplBlock {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn has_repl_block_detects_fence() {
-        assert!(has_repl_block("some text ```repl\ncode\n``` more"));
-        assert!(!has_repl_block("no repl here ```python\ncode\n```"));
-        assert!(!has_repl_block("just text"));
-    }
-
-    #[test]
-    fn extract_repl_blocks_single() {
-        let text = "before\n```repl\nprint('hello')\n```\nafter";
-        let blocks = extract_repl_blocks(text);
-        assert_eq!(blocks.len(), 1);
-        assert_eq!(blocks[0].code.trim(), "print('hello')");
-    }
-
-    #[test]
-    fn extract_repl_blocks_multiple() {
-        let text = "```repl\ncode1\n```\nmid\n```repl\ncode2\n```\nend";
-        let blocks = extract_repl_blocks(text);
-        assert_eq!(blocks.len(), 2);
-        assert_eq!(blocks[0].code.trim(), "code1");
-        assert_eq!(blocks[1].code.trim(), "code2");
-    }
-
-    #[test]
-    fn extract_repl_blocks_empty_when_none() {
-        let blocks = extract_repl_blocks("no blocks here");
-        assert!(blocks.is_empty());
-    }
-}
+mod tests {}

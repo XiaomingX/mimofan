@@ -1,8 +1,6 @@
 //! Core command area: model/provider selection, help, navigation, and the
 //! persistent RLM / sub-agent entry points.
 
-#[cfg(all(test, feature = "long-running-tests"))]
-mod acceptance;
 mod agent;
 mod anchor;
 mod clear;

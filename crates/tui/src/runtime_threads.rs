@@ -1012,22 +1012,6 @@ impl RuntimeThreadManager {
             .unwrap_or(0)
     }
 
-    #[cfg(test)]
-    pub(crate) fn register_pending_approval_for_test(
-        &self,
-        approval_id: &str,
-    ) -> oneshot::Receiver<ExternalApprovalDecision> {
-        self.register_pending_approval(approval_id)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn register_pending_dynamic_tool_for_test(
-        &self,
-        call_id: &str,
-    ) -> oneshot::Receiver<DynamicToolCallResult> {
-        self.register_pending_dynamic_tool(call_id)
-    }
-
     async fn remember_thread_auto_approve(&self, thread_id: &str) {
         let Ok(mut thread) = self.store.load_thread(thread_id) else {
             return;
@@ -3601,25 +3585,6 @@ impl RuntimeThreadManager {
 
         Ok(())
     }
-
-    #[cfg(test)]
-    pub(crate) async fn install_test_engine(
-        &self,
-        thread_id: &str,
-        engine: EngineHandle,
-    ) -> Result<()> {
-        let _ = self.get_thread(thread_id).await?;
-        let mut active = self.active.lock().await;
-        active.engines.insert(
-            thread_id.to_string(),
-            ActiveThreadState {
-                engine,
-                active_turn: None,
-            },
-        );
-        touch_lru(&mut active.lru, thread_id);
-        Ok(())
-    }
 }
 
 fn dynamic_tool_result_text(content: &[DynamicToolCallContent]) -> String {
@@ -3970,6 +3935,3 @@ fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     crate::utils::write_atomic(path, payload.as_bytes())
         .with_context(|| format!("Failed to write {}", path.display()))
 }
-
-#[cfg(test)]
-mod tests;

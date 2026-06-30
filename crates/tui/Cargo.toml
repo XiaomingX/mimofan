@@ -20,51 +20,51 @@ name = "mimofan"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0.100"
-mimofan-config = { path = "../config", version = "0.8.65" }
-mimofan-execpolicy = { path = "../execpolicy", version = "0.8.65" }
-mimofan-protocol = { path = "../protocol", version = "0.8.65" }
-mimofan-release = { path = "../release", version = "0.8.65" }
-mimofan-secrets = { path = "../secrets", version = "0.8.65" }
-mimofan-tools = { path = "../tools", version = "0.8.65" }
+anyhow.workspace = true
+mimofan-config = { path = "../config", version = "0.0.1" }
+mimofan-execpolicy = { path = "../execpolicy", version = "0.0.1" }
+mimofan-protocol = { path = "../protocol", version = "0.0.1" }
+mimofan-release = { path = "../release", version = "0.0.1" }
+mimofan-secrets = { path = "../secrets", version = "0.0.1" }
+mimofan-tools = { path = "../tools", version = "0.0.1" }
 schemaui = { version = "0.12.0", default-features = false, optional = true }
 async-stream = "0.3.6"
-async-trait = "0.1"
+async-trait.workspace = true
 base64 = "0.22.1"
-axum = { version = "0.8.4", features = ["json"] }
-clap = { version = "4.5.54", features = ["derive"] }
-clap_complete = "4.5"
+axum = { workspace = true, features = ["json"] }
+clap = { workspace = true, features = ["derive"] }
+clap_complete.workspace = true
 colored = "3.0.0"
 crossterm = "0.28"
 dotenvy = "0.15.7"
-dirs = "6.0.0"
+dirs.workspace = true
 fd-lock = "4.0.4"
 futures-util = "0.3.31"
 oauth2 = "5"
 ratatui = "0.30"
 regex = "1.11"
-reqwest = { version = "0.13.1", default-features = false, features = ["blocking", "json", "stream", "multipart", "form", "rustls-no-provider", "http2", "gzip", "brotli"] }
+reqwest = { workspace = true, default-features = false, features = ["blocking", "json", "stream", "multipart", "form", "rustls-no-provider", "http2", "gzip", "brotli"] }
 rmcp = { version = "1.7.0", default-features = false, features = ["auth", "client"] }
 rustls.workspace = true
 qrcode = { version = "0.14", default-features = false }
 similar = "3"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
 schemars = { version = "1.2.1", features = ["derive", "preserve_order"] }
 shellexpand = "3"
-toml = "1.0.6"
-tokio = { version = "1.50.0", features = ["full"] }
+toml.workspace = true
+tokio = { workspace = true, features = ["full"] }
 tokio-util = { version = "0.7.16", features = ["io"] }
 unicode-width = "0.2"
 unicode-segmentation = "1.12"
 urlencoding = "2.1"
-uuid = { version = "1.11", features = ["v4"] }
+uuid = { workspace = true, features = ["v4"] }
 chrono.workspace = true
 tempfile.workspace = true
-thiserror = "2.0"
-tracing = "0.1"
+thiserror.workspace = true
+tracing.workspace = true
 tracing-subscriber = { workspace = true }
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { workspace = true, features = ["cors"] }
 wait-timeout = "0.2"
 webbrowser = "1.0"
 multimap = "0.10.0"
@@ -77,7 +77,7 @@ parking_lot = "0.12"
 pdf-extract = "0.10"
 tar = "0.4"
 flate2 = "1.1"
-sha2 = "0.10"
+sha2.workspace = true
 
 [dev-dependencies]
 cucumber = "0.23.0"

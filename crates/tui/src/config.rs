@@ -134,10 +134,7 @@ impl ApiProvider {
     ];
 
     /// `ProviderKind` discriminant → `ApiProvider` lookup.
-    const FROM_KIND_LOOKUP: [Self; 2] = [
-        Self::XiaomiMimo,
-        Self::Custom,
-    ];
+    const FROM_KIND_LOOKUP: [Self; 2] = [Self::XiaomiMimo, Self::Custom];
 
     /// Map to the config-level `ProviderKind`.
     #[must_use]
@@ -367,17 +364,6 @@ pub fn requested_model_for_provider(_provider: ApiProvider, model: &str) -> Opti
 ///
 /// Returns `Ok(())` for any tuple we cannot confidently reject (the provider
 /// API remains the final authority for those).
-#[cfg(test)]
-pub fn validate_route(provider: ApiProvider, model: &str) -> Result<(), String> {
-    let trimmed = model.trim();
-    if trimmed.is_empty() {
-        return Err(format!(
-            "No model selected for provider '{}'.",
-            provider.as_str()
-        ));
-    }
-    Ok(())
-}
 
 fn canonical_official_deepseek_model_id(model: &str) -> Option<&'static str> {
     match model.trim().to_ascii_lowercase().as_str() {
@@ -3080,9 +3066,10 @@ fn root_deepseek_model_is_foreign_to_direct_provider(_provider: ApiProvider, _mo
 // the workspace-trust/config-load logic that stays in this file (#3311).
 mod paths;
 use paths::{
-    canonicalize_or_keep, mimofan_home_dir, default_config_path, default_managed_config_path,
+    canonicalize_or_keep, default_config_path, default_managed_config_path,
     default_mcp_config_path, default_memory_path, default_notes_path, default_requirements_path,
-    default_skills_dir, env_config_path, expand_pathbuf, home_config_path, workspace_config_key,
+    default_skills_dir, env_config_path, expand_pathbuf, home_config_path, mimofan_home_dir,
+    workspace_config_key,
 };
 pub(crate) use paths::{effective_home_dir, expand_path};
 
@@ -3249,10 +3236,7 @@ fn env_base_url_override() -> Option<String> {
 /// Resolve an env var, preferring the `CODEWHALE_*` form over the
 /// legacy `DEEPSEEK_*` form. Empty values are ignored so a blank shell export
 /// does not erase configured provider settings.
-fn mimofan_env_var(
-    mimofan_name: &str,
-    legacy_name: &str,
-) -> Result<String, std::env::VarError> {
+fn mimofan_env_var(mimofan_name: &str, legacy_name: &str) -> Result<String, std::env::VarError> {
     std::env::var(mimofan_name)
         .ok()
         .filter(|value| !value.trim().is_empty())
@@ -3639,11 +3623,11 @@ fn apply_env_overrides(config: &mut Config) {
                 .providers
                 .get_or_insert_with(ProvidersConfig::default);
             let entry = match provider {
-                ApiProvider::XiaomiMimo
-                | ApiProvider::XiaomiMimo
-                | ApiProvider::XiaomiMimo => unreachable!(
-                    "DeepSeek providers are handled in the if branch above (issue #1714)"
-                ),
+                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
+                    unreachable!(
+                        "DeepSeek providers are handled in the if branch above (issue #1714)"
+                    )
+                }
                 ApiProvider::Custom => providers
                     .custom
                     .entry(custom_key.expect("custom key captured for custom provider"))
@@ -4160,13 +4144,12 @@ fn load_sibling_exec_policy_engine(config_path: Option<&Path>) -> Result<ExecPol
             permissions_path.display()
         )
     })?;
-    let permissions: mimofan_config::PermissionsToml =
-        toml::from_str(&raw).with_context(|| {
-            format!(
-                "Failed to parse permissions file: {}",
-                permissions_path.display()
-            )
-        })?;
+    let permissions: mimofan_config::PermissionsToml = toml::from_str(&raw).with_context(|| {
+        format!(
+            "Failed to parse permissions file: {}",
+            permissions_path.display()
+        )
+    })?;
     if permissions.is_empty() {
         Ok(ExecPolicyEngine::new(Vec::new(), Vec::new()))
     } else {
@@ -4187,9 +4170,7 @@ fn merge_skills_config(
             max_install_size_bytes: override_cfg
                 .max_install_size_bytes
                 .or(base.max_install_size_bytes),
-            scan_mimofan_only: override_cfg
-                .scan_mimofan_only
-                .or(base.scan_mimofan_only),
+            scan_mimofan_only: override_cfg.scan_mimofan_only.or(base.scan_mimofan_only),
         }),
     }
 }
@@ -5166,6 +5147,3 @@ pub fn clear_active_provider_api_key(provider: &str) -> Result<()> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod tests;

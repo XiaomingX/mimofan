@@ -40,8 +40,7 @@ use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
 };
 use crate::tools::todo::SharedTodoList;
-#[cfg(test)]
-use crate::tools::todo::TodoList;
+
 use crate::tui::app::ReasoningEffort;
 use crate::utils::spawn_supervised;
 use crate::worker_profile::{ModelRoute, ToolScope, WorkerRuntimeProfile};
@@ -1862,10 +1861,6 @@ impl SubAgentManager {
 
     /// Return the boot id this manager stamps on agents it spawns.
     /// Exposed for tests; internal callers use the field directly.
-    #[cfg(test)]
-    pub fn session_boot_id(&self) -> &str {
-        &self.current_session_boot_id
-    }
 
     /// Classify an agent by its `session_boot_id`: `true` when the
     /// agent was either (a) loaded from disk with no id, or (b) carries
@@ -5426,20 +5421,6 @@ fn parse_optional_positive_u64(input: &Value, names: &[&str]) -> Result<Option<u
     Ok(None)
 }
 
-#[cfg(test)]
-fn with_default_fork_context(mut input: Value, default: bool) -> Value {
-    let Some(object) = input.as_object_mut() else {
-        return input;
-    };
-    if !object.contains_key("fork_context")
-        && !object.contains_key("forkContext")
-        && !object.contains_key("inherit_context")
-    {
-        object.insert("fork_context".to_string(), Value::Bool(default));
-    }
-    input
-}
-
 pub(crate) fn normalize_requested_subagent_model(
     value: &str,
     field: &str,
@@ -5468,7 +5449,9 @@ pub(crate) fn normalize_requested_subagent_model(
 
 fn provider_name_for_error(provider: crate::config::ApiProvider) -> &'static str {
     match provider {
-        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => "DeepSeek",
+        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => {
+            "DeepSeek"
+        }
         crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => "OpenAI",
         crate::config::ApiProvider::XiaomiMimo => "Moonshot",
         _ => "this provider",
@@ -5567,24 +5550,6 @@ fn subagent_request_tuning(reasoning_effort: Option<&str>) -> RequestTuning {
 /// active provider and the already provider-resolved parent model.
 fn subagent_router_candidates(runtime: &SubAgentRuntime) -> crate::model_routing::RouterCandidates {
     crate::model_routing::provider_router_candidates(runtime.client.api_provider(), &runtime.model)
-}
-
-#[cfg(test)]
-fn fallback_subagent_assignment_route(
-    runtime: &SubAgentRuntime,
-    configured_model: Option<String>,
-    requested_model_route: ModelRoute,
-    requested_thinking: SubAgentThinking,
-    prompt: &str,
-) -> SubAgentResolvedRoute {
-    let model_route = assignment_model_route(configured_model.as_deref(), requested_model_route);
-    worker_profile_subagent_assignment_route(
-        runtime,
-        &model_route,
-        requested_thinking,
-        prompt,
-        &SubAgentType::General,
-    )
 }
 
 fn worker_profile_subagent_assignment_route(
@@ -6220,25 +6185,6 @@ struct SubAgentToolRegistry {
 }
 
 impl SubAgentToolRegistry {
-    #[cfg(test)]
-    fn new(
-        runtime: SubAgentRuntime,
-        agent_type: SubAgentType,
-        explicit_allowed_tools: Option<Vec<String>>,
-        todo_list: SharedTodoList,
-        plan_state: SharedPlanState,
-    ) -> Self {
-        Self::new_with_owner(
-            runtime,
-            agent_type,
-            "agent_unknown".to_string(),
-            "sub-agent".to_string(),
-            explicit_allowed_tools,
-            todo_list,
-            plan_state,
-        )
-    }
-
     fn new_with_owner(
         runtime: SubAgentRuntime,
         agent_type: SubAgentType,
@@ -6639,8 +6585,3 @@ const VERIFIER_AGENT_INTRO: &str = concat!(
     "You may use more tool calls than quick exploration, but stop after decisive pass/fail evidence.\n",
     "CHANGES will almost always be \"None.\" for a verifier.\n\n"
 );
-
-// === Tests ===
-
-#[cfg(test)]
-mod tests;

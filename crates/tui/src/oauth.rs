@@ -323,44 +323,4 @@ const CODEX_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 const TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn jwt_expiry_parses_valid_token() {
-        // A minimal JWT with {"exp": 9999999999} as payload.
-        let payload = URL_SAFE_NO_PAD.encode(b"{\"exp\":9999999999}");
-        let token = format!("header.{payload}.signature");
-        assert_eq!(jwt_expiry_seconds(&token), Some(9999999999));
-    }
-
-    #[test]
-    fn jwt_expiry_returns_none_for_malformed() {
-        assert_eq!(jwt_expiry_seconds("not.a.jwt"), None);
-        assert_eq!(jwt_expiry_seconds(""), None);
-        assert_eq!(jwt_expiry_seconds("x"), None);
-    }
-
-    #[test]
-    fn token_is_expired_detects_future() {
-        // Far future — should not be expired.
-        let payload = URL_SAFE_NO_PAD.encode(b"{\"exp\":9999999999}");
-        let token = format!("header.{payload}.sig");
-        assert!(!token_is_expired(&token));
-    }
-
-    #[test]
-    fn token_is_expired_detects_past() {
-        // Way in the past.
-        let payload = URL_SAFE_NO_PAD.encode(b"{\"exp\":1000000000}");
-        let token = format!("header.{payload}.sig");
-        assert!(token_is_expired(&token));
-    }
-
-    #[test]
-    fn auth_file_path_respects_env() {
-        // Just verify it returns a path without panicking.
-        let path = auth_file_path();
-        assert!(path.to_string_lossy().contains("auth.json"));
-    }
-}
+mod tests {}

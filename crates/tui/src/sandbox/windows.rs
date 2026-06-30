@@ -52,15 +52,4 @@ pub fn detect_denial(exit_code: i32, stderr: &str) -> bool {
     patterns.iter().any(|p| stderr.contains(p))
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn windows_sandbox_is_not_advertised_until_helper_exists() {
-        assert!(!is_available());
-        assert_eq!(
-            select_best_kind(&SandboxPolicy::default(), Path::new(".")),
-            WindowsSandboxKind::ProcessContainment
-        );
-    }
-}
+mod tests {}

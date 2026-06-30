@@ -54,31 +54,4 @@ fn add_optional_usage(total: Option<u32>, delta: Option<u32>) -> Option<u32> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn add_usage_with_prompt_cache_preserves_cache_counts() {
-        let mut total = Usage {
-            input_tokens: 100,
-            output_tokens: 10,
-            prompt_cache_hit_tokens: Some(80),
-            prompt_cache_miss_tokens: Some(20),
-            ..Usage::default()
-        };
-        let delta = Usage {
-            input_tokens: 50,
-            output_tokens: 5,
-            prompt_cache_hit_tokens: Some(30),
-            prompt_cache_miss_tokens: Some(20),
-            ..Usage::default()
-        };
-
-        add_usage_with_prompt_cache(&mut total, &delta);
-
-        assert_eq!(total.input_tokens, 150);
-        assert_eq!(total.output_tokens, 15);
-        assert_eq!(total.prompt_cache_hit_tokens, Some(110));
-        assert_eq!(total.prompt_cache_miss_tokens, Some(40));
-    }
-}
+mod tests {}

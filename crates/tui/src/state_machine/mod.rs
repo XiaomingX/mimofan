@@ -50,7 +50,13 @@ pub fn all_state_machine_metadata() -> Vec<StateMachineMetadata> {
             file: "goal_loop.rs",
             state_count: 5,
             description: "循环停止原因",
-            states: &["Completed", "Blocked", "TokenBudget", "TimeBudget", "ContinuationLimit"],
+            states: &[
+                "Completed",
+                "Blocked",
+                "TokenBudget",
+                "TimeBudget",
+                "ContinuationLimit",
+            ],
         },
         StateMachineMetadata {
             name: "ConnectionState",
@@ -64,14 +70,32 @@ pub fn all_state_machine_metadata() -> Vec<StateMachineMetadata> {
             file: "tools/subagent/mod.rs",
             state_count: 6,
             description: "子代理执行状态",
-            states: &["Running", "Completed", "Interrupted", "Failed", "Cancelled", "BudgetExhausted"],
+            states: &[
+                "Running",
+                "Completed",
+                "Interrupted",
+                "Failed",
+                "Cancelled",
+                "BudgetExhausted",
+            ],
         },
         StateMachineMetadata {
             name: "AgentWorkerStatus",
             file: "tools/subagent/mod.rs",
             state_count: 10,
             description: "Agent Worker 状态",
-            states: &["Queued", "Starting", "Running", "WaitingForUser", "ModelWait", "RunningTool", "Completed", "Failed", "Cancelled", "Interrupted"],
+            states: &[
+                "Queued",
+                "Starting",
+                "Running",
+                "WaitingForUser",
+                "ModelWait",
+                "RunningTool",
+                "Completed",
+                "Failed",
+                "Cancelled",
+                "Interrupted",
+            ],
         },
         StateMachineMetadata {
             name: "ApprovalMode",
@@ -85,7 +109,9 @@ pub fn all_state_machine_metadata() -> Vec<StateMachineMetadata> {
 
 /// 按名称查找状态机
 pub fn find_state_machine(name: &str) -> Option<StateMachineMetadata> {
-    all_state_machine_metadata().into_iter().find(|sm| sm.name == name)
+    all_state_machine_metadata()
+        .into_iter()
+        .find(|sm| sm.name == name)
 }
 
 /// 按文件查找状态机

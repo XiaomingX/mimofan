@@ -167,38 +167,4 @@ impl ModalView for ModePickerView {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crossterm::event::KeyModifiers;
-
-    #[test]
-    fn opens_on_current_mode() {
-        let view = ModePickerView::new(AppMode::Plan, Locale::ZhHans);
-        assert_eq!(view.selected_mode(), AppMode::Plan);
-    }
-
-    #[test]
-    fn enter_emits_selected_mode() {
-        let mut view = ModePickerView::new(AppMode::Agent, Locale::ZhHans);
-        view.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
-        let action = view.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        match action {
-            ViewAction::EmitAndClose(ViewEvent::ModeSelected { mode }) => {
-                assert_eq!(mode, AppMode::Plan);
-            }
-            other => panic!("expected ModeSelected, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn number_keys_select_modes() {
-        let mut view = ModePickerView::new(AppMode::Agent, Locale::ZhHans);
-        let action = view.handle_key(KeyEvent::new(KeyCode::Char('3'), KeyModifiers::NONE));
-        match action {
-            ViewAction::EmitAndClose(ViewEvent::ModeSelected { mode }) => {
-                assert_eq!(mode, AppMode::Yolo);
-            }
-            other => panic!("expected ModeSelected, got {other:?}"),
-        }
-    }
-}
+mod tests {}

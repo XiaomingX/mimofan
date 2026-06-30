@@ -67,8 +67,7 @@ mod tests {
 
         assert_eq!(
             sibling,
-            Path::new("/tmp/mimofan-bin")
-                .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX))
+            Path::new("/tmp/mimofan-bin").join(format!("mimofan{}", std::env::consts::EXE_SUFFIX))
         );
     }
 }

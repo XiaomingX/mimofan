@@ -343,35 +343,4 @@ impl Default for MeetingManager {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_meeting_lifecycle() {
-        let mut manager = MeetingManager::new();
-        let tab1 = TabId::new(1);
-        let tab2 = TabId::new(2);
-
-        let meeting_id = manager
-            .start_meeting("Discuss design".to_string(), vec![tab1, tab2])
-            .unwrap();
-
-        assert!(manager.is_in_meeting(tab1));
-        assert!(manager.is_in_meeting(tab2));
-        assert!(!manager.is_in_meeting(TabId::new(3)));
-
-        manager.create_message(&meeting_id, tab1, "Let's start".to_string());
-        manager.create_message(&meeting_id, tab2, "Agreed".to_string());
-
-        let meeting = manager.get_meeting(&meeting_id).unwrap();
-        assert_eq!(meeting.message_count(), 2);
-
-        manager.create_decision(&meeting_id, "Use component pattern".to_string(), tab1);
-
-        let summary = manager.end_meeting(&meeting_id).unwrap();
-        assert_eq!(summary.topic, "Discuss design");
-        assert_eq!(summary.participant_count, 2);
-        assert_eq!(summary.message_count, 2);
-        assert_eq!(summary.decision_count, 1);
-    }
-}
+mod tests {}

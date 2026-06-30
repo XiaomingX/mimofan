@@ -56,7 +56,18 @@ pub fn all_error_type_metadata() -> Vec<ErrorTypeMetadata> {
             name: "ErrorCategory",
             file: "error_taxonomy.rs",
             description: "错误分类枚举",
-            variants: &["Network", "Authentication", "Authorization", "RateLimit", "Timeout", "InvalidInput", "Parse", "Tool", "State", "Internal"],
+            variants: &[
+                "Network",
+                "Authentication",
+                "Authorization",
+                "RateLimit",
+                "Timeout",
+                "InvalidInput",
+                "Parse",
+                "Tool",
+                "State",
+                "Internal",
+            ],
         },
         ErrorTypeMetadata {
             name: "ErrorSeverity",
@@ -68,7 +79,14 @@ pub fn all_error_type_metadata() -> Vec<ErrorTypeMetadata> {
             name: "LlmError",
             file: "llm_client/mod.rs",
             description: "LLM 客户端错误",
-            variants: &["RateLimited", "ServerError", "NetworkError", "Timeout", "AuthenticationError", "AuthorizationError"],
+            variants: &[
+                "RateLimited",
+                "ServerError",
+                "NetworkError",
+                "Timeout",
+                "AuthenticationError",
+                "AuthorizationError",
+            ],
         },
         ErrorTypeMetadata {
             name: "ToolError",
@@ -105,7 +123,9 @@ pub fn all_error_type_metadata() -> Vec<ErrorTypeMetadata> {
 
 /// 按名称查找错误类型
 pub fn find_error_type(name: &str) -> Option<ErrorTypeMetadata> {
-    all_error_type_metadata().into_iter().find(|e| e.name == name)
+    all_error_type_metadata()
+        .into_iter()
+        .find(|e| e.name == name)
 }
 
 /// 按文件查找错误类型

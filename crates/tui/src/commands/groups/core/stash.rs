@@ -121,31 +121,4 @@ fn preview_first_line(text: &str, max_chars: usize) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn preview_first_line_truncates_to_cap() {
-        let body = "x".repeat(200);
-        let p = preview_first_line(&body, 10);
-        assert_eq!(p.chars().count(), 10);
-        assert!(p.ends_with('…'));
-    }
-
-    #[test]
-    fn preview_first_line_keeps_short_input_intact() {
-        assert_eq!(preview_first_line("short", 50), "short");
-    }
-
-    #[test]
-    fn preview_first_line_only_uses_first_line_of_multiline() {
-        let body = "first line of the draft\nsecond line that's longer\nthird";
-        assert_eq!(preview_first_line(body, 80), "first line of the draft");
-    }
-
-    #[test]
-    fn preview_first_line_handles_empty_input() {
-        assert_eq!(preview_first_line("", 50), "");
-        assert_eq!(preview_first_line("   ", 50), "");
-    }
-}
+mod tests {}

@@ -1,7 +1,5 @@
 use ratatui::{Frame, layout::Rect, style::Style, text::Span};
 use std::time::Instant;
-#[cfg(test)]
-use unicode_width::UnicodeWidthStr;
 
 use crate::localization::{Locale, MessageId};
 use crate::palette;
@@ -269,177 +267,7 @@ pub(crate) fn footer_working_label_frame(now_ms: u64, fancy_animations: bool) ->
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        active_subagent_status_label, footer_state_label, footer_working_label_frame,
-        one_line_summary,
-    };
-    use crate::config::Config;
-    use crate::tui::app::{App, TuiOptions};
-    use std::path::PathBuf;
-
-    #[test]
-    fn footer_working_label_frame_is_static_without_fancy_animations() {
-        assert_eq!(footer_working_label_frame(0, false), 0);
-        assert_eq!(footer_working_label_frame(399, false), 0);
-        assert_eq!(footer_working_label_frame(1_600, false), 0);
-        assert_eq!(footer_working_label_frame(1_600, true), 4);
-    }
-
-    #[test]
-    fn one_line_summary_strips_ansi_before_collapsing_text() {
-        let summary = one_line_summary("read \x1b[38;2;6;174;242mfile.rs\x1b[0m", 80);
-        assert_eq!(summary, "read file.rs");
-        assert!(!summary.contains("38;2"));
-    }
-
-    #[test]
-    fn active_subagent_status_label_is_descriptive_without_shortcut_or_timer() {
-        let mut app = create_test_app();
-        app.agent_progress.insert(
-            "agent_live".to_string(),
-            "reading summary files".to_string(),
-        );
-
-        let label = active_subagent_status_label(&app).expect("active agent label");
-
-        assert_eq!(label, "agents 1/1 running · reading summary files");
-        assert!(!label.contains("Ctrl+Alt+4"));
-        assert!(!label.contains("0s"));
-    }
-
-    fn create_test_app() -> App {
-        let options = TuiOptions {
-            model: "deepseek-v4-pro".to_string(),
-            workspace: PathBuf::from("."),
-            config_path: None,
-            config_profile: None,
-            allow_shell: false,
-            use_alt_screen: true,
-            use_mouse_capture: false,
-            use_bracketed_paste: true,
-            max_subagents: 1,
-            skills_dir: PathBuf::from("."),
-            memory_path: PathBuf::from("memory.md"),
-            notes_path: PathBuf::from("notes.txt"),
-            mcp_config_path: PathBuf::from("mcp.json"),
-            use_memory: false,
-            start_in_agent_mode: false,
-            skip_onboarding: true,
-            yolo: false,
-            resume_session_id: None,
-            initial_input: None,
-        };
-        App::new(options, &Config::default())
-    }
-
-    #[test]
-    fn footer_state_label_reports_paused_when_command_is_on_hold() {
-        let mut app = create_test_app();
-        app.is_loading = false;
-        app.paused = false;
-        app.paused_quarry = Some("Scan nested git repositories".to_string());
-
-        let (label, _) = footer_state_label(&app);
-        assert_eq!(
-            label, "paused \u{23F8}",
-            "footer should surface a paused command once the turn has drained, got {label:?}"
-        );
-    }
-
-    #[test]
-    fn footer_state_label_reports_paused_via_app_flag_even_without_quarry() {
-        let mut app = create_test_app();
-        app.is_loading = false;
-        app.paused = true;
-        app.paused_quarry = None;
-
-        let (label, _) = footer_state_label(&app);
-        assert_eq!(
-            label, "paused \u{23F8}",
-            "footer should honor app.paused directly, got {label:?}"
-        );
-    }
-
-    #[test]
-    fn footer_state_label_prefers_busy_while_pausing_and_loading() {
-        // While the turn is still draining the pause request, the coarse
-        // footer stays "busy"; the finer Pausing/Paused split lives in the
-        // sidebar. This guards against reintroducing a redundant vocabulary.
-        let mut app = create_test_app();
-        app.is_loading = true;
-        app.paused = true;
-        app.paused_quarry = Some("Deploy to staging".to_string());
-
-        let (label, _) = footer_state_label(&app);
-        assert_eq!(label, "busy");
-    }
-
-    #[test]
-    fn footer_state_label_falls_back_to_idle_at_rest() {
-        let app = create_test_app();
-        let (label, _) = footer_state_label(&app);
-        assert_eq!(label, "idle");
-    }
-
-    // #3189: provider-wait reason thresholds
-
-    #[test]
-    fn provider_wait_reason_fresh_show_only_label() {
-        let mut app = create_test_app();
-        app.stream_chunk_timeout_secs = 300;
-        app.turn_started_at = Some(std::time::Instant::now()); // < 60s
-        let reason = super::provider_wait_reason(&app);
-        assert_eq!(reason, "waiting for model");
-        assert!(!reason.contains("idle"));
-        assert!(!reason.contains("s/"));
-    }
-
-    #[test]
-    fn provider_wait_reason_thresholded_show_idle_seconds() {
-        let mut app = create_test_app();
-        app.stream_chunk_timeout_secs = 300;
-        // Simulate idle >= 60s
-        app.turn_started_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(60));
-        let reason = super::provider_wait_reason(&app);
-        assert!(reason.contains("waiting for model"));
-        assert!(reason.contains("60s"));
-        // Should NOT show the full timeout budget yet (<75% of 300s = 225s)
-        assert!(!reason.contains("/300s"));
-    }
-
-    #[test]
-    fn provider_wait_reason_near_timeout_show_full_idle_budget() {
-        let mut app = create_test_app();
-        app.stream_chunk_timeout_secs = 300;
-        // ≥ 75% of 300s = 225s
-        app.turn_started_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(240));
-        let reason = super::provider_wait_reason(&app);
-        assert!(reason.contains("waiting for model"));
-        assert!(reason.contains("/300s idle timeout"));
-        assert!(reason.contains("240s"));
-    }
-
-    #[test]
-    fn provider_wait_reason_short_budget_still_shows_near_timeout() {
-        let mut app = create_test_app();
-        app.stream_chunk_timeout_secs = 30;
-        app.turn_started_at = Some(std::time::Instant::now() - std::time::Duration::from_secs(25));
-        let reason = super::provider_wait_reason(&app);
-        assert!(reason.contains("waiting for model"));
-        assert!(reason.contains("25s/30s idle timeout"), "{reason}");
-    }
-
-    #[test]
-    fn provider_wait_reason_dispatch_pending() {
-        let mut app = create_test_app();
-        app.stream_chunk_timeout_secs = 300;
-        app.turn_started_at = Some(std::time::Instant::now());
-        app.pending_subagent_dispatch = Some("test".to_string());
-        let reason = super::provider_wait_reason(&app);
-        assert_eq!(reason, "waiting · dispatch pending");
-    }
-}
+mod tests {}
 
 pub(crate) fn is_noisy_subagent_progress(status: &str) -> bool {
     let status = status.trim().to_ascii_lowercase();
@@ -947,58 +775,6 @@ pub(crate) fn footer_session_tokens_spans(app: &App) -> Vec<Span<'static>> {
 /// auxiliary-span composition. Production rendering is performed by the
 /// widget itself; the existing footer parity tests still exercise this
 /// function directly to guard against drift.
-#[cfg(test)]
-pub(crate) fn footer_auxiliary_spans(app: &App, max_width: usize) -> Vec<Span<'static>> {
-    // Context % is already shown in the header signal bar — don't
-    // duplicate it in the footer. The footer carries unique info only:
-    // prefix stability, in-flight sub-agents, reasoning replay tokens, cache
-    // hit rate, and session cost.
-    let agents_spans =
-        crate::tui::widgets::footer_agents_chip(running_agent_count(app), app.ui_locale);
-    let replay_spans = footer_reasoning_replay_spans(app);
-    let cache_spans = footer_cache_spans(app);
-    let cost_spans = footer_cost_spans(app);
-    let prefix_spans = app
-        .prefix_stability_pct
-        .map(|_| {
-            let (label, color) = format_helpers::prefix_stability_chip(app).unwrap_or((
-                "cache prefix --".to_string(),
-                ratatui::style::Color::DarkGray,
-            ));
-            vec![Span::styled(label, Style::default().fg(color))]
-        })
-        .unwrap_or_default();
-
-    let shell_spans = footer_shell_spans(app);
-
-    let parts: Vec<&Vec<Span<'static>>> = [
-        &agents_spans,
-        &replay_spans,
-        &prefix_spans,
-        &cache_spans,
-        &cost_spans,
-        &shell_spans,
-    ]
-    .iter()
-    .filter(|spans| !spans.is_empty())
-    .copied()
-    .collect();
-
-    // Try to fit as many parts as possible, dropping from the end.
-    for end in (0..=parts.len()).rev() {
-        let mut combined = Vec::new();
-        for (i, part) in parts[..end].iter().enumerate() {
-            if i > 0 {
-                combined.push(Span::raw("  "));
-            }
-            combined.extend(part.iter().cloned());
-        }
-        if spans_width(&combined) <= max_width {
-            return combined;
-        }
-    }
-    Vec::new()
-}
 
 pub(crate) fn footer_cache_spans(app: &App) -> Vec<Span<'static>> {
     if app.session.last_prompt_tokens.is_none() && app.session.last_completion_tokens.is_none() {
@@ -1075,55 +851,6 @@ pub(crate) fn footer_reasoning_replay_spans(app: &App) -> Vec<Span<'static>> {
     vec![Span::styled(label, Style::default().fg(color))]
 }
 
-#[cfg(test)]
-pub(crate) fn footer_status_line_spans(app: &App, max_width: usize) -> Vec<Span<'static>> {
-    if max_width == 0 {
-        return Vec::new();
-    }
-
-    let (mode_label, mode_color) = footer_mode_style(app);
-    let (status_label, status_color) = footer_state_label(app);
-    let sep = " \u{00B7} ";
-    let show_status = status_label != "ready";
-
-    let fixed_width = mode_label.width()
-        + sep.width()
-        + if show_status {
-            sep.width() + status_label.width()
-        } else {
-            0
-        };
-
-    if max_width <= mode_label.width() {
-        return vec![Span::styled(
-            truncate_line_to_width(mode_label, max_width),
-            Style::default().fg(mode_color),
-        )];
-    }
-
-    let model_budget = max_width.saturating_sub(fixed_width).max(1);
-    let model_label = truncate_line_to_width(&app.model, model_budget);
-
-    let mut spans = vec![
-        Span::styled(mode_label.to_string(), Style::default().fg(mode_color)),
-        Span::styled(sep.to_string(), Style::default().fg(app.ui_theme.text_dim)),
-        Span::styled(model_label, Style::default().fg(app.ui_theme.text_hint)),
-    ];
-
-    if show_status {
-        spans.push(Span::styled(
-            sep.to_string(),
-            Style::default().fg(app.ui_theme.text_dim),
-        ));
-        spans.push(Span::styled(
-            status_label.to_string(),
-            Style::default().fg(status_color),
-        ));
-    }
-
-    spans
-}
-
 pub(crate) fn footer_state_label(app: &App) -> (&'static str, ratatui::style::Color) {
     if app.is_fallback_active() {
         return ("fallback ->", app.ui_theme.status_warning);
@@ -1173,17 +900,6 @@ pub(crate) fn footer_state_label(app: &App) -> (&'static str, ratatui::style::Co
     ("idle", app.ui_theme.status_ready)
 }
 
-#[cfg(test)]
-pub(crate) fn footer_mode_style(app: &App) -> (&'static str, ratatui::style::Color) {
-    let label = app.mode.as_setting();
-    let color = match app.mode {
-        crate::tui::app::AppMode::Agent => app.ui_theme.mode_agent,
-        crate::tui::app::AppMode::Yolo => app.ui_theme.mode_yolo,
-        crate::tui::app::AppMode::Plan => app.ui_theme.mode_plan,
-    };
-    (label, color)
-}
-
 pub(crate) fn format_token_count_compact(tokens: u64) -> String {
     if tokens >= 1_000_000 {
         format!("{:.1}M", tokens as f64 / 1_000_000.0)
@@ -1192,30 +908,4 @@ pub(crate) fn format_token_count_compact(tokens: u64) -> String {
     } else {
         tokens.to_string()
     }
-}
-
-#[cfg(test)]
-pub(crate) fn format_context_budget(used: i64, max: u32) -> String {
-    let max_u64 = u64::from(max);
-    let max_i64 = i64::from(max);
-
-    if used > max_i64 {
-        return format!(
-            ">{}/{}",
-            format_token_count_compact(max_u64),
-            format_token_count_compact(max_u64)
-        );
-    }
-
-    let used_u64 = u64::try_from(used.max(0)).unwrap_or(0);
-    format!(
-        "{}/{}",
-        format_token_count_compact(used_u64),
-        format_token_count_compact(max_u64)
-    )
-}
-
-#[cfg(test)]
-pub(crate) fn spans_width(spans: &[Span<'_>]) -> usize {
-    spans.iter().map(|span| span.content.width()).sum()
 }

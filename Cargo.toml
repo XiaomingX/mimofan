@@ -20,7 +20,7 @@ default-members = ["crates/cli", "crates/app-server", "crates/tui"]
 resolver = "2"
 
 [workspace.package]
-version = "0.8.65"
+version = "0.0.1"
 edition = "2024"
 # Rust 1.88 stabilized `let_chains` in `if`/`while` conditions, which the
 # codebase relies on extensively. Cargo enforces this so users on older
@@ -56,7 +56,7 @@ tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 uuid = { version = "1.11", features = ["v4"] }
 
-# ── Build profiles: reduce target/ disk usage ──────────────────────────
+# ── Build profiles: reduce target/ disk usage & optimize performance ───
 # Default debug builds emit full DWARF (~500 MB+ for a workspace this size).
 # Switching to "line-tables-only" cuts that by 60-80 % while preserving
 # backtraces and IDE breakpoint support.
@@ -66,17 +66,30 @@ uuid = { version = "1.11", features = ["v4"] }
 debug = "line-tables-only"
 # Fewer codegen-units = fewer .o / .dwo files in target/
 codegen-units = 16
+# macOS build optimization: use unpacked debuginfo to speed up links significantly
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+# Optimize dependencies in dev mode for faster runtime performance
+opt-level = 3
 
 [profile.test]
 # Tests don't need full debug info either
 debug = "line-tables-only"
 codegen-units = 16
+# macOS build optimization: use unpacked debuginfo to speed up links significantly
+split-debuginfo = "unpacked"
+
+[profile.test.package."*"]
+# Optimize dependencies in test mode for faster runtime performance
+opt-level = 3
 
 [profile.release]
 # Strip all symbols from release binaries — huge savings
 strip = true
-# Thin LTO: good size reduction without massive compile-time cost
+# Thin LTO: provides nearly the same runtime performance as Fat LTO but compiles much faster
 lto = "thin"
+# Enable parallel code generation for faster release compilation without sacrificing thin LTO benefits
 codegen-units = 16
 
 [profile.bench]

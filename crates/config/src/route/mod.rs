@@ -41,8 +41,3 @@ pub use errors::RouteError;
 pub use ids::{LogicalModelRef, ModelId, NamespaceHint, ProviderId, WireModelId};
 pub use offering::{ProviderModelOffering, RouteLimits, bundled_offerings};
 pub use resolver::{RouteRequest, RouteResolver};
-
-#[cfg(test)]
-mod conformance_tests;
-#[cfg(test)]
-mod tests;

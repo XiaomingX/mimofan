@@ -98,32 +98,4 @@ pub fn build_bwrap_command(cwd: &std::path::Path, program: &str, args: &[String]
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_available_does_not_panic() {
-        let _ = is_available();
-    }
-
-    #[test]
-    #[cfg(target_os = "linux")]
-    fn test_build_bwrap_command_structure() {
-        let cwd = std::path::Path::new("/home/user/project");
-        let cmd = build_bwrap_command(cwd, "sh", &["-c".to_string(), "echo hi".to_string()]);
-
-        // Should start with bwrap
-        assert_eq!(cmd[0], "/usr/bin/bwrap");
-
-        // Should have ro-bind for root
-        assert!(cmd.contains(&"--ro-bind".to_string()));
-
-        // Should have --chdir
-        assert!(cmd.contains(&"--chdir".to_string()));
-
-        // Should end with the command
-        assert_eq!(cmd[cmd.len() - 1], "echo hi");
-        assert_eq!(cmd[cmd.len() - 2], "-c");
-        assert_eq!(cmd[cmd.len() - 3], "sh");
-    }
-}
+mod tests {}

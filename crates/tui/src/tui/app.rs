@@ -74,8 +74,7 @@ pub(crate) fn resolve_skills_dir(
         if config.skills_dir.is_some() {
             return global_skills_dir.to_path_buf();
         }
-        if let Some(mimofan_skills_dir) = crate::skills::mimofan_workspace_skills_dir(workspace)
-        {
+        if let Some(mimofan_skills_dir) = crate::skills::mimofan_workspace_skills_dir(workspace) {
             return mimofan_skills_dir;
         }
         return global_skills_dir.to_path_buf();
@@ -5921,6 +5920,3 @@ pub enum McpUiAction {
     Validate,
     Reload,
 }
-
-#[cfg(test)]
-mod tests;

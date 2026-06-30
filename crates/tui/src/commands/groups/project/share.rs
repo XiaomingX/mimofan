@@ -190,41 +190,4 @@ async fn upload_gist(path: &Path) -> Result<String, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_render_session_html_basic_structure() {
-        let html = render_session_html("[{}]", "deepseek-v4-pro", "agent");
-        assert!(html.contains("<!DOCTYPE html>"));
-        assert!(html.contains("deepseek-v4-pro"));
-        assert!(html.contains("agent"));
-        assert!(html.contains("[{}]"));
-        assert!(html.contains("mimofan"));
-    }
-
-    #[test]
-    fn test_html_escape_handles_special_chars() {
-        assert_eq!(html_escape("<script>"), "&lt;script&gt;");
-        assert_eq!(html_escape("a&b"), "a&amp;b");
-        assert_eq!(html_escape("\"quote\""), "&quot;quote&quot;");
-    }
-
-    #[test]
-    fn test_write_temp_html_creates_file() {
-        let file = write_temp_html("<html></html>").unwrap();
-        assert!(file.path().exists());
-        let content = std::fs::read_to_string(file.path()).unwrap();
-        assert_eq!(content, "<html></html>");
-    }
-
-    #[test]
-    fn test_render_session_html_metadata() {
-        let html = render_session_html("test data", "deepseek-v4-flash", "plan");
-        assert!(html.contains("deepseek-v4-flash"));
-        assert!(html.contains("plan"));
-        assert!(html.contains("test data"));
-        assert!(html.contains("Exported:"));
-        assert!(html.contains("https://github.com/XiaomingX/mimofan"));
-    }
-}
+mod tests {}

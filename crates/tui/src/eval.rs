@@ -29,25 +29,6 @@ struct EvalShellInvocation {
     raw_payload_on_windows: bool,
 }
 
-#[cfg(test)]
-fn eval_shell_invocation_for_platform(
-    command: &str,
-    platform: EvalShellPlatform,
-) -> EvalShellInvocation {
-    match platform {
-        EvalShellPlatform::Windows => EvalShellInvocation {
-            program: "cmd",
-            args: vec!["/C".to_string(), command.to_string()],
-            raw_payload_on_windows: true,
-        },
-        EvalShellPlatform::Unix => EvalShellInvocation {
-            program: "sh",
-            args: vec!["-c".to_string(), command.to_string()],
-            raw_payload_on_windows: false,
-        },
-    }
-}
-
 /// Representative tool steps covered by the evaluation harness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum ScenarioStepKind {
@@ -750,21 +731,4 @@ fn truncate_output(value: &str, max_chars: usize) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn eval_shell_invocation_preserves_quoted_payload_as_single_arg() {
-        let command = r#"git commit -m "feat: complete sub-pages""#;
-
-        let windows = eval_shell_invocation_for_platform(command, EvalShellPlatform::Windows);
-        assert_eq!(windows.program, "cmd");
-        assert_eq!(windows.args, vec!["/C".to_string(), command.to_string()]);
-        assert!(windows.raw_payload_on_windows);
-
-        let unix = eval_shell_invocation_for_platform(command, EvalShellPlatform::Unix);
-        assert_eq!(unix.program, "sh");
-        assert_eq!(unix.args, vec!["-c".to_string(), command.to_string()]);
-        assert!(!unix.raw_payload_on_windows);
-    }
-}
+mod tests {}

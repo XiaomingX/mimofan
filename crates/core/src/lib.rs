@@ -122,15 +122,18 @@ impl Runtime {
     }
 
     fn persist_latest_checkpoint(&self, thread_id: &str, reason: &str, state: Value) -> Result<()> {
-        self.thread_manager.state_store().save_checkpoint(
-            thread_id,
-            "latest",
-            &json!({
-                "reason": reason,
-                "saved_at": chrono::Utc::now().timestamp(),
-                "state": state
-            }),
-        ).context("Failed to save checkpoint for thread")
+        self.thread_manager
+            .state_store()
+            .save_checkpoint(
+                thread_id,
+                "latest",
+                &json!({
+                    "reason": reason,
+                    "saved_at": chrono::Utc::now().timestamp(),
+                    "state": state
+                }),
+            )
+            .context("Failed to save checkpoint for thread")
     }
 
     /// Dispatches a thread request (create, start, resume, fork, list, read, etc.).
@@ -775,9 +778,7 @@ impl Runtime {
                 McpManagerStartupStatus::Failed { error } => {
                     mimofan_protocol::McpStartupStatus::Failed { error }
                 }
-                McpManagerStartupStatus::Cancelled => {
-                    mimofan_protocol::McpStartupStatus::Cancelled
-                }
+                McpManagerStartupStatus::Cancelled => mimofan_protocol::McpStartupStatus::Cancelled,
             };
             self.hooks
                 .emit(HookEvent::GenericEventFrame {

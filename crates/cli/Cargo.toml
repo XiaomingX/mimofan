@@ -14,14 +14,14 @@ path = "src/main.rs"
 anyhow.workspace = true
 clap.workspace = true
 clap_complete.workspace = true
-mimofan-agent = { path = "../agent", version = "0.8.65" }
-mimofan-app-server = { path = "../app-server", version = "0.8.65" }
-mimofan-config = { path = "../config", version = "0.8.65" }
-mimofan-execpolicy = { path = "../execpolicy", version = "0.8.65" }
-mimofan-mcp = { path = "../mcp", version = "0.8.65" }
-mimofan-release = { path = "../release", version = "0.8.65" }
-mimofan-secrets = { path = "../secrets", version = "0.8.65" }
-mimofan-state = { path = "../state", version = "0.8.65" }
+mimofan-agent = { path = "../agent", version = "0.0.1" }
+mimofan-app-server = { path = "../app-server", version = "0.0.1" }
+mimofan-config = { path = "../config", version = "0.0.1" }
+mimofan-execpolicy = { path = "../execpolicy", version = "0.0.1" }
+mimofan-mcp = { path = "../mcp", version = "0.0.1" }
+mimofan-release = { path = "../release", version = "0.0.1" }
+mimofan-secrets = { path = "../secrets", version = "0.0.1" }
+mimofan-state = { path = "../state", version = "0.0.1" }
 chrono.workspace = true
 dirs.workspace = true
 serde.workspace = true

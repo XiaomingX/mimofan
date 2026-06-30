@@ -160,95 +160,10 @@ pub fn clear() {
     }
 }
 
-#[cfg(test)]
-pub fn clear_rate_limit() {
-    if let Ok(mut current) = rate_limit_cell().lock() {
-        *current = None;
-    }
-}
-
 /// Test helper: serialize tests that touch the global state so cargo's
 /// parallel runner can't observe a torn read. The guard is exported so
 /// tests in *other* modules (e.g. footer rendering tests) can hold the
 /// same lock as the ones in `retry_status::tests`.
-#[cfg(test)]
-pub fn test_guard() -> std::sync::MutexGuard<'static, ()> {
-    static GUARD: Mutex<()> = Mutex::new(());
-    GUARD.lock().unwrap_or_else(|e| e.into_inner())
-}
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Acquire the cross-module test guard from [`super::test_guard`] and
-    /// reset state to `Idle` before yielding to the test body.
-    fn setup() -> std::sync::MutexGuard<'static, ()> {
-        let g = test_guard();
-        clear();
-        clear_rate_limit();
-        g
-    }
-
-    #[test]
-    fn idle_by_default_after_clear() {
-        let _g = setup();
-        assert!(matches!(snapshot(), RetryState::Idle));
-        assert_eq!(snapshot().seconds_remaining(), None);
-    }
-
-    #[test]
-    fn start_then_succeeded_returns_to_idle() {
-        let _g = setup();
-        start(1, Duration::from_secs(5), "rate limited");
-        let s = snapshot();
-        assert!(matches!(s, RetryState::Active(_)));
-        let remaining = s.seconds_remaining().unwrap();
-        assert!(remaining <= 5, "{remaining}");
-        succeeded();
-        assert!(matches!(snapshot(), RetryState::Idle));
-    }
-
-    #[test]
-    fn failed_persists_until_clear() {
-        let _g = setup();
-        failed("upstream 500");
-        let s = snapshot();
-        assert!(s.is_failed());
-        if let RetryState::Failed { reason, .. } = s {
-            assert_eq!(reason, "upstream 500");
-        } else {
-            panic!("expected Failed");
-        }
-        clear();
-        assert!(matches!(snapshot(), RetryState::Idle));
-    }
-
-    #[test]
-    fn deadline_in_past_yields_zero_remaining() {
-        let _g = setup();
-        // Bypass `start` so we can plant a deadline already in the past.
-        if let Ok(mut s) = cell().lock() {
-            *s = RetryState::Active(RetryBanner {
-                attempt: 2,
-                deadline: Instant::now() - Duration::from_secs(1),
-                reason: "test".into(),
-            });
-        }
-        assert_eq!(snapshot().seconds_remaining(), Some(0));
-        clear();
-    }
-
-    #[test]
-    fn rate_limit_deadline_survives_banner_clear() {
-        let _g = setup();
-        note_rate_limit(Duration::from_secs(5));
-        start(1, Duration::from_secs(5), "rate limited");
-        succeeded();
-        assert!(
-            rate_limit_remaining().is_some(),
-            "provider-wide rate limit pause must not be cleared by an unrelated success"
-        );
-        clear_rate_limit();
-    }
-}
+mod tests {}

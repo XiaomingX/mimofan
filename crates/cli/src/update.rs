@@ -19,8 +19,7 @@ use reqwest::Proxy;
 use std::io::Write;
 use std::time::Duration;
 
-const GITHUB_LATEST_RELEASE_PAGE_URL: &str =
-    "https://github.com/XiaomingX/mimofan/releases/latest";
+const GITHUB_LATEST_RELEASE_PAGE_URL: &str = "https://github.com/XiaomingX/mimofan/releases/latest";
 const GITHUB_RELEASE_DOWNLOAD_BASE_URL: &str =
     "https://github.com/XiaomingX/mimofan/releases/download";
 const UPDATE_HTTP_ATTEMPTS: usize = 3;
@@ -1054,20 +1053,14 @@ mod tests {
 
         // Dispatcher binary should use mimofan prefix
         assert_eq!(binary_prefix_for_exe(Path::new("mimofan")), "mimofan");
-        assert_eq!(
-            binary_prefix_for_exe(Path::new("mimofan.exe")),
-            "mimofan"
-        );
+        assert_eq!(binary_prefix_for_exe(Path::new("mimofan.exe")), "mimofan");
         assert_eq!(
             binary_prefix_for_exe(Path::new("/usr/local/bin/mimofan")),
             "mimofan"
         );
 
         // Fallback for unknown names
-        assert_eq!(
-            binary_prefix_for_exe(Path::new("other-binary")),
-            "mimofan"
-        );
+        assert_eq!(binary_prefix_for_exe(Path::new("other-binary")), "mimofan");
 
         // Legacy names still map to the canonical update asset prefixes.
         assert_eq!(
@@ -1185,18 +1178,8 @@ mod tests {
             ("mimofan", "macos", "x86_64", "mimofan-macos-x64"),
             ("mimofan", "linux", "x86_64", "mimofan-linux-x64"),
             ("mimofan", "windows", "x86_64", "mimofan-windows-x64"),
-            (
-                "mimofan-tui",
-                "macos",
-                "aarch64",
-                "mimofan-tui-macos-arm64",
-            ),
-            (
-                "mimofan-tui",
-                "linux",
-                "x86_64",
-                "mimofan-tui-linux-x64",
-            ),
+            ("mimofan-tui", "macos", "aarch64", "mimofan-tui-macos-arm64"),
+            ("mimofan-tui", "linux", "x86_64", "mimofan-tui-linux-x64"),
         ];
 
         for (exe, os, arch, expected) in cases {
@@ -1336,9 +1319,7 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
             Some("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")
         );
         assert_eq!(
-            checksums
-                .get("mimofan-windows-x64.exe")
-                .map(String::as_str),
+            checksums.get("mimofan-windows-x64.exe").map(String::as_str),
             Some("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
         );
     }
@@ -1431,11 +1412,8 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
     #[test]
     fn mocked_release_selects_tui_asset_when_tui_binary_invokes_update() {
         let release = mocked_release();
-        let stem = release_asset_stem_for(
-            Path::new("/usr/local/bin/mimofan-tui"),
-            "macos",
-            "aarch64",
-        );
+        let stem =
+            release_asset_stem_for(Path::new("/usr/local/bin/mimofan-tui"), "macos", "aarch64");
         let asset = select_platform_asset(&release, &stem).expect("TUI platform asset");
         assert_eq!(asset.name, "mimofan-tui-macos-arm64");
     }
@@ -1629,10 +1607,7 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
             hint.contains(mimofan_release::RELEASE_BASE_URL_ENV),
             "{hint}"
         );
-        assert!(
-            hint.contains(mimofan_release::UPDATE_VERSION_ENV),
-            "{hint}"
-        );
+        assert!(hint.contains(mimofan_release::UPDATE_VERSION_ENV), "{hint}");
         assert!(hint.contains("mimofan-cli"), "{hint}");
         assert!(hint.contains("mimofan-tui --locked"), "{hint}");
     }

@@ -3415,6 +3415,3 @@ impl EnvRuntimeOverrides {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

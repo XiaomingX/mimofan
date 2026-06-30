@@ -301,11 +301,6 @@ pub(super) fn parse_parallel_tool_calls(
 
 // === Dispatch policy ==================================================
 
-#[cfg(test)]
-pub(super) fn should_parallelize_tool_batch(plans: &[ToolExecutionPlan]) -> bool {
-    !plans.is_empty() && plans.iter().all(tool_plan_can_join_parallel_batch)
-}
-
 pub(super) fn tool_plan_is_parallel_safe(plan: &ToolExecutionPlan) -> bool {
     plan.read_only && plan.supports_parallel && !plan.approval_required && !plan.interactive
 }

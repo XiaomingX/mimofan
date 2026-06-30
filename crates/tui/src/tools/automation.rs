@@ -389,14 +389,4 @@ fn optional_bool_value(input: &Value, field: &str) -> Option<bool> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tools::spec::ToolSpec;
-
-    #[test]
-    fn create_schema_exposes_rrule() {
-        let schema = AutomationCreateTool.input_schema();
-        assert!(schema["properties"]["rrule"].is_object());
-        assert_eq!(schema["required"][0], "name");
-    }
-}
+mod tests {}

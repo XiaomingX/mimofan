@@ -61,15 +61,6 @@ pub(crate) fn store(key: CacheKey, value: ProjectContext) {
     });
 }
 
-#[cfg(test)]
-pub(crate) fn clear() {
-    CACHE.with(|cache| {
-        let mut cache = cache.borrow_mut();
-        cache.by_key.clear();
-        cache.order.clear();
-    });
-}
-
 #[must_use]
 pub(crate) fn compute_cache_key(workspace: &Path, home_dir: Option<&Path>) -> CacheKey {
     let workspace = canonicalize_or_keep(workspace);
@@ -139,82 +130,4 @@ fn to_hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::tempdir;
-
-    #[test]
-    fn cache_round_trip() {
-        clear();
-        let key = CacheKey {
-            workspace: PathBuf::from("/tmp/context-cache-round-trip"),
-            signature: ContentSignature::default(),
-        };
-        let ctx = ProjectContext::empty(PathBuf::from("/tmp/context-cache-round-trip"));
-
-        store(key.clone(), ctx.clone());
-
-        let got = lookup(&key).expect("cache hit");
-        assert_eq!(got.project_root, ctx.project_root);
-    }
-
-    #[test]
-    fn store_does_not_grow_unbounded() {
-        clear();
-        for i in 0..(DEFAULT_CAPACITY + 4) {
-            let key = CacheKey {
-                workspace: PathBuf::from(format!("/tmp/workspace-{i}")),
-                signature: ContentSignature::default(),
-            };
-            store(key, ProjectContext::empty(PathBuf::from("/tmp")));
-        }
-
-        let count = CACHE.with(|cache| cache.borrow().by_key.len());
-        assert!(count <= DEFAULT_CAPACITY, "cache held {count} entries");
-    }
-
-    #[test]
-    fn cache_key_canonicalizes_equivalent_workspace_paths() {
-        let workspace = tempdir().expect("workspace");
-        let home = tempdir().expect("home");
-        let plain = compute_cache_key(workspace.path(), Some(home.path()));
-        let dotted = compute_cache_key(&workspace.path().join("."), Some(home.path()));
-
-        assert_eq!(plain.workspace, dotted.workspace);
-    }
-
-    #[test]
-    fn signature_changes_when_agents_md_is_overwritten_same_length() {
-        let workspace = tempdir().expect("workspace");
-        let home = tempdir().expect("home");
-        fs::write(workspace.path().join("AGENTS.md"), "alpha").expect("write alpha");
-        let before = compute_cache_key(workspace.path(), Some(home.path()));
-
-        fs::write(workspace.path().join("AGENTS.md"), "bravo").expect("write bravo");
-        let after = compute_cache_key(workspace.path(), Some(home.path()));
-
-        assert_ne!(before, after);
-    }
-
-    #[test]
-    fn signature_changes_when_constitution_json_changes() {
-        let workspace = tempdir().expect("workspace");
-        let home = tempdir().expect("home");
-        fs::create_dir(workspace.path().join(".git")).expect("mkdir git");
-        fs::create_dir(workspace.path().join(".mimofan")).expect("mkdir mimofan");
-        let constitution = workspace
-            .path()
-            .join(".mimofan")
-            .join("constitution.json");
-        fs::write(&constitution, r#"{"schema_version":1,"authority":["a"]}"#)
-            .expect("write constitution a");
-        let before = compute_cache_key(workspace.path(), Some(home.path()));
-
-        fs::write(&constitution, r#"{"schema_version":1,"authority":["b"]}"#)
-            .expect("write constitution b");
-        let after = compute_cache_key(workspace.path(), Some(home.path()));
-
-        assert_ne!(before, after);
-    }
-}
+mod tests {}

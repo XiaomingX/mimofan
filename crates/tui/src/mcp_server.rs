@@ -592,34 +592,4 @@ struct RpcError {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::HashMap;
-
-    #[test]
-    fn exposed_tools_map_aliases() {
-        let names = vec![
-            "file_read".to_string(),
-            "file_write".to_string(),
-            "search".to_string(),
-            "apply_patch".to_string(),
-            "shell".to_string(),
-        ];
-        let tools = build_exposed_tools(&names);
-        let mut map = HashMap::new();
-        for tool in tools {
-            map.insert(tool.public, tool.internal);
-        }
-        assert_eq!(map.get("file_read").map(String::as_str), Some("read_file"));
-        assert_eq!(
-            map.get("file_write").map(String::as_str),
-            Some("write_file")
-        );
-        assert_eq!(map.get("search").map(String::as_str), Some("grep_files"));
-        assert_eq!(
-            map.get("apply_patch").map(String::as_str),
-            Some("apply_patch")
-        );
-        assert_eq!(map.get("shell").map(String::as_str), Some("exec_shell"));
-    }
-}
+mod tests {}

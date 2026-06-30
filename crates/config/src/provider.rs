@@ -285,7 +285,11 @@ mod tests {
     #[test]
     fn xiaomi_mimo_and_custom_present() {
         let providers = all_providers();
-        assert!(providers.iter().any(|p| p.kind() == ProviderKind::XiaomiMimo));
+        assert!(
+            providers
+                .iter()
+                .any(|p| p.kind() == ProviderKind::XiaomiMimo)
+        );
         assert!(providers.iter().any(|p| p.kind() == ProviderKind::Custom));
     }
 }

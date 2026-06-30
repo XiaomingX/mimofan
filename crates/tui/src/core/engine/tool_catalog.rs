@@ -145,21 +145,6 @@ pub(super) fn apply_mcp_tool_deferral(catalog: &mut [Tool], mode: AppMode) {
 /// head. This invariant is critical for DeepSeek's KV prefix cache:
 /// the tools array is part of the immutable prefix, and any byte-level
 /// change in the head forces a full re-prefill on the next turn.
-#[cfg(test)]
-pub(super) fn build_model_tool_catalog(
-    native_tools: Vec<Tool>,
-    mcp_tools: Vec<Tool>,
-    mode: AppMode,
-    always_load: &HashSet<String>,
-) -> Vec<Tool> {
-    build_model_tool_catalog_with_surface(
-        native_tools,
-        mcp_tools,
-        mode,
-        always_load,
-        ToolSurfaceBudget::Standard,
-    )
-}
 
 pub(super) fn build_model_tool_catalog_with_surface(
     mut native_tools: Vec<Tool>,
@@ -667,23 +652,6 @@ fn is_shell_tool_name(tool_name: &str) -> bool {
     )
 }
 
-#[cfg(test)]
-pub(super) fn maybe_activate_requested_deferred_tool(
-    tool_name: &str,
-    catalog: &[Tool],
-    active_tools: &mut HashSet<String>,
-) -> bool {
-    let Some(def) = catalog.iter().find(|def| def.name == tool_name) else {
-        return false;
-    };
-
-    if !def.defer_loading.unwrap_or(false) || active_tools.contains(tool_name) {
-        return false;
-    }
-
-    active_tools.insert(tool_name.to_string())
-}
-
 pub(super) fn maybe_hydrate_requested_deferred_tool(
     tool_name: &str,
     tool_input: &Value,
@@ -699,26 +667,6 @@ pub(super) fn maybe_hydrate_requested_deferred_tool(
 
     hydrated_tools_this_batch.insert(tool_name.to_string());
     Some(deferred_tool_schema_hydration_result(def, tool_input))
-}
-
-#[cfg(test)]
-pub(super) fn preflight_requested_deferred_tool(
-    tool_name: &str,
-    tool_input: &Value,
-    catalog: &[Tool],
-    active_tools: &mut HashSet<String>,
-) -> Option<ToolResult> {
-    let active_tools_at_batch_start = active_tools.clone();
-    let mut hydrated_tools_this_batch = HashSet::new();
-    let result = maybe_hydrate_requested_deferred_tool(
-        tool_name,
-        tool_input,
-        catalog,
-        &active_tools_at_batch_start,
-        &mut hydrated_tools_this_batch,
-    );
-    active_tools.extend(hydrated_tools_this_batch);
-    result
 }
 
 fn deferred_tool_schema_hydration_result(tool: &Tool, tool_input: &Value) -> ToolResult {

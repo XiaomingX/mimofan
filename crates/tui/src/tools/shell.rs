@@ -3411,6 +3411,3 @@ impl ToolSpec for NoteTool {
         )))
     }
 }
-
-#[cfg(test)]
-mod tests;

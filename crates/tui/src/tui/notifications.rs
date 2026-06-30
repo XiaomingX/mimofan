@@ -463,18 +463,6 @@ fn file_sound() {
     }
 }
 
-#[cfg(test)]
-fn completion_sound_state_for_tests() -> (crate::config::CompletionSound, Option<PathBuf>) {
-    let mode = match COMPLETION_SOUND_MODE.load(Ordering::SeqCst) {
-        0 => crate::config::CompletionSound::Off,
-        1 => crate::config::CompletionSound::Beep,
-        2 => crate::config::CompletionSound::Bell,
-        3 => crate::config::CompletionSound::File,
-        _ => crate::config::CompletionSound::Off,
-    };
-    (mode, configured_sound_file())
-}
-
 /// Show a macOS Notification Center alert via `osascript`.
 ///
 /// Runs on a dedicated background thread so the caller is not blocked.

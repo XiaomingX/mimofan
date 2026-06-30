@@ -579,13 +579,6 @@ const INTERNAL_BUDGET_LARGE_WINDOW_THRESHOLD: u32 = 500_000;
 ///     `256K - 262K - 1K`, which underflows `checked_sub` to `None` and
 ///     *silently disables every preflight and emergency recovery path* — the
 ///     session then runs until the provider hard-rejects on context length.
-#[cfg(test)]
-pub(super) fn context_input_budget_for_provider(
-    provider: ApiProvider,
-    model: &str,
-) -> Option<usize> {
-    context_input_budget_for_route(provider, model, None, 0)
-}
 
 pub(super) fn context_input_budget_for_route(
     provider: ApiProvider,
@@ -595,15 +588,6 @@ pub(super) fn context_input_budget_for_route(
 ) -> Option<usize> {
     route_context_budget_for_route(provider, model, route_limits, input_tokens)
         .and_then(|budget| usize::try_from(budget.available_input_tokens).ok())
-}
-
-#[cfg(test)]
-pub(super) fn route_context_budget_for_provider(
-    provider: ApiProvider,
-    model: &str,
-    input_tokens: usize,
-) -> Option<ContextBudget> {
-    route_context_budget_for_route(provider, model, None, input_tokens)
 }
 
 pub(super) fn route_context_budget_for_route(

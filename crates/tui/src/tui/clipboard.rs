@@ -230,11 +230,6 @@ impl ClipboardHandler {
                 .map_err(|err| anyhow::anyhow!("Clipboard unavailable: {err}"))
         }
     }
-
-    #[cfg(test)]
-    pub fn last_written_text(&self) -> Option<&str> {
-        self.written_text.last().map(String::as_str)
-    }
 }
 
 #[cfg(all(target_os = "macos", not(test)))]

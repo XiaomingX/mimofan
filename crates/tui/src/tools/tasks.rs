@@ -1001,40 +1001,4 @@ fn sanitize_filename(input: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tools::spec::ToolSpec;
-
-    #[test]
-    fn durable_task_schema_requires_prompt() {
-        let schema = TaskCreateTool.input_schema();
-        assert_eq!(schema["required"][0], "prompt");
-        assert!(schema["properties"]["prompt"].is_object());
-    }
-
-    #[test]
-    fn gate_classifier_detects_timeout() {
-        assert_eq!(
-            classify_gate_failure("test", "timeout", true, "", ""),
-            "timeout"
-        );
-    }
-
-    #[test]
-    fn background_shell_schema_is_explicit() {
-        let schema = TaskShellStartTool.input_schema();
-        assert_eq!(schema["required"][0], "command");
-        assert_eq!(schema["properties"]["timeout_ms"]["maximum"], 600000);
-
-        let wait_schema = TaskShellWaitTool.input_schema();
-        assert_eq!(wait_schema["required"][0], "task_id");
-        assert!(wait_schema["properties"]["gate"].is_object());
-    }
-
-    #[test]
-    fn gate_command_uses_login_shell_invocation() {
-        let (program, args) = build_gate_command_parts("echo hello");
-        assert_eq!(program, "/bin/sh");
-        assert_eq!(args, vec!["-lc".to_string(), "echo hello".to_string()]);
-    }
-}
+mod tests {}

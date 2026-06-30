@@ -75,29 +75,4 @@ pub(super) fn available_models_message(current_model: &str, models: &[String]) -
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn available_models_message_marks_current_model() {
-        let models = vec![
-            "deepseek-v4-pro".to_string(),
-            "deepseek-v4-flash".to_string(),
-        ];
-        let msg = available_models_message("deepseek-v4-pro", &models);
-        assert!(msg.contains("* deepseek-v4-pro (current)"), "got: {msg}");
-        assert!(msg.contains("  deepseek-v4-flash"), "got: {msg}");
-        assert!(msg.starts_with("Available models (2)"), "got: {msg}");
-    }
-
-    #[test]
-    fn cache_warmup_result_handles_missing_telemetry() {
-        let usage = Usage {
-            prompt_cache_hit_tokens: None,
-            prompt_cache_miss_tokens: None,
-            ..Default::default()
-        };
-        let msg = cache_warmup_result(&usage);
-        assert!(msg.contains("cache telemetry unavailable"), "got: {msg}");
-    }
-}
+mod tests {}

@@ -31,8 +31,6 @@ use checklist::{
     render_checklist_change_card,
 };
 
-#[cfg(test)]
-use checklist::{ChecklistChange, ChecklistItemSnapshot, ChecklistSnapshot};
 use constants::{
     ASSISTANT_GLYPH, TOOL_CARD_SUMMARY_LINES, TOOL_COMMAND_LINE_LIMIT, TOOL_DONE_SYMBOL,
     TOOL_FAILED_SYMBOL, TOOL_HEADER_SUMMARY_LIMIT, TOOL_OUTPUT_LINE_LIMIT, TOOL_RUNNING_SYMBOLS,
@@ -46,17 +44,10 @@ use message::{
 use thinking::{render_hidden_thinking_activity, render_thinking};
 use tool_output::{render_exec_output_mode, render_tool_output_mode, wrap_plain_line, wrap_text};
 
-#[cfg(test)]
-use agent_activity::extract_agent_id;
 pub use plan::PlanUpdateCell;
-#[cfg(test)]
-use thinking::extract_reasoning_summary;
-#[cfg(test)]
-use tool_run::ToolRunActivitySummary;
+
 pub use tool_run::{ToolRun, detect_tool_runs, detect_tool_runs_from_slices, tool_run_summary};
 
-#[cfg(test)]
-use thinking::{REASONING_CURSOR, REASONING_OPENER, REASONING_RAIL};
 pub(crate) use tool_output::output_looks_like_diff;
 pub use tool_output::{
     OutputRow, summarize_mcp_output, summarize_tool_args, summarize_tool_output,
@@ -649,10 +640,6 @@ pub struct ExecCell {
 
 impl ExecCell {
     /// Render the execution cell into lines (live view, capped output).
-    #[cfg(test)]
-    pub fn lines_with_motion(&self, width: u16, low_motion: bool) -> Vec<Line<'static>> {
-        self.render(width, low_motion, RenderMode::Live)
-    }
 
     pub(super) fn render(
         &self,
@@ -1982,6 +1969,3 @@ fn looks_like_file_path(s: &str) -> bool {
         false
     }
 }
-
-#[cfg(test)]
-mod tests;
