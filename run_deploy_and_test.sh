@@ -27,7 +27,7 @@ echo "=== Step 3: Executing Test Query ==="
 ./target/release/mimofan \
   --provider anthropic \
   --model mimo-v2.5-pro \
-  --api-key sk-cz3c700ickkgrjphxnml0ooofs2k06pr9vqkt6ny1mnirada \
+  --api-key sk-c7dfzu1r64ii50v9li06avlfw5396yeywbz0olztv2e8m6xk \
   --base-url https://api.xiaomimimo.com/anthropic \
   exec "你好，你是谁，给一句话自我介绍"
 
