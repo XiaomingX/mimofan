@@ -12,15 +12,15 @@ autobins = false
 anyhow.workspace = true
 axum.workspace = true
 clap.workspace = true
-mimofan-agent = { path = "../agent", version = "0.0.1" }
-mimofan-config = { path = "../config", version = "0.0.1" }
-mimofan-core = { path = "../core", version = "0.0.1" }
-mimofan-execpolicy = { path = "../execpolicy", version = "0.0.1" }
-mimofan-hooks = { path = "../hooks", version = "0.0.1" }
-mimofan-mcp = { path = "../mcp", version = "0.0.1" }
-mimofan-protocol = { path = "../protocol", version = "0.0.1" }
-mimofan-state = { path = "../state", version = "0.0.1" }
-mimofan-tools = { path = "../tools", version = "0.0.1" }
+mimofan-agent = { path = "../agent" }
+mimofan-config = { path = "../config" }
+mimofan-core = { path = "../core" }
+mimofan-execpolicy = { path = "../execpolicy" }
+mimofan-hooks = { path = "../hooks" }
+mimofan-mcp = { path = "../mcp" }
+mimofan-protocol = { path = "../protocol" }
+mimofan-state = { path = "../state" }
+mimofan-tools = { path = "../tools" }
 serde.workspace = true
 serde_json.workspace = true
 rustls.workspace = true

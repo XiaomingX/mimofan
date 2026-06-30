@@ -8,5 +8,5 @@ description = "Execution policy and approval model for mimofan"
 
 [dependencies]
 anyhow.workspace = true
-mimofan-protocol = { path = "../protocol", version = "0.0.1" }
+mimofan-protocol = { path = "../protocol" }
 serde.workspace = true

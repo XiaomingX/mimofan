@@ -9,7 +9,7 @@ description = "Tool invocation lifecycle, schema validation, and scheduler paral
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-mimofan-protocol = { path = "../protocol", version = "0.0.1" }
+mimofan-protocol = { path = "../protocol" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

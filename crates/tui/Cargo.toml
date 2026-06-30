@@ -21,12 +21,12 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-mimofan-config = { path = "../config", version = "0.0.1" }
-mimofan-execpolicy = { path = "../execpolicy", version = "0.0.1" }
-mimofan-protocol = { path = "../protocol", version = "0.0.1" }
-mimofan-release = { path = "../release", version = "0.0.1" }
-mimofan-secrets = { path = "../secrets", version = "0.0.1" }
-mimofan-tools = { path = "../tools", version = "0.0.1" }
+mimofan-config = { path = "../config" }
+mimofan-execpolicy = { path = "../execpolicy" }
+mimofan-protocol = { path = "../protocol" }
+mimofan-release = { path = "../release" }
+mimofan-secrets = { path = "../secrets" }
+mimofan-tools = { path = "../tools" }
 schemaui = { version = "0.12.0", default-features = false, optional = true }
 async-stream = "0.3.6"
 async-trait.workspace = true
