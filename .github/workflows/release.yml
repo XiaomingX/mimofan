@@ -56,9 +56,9 @@ jobs:
       - name: Workspace tests
         run: cargo test --workspace --all-features --locked
       - name: Protocol schema parity
-        run: cargo test -p codewhale-protocol --test parity_protocol --locked
+        run: cargo test -p mimofan-protocol --test parity_protocol --locked
       - name: State persistence parity
-        run: cargo test -p codewhale-state --test parity_state --locked
+        run: cargo test -p mimofan-state --test parity_state --locked
       - name: Lockfile drift guard
         run: git diff --exit-code -- Cargo.lock
 
@@ -116,56 +116,56 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- codewhale (cli dispatcher, canonical) ---
+          # --- mimofan (cli dispatcher, canonical) ---
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            binary: codewhale
-            artifact_name: codewhale-linux-x64
+            binary: mimofan
+            artifact_name: mimofan-linux-x64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            binary: codewhale
-            artifact_name: codewhale-linux-arm64
+            binary: mimofan
+            artifact_name: mimofan-linux-arm64
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
-            binary: codewhale
-            artifact_name: codewhale-linux-riscv64
+            binary: mimofan
+            artifact_name: mimofan-linux-riscv64
           - os: macos-latest
             target: x86_64-apple-darwin
-            binary: codewhale
-            artifact_name: codewhale-macos-x64
+            binary: mimofan
+            artifact_name: mimofan-macos-x64
           - os: macos-latest
             target: aarch64-apple-darwin
-            binary: codewhale
-            artifact_name: codewhale-macos-arm64
+            binary: mimofan
+            artifact_name: mimofan-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: codewhale.exe
-            artifact_name: codewhale-windows-x64.exe
-          # --- codewhale-tui (TUI runtime, canonical) ---
+            binary: mimofan.exe
+            artifact_name: mimofan-windows-x64.exe
+          # --- mimofan-tui (TUI runtime, canonical) ---
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            binary: codewhale-tui
-            artifact_name: codewhale-tui-linux-x64
+            binary: mimofan-tui
+            artifact_name: mimofan-tui-linux-x64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            binary: codewhale-tui
-            artifact_name: codewhale-tui-linux-arm64
+            binary: mimofan-tui
+            artifact_name: mimofan-tui-linux-arm64
           - os: ubuntu-latest
             target: riscv64gc-unknown-linux-gnu
-            binary: codewhale-tui
-            artifact_name: codewhale-tui-linux-riscv64
+            binary: mimofan-tui
+            artifact_name: mimofan-tui-linux-riscv64
           - os: macos-latest
             target: x86_64-apple-darwin
-            binary: codewhale-tui
-            artifact_name: codewhale-tui-macos-x64
+            binary: mimofan-tui
+            artifact_name: mimofan-tui-macos-x64
           - os: macos-latest
             target: aarch64-apple-darwin
-            binary: codewhale-tui
-            artifact_name: codewhale-tui-macos-arm64
+            binary: mimofan-tui
+            artifact_name: mimofan-tui-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: codewhale-tui.exe
-            artifact_name: codewhale-tui-windows-x64.exe
+            binary: mimofan-tui.exe
+            artifact_name: mimofan-tui-windows-x64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -271,32 +271,32 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
-          pattern: 'codewhale*'
+          pattern: 'mimofan*'
       - name: Create platform archives
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p bundles/checksums
-          MANIFEST="bundles/checksums/codewhale-bundles-sha256.txt"
+          MANIFEST="bundles/checksums/mimofan-bundles-sha256.txt"
           : > "$MANIFEST"
 
           bundle() {
             local platform="$1"   # linux-x64, linux-arm64, macos-x64, macos-arm64, windows-x64
-            local cli_src="$2"    # artifact name for codewhale binary
-            local tui_src="$3"    # artifact name for codewhale-tui binary
+            local cli_src="$2"    # artifact name for mimofan binary
+            local tui_src="$3"    # artifact name for mimofan-tui binary
             local ext="$4"        # tar.gz or zip
             local variant="$5"    # '' (standard) or 'portable' (Windows only, no install script)
             shift 5
 
-            local dir="bundles/codewhale-${platform}${variant:+-}${variant}"
+            local dir="bundles/mimofan-${platform}${variant:+-}${variant}"
             mkdir -p "$dir"
 
             # Copy binaries, stripping platform suffixes
-            local cli_dst="codewhale"
-            local tui_dst="codewhale-tui"
+            local cli_dst="mimofan"
+            local tui_dst="mimofan-tui"
             if [[ "$platform" == windows-* ]]; then
-              cli_dst="codewhale.exe"
-              tui_dst="codewhale-tui.exe"
+              cli_dst="mimofan.exe"
+              tui_dst="mimofan-tui.exe"
             fi
             cp "artifacts/${cli_src}/${cli_src}" "$dir/${cli_dst}"
             cp "artifacts/${tui_src}/${tui_src}" "$dir/${tui_dst}"
@@ -314,41 +314,41 @@ jobs:
             fi
 
             if [[ "$ext" == "zip" ]]; then
-              (cd bundles && zip -r "codewhale-${platform}${variant:+-}${variant}.zip" "codewhale-${platform}${variant:+-}${variant}/")
+              (cd bundles && zip -r "mimofan-${platform}${variant:+-}${variant}.zip" "mimofan-${platform}${variant:+-}${variant}/")
             else
-              tar -czf "bundles/codewhale-${platform}${variant:+-}${variant}.tar.gz" -C bundles "codewhale-${platform}${variant:+-}${variant}/"
+              tar -czf "bundles/mimofan-${platform}${variant:+-}${variant}.tar.gz" -C bundles "mimofan-${platform}${variant:+-}${variant}/"
             fi
 
-            local archive="codewhale-${platform}${variant:+-}${variant}.${ext}"
+            local archive="mimofan-${platform}${variant:+-}${variant}.${ext}"
             sha256sum "bundles/${archive}" | awk '{printf "%s  %s\n", $1, $2}' >> "$MANIFEST"
             echo "  Created bundles/${archive}"
           }
 
           # Platform: linux-x64
           bundle linux-x64 \
-            codewhale-linux-x64 codewhale-tui-linux-x64 tar.gz ""
+            mimofan-linux-x64 mimofan-tui-linux-x64 tar.gz ""
 
           # Platform: linux-arm64
           bundle linux-arm64 \
-            codewhale-linux-arm64 codewhale-tui-linux-arm64 tar.gz ""
+            mimofan-linux-arm64 mimofan-tui-linux-arm64 tar.gz ""
 
           # Platform: linux-riscv64
           bundle linux-riscv64 \
-            codewhale-linux-riscv64 codewhale-tui-linux-riscv64 tar.gz ""
+            mimofan-linux-riscv64 mimofan-tui-linux-riscv64 tar.gz ""
 
           # Platform: macos-x64
           bundle macos-x64 \
-            codewhale-macos-x64 codewhale-tui-macos-x64 tar.gz ""
+            mimofan-macos-x64 mimofan-tui-macos-x64 tar.gz ""
 
           # Platform: macos-arm64
           bundle macos-arm64 \
-            codewhale-macos-arm64 codewhale-tui-macos-arm64 tar.gz ""
+            mimofan-macos-arm64 mimofan-tui-macos-arm64 tar.gz ""
 
           # Platform: windows-x64 (standard + portable)
           bundle windows-x64 \
-            codewhale-windows-x64.exe codewhale-tui-windows-x64.exe zip ""
+            mimofan-windows-x64.exe mimofan-tui-windows-x64.exe zip ""
           bundle windows-x64 \
-            codewhale-windows-x64.exe codewhale-tui-windows-x64.exe zip "portable"
+            mimofan-windows-x64.exe mimofan-tui-windows-x64.exe zip "portable"
 
           echo ""
           echo "=== Archive checksums ==="
@@ -357,7 +357,7 @@ jobs:
       - name: Upload bundle artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: codewhale-bundles
+          name: mimofan-bundles
           path: bundles/*
           if-no-files-found: error
 
@@ -372,7 +372,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
-          pattern: 'codewhale*-windows-x64.exe'
+          pattern: 'mimofan*-windows-x64.exe'
       - name: Install NSIS
         shell: pwsh
         run: choco install nsis -y --no-progress
@@ -381,8 +381,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $version = "${{ needs.resolve.outputs.tag }}".TrimStart("v")
-          Copy-Item "artifacts\codewhale-windows-x64.exe\codewhale-windows-x64.exe" "scripts\installer\codewhale.exe"
-          Copy-Item "artifacts\codewhale-tui-windows-x64.exe\codewhale-tui-windows-x64.exe" "scripts\installer\codewhale-tui.exe"
+          Copy-Item "artifacts\mimofan-windows-x64.exe\mimofan-windows-x64.exe" "scripts\installer\mimofan.exe"
+          Copy-Item "artifacts\mimofan-tui-windows-x64.exe\mimofan-tui-windows-x64.exe" "scripts\installer\mimofan-tui.exe"
           $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
           if (!(Test-Path $makensis)) {
             $makensis = "${env:ProgramFiles}\NSIS\makensis.exe"
@@ -391,16 +391,16 @@ jobs:
             throw "makensis.exe not found after NSIS install"
           }
           Push-Location scripts\installer
-          & $makensis "/DVERSION=$version" "codewhale.nsi"
+          & $makensis "/DVERSION=$version" "mimofan.nsi"
           Pop-Location
-          if (!(Test-Path "scripts\installer\CodeWhaleSetup.exe")) {
-            throw "CodeWhaleSetup.exe was not produced"
+          if (!(Test-Path "scripts\installer\MimofanSetup.exe")) {
+            throw "MimofanSetup.exe was not produced"
           }
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
-          name: CodeWhaleSetup.exe
-          path: scripts/installer/CodeWhaleSetup.exe
+          name: MimofanSetup.exe
+          path: scripts/installer/MimofanSetup.exe
           if-no-files-found: error
 
   docker:
@@ -492,26 +492,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/codewhale-windows-launcher
+          mkdir -p artifacts/mimofan-windows-launcher
           {
             printf '@echo off\r\n'
             printf 'where wt >nul 2>nul\r\n'
             printf 'set NO_ANIMATIONS=1\r\n'
             printf 'if "%%ERRORLEVEL%%"=="0" (\r\n'
-            printf '    wt --title CodeWhale cmd /k "%%~dp0codewhale-windows-x64.exe"\r\n'
+            printf '    wt --title Mimofan cmd /k "%%~dp0mimofan-windows-x64.exe"\r\n'
             printf ') else (\r\n'
-            printf '    "%%~dp0codewhale-windows-x64.exe"\r\n'
+            printf '    "%%~dp0mimofan-windows-x64.exe"\r\n'
             printf ')\r\n'
             printf '\r\n'
-          } > artifacts/codewhale-windows-launcher/codewhale.bat
+          } > artifacts/mimofan-windows-launcher/mimofan.bat
       - name: List artifacts
         run: find artifacts -type f
       - name: Generate checksum manifest
         shell: bash
         run: |
           mkdir -p artifacts/checksums
-          # Canonical manifest used by codewhale's `codewhale update` flow.
-          manifest="artifacts/checksums/codewhale-artifacts-sha256.txt"
+          # Canonical manifest used by mimofan's `mimofan update` flow.
+          manifest="artifacts/checksums/mimofan-artifacts-sha256.txt"
           : > "${manifest}"
           while IFS= read -r -d '' file; do
             hash="$(sha256sum "${file}" | awk '{print $1}')"
@@ -562,14 +562,14 @@ jobs:
         run: |
           gh release download ${{ needs.resolve.outputs.tag }} \
             --repo ${{ github.repository }} \
-            --pattern 'codewhale-artifacts-sha256.txt' \
+            --pattern 'mimofan-artifacts-sha256.txt' \
             --dir /tmp
       - name: Update Homebrew tap
         if: steps.homebrew-token.outputs.available == 'true'
         env:
           TAG: ${{ needs.resolve.outputs.tag }}
-          MANIFEST: /tmp/codewhale-artifacts-sha256.txt
-          TAP_REPO: Hmbown/homebrew-deepseek-tui
+          MANIFEST: /tmp/mimofan-artifacts-sha256.txt
+          TAP_REPO: Hmbown/homebrew-mimofan
           TOKEN: ${{ secrets.HOMEBREW_TAP_PAT || secrets.RELEASE_TAG_PAT }}
         run: bash .github/scripts/update-homebrew-tap.sh
 

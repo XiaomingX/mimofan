@@ -19,13 +19,13 @@ export class RuntimeCapabilityError extends RuntimeApiError {
   }
 }
 
-export class CodeWhaleRuntimeClient {
+export class MimofanRuntimeClient {
   constructor(options = {}) {
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
     this.token = options.token ?? null;
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     if (typeof this.fetchImpl !== "function") {
-      throw new TypeError("CodeWhaleRuntimeClient requires a fetch implementation");
+      throw new TypeError("MimofanRuntimeClient requires a fetch implementation");
     }
   }
 
@@ -140,7 +140,7 @@ export class CodeWhaleRuntimeClient {
 }
 
 export function createRuntimeClient(options = {}) {
-  return new CodeWhaleRuntimeClient(options);
+  return new MimofanRuntimeClient(options);
 }
 
 function normalizeBaseUrl(value) {

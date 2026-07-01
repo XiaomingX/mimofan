@@ -4,7 +4,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const isZh = locale === "zh";
   return {
-    title: isZh ? "嵌套宪法 · CodeWhale 文档" : "Constitution · CodeWhale Docs",
+    title: isZh ? "嵌套宪法 · Mimofan 文档" : "Constitution · Mimofan Docs",
     description: isZh
       ? "Agent 自我模型、嵌套权威系统和证据规则。"
       : "Agent identity, nested authority system, and evidence rules.",
@@ -26,17 +26,17 @@ export default async function ConstitutionPage({ params }: { params: Promise<{ l
         </h2>
         {isZh ? (
           <p className="text-ink-soft mt-3 leading-[1.9] tracking-wide">
-            CodeWhale 先给 Agent 一个可追责的地址，再给上下文冲突一套法律。全局 Constitution 处理
+            Mimofan 先给 Agent 一个可追责的地址，再给上下文冲突一套法律。全局 Constitution 处理
             truth、user agency、行动和验证；仓库可以通过{" "}
-            <code className="inline">.codewhale/constitution.json</code> 增加本地 law；runtime
+            <code className="inline">.mimofan/constitution.json</code> 增加本地 law；runtime
             policy 再把模式、审批、沙箱、成本和工具边界落到代码里。
           </p>
         ) : (
           <p className="text-ink-soft mt-3 leading-relaxed">
-            CodeWhale gives the agent an accountable address, then a legal system for
+            Mimofan gives the agent an accountable address, then a legal system for
             context conflicts. The global Constitution handles truth, user agency,
             action, and verification; repos can add local law via{" "}
-            <code className="inline">.codewhale/constitution.json</code>; runtime policy
+            <code className="inline">.mimofan/constitution.json</code>; runtime policy
             encodes modes, approval, sandbox, cost, and tool boundaries.
           </p>
         )}
@@ -73,10 +73,10 @@ export default async function ConstitutionPage({ params }: { params: Promise<{ l
         </div>
         <p className={`mt-4 text-sm text-ink-soft ${isZh ? "leading-[1.9] tracking-wide" : "leading-relaxed"}`}>
           {isZh
-            ? "普通项目说明仍放在 AGENTS.md；CodeWhale 专属的冲突解决和验证策略放在 .codewhale/constitution.json。详见 "
-            : "Standard project instructions still live in AGENTS.md; CodeWhale-specific conflict resolution and verification policies go in .codewhale/constitution.json. See "}
+            ? "普通项目说明仍放在 AGENTS.md；Mimofan 专属的冲突解决和验证策略放在 .mimofan/constitution.json。详见 "
+            : "Standard project instructions still live in AGENTS.md; Mimofan-specific conflict resolution and verification policies go in .mimofan/constitution.json. See "}
           <Link
-            href="https://github.com/Hmbown/CodeWhale/blob/main/docs/CONFIGURATION.md#project-instructions--repo-authority"
+            href="https://github.com/Hmbown/Mimofan/blob/main/docs/CONFIGURATION.md#project-instructions--repo-authority"
             className="body-link"
           >
             {isZh ? "repo authority docs" : "repo authority docs"}

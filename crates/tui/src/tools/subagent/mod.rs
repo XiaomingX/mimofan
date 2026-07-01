@@ -130,7 +130,7 @@ const SUBAGENT_MODEL_WAIT_REASON: &str = "waiting for model response";
 const SUBAGENT_PERSIST_DEBOUNCE: Duration = Duration::from_millis(1500);
 
 /// #freeze: lightweight perf counters for the sub-agent persist hot path,
-/// gated behind `CODEWHALE_SUBAGENT_PERF_TRACE=1`. The atomic increments are
+/// gated behind `MIMOFAN_SUBAGENT_PERF_TRACE=1`. The atomic increments are
 /// always cheap; only the structured `subagent_perf` log line is gated.
 static SUBAGENT_PERSIST_WRITES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static SUBAGENT_PERSIST_SKIPPED: std::sync::atomic::AtomicU64 =
@@ -139,7 +139,7 @@ static SUBAGENT_PERSIST_SKIPPED: std::sync::atomic::AtomicU64 =
 fn subagent_perf_enabled() -> bool {
     static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ENABLED.get_or_init(|| {
-        std::env::var("CODEWHALE_SUBAGENT_PERF_TRACE")
+        std::env::var("MIMOFAN_SUBAGENT_PERF_TRACE")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false)
     })

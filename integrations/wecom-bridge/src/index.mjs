@@ -23,19 +23,19 @@ import {
 const config = {
   botId: requiredEnv("WECOM_BOT_ID"),
   botSecret: requiredEnv("WECOM_BOT_SECRET"),
-  runtimeUrl: (process.env.CODEWHALE_RUNTIME_URL || "http://127.0.0.1:7878").replace(/\/+$/, ""),
-  runtimeToken: requiredEnv("CODEWHALE_RUNTIME_TOKEN"),
-  workspace: process.env.CODEWHALE_WORKSPACE || process.cwd(),
-  model: process.env.CODEWHALE_MODEL || "auto",
-  mode: process.env.CODEWHALE_MODE || "agent",
-  allowShell: parseBool(process.env.CODEWHALE_ALLOW_SHELL, true),
-  trustMode: parseBool(process.env.CODEWHALE_TRUST_MODE, false),
-  autoApprove: parseBool(process.env.CODEWHALE_AUTO_APPROVE, false),
+  runtimeUrl: (process.env.MIMOFAN_RUNTIME_URL || "http://127.0.0.1:7878").replace(/\/+$/, ""),
+  runtimeToken: requiredEnv("MIMOFAN_RUNTIME_TOKEN"),
+  workspace: process.env.MIMOFAN_WORKSPACE || process.cwd(),
+  model: process.env.MIMOFAN_MODEL || "auto",
+  mode: process.env.MIMOFAN_MODE || "agent",
+  allowShell: parseBool(process.env.MIMOFAN_ALLOW_SHELL, true),
+  trustMode: parseBool(process.env.MIMOFAN_TRUST_MODE, false),
+  autoApprove: parseBool(process.env.MIMOFAN_AUTO_APPROVE, false),
   allowlist: parseList(process.env.WECOM_CHAT_ALLOWLIST),
   allowUnlisted: parseBool(process.env.WECOM_ALLOW_UNLISTED, false),
-  threadMapPath: process.env.WECOM_THREAD_MAP_PATH || "/var/lib/codewhale-wecom-bridge/thread-map.json",
+  threadMapPath: process.env.WECOM_THREAD_MAP_PATH || "/var/lib/mimofan-wecom-bridge/thread-map.json",
   maxReplyChars: Number(process.env.WECOM_MAX_REPLY_CHARS || 3500),
-  turnTimeoutMs: Number(process.env.CODEWHALE_TURN_TIMEOUT_MS || 900000)
+  turnTimeoutMs: Number(process.env.MIMOFAN_TURN_TIMEOUT_MS || 900000)
 };
 
 const threadStore = await ThreadStore.open(config.threadMapPath);
@@ -65,7 +65,7 @@ client.on("error", (error) => {
   console.error("WeCom client error:", error);
 });
 
-console.log("Starting CodeWhale WeCom bridge");
+console.log("Starting Mimofan WeCom bridge");
 console.log(`Runtime: ${config.runtimeUrl}`);
 console.log(`Workspace: ${config.workspace}`);
 if (!config.allowlist.length && !config.allowUnlisted) {
@@ -130,7 +130,7 @@ async function handleEvent(frame) {
   if (eventType === "enter_chat") {
     const chatId = body.chatid;
     if (chatId) {
-      await client.replyWelcome(frame, { msgtype: "text", text: { content: "欢迎使用 CodeWhale！发送 /help 查看可用命令。" } });
+      await client.replyWelcome(frame, { msgtype: "text", text: { content: "欢迎使用 Mimofan！发送 /help 查看可用命令。" } });
     }
   }
 }

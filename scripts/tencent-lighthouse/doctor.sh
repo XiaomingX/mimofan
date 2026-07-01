@@ -1,46 +1,46 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CODEWHALE_USER="${CODEWHALE_USER:-${DEEPSEEK_USER:-codewhale}}"
-CODEWHALE_ROOT="${CODEWHALE_ROOT:-${DEEPSEEK_ROOT:-/opt/codewhale}}"
+MIMOFAN_USER="${MIMOFAN_USER:-${DEEPSEEK_USER:-mimofan}}"
+MIMOFAN_ROOT="${MIMOFAN_ROOT:-${DEEPSEEK_ROOT:-/opt/mimofan}}"
 WHALEBRO_ROOT="${WHALEBRO_ROOT:-/opt/whalebro}"
 if [[ -z "${RUNTIME_ENV:-}" ]]; then
-  if [[ -f /etc/codewhale/runtime.env || ! -f /etc/deepseek/runtime.env ]]; then
-    RUNTIME_ENV="/etc/codewhale/runtime.env"
+  if [[ -f /etc/mimofan/runtime.env || ! -f /etc/deepseek/runtime.env ]]; then
+    RUNTIME_ENV="/etc/mimofan/runtime.env"
   else
     RUNTIME_ENV="/etc/deepseek/runtime.env"
   fi
 fi
-REPO_ROOT="${REPO_ROOT:-${WHALEBRO_ROOT}/codewhale}"
-BRIDGE_KIND="${CODEWHALE_BRIDGE:-${DEEPSEEK_BRIDGE:-feishu}}"
+REPO_ROOT="${REPO_ROOT:-${WHALEBRO_ROOT}/mimofan}"
+BRIDGE_KIND="${MIMOFAN_BRIDGE:-${DEEPSEEK_BRIDGE:-feishu}}"
 
 case "${BRIDGE_KIND}" in
   feishu|lark)
     if [[ -z "${BRIDGE_ENV:-}" ]]; then
-      if [[ -f /etc/codewhale/feishu-bridge.env || ! -f /etc/deepseek/feishu-bridge.env ]]; then
-        BRIDGE_ENV="/etc/codewhale/feishu-bridge.env"
+      if [[ -f /etc/mimofan/feishu-bridge.env || ! -f /etc/deepseek/feishu-bridge.env ]]; then
+        BRIDGE_ENV="/etc/mimofan/feishu-bridge.env"
       else
         BRIDGE_ENV="/etc/deepseek/feishu-bridge.env"
       fi
     fi
-    BRIDGE_DIR="${BRIDGE_DIR:-${CODEWHALE_ROOT}/bridge}"
-    BRIDGE_UNIT="${BRIDGE_UNIT:-codewhale-feishu-bridge}"
+    BRIDGE_DIR="${BRIDGE_DIR:-${MIMOFAN_ROOT}/bridge}"
+    BRIDGE_UNIT="${BRIDGE_UNIT:-mimofan-feishu-bridge}"
     BRIDGE_PACKAGE="${BRIDGE_PACKAGE:-integrations/feishu-bridge}"
     ;;
   telegram)
     if [[ -z "${BRIDGE_ENV:-}" ]]; then
-      if [[ -f /etc/codewhale/telegram-bridge.env || ! -f /etc/deepseek/telegram-bridge.env ]]; then
-        BRIDGE_ENV="/etc/codewhale/telegram-bridge.env"
+      if [[ -f /etc/mimofan/telegram-bridge.env || ! -f /etc/deepseek/telegram-bridge.env ]]; then
+        BRIDGE_ENV="/etc/mimofan/telegram-bridge.env"
       else
         BRIDGE_ENV="/etc/deepseek/telegram-bridge.env"
       fi
     fi
-    BRIDGE_DIR="${BRIDGE_DIR:-${CODEWHALE_ROOT}/telegram-bridge}"
-    BRIDGE_UNIT="${BRIDGE_UNIT:-codewhale-telegram-bridge}"
+    BRIDGE_DIR="${BRIDGE_DIR:-${MIMOFAN_ROOT}/telegram-bridge}"
+    BRIDGE_UNIT="${BRIDGE_UNIT:-mimofan-telegram-bridge}"
     BRIDGE_PACKAGE="${BRIDGE_PACKAGE:-integrations/telegram-bridge}"
     ;;
   *)
-    echo "Unknown bridge '${BRIDGE_KIND}'. Use CODEWHALE_BRIDGE=feishu or CODEWHALE_BRIDGE=telegram." >&2
+    echo "Unknown bridge '${BRIDGE_KIND}'. Use MIMOFAN_BRIDGE=feishu or MIMOFAN_BRIDGE=telegram." >&2
     exit 1
     ;;
 esac
@@ -147,19 +147,19 @@ check_workspace() {
 }
 
 check_binaries() {
-  section "CodeWhale binaries"
-  local cargo_bin="/home/${CODEWHALE_USER}/.cargo/bin"
-  local codewhale="${cargo_bin}/codewhale"
-  local tui="${cargo_bin}/codewhale-tui"
-  if [[ -x "${codewhale}" ]]; then
-    pass "${codewhale} is executable"
-    "${codewhale}" --version 2>/dev/null | sed 's/^/[info] codewhale version: /' || warn "codewhale --version failed"
+  section "Mimofan binaries"
+  local cargo_bin="/home/${MIMOFAN_USER}/.cargo/bin"
+  local mimofan="${cargo_bin}/mimofan"
+  local tui="${cargo_bin}/mimofan-tui"
+  if [[ -x "${mimofan}" ]]; then
+    pass "${mimofan} is executable"
+    "${mimofan}" --version 2>/dev/null | sed 's/^/[info] mimofan version: /' || warn "mimofan --version failed"
   else
-    fail "${codewhale} is missing or not executable"
+    fail "${mimofan} is missing or not executable"
   fi
   if [[ -x "${tui}" ]]; then
     pass "${tui} is executable"
-    "${tui}" --version 2>/dev/null | sed 's/^/[info] codewhale-tui version: /' || warn "codewhale-tui --version failed"
+    "${tui}" --version 2>/dev/null | sed 's/^/[info] mimofan-tui version: /' || warn "mimofan-tui --version failed"
   else
     fail "${tui} is missing or not executable"
   fi
@@ -189,18 +189,18 @@ check_env() {
   check_env_file "${BRIDGE_ENV}" "bridge"
 
   local runtime_token bridge_token workspace domain allow_groups allow_unlisted provider
-  runtime_token="$(env_value_any "${RUNTIME_ENV}" CODEWHALE_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
-  bridge_token="$(env_value_any "${BRIDGE_ENV}" CODEWHALE_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
-  workspace="$(env_value_any "${BRIDGE_ENV}" CODEWHALE_WORKSPACE DEEPSEEK_WORKSPACE)"
-  provider="$(env_value_any "${RUNTIME_ENV}" CODEWHALE_PROVIDER DEEPSEEK_PROVIDER)"
+  runtime_token="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
+  bridge_token="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
+  workspace="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_WORKSPACE DEEPSEEK_WORKSPACE)"
+  provider="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_PROVIDER DEEPSEEK_PROVIDER)"
 
   if [[ "${BRIDGE_KIND}" == "telegram" ]]; then
     allow_groups="$(env_value "${BRIDGE_ENV}" TELEGRAM_ALLOW_GROUPS)"
-    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" TELEGRAM_ALLOW_UNLISTED CODEWHALE_ALLOW_UNLISTED DEEPSEEK_ALLOW_UNLISTED)"
+    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" TELEGRAM_ALLOW_UNLISTED MIMOFAN_ALLOW_UNLISTED DEEPSEEK_ALLOW_UNLISTED)"
   else
     domain="$(env_value "${BRIDGE_ENV}" FEISHU_DOMAIN)"
     allow_groups="$(env_value "${BRIDGE_ENV}" FEISHU_ALLOW_GROUPS)"
-    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" CODEWHALE_ALLOW_UNLISTED DEEPSEEK_ALLOW_UNLISTED)"
+    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_ALLOW_UNLISTED DEEPSEEK_ALLOW_UNLISTED)"
   fi
 
   if is_placeholder "${runtime_token}"; then
@@ -247,8 +247,8 @@ check_validator() {
     return
   fi
   local runner=(node)
-  if [[ "${EUID}" -eq 0 ]] && id -u "${CODEWHALE_USER}" >/dev/null 2>&1 && have_command sudo; then
-    runner=(sudo -u "${CODEWHALE_USER}" node)
+  if [[ "${EUID}" -eq 0 ]] && id -u "${MIMOFAN_USER}" >/dev/null 2>&1 && have_command sudo; then
+    runner=(sudo -u "${MIMOFAN_USER}" node)
   fi
   if "${runner[@]}" "${validator}" --env "${BRIDGE_ENV}" --runtime-env "${RUNTIME_ENV}" --workspace-root "${WHALEBRO_ROOT}" --check-filesystem; then
     pass "bridge config validator passed"
@@ -263,7 +263,7 @@ check_systemd() {
     warn "systemd is not available in this environment"
     return
   fi
-  for unit in codewhale-runtime "${BRIDGE_UNIT}"; do
+  for unit in mimofan-runtime "${BRIDGE_UNIT}"; do
     [[ -f "/etc/systemd/system/${unit}.service" ]] \
       && pass "${unit}.service is installed" \
       || fail "${unit}.service is missing"
@@ -292,9 +292,9 @@ check_bridge_install() {
 check_localhost_health() {
   section "Localhost health"
   local port token
-  port="$(env_value_any "${RUNTIME_ENV}" CODEWHALE_RUNTIME_PORT DEEPSEEK_RUNTIME_PORT)"
+  port="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_RUNTIME_PORT DEEPSEEK_RUNTIME_PORT)"
   port="${port:-7878}"
-  token="$(env_value_any "${BRIDGE_ENV}" CODEWHALE_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
+  token="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
 
   if have_command ss; then
     local listeners
@@ -347,7 +347,7 @@ check_localhost_health() {
 }
 
 main() {
-  printf 'Tencent Lighthouse CodeWhale doctor (%s bridge)\n' "${BRIDGE_KIND}"
+  printf 'Tencent Lighthouse Mimofan doctor (%s bridge)\n' "${BRIDGE_KIND}"
   check_commands
   check_node
   check_workspace

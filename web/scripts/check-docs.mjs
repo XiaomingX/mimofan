@@ -8,7 +8,7 @@
  *      match the current workspace state.
  *
  * Usage:
- *   cd web && npm run check:docs
+ *   cd web && pnpm check:docs
  *
  * Relies on facts-lib.mjs for version / provider / tool derivation.
  */
@@ -94,7 +94,7 @@ function checkInstallSnippets() {
   if (!existsSync(installPath)) return { ok: true, note: "install page not found" };
 
   const src = readFileSync(installPath, "utf-8");
-  const versionRefs = [...src.matchAll(/codewhale.*?([\d]+\.[\d]+\.[\d]+)/g)];
+  const versionRefs = [...src.matchAll(/mimofan.*?([\d]+\.[\d]+\.[\d]+)/g)];
   const stale = [];
   for (const ref of versionRefs) {
     const v = ref[1];

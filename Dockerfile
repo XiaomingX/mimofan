@@ -1,16 +1,16 @@
 # syntax=docker/dockerfile:1
-# CodeWhale multi-arch Docker image (#501)
+# Mimofan multi-arch Docker image (#501)
 #
-# Build:  docker buildx build --platform linux/amd64,linux/arm64 -t codewhale:latest .
-# Run:    docker run --rm -it -e DEEPSEEK_API_KEY -v codewhale-home:/home/codewhale/.codewhale codewhale
+# Build:  docker buildx build --platform linux/amd64,linux/arm64 -t mimofan:latest .
+# Run:    docker run --rm -it -e DEEPSEEK_API_KEY -v mimofan-home:/home/mimofan/.mimofan mimofan
 #
-# The image ships the canonical binaries (`codewhale`, `codewhale-tui`) plus
-# the legacy `deepseek` / `deepseek-tui` shims in a minimal runtime layer.
+# The image ships the canonical binaries (`mimofan`, `mimofan-tui`) plus
+# the legacy `deepseek` / `mimofan` shims in a minimal runtime layer.
 #
 # API keys MUST be passed at runtime (never baked into the image):
-#   docker run --rm -it -e DEEPSEEK_API_KEY codewhale
+#   docker run --rm -it -e DEEPSEEK_API_KEY mimofan
 # Or mount an env file:
-#   docker run --rm -it --env-file .env codewhale
+#   docker run --rm -it --env-file .env mimofan
 
 ARG RUST_VERSION=1.88
 
@@ -55,15 +55,15 @@ COPY . .
 
 # Build both binaries for the target platform.  --locked ensures
 # reproducible builds from the committed lockfile.
-RUN --mount=type=cache,id=codewhale-target-${TARGETARCH},target=/build/target,sharing=locked \
-    --mount=type=cache,id=codewhale-cargo-registry-${TARGETARCH},target=/usr/local/cargo/registry,sharing=locked \
-    --mount=type=cache,id=codewhale-cargo-git-${TARGETARCH},target=/usr/local/cargo/git,sharing=locked \
+RUN --mount=type=cache,id=mimofan-target-${TARGETARCH},target=/build/target,sharing=locked \
+    --mount=type=cache,id=mimofan-cargo-registry-${TARGETARCH},target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,id=mimofan-cargo-git-${TARGETARCH},target=/usr/local/cargo/git,sharing=locked \
     rustup target add "$(cat /rust-target)" \
     && cargo build --release --locked --target "$(cat /rust-target)" \
-      -p codewhale-cli -p codewhale-tui \
+      -p mimofan-cli -p mimofan-tui \
     && mkdir -p /out \
-    && cp target/$(cat /rust-target)/release/codewhale /out/ \
-    && cp target/$(cat /rust-target)/release/codewhale-tui /out/
+    && cp target/$(cat /rust-target)/release/mimofan /out/ \
+    && cp target/$(cat /rust-target)/release/mimofan-tui /out/
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────
 FROM debian:bookworm-slim
@@ -74,22 +74,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Non-root user with explicit UID/GID for filesystem ownership clarity.
-RUN groupadd --gid 1000 codewhale \
-    && useradd --create-home --shell /bin/bash --uid 1000 --gid 1000 codewhale \
-    && install -d -m 0700 -o codewhale -g codewhale /home/codewhale/.codewhale \
-    && install -d -m 0700 -o codewhale -g codewhale /home/codewhale/.deepseek \
-    # Legacy entrypoints from the deepseek-tui era; the real binaries are
+RUN groupadd --gid 1000 mimofan \
+    && useradd --create-home --shell /bin/bash --uid 1000 --gid 1000 mimofan \
+    && install -d -m 0700 -o mimofan -g mimofan /home/mimofan/.mimofan \
+    && install -d -m 0700 -o mimofan -g mimofan /home/mimofan/.deepseek \
+    # Legacy entrypoints from the mimofan era; the real binaries are
     # copied in below (symlinks may dangle until then).
-    && ln -s /usr/local/bin/codewhale /usr/local/bin/deepseek \
-    && ln -s /usr/local/bin/codewhale-tui /usr/local/bin/deepseek-tui
-USER codewhale
-WORKDIR /home/codewhale
+    && ln -s /usr/local/bin/mimofan /usr/local/bin/deepseek \
+    && ln -s /usr/local/bin/mimofan-tui /usr/local/bin/mimofan
+USER mimofan
+WORKDIR /home/mimofan
 
-COPY --from=builder --chown=codewhale:codewhale /out/codewhale /usr/local/bin/codewhale
-COPY --from=builder --chown=codewhale:codewhale /out/codewhale-tui /usr/local/bin/codewhale-tui
+COPY --from=builder --chown=mimofan:mimofan /out/mimofan /usr/local/bin/mimofan
+COPY --from=builder --chown=mimofan:mimofan /out/mimofan-tui /usr/local/bin/mimofan-tui
 
 # The dispatcher expects to find its companion binary next to it.
 # Both are in /usr/local/bin — no further path setup needed.
 
-ENTRYPOINT ["codewhale"]
+ENTRYPOINT ["mimofan"]
 CMD []

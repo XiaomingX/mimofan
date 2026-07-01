@@ -1,18 +1,18 @@
-; codewhale.nsi — NSIS installer for CodeWhale (Windows)
+; mimofan.nsi — NSIS installer for Mimofan (Windows)
 ;
-; Requirements (see https://github.com/Hmbown/CodeWhale/issues/1983):
-;   - Install codewhale.exe and codewhale-tui.exe side-by-side
-;   - Default to %LOCALAPPDATA%\Programs\CodeWhale\bin
+; Requirements (see https://github.com/Hmbown/Mimofan/issues/1983):
+;   - Install mimofan.exe and mimofan-tui.exe side-by-side
+;   - Default to %LOCALAPPDATA%\Programs\Mimofan\bin
 ;   - Add install dir to current-user PATH
 ;   - Uninstaller removes the PATH entry
 ;
 ; Usage:
 ;   1. Place both .exe files next to this script:
-;        codewhale.exe
-;        codewhale-tui.exe
+;        mimofan.exe
+;        mimofan-tui.exe
 ;   2. Build:
-;        makensis /DVERSION=1.2.3 codewhale.nsi
-;   3. Output: CodeWhaleSetup.exe (in current directory)
+;        makensis /DVERSION=1.2.3 mimofan.nsi
+;   3. Output: MimofanSetup.exe (in current directory)
 
 ;--------------------------------
 ; Includes
@@ -31,13 +31,13 @@ ${UnStrStr}
   !define VERSION "0.0.0"
 !endif
 
-!define PRODUCT_NAME "CodeWhale"
+!define PRODUCT_NAME "Mimofan"
 !define PRODUCT_PUBLISHER "Hmbown"
-!define PRODUCT_WEB_SITE "https://github.com/Hmbown/CodeWhale"
+!define PRODUCT_WEB_SITE "https://github.com/Hmbown/Mimofan"
 
 Name "${PRODUCT_NAME} ${VERSION}"
-OutFile "CodeWhaleSetup.exe"
-InstallDir "$LOCALAPPDATA\Programs\CodeWhale"
+OutFile "MimofanSetup.exe"
+InstallDir "$LOCALAPPDATA\Programs\Mimofan"
 RequestExecutionLevel user
 BrandingText "${PRODUCT_NAME} Installer"
 
@@ -73,8 +73,8 @@ Section "Install" SecInstall
   SetOutPath "$INSTDIR\bin"
 
   ; Copy binaries
-  File "codewhale.exe"
-  File "codewhale-tui.exe"
+  File "mimofan.exe"
+  File "mimofan-tui.exe"
 
   ; Write uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
@@ -118,8 +118,8 @@ SectionEnd
 ;--------------------------------
 Section "Uninstall"
   ; Remove binaries
-  Delete "$INSTDIR\bin\codewhale.exe"
-  Delete "$INSTDIR\bin\codewhale-tui.exe"
+  Delete "$INSTDIR\bin\mimofan.exe"
+  Delete "$INSTDIR\bin\mimofan-tui.exe"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir "$INSTDIR\bin"
   RMDir "$INSTDIR"

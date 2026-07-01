@@ -4,7 +4,7 @@
 #   MIMO_IMAGE=ghcr.io/hmbown/mimo-tui:vX.Y.Z \
 #   MIMO_TOOLBOX_IMAGE=mimo-toolbox:my-project \
 #   MIMO_HOME_VOLUME=mimo-my-project-home \
-#   CODEWHALE_WORKSPACE="$PWD" \
+#   MIMOFAN_WORKSPACE="$PWD" \
 #   docker compose -f docs/examples/compose.toolbox.yml run --rm mimo
 #
 # Keep MIMO_HOME_VOLUME distinct per project so sessions, config, skills,
@@ -25,12 +25,12 @@ services:
       - DEEPSEEK_NO_COLOR
     volumes:
       - mimo-home:/home/mimo/.mimo
-      - ${CODEWHALE_WORKSPACE:?set CODEWHALE_WORKSPACE to the project directory}:/workspace
+      - ${MIMOFAN_WORKSPACE:?set MIMOFAN_WORKSPACE to the project directory}:/workspace
       # Mount SSH material only for projects that need it, and prefer read-only.
       # - ${HOME}/.ssh:/home/mimo/.ssh:ro
       # Mount local CA certificates only when starting through a command that
       # runs `sudo update-ca-certificates` inside this toolbox image.
-      # - ${CODEWHALE_CERTS_DIR:-../../docker/certs}:/usr/local/share/ca-certificates/local:ro
+      # - ${MIMOFAN_CERTS_DIR:-../../docker/certs}:/usr/local/share/ca-certificates/local:ro
     working_dir: /workspace
     stdin_open: true
     tty: true

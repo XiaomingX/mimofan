@@ -25,7 +25,7 @@ use thiserror::Error;
 pub const DEFAULT_SERVICE: &str = "deepseek";
 /// Select the secret storage backend. Supported values are `file` (default)
 /// and `system`/`keyring` for the OS credential store.
-pub const SECRET_BACKEND_ENV: &str = "CODEWHALE_SECRET_BACKEND";
+pub const SECRET_BACKEND_ENV: &str = "MIMOFAN_SECRET_BACKEND";
 /// Legacy alias for [`SECRET_BACKEND_ENV`].
 pub const LEGACY_SECRET_BACKEND_ENV: &str = "DEEPSEEK_SECRET_BACKEND";
 const FILE_BACKEND_LABEL: &str = "file-based (~/.mimofan/secrets/)";
@@ -372,7 +372,7 @@ impl FileKeyringStore {
     }
 
     /// Default path: `<home>/.mimofan/secrets/secrets.json`. Honours
-    /// `CODEWHALE_HOME`, then `HOME`, `USERPROFILE`, and finally the platform
+    /// `MIMOFAN_HOME`, then `HOME`, `USERPROFILE`, and finally the platform
     /// home directory from the `dirs` crate. On first use, non-conflicting
     /// entries from the legacy `<home>/.deepseek/secrets/secrets.json` file are
     /// copied into the mimofan store.
@@ -553,7 +553,7 @@ impl KeyringStore for FileKeyringStore {
 }
 
 fn default_mimofan_secrets_path() -> Result<PathBuf, SecretsError> {
-    if let Ok(value) = std::env::var("CODEWHALE_HOME") {
+    if let Ok(value) = std::env::var("MIMOFAN_HOME") {
         let trimmed = value.trim();
         if !trimmed.is_empty() {
             return Ok(PathBuf::from(trimmed).join("secrets").join("secrets.json"));
@@ -886,7 +886,7 @@ mod tests {
 
     fn clear_known_envs() {
         for var in [
-            "CODEWHALE_HOME",
+            "MIMOFAN_HOME",
             "DEEPSEEK_API_KEY",
             "OPENROUTER_API_KEY",
             "NOVITA_API_KEY",
@@ -1035,7 +1035,7 @@ mod tests {
         let custom = tmp.path().join("custom-mimofan");
         let _home = EnvVarGuard::set("HOME", tmp.path());
         let _userprofile = EnvVarGuard::set("USERPROFILE", tmp.path());
-        let _mimofan_home = EnvVarGuard::set("CODEWHALE_HOME", &custom);
+        let _mimofan_home = EnvVarGuard::set("MIMOFAN_HOME", &custom);
 
         let path = FileKeyringStore::default_path().unwrap();
 

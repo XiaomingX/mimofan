@@ -19,7 +19,7 @@ use super::CommandResult;
 /// If the changelog section exceeds this, we truncate and show a notice.
 /// 4096 chars is large enough for most version entries.
 const MAX_INLINE_CHANGELOG_CHARS: usize = 4096;
-const CODEWHALE_CHANGELOG: &str = include_str!("../../../../CHANGELOG.md");
+const MIMOFAN_CHANGELOG: &str = include_str!("../../../../CHANGELOG.md");
 
 /// Execute the `/change` command.
 ///
@@ -29,12 +29,12 @@ pub fn change(app: &mut App, version: Option<&str>) -> CommandResult {
     let section = if let Some(ver) = version {
         let ver = ver.trim();
         if ver.is_empty() {
-            extract_latest_changelog_section(CODEWHALE_CHANGELOG)
+            extract_latest_changelog_section(MIMOFAN_CHANGELOG)
         } else {
-            extract_changelog_section_by_version(CODEWHALE_CHANGELOG, ver)
+            extract_changelog_section_by_version(MIMOFAN_CHANGELOG, ver)
         }
     } else {
-        extract_latest_changelog_section(CODEWHALE_CHANGELOG)
+        extract_latest_changelog_section(MIMOFAN_CHANGELOG)
     };
 
     let latest_section = match section {
@@ -61,7 +61,7 @@ pub fn change(app: &mut App, version: Option<&str>) -> CommandResult {
     let locale = app.ui_locale;
     let header = tr(locale, MessageId::CmdChangeHeader);
 
-    let prev_hint = if let Some(prev_ver) = previous_version_hint(CODEWHALE_CHANGELOG, version) {
+    let prev_hint = if let Some(prev_ver) = previous_version_hint(MIMOFAN_CHANGELOG, version) {
         let template = tr(locale, MessageId::CmdChangePreviousVersion);
         format!("\n\n{}", template.replace("{version}", &prev_ver))
     } else {

@@ -273,7 +273,7 @@ pub fn resolve_node() -> Option<String> {
 // ExternalTool trait — unified subprocess interface
 // ---------------------------------------------------------------------------
 
-/// A tool that DeepSeek-TUI shells out to. Instead of scattering
+/// A tool that Mimofan shells out to. Instead of scattering
 /// `Command::new("git")` / `Command::new("gh")` across the codebase,
 /// each external dependency implements this trait once in this module.
 /// Callers ask the tool for a pre-populated [`Command`] and chain their

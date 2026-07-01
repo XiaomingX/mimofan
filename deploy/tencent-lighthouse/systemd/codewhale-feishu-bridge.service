@@ -1,23 +1,23 @@
 [Unit]
-Description=CodeWhale Feishu/Lark Phone Bridge
-Wants=network-online.target codewhale-runtime.service
-After=network-online.target codewhale-runtime.service
+Description=Mimofan Feishu/Lark Phone Bridge
+Wants=network-online.target mimofan-runtime.service
+After=network-online.target mimofan-runtime.service
 
 [Service]
 Type=simple
-User=codewhale
-Group=codewhale
-WorkingDirectory=/opt/codewhale/bridge
-# Legacy /etc/deepseek is loaded first for old installs; /etc/codewhale wins.
+User=mimofan
+Group=mimofan
+WorkingDirectory=/opt/mimofan/bridge
+# Legacy /etc/deepseek is loaded first for old installs; /etc/mimofan wins.
 EnvironmentFile=-/etc/deepseek/feishu-bridge.env
-EnvironmentFile=-/etc/codewhale/feishu-bridge.env
-ExecStart=/usr/bin/node /opt/codewhale/bridge/src/index.mjs
+EnvironmentFile=-/etc/mimofan/feishu-bridge.env
+ExecStart=/usr/bin/node /opt/mimofan/bridge/src/index.mjs
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-ReadWritePaths=/var/lib/codewhale-feishu-bridge
+ReadWritePaths=/var/lib/mimofan-feishu-bridge
 
 [Install]
 WantedBy=multi-user.target

@@ -2946,7 +2946,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "arboard",
@@ -3021,7 +3021,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-agent"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "mimofan-config",
  "serde",
@@ -3029,7 +3029,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-app-server"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -3057,7 +3057,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-cli"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3087,7 +3087,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-config"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "dirs",
@@ -3104,7 +3104,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-core"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3123,7 +3123,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-execpolicy"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "mimofan-protocol",
@@ -3132,7 +3132,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-hooks"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-mcp"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "serde",
@@ -3155,7 +3155,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-protocol"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "chrono",
  "serde",
@@ -3165,7 +3165,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-release"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "reqwest 0.13.4",
@@ -3176,7 +3176,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-secrets"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "dirs",
  "keyring",
@@ -3189,7 +3189,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-state"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3201,7 +3201,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-tools"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3215,7 +3215,7 @@ dependencies = [
 
 [[package]]
 name = "mimofan-whaleflow"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "anyhow",
  "serde",

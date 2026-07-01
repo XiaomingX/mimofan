@@ -3,7 +3,7 @@ import {
   checkRuntime,
   listSnapshots,
   listThreadSummaries,
-  openCodeWhaleTerminal,
+  openMimofanTerminal,
   readRuntimeConfig,
   runtimeBaseUrl,
   startRuntimeTerminal,
@@ -12,13 +12,13 @@ import {
 import { RuntimeStatusView } from "./status";
 
 export function activate(context: vscode.ExtensionContext): void {
-  const output = vscode.window.createOutputChannel("CodeWhale");
+  const output = vscode.window.createOutputChannel("Mimofan");
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   const statusView = new RuntimeStatusView();
   let autoRefreshTimer: ReturnType<typeof setInterval> | undefined;
   let autoRefreshInFlight = false;
 
-  status.command = "codewhale.checkRuntime";
+  status.command = "mimofan.checkRuntime";
   context.subscriptions.push(output, status);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(RuntimeStatusView.viewType, statusView),
@@ -74,7 +74,7 @@ export function activate(context: vscode.ExtensionContext): void {
   ): Promise<RuntimeState> => {
     const config = readRuntimeConfig();
     if (showSpinner) {
-      updateStatus("$(sync~spin) CodeWhale", "Checking CodeWhale runtime...");
+      updateStatus("$(sync~spin) Mimofan", "Checking Mimofan runtime...");
     }
 
     const state = await checkRuntime(config);
@@ -82,17 +82,17 @@ export function activate(context: vscode.ExtensionContext): void {
 
     switch (state.kind) {
       case "connected":
-        updateStatus("$(check) CodeWhale", state.detail);
+        updateStatus("$(check) Mimofan", state.detail);
         await refreshAgentViewDetails(false);
         break;
       case "auth-required":
-        updateStatus("$(lock) CodeWhale", state.detail);
+        updateStatus("$(lock) Mimofan", state.detail);
         statusView.updateThreads([], "Runtime token is required before threads can load.");
         statusView.updateSnapshots([], "Runtime token is required before restore points can load.");
         break;
       case "offline":
       case "error":
-        updateStatus("$(warning) CodeWhale", state.detail);
+        updateStatus("$(warning) Mimofan", state.detail);
         statusView.updateThreads([], "Connect to the runtime to load recent threads.");
         statusView.updateSnapshots([], "Connect to the runtime to load restore points.");
         break;
@@ -135,7 +135,7 @@ export function activate(context: vscode.ExtensionContext): void {
     output.appendLine(`Agent View auto-refresh scheduled every ${intervalSeconds}s.`);
   };
 
-  updateStatus("$(terminal) CodeWhale", "Check CodeWhale runtime");
+  updateStatus("$(terminal) Mimofan", "Check Mimofan runtime");
   scheduleAutoRefresh();
   context.subscriptions.push(
     new vscode.Disposable(() => {
@@ -144,45 +144,45 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("codewhale.agentViewRefreshIntervalSeconds")) {
+      if (event.affectsConfiguration("mimofan.agentViewRefreshIntervalSeconds")) {
         scheduleAutoRefresh();
       }
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("codewhale.openTerminal", () => {
+    vscode.commands.registerCommand("mimofan.openTerminal", () => {
       const config = readRuntimeConfig();
-      openCodeWhaleTerminal(config);
-      output.appendLine(`Opened CodeWhale terminal using ${config.commandPath}.`);
+      openMimofanTerminal(config);
+      output.appendLine(`Opened Mimofan terminal using ${config.commandPath}.`);
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("codewhale.startRuntime", () => {
+    vscode.commands.registerCommand("mimofan.startRuntime", () => {
       const config = readRuntimeConfig();
       startRuntimeTerminal(config);
       const baseUrl = runtimeBaseUrl(config);
-      updateStatus("$(sync~spin) CodeWhale", `Runtime terminal started for ${baseUrl}`);
-      output.appendLine(`Started CodeWhale runtime terminal at ${baseUrl}.`);
-      void vscode.window.showInformationMessage(`CodeWhale runtime starting at ${baseUrl}`);
+      updateStatus("$(sync~spin) Mimofan", `Runtime terminal started for ${baseUrl}`);
+      output.appendLine(`Started Mimofan runtime terminal at ${baseUrl}.`);
+      void vscode.window.showInformationMessage(`Mimofan runtime starting at ${baseUrl}`);
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("codewhale.checkRuntime", async () => {
+    vscode.commands.registerCommand("mimofan.checkRuntime", async () => {
       return await checkAndRefreshRuntime(true, true);
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("codewhale.refreshAgentView", async () => {
+    vscode.commands.registerCommand("mimofan.refreshAgentView", async () => {
       await refreshAgentViewDetails(true);
     }),
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("codewhale.refreshSnapshots", async () => {
+    vscode.commands.registerCommand("mimofan.refreshSnapshots", async () => {
       try {
         await refreshSnapshots();
       } catch (error: unknown) {
@@ -195,7 +195,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("codewhale.openRuntimeDocs", () => {
+    vscode.commands.registerCommand("mimofan.openRuntimeDocs", () => {
       void vscode.env.openExternal(
         vscode.Uri.parse(
           "https://github.com/XiaomingX/mimo-tui/blob/main/docs/RUNTIME_API.md",
@@ -204,7 +204,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
-  void vscode.commands.executeCommand("codewhale.checkRuntime");
+  void vscode.commands.executeCommand("mimofan.checkRuntime");
 }
 
 export function deactivate(): void {

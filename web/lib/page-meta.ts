@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 /** Canonical origin for the production site (no trailing slash). */
-export const SITE_URL = "https://codewhale.net";
+export const SITE_URL = "https://mimofan.net";
 
-export const SITE_NAME = "CodeWhale";
+export const SITE_NAME = "Mimofan";
 
 /** The one-line product identity, used as the default OG image alt text. */
 export const IDENTITY_PHRASE =
@@ -38,7 +38,7 @@ const OG_IMAGE = {
  *   return buildPageMetadata({
  *     path: "/install",
  *     locale,
- *     title: isZh ? "安装 · CodeWhale" : "Install · CodeWhale",
+ *     title: isZh ? "安装 · Mimofan" : "Install · Mimofan",
  *     description: isZh ? "…" : "…",
  *   });
  * }

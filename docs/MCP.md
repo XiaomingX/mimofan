@@ -1,353 +1,65 @@
-# MCP (External Tool Servers)
+# MCP（外部工具服务器）
 
-mimofan can load additional tools via MCP (Model Context Protocol). MCP servers can be local stdio processes that the TUI starts, or remote URL-based servers that speak Streamable HTTP with legacy SSE fallback.
+mimofan 通过 MCP（Model Context Protocol）加载外部工具。支持本地 stdio 进程和远程 HTTP 服务器。
 
-Browsing note:
-- `web.run` is the canonical built-in browsing tool.
-- `web_search` remains available as a compatibility alias for older prompts and integrations.
-
-Server mode note:
-- `mimofan serve --mcp` runs the MCP stdio server.
-- `mimofan serve --http` runs the runtime HTTP/SSE API (separate mode).
-- The `mimofan` dispatcher exposes `mimofan mcp-server` as an equivalent stdio
-  entrypoint used by the split CLI.
-
-## Bootstrap MCP Config
-
-Create a starter MCP config at your resolved MCP path:
+## 初始化
 
 ```bash
-mimofan mcp init
+mimofan mcp init    # 创建 MCP 配置文件
+mimofan mcp list    # 查看已配置的服务器
+mimofan mcp tools   # 查看可用工具
 ```
 
-`mimofan setup --mcp` performs the same MCP bootstrap alongside skills setup.
+## 配置文件
 
-Common management commands:
+默认路径：`~/.mimofan/mcp.json`
 
-```bash
-mimofan mcp list
-mimofan mcp tools [server]
-mimofan mcp add <name> --command "<cmd>" --arg "<arg>"
-mimofan mcp add <name> --url "http://localhost:3000/mcp"
-mimofan mcp add <name> --url "https://example.com/mcp" --bearer-token-env-var MCP_TOKEN
-mimofan mcp login <name>
-mimofan mcp logout <name>
-mimofan mcp enable <name>
-mimofan mcp disable <name>
-mimofan mcp remove <name>
-mimofan mcp validate
-```
-
-## In-TUI Manager
-
-Inside the interactive TUI, `/mcp` opens a compact manager for the resolved
-MCP config path. It shows each configured server, whether it is enabled or
-disabled, its transport, command or URL, timeout values, connection errors,
-and discovered tools/resources/prompts when discovery has been run.
-
-Supported in-TUI actions:
-
-```text
-/mcp init
-/mcp init --force
-/mcp add stdio <name> <command> [args...]
-/mcp add http <name> <url>
-/mcp login <name> [--scope scope]
-/mcp logout <name>
-/mcp enable <name>
-/mcp disable <name>
-/mcp remove <name>
-/mcp validate
-/mcp reload
-```
-
-`/mcp validate` and `/mcp reload` reconnect for UI discovery and refresh the
-manager snapshot. Config edits made from the TUI are written immediately, but
-the model-visible MCP tool pool is not hot-reloaded; the manager marks this as
-restart-required until the TUI is restarted.
-
-## Remote HTTP Auth
-
-URL-based MCP servers can use static headers, env-derived headers, bearer-token
-env vars, or OAuth. Authorization precedence is conservative:
-
-1. `headers` and `env_headers` are applied first.
-2. `bearer_token_env_var` adds `Authorization: Bearer <env value>` when no
-   Authorization header was already set.
-3. Stored OAuth credentials are used only when no Authorization header exists.
-
-For bearer-token auth, prefer env-backed config:
+### stdio 服务器
 
 ```json
 {
-  "servers": {
-    "remote": {
-      "url": "https://example.com/mcp",
-      "bearer_token_env_var": "EXAMPLE_MCP_TOKEN"
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": { "GITHUB_TOKEN": "your-token" }
     }
   }
 }
 ```
 
-For generic remote MCP OAuth, add the URL server and run login:
-
-```bash
-mimofan mcp add remote --url "https://example.com/mcp"
-mimofan mcp login remote
-```
-
-mimofan discovers the server OAuth metadata, opens the authorization URL in
-your browser, listens on a local callback, exchanges the code, and stores the
-token response through the mimofan secrets backend. Stored OAuth tokens are
-looked up by server name plus URL and refreshed when possible before requests.
-
-Optional OAuth fields:
+### HTTP 服务器
 
 ```json
 {
-  "servers": {
-    "remote": {
-      "url": "https://example.com/mcp",
-      "scopes": ["tools/read"],
-      "oauth": {
-        "client_id": "public-client-id"
-      },
-      "oauth_resource": "https://example.com"
+  "mcpServers": {
+    "remote-tools": {
+      "url": "https://your-mcp-server.example/sse"
     }
   }
 }
 ```
 
-User-level config can set callback behavior when the provider requires a fixed
-redirect:
+## TUI 命令
+
+- `/mcp` — 查看 MCP 状态
+- `/mcp init` — 初始化配置
+
+MCP 工具名称格式：`mcp__<server>__<tool>`
+
+## 环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `DEEPSEEK_MCP_CONFIG` | MCP 配置文件路径 |
+
+## 审批控制
+
+MCP 工具受审批策略控制。可通过钩子强制审批：
 
 ```toml
-mcp_oauth_callback_port = 1455
-mcp_oauth_callback_url = "http://127.0.0.1:1455/callback"
+[[hooks.hooks]]
+event = "tool_call_before"
+command = '''echo '{"decision":"ask"}' '''
+condition = { type = "tool_name", name = "mcp__*" }
 ```
-
-These callback fields are ignored from project-scope config overlays.
-
-## Hugging Face MCP
-
-Hugging Face provides a hosted MCP server for Hub resources, documentation,
-datasets, Spaces, and community tools. mimofan does not call Hugging Face's
-Hub HTTP APIs from `/hf`; it only helps you inspect and set up the MCP config
-that the regular MCP manager will load.
-
-The recommended setup path is Hugging Face's settings-generated configuration:
-
-1. Visit <https://huggingface.co/settings/mcp> while signed in.
-2. Choose the MCP client closest to your mimofan config shape and copy the
-   generated server snippet.
-3. Paste the Hugging Face server entry into your resolved MCP config file.
-4. Restart mimofan, or run `/mcp reload` for the manager snapshot and restart
-   if the model-visible tool pool still needs to rebuild.
-
-mimofan reads both `servers` and `mcpServers`, so settings-generated snippets
-can be adapted without changing the rest of the MCP file. A placeholder-only
-shape looks like this:
-
-```json
-{
-  "servers": {
-    "huggingface": {
-      "url": "https://huggingface.co/mcp",
-      "headers": {
-        "Authorization": "Bearer ${HF_TOKEN}"
-      }
-    }
-  }
-}
-```
-
-The placeholder above is not a runnable secret. Use the settings-generated
-value in your private MCP config and never commit real Hugging Face tokens.
-
-Interactive helpers:
-
-```text
-/hf mcp status
-/hf mcp setup
-/hf concepts
-```
-
-`/hf mcp status` checks the configured MCP file for common Hugging Face server
-names or Hugging Face MCP URLs. `/hf concepts` explains the difference between
-the Hugging Face provider route, Hugging Face MCP, and explicit Hub workflows.
-
-Official docs: <https://huggingface.co/docs/hub/hf-mcp-server>
-
-## Config File Location
-
-Default path:
-
-- `~/.mimofan/mcp.json` (`~/.deepseek/mcp.json` is still read when the mimofan file is absent)
-
-Overrides:
-
-- Config: `mcp_config_path = "/path/to/mcp.json"`
-- Env: `DEEPSEEK_MCP_CONFIG=/path/to/mcp.json`
-
-`mimofan mcp init` (and `mimofan setup --mcp`) writes to this resolved path.
-
-The interactive `/config` editor also exposes `mcp_config_path`. Changing it in
-the TUI updates the path used by `/mcp`, and requires a restart before the
-model-visible MCP tool pool is rebuilt.
-
-After editing the file or changing `mcp_config_path`, restart the TUI.
-
-## Tool Naming
-
-Discovered MCP tools are exposed to the model as:
-
-- `mcp_<server>_<tool>`
-
-Example: a server named `git` with a tool named `status` becomes `mcp_git_status`.
-
-The command palette includes MCP entries grouped by server. It shows disabled
-and failed servers instead of hiding them, and uses the same runtime tool names
-shown to the model.
-
-## Resource and Prompt Helpers
-
-The CLI also exposes helper tools when MCP is enabled:
-
-- `list_mcp_resources` (optional `server` filter)
-- `list_mcp_resource_templates` (optional `server` filter)
-- `mcp_read_resource` / `read_mcp_resource` (aliases)
-- `mcp_get_prompt`
-
-## Minimal Example
-
-```json
-{
-  "timeouts": {
-    "connect_timeout": 10,
-    "execute_timeout": 60,
-    "read_timeout": 120
-  },
-  "servers": {
-    "example": {
-      "command": "node",
-      "args": ["./path/to/your-mcp-server.js"],
-      "env": {},
-      "disabled": false
-    }
-  }
-}
-```
-
-You can also use `mcpServers` instead of `servers` for compatibility with other clients.
-
-## Running DeepSeek as an MCP Server
-
-You can register your local DeepSeek binary as an MCP server so other DeepSeek sessions (or any MCP client) can call its tools.
-
-### Quick Setup
-
-```bash
-mimofan mcp add-self
-```
-
-This resolves the current binary path, generates a config entry that runs `mimofan serve --mcp`, and writes it to your MCP config file. The default server name is `mimofan`.
-
-Options:
-
-- `--name <NAME>` — custom server name (default: `mimofan`)
-- `--workspace <PATH>` — workspace directory for the server
-
-### Manual Config
-
-Equivalent manual entry in `~/.mimofan/mcp.json`:
-
-```json
-{
-  "servers": {
-    "mimofan": {
-      "command": "/path/to/mimofan",
-      "args": ["serve", "--mcp"],
-      "env": {}
-    }
-  }
-}
-```
-
-The `mimofan` binary supports `serve --mcp` directly. The `mimofan`
-dispatcher offers the equivalent `mimofan mcp-server` stdio entrypoint. Use
-whichever is on your `PATH` (run `which mimofan` or `which mimofan` to
-find the full path). The `mcp add-self` command automatically resolves the
-correct binary.
-
-### Prerequisites
-
-- The binary referenced in `command` must exist and be executable.
-- The MCP server runs as a child process via stdio — no network ports required.
-- Each MCP client session spawns its own server process.
-
-### Tool Naming
-
-Tools from a self-hosted DeepSeek server follow the standard naming convention:
-
-- `mcp_deepseek_<tool>` (if the server is named `mimofan`)
-
-For example, the `shell` tool becomes `mcp_deepseek_shell`.
-
-### MCP Server vs HTTP/SSE API vs ACP
-
-| | `mimofan serve --mcp` | `mimofan serve --http` | `mimofan serve --acp` |
-|---|---|---|---|
-| **Protocol** | MCP stdio | HTTP/SSE JSON-RPC | ACP stdio |
-| **Use case** | Tool server for MCP clients | Runtime API for apps | Editor agent for Zed/custom ACP clients |
-| **Config** | `~/.mimofan/mcp.json` entry | Direct URL connection | Editor `agent_servers` custom command |
-| **Lifecycle** | Spawned per client session | Long-running daemon | Spawned per editor agent session |
-
-Use `mcp add-self` when you want DeepSeek tools available to other MCP clients.
-Use `serve --http` when building applications that consume the API directly.
-Use `serve --acp` when an editor wants to talk to DeepSeek as an ACP agent.
-
-### Verification
-
-After adding, test the connection:
-
-```bash
-mimofan mcp validate
-mimofan mcp tools mimofan
-```
-
-## Server Fields
-
-Per-server settings:
-
-- `command` (string, required)
-- `args` (array of strings, optional)
-- `env` (object, optional)
-- `connect_timeout`, `execute_timeout`, `read_timeout` (seconds, optional)
-- `disabled` (bool, optional)
-- `enabled` (bool, optional, default `true`)
-- `required` (bool, optional): startup/connect validation fails if this server cannot initialize.
-- `enabled_tools` (array, optional): allowlist of tool names for this server.
-- `disabled_tools` (array, optional): denylist applied after `enabled_tools`.
-- `url` (string, optional): Streamable HTTP endpoint for a remote MCP server.
-- `transport` (string, optional): set to `"sse"` for legacy SSE endpoints.
-- `headers` (object, optional): literal HTTP headers for URL-based servers.
-- `env_headers` or `env_http_headers` (object, optional): header names mapped to environment variable names.
-- `bearer_token_env_var` (string, optional): environment variable containing a bearer token.
-- `scopes` (array, optional): default OAuth scopes for `mcp login`.
-- `oauth.client_id` (string, optional): pre-registered OAuth client ID.
-- `oauth_resource` (string, optional): resource parameter appended to the authorization URL.
-
-## Safety Notes
-
-MCP tools now flow through the same tool-approval framework as built-in tools. Read-only MCP helpers (resource/prompt listing and reads) can run without prompts in suggestive approval modes, while side-effectful MCP tools require approval.
-
-You should still only configure MCP servers you trust, and treat MCP server configuration as equivalent to running code on your machine.
-Avoid committing literal `Authorization` headers. Prefer `env_headers`,
-`bearer_token_env_var`, or OAuth login so secrets stay outside the MCP file.
-
-## Troubleshooting
-
-- Run `mimofan doctor` to confirm the MCP config path it resolved and whether it exists.
-- In the TUI, run `/mcp validate` to refresh the visible server/tool snapshot.
-- If the MCP config is missing, run `mimofan mcp init --force` to regenerate it.
-- If tools don’t appear, verify the server command works from your shell and that the server supports MCP `tools/list`.

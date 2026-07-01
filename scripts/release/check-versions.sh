@@ -5,17 +5,17 @@
 # Checks performed:
 #   1. No `crates/*/Cargo.toml` carries a literal `version = "x.y.z"`; every
 #      crate must inherit `version.workspace = true`.
-#   2. `npm/codewhale/package.json` `version` matches the workspace
-#      `version` in the root `Cargo.toml`. (`npm/deepseek-tui/` still
+#   2. `npm/mimofan/package.json` `version` matches the workspace
+#      `version` in the root `Cargo.toml`. (`npm/mimofan/` still
 #      exists only as an unpublished compatibility notice and must stay
 #      private.)
-#   3. Internal `codewhale-*` path dependency pins match the workspace version.
+#   3. Internal `mimofan-*` path dependency pins match the workspace version.
 #   4. The TUI crate's packaged changelog copy matches root `CHANGELOG.md`.
 #   5. The current release has a dated Keep a Changelog entry and compare link.
 #   6. README contributor additions are mentioned in the current release entry.
 #   7. `SECURITY.md` keeps the dedicated security contact.
-#   8. `codewhale-app-server` stays library-only; the shipped app-server
-#      entrypoint belongs to `codewhale-cli`.
+#   8. `mimofan-app-server` stays library-only; the shipped app-server
+#      entrypoint belongs to `mimofan-cli`.
 #   9. `Cargo.lock` is in sync with the manifests (`cargo metadata --locked`
 #      fails if not).
 set -euo pipefail
@@ -34,31 +34,31 @@ fi
 
 # 2) Workspace ↔ npm package.json.
 workspace_version="$(grep -E '^version = "' Cargo.toml | head -n1 | sed -E 's/^version = "([^"]+)".*/\1/')"
-npm_version="$(node -p "require('./npm/codewhale/package.json').version")"
+npm_version="$(node -p "require('./npm/mimofan/package.json').version")"
 if [[ "${workspace_version}" != "${npm_version}" ]]; then
-  echo "::error::npm/codewhale/package.json version (${npm_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
+  echo "::error::npm/mimofan/package.json version (${npm_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
   fail=1
 fi
-if [[ -f npm/deepseek-tui/package.json ]]; then
-  legacy_private="$(node -p "Boolean(require('./npm/deepseek-tui/package.json').private)")"
-  legacy_publish_config="$(node -p "Boolean(require('./npm/deepseek-tui/package.json').publishConfig)")"
+if [[ -f npm/mimofan/package.json ]]; then
+  legacy_private="$(node -p "Boolean(require('./npm/mimofan/package.json').private)")"
+  legacy_publish_config="$(node -p "Boolean(require('./npm/mimofan/package.json').publishConfig)")"
   if [[ "${legacy_private}" != "true" ]]; then
-    echo "::error::npm/deepseek-tui/package.json must stay private so the legacy package is not republished." >&2
+    echo "::error::npm/mimofan/package.json must stay private so the legacy package is not republished." >&2
     fail=1
   fi
   if [[ "${legacy_publish_config}" == "true" ]]; then
-    echo "::error::npm/deepseek-tui/package.json must not define publishConfig; the legacy package is deprecated." >&2
+    echo "::error::npm/mimofan/package.json must not define publishConfig; the legacy package is deprecated." >&2
     fail=1
   fi
 fi
 
 # 3) Internal path dependency pins.
 internal_dep_drift="$(
-  grep -nE 'codewhale-[a-z-]+[[:space:]]*=[[:space:]]*\{[^}]*version[[:space:]]*=[[:space:]]*"' crates/*/Cargo.toml \
+  grep -nE 'mimofan-[a-z-]+[[:space:]]*=[[:space:]]*\{[^}]*version[[:space:]]*=[[:space:]]*"' crates/*/Cargo.toml \
     | grep -v "version[[:space:]]*=[[:space:]]*\"${workspace_version}\"" || true
 )"
 if [[ -n "${internal_dep_drift}" ]]; then
-  echo "::error::Internal codewhale-* path dependency versions must match workspace version ${workspace_version}:" >&2
+  echo "::error::Internal mimofan-* path dependency versions must match workspace version ${workspace_version}:" >&2
   echo "${internal_dep_drift}" >&2
   fail=1
 fi
@@ -183,7 +183,7 @@ app_server_bins="$(
     | node -e '
 const fs = require("fs");
 const metadata = JSON.parse(fs.readFileSync(0, "utf8"));
-const pkg = metadata.packages.find((p) => p.name === "codewhale-app-server");
+const pkg = metadata.packages.find((p) => p.name === "mimofan-app-server");
 if (!pkg) {
   process.exit(2);
 }
@@ -194,14 +194,14 @@ process.stdout.write(bins.join("\n"));
 '
 )"
 if [[ -n "${app_server_bins}" ]]; then
-  echo "::error::codewhale-app-server must stay library-only; use the codewhale-cli-owned 'codewhale app-server' entrypoint instead. Unexpected binary target(s):" >&2
+  echo "::error::mimofan-app-server must stay library-only; use the mimofan-cli-owned 'mimofan app-server' entrypoint instead. Unexpected binary target(s):" >&2
   echo "${app_server_bins}" >&2
   fail=1
 fi
 
 # 11) Cargo.lock in sync.
 if ! cargo metadata --locked --format-version 1 --no-deps >/dev/null 2>&1; then
-  echo "::error::Cargo.lock is out of sync with the manifests. Run 'cargo update -p codewhale-tui' or 'cargo build' and commit the result." >&2
+  echo "::error::Cargo.lock is out of sync with the manifests. Run 'cargo update -p mimofan-tui' or 'cargo build' and commit the result." >&2
   fail=1
 fi
 

@@ -7,7 +7,7 @@
  *   - <repo>/Cargo.toml                         → version, workspace crates
  *   - <repo>/crates/tui/src/sandbox/*.rs        → sandbox backends
  *   - <repo>/crates/tui/src/config.rs           → provider list (ApiProvider enum), DEFAULT_TEXT_MODEL
- *   - <repo>/npm/codewhale/package.json         → node engines
+ *   - <repo>/npm/mimofan/package.json         → node engines
  *   - <repo>/crates/tui/src/tools/*.rs          → tool count (ToolSpec impls)
  *   - <repo>/LICENSE                            → license
  */
@@ -128,7 +128,7 @@ export function deriveDefaultModel() {
 }
 
 export function deriveNodeEngines() {
-  const pkg = read("npm/codewhale/package.json");
+  const pkg = read("npm/mimofan/package.json");
   if (!pkg) return null;
   try {
     return JSON.parse(pkg).engines?.node ?? null;

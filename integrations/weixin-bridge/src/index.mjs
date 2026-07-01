@@ -89,24 +89,24 @@ function requiredEnvFirst(...names) {
 
 const config = {
   runtimeUrl: (
-    envFirst(process.env, "CODEWHALE_RUNTIME_URL", "DEEPSEEK_RUNTIME_URL") ||
+    envFirst(process.env, "MIMOFAN_RUNTIME_URL", "DEEPSEEK_RUNTIME_URL") ||
     "http://127.0.0.1:7878"
   ).replace(/\/+$/, ""),
   runtimeToken: requiredEnvFirst(
-    "CODEWHALE_RUNTIME_TOKEN",
+    "MIMOFAN_RUNTIME_TOKEN",
     "DEEPSEEK_RUNTIME_TOKEN"
   ),
   workspace:
-    envFirst(process.env, "CODEWHALE_WORKSPACE", "DEEPSEEK_WORKSPACE") ||
+    envFirst(process.env, "MIMOFAN_WORKSPACE", "DEEPSEEK_WORKSPACE") ||
     process.cwd(),
   model:
-    envFirst(process.env, "CODEWHALE_MODEL", "DEEPSEEK_MODEL") || "auto",
+    envFirst(process.env, "MIMOFAN_MODEL", "DEEPSEEK_MODEL") || "auto",
   mode:
-    envFirst(process.env, "CODEWHALE_MODE", "DEEPSEEK_MODE") || "agent",
+    envFirst(process.env, "MIMOFAN_MODE", "DEEPSEEK_MODE") || "agent",
   allowShell: parseBool(
     envFirst(
       process.env,
-      "CODEWHALE_ALLOW_SHELL",
+      "MIMOFAN_ALLOW_SHELL",
       "DEEPSEEK_ALLOW_SHELL"
     ),
     true
@@ -114,7 +114,7 @@ const config = {
   trustMode: parseBool(
     envFirst(
       process.env,
-      "CODEWHALE_TRUST_MODE",
+      "MIMOFAN_TRUST_MODE",
       "DEEPSEEK_TRUST_MODE"
     ),
     false
@@ -122,7 +122,7 @@ const config = {
   autoApprove: parseBool(
     envFirst(
       process.env,
-      "CODEWHALE_AUTO_APPROVE",
+      "MIMOFAN_AUTO_APPROVE",
       "DEEPSEEK_AUTO_APPROVE"
     ),
     false
@@ -131,7 +131,7 @@ const config = {
     envFirst(
       process.env,
       "WEXIN_CHAT_ALLOWLIST",
-      "CODEWHALE_CHAT_ALLOWLIST",
+      "MIMOFAN_CHAT_ALLOWLIST",
       "DEEPSEEK_CHAT_ALLOWLIST"
     )
   ),
@@ -139,17 +139,17 @@ const config = {
     envFirst(
       process.env,
       "WEXIN_ALLOW_UNLISTED",
-      "CODEWHALE_ALLOW_UNLISTED",
+      "MIMOFAN_ALLOW_UNLISTED",
       "DEEPSEEK_ALLOW_UNLISTED"
     ),
     false
   ),
   stateDir:
     process.env.WEXIN_STATE_DIR ||
-    "/var/lib/codewhale-weixin-bot-bridge",
+    "/var/lib/mimofan-weixin-bot-bridge",
   threadMapPath:
     process.env.WEXIN_THREAD_MAP_PATH ||
-    "/var/lib/codewhale-weixin-bot-bridge/thread-map.json",
+    "/var/lib/mimofan-weixin-bot-bridge/thread-map.json",
   maxReplyChars: Number(process.env.WEXIN_MAX_REPLY_CHARS || 3500),
   longPollTimeoutMs: Number(
     process.env.WEXIN_LONGPOLL_TIMEOUT_MS || 35000
@@ -157,7 +157,7 @@ const config = {
   turnTimeoutMs: Number(
     envFirst(
       process.env,
-      "CODEWHALE_TURN_TIMEOUT_MS",
+      "MIMOFAN_TURN_TIMEOUT_MS",
       "DEEPSEEK_TURN_TIMEOUT_MS"
     ) || 900000
   ),
@@ -850,7 +850,7 @@ function sleep(ms) {
 // ============================================================================
 
 async function main() {
-  console.log("Starting CodeWhale Weixin Bot Bridge");
+  console.log("Starting Mimofan Weixin Bot Bridge");
   console.log(`Runtime: ${config.runtimeUrl}`);
   console.log(`Workspace: ${config.workspace}`);
   console.log(`State dir: ${config.stateDir}`);

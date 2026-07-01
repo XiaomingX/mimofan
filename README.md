@@ -29,6 +29,15 @@ mimofan --version   # 0.8.65
 
 npm 包会自动下载对应平台的二进制文件（SHA-256 校验），安装 `mimofan` 和 `codew` 命令。
 
+### pnpm 安装（推荐）
+
+```bash
+pnpm add -g mimofan
+mimofan --version   # 0.8.65
+```
+
+pnpm 包会自动下载对应平台的二进制文件（SHA-256 校验），安装 `mimofan` 和 `codew` 命令。
+
 ### 源码编译
 
 需要 Rust 1.88+：
@@ -59,13 +68,13 @@ cargo install --git https://cnb.cool/mimofan.net/mimofan --tag v0.8.65 mimofan-c
 cargo install --git https://cnb.cool/mimofan.net/mimofan --tag v0.8.65 mimofan --locked --force
 
 # Homebrew（旧名称兼容）
-brew tap Hmbown/deepseek-tui
-brew install deepseek-tui
+brew tap Hmbown/mimofan
+brew install mimofan
 ```
 
 所有平台的预编译文件（包括 Linux riscv64）都在 [GitHub Releases](https://github.com/XiaomingX/mimofan/releases)。国内镜像、Windows 细节、常见问题详见 [docs/INSTALL.md](docs/INSTALL.md)。
 
-**从旧版 `deepseek-tui` 升级？** 你的配置、会话、技能和 MCP 设置都会保留。详见 [docs/REBRAND.md](docs/REBRAND.md)，然后运行 `mimofan doctor` 确认。
+**从旧版 `mimofan` 升级？** 你的配置、会话、技能和 MCP 设置都会保留。运行 `mimofan doctor` 确认环境正常。
 
 ## 首次使用
 
@@ -149,7 +158,7 @@ mimofan fleet resume <run-id>
 
 `fleet resume` 会重放日志，恢复中断的任务（在预算内重试），幂等安全。每个任务记录结果（`pass` / `fail` / `partial` / `skip` / `timeout`）。
 
-任务通过**角色**、**配置**、**装备**和**槽位**来配置，在 config 的 `[fleet]` 中设置。详见 [docs/FLEET.md](docs/FLEET.md)。
+任务通过**角色**、**配置**、**装备**和**槽位**来配置，在 config 的 `[fleet]` 中设置。
 
 ## 安全机制
 
@@ -182,12 +191,11 @@ mimofan 会编辑文件和执行命令，安全是产品核心，不是事后补
 
 ## 文档索引
 
-- [用户指南](docs/GUIDE.md) · [安装指南](docs/INSTALL.md) · [配置说明](docs/CONFIGURATION.md) · [提供商列表](docs/PROVIDERS.md)
+- [使用说明](docs/USAGE_CN.md) · [安装指南](docs/INSTALL.md) · [配置说明](docs/CONFIGURATION.md) · [提供商列表](docs/PROVIDERS.md)
 - [模式说明](docs/MODES.md) — Agent、Plan、YOLO
-- [Fleet](docs/FLEET.md) · [子代理](docs/SUBAGENTS.md) — 角色、生命周期、输出契约
+- [子代理](docs/SUBAGENTS.md) · [MCP](docs/MCP.md)
 - [架构文档](docs/ARCHITECTURE_CN.md) — crate 布局、运行时流程、工具系统、安全模型
-- [WhaleFlow](docs/WHALEFLOW_AUTHORING.md) · [MCP](docs/MCP.md) · [运行时 API](docs/RUNTIME_API.md)
-- [快捷键](docs/KEYBINDINGS.md) · [沙箱与审批](docs/SANDBOX.md) · [Docker](docs/DOCKER.md) · [记忆系统](docs/MEMORY.md)
+- [快捷键](docs/KEYBINDINGS.md) · [Docker](docs/DOCKER.md)
 - [完整文档索引](docs)
 
 ## 参与贡献

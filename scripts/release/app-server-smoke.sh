@@ -3,13 +3,13 @@
 #
 # Two independent checks, both safe to run before every release:
 #
-#   1. app-server stdio probe (always): drives `codewhale app-server --stdio`
+#   1. app-server stdio probe (always): drives `mimofan app-server --stdio`
 #      with JSON-RPC health/capabilities requests and asserts the control
 #      surface answers. Spends no model tokens, makes no network calls, and runs
 #      against a throwaway config so it never reads the maintainer's real keys.
 #
 #   2. provider/model matrix (opt-in, --matrix): discovers configured providers
-#      from `codewhale auth list`, maps each to a cheap sentinel model, and
+#      from `mimofan auth list`, maps each to a cheap sentinel model, and
 #      either prints the plan (default, dry-run) or runs a tiny `exec` prompt per
 #      provider (--real). `auth list` reports presence flags only; secrets are
 #      never printed and exec output is passed through a redactor.
@@ -19,9 +19,9 @@
 #   scripts/release/app-server-smoke.sh --matrix              # + print provider matrix (dry-run)
 #   scripts/release/app-server-smoke.sh --matrix --real       # + exec a sentinel per provider
 #   scripts/release/app-server-smoke.sh --matrix --provider deepseek --provider zai
-#   scripts/release/app-server-smoke.sh --bin ./target/release/codewhale
+#   scripts/release/app-server-smoke.sh --bin ./target/release/mimofan
 #
-# Binary resolution order: --bin <path>, $CODEWHALE_BIN, ./target/release/codewhale, PATH.
+# Binary resolution order: --bin <path>, $MIMOFAN_BIN, ./target/release/mimofan, PATH.
 # Per-provider cheap-model override: SMOKE_MODEL_<SLUG> with slug upper-cased and
 #   '-' replaced by '_', e.g. SMOKE_MODEL_XIAOMI_MIMO=mimo-7b.
 
@@ -29,7 +29,7 @@ set -euo pipefail
 
 PASS=0
 FAIL=0
-BIN="${CODEWHALE_BIN:-}"
+BIN="${MIMOFAN_BIN:-}"
 DO_MATRIX=0
 DRY_RUN=1
 SENTINEL="${SMOKE_SENTINEL:-Reply with exactly the single word: pong}"
@@ -46,7 +46,7 @@ default_model_for() {
         arcee) echo "trinity-large-thinking" ;;
         zai) echo "glm-4-flash" ;;
         moonshot) echo "moonshot-v1-8k" ;;
-        openai) echo "gpt-4o-mini" ;;
+        openai) echo "mimo-v2.5-pro" ;;
         *) echo "" ;;
     esac
 }
@@ -84,17 +84,17 @@ parse_args() {
 
 resolve_bin() {
     if [[ -n "$BIN" ]]; then
-        [[ -x "$BIN" ]] || { echo "codewhale binary not executable: $BIN" >&2; exit 2; }
+        [[ -x "$BIN" ]] || { echo "mimofan binary not executable: $BIN" >&2; exit 2; }
         return
     fi
-    if [[ -x "./target/release/codewhale" ]]; then
-        BIN="./target/release/codewhale"
-    elif command -v codewhale >/dev/null 2>&1; then
-        BIN="$(command -v codewhale)"
+    if [[ -x "./target/release/mimofan" ]]; then
+        BIN="./target/release/mimofan"
+    elif command -v mimofan >/dev/null 2>&1; then
+        BIN="$(command -v mimofan)"
     else
-        echo "could not find a codewhale binary." >&2
-        echo "  build one: cargo build -p codewhale-cli --release" >&2
-        echo "  or pass:   --bin <path> / CODEWHALE_BIN=<path>" >&2
+        echo "could not find a mimofan binary." >&2
+        echo "  build one: cargo build -p mimofan-cli --release" >&2
+        echo "  or pass:   --bin <path> / MIMOFAN_BIN=<path>" >&2
         exit 2
     fi
 }
@@ -143,7 +143,7 @@ probe_assert() {
 
 # ── Check 2: provider/model matrix ───────────────────────────────────────────
 
-# Echo configured provider slugs (active != missing) from `codewhale auth list`.
+# Echo configured provider slugs (active != missing) from `mimofan auth list`.
 configured_providers() {
     "$BIN" auth list 2>/dev/null \
         | awk 'NR > 1 && NF >= 2 && $NF != "missing" { print $1 }'

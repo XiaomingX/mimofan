@@ -1,7 +1,7 @@
 {
-  "name": "@codewhale/runtime-sdk",
+  "name": "@mimofan/runtime-sdk",
   "version": "0.8.60",
-  "description": "Typed JavaScript helpers for CodeWhale Runtime API fleet endpoints.",
+  "description": "Typed JavaScript helpers for Mimofan Runtime API fleet endpoints.",
   "license": "MIT",
   "type": "module",
   "main": "index.js",

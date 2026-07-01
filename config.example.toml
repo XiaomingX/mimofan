@@ -49,7 +49,7 @@ base_url = "https://api.deepseek.com/beta"
 #   GLM-5-Turbo                   — direct Z.AI fast model (faster/explore sub-agent sibling)
 #   step-3.7-flash                — default direct StepFun / StepFlash model ID
 #   kimi-k2.6                       — default Moonshot/Kimi model ID
-#   gpt-4.1                         — default generic OpenAI-compatible model ID
+#   mimo-v2.5-pro                   — default generic OpenAI-compatible model ID
 #   deepseek-ai/deepseek-v4-flash   — default AtlasCloud model ID
 #   deepseek-reasoner               — default Wanjie Ark model ID
 #   mimo-v2.5-pro                   — default Xiaomi MiMo model ID
@@ -346,7 +346,7 @@ max_subagents = 10 # optional (1-20)
 [providers.openai]
 # api_key = "YOUR_OPENAI_COMPATIBLE_API_KEY"
 # base_url = "https://api.openai.com/v1"
-# model = "gpt-4.1"
+# model = "mimo-v2.5-pro"
 # Gateway example:
 # base_url = "https://gateway.example/v1"
 # model = "your-deepseek-compatible-model"
@@ -575,7 +575,7 @@ max_subagents = 10 # optional (1-20)
 # Env-var overrides:
 #   DEEPSEEK_SEARCH_PROVIDER → search.provider
 #   DEEPSEEK_SEARCH_API_KEY  → search.api_key
-#   CODEWHALE_SEARCH_BASE_URL → search.base_url
+#   MIMOFAN_SEARCH_BASE_URL → search.base_url
 #   DEEPSEEK_SEARCH_BASE_URL  → search.base_url (legacy alias)
 #   METASO_API_KEY           → metaso key fallback
 #   BAIDU_SEARCH_API_KEY     → baidu key fallback

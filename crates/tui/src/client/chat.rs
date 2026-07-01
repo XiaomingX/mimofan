@@ -666,9 +666,9 @@ impl<'a> PromptBuilder<'a> {
     }
 }
 
-const SYSTEM_PROMPT_DUMP_ENV: &str = "CODEWHALE_DUMP_SYSTEM_PROMPT";
-const SYSTEM_PROMPT_DUMP_BEGIN: &str = "<<<CODEWHALE_SYSTEM_PROMPT_BEGIN>>>";
-const SYSTEM_PROMPT_DUMP_END: &str = "<<<CODEWHALE_SYSTEM_PROMPT_END>>>";
+const SYSTEM_PROMPT_DUMP_ENV: &str = "MIMOFAN_DUMP_SYSTEM_PROMPT";
+const SYSTEM_PROMPT_DUMP_BEGIN: &str = "<<<MIMOFAN_SYSTEM_PROMPT_BEGIN>>>";
+const SYSTEM_PROMPT_DUMP_END: &str = "<<<MIMOFAN_SYSTEM_PROMPT_END>>>";
 const ARCEE_WAF_TEXT_SPLIT_TRIGGERS: &[(&str, &str, &str)] = &[("python -c", "python ", "-c")];
 
 fn dump_system_prompt_if_requested(messages: &[Value]) {

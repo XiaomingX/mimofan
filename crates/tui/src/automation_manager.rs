@@ -879,12 +879,12 @@ pub fn default_automations_dir() -> PathBuf {
             return PathBuf::from(trimmed);
         }
     }
-    // $CODEWHALE_HOME is a hard override of the base data directory
+    // $MIMOFAN_HOME is a hard override of the base data directory
     // (docs/CONFIGURATION.md): when SET, automations live under it and we do
     // NOT fall back to the legacy ~/.deepseek path — silent fallback would
     // defeat the isolation the override promises. Check the env var directly
     // (not mimofan_home()'s Ok/Err, which succeeds for the default home too).
-    if let Some(home) = std::env::var_os("CODEWHALE_HOME").filter(|value| !value.is_empty()) {
+    if let Some(home) = std::env::var_os("MIMOFAN_HOME").filter(|value| !value.is_empty()) {
         return PathBuf::from(home).join("automations");
     }
     dirs::home_dir()

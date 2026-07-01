@@ -163,7 +163,7 @@ fn execute_isolated(world: &mut CoreCommandWorld, command: &str) -> CommandResul
 
     let _lock = lock_test_env();
     let _home = EnvVarGuard::set("HOME", &home);
-    let _mimofan_home = EnvVarGuard::set("CODEWHALE_HOME", home.join(".mimofan"));
+    let _mimofan_home = EnvVarGuard::set("MIMOFAN_HOME", home.join(".mimofan"));
 
     let app = world.app.as_deref_mut().expect("app should exist");
     commands::user_registry::reload(Some(&app.workspace));

@@ -18,7 +18,7 @@ pub(crate) fn default_config_path() -> Option<PathBuf> {
 }
 
 pub(crate) fn mimofan_home_dir() -> Option<PathBuf> {
-    std::env::var_os("CODEWHALE_HOME").and_then(|path| {
+    std::env::var_os("MIMOFAN_HOME").and_then(|path| {
         let path = PathBuf::from(path);
         (!path.as_os_str().is_empty()).then_some(path)
     })
@@ -84,7 +84,7 @@ pub(crate) fn canonicalize_or_keep(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn env_config_path() -> Option<PathBuf> {
-    if let Ok(path) = std::env::var("CODEWHALE_CONFIG_PATH") {
+    if let Ok(path) = std::env::var("MIMOFAN_CONFIG_PATH") {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
             return Some(expand_path(trimmed));

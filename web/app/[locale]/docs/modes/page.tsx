@@ -2,7 +2,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const isZh = locale === "zh";
   return {
-    title: isZh ? "模式 · CodeWhale 文档" : "Modes · CodeWhale Docs",
+    title: isZh ? "模式 · Mimofan 文档" : "Modes · Mimofan Docs",
     description: isZh
       ? "Plan、Agent、YOLO 三种运行模式与正交审批策略。"
       : "Plan, Agent, YOLO operating modes and orthogonal approval policies.",

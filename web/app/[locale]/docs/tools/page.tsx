@@ -4,7 +4,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const isZh = locale === "zh";
   return {
-    title: isZh ? "工具 · CodeWhale 文档" : "Tools · CodeWhale Docs",
+    title: isZh ? "工具 · Mimofan 文档" : "Tools · Mimofan Docs",
     description: isZh
       ? "类型化工具集、工具生命周期和精选工具目录。"
       : "Typed tool surface, tool lifecycle, and the curated tool catalog.",
@@ -29,7 +29,7 @@ export default async function ToolsPage({ params }: { params: Promise<{ locale: 
             ? "精选工具集——设计思路详见 "
             : "Curated surface — see "}
           <Link
-            href="https://github.com/Hmbown/CodeWhale/blob/main/docs/TOOL_SURFACE.md"
+            href="https://github.com/Hmbown/Mimofan/blob/main/docs/TOOL_SURFACE.md"
             className="body-link"
           >
             docs/TOOL_SURFACE.md
@@ -69,8 +69,8 @@ export default async function ToolsPage({ params }: { params: Promise<{ locale: 
             {
               group: "MCP",
               tools: isZh
-                ? "mcp_<server>_<tool>——从 ~/.codewhale/mcp.json 自动注册"
-                : "mcp_<server>_<tool> — auto-registered from ~/.codewhale/mcp.json",
+                ? "mcp_<server>_<tool>——从 ~/.mimofan/mcp.json 自动注册"
+                : "mcp_<server>_<tool> — auto-registered from ~/.mimofan/mcp.json",
             },
           ].map((row) => (
             <div
@@ -98,7 +98,7 @@ export default async function ToolsPage({ params }: { params: Promise<{ locale: 
             : "Full lifecycle for tool registration, discovery, deprecation, and stabilization is documented in the repo."}
         </p>
         <Link
-          href="https://github.com/Hmbown/CodeWhale/blob/main/docs/TOOL_LIFECYCLE.md"
+          href="https://github.com/Hmbown/Mimofan/blob/main/docs/TOOL_LIFECYCLE.md"
           className="inline-block mt-3 font-mono text-xs uppercase tracking-wider text-indigo hover:underline"
         >
           docs/TOOL_LIFECYCLE.md →

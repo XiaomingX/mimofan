@@ -328,7 +328,7 @@ pub(crate) fn config_toml_path(config_path: Option<&Path>) -> anyhow::Result<Pat
     if let Some(path) = config_path {
         return Ok(expand_path(path.to_string_lossy().as_ref()));
     }
-    if let Ok(env) = std::env::var("CODEWHALE_CONFIG_PATH") {
+    if let Ok(env) = std::env::var("MIMOFAN_CONFIG_PATH") {
         let trimmed = env.trim();
         if !trimmed.is_empty() {
             return Ok(PathBuf::from(trimmed));

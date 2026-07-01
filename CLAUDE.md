@@ -4,29 +4,29 @@ Read `AGENTS.md` first for full agent work conventions.
 
 ## Project Overview
 
-CodeWhale is a Rust-based terminal AI programming assistant (对标 opencode / claude code),
+Mimofan is a Rust-based terminal AI programming assistant (对标 opencode / claude code),
 supporting multiple LLM providers (DeepSeek, OpenAI, Anthropic, Zai, etc.) with a
 TUI interface, sub-agent system, and MCP tool integration.
 
 ## Workspace Crates (15 members)
 
 ```
-codewhale-cli          CLI entry point, clap argument parsing
-codewhale-app-server   HTTP application server (axum)
-codewhale-tui          TUI interface (ratatui), runtime API, task management,
+mimofan-cli          CLI entry point, clap argument parsing
+mimofan-app-server   HTTP application server (axum)
+mimofan-tui          TUI interface (ratatui), runtime API, task management,
                        tool execution loop, model/provider picker
-codewhale-core         Core engine: turn loop, session, events
-codewhale-config       Configuration: providers, routes, model inventory
-codewhale-protocol     Protocol definitions: tools, message formats
-codewhale-agent        Sub-agent system
-codewhale-tools        Built-in tool implementations
-codewhale-mcp          MCP server integration
-codewhale-hooks        Pre/post tool hooks
-codewhale-execpolicy   Execution policy (security sandbox)
-codewhale-secrets      Secret/key management
-codewhale-state        State persistence (SQLite via rusqlite)
-codewhale-whaleflow    Workflow engine
-codewhale-release      Release tooling
+mimofan-core         Core engine: turn loop, session, events
+mimofan-config       Configuration: providers, routes, model inventory
+mimofan-protocol     Protocol definitions: tools, message formats
+mimofan-agent        Sub-agent system
+mimofan-tools        Built-in tool implementations
+mimofan-mcp          MCP server integration
+mimofan-hooks        Pre/post tool hooks
+mimofan-execpolicy   Execution policy (security sandbox)
+mimofan-secrets      Secret/key management
+mimofan-state        State persistence (SQLite via rusqlite)
+mimofan-whaleflow    Workflow engine
+mimofan-release      Release tooling
 ```
 
 default-members: `cli`, `app-server`, `tui`
@@ -64,17 +64,17 @@ cli / app-server / tui   (binary crates, top-level entry points)
 
 ```bash
 cargo fmt                                         # Format all code
-cargo test -p codewhale-tui --locked              # TUI tests
-cargo test -p codewhale-config                    # Config tests
-cargo test -p codewhale-protocol                  # Protocol tests
+cargo test -p mimofan-tui --locked              # TUI tests
+cargo test -p mimofan-config                    # Config tests
+cargo test -p mimofan-protocol                  # Protocol tests
 cargo test --workspace                            # Full workspace tests
-cargo build --release -p codewhale-cli \
-                        -p codewhale-tui          # Release build
+cargo build --release -p mimofan-cli \
+                        -p mimofan-tui          # Release build
 ```
 
 ### Known Test Papercuts (pre-existing, not regressions)
 
-- `config_command_allow_shell_*` fails when `~/.codewhale/settings.toml` has
+- `config_command_allow_shell_*` fails when `~/.mimofan/settings.toml` has
   `default_mode = "yolo"` (tests are not hermetic)
 - `run_verifiers_background_*` is flaky under full-suite parallelism but passes
   in isolation
@@ -91,9 +91,9 @@ cargo build --release -p codewhale-cli \
 
 ## Provider System
 
-CodeWhale supports cloud API providers only. Local inference providers (Ollama,
+Mimofan supports cloud API providers only. Local inference providers (Ollama,
 Vllm, Sglang) have been removed. Provider configuration lives in
-`codewhale-config` with route resolution in `config/src/route/`.
+`mimofan-config` with route resolution in `config/src/route/`.
 
 See `docs/PROVIDERS.md` for provider-specific details.
 
@@ -104,7 +104,7 @@ See `docs/PROVIDERS.md` for provider-specific details.
 2. **No lifecycle / coherence system**: Do not introduce capacity / coherence /
    runtime-tag systems or lifecycle tools.
 3. **No runtime prompt / tag injection**: `constitution.md` (via
-   `~/.codewhale/constitution.json`) is the sole base prompt.
+   `~/.mimofan/constitution.json`) is the sole base prompt.
 4. **Sub-agent depth is configurable**; no arbitrary new limits unless clearly
    needed and explained.
 5. **Sub-agent TUI freeze resolved**: v0.8.61 cutover fixed it. Do not commit
@@ -121,8 +121,8 @@ docs/MCP.md               MCP integration guide
 docs/MODES.md             Modes (plan/agent/yolo)
 CHANGELOG.md              Changelog
 config.example.toml       Example configuration
-~/.codewhale/settings.toml          User settings
-~/.codewhale/constitution.json      Constitution (base prompt)
+~/.mimofan/settings.toml          User settings
+~/.mimofan/constitution.json      Constitution (base prompt)
 ```
 
 ### Large Files (excluded from .claudeignore)
@@ -242,7 +242,7 @@ For deep dives, read the corresponding doc under `docs/`:
 - **Test naming**: Use `test_<module>_<scenario>_<expected>` pattern.
 - **Async tests**: Use `#[tokio::test]` for async code. Prefer
   `#[tokio::test(start_paused = true)]` for time-sensitive tests.
-- **Test isolation**: Tests must not depend on external state (`~/.codewhale/`,
+- **Test isolation**: Tests must not depend on external state (`~/.mimofan/`,
   env vars). Use `tempfile` and env guards (`EnvGuard` in `config/tests.rs`).
 - **Snapshot tests**: Use `insta` or `expect_test` for UI output verification
   where appropriate.
@@ -294,7 +294,7 @@ Currently 40 files have clippy allow attributes — reduce, don't increase.
 
 ### Security
 
-- **No hardcoded secrets**: All keys come from `codewhale-secrets` or env vars.
+- **No hardcoded secrets**: All keys come from `mimofan-secrets` or env vars.
 - **File permissions**: The `secrets` crate checks 0600 on secret files.
 - **Command execution**: All shell commands go through `execpolicy` sandbox.
   Never bypass with raw `Command::new()` in user-facing paths.
@@ -310,7 +310,7 @@ Currently 40 files have clippy allow attributes — reduce, don't increase.
   deferring work.
 - Do not tag, publish, create a GitHub Release, or push release artifacts
   without Hunter's explicit approval.
-- Keep CodeWhale branding while preserving first-class DeepSeek model/provider
+- Keep Mimofan branding while preserving first-class DeepSeek model/provider
   support and legacy migration care.
 - Preserve contributor credit for harvested work with authorship,
   `Co-authored-by`, `Harvested from PR #N by @handle`, and changelog/release

@@ -1,8 +1,8 @@
 {
-  "name": "codewhale-web",
+  "name": "mimofan-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Community site for CodeWhale — codewhale.net",
+  "description": "Community site for Mimofan — mimofan.net",
   "scripts": {
     "dev": "node scripts/derive-facts.mjs && next dev",
     "prebuild": "node scripts/derive-facts.mjs",
@@ -24,6 +24,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "@opennextjs/cloudflare": "^1.19.11",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.7",
@@ -37,9 +38,11 @@
     "vitest": "^4.1.8",
     "wrangler": "^4.103.0"
   },
-  "overrides": {
-    "esbuild": "0.28.1",
-    "postcss": "^8.5.14",
-    "ws": "8.21.0"
+  "pnpm": {
+    "overrides": {
+      "esbuild": "0.28.1",
+      "postcss": "^8.5.14",
+      "ws": "8.21.0"
+    }
   }
 }

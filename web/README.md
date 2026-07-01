@@ -1,6 +1,6 @@
-# codewhale-web
+# mimofan-web
 
-Community site for [CodeWhale](https://github.com/XiaomingX/mimofan) — lives at **codewhale.net**.
+Community site for [Mimofan](https://github.com/XiaomingX/mimofan) — lives at **mimofan.net**.
 
 Next.js 15 (App Router) + Tailwind, deployed to Cloudflare Workers via [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). Curated "Today's Dispatch" content is regenerated every 6 hours by a Cloudflare Cron Trigger that calls `deepseek-v4-flash` to summarise recent repo activity, and stored in Workers KV.
 
@@ -8,9 +8,9 @@ Next.js 15 (App Router) + Tailwind, deployed to Cloudflare Workers via [`@openne
 
 ```bash
 cd web
-npm install
+pnpm install
 cp .env.example .env.local   # fill in the keys you have
-npm run dev                  # http://localhost:3000
+pnpm dev                  # http://localhost:3000
 ```
 
 Env (mirrors `.env.example`):
@@ -31,7 +31,7 @@ The site renders fine without any of them — `Today's Dispatch` falls back to a
 
 ## Deploy to Cloudflare
 
-You already own `codewhale.net` on Cloudflare and have a Workers Paid plan. The deploy is two steps:
+You already own `mimofan.net` on Cloudflare and have a Workers Paid plan. The deploy is two steps:
 
 1. **Provision KV namespaces once:**
 
@@ -50,15 +50,15 @@ You already own `codewhale.net` on Cloudflare and have a Workers Paid plan. The 
    npx wrangler secret put GITHUB_TOKEN     # optional
    npx wrangler secret put CRON_SECRET      # optional, for manual /api/cron?task=curate hits
 
-   npm run deploy                           # builds with OpenNext + uploads
+   pnpm deploy                           # builds with OpenNext + uploads
    ```
 
-3. **Point the domain:** in the Cloudflare dashboard, add a Worker route for `codewhale.net/*` → the deployed Worker, named `codewhale-web` (see `wrangler.jsonc`).
+3. **Point the domain:** in the Cloudflare dashboard, add a Worker route for `mimofan.net/*` → the deployed Worker, named `mimofan-web` (see `wrangler.jsonc`).
 
 The first cron run happens within 6 hours; you can also kick it manually:
 
 ```bash
-curl -H "x-cron-secret: $CRON_SECRET" "https://codewhale.net/api/cron?task=curate"
+curl -H "x-cron-secret: $CRON_SECRET" "https://mimofan.net/api/cron?task=curate"
 ```
 
 ## What's where
@@ -119,7 +119,7 @@ default model, Node engines) are never hand-written into pages:
 
 1. **Build time** — `scripts/derive-facts.mjs` runs as `prebuild` (and before
    `npm run dev`), parses the parent repo (`Cargo.toml`, `crates/tui/src/config.rs`,
-   `crates/tui/src/sandbox/`, `npm/codewhale/package.json`) and writes
+   `crates/tui/src/sandbox/`, `npm/mimofan/package.json`) and writes
    `lib/facts.generated.ts`. Never edit that file by hand.
 2. **Runtime** — the `/api/cron?task=facts-drift` cron (`lib/facts-drift.ts`)
    re-derives the same facts from `raw.githubusercontent.com` on a schedule and

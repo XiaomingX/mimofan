@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 
-# Crates published for each codewhale release, in dependency order.
+# Crates published for each mimofan release, in dependency order.
 release_crates=(
-  codewhale-mcp
-  codewhale-protocol
-  codewhale-release
-  codewhale-secrets
-  codewhale-state
-  codewhale-whaleflow
-  codewhale-execpolicy
-  codewhale-hooks
-  codewhale-tools
-  codewhale-config
-  codewhale-agent
-  codewhale-tui
-  codewhale-core
-  codewhale-app-server
-  codewhale-cli
+  mimofan-mcp
+  mimofan-protocol
+  mimofan-release
+  mimofan-secrets
+  mimofan-state
+  mimofan-whaleflow
+  mimofan-execpolicy
+  mimofan-hooks
+  mimofan-tools
+  mimofan-config
+  mimofan-agent
+  mimofan-tui
+  mimofan-core
+  mimofan-app-server
+  mimofan-cli
 )

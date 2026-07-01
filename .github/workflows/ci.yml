@@ -105,7 +105,7 @@ jobs:
         run: git diff --exit-code -- Cargo.lock
       - name: Run Offline Eval Harness
         if: runner.os != 'Linux'
-        run: cargo run -p codewhale-tui --all-features -- eval
+        run: cargo run -p mimofan-tui --all-features -- eval
       - name: Linux test location
         if: runner.os == 'Linux'
         run: echo "Linux workspace tests run on CNB for mirrored first-party branches."
@@ -122,6 +122,8 @@ jobs:
         if: runner.os != 'Linux'
       - uses: dtolnay/rust-toolchain@stable
         if: runner.os != 'Linux'
+      - uses: pnpm/action-setup@v4
+        if: runner.os != 'Linux'
       - uses: actions/setup-node@v6
         if: runner.os != 'Linux'
         with:
@@ -132,7 +134,7 @@ jobs:
           cache-bin: false
       - name: Build wrapper binaries
         if: runner.os != 'Linux'
-        run: cargo build --release --locked -p codewhale-cli -p codewhale-tui
+        run: cargo build --release --locked -p mimofan-cli -p mimofan-tui
       - name: Smoke wrapper install and delegated entrypoints
         if: runner.os != 'Linux'
         run: node scripts/release/npm-wrapper-smoke.js

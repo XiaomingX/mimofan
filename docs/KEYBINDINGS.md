@@ -1,135 +1,82 @@
-# Keybindings
+# 快捷键
 
-This is the source-of-truth catalog of every keyboard shortcut the TUI recognizes. Bindings are grouped by **context** — the focus or modal state they fire in. A binding listed under "Composer" only takes effect when the composer is focused; one under "Transcript" only when the transcript has focus; and so on.
+## 全局
 
-Bindings are not (yet) user-configurable — tracked for a future release (#436, #437). This document is the contract that future config-file overrides will name into.
+| 快捷键 | 功能 |
+|--------|------|
+| `F1` / `Ctrl-/` | 帮助 |
+| `Ctrl-K` | 命令面板 |
+| `Ctrl-C` | 取消当前操作 / 关闭弹窗 |
+| `Tab` | 切换模式（Plan → Agent → YOLO） |
+| `Shift-Tab` | 切换推理等级 |
+| `Ctrl-R` | 恢复会话 |
+| `Ctrl-L` | 刷新屏幕 |
+| `Ctrl-O` | 查看工具详情 / 推理时间线 |
+| `Ctrl-Shift-E` | 切换文件树侧边栏 |
+| `Esc` | 关闭弹窗 / 取消操作 |
 
-## Global (any context)
+## 编辑器
 
-| Chord                | Action                                                        |
-|----------------------|---------------------------------------------------------------|
-| `F1` or `Ctrl-/`     | Toggle the help overlay                                       |
-| `Ctrl-K`             | Open the command palette (slash-command finder)                |
-| `Ctrl-C`             | Cancel current turn / dismiss modal / arm-then-confirm quit    |
-| `Ctrl-B`             | Background the running foreground shell command (turn continues; the command becomes a `/jobs` background job) |
-| `Ctrl-D`             | Quit (only when the composer is empty)                         |
-| `Tab`                | Cycle TUI mode: Plan → Agent → YOLO → Plan                     |
-| `Shift-Tab`          | Cycle reasoning effort for the active provider. DeepSeek-style providers cycle off → high → max → off; OpenAI Codex cycles low → medium → high → xhigh → low. |
-| `Ctrl-R`             | Open the resume-session picker                                 |
-| `Ctrl-L`             | Refresh / clear the screen                                     |
-| `Ctrl-O`             | Open Activity Detail for selected/live/recent tool work, or the full reasoning timeline for thinking blocks when the composer is empty |
-| `Alt-V` / `Option-V` (macOS) | Open the details pager for the selected, visible, or most recent tool/sub-agent card; terminals that emit the legacy Option-V glyph are also handled |
-| `Ctrl-Shift-E` / `Cmd-Shift-E` | Toggle the file-tree sidebar                          |
-| `Alt-G`              | Scroll transcript to top when the composer is empty             |
-| `Alt-!` / `Alt-@` / `Alt-#` / `Alt-$` / `Alt-0` | Focus Pinned / Tasks / Agents / Context / Auto sidebar |
-| `Ctrl-Alt-0`         | Hide/show the pinned sidebar                                    |
-| `Esc`                | Close topmost modal · cancel slash menu · dismiss toast        |
+| 快捷键 | 功能 |
+|--------|------|
+| `Enter` | 发送消息 |
+| `Alt-Enter` / `Ctrl-J` | 换行 |
+| `Ctrl-Enter` | 强制插入当前 turn |
+| `Ctrl-U` | 删除到行首 |
+| `Ctrl-W` | 删除前一个词 |
+| `Ctrl-A` / `Home` | 移到行首 |
+| `Ctrl-E` / `End` | 移到行尾 |
+| `Ctrl-←` / `Alt-←` | 后退一个词 |
+| `Ctrl-→` / `Alt-→` | 前进一个词 |
+| `Ctrl-V` | 粘贴 |
+| `↑` / `↓` | 历史记录 |
+| `Ctrl-S` | 暂存草稿 |
+| `Alt-R` | 搜索历史 |
+| `Tab` | 补全（`/` 命令 / `@` 提及） |
+| `! command` | 执行 shell 命令 |
 
-## Composer
+### `@` 提及
 
-Editing the message you're about to send.
+输入 `@<部分文件名>` 打开文件补全。`↑`/`↓` 选择，`Tab` 或 `Enter` 确认。
 
-| Chord                       | Action                                                  |
-|-----------------------------|---------------------------------------------------------|
-| `Enter`                     | Send the message (or run the slash command)             |
-| `Alt-Enter` / `Ctrl-J`      | Insert a newline without sending (`Ctrl-J` force-steers while a turn is running) |
-| `Ctrl-Enter` / `Cmd-Enter`  | Force a live steer into the current turn when supported by the terminal |
-| `Ctrl-U`                    | Delete to start of line                                 |
-| `Ctrl-W`                    | Delete previous word                                    |
-| `Ctrl-A` / `Home`           | Move to start of line                                   |
-| `Ctrl-E` / `End`            | Move to end of line                                     |
-| `Ctrl-←` / `Alt-←`          | Move backward one word                                  |
-| `Ctrl-→` / `Alt-→`          | Move forward one word                                   |
-| `Ctrl-V` / `Cmd-V`          | Paste from clipboard (also bracketed-paste auto-handled)|
-| `Ctrl-Y`                    | Yank (paste) from kill buffer                           |
-| `↑` / `↓`                   | Cycle composer history (also selects popup/attachment items) |
-| `Ctrl-P` / `Ctrl-N`         | Cycle composer history (alternative)                     |
-| `Ctrl-S`                    | Stash current draft; with queued follow-ups during a running turn, send the next queued item now |
-| `Alt-R`                    | Search prompt history (Alt-R to exit)                  |
-| `Tab`                       | Slash-command / `@`-mention completion (popup-aware)    |
-| `Ctrl-O`                    | Open external editor for the composer draft when it has focus |
-| `! command`                 | Run a shell command through normal approval, sandbox, and output surfaces |
+## 对话记录（焦点在对话区时）
 
-### `@` mentions
+| 快捷键 | 功能 |
+|--------|------|
+| `↑` / `↓` / `j` / `k` | 逐行滚动 |
+| `PgUp` / `PgDn` | 翻页 |
+| `Home` / `g` | 跳到顶部 |
+| `End` / `G` | 跳到底部 |
+| `v` | 开始/扩展选择 |
+| `y` | 复制选中内容 |
+| `o` | 打开链接 |
+| `Esc` | 回到编辑器 |
 
-Type `@<partial>` to open the file mention popup. `↑`/`↓` cycle the entries, `Tab` or `Enter` accepts. `Esc` hides the popup. As of v0.8.10 (#441), completions are re-ranked by mention frecency — files you mention often + recently float to the top.
+## 侧边栏
 
-### `#` quick-add (memory)
+| 快捷键 | 功能 |
+|--------|------|
+| `↑` / `↓` / `j` / `k` | 移动选择 |
+| `Enter` | 激活选中项 |
+| `Tab` | 切换面板 |
+| `Esc` | 回到编辑器 |
 
-When `[memory] enabled = true`, typing `# foo` and pressing `Enter` appends `foo` as a timestamped bullet to your memory file *without* sending a turn. See `docs/MEMORY.md`.
+## 审批弹窗
 
-## Transcript (when transcript has focus)
+| 快捷键 | 功能 |
+|--------|------|
+| `y` / `Y` | 批准一次 |
+| `a` / `A` | 全部批准 |
+| `n` / `N` / `Esc` | 拒绝 |
+| `e` | 编辑后批准 |
 
-| Chord                | Action                                              |
-|----------------------|-----------------------------------------------------|
-| `↑` / `↓` / `j` / `k`| Scroll one line (v0.8.13+: bare arrows also scroll when composer empty) |
-| `PgUp` / `PgDn`      | Scroll one page                                    |
-| `Home` / `g`         | Jump to top                                         |
-| `End` / `G`          | Jump to bottom                                     |
-| `Esc`                | Return focus to composer                           |
-| `y`                  | Yank selected region to clipboard                  |
-| `v`                  | Begin / extend visual selection                    |
-| `o`                  | Open URL under cursor (OSC 8 capable terminals)    |
+## 会话选择器（`Ctrl-R`）
 
-## Sidebar (when sidebar has focus)
-
-| Chord                | Action                                              |
-|----------------------|-----------------------------------------------------|
-| `↑` / `↓` / `j` / `k`| Move selection                                     |
-| `Enter`              | Activate the selected item (open / focus / cancel) |
-| `Tab`                | Cycle to next sidebar panel (Work → Tasks → Agents → Context) |
-| `Ctrl-X`             | Cancel all running background shell jobs when the Tasks panel is focused |
-| `Esc`                | Return focus to composer                           |
-
-## Slash-command palette (after `Ctrl-K` or typing `/`)
-
-| Chord                          | Action                                              |
-|--------------------------------|-----------------------------------------------------|
-| `↑` / `↓` / `Ctrl+P` / `Ctrl+N`| Move selection                                     |
-| `Enter` / `Tab`                | Run / complete the highlighted command             |
-| `Esc`                          | Dismiss palette                                     |
-
-## Session Picker (`Ctrl-R` or `/sessions`)
-
-| Chord                | Action                                              |
-|----------------------|-----------------------------------------------------|
-| `↑` / `↓` / `j` / `k`| Move selection in the session list                 |
-| `1`-`9`              | Open the visible session history at that list slot |
-| `PgUp` / `PgDn`      | Page the history pane                              |
-| `Enter`              | Resume the selected session                        |
-| `/`                  | Search sessions                                    |
-| `s`                  | Cycle sort order                                   |
-| `a`                  | Toggle current-workspace scope vs all workspaces   |
-| `d`                  | Delete selected session after confirmation         |
-| `Esc` / `q`          | Close the picker                                   |
-
-## Approval modal (when a tool requests approval)
-
-| Chord                | Action                                              |
-|----------------------|-----------------------------------------------------|
-| `y` / `Y`            | Approve once                                        |
-| `a` / `A`            | Approve all (auto-approve subsequent calls)        |
-| `n` / `N` / `Esc`    | Deny                                                |
-| `e`                  | Edit the approved input before running              |
-
-## Onboarding (first-run flow)
-
-| Chord                | Action                                              |
-|----------------------|-----------------------------------------------------|
-| `Enter`              | Advance to next step (Welcome → Language → API → …) |
-| `Esc`                | Step back one screen                                |
-| `1`–`5`              | Pick a language (Language step)                    |
-| `y` / `Y`            | Trust the workspace (Trust step)                   |
-| `n` / `N`            | Skip the trust prompt                              |
-
-## v0.8.29 audit notes
-
-- **`Shift+Enter` / `Alt+Enter` newlines now work in VSCode on Windows (#1359).** crossterm's `PushKeyboardEnhancementFlags` command unconditionally returns `Unsupported` on Windows (`is_ansi_code_supported() == false`), so the Kitty keyboard protocol escape was never written to the terminal. Without it, VSCode's xterm.js stays in legacy mode where `Shift+Enter` is indistinguishable from plain `Enter`, causing the composer to send the message instead of inserting a newline. The fix writes the push/pop escapes (`\x1b[>1u` / `\x1b[<1u`) directly on Windows, bypassing crossterm's capability gate. VSCode integrated terminal and Windows Terminal ≥1.17 both honour the Kitty keyboard protocol; terminals that do not understand the sequences silently discard them.
-
-## v0.8.13 audit notes
-
-- **Ctrl-S is stash, not history search.** Fixed in this revision — `Alt-R` is history search.
-- **Phantom `Alt+Up` removed.** The "Edit last queued message" binding was listed in README but never existed in the key dispatch code.
-- **Bare Up/Down arrows scroll transcript when composer empty (v0.8.13).** Previously the `should_scroll_with_arrows` gate was hardcoded to false, meaning bare arrows always navigated composer history even when the composer was empty. Users in virtual terminals (Ghostty, Codex, Kitty-protocol) were especially affected because they couldn't use Cmd+Up / Alt+Up shortcuts.
-- **Configurable keymap (#436) and `tui.toml` (#437) remain deferred.** The `TuiPrefs` struct and loader exist in `settings.rs` but are not wired at startup. The named-binding registry that would let `~/.mimofan/tui.toml` override individual entries is still pending.
-- **No other broken bindings found.** Every other chord listed above resolves to a live handler in `crates/tui/src/tui/ui.rs` (key-event dispatch) or `crates/tui/src/tui/app.rs` (mode + state transitions).
+| 快捷键 | 功能 |
+|--------|------|
+| `↑` / `↓` | 移动选择 |
+| `Enter` | 恢复会话 |
+| `/` | 搜索 |
+| `s` | 切换排序 |
+| `d` | 删除会话 |
+| `Esc` | 关闭 |

@@ -2,7 +2,7 @@
 # Guard the OpenHarmony target dependency graph.
 #
 # This check intentionally does not require an OpenHarmony SDK or sysroot. It
-# only asks Cargo to resolve the codewhale-tui dependency graph for the OHOS
+# only asks Cargo to resolve the mimofan-tui dependency graph for the OHOS
 # target and fails if crates known to break or be unsupported on OHOS re-enter
 # that graph.
 set -euo pipefail
@@ -10,7 +10,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 target="${1:-aarch64-unknown-linux-ohos}"
-package="${CODEWHALE_OHOS_DEP_PACKAGE:-codewhale-tui}"
+package="${MIMOFAN_OHOS_DEP_PACKAGE:-mimofan-tui}"
 
 tree="$(
   cargo tree \

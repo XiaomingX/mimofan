@@ -11,18 +11,18 @@ const EN_COLS = [
       { label: "Documentation", href: "/en/docs" },
       { label: "Roadmap", href: "/en/roadmap" },
       { label: "FAQ", href: "/en/faq" },
-      { label: "Releases", href: "https://github.com/Hmbown/CodeWhale/releases" },
+      { label: "Releases", href: "https://github.com/Hmbown/Mimofan/releases" },
     ],
   },
   {
     title: "Community",
     cn: "社区",
     items: [
-      { label: "Issues", href: "https://github.com/Hmbown/CodeWhale/issues" },
-      { label: "Pull Requests", href: "https://github.com/Hmbown/CodeWhale/pulls" },
-      { label: "Discussions", href: "https://github.com/Hmbown/CodeWhale/discussions" },
+      { label: "Issues", href: "https://github.com/Hmbown/Mimofan/issues" },
+      { label: "Pull Requests", href: "https://github.com/Hmbown/Mimofan/pulls" },
+      { label: "Discussions", href: "https://github.com/Hmbown/Mimofan/discussions" },
       { label: "Contribute", href: "/en/contribute" },
-      { label: "Sponsor CodeWhale", href: "https://github.com/sponsors/Hmbown" },
+      { label: "Sponsor Mimofan", href: "https://github.com/sponsors/Hmbown" },
     ],
   },
   {
@@ -30,11 +30,11 @@ const EN_COLS = [
     cn: "资源",
     items: [
       { label: "Activity Feed", href: "/en/feed" },
-      { label: "npm package", href: "https://www.npmjs.com/package/codewhale" },
-      { label: "crates.io (codewhale-cli)", href: "https://crates.io/crates/codewhale-cli" },
-      { label: "Code of Conduct", href: "https://github.com/Hmbown/CodeWhale/blob/main/CODE_OF_CONDUCT.md" },
-      { label: "Security", href: "https://github.com/Hmbown/CodeWhale/blob/main/SECURITY.md" },
-      { label: "License (MIT)", href: "https://github.com/Hmbown/CodeWhale/blob/main/LICENSE" },
+      { label: "npm package", href: "https://www.npmjs.com/package/mimofan" },
+      { label: "crates.io (mimofan-cli)", href: "https://crates.io/crates/mimofan-cli" },
+      { label: "Code of Conduct", href: "https://github.com/Hmbown/Mimofan/blob/main/CODE_OF_CONDUCT.md" },
+      { label: "Security", href: "https://github.com/Hmbown/Mimofan/blob/main/SECURITY.md" },
+      { label: "License (MIT)", href: "https://github.com/Hmbown/Mimofan/blob/main/LICENSE" },
     ],
   },
 ];
@@ -47,28 +47,28 @@ const ZH_COLS = [
       { label: "使用文档", href: "/zh/docs" },
       { label: "路线图", href: "/zh/roadmap" },
       { label: "常见问题", href: "/zh/faq" },
-      { label: "版本发布", href: "https://github.com/Hmbown/CodeWhale/releases" },
+      { label: "版本发布", href: "https://github.com/Hmbown/Mimofan/releases" },
     ],
   },
   {
     title: "社区",
     items: [
-      { label: "议题", href: "https://github.com/Hmbown/CodeWhale/issues" },
-      { label: "合并请求", href: "https://github.com/Hmbown/CodeWhale/pulls" },
-      { label: "讨论区", href: "https://github.com/Hmbown/CodeWhale/discussions" },
+      { label: "议题", href: "https://github.com/Hmbown/Mimofan/issues" },
+      { label: "合并请求", href: "https://github.com/Hmbown/Mimofan/pulls" },
+      { label: "讨论区", href: "https://github.com/Hmbown/Mimofan/discussions" },
       { label: "参与贡献", href: "/zh/contribute" },
-      { label: "支持 CodeWhale", href: "https://github.com/sponsors/Hmbown" },
+      { label: "支持 Mimofan", href: "https://github.com/sponsors/Hmbown" },
     ],
   },
   {
     title: "资源",
     items: [
       { label: "活动动态", href: "/zh/feed" },
-      { label: "npm 包", href: "https://www.npmjs.com/package/codewhale" },
-      { label: "crates.io（codewhale-cli）", href: "https://crates.io/crates/codewhale-cli" },
-      { label: "行为准则", href: "https://github.com/Hmbown/CodeWhale/blob/main/CODE_OF_CONDUCT.md" },
-      { label: "安全策略", href: "https://github.com/Hmbown/CodeWhale/blob/main/SECURITY.md" },
-      { label: "MIT 许可证", href: "https://github.com/Hmbown/CodeWhale/blob/main/LICENSE" },
+      { label: "npm 包", href: "https://www.npmjs.com/package/mimofan" },
+      { label: "crates.io（mimofan-cli）", href: "https://crates.io/crates/mimofan-cli" },
+      { label: "行为准则", href: "https://github.com/Hmbown/Mimofan/blob/main/CODE_OF_CONDUCT.md" },
+      { label: "安全策略", href: "https://github.com/Hmbown/Mimofan/blob/main/SECURITY.md" },
+      { label: "MIT 许可证", href: "https://github.com/Hmbown/Mimofan/blob/main/LICENSE" },
     ],
   },
 ];
@@ -84,7 +84,7 @@ export function Footer({ locale = "en" }: { locale?: Locale }) {
           <div className="flex items-center gap-3">
             <Seal char="深" size="md" />
             <div>
-              <div className="font-display text-xl font-semibold">CodeWhale</div>
+              <div className="font-display text-xl font-semibold">Mimofan</div>
               <div className="font-cjk text-[0.7rem] text-ink-mute tracking-widest">
                 {isZh ? "任何模型 · 开源模型优先" : "any model, open models first"}
               </div>
@@ -105,16 +105,16 @@ export function Footer({ locale = "en" }: { locale?: Locale }) {
             </div>
             <p className="text-xs text-ink-soft leading-relaxed mb-2">
               {isZh
-                ? "GitHub (github.com/Hmbown/CodeWhale) 为唯一官方源码与发布源。下方镜像仅为中国大陆网络加速，内容经自动同步校验，SHA256 清单一致。"
-                : "GitHub (github.com/Hmbown/CodeWhale) is the sole canonical source for code and releases. Mirrors below are China-network accelerators only — content is auto-synced and verified via SHA256 manifests."}
+                ? "GitHub (github.com/Hmbown/Mimofan) 为唯一官方源码与发布源。下方镜像仅为中国大陆网络加速，内容经自动同步校验，SHA256 清单一致。"
+                : "GitHub (github.com/Hmbown/Mimofan) is the sole canonical source for code and releases. Mirrors below are China-network accelerators only — content is auto-synced and verified via SHA256 manifests."}
             </p>
             <div className="flex flex-wrap gap-3 text-xs">
-              <a href="https://github.com/Hmbown/CodeWhale" className="text-indigo hover:underline font-semibold" target="_blank" rel="noopener">
+              <a href="https://github.com/Hmbown/Mimofan" className="text-indigo hover:underline font-semibold" target="_blank" rel="noopener">
                 {isZh ? "★ 官方 GitHub" : "★ Official GitHub"}
               </a>
-              {GITEE_ENABLED && <a href="https://gitee.com/Hmbown/CodeWhale" className="text-ink-soft hover:underline" target="_blank" rel="noopener">{isZh ? "Gitee 镜像" : "Gitee mirror"}</a>}
-              <a href="https://cnb.cool/codewhale.net/codewhale" className="text-ink-soft hover:underline" target="_blank" rel="noopener">{isZh ? "CNB 镜像" : "CNB mirror"}</a>
-              <a href="https://npmmirror.com/package/codewhale" className="text-ink-soft hover:underline" target="_blank" rel="noopener">npmmirror</a>
+              {GITEE_ENABLED && <a href="https://gitee.com/Hmbown/Mimofan" className="text-ink-soft hover:underline" target="_blank" rel="noopener">{isZh ? "Gitee 镜像" : "Gitee mirror"}</a>}
+              <a href="https://cnb.cool/mimofan.net/mimofan" className="text-ink-soft hover:underline" target="_blank" rel="noopener">{isZh ? "CNB 镜像" : "CNB mirror"}</a>
+              <a href="https://npmmirror.com/package/mimofan" className="text-ink-soft hover:underline" target="_blank" rel="noopener">npmmirror</a>
               <a href="https://mirrors.tuna.tsinghua.edu.cn/help/crates.io-index.html" className="text-ink-soft hover:underline" target="_blank" rel="noopener">Tuna crates.io</a>
             </div>
           </div>
@@ -146,8 +146,8 @@ export function Footer({ locale = "en" }: { locale?: Locale }) {
             <a href="mailto:hmbown@gmail.com" className="font-mono text-ink hover:text-indigo">hmbown@gmail.com</a>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 font-mono text-[0.7rem] text-ink-mute uppercase tracking-widest">
-            <span>© {new Date().getFullYear()} · CodeWhale · Hmbown</span>
-            <span>codewhale.net — {isZh ? "唯一官方站点" : "the only official site"}</span>
+            <span>© {new Date().getFullYear()} · Mimofan · Hmbown</span>
+            <span>mimofan.net — {isZh ? "唯一官方站点" : "the only official site"}</span>
             <span className="font-cjk normal-case tracking-normal">
               {isZh ? "本网站由 DeepSeek V4-Flash 协助维护" : "Maintained with DeepSeek V4-Flash"}
             </span>

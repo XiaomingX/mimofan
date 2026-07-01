@@ -1585,7 +1585,7 @@ impl StateStore {
 }
 
 fn default_state_db_path() -> PathBuf {
-    // $CODEWHALE_HOME is a hard override of the base data directory
+    // $MIMOFAN_HOME is a hard override of the base data directory
     // (docs/CONFIGURATION.md): when set, the state DB lives under it and we do
     // NOT fall back to the legacy ~/.deepseek path — silent fallback would
     // defeat the isolation the override promises (CI, containers, multi-project,
@@ -1605,17 +1605,17 @@ fn default_state_db_path() -> PathBuf {
     }
 }
 
-/// Resolve `$CODEWHALE_HOME` as a hard override of the data directory root.
+/// Resolve `$MIMOFAN_HOME` as a hard override of the data directory root.
 ///
 /// Returns the path verbatim (the env var IS the home dir, matching
-/// `mimofan_home()` in config — `$CODEWHALE_HOME=/data/cw` means the home is
+/// `mimofan_home()` in config — `$MIMOFAN_HOME=/data/cw` means the home is
 /// `/data/cw`, not `/data/cw/.mimofan`). Returns `None` when unset/empty so
 /// callers can branch on "explicit override" vs "default home + legacy
 /// fallback." Mirrors config's helper without taking a dependency on it (state
 /// is a low-level leaf crate; config cannot be a dependency here without
 /// inverting the layering).
 fn mimofan_home_override() -> Option<PathBuf> {
-    std::env::var_os("CODEWHALE_HOME")
+    std::env::var_os("MIMOFAN_HOME")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
 }
@@ -2030,38 +2030,38 @@ mod tests {
         assert_eq!(persisted.continuation_count, 2);
     }
 
-    // ── $CODEWHALE_HOME override tests ──────────────────────────────
+    // ── $MIMOFAN_HOME override tests ──────────────────────────────
     //
     // These touch a process-global env var, so they serialize against each
     // other (and restore the prior value) to stay hermetic under parallel test
     // runs — the same concern AGENTS.md flags for config_command_allow_shell_*.
 
-    static CODEWHALE_HOME_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static MIMOFAN_HOME_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     struct mimofanHomeGuard {
         prior: Option<std::ffi::OsString>,
     }
     impl mimofanHomeGuard {
         fn set(value: &str) -> Self {
-            let prior = std::env::var_os("CODEWHALE_HOME");
-            // SAFETY: serialised by CODEWHALE_HOME_TEST_LOCK.
-            unsafe { std::env::set_var("CODEWHALE_HOME", value) };
+            let prior = std::env::var_os("MIMOFAN_HOME");
+            // SAFETY: serialised by MIMOFAN_HOME_TEST_LOCK.
+            unsafe { std::env::set_var("MIMOFAN_HOME", value) };
             Self { prior }
         }
         fn remove() -> Self {
-            let prior = std::env::var_os("CODEWHALE_HOME");
-            // SAFETY: serialised by CODEWHALE_HOME_TEST_LOCK.
-            unsafe { std::env::remove_var("CODEWHALE_HOME") };
+            let prior = std::env::var_os("MIMOFAN_HOME");
+            // SAFETY: serialised by MIMOFAN_HOME_TEST_LOCK.
+            unsafe { std::env::remove_var("MIMOFAN_HOME") };
             Self { prior }
         }
     }
     impl Drop for mimofanHomeGuard {
         fn drop(&mut self) {
-            // SAFETY: serialised by CODEWHALE_HOME_TEST_LOCK.
+            // SAFETY: serialised by MIMOFAN_HOME_TEST_LOCK.
             unsafe {
                 match &self.prior {
-                    Some(value) => std::env::set_var("CODEWHALE_HOME", value),
-                    None => std::env::remove_var("CODEWHALE_HOME"),
+                    Some(value) => std::env::set_var("MIMOFAN_HOME", value),
+                    None => std::env::remove_var("MIMOFAN_HOME"),
                 }
             }
         }
@@ -2069,10 +2069,10 @@ mod tests {
 
     #[test]
     fn mimofan_home_override_returns_the_env_value_verbatim() {
-        let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
+        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
         let _g = mimofanHomeGuard::set("/tmp/cw-isolated-state");
         // The env var IS the home dir — no ".mimofan" appended. This matches
-        // mimofan_home() in config ($CODEWHALE_HOME=/x means home is /x).
+        // mimofan_home() in config ($MIMOFAN_HOME=/x means home is /x).
         assert_eq!(
             mimofan_home_override().as_deref(),
             Some(std::path::Path::new("/tmp/cw-isolated-state"))
@@ -2081,14 +2081,14 @@ mod tests {
 
     #[test]
     fn mimofan_home_override_none_when_unset() {
-        let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
+        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
         let _g = mimofanHomeGuard::remove();
         assert!(mimofan_home_override().is_none());
     }
 
     #[test]
     fn mimofan_home_override_none_when_empty() {
-        let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
+        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
         let _g = mimofanHomeGuard::set("   ");
         // The helper filters empty values (after the OsString check). Note:
         // var_os returns the raw "   ", and our filter only catches truly-empty,
@@ -2103,7 +2103,7 @@ mod tests {
 
     #[test]
     fn default_state_db_path_uses_mimofan_home_when_set() {
-        let _lock = CODEWHALE_HOME_TEST_LOCK.lock().unwrap();
+        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
         let dir = std::env::temp_dir().join(format!(
             "cw-home-state-{}-{}",
             std::process::id(),
@@ -2113,8 +2113,8 @@ mod tests {
                 .as_nanos()
         ));
         let _g = mimofanHomeGuard::set(dir.to_str().unwrap());
-        // Hard override: the DB is <CODEWHALE_HOME>/state.db, NOT
-        // <CODEWHALE_HOME>/.mimofan/state.db, and the legacy ~/.deepseek
+        // Hard override: the DB is <MIMOFAN_HOME>/state.db, NOT
+        // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.deepseek
         // fallback is bypassed entirely.
         assert_eq!(default_state_db_path(), dir.join("state.db"));
     }

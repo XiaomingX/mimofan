@@ -443,7 +443,7 @@ impl Default for FleetSecurityPolicy {
 /// the worker starts.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FleetSecretRef {
-    /// The secret key name (e.g. `"CODEWHALE_API_KEY"`, `"GH_TOKEN"`).
+    /// The secret key name (e.g. `"MIMOFAN_API_KEY"`, `"GH_TOKEN"`).
     pub key: String,
     /// Optional source hint for resolution order.
     /// - `"env"` — resolve from environment variable
@@ -1251,7 +1251,7 @@ mod tests {
             known_hosts: Some(PathBuf::from("~/.ssh/known_hosts")),
             host_key_fingerprint: Some("SHA256:aLGqZo1M6c...".to_string()),
             working_directory: Some(PathBuf::from("/srv/mimofan/work")),
-            env_allowlist: vec!["CODEWHALE_PROFILE".to_string()],
+            env_allowlist: vec!["MIMOFAN_PROFILE".to_string()],
             mimofan_binary: Some("/usr/local/bin/mimofan".to_string()),
         };
         let json = serde_json::to_string_pretty(&spec).unwrap();
@@ -1306,8 +1306,8 @@ mod tests {
 
     #[test]
     fn secret_ref_accepts_legacy_string_wire_shape() {
-        let ref_: FleetSecretRef = serde_json::from_str(r#""CODEWHALE_FLEET_TOKEN""#).unwrap();
-        assert_eq!(ref_, FleetSecretRef::new("CODEWHALE_FLEET_TOKEN"));
+        let ref_: FleetSecretRef = serde_json::from_str(r#""MIMOFAN_FLEET_TOKEN""#).unwrap();
+        assert_eq!(ref_, FleetSecretRef::new("MIMOFAN_FLEET_TOKEN"));
 
         let ref_: FleetSecretRef =
             serde_json::from_str(r#"{"key":"GH_TOKEN","source":"env"}"#).unwrap();

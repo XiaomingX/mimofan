@@ -1,6 +1,6 @@
 # Weixin Bot Bridge
 
-此 bridge 让微信个人账号通过扫码登录控制本地 `codewhale serve --http` runtime。
+此 bridge 让微信个人账号通过扫码登录控制本地 `mimofan serve --http` runtime。
 使用腾讯 iLink Bot 协议（参考 `@tencent-weixin/openclaw-weixin`），
 无需公众号注册即可工作。
 
@@ -9,8 +9,8 @@
 
 ## 安全模型
 
-- `codewhale serve --http` 绑定于 `127.0.0.1`。
-- `/v1/*` runtime 调用使用 `CODEWHALE_RUNTIME_TOKEN`。
+- `mimofan serve --http` 绑定于 `127.0.0.1`。
+- `/v1/*` runtime 调用使用 `MIMOFAN_RUNTIME_TOKEN`。
 - 微信用户必须加入白名单，除非首次配对时设置 `WEXIN_ALLOW_UNLISTED=true`。
 - 仅支持私聊；暂不支持群聊。
 - 工具审批通过文本命令：`/allow <approval_id>` 或 `/deny <approval_id>`。
@@ -19,10 +19,10 @@
 ## 设置
 
 ```bash
-cd /opt/codewhale/weixin-bot-bridge
-npm install --omit=dev
-cp .env.example /etc/codewhale/weixin-bot-bridge.env
-sudoedit /etc/codewhale/weixin-bot-bridge.env
+cd /opt/mimofan/weixin-bot-bridge
+pnpm install --prod
+cp .env.example /etc/mimofan/weixin-bot-bridge.env
+sudoedit /etc/mimofan/weixin-bot-bridge.env
 node src/index.mjs
 ```
 
@@ -41,7 +41,7 @@ node src/index.mjs
 - `/allow <approval_id> [remember]`
 - `/deny <approval_id>`
 
-其他所有内容均作为 CodeWhale 提示发送。
+其他所有内容均作为 Mimofan 提示发送。
 
 ## 首次配对
 
@@ -55,23 +55,23 @@ node src/index.mjs
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `CODEWHALE_RUNTIME_URL` | 否 | Runtime HTTP 地址（默认 `http://127.0.0.1:7878`） |
-| `CODEWHALE_RUNTIME_TOKEN` | **是** | Runtime Bearer 令牌 |
-| `CODEWHALE_WORKSPACE` | 否 | 工作区路径（默认 cwd） |
-| `CODEWHALE_MODEL` | 否 | 模型名称（默认 `auto`） |
-| `CODEWHALE_MODE` | 否 | 运行模式（默认 `agent`） |
+| `MIMOFAN_RUNTIME_URL` | 否 | Runtime HTTP 地址（默认 `http://127.0.0.1:7878`） |
+| `MIMOFAN_RUNTIME_TOKEN` | **是** | Runtime Bearer 令牌 |
+| `MIMOFAN_WORKSPACE` | 否 | 工作区路径（默认 cwd） |
+| `MIMOFAN_MODEL` | 否 | 模型名称（默认 `auto`） |
+| `MIMOFAN_MODE` | 否 | 运行模式（默认 `agent`） |
 | `WEXIN_CHAT_ALLOWLIST` | 否 | 逗号分隔的允许用户 ID |
 | `WEXIN_ALLOW_UNLISTED` | 否 | 首次配对模式（默认 `false`） |
 | `WEXIN_STATE_DIR` | 否 | 状态持久化目录 |
 | `WEXIN_THREAD_MAP_PATH` | 否 | 线程映射文件路径 |
 | `WEXIN_MAX_REPLY_CHARS` | 否 | 单条回复最大字符数（默认 `3500`） |
-| `CODEWHALE_TURN_TIMEOUT_MS` | 否 | Turn 超时（默认 `900000`） |
+| `MIMOFAN_TURN_TIMEOUT_MS` | 否 | Turn 超时（默认 `900000`） |
 | `WEXIN_LONGPOLL_TIMEOUT_MS` | 否 | 长轮询超时（默认 `35000`） |
 
 ## 架构
 
 ```
-微信客户端 ──getUpdates 长轮询──▶ Weixin Bot Bridge ──HTTP──▶ codewhale serve --http
+微信客户端 ──getUpdates 长轮询──▶ Weixin Bot Bridge ──HTTP──▶ mimofan serve --http
                   ◀──sendMessage──                                  (127.0.0.1:7878)
 ```
 

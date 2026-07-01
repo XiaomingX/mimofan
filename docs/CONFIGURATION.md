@@ -1,1519 +1,171 @@
-# Configuration
+# 配置说明
 
-mimofan reads configuration from a TOML file plus environment variables.
-At process startup it also loads a workspace-local `.env` file when present.
-Use the tracked `.env.example` as the template; copy it to `.env`, then edit
-only the provider and safety knobs you need.
+mimofan 从 TOML 配置文件 + 环境变量读取配置。启动时也会加载工作区的 `.env` 文件。
 
-## Project instructions & repo authority
+## 项目指令文件
 
-Each repo can carry two distinct, complementary files:
+- **`AGENTS.md`** — 项目级 agent 指令（跨 agent 生效）
+- **`.mimofan/constitution.json`** — mimofan 专属的优先级/信任策略
 
-- **`AGENTS.md`** — cross-agent **project instructions** (prose). This is the
-  canonical file for "how should an agent work in this repo." Run `/init` to
-  scaffold one. `CLAUDE.md` and `.claude/instructions.md` are read as
-  compatibility fallbacks.
-- **`.mimofan/constitution.json`** — mimofan-specific **repo authority /
-  prioritization policy**: when local sources conflict, which should mimofan
-  trust first, and what to verify before claiming a task is done. `.mimofan/`
-  lives inside the repo (like `.github/`). Example:
+> `WHALE.md` 已弃用，仍兼容读取但不再推荐。
 
-  ```json
-  {
-    "schema_version": 1,
-    "authority": [
-      "current user request",
-      "live code and tests",
-      "GitHub issue/PR details",
-      "AGENTS.md",
-      "memory",
-      "old handoffs"
-    ],
-    "protected_invariants": [
-      "do not break old-session transcript replay"
-    ],
-    "branch_policy": "PRs target the integration branch, not main",
-    "verification_policy": {
-      "before_claiming_done": ["run focused tests", "read changed files back"]
-    },
-    "escalate_when": [
-      "a destructive action was not explicitly authorized"
-    ]
-  }
-  ```
+## 配置文件位置
 
-  All fields are optional. When present, the file is rendered into the system
-  prompt as concise prose in a higher-authority block and takes precedence over
-  a legacy `WHALE.md`.
+默认：`~/.mimofan/config.toml`
 
-  This is the **local-law** layer in mimofan's hierarchy: *base myth & global
-  Constitution* (the model prompt in `prompts/constitution.md`, including the Brother
-  Whale identity anchor) → *repo constitution* (`.mimofan/constitution.json`,
-  this file) → *task packet* (the current objective) → *runtime policy*
-  (permissions/sandbox/cost limits enforced in code). The repo constitution
-  gives decision rules; it does not replace the global Constitution or the
-  current user request.
+覆盖方式：
+- CLI：`mimofan --config /path/to/config.toml`
+- 环境变量：`MIMOFAN_CONFIG_PATH=/path/to/config.toml`
 
-> **`WHALE.md` is deprecated.** It overlapped confusingly with `AGENTS.md`.
-> mimofan still **reads** an existing `WHALE.md` (below `AGENTS.md`) so old
-> repos keep working, and emits a deprecation notice, but it is no longer
-> created or recommended and will be dropped from default discovery after a
-> deprecation window. Move ordinary instructions to `AGENTS.md` and
-> mimofan-specific authority policy to `.mimofan/constitution.json`. (The
-> global mimofan Constitution shipped in the model prompt is a separate thing
-> and is unaffected.)
+### 项目级覆盖
 
-## Where It Looks
+工作区下的 `.mimofan/config.toml` 可覆盖部分全局配置：
 
-Default config path:
+| 字段 | 作用 |
+|------|------|
+| `model` | 覆盖默认模型 |
+| `reasoning_effort` | 强制推理等级 |
+| `approval_policy` | 收紧审批策略 |
+| `sandbox_mode` | 收紧沙箱策略 |
+| `max_subagents` | 限制子 agent 并发数 |
+| `allow_shell` | `false` 可禁用 shell |
 
-- `~/.mimofan/config.toml`
-- Legacy fallback: `~/.deepseek/config.toml`
+## Profile 配置
 
-Overrides:
-
-- CLI: `mimofan --config /path/to/config.toml`
-- Env: `CODEWHALE_CONFIG_PATH=/path/to/config.toml`
-- Legacy env alias: `DEEPSEEK_CONFIG_PATH=/path/to/config.toml`
-
-If both are set, `--config` wins. Environment variable overrides are applied after the file is loaded.
-
-### TUI editability audit
-
-Inside the TUI, run `/config audit` to see which documented keys can be changed
-from the current session, which ones can also be persisted, and which ones stay
-file-only or restart-only. The audit includes current values for the high-impact
-runtime controls such as `approval_policy`, `allow_shell`,
-`stream_chunk_timeout_secs`, `base_url`, `mcp_config_path`, and the
-`[subagents]` concurrency/depth/timeout keys.
-
-Use the command's "Command / reason" column as the source of truth before
-editing by hand. For example, `/config approval_mode on-request --save` writes
-top-level `approval_policy = "on-request"`, while provider base URLs are saved
-but still require restarting the model client.
-
-### User workspace entries
-
-For a shell opt-in that should live in the user's global config rather than in
-the repository, add a workspace-scoped entry:
+同一文件可定义多个 profile：
 
 ```toml
-[workspace.'/absolute/path/to/project']
-allow_shell = true
-```
-
-The entry applies only when the launched workspace path matches the table key.
-The legacy `[projects."/absolute/path/to/project"]` table is also accepted for
-this user-owned override.
-
-In interactive mode, the per-project overlay
-`<workspace>/.mimofan/config.toml` is applied after this user entry. A
-project-level `allow_shell = false` can still tighten the session; project-level
-`allow_shell = true` is ignored.
-
-### Per-project overlay (#485)
-
-When the TUI starts in a workspace that contains a regular-file
-`<workspace>/.mimofan/config.toml`, the safe values declared in that file are
-merged on top of the global config. Legacy
-`<workspace>/.deepseek/config.toml` files are still read when the mimofan path
-is absent. Symlinked project config files are rejected. This lets a repo suggest
-a model or tighten local safety posture without touching the user's
-`~/.mimofan/config.toml`. Pass `--no-project-config` to skip the overlay for
-one launch.
-
-Supported keys in the project overlay (top-level fields only):
-
-| Key | Effect |
-|---|---|
-| `model` | override `default_text_model` |
-| `reasoning_effort` | force `"high"` / `"max"` for a complex repo |
-| `approval_policy` | only values that tighten the user's current approval posture |
-| `sandbox_mode` | only values that tighten the user's current sandbox posture |
-| `notes_path` | keep notes in-repo |
-| `max_subagents` | clamp sub-agent concurrency for a constrained repo (clamped to 1..=20) |
-| `allow_shell` | `false` can disable shell access; `true` is ignored |
-
-The overlay is intentionally narrow — it covers the fields a repo
-maintainer is most likely to want to standardize across contributors.
-Credential, endpoint, provider-selection, MCP config, hooks, skills, capacity,
-retry, and `instructions = [...]` settings stay user-global. If a repo-local
-config declares `api_key`, `base_url`, `provider`, `mcp_config_path`,
-`allow_shell = true`, or `instructions`, mimofan ignores that key and keeps
-the user's global setting.
-
-The `mimofan` facade and `mimofan` binary share the same config file for
-DeepSeek auth and model defaults. `mimofan auth set --provider deepseek` (and
-the legacy `mimofan login --api-key ...` alias) saves the key to
-`~/.mimofan/config.toml` (migrating legacy `~/.deepseek/config.toml` on first
-launch when needed), and `mimofan --model deepseek-v4-flash` is forwarded to
-the TUI as `DEEPSEEK_MODEL`.
-
-Credential lookup uses `config -> keyring -> env` after any explicit CLI
-`--api-key`. Run `mimofan auth status` to inspect the active provider's config
-file, OS keyring backend, environment variable, winning source, and last-four
-label without printing the key itself. The command only probes the active
-provider's keyring entry.
-
-For hosted, generic OpenAI-compatible, self-hosted, OpenAI Responses, or native
-Anthropic providers, set `provider = "<id>"` or pass
-`mimofan --provider <id>`. The canonical provider IDs are `deepseek`,
-`nvidia-nim`, `openai`, `atlascloud`, `wanjie-ark`, `volcengine`,
-`openrouter`, `xiaomi-mimo`, `novita`, `fireworks`, `siliconflow`, `arcee`,
-`siliconflow-CN`, `moonshot`, `sglang`, `vllm`, `ollama`, `huggingface`,
-`together`, `qianfan`, `openai-codex`, `anthropic`, `zai`, `stepfun`,
-`minimax`, and `deepinfra`.
-For the provider-by-provider registry, including wire protocol, auth variables,
-default base URLs, model IDs, and capability metadata, see
-[PROVIDERS.md](PROVIDERS.md).
-The facade saves provider credentials to the shared user config and forwards
-the resolved key, base URL, provider, and model to the TUI process. Use
-`mimofan auth set --provider nvidia-nim --api-key "YOUR_NVIDIA_API_KEY"` or
-`mimofan auth set --provider openai --api-key "YOUR_OPENAI_COMPATIBLE_API_KEY"` or
-`mimofan auth set --provider atlascloud --api-key "YOUR_ATLASCLOUD_API_KEY"` or
-`mimofan auth set --provider wanjie-ark --api-key "YOUR_WANJIE_API_KEY"` or
-`mimofan auth set --provider xiaomi-mimo --api-key "YOUR_XIAOMI_KEY"` or
-`mimofan auth set --provider fireworks --api-key "YOUR_FIREWORKS_API_KEY"` or
-`mimofan auth set --provider siliconflow --api-key "YOUR_SILICONFLOW_API_KEY"` or
-`mimofan auth set --provider arcee --api-key "YOUR_ARCEE_API_KEY"` or the
-matching provider ID from [PROVIDERS.md](PROVIDERS.md) to save provider keys
-through the facade. The generic `openai` provider defaults
-to `https://api.openai.com/v1`, accepts `OPENAI_BASE_URL`, and defaults to
-`deepseek-v4-pro` for OpenAI-compatible gateways. `atlascloud` defaults to
-`https://api.atlascloud.ai/v1`, accepts `ATLASCLOUD_BASE_URL`, and uses
-`deepseek-ai/deepseek-v4-flash` as its default model. `wanjie-ark` targets
-Wanjie Ark's OpenAI-compatible endpoint at
-`https://maas-openapi.wanjiedata.com/api/v1`, defaults to `deepseek-reasoner`,
-and passes model IDs through unchanged because Wanjie model access is
-account-scoped. SGLang, vLLM, and Ollama are
-self-hosted and can run without an API key by default. Ollama defaults to
-`http://localhost:11434/v1` and sends model tags such as `mimofan-coder:1.3b`
-or `qwen2.5-coder:7b` unchanged. Self-hosted providers and loopback custom
-URLs (`localhost`, `127.0.0.1`, `[::1]`, `0.0.0.0`) do not read the secret store
-unless API-key auth is explicitly requested; use an env var or config-file key
-when a local server does require bearer auth.
-SiliconFlow defaults to `https://api.siliconflow.com/v1`, accepts
-`SILICONFLOW_BASE_URL`, and uses `deepseek-ai/DeepSeek-V4-Pro` by default.
-`provider = "siliconflow-CN"` selects the China regional default
-`https://api.siliconflow.cn/v1` with the `[providers.siliconflow_cn]` table and
-`SILICONFLOW_API_KEY` credential slot.
-Arcee AI defaults to `https://api.arcee.ai/api/v1`, accepts `ARCEE_BASE_URL`,
-and uses `trinity-large-thinking` by default for mimofan agent work.
-`trinity-large-preview` is also listed as a direct Arcee API model; OpenRouter's
-`arcee-ai/trinity-large-thinking` remains the OpenRouter namespaced form, while
-the direct Arcee provider uses the bare `trinity-large-thinking` ID. Direct
-Arcee large-model API calls are tracked as 256K-context BF16 serving; Thinking
-is reasoning-capable, while Preview is not marked as a thinking model.
-
-### Custom OpenAI-Compatible Gateways
-
-For a third-party service that implements the OpenAI Chat Completions API, use
-the built-in `openai` provider name and point its provider table at the gateway:
-
-```toml
-provider = "openai"
-default_text_model = "your-model-id"
-
-[providers.openai]
-api_key = "YOUR_OPENAI_COMPATIBLE_API_KEY"
-base_url = "https://your-gateway.example/v1"
-```
-
-Do not invent a custom provider name; `provider` must be one of the known
-providers listed above. Put the endpoint under `[providers.openai]`, not the
-legacy top-level `base_url`, so the OpenAI-compatible provider receives it.
-`default_text_model` is the model ID sent to the gateway; if you keep several
-provider tables in one config, `[providers.openai].model` can be used as the
-OpenAI-provider-specific override.
-
-Alibaba Bailian / Model Studio DashScope Qwen routes use the same OpenAI
-provider shape:
-
-```toml
-provider = "openai"
-
-[providers.openai]
-api_key = "YOUR_DASHSCOPE_API_KEY"
-base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-model = "qwen-plus"
-```
-
-Use the regional DashScope `compatible-mode/v1` base URL that matches the
-region of your API key. mimofan keeps `qwen-plus` scoped to the `openai`
-provider route and does not infer a different provider from the model prefix.
-The same rule applies to all provider-prefixed model strings: a prefix such as
-`deepseek-ai/...` or `deepseek/...` is a provider-owned wire ID under the
-selected provider, not an automatic switch to the DeepSeek provider.
-
-If the gateway accepts `POST /chat/completions` but rejects
-`/v1/chat/completions`, set a provider-local `path_suffix`:
-
-```toml
-[providers.openai]
-base_url = "https://your-gateway.example/v1"
-path_suffix = "/chat/completions"
-```
-
-The suffix applies only to chat-completion requests. Model listing and
-DeepSeek beta paths keep their built-in routing so a generic gateway override
-does not accidentally rewrite `/models` or `/beta/completions`.
-
-For private gateways with broken or intercepted certificates, use
-`SSL_CERT_FILE` with a trusted CA bundle. The legacy provider-table key
-`insecure_skip_tls_verify = true` is still parsed so `mimofan doctor` can
-report stale configs, but provider clients reject it instead of disabling TLS
-certificate verification.
-
-Local HTTP endpoints such as Ollama, SGLang, and vLLM are allowed by default
-when they use localhost or loopback addresses. For a non-local `http://`
-gateway, launch with `DEEPSEEK_ALLOW_INSECURE_HTTP=1` only on a trusted network:
-
-```bash
-DEEPSEEK_ALLOW_INSECURE_HTTP=1 mimofan
-```
-
-Third-party OpenAI-compatible gateways that need extra request headers can set
-`http_headers = { "X-Model-Provider-Id" = "your-model-provider" }` at the top
-level or under a provider table such as `[providers.deepseek]`. When configured,
-mimofan sends those custom headers on model API requests. The equivalent
-environment override is `DEEPSEEK_HTTP_HEADERS`, using comma-separated
-`name=value` pairs such as
-`X-Model-Provider-Id=your-model-provider,X-Gateway-Route=dev`. `Authorization`
-and `Content-Type` are managed by the client and are not overridden by this
-setting.
-
-### Vision Model
-
-mimofan's chat provider and `image_analyze` tool are configured separately.
-The main chat path remains the selected text/tool provider; image analysis runs
-through `[vision_model]` when the `vision_model` feature is enabled.
-
-Xiaomi's current image-understanding docs include `mimo-v2.5` for image input.
-To use MiMo for `image_analyze`, configure the vision model explicitly:
-
-```toml
-[features]
-vision_model = true
-
-[vision_model]
-model = "mimo-v2.5"
-api_key = "YOUR_XIAOMI_KEY"
-base_url = "https://api.xiaomimimo.com/v1"
-```
-
-The example above uses Xiaomi MiMo's pay-as-you-go OpenAI-compatible endpoint.
-If you are using a Token Plan key (`tp-...`) for `[vision_model]`, you must set
-`base_url` explicitly because this generic OpenAI-compatible block does not
-auto-select MiMo endpoints. Use
-`https://token-plan-sgp.xiaomimimo.com/v1` for Singapore accounts or
-`https://token-plan-cn.xiaomimimo.com/v1` for China-region accounts.
-
-To bootstrap MCP and skills directories at their resolved paths, run `mimofan setup`.
-To only scaffold MCP, run `mimofan mcp init`.
-
-Note: setup, doctor, mcp, features, sessions, resume/fork, exec, review, and eval
-are subcommands of the `mimofan` binary. The `mimofan` dispatcher exposes a
-distinct set of commands (`auth`, `config`, `model`, `thread`, `sandbox`,
-`app-server`, `mcp-server`, `completion`) and forwards plain prompts to
-`mimofan`.
-
-### Startup Update Checks
-
-By default, the TUI starts a background check for the latest stable mimofan
-release and shows a short toast only when a newer release is available and the
-official release assets are complete.
-
-Disable the startup check entirely for air-gapped, corporate-proxy, or managed
-desktop environments:
-
-```toml
-[update]
-check_for_updates = false
-```
-
-To redirect the startup check, set `update_uri` to an internal endpoint that
-returns GitHub-compatible latest-release JSON. Minimal mirror metadata with a
-`tag_name` field is accepted; if `assets` are present, mimofan requires the
-same uploaded asset set as the official release before showing the toast.
-
-```toml
-[update]
-check_for_updates = true
-update_uri = "https://internal.mirror.example/mimofan/releases/latest"
-```
-
-When `update_uri` is not set, startup checks honor release mirror environment
-variables such as `CODEWHALE_RELEASE_BASE_URL` before falling back to the
-official GitHub API endpoint. If a configured `update_uri` cannot be fetched or
-parsed and a release mirror env var is set, the TUI falls back to that mirror
-instead of failing startup.
-
-## Profiles
-
-You can define multiple profiles in the same file:
-
-```toml
-api_key = "PERSONAL_KEY"
+api_key = "DEFAULT_KEY"
 default_text_model = "deepseek-v4-pro"
 
 [profiles.work]
 api_key = "WORK_KEY"
 base_url = "https://api.deepseek.com/beta"
 
-[profiles.nvidia-nim]
-provider = "nvidia-nim"
-api_key = "NVIDIA_KEY"
-base_url = "https://integrate.api.nvidia.com/v1"
-default_text_model = "deepseek-ai/deepseek-v4-pro"
-
-[profiles.fireworks]
-provider = "fireworks"
-default_text_model = "accounts/fireworks/models/deepseek-v4-pro"
-
-[profiles.siliconflow]
-provider = "siliconflow"
-default_text_model = "deepseek-ai/DeepSeek-V4-Pro"
-
-[profiles.siliconflow.providers.siliconflow]
-base_url = "https://api.siliconflow.com/v1"
-
-[profiles.openai-compatible]
-provider = "openai"
-
-[profiles.openai-compatible.providers.openai]
-base_url = "https://openai-compatible.example/v4"
-model = "glm-5"
-
-[profiles.atlascloud]
-provider = "atlascloud"
-
-[profiles.atlascloud.providers.atlascloud]
-base_url = "https://api.atlascloud.ai/v1"
-model = "deepseek-ai/deepseek-v4-flash"
-
-[profiles.sglang]
-provider = "sglang"
-base_url = "http://localhost:30000/v1"
-default_text_model = "deepseek-ai/DeepSeek-V4-Pro"
-
-[profiles.vllm]
-provider = "vllm"
-base_url = "http://localhost:8000/v1"
-default_text_model = "deepseek-ai/DeepSeek-V4-Pro"
-
-[profiles.ollama]
-provider = "ollama"
-base_url = "http://localhost:11434/v1"
-default_text_model = "mimofan-coder:1.3b"
+[profiles.xiaomi]
+provider = "xiaomi-mimo"
+api_key = "YOUR_KEY"
 ```
 
-Select a profile with:
+选择 profile：`mimofan --profile work` 或 `DEEPSEEK_PROFILE=work`
 
-- CLI: `mimofan --profile work`
-- Env: `DEEPSEEK_PROFILE=work`
+## 核心配置项
 
-If a profile is selected but missing, mimofan exits with an error listing available profiles.
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `provider` | string | 服务商 ID（`deepseek`, `xiaomi-mimo`, `openai` 等） |
+| `api_key` | string | API 密钥 |
+| `base_url` | string | API 地址 |
+| `default_text_model` | string | 默认模型 |
+| `allow_shell` | bool | 是否允许执行 shell 命令（默认 `false`） |
+| `approval_policy` | string | 审批策略：`on-request` / `untrusted` / `never` |
+| `sandbox_mode` | string | 沙箱模式：`read-only` / `workspace-write` / `danger-full-access` |
+| `max_subagents` | int | 最大子 agent 数（1-20） |
+| `reasoning_effort` | string | 推理等级：`off` / `low` / `medium` / `high` / `max` |
 
-## Harness Profiles
+## 环境变量
 
-v0.9 adds a config data model for model-specific harness posture. This is a
-preview schema: it can be parsed and tested, but runtime provider/model
-selection and prompt/tool behavior are wired in later v0.9 slices.
-When no configured profile matches, the resolver falls back to built-in seed
-profiles for the model families listed in the cutline doc. Configured profiles
-always take precedence over those seeds.
+### 核心变量
 
-```toml
-[[harness_profiles]]
-provider_route = "deepseek"
-model_pattern = "deepseek-v4.*"
+| 变量 | 说明 |
+|------|------|
+| `MIMOFAN_PROVIDER` | 服务商 ID |
+| `MIMOFAN_MODEL` | 默认模型 |
+| `MIMOFAN_BASE_URL` | API 地址 |
+| `DEEPSEEK_API_KEY` | API 密钥 |
+| `MIMOFAN_HOME` | 数据目录（默认 `~/.mimofan`） |
 
-[harness_profiles.posture]
-kind = "cache-heavy"          # standard | cache-heavy | lean | custom
-max_subagents = 10            # 0 means runtime default
-prefer_codebase_search = false
-compaction_strategy = "prefix-cache" # default | prefix-cache | aggressive
-tool_surface = "full"              # full | read-only | auto
-safety_posture = "standard"        # standard | strict | permissive
-```
+### 服务商专用变量
 
-Unknown posture names or unknown keys inside a harness profile fail config
-deserialization instead of silently becoming `custom`. That is intentional:
-once runtime wiring consumes these profiles, a typo should be visible.
-The v0.9 implementation order and automatic-creator boundary are documented in
-[`HARNESS_PROFILE_CUTLINE.md`](rfcs/HARNESS_PROFILE_CUTLINE.md).
+每个服务商都有对应的 `*_API_KEY`、`*_BASE_URL`、`*_MODEL` 变量，格式为 `<PROVIDER>_API_KEY`。常用：
 
-## Environment Variables
-
-Most runtime environment variables override config values. API-key variables are
-fallbacks after saved config and keyring credentials.
-
-The three user-facing slots — provider, model, base URL — expose `CODEWHALE_*`
-aliases. When both forms are set the `CODEWHALE_*` value wins; the
-`DEEPSEEK_*` form is kept for older shells:
-
-- `CODEWHALE_PROVIDER` (preferred) / `DEEPSEEK_PROVIDER` (legacy alias) —
-  `deepseek|deepseek-anthropic|nvidia-nim|openai|atlascloud|wanjie-ark|volcengine|openrouter|xiaomi-mimo|novita|fireworks|siliconflow|arcee|siliconflow-CN|moonshot|sglang|vllm|ollama|huggingface|together|qianfan|openai-codex|anthropic|zai|stepfun|minimax|deepinfra`
-- `CODEWHALE_MODEL` (preferred) / `DEEPSEEK_MODEL` (legacy alias) — default model for the active provider
-- `CODEWHALE_BASE_URL` (preferred) / `DEEPSEEK_BASE_URL` (legacy alias) — base URL for the active provider
-
-Remaining variables:
-
-- `DEEPSEEK_API_KEY`
-- `DEEPSEEK_ANTHROPIC_BASE_URL`
-- `DEEPSEEK_HTTP_HEADERS` (custom model request headers, comma-separated `name=value` pairs)
-- `DEEPSEEK_DEFAULT_TEXT_MODEL` (extra legacy alias of `DEEPSEEK_MODEL`)
-- `DEEPSEEK_STREAM_IDLE_TIMEOUT_SECS` (stream idle timeout in seconds; default `300`, clamped to `1..=3600`)
-- `DEEPSEEK_STREAM_OPEN_TIMEOUT_SECS` (connection setup + response-header wait in seconds; default `45`, clamped to `5..=300`; distinct from the per-chunk idle timeout)
-- `NVIDIA_API_KEY` or `NVIDIA_NIM_API_KEY` (preferred when provider is `nvidia-nim`; falls back to `DEEPSEEK_API_KEY`)
-- `NVIDIA_NIM_BASE_URL`, `NIM_BASE_URL`, or `NVIDIA_BASE_URL`
-- `NVIDIA_NIM_MODEL`
+- `XIAOMI_MIMO_API_KEY` / `MIMO_API_KEY`
 - `OPENAI_API_KEY`
-- `OPENAI_BASE_URL`
-- `OPENAI_MODEL`
-- `ATLASCLOUD_API_KEY`
-- `ATLASCLOUD_BASE_URL`
-- `ATLASCLOUD_MODEL`
-- `WANJIE_ARK_API_KEY`, `WANJIE_API_KEY`, or `WANJIE_MAAS_API_KEY`
-- `WANJIE_ARK_BASE_URL`, `WANJIE_BASE_URL`, or `WANJIE_MAAS_BASE_URL`
-- `WANJIE_ARK_MODEL`, `WANJIE_MODEL`, or `WANJIE_MAAS_MODEL`
-- `VOLCENGINE_API_KEY`, `VOLCENGINE_ARK_API_KEY`, or `ARK_API_KEY`
-- `VOLCENGINE_BASE_URL`, `VOLCENGINE_ARK_BASE_URL`, or `ARK_BASE_URL`
-- `VOLCENGINE_MODEL` or `VOLCENGINE_ARK_MODEL`
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_BASE_URL`
-- `OPENROUTER_MODEL`
-- `XIAOMI_MIMO_TOKEN_PLAN_API_KEY`, `MIMO_TOKEN_PLAN_API_KEY`, `XIAOMI_MIMO_API_KEY`, `XIAOMI_API_KEY`, or `MIMO_API_KEY`
-- `XIAOMI_MIMO_BASE_URL` or `MIMO_BASE_URL`
-- `XIAOMI_MIMO_MODEL` or `MIMO_MODEL`
-- `XIAOMI_MIMO_MODE` or `MIMO_MODE`
-- `NOVITA_API_KEY`
-- `NOVITA_BASE_URL`
-- `NOVITA_MODEL`
-- `FIREWORKS_API_KEY`
-- `FIREWORKS_BASE_URL`
-- `FIREWORKS_MODEL`
-- `HUGGINGFACE_API_KEY` or `HF_TOKEN` (`HF_TOKEN` is a fallback alias accepted when provider is `huggingface`)
-- `HUGGINGFACE_BASE_URL` or `HF_BASE_URL`
-- `HUGGINGFACE_MODEL` or `HF_MODEL`
-- `SILICONFLOW_API_KEY`
-- `SILICONFLOW_BASE_URL`
-- `SILICONFLOW_MODEL`
-- `ARCEE_API_KEY`
-- `ARCEE_BASE_URL`
-- `ARCEE_MODEL`
-- `TOGETHER_API_KEY`
-- `TOGETHER_BASE_URL`
-- `TOGETHER_MODEL`
-- `QIANFAN_API_KEY` or `BAIDU_QIANFAN_API_KEY`
-- `QIANFAN_BASE_URL` or `BAIDU_QIANFAN_BASE_URL`
-- `QIANFAN_MODEL` or `BAIDU_QIANFAN_MODEL`
-- `OPENAI_CODEX_ACCESS_TOKEN` or `CODEX_ACCESS_TOKEN`
-- `OPENAI_CODEX_BASE_URL` or `CODEX_BASE_URL`
-- `OPENAI_CODEX_MODEL` or `CODEX_MODEL`
-- `OPENAI_CODEX_ACCOUNT_ID` or `CODEX_ACCOUNT_ID`
 - `ANTHROPIC_API_KEY`
-- `ANTHROPIC_BASE_URL`
-- `ANTHROPIC_MODEL`
-- `ZAI_API_KEY` or `Z_AI_API_KEY`
-- `ZAI_BASE_URL` or `Z_AI_BASE_URL`
-- `ZAI_MODEL` or `Z_AI_MODEL`
-- `STEPFUN_API_KEY` or `STEP_API_KEY`
-- `STEPFUN_BASE_URL` or `STEP_BASE_URL`
-- `STEPFUN_MODEL` or `STEP_MODEL`
-- `MINIMAX_API_KEY`
-- `MINIMAX_BASE_URL`
-- `MINIMAX_MODEL`
-- `DEEPINFRA_API_KEY` or `DEEPINFRA_TOKEN`
-- `DEEPINFRA_BASE_URL`
-- `DEEPINFRA_MODEL`
-- `MOONSHOT_API_KEY` or `KIMI_API_KEY`
-- `MOONSHOT_BASE_URL` or `KIMI_BASE_URL`
-- `MOONSHOT_MODEL`, `KIMI_MODEL_NAME`, or `KIMI_MODEL`
-- `SGLANG_BASE_URL`
-- `SGLANG_MODEL`
-- `SGLANG_API_KEY` (optional; many localhost SGLang servers do not require auth)
-- `VLLM_BASE_URL`
-- `VLLM_MODEL`
-- `VLLM_API_KEY` (optional; many localhost vLLM servers do not require auth)
-- `OLLAMA_BASE_URL`
-- `OLLAMA_MODEL`
-- `OLLAMA_API_KEY` (optional; many localhost Ollama servers do not require auth)
-- `DEEPSEEK_LOG_LEVEL` or `RUST_LOG` (`info`/`debug`/`trace` enables lightweight verbose logs)
-- `DEEPSEEK_SKILLS_DIR`
-- `DEEPSEEK_MCP_CONFIG`
-- `DEEPSEEK_NOTES_PATH`
-- `DEEPSEEK_MEMORY` (`1|on|true|yes|y|enabled` turns user memory on)
-- `DEEPSEEK_MEMORY_PATH`
-- `DEEPSEEK_ALLOW_SHELL` (`1`/`true` enables)
-- `DEEPSEEK_APPROVAL_POLICY` (`on-request|untrusted|never`)
-- `DEEPSEEK_SANDBOX_MODE` (`read-only|workspace-write|danger-full-access|external-sandbox`)
-- `DEEPSEEK_MANAGED_CONFIG_PATH`
-- `DEEPSEEK_REQUIREMENTS_PATH`
-- `DEEPSEEK_MAX_SUBAGENTS` (clamped to `1..=20`)
-- `DEEPSEEK_TASKS_DIR` (runtime task queue/artifact storage, default
-  `~/.mimofan/tasks`, with legacy `~/.deepseek/tasks` fallback when only the
-  legacy directory exists)
-- `DEEPSEEK_ALLOW_INSECURE_HTTP` (`1`/`true` allows non-local `http://` base URLs; default is reject)
-- `DEEPSEEK_FORCE_HTTP1` (`1|true|yes|on` pins the HTTP client to HTTP/1.1, disabling HTTP/2; useful on Windows or behind proxies that mishandle long-lived H2 streams)
-- `CODEWHALE_HOME` (override the base data directory; defaults to `~/.mimofan`).
-  If you previously exported `DEEPSEEK_HOME`, rename it to `CODEWHALE_HOME`;
-  the old env var is not used for new mimofan state paths.
-- `CODEWHALE_RELEASE_BASE_URL` (release asset mirror used by `mimofan update`
-  and by TUI startup update checks when `[update].update_uri` is not set, or as
-  a fallback when that configured URI cannot be fetched)
-- `DEEPSEEK_AUTOMATIONS_DIR` (override the automations storage directory; uses
-  `~/.mimofan/automations` by default, with legacy `~/.deepseek/automations`
-  fallback when only the legacy directory exists)
-- `DEEPSEEK_CAPACITY_ENABLED`
-- `DEEPSEEK_CAPACITY_LOW_RISK_MAX`
-- `DEEPSEEK_CAPACITY_MEDIUM_RISK_MAX`
-- `DEEPSEEK_CAPACITY_SEVERE_MIN_SLACK`
-- `DEEPSEEK_CAPACITY_SEVERE_VIOLATION_RATIO`
-- `DEEPSEEK_CAPACITY_REFRESH_COOLDOWN_TURNS`
-- `DEEPSEEK_CAPACITY_REPLAN_COOLDOWN_TURNS`
-- `DEEPSEEK_CAPACITY_MAX_REPLAY_PER_TURN`
-- `DEEPSEEK_CAPACITY_MIN_TURNS_BEFORE_GUARDRAIL`
-- `DEEPSEEK_CAPACITY_PROFILE_WINDOW`
-- `DEEPSEEK_CAPACITY_PRIOR_CHAT`
-- `DEEPSEEK_CAPACITY_PRIOR_REASONER`
-- `DEEPSEEK_CAPACITY_PRIOR_V4_PRO`
-- `DEEPSEEK_CAPACITY_PRIOR_V4_FLASH`
-- `DEEPSEEK_CAPACITY_PRIOR_FALLBACK`
-- `NO_ANIMATIONS` (`1|true|yes|on` forces `low_motion = true` and
-  `fancy_animations = false` at startup, regardless of the saved
-  settings; see [`docs/ACCESSIBILITY.md`](./ACCESSIBILITY.md)).
-- `SSL_CERT_FILE` — corporate-proxy / TLS-inspecting MITM users
-  point this at a PEM bundle (or single DER cert) and the cert(s)
-  get added alongside the platform's system trust store. Failures
-  log a warning and continue — the existing system roots still
-  apply.
+- `SILICONFLOW_API_KEY`
 
-### Instruction sources (`instructions = [...]`, #454)
+完整列表见 `config.example.toml`。
 
-Add a list of additional system-prompt sources that get
-concatenated, in declared order, alongside the auto-loaded
-`AGENTS.md`:
+### 功能变量
+
+| 变量 | 说明 |
+|------|------|
+| `DEEPSEEK_ALLOW_SHELL` | `1` 启用 shell |
+| `DEEPSEEK_APPROVAL_POLICY` | 审批策略 |
+| `DEEPSEEK_MEMORY` | `on` 启用用户记忆 |
+| `DEEPSEEK_LOG_LEVEL` | 日志级别 |
+| `NO_ANIMATIONS` | `1` 禁用动画 |
+
+## 自定义 OpenAI 兼容网关
 
 ```toml
-instructions = [
-    "./AGENTS.md",
-    "~/.mimofan/global.md",
-    "~/team/agents-shared.md",
-]
+provider = "openai"
+default_text_model = "your-model-id"
+
+[providers.openai]
+api_key = "YOUR_KEY"
+base_url = "https://your-gateway.example/v1"
 ```
 
-Rules:
-
-- Paths run through `expand_path` so `~` and env vars work.
-- Each file is capped at 100 KiB; oversized files are
-  truncated with a `[…elided]` marker rather than skipped.
-- Missing files are skipped with a tracing warning so a stale
-  entry doesn't fail the launch.
-- Only user-owned config, profiles, and managed config may set this array.
-  Project config (`<workspace>/.mimofan/config.toml`, or legacy
-  `<workspace>/.deepseek/config.toml`) ignores `instructions` so a cloned repo
-  cannot choose arbitrary local files to place into the prompt.
-
-### `/hooks` listing
-
-Run `/hooks` (or `/hooks list`) inside the TUI to see every
-configured lifecycle hook grouped by event, including each
-hook's name, command preview, timeout, and condition. The
-`[hooks].enabled` flag's state is shown at the top so it's
-obvious when hooks are globally suppressed. Hooks are
-configured under `[[hooks.hooks]]` entries — see the existing
-hook-system documentation for the full schema.
-
-### Mutable `message_submit` hooks
-
-`message_submit` hooks run before a submitted message is added to
-history or sent to the model. Unlike observer-only lifecycle hooks,
-non-background `message_submit` hooks can replace or block the
-submitted text.
+阿里云百炼 / DashScope：
 
 ```toml
-[[hooks.hooks]]
-event = "message_submit"
-command = "~/.mimofan/hooks/inject-context.sh"
-timeout_secs = 2
-continue_on_error = true
+provider = "openai"
+[providers.openai]
+api_key = "YOUR_DASHSCOPE_API_KEY"
+base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+model = "qwen-plus"
 ```
 
-The hook receives JSON on stdin:
+## 设置文件（UI 偏好）
 
-```json
-{
-  "event": "message_submit",
-  "text": "original user text",
-  "session_id": "sess_12345678",
-  "workspace": "/path/to/workspace",
-  "mode": "agent",
-  "model": "deepseek-chat",
-  "total_tokens": 1234
-}
-```
+`~/.mimofan/settings.toml` 存储 UI 偏好：
 
-If the hook exits `0` and prints JSON with a non-empty string `text` field,
-that value replaces the submitted text:
+| 字段 | 说明 | 默认值 |
+|------|------|--------|
+| `theme` | 主题 | `system` |
+| `auto_compact` | 自动压缩上下文 | 模型感知 |
+| `show_thinking` | 显示思考过程 | - |
+| `show_tool_details` | 显示工具详情 | - |
+| `locale` | UI 语言 | `auto` |
+| `default_mode` | 默认模式 | `agent` |
+| `cost_currency` | 货币单位 | `usd` |
 
-```json
-{ "text": "replacement user text" }
-```
-
-Exit `0` with empty stdout, or stdout JSON without `text`, leaves
-the current text unchanged. A JSON `text` field must not be empty;
-`{"text":""}` is treated as invalid stdout and ignored. Exit `2`
-blocks the submission before the turn starts; a `reason` field,
-stderr, or stdout can provide the status message shown in the TUI.
-Other non-zero exits follow the hook's `continue_on_error` setting.
-Timeouts and spawn failures are also surfaced as transient TUI status
-messages when `continue_on_error = true` lets submission continue.
-
-Multiple `message_submit` hooks run in config order, and each hook
-receives the text produced by the previous hook. Hooks marked
-`background = true` are observer-only and cannot transform or block
-the message. Existing environment variables remain available.
-`shell_env` hooks keep their existing `KEY=VALUE` stdout contract;
-JSON stdout contracts exist for `message_submit` (above) and
-`tool_call_before` (below).
-
-### `tool_call_before` decision hooks
-
-`tool_call_before` hooks run before each tool call executes. In
-addition to the legacy hard deny (exit code `2`, which always wins
-regardless of stdout), a foreground hook may print a JSON decision on
-stdout with exit code `0`:
-
-```json
-{
-  "decision": "allow" | "deny" | "ask",
-  "reason": "human-readable explanation (used for deny)",
-  "updatedInput": { "command": "ls -la" },
-  "additionalContext": "text appended to the tool result for the model"
-}
-```
-
-All fields are optional. Empty stdout, non-JSON stdout, and JSON
-without a `decision` field behave exactly as before (allow). An
-unrecognized `decision` string logs a warning and is treated as allow.
-
-- `deny` blocks the tool; the model receives a permission-denied tool
-  result containing `reason`.
-- `ask` forces the interactive approval prompt even for tools that
-  would otherwise auto-run.
-- `updatedInput` must be a JSON object; it replaces the tool input
-  before execution. When several hooks supply it, the last hook wins.
-- `additionalContext` is appended to the tool result sent back to the
-  model as `[hook context] ...`. Multiple hooks' contexts are
-  concatenated.
-
-When multiple hooks match, precedence is deny > ask > allow. Hooks
-marked `background = true` cannot steer tool calls — they exit
-immediately without a captured result.
-
-Example deny hook:
+## 生命周期钩子
 
 ```toml
 [[hooks.hooks]]
 event = "tool_call_before"
-command = '''echo '{"decision":"deny","reason":"blocked by project policy"}' '''
+command = "~/.mimofan/hooks/check.sh"
 condition = { type = "tool_name", name = "exec_shell" }
 ```
 
-Example ask hook (force approval for every MCP tool):
-
-```toml
-[[hooks.hooks]]
-event = "tool_call_before"
-command = '''echo '{"decision":"ask"}' '''
-condition = { type = "tool_name", name = "mcp__*" }
-```
-
-Example input rewrite:
-
-```toml
-[[hooks.hooks]]
-event = "tool_call_before"
-command = "~/.mimofan/hooks/clamp-shell-timeout.sh"
-condition = { type = "tool_name", name = "exec_shell" }
-```
-
-where the script reads the hook context, then prints
-`{"updatedInput": {...}}` with the adjusted arguments.
-
-`tool_name` conditions support `*` globs: `mcp__*` matches every MCP
-tool (e.g. `mcp__github__create_issue`) but not built-ins like
-`read_file`; exact names keep matching exactly. Other regex
-metacharacters in the pattern are matched literally.
-
-### Project-local hooks
-
-Repositories can ship policy in `<workspace>/.mimofan/hooks.toml`,
-using the same shape as the `[hooks]` table (top-level fields plus
-`[[hooks]]` entries). Project hooks are executable shell
-configuration, so mimofan only loads them after the workspace has
-been trusted in user-owned config through the trust prompt or a
-`[projects."<workspace>"] trust_level = "trusted"` entry. Session
-`/trust on` mode does not enable repo-supplied hooks by itself, and
-repo-local legacy markers such as `.deepseek/trusted` do not enable
-project hooks. Once trusted, project hooks are appended after global
-hooks from `config.toml`, so they run last and, for `updatedInput`,
-win ties. A malformed trusted project file logs a warning and startup
-falls back to global hooks only.
-
-```toml
-# .mimofan/hooks.toml
-[[hooks]]
-event = "tool_call_before"
-command = '''echo '{"decision":"deny","reason":"no shell in this repo"}' '''
-condition = { type = "tool_name", name = "exec_shell" }
-```
-
-### Turn-end observer hooks
-
-`turn_end` hooks observe the end of each model turn after post-turn
-state, usage totals, cost accounting, notifications, receipts, and
-queue recovery have been updated. They receive JSON on stdin and are
-observer-only: stdout is ignored, failures are logged as warnings, and
-the hook cannot block user input, mutate the transcript, or change the
-next queued follow-up.
-
-```toml
-[[hooks.hooks]]
-event = "turn_end"
-command = "~/.mimofan/hooks/turn-audit.sh"
-timeout_secs = 2
-continue_on_error = true
-```
-
-The payload includes common hook metadata plus post-turn accounting:
-
-```json
-{
-  "event": "turn_end",
-  "session_id": "sess_12345678",
-  "workspace": "/path/to/workspace",
-  "mode": "agent",
-  "model": "deepseek-chat",
-  "turn_id": "turn_12345678",
-  "status": "completed",
-  "error": null,
-  "duration_ms": 1834,
-  "usage": {
-    "input_tokens": 1200,
-    "output_tokens": 180,
-    "prompt_cache_hit_tokens": 900,
-    "prompt_cache_miss_tokens": 300,
-    "reasoning_tokens": null,
-    "reasoning_replay_tokens": null
-  },
-  "totals": {
-    "session_tokens": 1380,
-    "conversation_tokens": 1380,
-    "input_tokens": 1200,
-    "output_tokens": 180
-  },
-  "tool_count": 2,
-  "queued_message_count": 1,
-  "stop_hook_active": false
-}
-```
-
-For `interrupted` or `failed` turns, `status` reflects that terminal
-state and `error` carries the engine error string when one is available.
-`stop_hook_active` is reserved for future re-entry protection and is
-currently always `false`.
-
-### Sub-agent lifecycle hooks
-
-`subagent_spawn` and `subagent_complete` hooks observe sub-agent lifecycle
-events. They receive bounded JSON metadata on stdin and are observer-only:
-hook failures are logged as warnings and do not block sub-agent scheduling,
-change prompts, or change results. For these observer events,
-`continue_on_error` has no effect: later matching hooks still run even when an
-earlier hook exits non-zero.
-
-```toml
-[[hooks.hooks]]
-event = "subagent_complete"
-command = "~/.mimofan/hooks/subagent-audit.sh"
-timeout_secs = 2
-continue_on_error = true
-```
-
-`subagent_spawn` receives:
-
-```json
-{
-  "event": "subagent_spawn",
-  "agent_id": "agent_12345678",
-  "session_id": "sess_12345678",
-  "workspace": "/path/to/workspace",
-  "mode": "agent",
-  "model": "deepseek-chat",
-  "total_tokens": 1234,
-  "prompt_preview": "bounded prompt preview",
-  "prompt_truncated": false
-}
-```
-
-`subagent_complete` receives the same common fields plus terminal metadata:
-
-```json
-{
-  "event": "subagent_complete",
-  "agent_id": "agent_12345678",
-  "session_id": "sess_12345678",
-  "workspace": "/path/to/workspace",
-  "mode": "agent",
-  "model": "deepseek-chat",
-  "total_tokens": 1234,
-  "status": "completed",
-  "result_preview": "bounded result preview",
-  "result_truncated": false
-}
-```
-
-Previews are capped before delivery so lifecycle hooks do not receive full
-sub-agent prompts, transcripts, or unbounded results. Use the transcript handle
-returned by `agent` when full sub-agent details are needed.
-
-### Composer stash (`/stash`, Ctrl+S)
-
-Press **Ctrl+S** in the composer to park the current draft to
-`~/.mimofan/composer_stash.jsonl`. `/stash list` shows parked
-drafts with one-line previews and timestamps; `/stash pop`
-restores the most recently parked draft (LIFO); `/stash clear`
-wipes the file. Capped at 200 entries; multiline drafts
-round-trip intact. When a turn is already running and queued follow-ups exist,
-the pending-input preview advertises **Ctrl+S send now**; in that state Ctrl+S
-sends the next queued follow-up into the active turn instead of stashing.
-
-## Settings File (Persistent UI Preferences)
-
-mimofan also stores user preferences in:
-
-- `~/.mimofan/settings.toml` on new installs
-- `~/.deepseek/settings.toml` or the legacy platform config-dir
-  `deepseek/settings.toml` when an existing settings file is present
-
-Notable settings include `auto_compact`, which uses a model-aware default-on
-policy for known context windows up to the 1M-token V4 class. Automatic
-compaction runs before the active model limit and carries the compacted summary
-forward into the next request. The trigger defaults to
-`auto_compact_threshold_percent = 80`. Users who prefer manual continuity can
-persist `auto_compact = false`; manual `/compact` / Ctrl+L remains available.
-You can inspect or update these from the TUI with `/settings` and `/config`
-(interactive editor).
-
-Common settings keys:
-
-- `theme` (`system`, `dark`, `light`, `grayscale`, `catppuccin-mocha`,
-  `tokyo-night`, `dracula`, `gruvbox-dark`; default `system`): `system`
-  follows terminal background detection, `dark`/`light` use the DeepSeek
-  palettes, `grayscale` is the low-opinion black/white theme, and the named
-  community presets apply across the TUI. Aliases such as `whale`, `mono`,
-  `black-white`, `tokyonight`, and `gruvbox` are accepted.
-- `auto_compact` (on/off, model-aware default on for known context windows
-  unless explicitly configured)
-- `auto_compact_threshold_percent` (10-100, default `80`): pre-send
-  auto-compaction threshold used only when `auto_compact` is enabled.
-- `paste_burst_detection` (on/off, default on): fallback rapid-key paste
-  detection for terminals that do not emit bracketed-paste events. This is
-  independent of terminal bracketed-paste mode.
-- `mention_menu_limit` (integer, default `128`): maximum number of
-  `@`-mention popup candidates retained before the composer renders the
-  visible window. The visible rows still depend on terminal height.
-- `mention_walk_depth` (integer, default `6`): maximum workspace depth for
-  `@`-mention completion walks. Set to `0` for unlimited depth in deeply
-  nested workspaces; keep the default in very large repos unless needed.
-- `mention_menu_behavior` (`fuzzy`, `browser`; default `fuzzy`): controls how
-  `@`-mention completions are populated. `fuzzy` searches the workspace and
-  applies mention frecency. `browser` lists only the immediate children of the
-  currently typed directory segment in deterministic alphabetical order.
-- `show_thinking` (on/off)
-- `show_tool_details` (on/off)
-- `locale` (`auto`, `en`, `ja`, `zh-Hans`, `pt-BR`; default `auto`): UI chrome
-  locale. `auto` checks `LC_ALL`, `LC_MESSAGES`, then `LANG`; unsupported or
-  missing locales fall back to English. The runtime also exposes the resolved
-  locale in the system prompt as the fallback natural language for V4 reasoning
-  and replies when the latest user message is ambiguous. Clear user language
-  still takes priority; Chinese turns should produce Chinese `reasoning_content`
-  and Chinese final replies even when the resolved locale is English.
-- `background_color` (`#RRGGBB`, `RRGGBB`, or `default`): optional main TUI
-  background color applied to the root, header, transcript, and footer
-  surfaces while preserving panel contrast.
-- `cost_currency` (`usd`, `cny`; default `usd`): currency used by the footer,
-  context panel, `/cost`, `/tokens`, and long-turn notification summaries. The
-  aliases `rmb` and `yuan` normalize to `cny`.
-- `default_mode` (agent, plan, yolo; legacy `normal` is accepted and normalized to `agent`)
-- `sidebar_focus` (`pinned`, `auto`, `tasks`, `agents`, `context`, `hidden`; default
-  `pinned`): selects the right sidebar focus. `pinned` keeps the right sidebar
-  visible when the terminal is wide enough and composes Work, Tasks, Agents,
-  and optional Context as they have live content. `auto` uses the same composed
-  panels but collapses while idle. Saving
-  `/sidebar auto --save` records an explicit auto-collapse opt-in so upgraded
-  settings files that only captured the old default can migrate back to `pinned`.
-  `hidden` disables the right sidebar entirely so raw terminal selection cannot
-  cross from the transcript into sidebar borders. Legacy `plan` and `todos`
-  values, plus the old `work` name, are accepted and normalized to `pinned`.
-- `max_history` (number of submitted input history entries; cleared drafts are
-  also kept locally for composer history search)
-- `default_model` (model name override)
-
-Only `agent`, `plan`, and `yolo` are visible modes in the UI. Switch between
-them with `/mode`. For compatibility, older settings files with
-`default_mode = "normal"` still load as `agent`.
-
-Localization scope is tracked in [LOCALIZATION.md](LOCALIZATION.md). The v0.7.6
-core pack covers high-visibility TUI chrome only; provider/tool schemas,
-personality prompts, and full documentation remain English unless explicitly
-translated later.
-
-Readability semantics:
-
-- Selection uses a unified style across transcript, composer menus, and modals.
-- Footer hints use a dedicated semantic role (`FOOTER_HINT`) so hint text stays readable across themes.
-
-### Token Quantities and Drivers
-
-DeepSeek V4 prefix caching makes token labels matter. These quantities are kept
-separate:
-
-| Quantity | Meaning | Allowed to drive |
-|---|---|---|
-| Active request input estimate | Conservative estimate of the next request's live system prompt and transcript payload. | Header/footer context percent, auto-compaction trigger, opt-in Flash seam trigger, and emergency overflow preflight. |
-| Reserved response headroom | The internal turn budget plus safety headroom. v0.8.16 keeps normal turns at `262144` reserved output tokens and adds `1024` safety tokens for context-window checks, even though V4 capability metadata reports the official `384000` max output. | Emergency overflow budget checks only. |
-| Cumulative API usage | Provider-reported input plus output tokens summed across completed API calls; multi-tool turns may count the same stable prefix more than once. | Session usage and approximate cost telemetry only. |
-| Prompt cache hit/miss | Provider cache telemetry for the most recent call when available. | Cache-hit display and cost estimation only; never compaction or seam triggers. |
-| Context percent | Active request input estimate divided by the model context window. | Display only; it mirrors the active-input basis used by context safeguards. |
-| Cost estimate | Approximate spend from provider usage and configured DeepSeek rates. | Display only. |
-
-For known context-window models, including 1M-class V4 models, replacement
-compaction is enabled by default unless the user explicitly configures
-`auto_compact = false`. It fires at the active model's compaction threshold and
-replays the generated summary through the stable system prompt on the next
-request. Unknown model ids remain opt-in. The Flash seam manager remains opt-in
-(`[context].enabled = false`), and the capacity controller remains disabled
-unless configured.
-
-### Command Migration Notes
-
-If you are upgrading from older releases:
-
-- Old: `/mimofan`
-  New: `/links` (aliases: `/dashboard`, `/api`)
-- Old: `/set model deepseek-reasoner`
-  New: `/config` and edit the `model` row to `deepseek-v4-pro` or `deepseek-v4-flash`
-- Old: visible `Normal` mode or `default_mode = "normal"`
-  New: use `Agent` / `default_mode = "agent"`; legacy `normal` still maps to `agent`
-- Old: discover `/set` in slash UX/help
-  New: use `/config` for editing and `/settings` for read-only inspection
-
-## Key Reference
-
-### Core keys (used by the TUI/engine)
-
-- `provider` (string, optional): `deepseek` (default), `deepseek-anthropic`, `nvidia-nim`, `openai`, `atlascloud`, `wanjie-ark`, `volcengine`, `openrouter`, `xiaomi-mimo`, `novita`, `fireworks`, `siliconflow`, `arcee`, `siliconflow-CN`, `moonshot`, `sglang`, `vllm`, `ollama`, `huggingface`, `together`, `qianfan`, `openai-codex`, `anthropic`, `zai`, `stepfun`, `minimax`, or `deepinfra`. Legacy `deepseek-cn` configs are still accepted as an alias for `deepseek`; DeepSeek uses the same official host [`https://api.deepseek.com`](https://api-docs.deepseek.com/) worldwide. `deepseek-anthropic` targets DeepSeek's Anthropic Messages-compatible endpoint at `https://api.deepseek.com/anthropic` using `DEEPSEEK_API_KEY`; `nvidia-nim` targets NVIDIA's NIM-hosted DeepSeek endpoints through `https://integrate.api.nvidia.com/v1`; `openai` targets a generic OpenAI-compatible endpoint, defaulting to `https://api.openai.com/v1`; `atlascloud` targets AtlasCloud's OpenAI-compatible endpoint at `https://api.atlascloud.ai/v1`; `wanjie-ark` targets Wanjie Ark's OpenAI-compatible endpoint at `https://maas-openapi.wanjiedata.com/api/v1`; `volcengine` targets Volcengine Ark's OpenAI-compatible coding endpoint at `https://ark.cn-beijing.volces.com/api/coding/v3`; `openrouter` targets `https://openrouter.ai/api/v1`; `xiaomi-mimo` targets Xiaomi MiMo's OpenAI-compatible endpoint, using `https://token-plan-sgp.xiaomimimo.com/v1` by default for Token Plan keys (`tp-...`) and `https://api.xiaomimimo.com/v1` for pay-as-you-go keys; set `base_url` explicitly if your Token Plan account uses the China region; `novita` targets `https://api.novita.ai/openai/v1`; `fireworks` targets `https://api.fireworks.ai/inference/v1`; `siliconflow` targets SiliconFlow, defaulting to `https://api.siliconflow.com/v1`; `arcee` targets Arcee AI's OpenAI-compatible endpoint at `https://api.arcee.ai/api/v1`; `siliconflow-CN` targets the SiliconFlow China regional endpoint through `[providers.siliconflow_cn]`; `moonshot` targets Moonshot/Kimi, defaulting to `https://api.moonshot.ai/v1`; `sglang` targets a self-hosted OpenAI-compatible endpoint, defaulting to `http://localhost:30000/v1`; `vllm` targets a self-hosted vLLM OpenAI-compatible endpoint, defaulting to `http://localhost:8000/v1`; `ollama` targets Ollama's OpenAI-compatible endpoint, defaulting to `http://localhost:11434/v1`; `huggingface` targets Hugging Face Inference Providers at `https://router.huggingface.co/v1`; `together` targets Together AI at `https://api.together.xyz/v1`; `qianfan` targets Baidu Qianfan at `https://api.baiduqianfan.ai/v1`; `openai-codex` targets ChatGPT/Codex OAuth; `anthropic` targets Claude's native Messages API; `zai` targets Z.ai at `https://api.z.ai/api/coding/paas/v4`; `stepfun` targets StepFun at `https://api.stepfun.ai/v1`; `minimax` targets MiniMax at `https://api.minimax.io/v1`; `deepinfra` targets DeepInfra at `https://api.deepinfra.com/v1/openai`.
-- `api_key` (string, required for hosted providers): must be non-empty for DeepSeek/hosted providers (or set the provider API key env var). Self-hosted SGLang, vLLM, and Ollama can omit it.
-- `base_url` (string, optional): defaults to `https://api.deepseek.com/beta` for DeepSeek's OpenAI-compatible Chat Completions API, including legacy `provider = "deepseek-cn"` configs. Other defaults are `https://api.deepseek.com/anthropic` for `deepseek-anthropic`, `https://integrate.api.nvidia.com/v1` for `nvidia-nim`, `https://api.openai.com/v1` for `openai`, `https://api.atlascloud.ai/v1` for `atlascloud`, `https://maas-openapi.wanjiedata.com/api/v1` for `wanjie-ark`, `https://ark.cn-beijing.volces.com/api/coding/v3` for `volcengine`, `https://openrouter.ai/api/v1` for `openrouter`, `https://token-plan-sgp.xiaomimimo.com/v1` for `xiaomi-mimo` when the API key starts with `tp-...` and `https://api.xiaomimimo.com/v1` otherwise, `https://api.novita.ai/openai/v1` for `novita`, `https://api.fireworks.ai/inference/v1` for `fireworks`, `https://api.siliconflow.com/v1` for `siliconflow`, `https://api.siliconflow.cn/v1` for `siliconflow-CN`, `https://api.arcee.ai/api/v1` for `arcee`, `https://api.moonshot.ai/v1` for `moonshot`, `https://api.minimax.io/v1` for `minimax`, `https://api.z.ai/api/coding/paas/v4` for `zai`, `https://api.stepfun.ai/v1` for `stepfun`, `https://api.deepinfra.com/v1/openai` for `deepinfra`, `https://router.huggingface.co/v1` for `huggingface`, `https://api.together.xyz/v1` for `together`, `https://api.baiduqianfan.ai/v1` for `qianfan`, `https://chatgpt.com/backend-api` for `openai-codex`, `https://api.anthropic.com` for `anthropic`, `http://localhost:30000/v1` for `sglang`, `http://localhost:8000/v1` for `vllm`, and `http://localhost:11434/v1` for `ollama`. Set `base_url = "https://token-plan-cn.xiaomimimo.com/v1"` explicitly if your Xiaomi MiMo Token Plan account is provisioned in the China region. Set `https://api.deepseek.com` or `https://api.deepseek.com/v1` explicitly to opt out of DeepSeek beta features.
-- `path_suffix` (string, optional provider-table key): override the chat-completions path for OpenAI-compatible gateways that do not serve `/v1/chat/completions`. For example, `[providers.openai] path_suffix = "/chat/completions"` sends chat requests to the unversioned base URL plus `/chat/completions`; `models` and `beta/*` requests keep their normal routing.
-- `reasoning_stream_style` (string, optional provider-table key): override how streaming reasoning is separated from answer text for the active provider route. Use `separate_field` for `reasoning_content` / `reasoning` deltas, `inline_tags` for gateways that stream `<think>...</think>` inside `delta.content`, or `none` to render incoming content exactly as answer text.
-- `[providers.<name>.auth]` (table, optional): provider-scoped auth source metadata. `source = "command"` stores a command argv plus optional `timeout_ms`; `source = "secret"` stores a `secret_id`. This slice lets provider readiness, `/provider`, and doctor JSON report the auth source class without exposing command argv output or secret values; executing commands and resolving external secret material is handled by the follow-up resolver work.
-- `insecure_skip_tls_verify` (bool, optional provider-table key): legacy compatibility key, disabled by default. When true on the active provider table, provider clients reject the configuration instead of skipping TLS certificate verification. Use `SSL_CERT_FILE` for corporate or private CA bundles; `mimofan doctor` reports stale uses of this setting.
-- `default_text_model` (string, optional): defaults to `deepseek-v4-pro` for DeepSeek, `deepseek-anthropic`, and generic OpenAI-compatible endpoints, `deepseek-ai/deepseek-v4-pro` for NVIDIA NIM, `deepseek-ai/deepseek-v4-flash` for AtlasCloud, `deepseek-reasoner` for Wanjie Ark, `DeepSeek-V4-Pro` for Volcengine Ark, `deepseek/deepseek-v4-pro` for OpenRouter and Novita, `mimo-v2.5-pro` for Xiaomi MiMo, `accounts/fireworks/models/deepseek-v4-pro` for Fireworks, `deepseek-ai/DeepSeek-V4-Pro` for SiliconFlow and DeepInfra, `trinity-large-thinking` for Arcee AI, `kimi-k2.7-code` for Moonshot, `MiniMax-M3` for MiniMax, `GLM-5.2` for Z.ai, `step-3.7-flash` for StepFun, `ernie-4.0-turbo-8k` for Qianfan, `deepseek-ai/DeepSeek-V4-Pro` for SGLang/vLLM, and `deepseek-coder:1.3b` for Ollama. Hugging Face and Together AI both default to `deepseek-ai/DeepSeek-V4-Pro`; `openai-codex` defaults to `gpt-5.5`; `anthropic` defaults to `claude-sonnet-4-6`. Current public DeepSeek IDs are `deepseek-v4-pro` and `deepseek-v4-flash`, both with 1M context windows, 384K max output, and thinking mode enabled by default. Legacy `deepseek-chat` and `deepseek-reasoner` remain compatibility aliases for `deepseek-v4-flash` until July 24, 2026, except SiliconFlow maps `deepseek-reasoner` and `deepseek-r1` to its Pro model while `deepseek-chat` and `deepseek-v3` map to Flash. Provider-specific mappings translate `deepseek-v4-pro` / `deepseek-v4-flash` to each provider's model ID where supported. OpenRouter also recognizes recent large IDs such as `arcee-ai/trinity-large-thinking`, `minimax/minimax-m3`, `minimax/minimax-m2.7`, `xiaomi/mimo-v2.5-pro`, `qwen/qwen3.6-flash`, `qwen/qwen3.6-35b-a3b`, `qwen/qwen3.6-max-preview`, `qwen/qwen3.6-27b`, `qwen/qwen3.6-plus`, `qwen/qwen3.7-max`, `google/gemma-4-31b-it`, `moonshotai/kimi-k2.7-code`, `moonshotai/kimi-k2.6`, `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`, and `nvidia/nemotron-3-ultra-550b-a55b`; direct Arcee uses bare IDs such as `trinity-large-thinking` and `trinity-large-preview`; direct Moonshot recognizes `kimi-k2.7-code`, `kimi-k2.6`, and Kimi Code's stable `kimi-for-coding`; direct MiniMax recognizes `MiniMax-M3` and the documented M2.x chat model IDs; direct Xiaomi MiMo recognizes chat IDs `mimo-v2.5-pro` and `mimo-v2.5`, while TTS IDs are selected through `mimofan speech` / `tts`. Generic `openai`, `atlascloud`, `wanjie-ark`, `xiaomi-mimo`, `arcee`, `moonshot`, `minimax`, `zai`, `stepfun`, `qianfan`, and Ollama model IDs are passed through unchanged after known aliases are normalized. OpenRouter and SiliconFlow provider configs with a custom `base_url` also preserve explicit model values, which lets OpenAI-compatible gateways accept bare model IDs. Use `/models` or `mimofan models` to discover live IDs from your configured endpoint. `CODEWHALE_MODEL` overrides this for a single process; `DEEPSEEK_MODEL` is the legacy alias.
-- `reasoning_effort` (string, optional): `off`, `low`, `medium`, `high`, `max`, `xhigh`, or `ultracode`; defaults to the configured UI tier. DeepSeek Platform receives top-level `thinking` / `reasoning_effort` fields. OpenAI Codex normalizes stale `off` to `low` and sends `max` / `ultracode` as Responses `xhigh`. Z.ai receives documented `thinking` controls and treats enabled thinking as the GLM coding high/max lane. NVIDIA NIM receives equivalent settings through `chat_template_kwargs`.
-- `verbosity` (string, optional): `normal` or `concise`. `normal` keeps the
-  default conversational prompt. `concise` appends a prompt discipline block
-  for direct, low-chatter output; CLI noninteractive commands (`exec` and
-  `eval`) default to `concise` unless config/env/CLI overrides it.
-  Override per process with `CODEWHALE_VERBOSITY` or the legacy
-  `DEEPSEEK_VERBOSITY` alias.
-- `allow_shell` (bool, optional): defaults to `false`; shell tools must be explicitly enabled.
-- `approval_policy` (string, optional): `on-request`, `untrusted`, or `never`. Runtime `approval_mode` editing in `/config` also accepts `on-request` and `untrusted` aliases.
-- `sandbox_mode` (string, optional): `read-only`, `workspace-write`, `danger-full-access`, `external-sandbox`.
-  Platform support is not identical. macOS uses Seatbelt for policy
-  enforcement. Linux support is helper-gated around Landlock. Windows does not
-  currently advertise an OS sandbox; the planned Windows helper contract starts
-  with process-tree containment only and must not be described as read-only
-  filesystem isolation, workspace-write enforcement, network blocking,
-  registry isolation, or AppContainer isolation until those are implemented.
-- `permissions.toml` (sibling file, optional): ask-only typed permission rule
-  records loaded next to `config.toml`, for example
-  `~/.mimofan/permissions.toml`. This schema foundation accepts
-  `[[rules]]` entries with `tool` plus optional `command` or `path` fields.
-  Loaded rules feed the execution policy engine and force approval in approval
-  modes that can ask; under `approval_policy = "never"`, matching ask rules are
-  rejected because no prompt can be shown. In an `exec_shell` approval card,
-  press `S` to approve the request once and save an ask rule containing that
-  command to this file. Only `exec_shell` cards support this shortcut; saved
-  command rules use existing arity-aware prefix matching. File-path ask rules
-  can be added manually and are matched at runtime, but the approval UI does
-  not save file rules yet. This intentionally does not accept typed allow/deny
-  records or glob expansion.
-- `[auto_review]` (table, optional): deterministic tool-call review policy.
-  This layer sits on top of existing approval modes; it can force a prompt or
-  block a tool call, but it is not an auto-push, auto-merge, or hosted review
-  service. Block rules are checked first, then the built-in safety floor, then
-  allow rules. The safety floor still holds publish-like actions and
-  destructive background/headless actions for review even if an allow rule
-  matches.
-
-  ```toml
-  [auto_review]
-  natural_language_guidance = "Prefer read-only inspection until the user asks for writes."
-
-  [[auto_review.allow]]
-  id = "read-only-inspection"
-  action_kind = "read"
-  reason = "Read-only inspection is safe to run automatically."
-
-  [[auto_review.block]]
-  id = "no-release-publish"
-  action_kind = "publish"
-  reason = "Release and publish actions require maintainer review."
-  ```
-
-  Rule matchers are exact `tool`, `action_kind`, and/or
-  `text_contains` against the current user intent. At least one matcher is
-  required. `action_kind` accepts `read`, `write`, `shell`, `network`, `git`,
-  `mcp_read`, `mcp_action`, `browser`, `secret`, `publish`, `destructive`, or
-  `unknown`; invalid names fail config validation instead of becoming broad
-  rules. `natural_language_guidance` is recorded on the runtime policy and audit
-  event, but deterministic rules and the built-in safety floor are the enforced
-  behavior in v0.8.65.
-
-  Auto-review decisions emit `tool.auto_review_decision` audit events when tool
-  audit logging is enabled. Future PreToolUse/PostToolUse hooks can add
-  observer input around this layer, but the configured auto-review policy is
-  evaluated before a tool call is allowed to proceed.
-- `managed_config_path` (string, optional): managed config file loaded after user/env config.
-- `requirements_path` (string, optional): requirements file used to enforce allowed approval/sandbox values.
-- `max_subagents` (int, optional): defaults to `20` and is clamped to `1..=20`.
-- `subagents.*` (optional): per-role/type model defaults for `agent`.
-  Explicit tool `model` values win, then role/type
-  overrides, then the parent runtime model. Supported convenience keys are
-  `default_model`, `worker_model`, `explorer_model`, `awaiter_model`,
-  `review_model`, `custom_model`, `max_concurrent`, `max_admitted`,
-  `launch_concurrency`, `token_budget`, `api_timeout_secs`, and
-  `heartbeat_timeout_secs`. The `[subagents] max_concurrent` value overrides
-  top-level `max_subagents` and is also clamped to `1..=20`. `[subagents]
-  max_admitted` (aliases: `max_total`, `admission_limit`) is the bounded total
-  of queued plus running sub-agents; it defaults to `200` so high-fanout turns
-  can queue and drain while runtime launch pressure remains bounded, and is
-  clamped to `max_concurrent..=200`. `[subagents]
-  launch_concurrency` sets how many direct children start at once before the
-  rest queue for a launch slot; it defaults to the resolved `max_subagents` cap
-  and is clamped to `1..=max_subagents` (the deprecated
-  `interactive_max_launch` key is accepted as an alias, with the new key
-  winning when both are set). `[subagents] token_budget` is an optional
-  aggregate token ceiling for each root `agent` run and its descendants; unset
-  or `0` preserves unlimited legacy behavior. `[subagents] api_timeout_secs`
-  controls the per-step API timeout for sub-agent model calls and is clamped to
-  `1..=1800`, with `0` or unset preserving the legacy 120 second default.
-  `[subagents] heartbeat_timeout_secs` controls stale running agent cleanup,
-  defaults to `300`, and is clamped to `30..=3600` while staying above the
-  resolved API timeout. `[subagents.providers.<provider>]` accepts the same
-  fanout, depth, budget, and timeout knobs (`enabled`, `max_concurrent`,
-  `max_admitted`, `launch_concurrency`, `max_depth`, `token_budget`,
-  `api_timeout_secs`, `heartbeat_timeout_secs`) and inherits the global
-  `[subagents]` value for any key you omit. Provider keys accept canonical
-  names such as `deepseek`, `zai`, `openrouter`, `anthropic`, plus convenience
-  aliases such as `glm` for Z.ai and `deepseek_api` for direct DeepSeek:
-
-  ```toml
-  [subagents]
-  max_concurrent = 20
-  launch_concurrency = 20
-  max_admitted = 200
-  max_depth = 6
-
-  [subagents.providers.deepseek]
-  max_concurrent = 20
-  launch_concurrency = 20
-  max_admitted = 200
-
-  [subagents.providers.glm]
-  max_concurrent = 4
-  launch_concurrency = 3
-  max_admitted = 12
-  max_depth = 2
-
-  [subagents.providers.openrouter]
-  max_concurrent = 5
-  launch_concurrency = 3
-  max_admitted = 20
-  ```
-
-  `/config subagents status` prints both global values and the active
-  provider's resolved profile so rate-limit tuning is visible in the TUI.
-  `[subagents.models]` accepts lower-case role or type keys such as `worker`,
-  `explorer`, `general`, `explore`, `plan`, and `review`. Values are validated
-  against the active provider at spawn time; direct DeepSeek requires DeepSeek
-  IDs, while OpenAI-compatible/custom provider routes pass explicit model IDs
-  through to that provider.
-- `skills_dir` (string, optional): defaults to `~/.mimofan/skills` (each skill is
-  a directory containing `SKILL.md`). Workspace-local `.agents/skills` or
-  `./skills` are preferred when present; the runtime also discovers global
-  agentskills.io-compatible `~/.agents/skills` and the broader Claude-ecosystem
-  `~/.claude/skills`. First launch installs versioned bundled skills for common
-  workflows including skill creation, delegation, MCP/plugin scaffolding,
-  documents, presentations, spreadsheets, PDFs, and Feishu/Lark. See
-  [CLAUDE_PLUGIN_COMPAT.md](CLAUDE_PLUGIN_COMPAT.md) for the supported boundary
-  between portable `SKILL.md` bundles and Claude Code plugin runtimes.
-- `[skills].scan_mimofan_only` (bool, default `false`): when `true`, session
-  skill discovery ignores cross-tool roots such as `.claude/skills`,
-  `.opencode/skills`, `.cursor/skills`, and `~/.agents/skills`. mimofan still
-  scans `<workspace>/.mimofan/skills`, `~/.mimofan/skills`, and any explicit
-  `skills_dir` override.
-- `mcp_config_path` (string, optional): defaults to `~/.mimofan/mcp.json`, with
-  legacy `~/.deepseek/mcp.json` fallback when the mimofan path is absent.
-  It is visible in `/config` and can be changed from the TUI. The new path is
-  used immediately by `/mcp`, but rebuilding the model-visible MCP tool pool
-  requires restarting the TUI.
-- `notes_path` (string, optional): defaults to `~/.mimofan/notes.txt`, with
-  legacy `~/.deepseek/notes.txt` fallback when the mimofan path is absent, and
-  is used by the model-visible `note` tool.
-- `[memory].enabled` (bool, optional): defaults to `false`. When `true`,
-  the TUI loads the user memory file into a `<user_memory>` prompt block,
-  enables `# foo` quick-capture in the composer, surfaces the `/memory`
-  slash command, and registers the `remember` tool. The same toggle is
-  available via `DEEPSEEK_MEMORY=on`.
-- `memory_path` (string, optional): defaults to `~/.mimofan/memory.md`, with
-  legacy `~/.deepseek/memory.md` fallback when the mimofan path is absent.
-  Used by the user-memory feature when enabled — see
-  [`MEMORY.md`](MEMORY.md) for the full feature surface (`# foo`
-  composer prefix, `/memory` slash command, `remember` tool, opt-in
-  toggle).
-- `snapshots.*` (optional): side-git workspace snapshots for file rollback:
-  - `[snapshots].enabled` (bool, default `true`)
-  - `[snapshots].max_age_days` (int, default `7`)
-  - snapshots live under
-    `~/.mimofan/snapshots/<project_hash>/<worktree_hash>/.git`, with legacy
-    `~/.deepseek/snapshots/...` fallback when only the legacy state exists, and
-    never use the workspace's own `.git` directory
-- `context.*` (optional): append-only Fin seam manager, currently opt-in.
-  Fin is the fast `deepseek-v4-flash` path with thinking off used for
-  coordination work such as routing, summaries, and context maintenance.
-  Thresholds use the active request input estimate, not lifetime summed API
-  usage:
-  - `[context].enabled` (bool, default `false`)
-  - `[context].verbatim_window_turns` (int, default `16`)
-  - `[context].l1_threshold` (int, default `192000`)
-  - `[context].l2_threshold` (int, default `384000`)
-  - `[context].l3_threshold` (int, default `576000`)
-  - `[context].seam_model` (string, default `deepseek-v4-flash`)
-- `retry.*` (optional): retry/backoff settings for API requests:
-  - `[retry].enabled` (bool, default `true`)
-  - `[retry].max_retries` (int, default `3`)
-  - `[retry].initial_delay` (float seconds, default `1.0`)
-  - `[retry].max_delay` (float seconds, default `60.0`)
-  - `[retry].exponential_base` (float, default `2.0`)
-- `capacity.*` (optional): runtime context-capacity controller. This is opt-in
-  because its active interventions can rewrite the live transcript.
-  - `[capacity].enabled` (bool, default `false`)
-  - `[capacity].low_risk_max` (float, default `0.50`)
-  - `[capacity].medium_risk_max` (float, default `0.62`)
-  - `[capacity].severe_min_slack` (float, default `-0.25`)
-  - `[capacity].severe_violation_ratio` (float, default `0.40`)
-  - `[capacity].refresh_cooldown_turns` (int, default `6`)
-  - `[capacity].replan_cooldown_turns` (int, default `5`)
-  - `[capacity].max_replay_per_turn` (int, default `1`)
-  - `[capacity].min_turns_before_guardrail` (int, default `4`)
-  - `[capacity].profile_window` (int, default `8`)
-  - `[capacity].deepseek_v3_2_chat_prior` (float, default `3.9`)
-  - `[capacity].deepseek_v3_2_reasoner_prior` (float, default `4.1`)
-  - `[capacity].deepseek_v4_pro_prior` (float, default `3.5`)
-  - `[capacity].deepseek_v4_flash_prior` (float, default `4.2`)
-  - `[capacity].fallback_default_prior` (float, default `3.8`)
-- `[notifications].method` (string, optional): `auto`, `osc9`, `bel`, or
-  `off`. Defaults to `auto`. The TUI fires this on completed (successful)
-  turns whose elapsed time meets `threshold_secs`; failed and cancelled
-  turns are silent. `auto` resolves to `osc9` for `iTerm.app`, `Ghostty`,
-  and `WezTerm` (detected via `$TERM_PROGRAM`). Otherwise the fallback is
-  `bel`; on Windows the BEL path is routed through `MessageBeep(MB_OK)`.
-- `[notifications].threshold_secs` (int, optional): defaults to `30`.
-  Only completed turns whose elapsed time meets or exceeds this fire a
-  notification.
-- `[notifications].include_summary` (bool, optional): defaults to
-  `false`. When `true`, the notification body includes the elapsed
-  duration and the turn's cost in the configured display currency.
-- `[notifications].completion_sound` (string, optional): `off`, `beep`,
-  `bell`, or `file`. Defaults to `beep`. `file` plays the WAV path from
-  `[notifications].sound_file` on Windows.
-- `[notifications].sound_file` (path, optional): path to a custom WAV file
-  used when `completion_sound = "file"`.
-- `tui.alternate_screen` (string, optional): `auto`, `always`, or `never`. This is retained for config compatibility, but interactive sessions now always use the TUI-owned alternate screen so host terminal scrollback cannot hijack the viewport.
-- `tui.mouse_capture` (bool, optional, default `true` on non-Windows terminals and on Windows Terminal/ConEmu/Cmder when the alternate screen is active; `false` on legacy Windows console and inside JetBrains JediTerm — PyCharm/IDEA/CLion/etc. — where mouse-event escapes leak into the input stream as garbled text, see #878 / #898): enable internal mouse scrolling, transcript selection, right-click context actions, and transcript scrollbar dragging. TUI-owned drag selection copies only transcript text, removes visual wrap-column line breaks from paragraphs, and keeps selection scoped to the transcript pane. Set this to `false` or run with `--no-mouse-capture` for raw terminal selection; set it to `true` or run with `--mouse-capture` to opt in anywhere it's defaulted off. On raw terminal selection, especially on legacy Windows console or when mouse capture is disabled, selection may cross the right sidebar and include visual wraps because the terminal, not the TUI, owns the selection.
-- `tui.terminal_probe_timeout_ms` (int, optional, default `500`): startup terminal-mode probe timeout in milliseconds. Values are clamped to `100..=5000`; timeout emits a warning and aborts startup instead of hanging indefinitely.
-- `tui.stream_chunk_timeout_secs` (int, optional, default `300`): per-SSE-chunk idle timeout for streamed model responses. Slow local or compatible servers can raise this with `/config stream_chunk_timeout_secs <seconds>`; `0` maps to the default and explicit values must be `1..=3600`. The legacy `DEEPSEEK_STREAM_IDLE_TIMEOUT_SECS` env var is still honored when this key is omitted.
-- `tui.osc8_links` (bool, optional, default on for macOS/Linux, off for Windows): emit OSC 8 escape sequences around URLs in transcript output so terminals that support them (iTerm2, Terminal.app 13+, Ghostty, Kitty, WezTerm, Alacritty, recent gnome-terminal/konsole) render them as Cmd+click hyperlinks. Terminals without OSC 8 support render the plain URL and ignore the escape. The escapes are emitted out-of-band (not inside buffer cells), so column corruption is not a concern; set `false` only for terminals that misrender the OSC 8 terminator itself. Windows legacy consoles default off; opt in with `true`.
-- `hooks` (optional): lifecycle hooks configuration (see `config.example.toml`).
-- `features.*` (optional): feature flag overrides (see below).
-
-### Workspace notes
-
-`/note` manages a simple notes file in the current workspace at
-`.deepseek/notes.md`. Existing `/note <text>` usage still appends a note.
-The management forms are:
-
-| Command | Action |
-|---|---|
-| `/note <text>` | Append a note (legacy shorthand) |
-| `/note add <text>` | Append a note explicitly |
-| `/note list` | List notes with temporary 1-based numbers |
-| `/note show <n>` | Show the full note at number `n` |
-| `/note edit <n> <text>` | Replace note `n` with new text |
-| `/note remove <n>` | Delete note `n`; `rm` and `delete` are aliases |
-| `/note clear` | Empty the workspace notes file |
-| `/note path` | Show the resolved workspace notes path |
-
-The numbers shown by `/note list` are not stored in the file; they are derived
-from the current order each time notes are read. This keeps the file format
-compatible with the existing `---`-separated notes.
-
-### User memory
-
-User memory is split across one top-level path setting and one opt-in
-toggle table:
-
-```toml
-memory_path = "~/.mimofan/memory.md"
-
-[memory]
-enabled = true
-```
-
-Notes:
-
-- `memory_path` stays at the top level beside `notes_path` and
-  `skills_dir`; it is not nested under `[memory]`.
-- `DEEPSEEK_MEMORY_PATH` overrides the file path from the environment.
-- `DEEPSEEK_MEMORY=on` (also `1`, `true`, `yes`, `y`, or `enabled`)
-  flips the feature on without editing `config.toml`.
-- The feature is inert when disabled: no file is injected, `# foo`
-  falls through to normal message submission, and the model does not
-  see the `remember` tool.
-- See [`MEMORY.md`](MEMORY.md) for examples and the full `/memory`
-  command surface.
-
-### Notifications
-
-The TUI can emit a desktop notification (OSC 9 escape or plain BEL) when a turn **completes successfully** and took longer than a threshold, so you can tab away while a long task runs. Failed or cancelled turns are intentionally silent — the notification is a "your task is ready" cue, not a generic ping. Configuration lives under `[notifications]`:
-
-```toml
-[notifications]
-method          = "auto"  # auto | osc9 | bel | off
-threshold_secs  = 30      # only notify when the turn took >= this many seconds
-include_summary = false   # include elapsed time + cost in the notification body
-completion_sound = "beep" # off | beep | bell | file
-sound_file = "E:\\google\\downloads\\notify.wav" # for completion_sound = "file"
-```
-
-Method semantics:
-
-- `auto` (default) — picks `osc9` for `iTerm.app`, `Ghostty`, and `WezTerm` (detected via `$TERM_PROGRAM`). Otherwise it falls back to `bel`; on Windows that BEL path is routed through `MessageBeep(MB_OK)`.
-- `osc9` — emit `\x1b]9;<msg>\x07`. Inside tmux the sequence is wrapped in DCS passthrough so it reaches the outer terminal.
-- `bel` — emit a single `\x07` byte. Use this on Windows only if you actively want the chime back.
-- `off` — disable post-turn notifications entirely.
-
-Windows users who run inside a known OSC-9 terminal (e.g. WezTerm on Windows) keep getting OSC-9 notifications. Set `method = "off"` to disable threshold-based desktop notifications entirely.
-
-`completion_sound = "file"` is for Windows users who want a per-application
-completion sound without changing the global Windows sound scheme. It plays the
-configured WAV `sound_file` asynchronously via the native Windows audio API.
-
-### Parsed but currently unused (reserved for future versions)
-
-These keys are accepted by the config loader but not currently used by the interactive TUI or built-in tools:
-
-- `tools_file`
-
-## Tool Catalog
-
-mimofan loads a small core native tool catalog by default and leaves less
-common native tools discoverable through ToolSearch. To keep specific native
-tools loaded on every request, add them to `[tools].always_load`:
-
-```toml
-[tools]
-always_load = ["git_show", "notify"]
-```
+支持的事件：`message_submit`、`tool_call_before`、`turn_end`、`subagent_spawn`、`subagent_complete`
 
 ## Feature Flags
-
-Feature flags live under the `[features]` table and are merged across profiles.
-Defaults are enabled for built-in tooling, so you only need to set entries you
-want to force on or off.
 
 ```toml
 [features]
 shell_tool = true
 subagents = true
-web_search = true # enables canonical web.run plus the compatibility web_search alias
-apply_patch = true
+web_search = true
 mcp = true
-exec_policy = true
 ```
 
-You can also override features for a single run:
+单次覆盖：`mimofan --enable web_search` / `mimofan --disable subagents`
 
-- `mimofan --enable web_search`
-- `mimofan --disable subagents`
+## Web 搜索
 
-Use `mimofan features list` to inspect known flags and their effective state.
-The native `/config` view also includes a read-only **Experimental** section
-for experimental feature flags. It shows each flag's effective enabled/disabled
-state and whether that state comes from the default or a configured override.
-Change feature flags in `[features]` or with `--enable` / `--disable`; the
-`/config` section is an audit surface, not a stability promise. Goal and
-WhaleFlow preview rows may appear there as reserved entries until those workflows
-graduate behind real gated flags.
-
-## Web Search Provider
-
-`web_search` uses DuckDuckGo by default and does not require an API key. The
-DuckDuckGo path keeps a Bing fallback when DDG returns a bot challenge or no
-parseable results. Bing remains selectable for users who explicitly want it,
-and Tavily, Bocha, Metaso, SearXNG, Baidu, Volcengine, or Sofya can be selected
-when an API-backed provider is preferred.
-
-For a private/internal search service that serves DuckDuckGo-compatible HTML,
-keep `provider = "duckduckgo"` and set `base_url`; mimofan appends the `q`
-query parameter to that endpoint and applies network policy to its host.
-Custom endpoints do not fall back to public Bing. `CODEWHALE_SEARCH_BASE_URL`
-can override this per process; `DEEPSEEK_SEARCH_BASE_URL` remains accepted as
-the legacy alias.
-
-**SearXNG** ([docs](https://docs.searxng.org/dev/search_api.html)) uses the
-configured instance's JSON API. Set `provider = "searxng"` and
-`base_url = "https://your-searxng.example"`; mimofan calls
-`/search?q=...&format=json`. mimofan does not use a public SearXNG instance
-by default because public instances often disable JSON output or rate-limit API
-traffic.
-
-**Metaso** ([metaso.cn](https://metaso.cn)) has a 100 searches/day free quota;
-set `METASO_API_KEY` or `[search] api_key` for a higher quota.
-
-**Baidu** uses Baidu AI Search at
-`https://qianfan.baidubce.com/v2/ai_search/web_search`. Set
-`BAIDU_SEARCH_API_KEY` or `[search] api_key`. This is a search-tool backend
-only; it does not add a Baidu model provider.
-
-**Sofya** ([sofya.co](https://sofya.co)) returns full extracted page content
-rather than snippets. Set `[search] api_key` to your `ay_live_...` key, or the
-`SOFYA_API_KEY` env var. This is a search-tool backend only; it does not add a
-Sofya model provider.
+默认使用 DuckDuckGo，无需 API key。可选：`bing`、`tavily`、`bocha`、`metaso`、`searxng`、`baidu`
 
 ```toml
 [search]
-provider = "searxng" # duckduckgo | bing | tavily | bocha | metaso | searxng | baidu | volcengine | sofya
-# base_url = "https://search.example/" # optional with provider = "duckduckgo"; required with "searxng"
-# api_key = "YOUR_KEY" # required for tavily, bocha, baidu, volcengine, and sofya; optional for metaso; unused by searxng
+provider = "duckduckgo"
 ```
 
-## Local Media Attachments
+## `mimofan doctor`
 
-Use `@path/to/file` in the composer to add local text file or directory context
-to the next message. Use `/attach <path>` for local image/video media paths, or
-`Ctrl+V` to attach an image from the clipboard. DeepSeek's public Chat
-Completions API currently accepts text message content, so media attachments are
-sent as explicit local path references instead of native image/video payloads.
-Attachment rows appear above the composer before submit; move to the start of
-the composer, press `↑` to select an attachment row, then press `Backspace` or
-`Delete` to remove it without editing the sample text by hand.
-
-## Managed Configuration and Requirements
-
-mimofan supports a policy layering model:
-
-1. user config + profile + env overrides
-2. managed config (if present)
-3. requirements validation (if present)
-
-By default on Unix:
-- managed config: `/etc/deepseek/managed_config.toml`
-- requirements: `/etc/deepseek/requirements.toml`
-
-Requirements file shape:
-
-```toml
-allowed_approval_policies = ["on-request", "untrusted", "never"]
-allowed_sandbox_modes = ["read-only", "workspace-write"]
+```bash
+mimofan doctor        # 检查配置、API key、MCP、skills
+mimofan doctor --json # JSON 输出，适合 CI
 ```
-
-If configured values violate requirements, startup fails with a descriptive error.
-
-See `docs/capacity_controller.md` for formulas, intervention behavior, and telemetry.
-
-## Notes On `mimofan doctor`
-
-`mimofan doctor` follows the same config resolution rules as the rest of the
-TUI. That means `--config`, `CODEWHALE_CONFIG_PATH`, and the legacy
-`DEEPSEEK_CONFIG_PATH` are respected, and MCP/skills
-checks use the resolved `mcp_config_path` / `skills_dir` (including env overrides).
-
-To bootstrap missing MCP/skills paths, run `mimofan setup --all`. You can
-also run `mimofan setup --skills --local` to create a workspace-local
-`./skills` dir.
-
-`mimofan doctor --json` prints a machine-readable report that skips the
-live API connectivity probe. Top-level keys: `version`, `config_path`,
-`config_present`, `workspace`, `api_key.source`, `base_url`,
-`default_text_model`, `mcp`, `skills`, `tools`, `plugins`, `sandbox`,
-`platform`, `api_connectivity`, `capability`. CI consumers should rely on `api_key.source`
-(`env`/`config`/`missing`) rather than parsing the human-readable `doctor`
-text.
-
-The `capability` key contains per-provider capability info derived from
-static knowledge (release docs, API guides) rather than live API probes.
-Top-level sub-keys: `resolved_provider`, `resolved_model`, `context_window`,
-`max_output`, `thinking_supported`, `cache_telemetry_supported`,
-and `request_payload_mode`.
-
-Use `capability.context_window` and `capability.max_output` for model-limit
-checks in CI scripts; do not treat `capability.max_output` as the per-turn
-request budget. Use `capability.thinking_supported` to decide whether to
-configure reasoning effort.
-
-## Setup status, clean, and extension dirs
-
-`mimofan setup` accepts a few flags beyond the existing `--mcp`,
-`--skills`, `--local`, `--all`, and `--force`:
-
-- `--status` — print a compact one-screen status (api key, base URL, model,
-  MCP/skills/tools/plugins counts, sandbox, `.env` presence). Read-only and
-  network-free; safe to run in CI. If `.env` is missing and `.env.example` is
-  present in the workspace, the status output points at `cp .env.example .env`.
-- `--tools` — scaffold `~/.mimofan/tools/` with a `README.md` describing the
-  self-describing frontmatter convention (`# name:` / `# description:` /
-  `# usage:`) and an `example.sh` that follows it. The directory is
-  intentionally not auto-loaded; wire individual scripts into the agent via
-  MCP, hooks, or skills.
-- `--plugins` — scaffold `~/.mimofan/plugins/` with a `README.md` and an
-  `example/PLUGIN.md` sample using the same frontmatter shape as
-  `SKILL.md`. Plugins are not loaded automatically either; reference them
-  from a skill, hook, or MCP wrapper when you want them active.
-- `--all` now scaffolds MCP + skills + tools + plugins together.
-- `--clean` — list `~/.mimofan/sessions/checkpoints/latest.json` and
-  `offline_queue.json` if they exist. Legacy
-  `~/.deepseek/sessions/checkpoints/` files are not scanned automatically; set
-  `CODEWHALE_HOME=~/.deepseek` for a one-off legacy cleanup. Pass `--force` to
-  actually remove matched files. This never touches real session history or the
-  task queue.
-
-`--status` and `--clean` are mutually exclusive with the scaffold flags.
-
-## Why the engine strips XML/`[TOOL_CALL]` text
-
-mimofan sends and receives tool calls only over the API tool channel
-(structured `tool_use` / `tool_call` items). The streaming loop in
-`crates/tui/src/core/engine.rs` recognizes a fixed set of fake-wrapper start
-markers — `[TOOL_CALL]`, `<mimofan:tool_call`, `<tool_call`, `<invoke `,
-`<function_calls>` — and scrubs them from visible assistant text without ever
-turning them into structured tool calls. When a wrapper is stripped, the loop
-emits one compact `status` notice per turn so the user can see why their
-visible text shrank. Treat any change that re-enables text-based tool
-execution as a regression; the protocol-recovery tests in
-`crates/tui/tests/protocol_recovery.rs` lock the contract.

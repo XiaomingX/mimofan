@@ -1756,7 +1756,7 @@ pub struct SkillsConfig {
     /// When true, skill discovery scans only mimofan-owned skill roots
     /// (plus any explicit `skills_dir`) instead of importing compatible
     /// directories from other AI tools such as Claude, OpenCode, or Cursor.
-    #[serde(default, alias = "scanCodewhaleOnly")]
+    #[serde(default, alias = "scanMimofanOnly")]
     pub scan_mimofan_only: Option<bool>,
 }
 
@@ -3224,16 +3224,16 @@ check_for_updates = true
 
 // === Environment Overrides ===
 
-/// Read the `DEEPSEEK_BASE_URL` / `CODEWHALE_BASE_URL` env var that the CLI
+/// Read the `DEEPSEEK_BASE_URL` / `MIMOFAN_BASE_URL` env var that the CLI
 /// dispatcher forwards from `--base-url`.  Returns `None` when the var is
 /// absent or empty so that provider-specific defaults still apply.
 fn env_base_url_override() -> Option<String> {
-    mimofan_env_var("CODEWHALE_BASE_URL", "DEEPSEEK_BASE_URL")
+    mimofan_env_var("MIMOFAN_BASE_URL", "DEEPSEEK_BASE_URL")
         .ok()
         .filter(|v| !v.trim().is_empty())
 }
 
-/// Resolve an env var, preferring the `CODEWHALE_*` form over the
+/// Resolve an env var, preferring the `MIMOFAN_*` form over the
 /// legacy `DEEPSEEK_*` form. Empty values are ignored so a blank shell export
 /// does not erase configured provider settings.
 fn mimofan_env_var(mimofan_name: &str, legacy_name: &str) -> Result<String, std::env::VarError> {
@@ -3249,10 +3249,10 @@ fn mimofan_env_var(mimofan_name: &str, legacy_name: &str) -> Result<String, std:
 }
 
 fn apply_env_overrides(config: &mut Config) {
-    if let Ok(value) = mimofan_env_var("CODEWHALE_PROVIDER", "DEEPSEEK_PROVIDER") {
+    if let Ok(value) = mimofan_env_var("MIMOFAN_PROVIDER", "DEEPSEEK_PROVIDER") {
         config.provider = Some(value);
     }
-    if let Ok(value) = mimofan_env_var("CODEWHALE_BASE_URL", "DEEPSEEK_BASE_URL") {
+    if let Ok(value) = mimofan_env_var("MIMOFAN_BASE_URL", "DEEPSEEK_BASE_URL") {
         match config.api_provider() {
             ApiProvider::XiaomiMimo => {
                 config
@@ -3589,7 +3589,7 @@ fn apply_env_overrides(config: &mut Config) {
             .huggingface
             .model = Some(value);
     }
-    if let Some(value) = mimofan_env_var("CODEWHALE_MODEL", "DEEPSEEK_MODEL")
+    if let Some(value) = mimofan_env_var("MIMOFAN_MODEL", "DEEPSEEK_MODEL")
         .ok()
         .or_else(|| {
             std::env::var("DEEPSEEK_DEFAULT_TEXT_MODEL")
@@ -3698,7 +3698,7 @@ fn apply_env_overrides(config: &mut Config) {
         config.yolo = Some(value == "1" || value.eq_ignore_ascii_case("true"));
     }
     if let Ok(value) =
-        std::env::var("CODEWHALE_VERBOSITY").or_else(|_| std::env::var("DEEPSEEK_VERBOSITY"))
+        std::env::var("MIMOFAN_VERBOSITY").or_else(|_| std::env::var("DEEPSEEK_VERBOSITY"))
     {
         config.verbosity = Some(value);
     }
@@ -3722,7 +3722,7 @@ fn apply_env_overrides(config: &mut Config) {
             .get_or_insert_with(SearchConfig::default)
             .api_key = Some(value);
     }
-    if let Ok(value) = mimofan_env_var("CODEWHALE_SEARCH_BASE_URL", "DEEPSEEK_SEARCH_BASE_URL") {
+    if let Ok(value) = mimofan_env_var("MIMOFAN_SEARCH_BASE_URL", "DEEPSEEK_SEARCH_BASE_URL") {
         config
             .search
             .get_or_insert_with(SearchConfig::default)

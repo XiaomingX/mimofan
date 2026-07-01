@@ -9,10 +9,10 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const isZh = locale === "zh";
   return {
-    title: isZh ? "路线图 · CodeWhale" : "Roadmap · CodeWhale",
+    title: isZh ? "路线图 · Mimofan" : "Roadmap · Mimofan",
     description: isZh
       ? "已确认、正在评估和已排除的功能规划。"
-      : "What's confirmed, what's being weighed, what's been ruled out for CodeWhale.",
+      : "What's confirmed, what's being weighed, what's been ruled out for Mimofan.",
   };
 }
 
@@ -27,9 +27,9 @@ const tracksEn = [
       { title: "RLM batched processing", note: "Persistent sandboxed Python REPL with 1–16 cheap parallel children for long-input analysis" },
       { title: "Three operating modes", note: "Plan (read-only), Agent (default), YOLO (auto-approved); orthogonal suggest / auto / never approval" },
       { title: "Per-platform sandbox", note: "seatbelt (macOS), landlock (Linux); Windows containment via restricted tokens (limited)" },
-      { title: "Durable sessions + tasks", note: "Save, resume, rollback; background task queue with replayable timelines under ~/.codewhale/tasks/" },
-      { title: "Bidirectional MCP", note: "Consume tools from external servers; expose as server via `codewhale mcp`; ~/.codewhale/mcp.json" },
-      { title: "Skills + unified slash palette", note: "~/.codewhale/skills/ auto-loading; /help, /mode, /status, /config, /trust, /feedback" },
+      { title: "Durable sessions + tasks", note: "Save, resume, rollback; background task queue with replayable timelines under ~/.mimofan/tasks/" },
+      { title: "Bidirectional MCP", note: "Consume tools from external servers; expose as server via `mimofan mcp`; ~/.mimofan/mcp.json" },
+      { title: "Skills + unified slash palette", note: "~/.mimofan/skills/ auto-loading; /help, /mode, /status, /config, /trust, /feedback" },
       { title: "OpenRouter provider", note: "First-class OpenRouter integration with 300+ models across dozens of providers" },
       { title: "OpenAI-compatible & local runtimes", note: "Generic `openai` route for any OpenAI-compatible gateway, plus vLLM, SGLang, and Ollama against your own localhost endpoints — no key required" },
       { title: "Multi-provider support", note: "Hot-swap between providers (DeepSeek, OpenAI, Anthropic, OpenRouter) per session" },
@@ -93,9 +93,9 @@ const tracksZh = [
       { title: "RLM 批量处理", note: "持久沙箱 Python REPL，支持 1–16 路廉价并行子调用，处理长文本分析" },
       { title: "三种运行模式", note: "Plan（只读）、Agent（默认）、YOLO（自动批准）；审批模式正交（建议/自动/拒绝）" },
       { title: "跨平台沙箱", note: "seatbelt（macOS）、landlock（Linux）；Windows 通过受限令牌实现基础隔离（功能有限）" },
-      { title: "持久化会话 + 后台任务", note: "保存、恢复、回滚；后台任务队列，可回放时间线，位于 ~/.codewhale/tasks/" },
-      { title: "双向 MCP 协议", note: "消费外部服务器工具；通过 `codewhale mcp` 暴露为服务器；~/.codewhale/mcp.json" },
-      { title: "技能 + 统一命令面板", note: "~/.codewhale/skills/ 自动加载；/help、/mode、/status、/config、/trust、/feedback" },
+      { title: "持久化会话 + 后台任务", note: "保存、恢复、回滚；后台任务队列，可回放时间线，位于 ~/.mimofan/tasks/" },
+      { title: "双向 MCP 协议", note: "消费外部服务器工具；通过 `mimofan mcp` 暴露为服务器；~/.mimofan/mcp.json" },
+      { title: "技能 + 统一命令面板", note: "~/.mimofan/skills/ 自动加载；/help、/mode、/status、/config、/trust、/feedback" },
       { title: "OpenRouter 提供商", note: "原生集成 OpenRouter，支持 300+ 模型，覆盖数十个提供商" },
       { title: "OpenAI 兼容与本地运行时", note: "通用 `openai` 路由可接入任意 OpenAI 兼容网关；vLLM、SGLang、Ollama 直连本地端点，无需密钥" },
       { title: "多提供商支持", note: "按会话动态切换提供商（DeepSeek、OpenAI、Anthropic、OpenRouter）" },
@@ -203,7 +203,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ locale
             </h1>
             <p className="mt-5 max-w-3xl text-ink-soft text-lg leading-[1.9] tracking-wide">
               已确认的功能、正在权衡的方案、以及已被排除的方向。未列在此页的内容均可在{" "}
-              <Link href="https://github.com/Hmbown/CodeWhale/discussions/new?category=ideas" className="body-link">
+              <Link href="https://github.com/Hmbown/Mimofan/discussions/new?category=ideas" className="body-link">
                 Discussions
               </Link>{" "}
               中讨论。
@@ -248,13 +248,13 @@ export default async function RoadmapPage({ params }: { params: Promise<{ locale
               </div>
               <div className="lg:col-span-4 flex flex-col gap-3">
                 <Link
-                  href="https://github.com/Hmbown/CodeWhale/discussions/new?category=ideas"
+                  href="https://github.com/Hmbown/Mimofan/discussions/new?category=ideas"
                   className="px-5 py-3 bg-indigo text-paper font-mono text-sm uppercase tracking-wider text-center hover:bg-indigo-deep transition-colors"
                 >
                   提交想法 →
                 </Link>
                 <Link
-                  href="https://github.com/Hmbown/CodeWhale/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"
+                  href="https://github.com/Hmbown/Mimofan/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"
                   className="px-5 py-3 hairline-t hairline-b hairline-l hairline-r border-paper-deep/30 font-mono text-sm uppercase tracking-wider text-center hover:bg-paper hover:text-ink transition-colors"
                 >
                   Good first issues →
@@ -276,7 +276,7 @@ export default async function RoadmapPage({ params }: { params: Promise<{ locale
             <p className="mt-5 max-w-3xl text-ink-soft text-lg leading-relaxed">
               What's confirmed, what's being weighed, what's been ruled out. Anything not on this page
               is fair game for{" "}
-              <Link href="https://github.com/Hmbown/CodeWhale/discussions/new?category=ideas" className="body-link">
+              <Link href="https://github.com/Hmbown/Mimofan/discussions/new?category=ideas" className="body-link">
                 discussion
               </Link>.
             </p>
@@ -321,13 +321,13 @@ export default async function RoadmapPage({ params }: { params: Promise<{ locale
               </div>
               <div className="lg:col-span-4 flex flex-col gap-3">
                 <Link
-                  href="https://github.com/Hmbown/CodeWhale/discussions/new?category=ideas"
+                  href="https://github.com/Hmbown/Mimofan/discussions/new?category=ideas"
                   className="px-5 py-3 bg-indigo text-paper font-mono text-sm uppercase tracking-wider text-center hover:bg-indigo-deep transition-colors"
                 >
                   Propose an idea →
                 </Link>
                 <Link
-                  href="https://github.com/Hmbown/CodeWhale/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"
+                  href="https://github.com/Hmbown/Mimofan/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"
                   className="px-5 py-3 hairline-t hairline-b hairline-l hairline-r border-paper-deep/30 font-mono text-sm uppercase tracking-wider text-center hover:bg-paper hover:text-ink transition-colors"
                 >
                   Good first issues →

@@ -57,21 +57,21 @@ fail=0
 echo "Checking published release ${version}..."
 
 # Canonical post-rebrand npm package.
-if npm_version="$(npm view "codewhale@${version}" version 2>/dev/null)"; then
-  echo "npm codewhale@${npm_version} is published."
+if npm_version="$(npm view "mimofan@${version}" version 2>/dev/null)"; then
+  echo "npm mimofan@${npm_version} is published."
 else
-  echo "npm codewhale@${version} is not published." >&2
+  echo "npm mimofan@${version} is not published." >&2
   fail=1
 fi
 
-# `codewhaleBinaryVersion` is the new internal version-pin field. Fall back
+# `mimofanBinaryVersion` is the new internal version-pin field. Fall back
 # to the legacy `deepseekBinaryVersion` field for old/transition packages.
 binary_field=""
 npm_binary_version=""
-if value="$(npm view "codewhale@${version}" codewhaleBinaryVersion 2>/dev/null)" && [[ -n "${value}" ]]; then
-  binary_field="codewhaleBinaryVersion"
+if value="$(npm view "mimofan@${version}" mimofanBinaryVersion 2>/dev/null)" && [[ -n "${value}" ]]; then
+  binary_field="mimofanBinaryVersion"
   npm_binary_version="${value}"
-elif value="$(npm view "codewhale@${version}" deepseekBinaryVersion 2>/dev/null)" && [[ -n "${value}" ]]; then
+elif value="$(npm view "mimofan@${version}" deepseekBinaryVersion 2>/dev/null)" && [[ -n "${value}" ]]; then
   binary_field="deepseekBinaryVersion"
   npm_binary_version="${value}"
 fi
@@ -86,26 +86,26 @@ if [[ -n "${binary_field}" ]]; then
     fail=1
   fi
 elif [[ "${allow_npm_binary_mismatch}" == "1" ]]; then
-  echo "npm codewhaleBinaryVersion is absent (allowed packaging-only mismatch)."
+  echo "npm mimofanBinaryVersion is absent (allowed packaging-only mismatch)."
 else
-  echo "npm codewhaleBinaryVersion is absent for codewhale@${version}." >&2
+  echo "npm mimofanBinaryVersion is absent for mimofan@${version}." >&2
   fail=1
 fi
 
-# Legacy `deepseek-tui` npm package. It is deprecated and must not be
+# Legacy `mimofan` npm package. It is deprecated and must not be
 # republished under the release version.
-if legacy_version="$(npm view "deepseek-tui@${version}" version 2>/dev/null)"; then
-  echo "npm deepseek-tui@${legacy_version} exists, but the legacy npm package must not be republished." >&2
+if legacy_version="$(npm view "mimofan@${version}" version 2>/dev/null)"; then
+  echo "npm mimofan@${legacy_version} exists, but the legacy npm package must not be republished." >&2
   fail=1
 fi
-if legacy_deprecated="$(npm view deepseek-tui deprecated 2>/dev/null)" && [[ -n "${legacy_deprecated}" ]]; then
-  echo "npm deepseek-tui is deprecated: ${legacy_deprecated}"
+if legacy_deprecated="$(npm view mimofan deprecated 2>/dev/null)" && [[ -n "${legacy_deprecated}" ]]; then
+  echo "npm mimofan is deprecated: ${legacy_deprecated}"
 else
-  echo "npm deepseek-tui is not marked deprecated." >&2
+  echo "npm mimofan is not marked deprecated." >&2
   fail=1
 fi
 
-crates_user_agent="CodeWhale release check (https://github.com/XiaomingX/mimo-tui)"
+crates_user_agent="Mimofan release check (https://github.com/XiaomingX/mimo-tui)"
 for crate in "${release_crates[@]}"; do
   if curl -fsSL -A "${crates_user_agent}" "https://crates.io/api/v1/crates/${crate}/${version}" >/dev/null 2>&1; then
     echo "crates.io ${crate}@${version} is published."
@@ -116,7 +116,7 @@ for crate in "${release_crates[@]}"; do
 done
 
 if [[ "${fail}" == "0" ]]; then
-  echo "Published release OK: npm codewhale@${version} and ${#release_crates[@]} crates are visible."
+  echo "Published release OK: npm mimofan@${version} and ${#release_crates[@]} crates are visible."
 fi
 
 exit "${fail}"

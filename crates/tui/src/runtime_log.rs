@@ -209,14 +209,14 @@ pub fn init() -> Result<TuiLogGuard> {
 }
 
 pub(crate) fn log_directory() -> Option<PathBuf> {
-    // $CODEWHALE_HOME is a hard override of the base data directory
+    // $MIMOFAN_HOME is a hard override of the base data directory
     // (docs/CONFIGURATION.md): when SET, logs live under it and we do NOT fall
     // back to the legacy ~/.deepseek path — silent fallback would defeat the
     // isolation the override promises (CI, containers, test harnesses). We
     // check the env var directly rather than mimofan_home()'s Ok/Err because
     // that helper succeeds (returns $HOME/.mimofan) even when the override is
     // unset, which would short-circuit the legacy fallback below.
-    if let Some(home) = std::env::var_os("CODEWHALE_HOME").filter(|value| !value.is_empty()) {
+    if let Some(home) = std::env::var_os("MIMOFAN_HOME").filter(|value| !value.is_empty()) {
         return Some(PathBuf::from(home).join("logs"));
     }
     let resolve = |base: PathBuf| -> Option<PathBuf> {

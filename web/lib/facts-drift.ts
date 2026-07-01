@@ -25,7 +25,7 @@ interface KVNamespace {
 
 async function fetchText(path: string, ghToken?: string): Promise<string | null> {
   const headers: Record<string, string> = {
-    "User-Agent": "codewhale-web-drift",
+    "User-Agent": "mimofan-web-drift",
   };
   if (ghToken) headers["Authorization"] = `Bearer ${ghToken}`;
   try {
@@ -42,7 +42,7 @@ async function fetchListing(dir: string, ghToken?: string): Promise<string[] | n
   const url = `https://api.github.com/repos/XiaomingX/mimo-tui/contents/${dir}?ref=main`;
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github+json",
-    "User-Agent": "codewhale-web-drift",
+    "User-Agent": "mimofan-web-drift",
     "X-GitHub-Api-Version": "2022-11-28",
   };
   if (ghToken) headers["Authorization"] = `Bearer ${ghToken}`;
@@ -141,7 +141,7 @@ function deriveSandboxBackends(files: string[]): string[] {
 async function fetchLatestRelease(ghToken?: string): Promise<string | null> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "codewhale-web-drift",
+    "User-Agent": "mimofan-web-drift",
     "X-GitHub-Api-Version": "2022-11-28",
   };
   if (ghToken) headers["Authorization"] = `Bearer ${ghToken}`;
@@ -169,7 +169,7 @@ export async function deriveFactsFromRemote(ghToken?: string): Promise<RepoFacts
     fetchText("crates/tui/src/config.rs", ghToken),
     fetchText("crates/tui/src/config/models.rs", ghToken),
     fetchListing("crates/tui/src/sandbox", ghToken),
-    fetchText("npm/codewhale/package.json", ghToken),
+    fetchText("npm/mimofan/package.json", ghToken),
     fetchText("LICENSE", ghToken),
     fetchListing("crates/tui/src/tools", ghToken),
     fetchLatestRelease(ghToken),

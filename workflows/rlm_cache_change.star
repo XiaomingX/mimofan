@@ -40,7 +40,7 @@ workflow(
                     children = [
                         test(
                             id = "regression-tests",
-                            command = "cargo test -p codewhale-tui rlm --locked",
+                            command = "cargo test -p mimofan-tui rlm --locked",
                             file_scope = ["crates/tui/src/rlm/**"],
                         ),
                     ],

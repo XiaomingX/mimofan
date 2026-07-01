@@ -76,7 +76,7 @@ Access at `/admin?token=<MAINTAINER_TOKEN>`.
 
 ## Initial deployment
 
-One-time setup before the first `npm run deploy`:
+One-time setup before the first `pnpm deploy`:
 
 1. **Create the KV namespaces:**
    ```bash
@@ -101,8 +101,8 @@ One-time setup before the first `npm run deploy`:
 
 4. **Verify:**
    ```bash
-   npm run predeploy   # checks KV ID is set
-   npm run deploy      # builds + deploys
+   pnpm predeploy   # checks KV ID is set
+   pnpm deploy      # builds + deploys
    ```
 
 ## Kill switch
@@ -110,7 +110,7 @@ One-time setup before the first `npm run deploy`:
 To disable the community agent entirely:
 
 1. Remove all cron triggers from `wrangler.jsonc` except the original `0 */6 * * *` (curate).
-2. Redeploy: `npm run deploy`.
+2. Redeploy: `pnpm deploy`.
 
 The curate cron (Today's Dispatch) continues working independently. Individual tasks remain callable manually for testing through `/api/cron?task=triage`, `/api/cron?task=pr-review`, etc.
 

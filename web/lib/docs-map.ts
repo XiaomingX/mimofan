@@ -1,5 +1,5 @@
 /**
- * docs-map.ts — canonical documentation registry for codewhale.net.
+ * docs-map.ts — canonical documentation registry for mimofan.net.
  *
  * Maps every first-class documentation topic area to its repo source file(s)
  * and website route. This is the single source of truth for the docs hub

@@ -470,16 +470,16 @@ struct FleetAlertDryRunArgs {
     #[arg(long, value_enum, default_value_t = FleetAlertAdapterArg::Slack)]
     adapter: FleetAlertAdapterArg,
     /// Environment variable containing the Slack webhook URL
-    #[arg(long, default_value = "CODEWHALE_FLEET_SLACK_WEBHOOK")]
+    #[arg(long, default_value = "MIMOFAN_FLEET_SLACK_WEBHOOK")]
     slack_webhook_env: String,
     /// Environment variable containing the generic webhook URL
-    #[arg(long, default_value = "CODEWHALE_FLEET_WEBHOOK_URL")]
+    #[arg(long, default_value = "MIMOFAN_FLEET_WEBHOOK_URL")]
     webhook_url_env: String,
     /// Optional environment variable containing the generic webhook secret
     #[arg(long)]
     webhook_secret_env: Option<String>,
     /// Environment variable containing the PagerDuty routing key
-    #[arg(long, default_value = "CODEWHALE_FLEET_PAGERDUTY_ROUTING_KEY")]
+    #[arg(long, default_value = "MIMOFAN_FLEET_PAGERDUTY_ROUTING_KEY")]
     pagerduty_routing_key_env: String,
     /// PagerDuty severity to render
     #[arg(long, default_value = "error")]
@@ -565,7 +565,7 @@ fn resolve_exec_model(config: &Config, explicit_model: Option<&str>) -> String {
 }
 
 fn exec_model_env_override() -> Option<String> {
-    ["CODEWHALE_MODEL", "DEEPSEEK_MODEL"]
+    ["MIMOFAN_MODEL", "DEEPSEEK_MODEL"]
         .into_iter()
         .find_map(|key| {
             std::env::var(key)
@@ -801,13 +801,13 @@ struct ServeArgs {
     workers: usize,
     /// Additional CORS origin to allow (repeatable). Stacks on top of the
     /// built-in defaults (localhost:3000, localhost:1420, tauri://localhost).
-    /// Also reads `CODEWHALE_CORS_ORIGINS` (comma-separated), then
+    /// Also reads `MIMOFAN_CORS_ORIGINS` (comma-separated), then
     /// `DEEPSEEK_CORS_ORIGINS` as an alias, and `[runtime_api] cors_origins`
     /// from `config.toml`. Whalescale#255.
     #[arg(long = "cors-origin", value_name = "URL")]
     cors_origin: Vec<String>,
     /// Require this bearer token for `/v1/*` runtime API routes. Also reads
-    /// `CODEWHALE_RUNTIME_TOKEN` when omitted, then `DEEPSEEK_RUNTIME_TOKEN`
+    /// `MIMOFAN_RUNTIME_TOKEN` when omitted, then `DEEPSEEK_RUNTIME_TOKEN`
     /// as an alias.
     #[arg(long = "auth-token", value_name = "TOKEN")]
     auth_token: Option<String>,
@@ -1651,7 +1651,7 @@ async fn run_fleet_command(workspace: &Path, config: &Config, args: FleetArgs) -
     }
 
     fn fleet_mimofan_binary() -> String {
-        std::env::var("CODEWHALE_FLEET_CODEWHALE_BINARY")
+        std::env::var("MIMOFAN_FLEET_MIMOFAN_BINARY")
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
@@ -1973,7 +1973,7 @@ fn init_plugins_dir(
 ///
 /// Sources, in priority order (later sources extend earlier ones):
 /// 1. `--cors-origin URL` flags (repeatable)
-/// 2. `CODEWHALE_CORS_ORIGINS` env var (comma-separated),
+/// 2. `MIMOFAN_CORS_ORIGINS` env var (comma-separated),
 ///    then `DEEPSEEK_CORS_ORIGINS` as an alias
 /// 3. `[runtime_api] cors_origins = [...]` in `config.toml`
 ///
@@ -1996,7 +1996,7 @@ fn resolve_cors_origins(config: &Config, flag_origins: &[String]) -> Vec<String>
         push(o);
     }
     if let Ok(env_value) =
-        std::env::var("CODEWHALE_CORS_ORIGINS").or_else(|_| std::env::var("DEEPSEEK_CORS_ORIGINS"))
+        std::env::var("MIMOFAN_CORS_ORIGINS").or_else(|_| std::env::var("DEEPSEEK_CORS_ORIGINS"))
     {
         for piece in env_value.split(',') {
             push(piece);
@@ -5636,7 +5636,7 @@ fn merge_project_config(config: &mut Config, workspace: &Path) {
 
     // v0.8.44: prefer .mimo/config.toml, fall back to .deepseek/
     let path = workspace
-        .join(mimofan_config::CODEWHALE_APP_DIR)
+        .join(mimofan_config::MIMOFAN_APP_DIR)
         .join("config.toml");
     let raw = match read_project_config_file(&path) {
         Ok(Some(r)) => r,

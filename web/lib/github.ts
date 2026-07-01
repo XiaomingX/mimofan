@@ -8,7 +8,7 @@ function headers(token?: string): HeadersInit {
   const h: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "codewhale-web",
+    "User-Agent": "mimofan-web",
   };
   if (token) h.Authorization = `Bearer ${token}`;
   return h;

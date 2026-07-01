@@ -205,7 +205,6 @@ pub fn store_cache(cache: &CatalogCache) -> Result<()> {
         .with_context(|| format!("write model catalog cache {}", path.display()))
 }
 
-#[cfg(not(test))]
 fn write_cache_file(path: &std::path::Path, json: &[u8]) -> std::io::Result<()> {
     crate::utils::write_atomic(path, json)
 }

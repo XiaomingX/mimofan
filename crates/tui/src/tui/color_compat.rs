@@ -18,7 +18,7 @@ use ratatui::{
 
 use crate::palette::{self, ColorDepth, PaletteMode, ThemeId, UiTheme};
 
-const RENDER_DEBUG_ENV: &str = "CODEWHALE_TUI_DEBUG";
+const RENDER_DEBUG_ENV: &str = "MIMOFAN_TUI_DEBUG";
 const RENDER_DEBUG_SAMPLE_LIMIT: usize = 24;
 
 #[derive(Debug)]

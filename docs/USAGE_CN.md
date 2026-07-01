@@ -62,6 +62,12 @@ mimofan 有三种工作模式：
 npm install -g mimofan
 ```
 
+或者使用 pnpm：
+
+```bash
+pnpm add -g mimofan
+```
+
 安装后你会得到两个命令：
 - `mimofan` — 完整功能的 TUI 终端界面
 - `codew` — 轻量 CLI 工具
@@ -494,7 +500,7 @@ codew --resume
 
 ### Q: 怎么切换模型？
 
-TUI 中输入 `/model deepseek-v4-flash` 或 `/model gpt-4.1`。
+TUI 中输入 `/model deepseek-v4-flash` 或 `/model mimo-v2.5-pro`。
 
 ### Q: 怎么用国产模型？
 

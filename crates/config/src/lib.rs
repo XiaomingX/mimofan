@@ -1806,7 +1806,7 @@ fn sandbox_mode_rank(value: &str) -> Option<u8> {
 /// falling back to `$WORKSPACE/.deepseek/config.toml` for backward compatibility.
 /// Returns `None` if none of the files exist or can't be parsed.
 pub fn load_project_config(workspace: &Path) -> Option<ConfigToml> {
-    for dir in [CODEWHALE_APP_DIR, PREVIOUS_APP_DIR, LEGACY_APP_DIR] {
+    for dir in [MIMOFAN_APP_DIR, PREVIOUS_APP_DIR, LEGACY_APP_DIR] {
         let path = workspace.join(dir).join(CONFIG_FILE_NAME);
         if !project_config_candidate_exists(&path) {
             continue;
@@ -2537,7 +2537,7 @@ pub fn default_secrets() -> &'static Secrets {
 // ~/.deepseek/ or ~/.mimofan/ continue working without data loss.
 
 /// Canonical mimofan app directory name under $HOME.
-pub const CODEWHALE_APP_DIR: &str = ".mimo";
+pub const MIMOFAN_APP_DIR: &str = ".mimo";
 
 /// Previous mimofan-branded app directory name (compatibility fallback).
 pub const PREVIOUS_APP_DIR: &str = ".mimofan";
@@ -2547,19 +2547,19 @@ pub const LEGACY_APP_DIR: &str = ".deepseek";
 
 /// Resolve the primary mimofan home directory.
 ///
-/// `$MIMO_HOME` (or `$CODEWHALE_HOME` as fallback) takes precedence when set.
+/// `$MIMO_HOME` (or `$MIMOFAN_HOME` as fallback) takes precedence when set.
 /// Otherwise defaults to `$HOME/.mimo`. This is the write target for new product state.
 pub fn mimofan_home() -> Result<PathBuf> {
     if let Some(path) = mimofan_home_env_override() {
         return Ok(path);
     }
     let home = effective_home_dir().context("failed to resolve home directory")?;
-    Ok(home.join(CODEWHALE_APP_DIR))
+    Ok(home.join(MIMOFAN_APP_DIR))
 }
 
 fn mimofan_home_env_override() -> Option<PathBuf> {
     let val = std::env::var("MIMO_HOME")
-        .or_else(|_| std::env::var("CODEWHALE_HOME"))
+        .or_else(|_| std::env::var("MIMOFAN_HOME"))
         .ok()?;
     let trimmed = val.trim();
     if trimmed.is_empty() {
@@ -2765,7 +2765,7 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
 pub fn resolve_project_state_dir(workspace: &Path, subdir: &str) -> Result<(bool, PathBuf)> {
     ensure_safe_state_subdir(subdir)?;
     let workspace = normalize_project_workspace(workspace)?;
-    let primary = workspace.join(CODEWHALE_APP_DIR).join(subdir);
+    let primary = workspace.join(MIMOFAN_APP_DIR).join(subdir);
     if primary.exists() {
         return Ok((true, primary));
     }
@@ -2783,7 +2783,7 @@ pub fn resolve_project_state_dir(workspace: &Path, subdir: &str) -> Result<(bool
 pub fn ensure_project_state_dir(workspace: &Path, subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
     let workspace = normalize_project_workspace(workspace)?;
-    let dir = workspace.join(CODEWHALE_APP_DIR).join(subdir);
+    let dir = workspace.join(MIMOFAN_APP_DIR).join(subdir);
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("failed to create {}/", dir.display()))?;
     Ok(dir)
@@ -2799,7 +2799,7 @@ pub fn resolve_config_path(explicit: Option<PathBuf>) -> Result<PathBuf> {
         }
         return default_config_path();
     }
-    if let Ok(path) = std::env::var("CODEWHALE_CONFIG_PATH") {
+    if let Ok(path) = std::env::var("MIMOFAN_CONFIG_PATH") {
         if let Some(path) = config_path_from_env_value(&path)? {
             return Ok(path);
         }
@@ -3316,7 +3316,7 @@ impl EnvRuntimeOverrides {
         Self {
             provider,
             provider_source,
-            model: std::env::var("CODEWHALE_MODEL")
+            model: std::env::var("MIMOFAN_MODEL")
                 .or_else(|_| std::env::var("DEEPSEEK_MODEL"))
                 .or_else(|_| std::env::var("DEEPSEEK_DEFAULT_TEXT_MODEL"))
                 .ok()
@@ -3329,7 +3329,7 @@ impl EnvRuntimeOverrides {
                 .or_else(|_| std::env::var("MIMO_MODE"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
-            verbosity: std::env::var("CODEWHALE_VERBOSITY")
+            verbosity: std::env::var("MIMOFAN_VERBOSITY")
                 .or_else(|_| std::env::var("DEEPSEEK_VERBOSITY"))
                 .ok(),
             output_mode: std::env::var("DEEPSEEK_OUTPUT_MODE").ok(),
@@ -3378,9 +3378,9 @@ impl EnvRuntimeOverrides {
             return (parsed, parsed.map(|_| "MIMO_PROVIDER"));
         }
 
-        if let Ok(value) = std::env::var("CODEWHALE_PROVIDER") {
+        if let Ok(value) = std::env::var("MIMOFAN_PROVIDER") {
             let parsed = ProviderKind::parse(&value);
-            return (parsed, parsed.map(|_| "CODEWHALE_PROVIDER"));
+            return (parsed, parsed.map(|_| "MIMOFAN_PROVIDER"));
         }
 
         if let Ok(value) = std::env::var("DEEPSEEK_PROVIDER") {

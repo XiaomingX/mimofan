@@ -8,7 +8,7 @@
  * file is stale so the mismatch is caught before deploy.
  *
  * Usage:
- *   cd web && npm run check:facts
+ *   cd web && pnpm check:facts
  *
  * Checked fields:
  *   version, providers, crates, sandboxBackends, defaultModel, nodeEngines,
@@ -117,6 +117,6 @@ for (const d of diffs) {
 }
 
 console.error(
-  "\nRun `cd web && npm run prebuild` to regenerate facts.generated.ts, then commit the result.",
+  "\nRun `cd web && pnpm prebuild` to regenerate facts.generated.ts, then commit the result.",
 );
 process.exit(1);

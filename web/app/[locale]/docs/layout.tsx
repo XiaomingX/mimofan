@@ -108,9 +108,9 @@ export default async function DocsLayout({
       <p className="mt-5 max-w-3xl text-ink-soft text-lg leading-[1.9] tracking-wide">
         {isZh
           ? "工作原理简述：先有 Agent 自我模型，再有嵌套权威系统，最后才是模式、工具和 provider。完整的架构讲解请参阅仓库中的 "
-          : "How CodeWhale works: ego, conflict law, evidence, modes, tools, sandbox, MCP, config, hooks. The full architecture walkthrough is in "}
+          : "How Mimofan works: ego, conflict law, evidence, modes, tools, sandbox, MCP, config, hooks. The full architecture walkthrough is in "}
         <Link
-          href="https://github.com/Hmbown/CodeWhale/blob/main/docs/ARCHITECTURE.md"
+          href="https://github.com/Hmbown/Mimofan/blob/main/docs/ARCHITECTURE.md"
           className="body-link mx-1"
         >
           docs/ARCHITECTURE.md

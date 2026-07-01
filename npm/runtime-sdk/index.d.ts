@@ -226,7 +226,7 @@ export class RuntimeCapabilityError extends RuntimeApiError {
   capability: string;
 }
 
-export class CodeWhaleRuntimeClient {
+export class MimofanRuntimeClient {
   constructor(options?: RuntimeClientOptions);
   createFleetRun(spec: FleetRunCreateSpec | Record<string, unknown>): Promise<unknown>;
   listFleetRuns(): Promise<FleetRunsResponse>;
@@ -242,4 +242,4 @@ export class CodeWhaleRuntimeClient {
   ): AsyncIterable<FleetWorkerEvent>;
 }
 
-export function createRuntimeClient(options?: RuntimeClientOptions): CodeWhaleRuntimeClient;
+export function createRuntimeClient(options?: RuntimeClientOptions): MimofanRuntimeClient;

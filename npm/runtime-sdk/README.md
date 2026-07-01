@@ -1,15 +1,15 @@
-# @codewhale/runtime-sdk
+# @mimofan/runtime-sdk
 
-Small JavaScript helpers and TypeScript declarations for CodeWhale's local
+Small JavaScript helpers and TypeScript declarations for Mimofan's local
 Runtime API. The package is intentionally transport-only: it never bypasses the
 Rust runtime, sandbox, approvals, provider configuration, or fleet ledger.
 
 ```js
-import { createRuntimeClient } from "@codewhale/runtime-sdk";
+import { createRuntimeClient } from "@mimofan/runtime-sdk";
 
 const client = createRuntimeClient({
   baseUrl: "http://127.0.0.1:7878",
-  token: process.env.CODEWHALE_RUNTIME_TOKEN,
+  token: process.env.MIMOFAN_RUNTIME_TOKEN,
 });
 
 const { runs } = await client.listFleetRuns();

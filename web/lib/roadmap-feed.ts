@@ -39,7 +39,7 @@ interface KVNamespace {
 async function gh<T>(url: string, ghToken?: string): Promise<T | null> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "codewhale-web-roadmap",
+    "User-Agent": "mimofan-web-roadmap",
     "X-GitHub-Api-Version": "2022-11-28",
   };
   if (ghToken) headers["Authorization"] = `Bearer ${ghToken}`;

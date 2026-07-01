@@ -34,7 +34,7 @@ export default function OpengraphImage() {
           }}
         >
           <div style={{ width: 14, height: 14, backgroundColor: "#4D6BFE" }} />
-          codewhale.net
+          mimofan.net
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div
@@ -45,7 +45,7 @@ export default function OpengraphImage() {
               letterSpacing: 0,
             }}
           >
-            CodeWhale
+            Mimofan
           </div>
           <div
             style={{

@@ -258,7 +258,7 @@ Transports:
 
 `--http` and `--mobile` serve the same mature runtime API as `mimofan serve
 --http`/`--mobile`, which remain as compatibility aliases. The runtime API token
-is read from --auth-token, CODEWHALE_RUNTIME_TOKEN, or DEEPSEEK_RUNTIME_TOKEN.
+is read from --auth-token, MIMOFAN_RUNTIME_TOKEN, or DEEPSEEK_RUNTIME_TOKEN.
 
 See docs/RUNTIME_API.md.")]
     AppServer(AppServerArgs),
@@ -1032,7 +1032,7 @@ fn auth_status_all_providers(store: &ConfigStore, secrets: &Secrets) -> Vec<Stri
     let active_provider = store.config.provider;
     let mut lines = Vec::new();
     lines.push(format!(
-        "active provider: {} (set via config or CODEWHALE_PROVIDER)",
+        "active provider: {} (set via config or MIMOFAN_PROVIDER)",
         active_provider.as_str()
     ));
     lines.push(String::new());
@@ -1093,7 +1093,7 @@ fn auth_status_all_providers(store: &ConfigStore, secrets: &Secrets) -> Vec<Stri
     }
 
     lines.push(String::new());
-    lines.push("* = active provider (from config or CODEWHALE_PROVIDER)".to_string());
+    lines.push("* = active provider (from config or MIMOFAN_PROVIDER)".to_string());
     lines.push("Run `mimofan auth status --provider <id>` for detailed info.".to_string());
     lines
 }
@@ -1645,7 +1645,7 @@ fn run_app_server_command(
 /// subcommand-level `--config` is bridged through the global `--config` in the
 /// dispatcher, so it is intentionally not part of this passthrough. An auth
 /// token from the environment is deliberately *not* forwarded into child argv;
-/// the runtime API reads CODEWHALE_RUNTIME_TOKEN/DEEPSEEK_RUNTIME_TOKEN itself.
+/// the runtime API reads MIMOFAN_RUNTIME_TOKEN/DEEPSEEK_RUNTIME_TOKEN itself.
 fn app_server_serve_passthrough(args: &AppServerArgs) -> Vec<String> {
     let mut forwarded = vec!["serve".to_string()];
     forwarded.push(if args.mobile { "--mobile" } else { "--http" }.to_string());
@@ -1679,7 +1679,7 @@ fn app_server_serve_passthrough(args: &AppServerArgs) -> Vec<String> {
 }
 
 fn app_server_token_from_env() -> Option<String> {
-    std::env::var("CODEWHALE_APP_SERVER_TOKEN")
+    std::env::var("MIMOFAN_APP_SERVER_TOKEN")
         .ok()
         .or_else(|| std::env::var("DEEPSEEK_APP_SERVER_TOKEN").ok())
 }
@@ -2148,7 +2148,7 @@ fn build_tui_command(
         cmd.env("DEEPSEEK_OUTPUT_MODE", output_mode);
     }
     if let Some(v) = verbosity.as_ref() {
-        cmd.env("CODEWHALE_VERBOSITY", v);
+        cmd.env("MIMOFAN_VERBOSITY", v);
         cmd.env("DEEPSEEK_VERBOSITY", v);
     }
     if let Some(log_level) = cli.log_level.as_ref() {
@@ -2212,7 +2212,7 @@ to execute it. Common fixes:\n\
 come from the same install directory.\n\
   - If you downloaded release assets manually, keep both `mimofan` and \
 `mimofan-tui` binaries together and make sure the TUI binary is executable.\n\
-  - Set DEEPSEEK_TUI_BIN to the absolute path of a working `mimofan-tui` \
+  - Set MIMOFAN_TUI_BIN to the absolute path of a working `mimofan-tui` \
 binary.",
         tui.display()
     )
@@ -2223,18 +2223,20 @@ binary.",
 /// the npm-distributed Windows package — which ships
 /// `bin/downloads/mimofan.exe` — is found by `Path::exists` (#247).
 ///
-/// `DEEPSEEK_TUI_BIN` is consulted first as an explicit override for
-/// custom installs and CI test layouts. On Windows we additionally try
-/// the suffix-less name as a fallback for users who already manually
-/// renamed the file before this fix landed.
+/// `MIMOFAN_TUI_BIN` (or legacy `MIMOFAN_BIN`) is consulted first as an
+/// explicit override for custom installs and CI test layouts. On Windows we
+/// additionally try the suffix-less name as a fallback for users who already
+/// manually renamed the file before this fix landed.
 fn locate_sibling_tui_binary() -> Result<PathBuf> {
-    if let Ok(override_path) = std::env::var("DEEPSEEK_TUI_BIN") {
+    let bin_override =
+        std::env::var("MIMOFAN_TUI_BIN").or_else(|_| std::env::var("MIMOFAN_BIN"));
+    if let Ok(override_path) = bin_override {
         let candidate = PathBuf::from(override_path);
         if candidate.is_file() {
             return Ok(candidate);
         }
         bail!(
-            "DEEPSEEK_TUI_BIN points at {}, which is not a regular file.",
+            "MIMOFAN_TUI_BIN points at {}, which is not a regular file.",
             candidate.display()
         );
     }
@@ -2258,7 +2260,7 @@ The `mimofan` dispatcher delegates interactive sessions to a sibling \
 `mimofan-tui-<platform>` from https://github.com/XiaomingX/mimofan/releases/latest \
 and place them in the same directory.\n\
 \n\
-Or set DEEPSEEK_TUI_BIN to the absolute path of an existing `mimofan-tui` binary.",
+Or set MIMOFAN_TUI_BIN to the absolute path of an existing `mimofan-tui` binary.",
         expected.display()
     );
 }

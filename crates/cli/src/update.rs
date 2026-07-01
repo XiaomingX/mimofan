@@ -200,7 +200,7 @@ pub(crate) fn release_arch_for_rust_arch(arch: &str) -> &str {
     }
 }
 
-/// Returns true when the binary name belongs to the pre-rebrand `deepseek-tui` era.
+/// Returns true when the binary name belongs to the pre-rebrand `mimofan` era.
 pub(crate) fn is_legacy_binary(current_exe: &Path) -> bool {
     let exe_name = current_exe
         .file_name()
@@ -213,7 +213,7 @@ pub(crate) fn is_legacy_binary(current_exe: &Path) -> bool {
 fn legacy_binary_message(current_exe: &Path) -> String {
     format!(
         "\
-this binary ({exe}) is using the legacy deepseek/deepseek-tui command name.
+this binary ({exe}) is using the legacy deepseek/mimofan command name.
 
 The package has been renamed to `mimofan`. This update will install canonical
 mimofan binaries (`mimofan` and, when present, `mimofan-tui`) beside the
@@ -224,17 +224,17 @@ If this update cannot write to the install directory, reinstall using your
 original install method:
 
   npm:
-    npm uninstall -g deepseek-tui
+    npm uninstall -g mimofan
     npm install -g mimofan
 
   Cargo:
-    cargo uninstall deepseek-tui-cli 2>/dev/null || true
-    cargo uninstall deepseek-tui 2>/dev/null || true
+    cargo uninstall mimofan-cli 2>/dev/null || true
+    cargo uninstall mimofan 2>/dev/null || true
     cargo install mimofan-cli --locked
     cargo install mimofan-tui --locked
 
   Homebrew:
-    brew upgrade deepseek-tui
+    brew upgrade mimofan
 
   Manual binary:
     download the matched mimofan and mimofan-tui assets from
@@ -251,7 +251,7 @@ pub(crate) fn binary_prefix_for_exe(current_exe: &Path) -> &'static str {
         .and_then(|name| name.to_str())
         .unwrap_or("mimofan")
         .to_ascii_lowercase();
-    if exe_name.contains("mimofan-tui") || exe_name.contains("deepseek-tui") {
+    if exe_name.contains("mimofan-tui") || exe_name.contains("mimofan") {
         "mimofan-tui"
     } else {
         "mimofan"
@@ -280,7 +280,7 @@ fn canonical_binary_path_for_prefix(current_exe: &Path, prefix: &str) -> PathBuf
 
 fn legacy_binary_name_for_prefix(prefix: &str) -> &'static str {
     if prefix == "mimofan-tui" {
-        "deepseek-tui"
+        "mimofan"
     } else {
         "deepseek"
     }
@@ -832,8 +832,9 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 
 fn glibc_check_disabled() -> bool {
     [
-        "CODEWHALE_SKIP_GLIBC_CHECK",
-        "DEEPSEEK_TUI_SKIP_GLIBC_CHECK",
+        "MIMOFAN_SKIP_GLIBC_CHECK",
+        "MIMOFAN_SKIP_GLIBC_CHECK",
+        "MIMOFAN_SKIP_GLIBC_CHECK",
         "DEEPSEEK_SKIP_GLIBC_CHECK",
     ]
     .into_iter()
@@ -910,7 +911,7 @@ Install from source on this host instead:
   cargo install mimofan-tui --locked
 
 Release engineering follow-up: build Linux GNU assets against an older glibc
-baseline, or add a musl/static Linux asset. Set CODEWHALE_SKIP_GLIBC_CHECK=1 to
+baseline, or add a musl/static Linux asset. Set MIMOFAN_SKIP_GLIBC_CHECK=1 to
 bypass this preflight at your own risk.",
         required = required.display(),
     )
@@ -1064,15 +1065,15 @@ mod tests {
 
         // Legacy names still map to the canonical update asset prefixes.
         assert_eq!(
-            binary_prefix_for_exe(Path::new("deepseek-tui")),
+            binary_prefix_for_exe(Path::new("mimofan")),
             "mimofan-tui"
         );
         assert_eq!(
-            binary_prefix_for_exe(Path::new("/usr/local/bin/deepseek-tui")),
+            binary_prefix_for_exe(Path::new("/usr/local/bin/mimofan")),
             "mimofan-tui"
         );
         assert_eq!(
-            binary_prefix_for_exe(Path::new("DeepSeek-TUI.exe")),
+            binary_prefix_for_exe(Path::new("Mimofan.exe")),
             "mimofan-tui"
         );
         assert_eq!(binary_prefix_for_exe(Path::new("deepseek")), "mimofan");
@@ -1081,11 +1082,11 @@ mod tests {
     #[test]
     fn test_is_legacy_binary_detection() {
         assert!(is_legacy_binary(Path::new("deepseek")));
-        assert!(is_legacy_binary(Path::new("deepseek-tui")));
+        assert!(is_legacy_binary(Path::new("mimofan")));
         assert!(is_legacy_binary(Path::new("/usr/local/bin/deepseek")));
-        assert!(is_legacy_binary(Path::new("/usr/local/bin/deepseek-tui")));
+        assert!(is_legacy_binary(Path::new("/usr/local/bin/mimofan")));
         assert!(is_legacy_binary(Path::new("DeepSeek.exe")));
-        assert!(is_legacy_binary(Path::new("DeepSeek-TUI.exe")));
+        assert!(is_legacy_binary(Path::new("Mimofan.exe")));
         assert!(!is_legacy_binary(Path::new("mimofan")));
         assert!(!is_legacy_binary(Path::new("mimofan-tui")));
         assert!(!is_legacy_binary(Path::new("codew")));
@@ -1093,19 +1094,19 @@ mod tests {
 
     #[test]
     fn legacy_binary_message_gives_copy_pasteable_migration_steps() {
-        let message = legacy_binary_message(Path::new("/usr/local/bin/deepseek-tui"));
+        let message = legacy_binary_message(Path::new("/usr/local/bin/mimofan"));
 
-        assert!(message.contains("legacy deepseek/deepseek-tui command name"));
+        assert!(message.contains("legacy deepseek/mimofan command name"));
         assert!(message.contains("install canonical"));
         assert!(message.contains("DeepSeek provider support"));
         assert!(message.contains("is unchanged"));
-        assert!(message.contains("npm uninstall -g deepseek-tui"));
+        assert!(message.contains("npm uninstall -g mimofan"));
         assert!(message.contains("npm install -g mimofan"));
-        assert!(message.contains("cargo uninstall deepseek-tui-cli 2>/dev/null || true"));
-        assert!(message.contains("cargo uninstall deepseek-tui 2>/dev/null || true"));
+        assert!(message.contains("cargo uninstall mimofan-cli 2>/dev/null || true"));
+        assert!(message.contains("cargo uninstall mimofan 2>/dev/null || true"));
         assert!(message.contains("cargo install mimofan-cli --locked"));
         assert!(message.contains("cargo install mimofan-tui --locked"));
-        assert!(message.contains("brew upgrade deepseek-tui"));
+        assert!(message.contains("brew upgrade mimofan"));
         assert!(message.contains("https://github.com/XiaomingX/mimofan/releases/latest"));
     }
 
@@ -1117,7 +1118,7 @@ mod tests {
             .join(format!("deepseek{}", std::env::consts::EXE_SUFFIX));
         let tui = dir
             .path()
-            .join(format!("deepseek-tui{}", std::env::consts::EXE_SUFFIX));
+            .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
         std::fs::write(&dispatcher, b"legacy dispatcher").unwrap();
         std::fs::write(&tui, b"legacy tui").unwrap();
 
@@ -1148,7 +1149,7 @@ mod tests {
             .join(format!("deepseek{}", std::env::consts::EXE_SUFFIX));
         let tui = dir
             .path()
-            .join(format!("deepseek-tui{}", std::env::consts::EXE_SUFFIX));
+            .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
         std::fs::write(&dispatcher, b"legacy dispatcher").unwrap();
         std::fs::write(&tui, b"legacy tui").unwrap();
 

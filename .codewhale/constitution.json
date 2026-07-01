@@ -12,7 +12,7 @@
     "Keep the active first-turn tool-catalog head byte-stable (DeepSeek KV prefix-cache invariant); changes to it must be one-time and deterministic.",
     "Preserve old-session transcript replay: never remove a tool's registration just because it is deprecated/hidden.",
     "Stable Rust only (edition 2024); no nightly features.",
-    "Keep the codewhale CLI dispatcher and the codewhale-tui binary in sync when crates/tui changes."
+    "Keep the mimofan CLI dispatcher and the mimofan-tui binary in sync when crates/tui changes."
   ],
   "branch_policy": "v0.8.53 work targets the codex/v0.8.53 integration branch, not main. One PR per logical workstream; do not mix unrelated fixes.",
   "verification_policy": {

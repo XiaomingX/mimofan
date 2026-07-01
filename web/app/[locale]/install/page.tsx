@@ -11,57 +11,57 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return buildPageMetadata({
     path: "/install",
     locale,
-    title: isZh ? "安装 · CodeWhale" : "Install · CodeWhale",
+    title: isZh ? "安装 · Mimofan" : "Install · Mimofan",
     description: isZh
-      ? "一行 curl -fsSL https://codewhale.net/install.sh | sh 安装或更新 CodeWhale，也支持 npm、Cargo、GitHub Releases、CNB 镜像、Homebrew、预编译二进制、Docker 和源码编译。"
-      : "Install or update CodeWhale with curl -fsSL https://codewhale.net/install.sh | sh, or via npm, cargo, GitHub Releases, the CNB mirror, Homebrew, prebuilt binaries, Docker, or from source.",
+      ? "一行 curl -fsSL https://mimofan.net/install.sh | sh 安装或更新 Mimofan，也支持 npm、Cargo、GitHub Releases、CNB 镜像、Homebrew、预编译二进制、Docker 和源码编译。"
+      : "Install or update Mimofan with curl -fsSL https://mimofan.net/install.sh | sh, or via npm, cargo, GitHub Releases, the CNB mirror, Homebrew, prebuilt binaries, Docker, or from source.",
   });
 }
 
-const SHELL_INSTALL = `curl -fsSL https://codewhale.net/install.sh | sh`;
-const SHELL_INSPECT = `curl -fsSL https://codewhale.net/install.sh`;
-const NPM_INSTALL = `npm install -g codewhale`;
-const CARGO_INSTALL = `cargo install codewhale-cli --locked
-cargo install codewhale-tui --locked`;
-const FIRST_RUN = `codewhale`;
+const SHELL_INSTALL = `curl -fsSL https://mimofan.net/install.sh | sh`;
+const SHELL_INSPECT = `curl -fsSL https://mimofan.net/install.sh`;
+const NPM_INSTALL = `npm install -g mimofan`;
+const CARGO_INSTALL = `cargo install mimofan-cli --locked
+cargo install mimofan-tui --locked`;
+const FIRST_RUN = `mimofan`;
 
-const UPDATE = `codewhale update`;
+const UPDATE = `mimofan update`;
 
 const SET_KEY_BASH = `export DEEPSEEK_API_KEY=sk-...`;
-const SET_KEY_AUTH = `codewhale auth set --provider deepseek --api-key sk-...`;
+const SET_KEY_AUTH = `mimofan auth set --provider deepseek --api-key sk-...`;
 
 const RELEASE_DOWNLOAD = `# Download your platform archive (incl. Linux riscv64):
-https://github.com/Hmbown/CodeWhale/releases/latest`;
-const cnbInstall = (tag: string) => `cargo install --git https://cnb.cool/codewhale.net/codewhale --tag ${tag} codewhale-cli --locked --force
-cargo install --git https://cnb.cool/codewhale.net/codewhale --tag ${tag} codewhale-tui --locked --force`;
+https://github.com/Hmbown/Mimofan/releases/latest`;
+const cnbInstall = (tag: string) => `cargo install --git https://cnb.cool/mimofan.net/mimofan --tag ${tag} mimofan-cli --locked --force
+cargo install --git https://cnb.cool/mimofan.net/mimofan --tag ${tag} mimofan-tui --locked --force`;
 const TUNA_CONFIG = `# ~/.cargo/config.toml
 [source.crates-io]
 replace-with = "tuna"
 
 [source.tuna]
 registry = "sparse+https://mirrors.tuna.tsinghua.edu.cn/crates.io-index/"`;
-const TUNA_INSTALL = `cargo install codewhale-cli --locked
-cargo install codewhale-tui --locked`;
+const TUNA_INSTALL = `cargo install mimofan-cli --locked
+cargo install mimofan-tui --locked`;
 
-const BREW = `brew tap Hmbown/deepseek-tui
-brew install deepseek-tui`;
+const BREW = `brew tap Hmbown/mimofan
+brew install mimofan`;
 
-const DOCKER = `docker volume create codewhale-home
+const DOCKER = `docker volume create mimofan-home
 docker run --rm -it \\
   -e DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY \\
-  -v codewhale-home:/home/codewhale/.codewhale \\
+  -v mimofan-home:/home/mimofan/.mimofan \\
   -v "$PWD:/workspace" -w /workspace \\
-  ghcr.io/hmbown/codewhale:latest`;
+  ghcr.io/hmbown/mimofan:latest`;
 
-const FROM_SOURCE = `git clone https://github.com/Hmbown/CodeWhale
-cd CodeWhale
+const FROM_SOURCE = `git clone https://github.com/Hmbown/Mimofan
+cd Mimofan
 cargo build --release --locked
 
 # Install both binaries from the local checkout
-cargo install --path crates/cli --locked   # codewhale
-cargo install --path crates/tui --locked   # codewhale-tui`;
+cargo install --path crates/cli --locked   # mimofan
+cargo install --path crates/tui --locked   # mimofan-tui`;
 
-const CONFIG_TREE = `~/.codewhale/
+const CONFIG_TREE = `~/.mimofan/
 ├── config.toml      api keys, model, hooks, profiles
 ├── mcp.json         MCP server definitions
 ├── skills/          user skills (each with SKILL.md)
@@ -69,9 +69,9 @@ const CONFIG_TREE = `~/.codewhale/
 ├── tasks/           background task store
 └── audit.log        credential / approval / elevation audit trail
 
-./.codewhale/        project-scoped config (optional, per-repo)`;
+./.mimofan/        project-scoped config (optional, per-repo)`;
 
-const CONFIG_TREE_ZH = `~/.codewhale/
+const CONFIG_TREE_ZH = `~/.mimofan/
 ├── config.toml      API 密钥、模型、钩子、配置集
 ├── mcp.json         MCP 服务器定义
 ├── skills/          用户技能（每个含 SKILL.md）
@@ -79,15 +79,15 @@ const CONFIG_TREE_ZH = `~/.codewhale/
 ├── tasks/           后台任务存储
 └── audit.log        凭证 / 审批 / 提权审计日志
 
-./.codewhale/        项目级配置（可选，每个仓库）`;
+./.mimofan/        项目级配置（可选，每个仓库）`;
 
 export default async function InstallPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const isZh = locale === "zh";
   const facts = await getFacts();
   const tag = facts.version ? `v${facts.version}` : "v0.8.x";
-  const verify = `codewhale --version   # ${facts.version ?? "prints the installed version"}
-codewhale doctor`;
+  const verify = `mimofan --version   # ${facts.version ?? "prints the installed version"}
+mimofan doctor`;
 
   const copyLabel = isZh ? "复制" : "Copy";
   const copiedLabel = isZh ? "已复制 ✓" : "Copied ✓";
@@ -118,8 +118,8 @@ codewhale doctor`;
             <>
               macOS / Linux 安装脚本会从 GitHub Releases 下载经 SHA-256 校验的二进制，
               默认安装到 <code className="inline">~/.local/bin</code>，并安装{" "}
-              <code className="inline">codewhale</code>、<code className="inline">codew</code> 和{" "}
-              <code className="inline">codewhale-tui</code>。先审阅脚本可运行{" "}
+              <code className="inline">mimofan</code>、<code className="inline">codew</code> 和{" "}
+              <code className="inline">mimofan-tui</code>。先审阅脚本可运行{" "}
               <code className="inline">{SHELL_INSPECT}</code>。下方「其他安装方式」列出 npm、Cargo、GitHub Releases、
               CNB、国内镜像、Homebrew、预编译二进制和 Docker。
             </>
@@ -127,8 +127,8 @@ codewhale doctor`;
             <>
               The macOS / Linux installer downloads SHA-256-verified binaries from GitHub Releases,
               installs to <code className="inline">~/.local/bin</code> by default, and exposes{" "}
-              <code className="inline">codewhale</code>, <code className="inline">codew</code>, and{" "}
-              <code className="inline">codewhale-tui</code>. To inspect it first, run{" "}
+              <code className="inline">mimofan</code>, <code className="inline">codew</code>, and{" "}
+              <code className="inline">mimofan-tui</code>. To inspect it first, run{" "}
               <code className="inline">{SHELL_INSPECT}</code>. See{" "}
               <a href="#other-ways" className="body-link">Other ways to install</a> below for
               npm, cargo, GitHub Releases, CNB, Homebrew, prebuilt binaries, Docker, or mainland
@@ -150,13 +150,13 @@ codewhale doctor`;
         <p className="mt-4 text-sm text-ink-soft leading-relaxed max-w-2xl">
           {isZh ? (
             <>
-              <code className="inline">codewhale doctor</code> 检查 API 密钥、网络、沙箱可用性、
+              <code className="inline">mimofan doctor</code> 检查 API 密钥、网络、沙箱可用性、
               MCP 服务器，并在终端输出修复建议；需要结构化输出时可加{" "}
               <code className="inline">--json</code>。
             </>
           ) : (
             <>
-              <code className="inline">codewhale doctor</code> checks your API key, network,
+              <code className="inline">mimofan doctor</code> checks your API key, network,
               sandbox availability, and MCP servers, then prints remediation guidance. Add{" "}
               <code className="inline">--json</code> when you need structured output.
             </>
@@ -183,10 +183,10 @@ codewhale doctor`;
               通过 <code className="inline">install.sh</code> 安装的用户也可以重跑同一条{" "}
               <code className="inline">curl</code> 命令覆盖更新。
               通过包管理器安装的话，用包管理器升级更稳：npm 安装的运行{" "}
-              <code className="inline">npm update -g codewhale</code>；
+              <code className="inline">npm update -g mimofan</code>；
               Cargo 安装的重跑两个 <code className="inline">cargo install</code> 命令并加{" "}
               <code className="inline">--force</code>；
-              旧版 Homebrew tap 用 <code className="inline">brew upgrade deepseek-tui</code>。
+              旧版 Homebrew tap 用 <code className="inline">brew upgrade mimofan</code>。
             </>
           ) : (
             <>
@@ -194,10 +194,10 @@ codewhale doctor`;
               installed with <code className="inline">install.sh</code>, re-run the same{" "}
               <code className="inline">curl</code> command to overwrite the binaries.
               If you installed via a package manager, prefer it instead: npm users run{" "}
-              <code className="inline">npm update -g codewhale</code>; cargo users re-run both{" "}
+              <code className="inline">npm update -g mimofan</code>; cargo users re-run both{" "}
               <code className="inline">cargo install</code> commands with{" "}
               <code className="inline">--force</code>; the legacy Homebrew tap updates with{" "}
-              <code className="inline">brew upgrade deepseek-tui</code>.
+              <code className="inline">brew upgrade mimofan</code>.
             </>
           )}
         </p>
@@ -243,7 +243,7 @@ codewhale doctor`;
             <div className="space-y-2">
               <InstallCodeBlock cmd={SET_KEY_BASH} copyLabel={copyLabel} copiedLabel={copiedLabel} />
               <p className="text-xs text-ink-mute">
-                {isZh ? "或保存到 ~/.codewhale/config.toml：" : "Or persist it to ~/.codewhale/config.toml:"}
+                {isZh ? "或保存到 ~/.mimofan/config.toml：" : "Or persist it to ~/.mimofan/config.toml:"}
               </p>
               <InstallCodeBlock cmd={SET_KEY_AUTH} copyLabel={copyLabel} copiedLabel={copiedLabel} />
             </div>
@@ -253,7 +253,7 @@ codewhale doctor`;
             <div className="font-display text-lg mb-2">
               {isZh ? "③ 在项目目录中运行" : "③ Run it in a project"}
             </div>
-            <InstallCodeBlock cmd={`cd path/to/project\ncodewhale`} copyLabel={copyLabel} copiedLabel={copiedLabel} />
+            <InstallCodeBlock cmd={`cd path/to/project\nmimofan`} copyLabel={copyLabel} copiedLabel={copiedLabel} />
             <p className="mt-3 text-sm text-ink-soft leading-relaxed">
               {isZh ? (
                 <>
@@ -286,8 +286,8 @@ codewhale doctor`;
           </h2>
           <p className="text-sm text-ink-soft max-w-2xl mb-10">
             {isZh
-              ? "如果上面的脚本路径不适合你，从下面找到匹配你情况的一条。每条都安装同一组 codewhale / codewhale-tui 二进制。"
-              : "If the script above doesn't fit your setup, pick the row that matches your situation. Every path installs the same codewhale / codewhale-tui binary pair."}
+              ? "如果上面的脚本路径不适合你，从下面找到匹配你情况的一条。每条都安装同一组 mimofan / mimofan-tui 二进制。"
+              : "If the script above doesn't fit your setup, pick the row that matches your situation. Every path installs the same mimofan / mimofan-tui binary pair."}
           </p>
 
           <div className="space-y-10">
@@ -304,15 +304,15 @@ codewhale doctor`;
                 {isZh ? (
                   <>
                     npm wrapper 会从 GitHub Releases 下载经 SHA-256 校验的二进制，并安装{" "}
-                    <code className="inline">codewhale</code>、<code className="inline">codew</code> 和{" "}
-                    <code className="inline">codewhale-tui</code> 三个命令。
+                    <code className="inline">mimofan</code>、<code className="inline">codew</code> 和{" "}
+                    <code className="inline">mimofan-tui</code> 三个命令。
                   </>
                 ) : (
                   <>
                     The npm wrapper downloads SHA-256-verified binaries from GitHub Releases and
-                    installs <code className="inline">codewhale</code>,{" "}
+                    installs <code className="inline">mimofan</code>,{" "}
                     <code className="inline">codew</code>, and{" "}
-                    <code className="inline">codewhale-tui</code>.
+                    <code className="inline">mimofan-tui</code>.
                   </>
                 )}
               </p>
@@ -327,15 +327,15 @@ codewhale doctor`;
               <p className="mt-3 text-sm text-ink-soft leading-relaxed max-w-2xl">
                 {isZh ? (
                   <>
-                    编译并安装 <code className="inline">codewhale</code> 和 <code className="inline">codewhale-tui</code> 到 <code className="inline">~/.cargo/bin</code>。
+                    编译并安装 <code className="inline">mimofan</code> 和 <code className="inline">mimofan-tui</code> 到 <code className="inline">~/.cargo/bin</code>。
                     需要 Rust 1.88+；Linux 用户先安装 <code className="inline">pkg-config</code> 和{" "}
                     <code className="inline">libdbus-1-dev</code> 等构建依赖。如未安装 Rust，可访问{" "}
                     <a href="https://rustup.rs" className="body-link">rustup.rs</a>。
                   </>
                 ) : (
                   <>
-                    Compiles and installs <code className="inline">codewhale</code> and{" "}
-                    <code className="inline">codewhale-tui</code> to{" "}
+                    Compiles and installs <code className="inline">mimofan</code> and{" "}
+                    <code className="inline">mimofan-tui</code> to{" "}
                     <code className="inline">~/.cargo/bin</code>. Requires Rust 1.88+; install via{" "}
                     <a href="https://rustup.rs" className="body-link">rustup.rs</a> if you don&apos;t have it.
                     On Linux, install build dependencies such as{" "}
@@ -385,7 +385,7 @@ codewhale doctor`;
               <p className="mt-4 text-sm text-ink-soft leading-relaxed max-w-2xl">
                 {isZh ? (
                   <>
-                    npm 安装时设置 <code className="inline">CODEWHALE_USE_CNB_MIRROR=1</code>，
+                    npm 安装时设置 <code className="inline">MIMOFAN_USE_CNB_MIRROR=1</code>，
                     wrapper 会改从 CNB 镜像下载二进制而不是 GitHub。Cargo + Tuna 或 CNB
                     路径同样可以绕开 GitHub 下载瓶颈。
                     DeepSeek API（<code className="inline">api.deepseek.com</code>）在国内直连，无需代理。
@@ -393,7 +393,7 @@ codewhale doctor`;
                 ) : (
                   <>
                     For the npm path, set{" "}
-                    <code className="inline">CODEWHALE_USE_CNB_MIRROR=1</code> and the wrapper
+                    <code className="inline">MIMOFAN_USE_CNB_MIRROR=1</code> and the wrapper
                     downloads binaries from the CNB mirror instead of GitHub. Cargo + Tuna or the
                     CNB path also routes around GitHub download bottlenecks. The DeepSeek API at{" "}
                     <code className="inline">api.deepseek.com</code> is reachable from mainland China
@@ -414,8 +414,8 @@ codewhale doctor`;
               <InstallCodeBlock cmd={BREW} copyLabel={copyLabel} copiedLabel={copiedLabel} />
               <p className="mt-3 text-sm text-ink-soft leading-relaxed max-w-2xl">
                 {isZh
-                  ? "这是旧版 deepseek-tui tap，在 formula 重命名为 codewhale 期间保留以保证兼容，安装的同样是当前版本的二进制。"
-                  : "This is the legacy deepseek-tui tap, kept for compatibility while the formula is renamed to codewhale. It installs the same current-release binaries."}
+                  ? "这是旧版 mimofan tap，在 formula 重命名为 mimofan 期间保留以保证兼容，安装的同样是当前版本的二进制。"
+                  : "This is the legacy mimofan tap, kept for compatibility while the formula is renamed to mimofan. It installs the same current-release binaries."}
               </p>
             </div>
 
@@ -471,13 +471,13 @@ codewhale doctor`;
         <p className="mt-4 text-sm text-ink-soft leading-relaxed max-w-2xl">
           {isZh ? (
             <>
-              项目级 <code className="inline">./.codewhale/</code> 目录是可选的——每个仓库可有独立的 MCP 服务器、钩子、
+              项目级 <code className="inline">./.mimofan/</code> 目录是可选的——每个仓库可有独立的 MCP 服务器、钩子、
               技能和配置覆盖（例如提供商密钥）。
               首次运行时，如果缺少配置文件，系统会询问是否交互式创建。旧版 <code className="inline">~/.deepseek</code> 和 <code className="inline">./.deepseek</code> 路径仍会作为兼容回退读取。
             </>
           ) : (
             <>
-              The project-scoped <code className="inline">./.codewhale/</code> directory is optional —
+              The project-scoped <code className="inline">./.mimofan/</code> directory is optional —
               each repo can carry its own MCP servers, hooks, skills, and config overrides (e.g.
               provider keys). On first run the app asks whether to interactively create a config
               file if one is missing. Legacy <code className="inline">~/.deepseek</code> and{" "}
@@ -498,19 +498,19 @@ codewhale doctor`;
           <p>
             {isZh ? (
               <>
-                <strong className="text-ink">codewhale.net</strong> 和{" "}
-                <strong className="text-ink">www.codewhale.net</strong> 是 CodeWhale 的官方站点，
+                <strong className="text-ink">mimofan.net</strong> 和{" "}
+                <strong className="text-ink">www.mimofan.net</strong> 是 Mimofan 的官方站点，
                 部署在 Cloudflare 上。网站源码位于{" "}
-                <code className="inline">Hmbown/CodeWhale</code> 仓库的{" "}
+                <code className="inline">Hmbown/Mimofan</code> 仓库的{" "}
                 <code className="inline">web/</code> 目录下，任何人都可自行部署为镜像。
               </>
             ) : (
               <>
-                <strong className="text-ink">codewhale.net</strong> and{" "}
-                <strong className="text-ink">www.codewhale.net</strong> are the official CodeWhale
+                <strong className="text-ink">mimofan.net</strong> and{" "}
+                <strong className="text-ink">www.mimofan.net</strong> are the official Mimofan
                 sites, deployed on Cloudflare. The website source lives under{" "}
                 <code className="inline">web/</code> in the{" "}
-                <code className="inline">Hmbown/CodeWhale</code> repository — anyone can
+                <code className="inline">Hmbown/Mimofan</code> repository — anyone can
                 self-deploy it as a mirror.
               </>
             )}
@@ -531,13 +531,13 @@ codewhale doctor`;
                 {isZh ? (
                   <>
                     面向无法稳定访问 GitHub 的用户，提供 CNB 镜像（
-                    <a href="https://github.com/Hmbown/CodeWhale/blob/main/docs/CNB_MIRROR.md" className="body-link">docs/CNB_MIRROR.md</a>
+                    <a href="https://github.com/Hmbown/Mimofan/blob/main/docs/CNB_MIRROR.md" className="body-link">docs/CNB_MIRROR.md</a>
                     ）。镜像仓库由社区成员维护，发布延迟可能为几小时。
                   </>
                 ) : (
                   <>
                     A CNB mirror is available for users who cannot reliably reach GitHub (
-                    <a href="https://github.com/Hmbown/CodeWhale/blob/main/docs/CNB_MIRROR.md" className="body-link">docs/CNB_MIRROR.md</a>
+                    <a href="https://github.com/Hmbown/Mimofan/blob/main/docs/CNB_MIRROR.md" className="body-link">docs/CNB_MIRROR.md</a>
                     ). The mirror is maintained by community members; release latency may be a few hours.
                   </>
                 )}
@@ -547,16 +547,16 @@ codewhale doctor`;
               <div className="eyebrow mb-1 text-indigo">{isZh ? "TUNA / 包镜像" : "TUNA / package mirrors"}</div>
               <p>
                 {isZh
-                  ? "Cargo 用户可通过 TUNA（清华大学开源镜像站）加速下载。这些镜像由第三方维护，CodeWhale 项目不控制镜像内容。"
-                  : "Cargo users can accelerate downloads via TUNA (Tsinghua University Open Source Mirror). These mirrors are maintained by third parties; the CodeWhale project does not control mirror content."}
+                  ? "Cargo 用户可通过 TUNA（清华大学开源镜像站）加速下载。这些镜像由第三方维护，Mimofan 项目不控制镜像内容。"
+                  : "Cargo users can accelerate downloads via TUNA (Tsinghua University Open Source Mirror). These mirrors are maintained by third parties; the Mimofan project does not control mirror content."}
               </p>
             </div>
             <div>
               <div className="eyebrow mb-1 text-indigo">{isZh ? "自行部署" : "Self-deployed"}</div>
               <p>
                 {isZh
-                  ? "自行部署的网站副本、镜像站和第三方包不受 CodeWhale 项目控制。请验证下载来源和校验和。"
-                  : "Self-deployed website copies, mirror sites, and third-party packages are not controlled by the CodeWhale project. Verify download sources and checksums."}
+                  ? "自行部署的网站副本、镜像站和第三方包不受 Mimofan 项目控制。请验证下载来源和校验和。"
+                  : "Self-deployed website copies, mirror sites, and third-party packages are not controlled by the Mimofan project. Verify download sources and checksums."}
               </p>
             </div>
           </div>

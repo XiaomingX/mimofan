@@ -19,7 +19,6 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
-#[cfg(not(test))]
 fn discover_visible_skills(app: &App) -> SkillRegistry {
     crate::skills::discover_for_workspace_and_dir_with_mode(
         &app.workspace,

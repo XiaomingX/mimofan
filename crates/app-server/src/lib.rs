@@ -406,7 +406,7 @@ fn resolve_auth_token(options: &AppServerOptions) -> Result<Option<String>> {
 
     if !has_explicit_token && !options.listen.ip().is_loopback() {
         bail!(
-            "refusing non-loopback app-server bind without explicit auth token; pass --auth-token or set CODEWHALE_APP_SERVER_TOKEN"
+            "refusing non-loopback app-server bind without explicit auth token; pass --auth-token or set MIMOFAN_APP_SERVER_TOKEN"
         );
     }
 
@@ -425,7 +425,7 @@ fn app_server_auth_status_lines(has_explicit_token: bool) -> Vec<&'static str> {
     }
     vec![
         "app-server auth: generated bearer token for this process (not printed).",
-        "  Pass --auth-token or set CODEWHALE_APP_SERVER_TOKEN when another client needs to connect.",
+        "  Pass --auth-token or set MIMOFAN_APP_SERVER_TOKEN when another client needs to connect.",
     ]
 }
 
@@ -1440,7 +1440,7 @@ mod tests {
 
         assert!(!rendered.contains("Authorization: Bearer"));
         assert!(rendered.contains("not printed"));
-        assert!(rendered.contains("CODEWHALE_APP_SERVER_TOKEN"));
+        assert!(rendered.contains("MIMOFAN_APP_SERVER_TOKEN"));
     }
 
     #[test]

@@ -9,10 +9,10 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const isZh = locale === "zh";
   return {
-    title: isZh ? "文档 · CodeWhale" : "Docs · CodeWhale",
+    title: isZh ? "文档 · Mimofan" : "Docs · Mimofan",
     description: isZh
-      ? "CodeWhale 文档：安装、使用指南、配置、提供商、核心概念、工具、MCP、技能、沙箱、运行时 API、排障。"
-      : "CodeWhale documentation: install, user guide, configuration, providers, core concepts, tools, MCP, skills, sandbox, runtime API, troubleshooting.",
+      ? "Mimofan 文档：安装、使用指南、配置、提供商、核心概念、工具、MCP、技能、沙箱、运行时 API、排障。"
+      : "Mimofan documentation: install, user guide, configuration, providers, core concepts, tools, MCP, skills, sandbox, runtime API, troubleshooting.",
   };
 }
 
@@ -98,8 +98,8 @@ export default async function DocsHubPage({ params }: { params: Promise<{ locale
       <section className="hairline-t pt-8">
         <p className="text-sm text-ink-mute leading-relaxed max-w-2xl">
           {isZh
-            ? "§ 标记的条目在 CodeWhale 网站上有独立页面；↗ 标记的条目链接到 GitHub 仓库中的源文档。所有内容来源于 docs/ 目录下的 40+ 篇 Markdown 文档，通过 docs-map.ts 注册表维护。"
-            : "Entries marked § have dedicated pages on codewhale.net; entries marked ↗ link to source documents in the GitHub repository. All content is sourced from 40+ Markdown documents in the docs/ directory, maintained through the docs-map.ts registry."}
+            ? "§ 标记的条目在 Mimofan 网站上有独立页面；↗ 标记的条目链接到 GitHub 仓库中的源文档。所有内容来源于 docs/ 目录下的 40+ 篇 Markdown 文档，通过 docs-map.ts 注册表维护。"
+            : "Entries marked § have dedicated pages on mimofan.net; entries marked ↗ link to source documents in the GitHub repository. All content is sourced from 40+ Markdown documents in the docs/ directory, maintained through the docs-map.ts registry."}
         </p>
       </section>
     </div>

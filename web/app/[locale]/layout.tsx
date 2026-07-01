@@ -47,8 +47,8 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     path: "/",
     locale,
     title: isZh
-      ? "CodeWhale — 适配任意模型的终端编程智能体，开放模型优先"
-      : "CodeWhale — the terminal coding agent for any model, open models first",
+      ? "Mimofan — 适配任意模型的终端编程智能体，开放模型优先"
+      : "Mimofan — the terminal coding agent for any model, open models first",
     description: isZh
       ? "开源终端编程智能体：适配任意模型，开放模型优先。从 DeepSeek、本地 vLLM/Ollama 到原生 Claude 与 OpenAI，内置审批制工具、沙箱隔离与 /restore 回滚。"
       : "Open-source terminal coding agent for any model, open models first: broad provider support from DeepSeek and local vLLM/Ollama to native Claude and OpenAI, with approval-gated tools, sandboxing, and /restore rollback.",

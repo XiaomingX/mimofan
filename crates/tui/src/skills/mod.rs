@@ -50,14 +50,14 @@ pub enum SkillDiscoveryMode {
     Compatible,
     /// Scan only mimofan-owned roots. Callers that also pass an explicit
     /// `skills_dir` still get that directory because it is user configuration.
-    mimofanOnly,
+    MimofanOnly,
 }
 
 impl SkillDiscoveryMode {
     #[must_use]
     pub fn from_mimofan_only(value: bool) -> Self {
         if value {
-            Self::mimofanOnly
+            Self::MimofanOnly
         } else {
             Self::Compatible
         }
@@ -502,7 +502,7 @@ fn skills_directories_with_home_and_mode(
             workspace.join(".cursor").join("skills"),
             workspace.join(".mimofan").join("skills"),
         ],
-        SkillDiscoveryMode::mimofanOnly => mimofan_workspace_skills_dir(workspace)
+        SkillDiscoveryMode::MimofanOnly => mimofan_workspace_skills_dir(workspace)
             .into_iter()
             .collect(),
     };
@@ -514,7 +514,7 @@ fn skills_directories_with_home_and_mode(
                 candidates.push(home.join(".mimofan").join("skills"));
                 candidates.push(home.join(".deepseek").join("skills"));
             }
-            SkillDiscoveryMode::mimofanOnly => {
+            SkillDiscoveryMode::MimofanOnly => {
                 candidates.push(home.join(".mimofan").join("skills"));
             }
         }

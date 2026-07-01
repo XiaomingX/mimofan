@@ -6,10 +6,10 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   const isZh = locale === "zh";
   return {
-    title: isZh ? "参与贡献 · CodeWhale" : "Contribute · CodeWhale",
+    title: isZh ? "参与贡献 · Mimofan" : "Contribute · Mimofan",
     description: isZh
-      ? "如何提交议题、发送合并请求、加入 CodeWhale 社区。"
-      : "How to file issues, send pull requests, and join the CodeWhale community.",
+      ? "如何提交议题、发送合并请求、加入 Mimofan 社区。"
+      : "How to file issues, send pull requests, and join the Mimofan community.",
   };
 }
 
@@ -19,28 +19,28 @@ const stepsEn = [
     title: "Find a thread to pull",
     cn: "选择切入点",
     body: "Browse open issues. The good first issue label means the path is clear. The help wanted label means the path is open but contested. Anything else, ask first.",
-    cta: { label: "Open issues", href: "https://github.com/Hmbown/CodeWhale/issues" },
+    cta: { label: "Open issues", href: "https://github.com/Hmbown/Mimofan/issues" },
   },
   {
     n: "②",
     title: "Fork and branch",
     cn: "复刻并分支",
     body: "git clone your fork, then git checkout -b feat/short-name or fix/short-name. We use conventional commits — feat:, fix:, docs:, refactor:, test:, chore:.",
-    cta: { label: "Repo on GitHub", href: "https://github.com/Hmbown/CodeWhale" },
+    cta: { label: "Repo on GitHub", href: "https://github.com/Hmbown/Mimofan" },
   },
   {
     n: "③",
     title: "Match the local checks",
     cn: "本地检查",
     body: "CI runs cargo fmt --all -- --check, cargo clippy --workspace --all-targets --all-features --locked -- -D warnings, and cargo test --workspace --all-features --locked. Run them before you push.",
-    cta: { label: "Contributing guide", href: "https://github.com/Hmbown/CodeWhale/blob/main/CONTRIBUTING.md" },
+    cta: { label: "Contributing guide", href: "https://github.com/Hmbown/Mimofan/blob/main/CONTRIBUTING.md" },
   },
   {
     n: "④",
     title: "Open the PR",
     cn: "提交合并",
     body: "PR description should explain WHY, not WHAT (the diff covers what). Link the issue. The maintainer reviews everything personally — response times vary.",
-    cta: { label: "PR template", href: "https://github.com/Hmbown/CodeWhale/blob/main/.github/PULL_REQUEST_TEMPLATE.md" },
+    cta: { label: "PR template", href: "https://github.com/Hmbown/Mimofan/blob/main/.github/PULL_REQUEST_TEMPLATE.md" },
   },
 ];
 
@@ -50,34 +50,34 @@ const stepsZh = [
     title: "选择切入点",
     cn: "Find a thread",
     body: "浏览 open issues。good first issue 标签意味着路径清晰。help wanted 标签意味着路径开放但有争议。其他情况请先询问。",
-    cta: { label: "查看议题", href: "https://github.com/Hmbown/CodeWhale/issues" },
+    cta: { label: "查看议题", href: "https://github.com/Hmbown/Mimofan/issues" },
   },
   {
     n: "②",
     title: "复刻并创建分支",
     cn: "Fork & branch",
     body: "git clone 你的复刻，然后 git checkout -b feat/short-name 或 fix/short-name。使用约定式提交——feat:、fix:、docs:、refactor:、test:、chore:。",
-    cta: { label: "GitHub 仓库", href: "https://github.com/Hmbown/CodeWhale" },
+    cta: { label: "GitHub 仓库", href: "https://github.com/Hmbown/Mimofan" },
   },
   {
     n: "③",
     title: "通过本地检查",
     cn: "Local checks",
     body: "CI 运行 cargo fmt --all -- --check、cargo clippy --workspace --all-targets --all-features --locked -- -D warnings 和 cargo test --workspace --all-features --locked。推送前请先运行。",
-    cta: { label: "贡献指南", href: "https://github.com/Hmbown/CodeWhale/blob/main/CONTRIBUTING.md" },
+    cta: { label: "贡献指南", href: "https://github.com/Hmbown/Mimofan/blob/main/CONTRIBUTING.md" },
   },
   {
     n: "④",
     title: "提交 PR",
     cn: "Open the PR",
     body: "PR 描述应说明「为什么」而非「做了什么」（diff 已经展示了做了什么）。关联相关 issue。维护者亲自审查所有 PR——响应时间视情况而定。",
-    cta: { label: "PR 模板", href: "https://github.com/Hmbown/CodeWhale/blob/main/.github/PULL_REQUEST_TEMPLATE.md" },
+    cta: { label: "PR 模板", href: "https://github.com/Hmbown/Mimofan/blob/main/.github/PULL_REQUEST_TEMPLATE.md" },
   },
 ];
 
-const smallPatchPromptEn = `You are running inside CodeWhale.
+const smallPatchPromptEn = `You are running inside Mimofan.
 
-Improve CodeWhale itself by finding exactly one small, reviewable friction point in the harness, docs, tests, or contributor workflow.
+Improve Mimofan itself by finding exactly one small, reviewable friction point in the harness, docs, tests, or contributor workflow.
 
 Prefer bug fixes, regression tests, clearer docs, sharper error messages, or one narrow contributor-experience improvement. Do not change product direction, provider policy, telemetry, sponsorship, branding, auth, sandbox, release/publishing, or global prompts unless the maintainer explicitly asked for that exact scope.
 
@@ -92,9 +92,9 @@ Working rules:
 
 Output: issue summary, files changed, checks run, risks or follow-up, and a suggested PR title.`;
 
-const smallPatchPromptZh = `你正在 CodeWhale 中运行。
+const smallPatchPromptZh = `你正在 Mimofan 中运行。
 
-请改进 CodeWhale 本身：只找一个很小、可审查的摩擦点，范围可以是智能体框架、文档、测试或贡献流程。
+请改进 Mimofan 本身：只找一个很小、可审查的摩擦点，范围可以是智能体框架、文档、测试或贡献流程。
 
 优先处理 bug 修复、回归测试、文档澄清、错误信息改进，或一个很窄的贡献者体验问题。除非维护者明确要求，否则不要改产品方向、提供商策略、遥测、赞助、品牌、认证、沙箱、发布流程或全局提示词。
 
@@ -150,11 +150,11 @@ export default async function ContributePage({ params }: { params: Promise<{ loc
             <div className="lg:col-span-4 min-w-0">
               <Seal char="补" />
               <div className="eyebrow mt-5 mb-3">小补丁提示词 · Small-patch prompt</div>
-              <h2 className="font-display text-3xl">用 CodeWhale 改进 CodeWhale</h2>
+              <h2 className="font-display text-3xl">用 Mimofan 改进 Mimofan</h2>
               <p className="mt-4 text-ink-soft leading-[1.9] tracking-wide">
                 好的贡献提示词不是让 Agent 表演勤奋，而是让它留下一个可以合并的事实：一个真实摩擦点、一个小补丁、最小相关检查，以及审查者需要知道的风险。
               </p>
-              <Link href="https://github.com/Hmbown/CodeWhale/blob/main/CONTRIBUTING.md" className="inline-block mt-5 font-mono text-[0.72rem] uppercase tracking-wider text-indigo hover:underline">
+              <Link href="https://github.com/Hmbown/Mimofan/blob/main/CONTRIBUTING.md" className="inline-block mt-5 font-mono text-[0.72rem] uppercase tracking-wider text-indigo hover:underline">
                 贡献指南 →
               </Link>
             </div>
@@ -172,7 +172,7 @@ export default async function ContributePage({ params }: { params: Promise<{ loc
               </h2>
               <p className="text-ink-soft mt-4 leading-[1.9] tracking-wide">
                 简而言之：做实事，别折腾元数据。完整的
-                <Link href="https://github.com/Hmbown/CodeWhale/blob/main/CODE_OF_CONDUCT.md" className="body-link mx-1">行为准则</Link>
+                <Link href="https://github.com/Hmbown/Mimofan/blob/main/CODE_OF_CONDUCT.md" className="body-link mx-1">行为准则</Link>
                 是详细版。
               </p>
             </div>
@@ -210,13 +210,13 @@ export default async function ContributePage({ params }: { params: Promise<{ loc
               <div className="lg:col-span-8 min-w-0">
                 <pre className="code-block">
 {`# 在 GitHub 上 fork，然后：
-git clone git@github.com:YOU/CodeWhale
-cd CodeWhale
+git clone git@github.com:YOU/Mimofan
+cd Mimofan
 git checkout -b feat/your-thing
 
 # 本地构建运行
 cargo build
-cargo run --bin codewhale
+cargo run --bin mimofan
 
 # 检查（与 CI 完全一致）
 cargo fmt --all -- --check
@@ -224,8 +224,8 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
 
 # 一致性验证
-cargo test -p codewhale-protocol --test parity_protocol --locked
-cargo test -p codewhale-state --test parity_state --locked
+cargo test -p mimofan-protocol --test parity_protocol --locked
+cargo test -p mimofan-state --test parity_state --locked
 
 # 提交 + 推送 + PR
 git commit -m "feat: short subject in conventional-commit form"
@@ -270,11 +270,11 @@ gh pr create --fill`}
             <div className="lg:col-span-4 min-w-0">
               <Seal char="补" />
               <div className="eyebrow mt-5 mb-3">Small-patch prompt · 小补丁提示词</div>
-              <h2 className="font-display text-3xl">Use CodeWhale on CodeWhale</h2>
+              <h2 className="font-display text-3xl">Use Mimofan on Mimofan</h2>
               <p className="mt-4 text-ink-soft leading-relaxed">
                 A good contribution prompt does not reward motion. It asks for one mergeable fact: one real friction point, one small patch, the smallest relevant checks, and the risk a reviewer needs to know.
               </p>
-              <Link href="https://github.com/Hmbown/CodeWhale/blob/main/CONTRIBUTING.md" className="inline-block mt-5 font-mono text-[0.72rem] uppercase tracking-wider text-indigo hover:underline">
+              <Link href="https://github.com/Hmbown/Mimofan/blob/main/CONTRIBUTING.md" className="inline-block mt-5 font-mono text-[0.72rem] uppercase tracking-wider text-indigo hover:underline">
                 Contributor guide →
               </Link>
             </div>
@@ -291,7 +291,7 @@ gh pr create --fill`}
               </h2>
               <p className="text-ink-soft mt-4 leading-relaxed">
                 Short version: build the thing, don't polish the meta. The full
-                <Link href="https://github.com/Hmbown/CodeWhale/blob/main/CODE_OF_CONDUCT.md" className="body-link mx-1">Code of Conduct</Link>
+                <Link href="https://github.com/Hmbown/Mimofan/blob/main/CODE_OF_CONDUCT.md" className="body-link mx-1">Code of Conduct</Link>
                 is the long version.
               </p>
             </div>
@@ -328,13 +328,13 @@ gh pr create --fill`}
               <div className="lg:col-span-8 min-w-0">
                 <pre className="code-block">
 {`# fork on github, then:
-git clone git@github.com:YOU/CodeWhale
-cd CodeWhale
+git clone git@github.com:YOU/Mimofan
+cd Mimofan
 git checkout -b feat/your-thing
 
 # build and run locally
 cargo build
-cargo run --bin codewhale
+cargo run --bin mimofan
 
 # checks (matches CI exactly)
 cargo fmt --all -- --check
@@ -342,8 +342,8 @@ cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
 
 # parity gates
-cargo test -p codewhale-protocol --test parity_protocol --locked
-cargo test -p codewhale-state --test parity_state --locked
+cargo test -p mimofan-protocol --test parity_protocol --locked
+cargo test -p mimofan-state --test parity_state --locked
 
 # commit + push + PR
 git commit -m "feat: short subject in conventional-commit form"

@@ -21,22 +21,25 @@ pub const RELEASES_URL: &str =
 pub const CNB_REPO_URL: &str = "https://cnb.cool/XiaomingX/mimofan";
 
 /// Environment variable that overrides the base URL for release asset downloads.
-pub const RELEASE_BASE_URL_ENV: &str = "CODEWHALE_RELEASE_BASE_URL";
+pub const RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
 
 /// Legacy environment variable (alias for [`RELEASE_BASE_URL_ENV`]).
-pub const LEGACY_RELEASE_BASE_URL_ENV: &str = "DEEPSEEK_TUI_RELEASE_BASE_URL";
+pub const LEGACY_RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
 
 /// Legacy environment variable (alias for [`RELEASE_BASE_URL_ENV`]).
 pub const DEEPSEEK_RELEASE_BASE_URL_ENV: &str = "DEEPSEEK_RELEASE_BASE_URL";
 
 /// Environment variable that, when set, enables the CNB mirror for downloads.
-pub const CNB_MIRROR_ENV: &str = "CODEWHALE_USE_CNB_MIRROR";
+pub const CNB_MIRROR_ENV: &str = "MIMOFAN_USE_CNB_MIRROR";
 
 /// Environment variable that pins the update target version.
-pub const UPDATE_VERSION_ENV: &str = "DEEPSEEK_TUI_VERSION";
+pub const UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
 
 /// Legacy environment variable (alias for [`UPDATE_VERSION_ENV`]).
-pub const LEGACY_UPDATE_VERSION_ENV: &str = "DEEPSEEK_VERSION";
+pub const LEGACY_UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
+
+/// Legacy environment variable (alias for [`UPDATE_VERSION_ENV`]).
+pub const DEEPSEEK_UPDATE_VERSION_ENV: &str = "DEEPSEEK_VERSION";
 
 /// User-Agent header sent with release metadata requests.
 pub const UPDATE_USER_AGENT: &str = "mimofan-updater";
@@ -96,7 +99,7 @@ pub fn resolve_release_query(channel: ReleaseChannel) -> ReleaseQuery {
 }
 
 /// Reads the release base URL from environment variables, falling back to the
-/// CNB mirror if `CODEWHALE_USE_CNB_MIRROR` is set. Returns `None` when no
+/// CNB mirror if `MIMOFAN_USE_CNB_MIRROR` is set. Returns `None` when no
 /// override is configured.
 pub fn release_base_url_from_env(version: &str) -> Option<String> {
     for env_name in [
@@ -128,11 +131,13 @@ pub fn cnb_release_base_url(version: &str) -> String {
 }
 
 /// Returns the pinned update version from environment variables, or `None`
-/// if neither `DEEPSEEK_TUI_VERSION` nor `DEEPSEEK_VERSION` is set.
+/// if neither `MIMOFAN_VERSION`, `MIMOFAN_VERSION`, nor
+/// `DEEPSEEK_VERSION` is set.
 pub fn update_version_from_env() -> Option<String> {
     std::env::var(UPDATE_VERSION_ENV)
         .ok()
         .or_else(|| std::env::var(LEGACY_UPDATE_VERSION_ENV).ok())
+        .or_else(|| std::env::var(DEEPSEEK_UPDATE_VERSION_ENV).ok())
         .map(|value| value.trim().trim_start_matches('v').to_string())
         .filter(|value| !value.is_empty())
 }
@@ -360,6 +365,7 @@ mod tests {
         CNB_MIRROR_ENV,
         UPDATE_VERSION_ENV,
         LEGACY_UPDATE_VERSION_ENV,
+        DEEPSEEK_UPDATE_VERSION_ENV,
     ];
 
     struct ReleaseEnvGuard {
@@ -539,6 +545,13 @@ mod tests {
             set_release_env(LEGACY_UPDATE_VERSION_ENV, "v1.2.4");
 
             assert_eq!(update_version_from_env().as_deref(), Some("1.2.4"));
+        }
+
+        {
+            let _env = ReleaseEnvGuard::clear();
+            set_release_env(DEEPSEEK_UPDATE_VERSION_ENV, "v1.2.5");
+
+            assert_eq!(update_version_from_env().as_deref(), Some("1.2.5"));
         }
     }
 

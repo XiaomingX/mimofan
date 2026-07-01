@@ -77,12 +77,12 @@ nix/
 # Dev container
 .devcontainer/
 
-# Lock files (package-lock.json for various sub-projects)
+# Lock files (pnpm-lock.yaml for various sub-projects)
 # Note: Cargo.lock is intentionally NOT ignored for reproducible builds
-package-lock.json
-extensions/vscode/package-lock.json
-integrations/*/package-lock.json
-web/package-lock.json
+pnpm-lock.yaml
+extensions/vscode/pnpm-lock.yaml
+integrations/*/pnpm-lock.yaml
+web/pnpm-lock.yaml
 
 # Local dev scripts and temp files
 *.sh
@@ -104,10 +104,10 @@ project_overhaul_prompt.md
 .wrangler/
 
 # Local runtime state
-# Ignore everything under any .codewhale/ (snapshots, auto-generated
+# Ignore everything under any .mimofan/ (snapshots, auto-generated
 # instructions.md, etc.) at any depth EXCEPT the committed repo authority policy.
-**/.codewhale/*
-!**/.codewhale/constitution.json
+**/.mimofan/*
+!**/.mimofan/constitution.json
 .deepseek/
 **/session_*.json
 *.db

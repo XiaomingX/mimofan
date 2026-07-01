@@ -25,31 +25,31 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+          cache: 'pnpm'
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Generate derived facts
         # facts.generated.ts is gitignored and produced by derive-facts.mjs;
         # tsc --noEmit fails without it (TS2307) and downstream inferences
         # cascade into spurious TS7006 errors, so regenerate before type check.
-        run: npm run prebuild
+        run: pnpm prebuild
       - name: Check facts drift
         # Fails CI when facts.generated.ts is stale (version, providers, etc.
         # differ from the workspace sources). Catches mechanical drift before
         # deploy so the website never serves wrong version/provider data.
-        run: npm run check:facts
+        run: pnpm check:facts
       - name: Check docs parity
         # Fails CI when docs-map.ts references non-existent repo files or
         # when website version / command snippets are stale.
-        run: npm run check:docs
+        run: pnpm check:docs
       - name: Run ESLint
-        run: npm run lint
+        run: pnpm lint
       - name: TypeScript type check
-        run: npx tsc --noEmit
+        run: pnpm tsc --noEmit
 
   deploy:
     name: Deploy to Cloudflare
@@ -64,14 +64,14 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
+          cache: 'pnpm'
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Build OpenNext bundle
-        run: npm run build && npx opennextjs-cloudflare build
+        run: pnpm build && pnpm opennextjs-cloudflare build
       - name: Deploy
-        run: npm run deploy
+        run: pnpm deploy

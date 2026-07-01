@@ -10,7 +10,7 @@ labels: enhancement
 
 ## Proposed solution
 
-<!-- What should codewhale do differently? Include commands, UI behavior, or config shape if relevant. -->
+<!-- What should mimofan do differently? Include commands, UI behavior, or config shape if relevant. -->
 
 ## Use case
 
