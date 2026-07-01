@@ -1,139 +1,101 @@
 # ============================================
 # mimofan .cursorignore
-# 排除 AI 不需要读取的文件，减少 token 浪费
+# 策略：仅保留 tui + cli 及其依赖 crate 的源码
+# 排除一切与 tui/cli 无关的路径，节省 token 消耗
 # ============================================
 
-# ── 排除辅助/入口 crate（保留核心引擎和工具链）──
-crates/app-server/
-crates/cli/
+# ── 与 tui/cli 无关的 crate ──
+# tui 依赖: config, execpolicy, protocol, release, secrets, tools
+# cli 依赖: agent, app-server, config, execpolicy, mcp, release, secrets, state
+# core/hooks 是 app-server 的传递依赖
+# 唯一无关的 crate:
 crates/whaleflow/
 
 # ── 构建产物 ──
 target/
+node_modules/
 
-# ── 前端 / 非 Rust 代码 ──
+# ── 前端 / 非 Rust 代码（与 tui/cli 完全无关）──
 web/
 npm/
 extensions/
 integrations/
 
-# ── Lock 文件（数千行，浪费 token）──
+# ── Lock 文件（数千行，零信息密度）──
 Cargo.lock
+pnpm-lock.yaml
+pnpm-workspace.yaml
 package-lock.json
-web/package-lock.json
-extensions/vscode/package-lock.json
-integrations/*/package-lock.json
 flake.lock
 
-# ── 大型生成文件 ──
+# ── 大型生成/数据文件 ──
 crates/tui/assets/model_catalog.bundled.json
 crates/config/assets/models_dev.bundled.json
+config.example.toml
 
-# ── 测试文件（不影响代码理解，减少 token 浪费）──
-crates/*/tests/
-crates/tui/tests/
-crates/tui/src/tui/ui/tests.rs
-crates/tui/src/tui/app/tests.rs
-crates/tui/src/config/tests.rs
-crates/tui/src/runtime_api/tests.rs
-crates/tui/src/tools/subagent/tests.rs
-crates/tui/src/core/engine/tests.rs
-crates/tui/src/mcp/tests.rs
-crates/tui/src/runtime_threads/tests.rs
-crates/tui/src/tools/shell/tests.rs
-crates/tui/src/tui/history/tests.rs
-crates/test_support.rs
-crates/tui/src/tools/test_runner.rs
-crates/config/src/tests.rs
-crates/config/src/route/tests.rs
-crates/config/src/route/conformance_tests.rs
-crates/config/src/catalog/tests.rs
-crates/config/src/pricing/tests.rs
-
-# ── 超大文件（稳定模块，摘要见 CLAUDE.md）──
+# ── 超大稳定模块 ──
 crates/tui/src/localization.rs
 crates/tui/src/prompts.rs
 crates/tui/src/tui/widgets/mod.rs
 crates/tui/src/tui/views/mod.rs
 
-# ── AI 记忆文件与本地设置（避免污染上下文）──
-**/CLAUDE.local.md
-AGENTS.md
-settings.example.json
+# ── 测试文件（统一模式）──
+crates/*/tests/
+**/tests.rs
+**/conformance_tests.rs
+**/test_support.rs
+**/test_runner.rs
+
+# ── 文档 ──
+docs/
+report.md
+MIMOFAN_GUIDE_CN.md
+SKILLS_AUDIT_LIST.md
+ARCHITECTURE_PLAN.md
+README.md
+CLAUDE.md
 
 # ── 变更日志与历史记录 ──
 CHANGELOG.md
-docs/CHANGELOG_ARCHIVE.md
 crates/tui/CHANGELOG.md
 
-# ── 非核心文档与本地凭证 ──
-docs/rfcs/
-docs/evidence/
-docs/skills/
-docs/architecture/
-docs/ARCHITECTURE.md
-docs/GUIDE.md
-docs/INSTALL.md
-docs/DOCKER.md
-docs/FLEET.md
-docs/RUNTIME_API.md
-docs/AGENT_RUNTIME.md
-docs/RECURSIVE_SELF_IMPROVEMENT.md
-docs/CNB_MIRROR.md
-docs/RECEIPTS.md
-docs/CLAUDE_PLUGIN_COMPAT.md
-docs/ACP_REGISTRY_SUBMISSION.md
-docs/CLASSROOM_INSTALL.md
-docs/ACCESSIBILITY.md
-docs/CONTRIBUTORS.md
-docs/MODEL_LAB.md
-docs/TOOL_LIFECYCLE.md
-docs/WORKROOM_SECURITY.md
-docs/WORKROOM_ARCHITECTURE.md
-docs/WHALEFLOW_AUTHORING.md
-docs/LEGACY_PATHS.md
-docs/SANDBOX.md
-docs/SKILL_INVOCATION_DESIGN.md
-docs/CLAUDE.local.md
-docs/memory/
-benchmark_results/
-docs/RELEASE_CHECKLIST.md
-docs/RELEASE_RUNBOOK.md
-docs/OPERATIONS_RUNBOOK.md
-docs/PROVIDERS.md
-docs/STABILITY_ANALYSIS.md
-docs/AGENT_ETHOS.md
+# ── AI 记忆文件与本地设置 ──
+**/CLAUDE.local.md
+AGENTS.md
+settings.example.json
 
 # ── Nix 配置 ──
 flake.nix
 nix/
 
-# ── 部署配置 ──
+# ── 部署与容器 ──
 deploy/
 Dockerfile
 .devcontainer/
 .cnb.yml
+.dockerignore
 
 # ── GitHub 模板/工作流 ──
-.github/workflows/
-.github/ISSUE_TEMPLATE/
-.github/PULL_REQUEST_TEMPLATE.md
-.github/APPROVED_CONTRIBUTORS
-.github/AUTHOR_MAP
-.github/CODEOWNERS
-.github/dependabot.yml
-.github/FUNDING.yml
+.github/
 
-# ── 资源文件（图片等）──
+# ── 资源文件 ──
 assets/
 
-# ── 脚本文件（CI 脚本）──
+# ── 脚本与工作流 ──
 scripts/
-
-# ── 工作流定义 ──
 workflows/
 
-# ── 临时/生成文件与调试日志 ──
+# ── Benchmark 结果 ──
+benchmark_results/
+
+# ── 非核心根文件 ──
+package.json
+.mailmap
+.gitattributes
+rust-toolchain.toml
+.env.example
+
+# ── 临时/生成文件 ──
 *.sh
 *.cmd
 *.log

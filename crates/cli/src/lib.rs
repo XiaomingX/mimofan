@@ -2176,7 +2176,7 @@ fn build_tui_command(
         cmd.env("DEEPSEEK_API_KEY_SOURCE", "cli");
     }
     if let Some(base_url) = cli.base_url.as_ref() {
-        cmd.env("DEEPSEEK_BASE_URL", base_url);
+        cmd.env("MIMO_BASE_URL", base_url);
     }
 
     Ok(cmd)

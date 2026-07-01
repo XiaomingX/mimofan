@@ -1,7 +1,8 @@
 {
   "env": {
     "MIMOFAN_API_KEY": "your-api-key-here",
-    "MIMOFAN_BASE_URL": "https://api.xiaomi.com/v1"
+    "MIMOFAN_BASE_URL": "your-base-url-here",
+    "MIMOFAN_MODEL": "your-model-name-here"
   },
   "mcpServers": {
     "github": {

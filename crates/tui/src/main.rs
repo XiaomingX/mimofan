@@ -1081,7 +1081,25 @@ async fn main() -> Result<()> {
     spawn_signal_cleanup_task();
 
     dotenv().ok();
-    let cli = Cli::parse();
+    
+    // Intercept `mimofan .` or `mimofan <dir>` and convert it to `mimofan -C <dir>`
+    // This allows users to use `mimofan .` similar to `code .` or `cursor .`
+    let mut env_args: Vec<String> = std::env::args().collect();
+    if env_args.len() == 2 && !env_args[1].starts_with('-') {
+        let known_subcommands = [
+            "run", "doctor", "models", "speech", "tts", "sessions", "resume", "fork", "init", 
+            "setup", "remote-setup", "exec", "fleet", "review", "apply", "eval", "mcp", 
+            "features", "serve", "completions", "login", "logout", "auth", "mcp-server", 
+            "config", "model", "thread", "sandbox", "app-server", "completion", "metrics", 
+            "update", "help"
+        ];
+        if !known_subcommands.contains(&env_args[1].as_str()) {
+            if std::path::Path::new(&env_args[1]).is_dir() {
+                env_args.insert(1, "-C".to_string());
+            }
+        }
+    }
+    let cli = Cli::parse_from(env_args);
     logging::set_verbose(cli.verbose || logging::env_requests_verbose_logging());
 
     // Handle subcommands first
@@ -1128,15 +1146,15 @@ async fn main() -> Result<()> {
                 });
                 let mut config = config.clone();
                 merge_user_workspace_config(&mut config, cli.config.clone(), &workspace);
-                // Honour DEEPSEEK_BASE_URL forwarded by the CLI dispatcher from --base-url.
-                if let Ok(env_url) = std::env::var("DEEPSEEK_BASE_URL") {
+                // Honour MIMO_BASE_URL forwarded by the CLI dispatcher from --base-url.
+                if let Ok(env_url) = std::env::var("MIMO_BASE_URL") {
                     let trimmed = env_url.trim();
-                    eprintln!("DEBUG DEEPSEEK_BASE_URL='{trimmed}'");
+                    eprintln!("DEBUG MIMO_BASE_URL='{trimmed}'");
                     if !trimmed.is_empty() {
                         config.base_url = Some(trimmed.to_string());
                     }
                 } else {
-                    eprintln!("DEBUG DEEPSEEK_BASE_URL not set");
+                    eprintln!("DEBUG MIMO_BASE_URL not set");
                 }
                 let model = resolve_exec_model(&config, args.model.as_deref());
                 let prompt = join_prompt_parts(&args.prompt);
@@ -3864,7 +3882,7 @@ fn known_deepseek_base_url_kind(base_url: &str) -> Option<DeepSeekBaseUrlKind> {
 }
 
 fn recommended_strict_base_url(_config: &Config, _base_url: &str) -> &'static str {
-    crate::config::DEFAULT_DEEPSEEK_BASE_URL
+    crate::config::DEFAULT_MIMO_BASE_URL
 }
 
 fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {

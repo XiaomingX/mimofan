@@ -1,5 +1,9 @@
 # Build artifacts
 /target
+target/
+build/
+out/
+.next/
 /extensions/vscode/out/
 *.pdb
 *.exe
@@ -14,6 +18,9 @@
 .env.*
 !.env.example
 node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
 .vscode/
 .idea/
 *.swp
@@ -36,10 +43,18 @@ dist/
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Generated
 outputs/
 tmp/
+temp/
+.tmp/
+.cache/
+coverage/
 backup/
 
 # Reference papers / large research blobs (keep locally if needed, don't ship)
@@ -157,6 +172,11 @@ scripts/run_deep_swe.py
 # Local run artifacts and caches re-included by !scripts/**
 results/
 scripts/**/__pycache__/
+
+# AI tool ignore files (local config, not tracked)
+.aiderignore
+.codeiumignore
+.clineignore
 
 # Maintainer-local verification artifacts
 .uv-bin/

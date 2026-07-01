@@ -7,7 +7,7 @@
 //! `crate::config::<CONST>` path keeps resolving unchanged (#3311).
 
 pub const DEFAULT_TEXT_MODEL: &str = "deepseek-v4-pro";
-pub const DEFAULT_DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com/beta";
+pub const DEFAULT_MIMO_BASE_URL: &str = "https://api.deepseek.com/beta";
 pub const DEFAULT_DEEPSEEK_ANTHROPIC_MODEL: &str = DEFAULT_TEXT_MODEL;
 pub const DEFAULT_DEEPSEEK_ANTHROPIC_BASE_URL: &str = "https://api.deepseek.com/anthropic";
 pub const DEFAULT_NVIDIA_NIM_MODEL: &str = "deepseek-ai/deepseek-v4-pro";
@@ -120,7 +120,7 @@ pub const OPENAI_CODEX_EFFECTIVE_CONTEXT_WINDOW_TOKENS: u32 = 400_000;
 /// old configs, but route it through the normal beta-enabled DeepSeek default.
 /// Legacy typo hostname `api.deepseeki.com` remains recognized in URL
 /// heuristics for backward compatibility.
-pub const DEFAULT_DEEPSEEKCN_BASE_URL: &str = DEFAULT_DEEPSEEK_BASE_URL;
+pub const DEFAULT_DEEPSEEKCN_BASE_URL: &str = DEFAULT_MIMO_BASE_URL;
 pub const COMMON_DEEPSEEK_MODELS: &[&str] = &[
     "deepseek-v4-pro",
     "deepseek-v4-flash",

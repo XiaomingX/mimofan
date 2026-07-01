@@ -275,7 +275,7 @@ max_subagents = 10 # optional (1-20)
 # `--provider wanjie-ark` / `/provider volcengine` / `/provider fireworks` /
 # `--provider siliconflow` / `/provider arcee` / `/provider moonshot`
 # switches between them without having to re-enter keys. Env vars override anything set here:
-#   DeepSeek: DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL, DEEPSEEK_MODEL
+#   DeepSeek: DEEPSEEK_API_KEY, MIMO_BASE_URL, DEEPSEEK_MODEL
 #   DeepSeek Anthropic-compatible: DEEPSEEK_API_KEY, DEEPSEEK_ANTHROPIC_BASE_URL
 #   NIM:      NVIDIA_API_KEY (or NVIDIA_NIM_API_KEY), NIM_BASE_URL
 #             (or NVIDIA_NIM_BASE_URL / NVIDIA_BASE_URL), NVIDIA_NIM_MODEL

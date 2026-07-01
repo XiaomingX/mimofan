@@ -537,7 +537,7 @@ TUI 中输入 `/cost` 查看本次会话的 token 用量和费用。
 | 变量 | 说明 |
 |------|------|
 | `DEEPSEEK_API_KEY` | DeepSeek API Key |
-| `DEEPSEEK_BASE_URL` | DeepSeek API 地址 |
+| `MIMO_BASE_URL` | DeepSeek API 地址 |
 | `DEEPSEEK_MODEL` | 默认模型 |
 | `DEEPSEEK_PROVIDER` | 默认 provider |
 | `OPENAI_API_KEY` | OpenAI API Key |

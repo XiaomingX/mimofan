@@ -3224,11 +3224,11 @@ check_for_updates = true
 
 // === Environment Overrides ===
 
-/// Read the `DEEPSEEK_BASE_URL` / `MIMOFAN_BASE_URL` env var that the CLI
+/// Read the `MIMO_BASE_URL` / `MIMOFAN_BASE_URL` env var that the CLI
 /// dispatcher forwards from `--base-url`.  Returns `None` when the var is
 /// absent or empty so that provider-specific defaults still apply.
 fn env_base_url_override() -> Option<String> {
-    mimofan_env_var("MIMOFAN_BASE_URL", "DEEPSEEK_BASE_URL")
+    mimofan_env_var("MIMOFAN_BASE_URL", "MIMO_BASE_URL")
         .ok()
         .filter(|v| !v.trim().is_empty())
 }
@@ -3252,7 +3252,7 @@ fn apply_env_overrides(config: &mut Config) {
     if let Ok(value) = mimofan_env_var("MIMOFAN_PROVIDER", "DEEPSEEK_PROVIDER") {
         config.provider = Some(value);
     }
-    if let Ok(value) = mimofan_env_var("MIMOFAN_BASE_URL", "DEEPSEEK_BASE_URL") {
+    if let Ok(value) = mimofan_env_var("MIMOFAN_BASE_URL", "MIMO_BASE_URL") {
         match config.api_provider() {
             ApiProvider::XiaomiMimo => {
                 config
