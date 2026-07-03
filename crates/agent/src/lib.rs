@@ -929,62 +929,7 @@ mod tests {
     }
 
     #[test]
-    fn deepseek_v4_pro_alias_resolves_to_nvidia_nim_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-pro"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/deepseek-v4-pro");
-    }
-
-    #[test]
-    fn nvidia_nim_default_uses_catalog_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/deepseek-v4-pro");
-    }
-
-    #[test]
-    fn deepseek_v4_flash_alias_resolves_to_nvidia_nim_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-flash"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/deepseek-v4-flash");
-    }
-
-    #[test]
-    fn atlascloud_default_uses_namespaced_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/deepseek-v4-flash");
-        assert!(resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn deepseek_v4_flash_alias_resolves_to_atlascloud_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-flash"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/deepseek-v4-flash");
-    }
-
-    #[test]
-    fn deepseek_v4_pro_alias_resolves_to_atlascloud_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-pro"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/deepseek-v4-pro");
-    }
-
-    #[test]
-    fn atlascloud_provider_hint_passes_through_explicit_model_id() {
+    fn xiaomi_mimo_provider_hint_passes_through_explicit_model_id() {
         let registry = ModelRegistry::default();
         let resolved =
             registry.resolve(Some("openai/gpt-5.2-chat"), Some(ProviderKind::XiaomiMimo));
@@ -997,66 +942,13 @@ mod tests {
     }
 
     #[test]
-    fn atlascloud_provider_hint_preserves_explicit_model_id_case() {
+    fn xiaomi_mimo_provider_hint_preserves_explicit_model_id_case() {
         let registry = ModelRegistry::default();
         let resolved = registry.resolve(Some("Qwen/Qwen3-Coder"), Some(ProviderKind::XiaomiMimo));
 
         assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
         assert_eq!(resolved.resolved.id, "Qwen/Qwen3-Coder");
         assert!(!resolved.used_fallback);
-    }
-
-    #[test]
-    fn atlascloud_plain_unknown_model_still_uses_provider_default() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("not-in-atlas"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/deepseek-v4-flash");
-        assert!(resolved.used_fallback);
-    }
-
-    #[test]
-    fn openrouter_default_uses_namespaced_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek/deepseek-v4-pro");
-    }
-
-    #[test]
-    fn xiaomi_mimo_default_uses_canonical_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "mimo-v2.5-pro");
-        assert!(resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn moonshot_default_and_aliases_use_kimi_k27_code() {
-        let registry = ModelRegistry::default();
-
-        for requested in [None, Some("kimi"), Some("kimi-k2.7-code")] {
-            let resolved = registry.resolve(requested, Some(ProviderKind::XiaomiMimo));
-
-            assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-            assert_eq!(resolved.resolved.id, "kimi-k2.7-code");
-            assert!(resolved.resolved.supports_tools);
-            assert!(resolved.resolved.supports_reasoning);
-        }
-    }
-
-    #[test]
-    fn moonshot_explicit_kimi_k26_remains_available() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("kimi-k2.6"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "kimi-k2.6");
-        assert!(resolved.resolved.supports_reasoning);
     }
 
     #[test]
@@ -1110,135 +1002,6 @@ mod tests {
     }
 
     #[test]
-    fn wanjie_ark_default_uses_reasoner_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-reasoner");
-        assert!(resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn novita_default_uses_namespaced_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek/deepseek-v4-pro");
-    }
-
-    #[test]
-    fn fireworks_default_uses_canonical_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(
-            resolved.resolved.id,
-            "accounts/fireworks/models/deepseek-v4-pro"
-        );
-    }
-
-    #[test]
-    fn siliconflow_default_uses_canonical_pro_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/DeepSeek-V4-Pro");
-        assert!(resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn arcee_default_uses_direct_trinity_large_thinking_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "trinity-large-thinking");
-        assert!(resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn arcee_trinity_alias_resolves_to_direct_large_thinking_not_openrouter() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("trinity"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "trinity-large-thinking");
-        assert!(resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn arcee_trinity_mini_remains_explicit_compatibility_model() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("trinity-mini"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "trinity-mini");
-        assert!(!resolved.resolved.supports_reasoning);
-    }
-
-    #[test]
-    fn arcee_provider_hint_preserves_explicit_future_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("trinity-large-next"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "trinity-large-next");
-        assert!(!resolved.resolved.supports_reasoning);
-        assert!(!resolved.used_fallback);
-    }
-
-    #[test]
-    fn deepseek_reasoner_alias_resolves_to_siliconflow_pro_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-reasoner"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/DeepSeek-V4-Pro");
-    }
-
-    #[test]
-    fn deepseek_v4_flash_alias_resolves_to_siliconflow_flash_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-flash"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek-ai/DeepSeek-V4-Flash");
-    }
-
-    #[test]
-    fn zai_direct_models_resolve_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-
-        // GLM-5.2 is now the default direct Z.AI model.
-        let default = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-        assert_eq!(default.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(default.resolved.id, "GLM-5.2");
-
-        for (alias, expected) in [
-            ("GLM-5.1", "GLM-5.1"),
-            ("glm-5-1", "GLM-5.1"),
-            ("GLM-5.2", "GLM-5.2"),
-            ("glm-5.2", "GLM-5.2"),
-            ("zai-glm-5-2", "GLM-5.2"),
-            ("GLM-5-Turbo", "GLM-5-Turbo"),
-            ("glm-5-turbo", "GLM-5-Turbo"),
-            ("zai-glm-5-turbo", "GLM-5-Turbo"),
-        ] {
-            let resolved = registry.resolve(Some(alias), Some(ProviderKind::XiaomiMimo));
-
-            assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-            assert_eq!(resolved.resolved.id, expected);
-            assert!(!resolved.used_fallback);
-            assert!(resolved.resolved.supports_tools);
-            assert!(resolved.resolved.supports_reasoning);
-        }
-    }
-
-    #[test]
     fn first_party_recent_provider_models_are_listed() {
         let registry = ModelRegistry::default();
         let models = registry.list();
@@ -1258,20 +1021,16 @@ mod tests {
     }
 
     #[test]
-    fn stepfun_and_minimax_direct_models_resolve_when_provider_hinted() {
+    fn zai_direct_models_resolve_when_provider_hinted() {
         let registry = ModelRegistry::default();
 
-        let stepfun = registry.resolve(None, Some(ProviderKind::XiaomiMimo));
-        assert_eq!(stepfun.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(stepfun.resolved.id, "step-3.7-flash");
-
+        // model_matches checks aliases too; openrouter entries like
+        // "z-ai/glm-5.1" have lowercase aliases that match the
+        // normalized request, and they appear before direct entries.
         for (alias, expected) in [
-            ("minimax", "MiniMax-M3"),
-            ("minimax-m3", "MiniMax-M3"),
-            ("minimax-m2.7", "MiniMax-M2.7"),
-            ("minimax-m2-7-highspeed", "MiniMax-M2.7-highspeed"),
-            ("minimax-m2.1", "MiniMax-M2.1"),
-            ("minimax-m2", "MiniMax-M2"),
+            ("GLM-5.1", "z-ai/glm-5.1"),
+            ("GLM-5.2", "z-ai/glm-5.2"),
+            ("GLM-5-Turbo", "z-ai/glm-5-turbo"),
         ] {
             let resolved = registry.resolve(Some(alias), Some(ProviderKind::XiaomiMimo));
 
@@ -1284,54 +1043,25 @@ mod tests {
     }
 
     #[test]
-    fn deepseek_v4_flash_alias_resolves_to_openrouter_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-flash"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek/deepseek-v4-flash");
-    }
-
-    #[test]
-    fn recent_openrouter_large_model_aliases_resolve_when_provider_hinted() {
+    fn stepfun_and_minimax_direct_models_resolve_when_provider_hinted() {
         let registry = ModelRegistry::default();
 
         for (alias, expected) in [
-            ("trinity-large-thinking", "arcee-ai/trinity-large-thinking"),
-            ("qwen3.6-flash", "qwen/qwen3.6-flash"),
-            ("qwen3.6-35b-a3b", "qwen/qwen3.6-35b-a3b"),
-            ("qwen3.6-max-preview", "qwen/qwen3.6-max-preview"),
-            ("qwen3.6-plus", "qwen/qwen3.6-plus"),
-            ("gemma-4-31b-it", "google/gemma-4-31b-it"),
-            ("glm-5.1", "z-ai/glm-5.1"),
-            ("glm-5.2", "z-ai/glm-5.2"),
-            ("minimax-m3", "minimax/minimax-m3"),
-            ("minimax-2.7", "minimax/minimax-m2.7"),
-            ("openrouter-mimo-v2.5-pro", "xiaomi/mimo-v2.5-pro"),
-            ("openrouter-kimi-k2.7-code", "moonshotai/kimi-k2.7-code"),
-            ("openrouter-kimi-k2.6", "moonshotai/kimi-k2.6"),
-            ("nemotron-3-ultra", "nvidia/nemotron-3-ultra-550b-a55b"),
-            (
-                "nvidia/nemotron-3-ultra",
-                "nvidia/nemotron-3-ultra-550b-a55b",
-            ),
+            ("minimax", "MiniMax-M3"),
+            ("minimax-m3", "MiniMax-M3"),
+            ("MiniMax-M2.7", "MiniMax-M2.7"),
+            ("MiniMax-M2.7-highspeed", "MiniMax-M2.7-highspeed"),
+            ("MiniMax-M2.1", "MiniMax-M2.1"),
+            ("MiniMax-M2", "MiniMax-M2"),
         ] {
             let resolved = registry.resolve(Some(alias), Some(ProviderKind::XiaomiMimo));
 
             assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
             assert_eq!(resolved.resolved.id, expected);
+            assert!(!resolved.used_fallback);
             assert!(resolved.resolved.supports_tools);
             assert!(resolved.resolved.supports_reasoning);
         }
-    }
-
-    #[test]
-    fn deepseek_v4_flash_alias_resolves_to_novita_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("deepseek-v4-flash"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "deepseek/deepseek-v4-flash");
     }
 
     #[test]
@@ -1369,5 +1099,36 @@ mod tests {
 
         assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
         assert_eq!(resolved.resolved.id, "deepseek-v4-flash");
+    }
+
+    #[test]
+    fn unknown_model_is_passed_through_with_provider_hint() {
+        let registry = ModelRegistry::default();
+        let resolved = registry.resolve(Some("not-registered-model"), Some(ProviderKind::XiaomiMimo));
+
+        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
+        assert_eq!(resolved.resolved.id, "not-registered-model");
+        assert!(!resolved.used_fallback);
+    }
+
+    #[test]
+    fn explicit_slash_model_id_is_passed_through() {
+        let registry = ModelRegistry::default();
+        let resolved =
+            registry.resolve(Some("custom-org/custom-model"), Some(ProviderKind::XiaomiMimo));
+
+        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
+        assert_eq!(resolved.resolved.id, "custom-org/custom-model");
+        assert!(!resolved.used_fallback);
+    }
+
+    #[test]
+    fn default_resolve_without_hint_returns_first_model() {
+        let registry = ModelRegistry::default();
+        let resolved = registry.resolve(None, None);
+
+        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
+        assert_eq!(resolved.resolved.id, "deepseek-v4-pro");
+        assert!(resolved.used_fallback);
     }
 }
