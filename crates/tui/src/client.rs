@@ -843,10 +843,7 @@ fn is_auth_dialect_header(header_name: &HeaderName) -> bool {
 }
 
 fn api_provider_uses_anthropic_messages(api_provider: ApiProvider) -> bool {
-    matches!(
-        api_provider,
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
-    )
+    matches!(api_provider, ApiProvider::XiaomiMimo)
 }
 
 fn api_provider_skips_models_probe(api_provider: ApiProvider) -> bool {
@@ -1512,65 +1509,13 @@ pub(super) fn apply_reasoning_effort(
     let normalized = effort.trim().to_ascii_lowercase();
     match normalized.as_str() {
         "off" | "disabled" | "none" | "false" => match provider {
-            ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo => {
-                body["thinking"] = json!({ "type": "disabled" });
-            }
-            ApiProvider::XiaomiMimo => {
-                // OpenAI Codex uses Responses API — thinking handled differently
-            }
-            ApiProvider::XiaomiMimo => {}
-            ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::Custom => {}
-            ApiProvider::XiaomiMimo => {
-                // #3024: Kimi models accept thinking enable/disable.
-                body["thinking"] = json!({ "type": "disabled" });
-            }
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                // #3014: thinking/effort shaping happens natively inside
-                // client/anthropic.rs (adaptive thinking + output_config),
-                // not via OpenAI-dialect fields.
-            }
-            ApiProvider::XiaomiMimo => {
-                body["chat_template_kwargs"] = json!({
-                    "thinking": false,
-                });
-            }
             ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "disabled" });
             }
-            ApiProvider::XiaomiMimo => {}
+            ApiProvider::Custom => {}
         },
         "low" | "minimal" | "medium" | "mid" | "high" | "" => match provider {
-            // DeepSeek compatibility: low/medium both map to high
-            ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo => {
-                body["reasoning_effort"] = json!("high");
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            // OpenRouter/Novita/Together: pass through the actual user-chosen value.
-            // OpenRouter's unified scale is none/minimal/low/medium/high/xhigh;
-            // DeepSeek models hosted there accept those directly.
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
+            ApiProvider::XiaomiMimo => {
                 let value = match normalized.as_str() {
                     "low" | "minimal" => "low",
                     "medium" | "mid" => "medium",
@@ -1579,106 +1524,14 @@ pub(super) fn apply_reasoning_effort(
                 body["reasoning_effort"] = json!(value);
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::XiaomiMimo => {
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                let value = match normalized.as_str() {
-                    "minimal" => "minimal",
-                    "low" => "low",
-                    "medium" | "mid" => "medium",
-                    _ => "high",
-                };
-                body["reasoning_effort"] = json!(value);
-            }
-            ApiProvider::XiaomiMimo => {
-                body["reasoning_effort"] = json!("high");
-            }
-            ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::Custom => {}
-            ApiProvider::XiaomiMimo => {
-                // #3024: Kimi models accept thinking enable.
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                // #3014: thinking/effort shaping happens natively inside
-                // client/anthropic.rs (adaptive thinking + output_config),
-                // not via OpenAI-dialect fields.
-            }
-            ApiProvider::XiaomiMimo => {
-                body["chat_template_kwargs"] = json!({
-                    "thinking": true,
-                    "reasoning_effort": "high",
-                });
-            }
-            ApiProvider::XiaomiMimo => {
-                body["thinking"] = json!({ "type": "adaptive" });
-            }
-            ApiProvider::XiaomiMimo => {
-                body["thinking"] = json!({
-                    "type": "enabled",
-                    "clear_thinking": false,
-                });
-            }
-            ApiProvider::XiaomiMimo => {}
+            ApiProvider::Custom => {}
         },
         "xhigh" | "max" | "highest" | "ultracode" => match provider {
-            ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo => {
-                body["reasoning_effort"] = json!("max");
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                body["reasoning_effort"] = json!("xhigh");
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::XiaomiMimo => {
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                body["reasoning_effort"] = json!("high");
-            }
             ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("max");
-            }
-            ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::Custom => {}
-            ApiProvider::XiaomiMimo => {
-                // #3024: Kimi models accept thinking enable.
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                // #3014: thinking/effort shaping happens natively inside
-                // client/anthropic.rs (adaptive thinking + output_config),
-                // not via OpenAI-dialect fields.
-            }
-            ApiProvider::XiaomiMimo => {
-                body["chat_template_kwargs"] = json!({
-                    "thinking": true,
-                    "reasoning_effort": "max",
-                });
-            }
-            ApiProvider::XiaomiMimo => {
-                body["thinking"] = json!({ "type": "adaptive" });
-            }
-            ApiProvider::XiaomiMimo => {
-                body["thinking"] = json!({
-                    "type": "enabled",
-                    "clear_thinking": false,
-                });
-            }
-            ApiProvider::XiaomiMimo => {}
+            ApiProvider::Custom => {}
         },
         _ => {}
     }

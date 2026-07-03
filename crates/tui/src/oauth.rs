@@ -4,6 +4,12 @@
 //! `$CODEX_HOME/auth.json`) and transparently refreshes expired access tokens
 //! using the OpenAI auth endpoint.
 //!
+//! NOTE: This entire module is currently unused (Codex OAuth is not wired into
+//! the main flow yet). `#[allow(dead_code)]` suppresses warnings until it is
+//! integrated.
+
+#![allow(dead_code)]
+//!
 //! # Security
 //!
 //! Token values are never logged or printed. All debug representations
@@ -210,7 +216,12 @@ fn save_credentials(creds: &CodexCredentials, id_token: Option<&str>) -> Result<
             id_token: id_token.map(ToOwned::to_owned),
             account_id: creds.account_id.clone(),
         }),
-        last_refresh: Some(chrono_humanize_if_available()),
+        last_refresh: Some(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| format!("{} seconds since epoch", d.as_secs()))
+                .unwrap_or_else(|_| "unknown".to_string())
+        ),
     };
     let json = serde_json::to_string_pretty(&auth).context("serializing credentials")?;
 
@@ -230,14 +241,6 @@ fn save_credentials(creds: &CodexCredentials, id_token: Option<&str>) -> Result<
             .with_context(|| format!("writing Codex auth file: {}", path.display()))?;
     }
     Ok(())
-}
-
-fn chrono_humanize_if_available() -> String {
-    // Simple ISO-ish timestamp without adding a chrono dependency.
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| format!("{} seconds since epoch", d.as_secs()))
-        .unwrap_or_else(|_| "unknown".to_string())
 }
 
 /// Load or refresh Codex credentials.

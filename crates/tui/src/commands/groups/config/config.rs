@@ -178,9 +178,7 @@ fn show_single_setting(app: &App, key: &str) -> CommandResult {
     }
     fn locale_display(l: crate::localization::Locale) -> &'static str {
         match l {
-            crate::localization::Locale::ZhHans => "en",
             crate::localization::Locale::ZhHans => "zh-Hans",
-            crate::localization::Locale::ZhHans => "zh-Hant",
         }
     }
     fn density_display(d: crate::tui::app::ComposerDensity) -> &'static str {
@@ -1332,7 +1330,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
             };
             if matches!(
                 app.api_provider,
-                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
+                ApiProvider::XiaomiMimo
             ) {
                 if persist {
                     match persist_root_string_key(app.config_path.as_deref(), "base_url", &value) {

@@ -79,10 +79,10 @@ pub struct ProviderDashboardRow {
 pub enum ProviderAuthStatus {
     Configured,
     Missing,
-    Optional,
+    _Optional,
     OAuthReady,
     OAuthMissing,
-    Local,
+    _Local,
     Legacy,
 }
 
@@ -414,7 +414,7 @@ impl ProviderDashboardRow {
         // to the base URL so the row reads correctly without a key (#3083).
         let self_hosted = if matches!(
             self.auth_status,
-            ProviderAuthStatus::Local | ProviderAuthStatus::Optional
+            ProviderAuthStatus::_Local | ProviderAuthStatus::_Optional
         ) {
             " (self-hosted)"
         } else {
@@ -533,10 +533,10 @@ impl ProviderAuthStatus {
         match self {
             Self::Configured => "configured",
             Self::Missing => "missing",
-            Self::Optional => "optional",
+            Self::_Optional => "optional",
             Self::OAuthReady => "oauth-ready",
             Self::OAuthMissing => "oauth-missing",
-            Self::Local => "local",
+            Self::_Local => "local",
             Self::Legacy => "legacy",
         }
     }
@@ -674,21 +674,7 @@ fn parse_reasoning_stream_visibility(value: &str) -> Option<ProviderReasoningStr
 
 fn default_reasoning_stream_visibility(provider: ApiProvider) -> ProviderReasoningStreamVisibility {
     match provider {
-        ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo => ProviderReasoningStreamVisibility::StructuredThinking,
+        ApiProvider::XiaomiMimo => ProviderReasoningStreamVisibility::StructuredThinking,
         _ => ProviderReasoningStreamVisibility::Unknown,
     }
 }
@@ -738,7 +724,7 @@ fn readiness_for(
         return ProviderReadiness::Invalid;
     }
     match auth_status {
-        ProviderAuthStatus::Local | ProviderAuthStatus::Optional => ProviderReadiness::LocalReady,
+        ProviderAuthStatus::_Local | ProviderAuthStatus::_Optional => ProviderReadiness::LocalReady,
         ProviderAuthStatus::Configured | ProviderAuthStatus::OAuthReady => ProviderReadiness::Ready,
         ProviderAuthStatus::Legacy => ProviderReadiness::Legacy,
         ProviderAuthStatus::Missing | ProviderAuthStatus::OAuthMissing => {
@@ -749,10 +735,6 @@ fn readiness_for(
 
 fn usage_meter_for(provider: ApiProvider) -> String {
     match provider {
-        ApiProvider::XiaomiMimo => "usage: Codex OAuth quota".to_string(),
-        ApiProvider::XiaomiMimo if kimi_cli_credentials_present() => {
-            "usage: Kimi OAuth quota".to_string()
-        }
         ApiProvider::XiaomiMimo => "cost: token-plan".to_string(),
         _ => "cost: unknown".to_string(),
     }

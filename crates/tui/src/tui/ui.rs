@@ -1524,7 +1524,7 @@ fn should_fetch_deepseek_balance(app: &App) -> bool {
     app.status_items.contains(&StatusItem::Balance)
         && matches!(
             app.api_provider,
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
+            ApiProvider::XiaomiMimo
         )
 }
 
@@ -5542,7 +5542,7 @@ fn rollback_provider_after_auth_failure(app: &mut App, config: &mut Config) -> O
         );
         if matches!(
             previous_provider,
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
+            ApiProvider::XiaomiMimo
         ) {
             settings.set("default_model", &app.model_selection_for_persistence())?;
         }
@@ -6578,7 +6578,7 @@ async fn apply_model_picker_choice(
         if model_changed {
             if matches!(
                 app.api_provider,
-                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
+                ApiProvider::XiaomiMimo
             ) {
                 settings.set("default_model", &resolved_model)?;
             }
@@ -6808,7 +6808,7 @@ async fn switch_provider(
         settings.default_provider = Some(target.as_str().to_string());
         if model_override.is_some() {
             settings.set_model_for_provider(target.as_str(), &new_model);
-            if matches!(target, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
+            if matches!(target, ApiProvider::XiaomiMimo) {
                 settings.set("default_model", &new_model)?;
             }
         }
@@ -8308,30 +8308,7 @@ fn render(f: &mut Frame, app: &mut App) {
         let model_label = app.model_display_label();
         let effort_label = app.reasoning_effort_display_label();
         let provider_label = match app.api_provider {
-            crate::config::ApiProvider::XiaomiMimo => None,
-            crate::config::ApiProvider::XiaomiMimo => None,
-            crate::config::ApiProvider::XiaomiMimo => Some("DS-A"),
-            crate::config::ApiProvider::XiaomiMimo => Some("NIM"),
-            crate::config::ApiProvider::XiaomiMimo => Some("OpenAI"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Claude"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Atlas"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Wanjie"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Volc"),
-            crate::config::ApiProvider::XiaomiMimo => Some("OR"),
             crate::config::ApiProvider::XiaomiMimo => Some("MiMo"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Novita"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Fireworks"),
-            crate::config::ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => Some("SiliconFlow"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Arcee"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Kimi"),
-            crate::config::ApiProvider::XiaomiMimo => Some("HF"),
-            crate::config::ApiProvider::XiaomiMimo => Some("DeepInfra"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Together"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Qianfan"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Codex"),
-            crate::config::ApiProvider::XiaomiMimo => Some("Z.ai"),
-            crate::config::ApiProvider::XiaomiMimo => Some("StepFun"),
-            crate::config::ApiProvider::XiaomiMimo => Some("MiniMax"),
             crate::config::ApiProvider::Custom => Some("Custom"),
         };
         let status_indicator_started_at = if app.low_motion {
@@ -9464,7 +9441,7 @@ async fn apply_provider_picker_api_key(
 
     // Mirror the saved key into the in-memory config so the engine sees it
     // immediately without a reload — `save_api_key_for` only touches disk.
-    if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
+    if matches!(provider, ApiProvider::XiaomiMimo) {
         config.api_key = Some(api_key);
     } else {
         // Capture the custom entry key before borrowing `providers` (#1519).
@@ -9478,36 +9455,11 @@ async fn apply_provider_picker_api_key(
             .providers
             .get_or_insert_with(ProvidersConfig::default);
         let entry: &mut ProviderConfig = match provider {
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                // Guarded by the outer `if` above; safety net against refactors.
-                return;
-            }
+            ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
             ApiProvider::Custom => providers
                 .custom
                 .entry(custom_key.expect("custom key captured for custom provider"))
                 .or_default(),
-            ApiProvider::XiaomiMimo => &mut providers.deepseek_anthropic,
-            ApiProvider::XiaomiMimo => &mut providers.nvidia_nim,
-            ApiProvider::XiaomiMimo => &mut providers.openai,
-            ApiProvider::XiaomiMimo => &mut providers.atlascloud,
-            ApiProvider::XiaomiMimo => &mut providers.wanjie_ark,
-            ApiProvider::XiaomiMimo => &mut providers.volcengine,
-            ApiProvider::XiaomiMimo => &mut providers.openrouter,
-            ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-            ApiProvider::XiaomiMimo => &mut providers.novita,
-            ApiProvider::XiaomiMimo => &mut providers.fireworks,
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => &mut providers.siliconflow,
-            ApiProvider::XiaomiMimo => &mut providers.arcee,
-            ApiProvider::XiaomiMimo => &mut providers.moonshot,
-            ApiProvider::XiaomiMimo => &mut providers.huggingface,
-            ApiProvider::XiaomiMimo => &mut providers.deepinfra,
-            ApiProvider::XiaomiMimo => &mut providers.together,
-            ApiProvider::XiaomiMimo => &mut providers.qianfan,
-            ApiProvider::XiaomiMimo => &mut providers.openai_codex,
-            ApiProvider::XiaomiMimo => &mut providers.anthropic,
-            ApiProvider::XiaomiMimo => &mut providers.zai,
-            ApiProvider::XiaomiMimo => &mut providers.stepfun,
-            ApiProvider::XiaomiMimo => &mut providers.minimax,
         };
         entry.api_key = Some(api_key);
     }
@@ -9556,33 +9508,11 @@ fn set_provider_auth_mode_in_memory(config: &mut Config, provider: ApiProvider, 
         .providers
         .get_or_insert_with(ProvidersConfig::default);
     let entry: &mut ProviderConfig = match provider {
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => return,
+        ApiProvider::XiaomiMimo => return,
         ApiProvider::Custom => providers
             .custom
             .entry(custom_key.expect("custom key captured for custom provider"))
             .or_default(),
-        ApiProvider::XiaomiMimo => &mut providers.deepseek_anthropic,
-        ApiProvider::XiaomiMimo => &mut providers.nvidia_nim,
-        ApiProvider::XiaomiMimo => &mut providers.openai,
-        ApiProvider::XiaomiMimo => &mut providers.atlascloud,
-        ApiProvider::XiaomiMimo => &mut providers.wanjie_ark,
-        ApiProvider::XiaomiMimo => &mut providers.volcengine,
-        ApiProvider::XiaomiMimo => &mut providers.openrouter,
-        ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-        ApiProvider::XiaomiMimo => &mut providers.novita,
-        ApiProvider::XiaomiMimo => &mut providers.fireworks,
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => &mut providers.siliconflow,
-        ApiProvider::XiaomiMimo => &mut providers.arcee,
-        ApiProvider::XiaomiMimo => &mut providers.moonshot,
-        ApiProvider::XiaomiMimo => &mut providers.huggingface,
-        ApiProvider::XiaomiMimo => &mut providers.deepinfra,
-        ApiProvider::XiaomiMimo => &mut providers.together,
-        ApiProvider::XiaomiMimo => &mut providers.qianfan,
-        ApiProvider::XiaomiMimo => &mut providers.openai_codex,
-        ApiProvider::XiaomiMimo => &mut providers.anthropic,
-        ApiProvider::XiaomiMimo => &mut providers.zai,
-        ApiProvider::XiaomiMimo => &mut providers.stepfun,
-        ApiProvider::XiaomiMimo => &mut providers.minimax,
     };
     entry.auth_mode = Some(auth_mode);
 }

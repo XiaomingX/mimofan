@@ -74,16 +74,14 @@ pub(crate) fn provider_router_candidates(
             crate::config::normalize_model_name_for_provider(provider, current_model)
         && matches!(
             normalized.as_str(),
-            crate::config::OPENROUTER_GLM_5_1_MODEL
-                | crate::config::OPENROUTER_GLM_5_2_MODEL
-                | crate::config::OPENROUTER_GLM_5_TURBO_MODEL
+            "z-ai/glm-5.1" | "z-ai/glm-5.2" | "z-ai/glm-5-turbo"
         )
     {
         return RouterCandidates {
             // z-ai/glm-5.2 routes faster children to z-ai/glm-5-turbo; the 5.1
             // and turbo ids have no cheaper tier and keep children on parent.
-            cheap: if normalized == crate::config::OPENROUTER_GLM_5_2_MODEL {
-                Some(crate::config::OPENROUTER_GLM_5_TURBO_MODEL.to_string())
+            cheap: if normalized == "z-ai/glm-5.2" {
+                Some("z-ai/glm-5-turbo".to_string())
             } else {
                 None
             },
@@ -92,23 +90,7 @@ pub(crate) fn provider_router_candidates(
     }
 
     match provider {
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => RouterCandidates::deepseek(),
-        ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo => RouterCandidates {
-            big: crate::config::wire_model_for_provider(provider, "deepseek-v4-pro"),
-            cheap: Some(crate::config::wire_model_for_provider(
-                provider,
-                "deepseek-v4-flash",
-            )),
-        },
-        ApiProvider::XiaomiMimo => RouterCandidates {
-            big: crate::config::DEFAULT_VOLCENGINE_MODEL.to_string(),
-            cheap: Some(crate::config::DEFAULT_VOLCENGINE_FLASH_MODEL.to_string()),
-        },
+        ApiProvider::XiaomiMimo => RouterCandidates::deepseek(),
         _ => RouterCandidates {
             big: current_model.to_string(),
             cheap: None,

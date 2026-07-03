@@ -121,13 +121,13 @@ pub struct ApprovalRequest {
     /// Tool being executed
     pub tool_name: String,
     /// Human-readable tool description from the engine
-    pub description: String,
+    pub _description: String,
     /// Tool category
     pub category: ToolCategory,
     /// Stakes-based routing for the takeover modal
     pub risk: RiskLevel,
     /// Derived impact summary for the approval prompt
-    pub impacts: Vec<String>,
+    pub _impacts: Vec<String>,
     /// Tool parameters (for display)
     pub params: Value,
     /// Exact-argument fingerprint, used to scope *denials* (#1617).
@@ -171,10 +171,10 @@ impl ApprovalRequest {
         Self {
             id: id.to_string(),
             tool_name: tool_name.to_string(),
-            description: description.to_string(),
+            _description: description.to_string(),
             category,
             risk,
-            impacts: build_impact_summary(tool_name, category, params),
+            _impacts: build_impact_summary(tool_name, category, params),
             params: params.clone(),
             approval_key: approval_key.to_string(),
             approval_grouping_key,
@@ -199,7 +199,6 @@ impl ApprovalRequest {
     pub fn description_for_locale(&self, locale: Locale) -> String {
         match locale {
             Locale::ZhHans => localized_description_zh_hans(self.category),
-            _ => self.description.clone(),
         }
     }
 
@@ -208,7 +207,6 @@ impl ApprovalRequest {
             Locale::ZhHans => {
                 build_impact_summary_zh_hans(&self.tool_name, self.category, &self.params)
             }
-            _ => self.impacts.clone(),
         }
     }
 
@@ -667,7 +665,6 @@ fn localize_detail_label(label: &str, locale: Locale) -> &str {
             "Input" => "输入",
             _ => label,
         },
-        _ => label,
     }
 }
 

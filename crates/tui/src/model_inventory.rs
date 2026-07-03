@@ -199,7 +199,6 @@ fn auth_source_for_provider(config: &Config, provider: ApiProvider) -> Option<Mo
 
 fn provider_uses_oauth_cli(config: &Config, provider: ApiProvider) -> bool {
     match provider {
-        ApiProvider::XiaomiMimo => true,
         ApiProvider::XiaomiMimo => config
             .provider_config_for(provider)
             .and_then(|entry| entry.auth_mode.as_deref())

@@ -95,9 +95,6 @@ pub fn change(app: &mut App, version: Option<&str>) -> CommandResult {
         let translation_source = format!("{latest_section}{prev_hint}");
         let lang_name = match locale {
             Locale::ZhHans => "Simplified Chinese (中文)",
-            Locale::ZhHans => "Traditional Chinese (繁體中文)",
-            // Fallback — should never reach here since we check En above.
-            Locale::ZhHans => "English",
         };
 
         let translation_prompt = format!(

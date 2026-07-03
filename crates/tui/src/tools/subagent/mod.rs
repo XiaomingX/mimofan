@@ -5449,11 +5449,7 @@ pub(crate) fn normalize_requested_subagent_model(
 
 fn provider_name_for_error(provider: crate::config::ApiProvider) -> &'static str {
     match provider {
-        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => {
-            "DeepSeek"
-        }
-        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => "OpenAI",
-        crate::config::ApiProvider::XiaomiMimo => "Moonshot",
+        crate::config::ApiProvider::XiaomiMimo => "Xiaomi MiMo",
         _ => "this provider",
     }
 }

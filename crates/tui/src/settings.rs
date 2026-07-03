@@ -16,7 +16,6 @@ use crate::palette::{normalize_hex_rgb_color, normalize_theme_name};
 
 const SETTINGS_FILE_NAME: &str = "settings.toml";
 const TUI_PREFS_FILE_NAME: &str = "tui.toml";
-const SETTINGS_JSON_FILE_NAME: &str = "settings.json";
 
 // ============================================================================
 // TuiPrefs — ~/.mimofan/tui.toml
@@ -206,144 +205,6 @@ fn resolve_tui_prefs_path_from_candidates(
     primary.or(legacy_home).ok_or_else(|| {
         anyhow::anyhow!("Failed to resolve tui preferences path: no home directory found.")
     })
-}
-
-// ============================================================================
-// JsonSettings — ~/.mimofan/settings.json
-// ============================================================================
-
-/// JSON-based settings inspired by Claude Code's settings.json format.
-///
-/// This structure is used for:
-/// - MCP server configurations
-/// - Environment variables
-/// - Plugin settings
-///
-/// Stored at `~/.mimofan/settings.json`. Complements the TOML-based
-/// [`Settings`] which handles UI and behavior preferences.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct JsonSettings {
-    /// Environment variables to set for the process.
-    #[serde(default)]
-    pub env: std::collections::HashMap<String, String>,
-
-    /// MCP server configurations.
-    #[serde(default)]
-    pub mcp_servers: std::collections::HashMap<String, McpServerConfig>,
-
-    /// Plugin configurations.
-    #[serde(default)]
-    pub enabled_plugins: std::collections::HashMap<String, bool>,
-
-    /// Language preference (e.g., "Chinese", "English").
-    #[serde(default)]
-    pub language: Option<String>,
-
-    /// Additional instruction files to load.
-    #[serde(default)]
-    pub instructions: Vec<String>,
-}
-
-/// MCP server configuration for settings.json.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct McpServerConfig {
-    /// Command to run the MCP server.
-    pub command: String,
-    /// Arguments for the command.
-    #[serde(default)]
-    pub args: Vec<String>,
-    /// Environment variables for the server process.
-    #[serde(default)]
-    pub env: std::collections::HashMap<String, String>,
-    /// Whether this server is enabled.
-    #[serde(default = "default_true")]
-    pub enabled: bool,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-impl JsonSettings {
-    /// Load JSON settings from the default location (~/.mimofan/settings.json).
-    pub fn load() -> Result<Self> {
-        let path = Self::default_path()?;
-        Self::load_from(&path)
-    }
-
-    /// Load JSON settings from a specific path.
-    pub fn load_from(path: &Path) -> Result<Self> {
-        if !path.exists() {
-            return Ok(Self::default());
-        }
-
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read settings.json from {}", path.display()))?;
-
-        serde_json::from_str(&content)
-            .with_context(|| format!("Failed to parse settings.json from {}", path.display()))
-    }
-
-    /// Save JSON settings to the default location.
-    pub fn save(&self) -> Result<()> {
-        let path = Self::default_path()?;
-        self.save_to(&path)
-    }
-
-    /// Save JSON settings to a specific path.
-    pub fn save_to(&self, path: &Path) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
-        }
-
-        let content =
-            serde_json::to_string_pretty(self).context("Failed to serialize settings.json")?;
-
-        std::fs::write(path, content)
-            .with_context(|| format!("Failed to write settings.json to {}", path.display()))?;
-
-        Ok(())
-    }
-
-    /// Get the default settings.json file path (~/.mimofan/settings.json).
-    pub fn default_path() -> Result<PathBuf> {
-        let home = dirs::home_dir().context("Could not determine home directory")?;
-        Ok(home.join(".mimofan").join(SETTINGS_JSON_FILE_NAME))
-    }
-
-    /// Merge environment variables from settings into the current process.
-    ///
-    /// # Safety
-    ///
-    /// This function modifies process-global environment variables.
-    /// It should only be called during initialization before any
-    /// concurrent access to environment variables.
-    pub fn apply_env(&self) {
-        for (key, value) in &self.env {
-            // SAFETY: Called during initialization before concurrent access.
-            unsafe {
-                std::env::set_var(key, value);
-            }
-        }
-    }
-
-    /// Get MCP server configurations.
-    pub fn mcp_servers(&self) -> &std::collections::HashMap<String, McpServerConfig> {
-        &self.mcp_servers
-    }
-
-    /// Add or update an MCP server configuration.
-    pub fn set_mcp_server(&mut self, name: String, config: McpServerConfig) {
-        self.mcp_servers.insert(name, config);
-    }
-
-    /// Remove an MCP server configuration.
-    pub fn remove_mcp_server(&mut self, name: &str) -> Option<McpServerConfig> {
-        self.mcp_servers.remove(name)
-    }
 }
 
 /// User settings with defaults
@@ -1257,7 +1118,7 @@ impl Settings {
         self.set_model_for_provider(provider.as_str(), model);
         if persist_as_default {
             self.default_provider = Some(provider.as_str().to_string());
-            if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
+            if matches!(provider, ApiProvider::XiaomiMimo) {
                 self.set("default_model", model)?;
             }
         }

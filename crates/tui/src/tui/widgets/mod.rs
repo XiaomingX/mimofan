@@ -1653,14 +1653,12 @@ fn footer_controls(locale: Locale) -> &'static str {
 fn save_ask_rule_hint(locale: Locale) -> &'static str {
     match locale {
         Locale::ZhHans => "  s 批准并保存询问规则",
-        _ => "  s approve + save ask rule",
     }
 }
 
 fn label_ask_rule_preview(locale: Locale) -> &'static str {
     match locale {
         Locale::ZhHans => "询问规则预览：",
-        _ => "Ask rule preview:",
     }
 }
 

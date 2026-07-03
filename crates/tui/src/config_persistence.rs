@@ -287,31 +287,7 @@ pub(crate) fn persist_provider_base_url_key(
 
 fn provider_base_url_table_key(provider: ApiProvider) -> anyhow::Result<&'static str> {
     match provider {
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-            anyhow::bail!("DeepSeek uses the root base_url setting")
-        }
-        ApiProvider::XiaomiMimo => Ok("deepseek_anthropic"),
-        ApiProvider::XiaomiMimo => Ok("nvidia_nim"),
-        ApiProvider::XiaomiMimo => Ok("openai"),
-        ApiProvider::XiaomiMimo => Ok("anthropic"),
-        ApiProvider::XiaomiMimo => Ok("atlascloud"),
-        ApiProvider::XiaomiMimo => Ok("wanjie_ark"),
-        ApiProvider::XiaomiMimo => Ok("volcengine"),
-        ApiProvider::XiaomiMimo => Ok("openrouter"),
         ApiProvider::XiaomiMimo => Ok("xiaomi_mimo"),
-        ApiProvider::XiaomiMimo => Ok("novita"),
-        ApiProvider::XiaomiMimo => Ok("fireworks"),
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => Ok("siliconflow"),
-        ApiProvider::XiaomiMimo => Ok("arcee"),
-        ApiProvider::XiaomiMimo => Ok("huggingface"),
-        ApiProvider::XiaomiMimo => Ok("deepinfra"),
-        ApiProvider::XiaomiMimo => Ok("moonshot"),
-        ApiProvider::XiaomiMimo => Ok("together"),
-        ApiProvider::XiaomiMimo => Ok("qianfan"),
-        ApiProvider::XiaomiMimo => Ok("openai_codex"),
-        ApiProvider::XiaomiMimo => Ok("zai"),
-        ApiProvider::XiaomiMimo => Ok("stepfun"),
-        ApiProvider::XiaomiMimo => Ok("minimax"),
         // Custom providers live under a user-chosen `[providers.<name>]` table,
         // not a fixed key. Persisting base_url through this static-key path is
         // out of scope for the #1519 constrained slice; users edit the named

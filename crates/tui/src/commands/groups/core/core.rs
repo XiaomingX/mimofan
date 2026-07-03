@@ -172,7 +172,7 @@ pub fn model(app: &mut App, model_name: Option<&str>) -> CommandResult {
         let strict_direct_custom_endpoint = app.accepts_custom_model_ids()
             && matches!(
                 app.api_provider,
-                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
+                ApiProvider::XiaomiMimo
             );
         let route_limits = if strict_direct_custom_endpoint {
             None

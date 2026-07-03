@@ -13,10 +13,7 @@ use super::CommandResult;
 pub fn balance(app: &mut App) -> CommandResult {
     let provider = app.api_provider;
     match provider {
-        ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo
-        | ApiProvider::XiaomiMimo => CommandResult::message(format!(
+        ApiProvider::XiaomiMimo => CommandResult::message(format!(
             "Balance check for {} is planned, but provider balance network dispatch is not wired in this build yet.",
             provider.display_name()
         )),

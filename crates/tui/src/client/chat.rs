@@ -1872,7 +1872,7 @@ fn map_tool_choice_for_chat(choice: &Value) -> Option<Value> {
 }
 
 fn should_send_tool_choice_for_chat(provider: ApiProvider, effort: Option<&str>) -> bool {
-    if !matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
+    if !matches!(provider, ApiProvider::XiaomiMimo) {
         return true;
     }
     !reasoning_effort_enables_thinking(effort)
@@ -2148,23 +2148,7 @@ fn parse_reasoning_stream_style(value: &str) -> Option<ReasoningStreamStyle> {
 /// raw XML inside its thinking ("xml_in_reasoning" pitfall). Do not remove Arcee
 /// here without new live evidence — see docs.arcee.ai/capabilities/reasoning-traces.
 fn provider_accepts_reasoning_content(provider: ApiProvider) -> bool {
-    matches!(
-        provider,
-        ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo
-            | ApiProvider::XiaomiMimo // #3016: Kimi thinking traces use reasoning_content
-    )
+    matches!(provider, ApiProvider::XiaomiMimo)
 }
 
 fn has_deepseek_r_series_marker(model_lower: &str) -> bool {

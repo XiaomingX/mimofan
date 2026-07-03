@@ -6,7 +6,6 @@ use std::fs;
 #[cfg(unix)]
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 use mimofan_execpolicy::ExecPolicyEngine;
@@ -127,12 +126,6 @@ impl ApiProvider {
         &Self::FROM_KIND_LOOKUP
     }
 
-    /// `ApiProvider` discriminant → `ProviderKind` lookup.
-    const KIND_LOOKUP: [Option<mimofan_config::ProviderKind>; 2] = [
-        Some(mimofan_config::ProviderKind::XiaomiMimo),
-        Some(mimofan_config::ProviderKind::Custom),
-    ];
-
     /// `ProviderKind` discriminant → `ApiProvider` lookup.
     const FROM_KIND_LOOKUP: [Self; 2] = [Self::XiaomiMimo, Self::Custom];
 
@@ -231,10 +224,6 @@ pub struct ProviderCapability {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alias_deprecation: Option<ModelAliasDeprecation>,
 }
-
-pub const DEEPSEEK_ALIAS_RETIREMENT_DATE: &str = "2026-07-24";
-pub const DEEPSEEK_ALIAS_RETIREMENT_UTC: &str = "2026-07-24T15:59:00Z";
-pub const DEEPSEEK_ALIAS_REPLACEMENT: &str = "deepseek-v4-flash";
 
 /// Upstream retirement metadata for a model alias that remains compatible.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -365,117 +354,6 @@ pub fn requested_model_for_provider(_provider: ApiProvider, model: &str) -> Opti
 /// Returns `Ok(())` for any tuple we cannot confidently reject (the provider
 /// API remains the final authority for those).
 
-fn canonical_official_deepseek_model_id(model: &str) -> Option<&'static str> {
-    match model.trim().to_ascii_lowercase().as_str() {
-        "deepseek-v4-pro"
-        | "deepseek-v4pro"
-        | "deepseek-ai/deepseek-v4-pro"
-        | "deepseek-ai/deepseek-v4pro"
-        | "deepseek/deepseek-v4-pro"
-        | "deepseek/deepseek-v4pro" => Some("deepseek-v4-pro"),
-        "deepseek-v4-flash"
-        | "deepseek-v4flash"
-        | "deepseek-ai/deepseek-v4-flash"
-        | "deepseek-ai/deepseek-v4flash"
-        | "deepseek/deepseek-v4-flash"
-        | "deepseek/deepseek-v4flash" => Some("deepseek-v4-flash"),
-        _ => None,
-    }
-}
-
-fn canonical_openrouter_recent_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        OPENROUTER_ARCEE_TRINITY_LARGE_THINKING_MODEL
-        | "trinity"
-        | "trinity-large-thinking"
-        | "arcee-trinity"
-        | "arcee-trinity-large-thinking" => Some(OPENROUTER_ARCEE_TRINITY_LARGE_THINKING_MODEL),
-        OPENROUTER_GEMMA_4_31B_MODEL | "gemma-4-31b" | "gemma-4-31b-it" => {
-            Some(OPENROUTER_GEMMA_4_31B_MODEL)
-        }
-        OPENROUTER_GEMMA_4_26B_A4B_MODEL | "gemma-4-26b-a4b" | "gemma-4-26b-a4b-it" => {
-            Some(OPENROUTER_GEMMA_4_26B_A4B_MODEL)
-        }
-        OPENROUTER_GLM_5_1_MODEL | "glm-5.1" | "glm-5-1" | "zai-glm-5.1" | "zai-glm-5-1" => {
-            Some(OPENROUTER_GLM_5_1_MODEL)
-        }
-        OPENROUTER_GLM_5_2_MODEL | "glm-5.2" | "glm-5-2" | "zai-glm-5.2" | "zai-glm-5-2" => {
-            Some(OPENROUTER_GLM_5_2_MODEL)
-        }
-        OPENROUTER_GLM_5_TURBO_MODEL | "glm-5-turbo" | "glm-5turbo" | "zai-glm-5-turbo" => {
-            Some(OPENROUTER_GLM_5_TURBO_MODEL)
-        }
-        OPENROUTER_KIMI_K2_7_CODE_MODEL
-        | "kimi"
-        | "kimi-k2"
-        | "kimi-k2.7"
-        | "kimi-k2-7"
-        | "kimi-k2.7-code"
-        | "kimi-k2-7-code"
-        | "kimi-code"
-        | "moonshot-kimi-k2.7-code"
-        | "openrouter-kimi-k2.7-code" => Some(OPENROUTER_KIMI_K2_7_CODE_MODEL),
-        OPENROUTER_KIMI_K2_6_MODEL | "kimi-k2.6" | "kimi-k2-6" | "moonshot-kimi-k2.6" => {
-            Some(OPENROUTER_KIMI_K2_6_MODEL)
-        }
-        OPENROUTER_MINIMAX_M3_MODEL | "minimax-m3" | "minimax-m-3" => {
-            Some(OPENROUTER_MINIMAX_M3_MODEL)
-        }
-        OPENROUTER_MINIMAX_M2_7_MODEL
-        | "minimax-2.7"
-        | "minimax-2-7"
-        | "minimax-m2.7"
-        | "minimax-m2-7"
-        | "minimax-m-2.7"
-        | "minimax-m-2-7" => Some(OPENROUTER_MINIMAX_M2_7_MODEL),
-        OPENROUTER_NEMOTRON_3_NANO_OMNI_MODEL
-        | "nemotron-3-nano-omni"
-        | "nemotron-3-nano-omni-reasoning" => Some(OPENROUTER_NEMOTRON_3_NANO_OMNI_MODEL),
-        OPENROUTER_NEMOTRON_3_ULTRA_MODEL
-        | "nvidia/nemotron-3-ultra"
-        | "nemotron-3-ultra"
-        | "nemotron-3-ultra-550b-a55b"
-        | "nvidia-nemotron-3-ultra"
-        | "nvidia-nemotron-3-ultra-550b-a55b" => Some(OPENROUTER_NEMOTRON_3_ULTRA_MODEL),
-        OPENROUTER_QWEN_3_6_35B_A3B_MODEL
-        | "qwen3.6-35b-a3b"
-        | "qwen-3.6-35b-a3b"
-        | "qwen3-6-35b-a3b" => Some(OPENROUTER_QWEN_3_6_35B_A3B_MODEL),
-        OPENROUTER_QWEN_3_6_FLASH_MODEL | "qwen3.6-flash" | "qwen-3.6-flash" => {
-            Some(OPENROUTER_QWEN_3_6_FLASH_MODEL)
-        }
-        OPENROUTER_QWEN_3_6_MAX_PREVIEW_MODEL
-        | "qwen3.6-max-preview"
-        | "qwen-3.6-max-preview"
-        | "qwen-max-preview" => Some(OPENROUTER_QWEN_3_6_MAX_PREVIEW_MODEL),
-        OPENROUTER_QWEN_3_6_27B_MODEL | "qwen3.6-27b" | "qwen-3.6-27b" | "qwen3-6-27b" => {
-            Some(OPENROUTER_QWEN_3_6_27B_MODEL)
-        }
-        OPENROUTER_QWEN_3_6_PLUS_MODEL | "qwen3.6-plus" | "qwen-3.6-plus" => {
-            Some(OPENROUTER_QWEN_3_6_PLUS_MODEL)
-        }
-        OPENROUTER_QWEN_3_7_MAX_MODEL | "qwen3.7-max" | "qwen-3.7-max" => {
-            Some(OPENROUTER_QWEN_3_7_MAX_MODEL)
-        }
-        OPENROUTER_TENCENT_HY3_PREVIEW_MODEL | "hy3-preview" | "tencent-hy3-preview" => {
-            Some(OPENROUTER_TENCENT_HY3_PREVIEW_MODEL)
-        }
-        OPENROUTER_XIAOMI_MIMO_V2_5_PRO_MODEL
-        | "mimo-v2.5-pro"
-        | "mimo-v2-5-pro"
-        | "xiaomi-mimo-v2.5-pro"
-        | "xiaomi-mimo-v2-5-pro" => Some(OPENROUTER_XIAOMI_MIMO_V2_5_PRO_MODEL),
-        OPENROUTER_XIAOMI_MIMO_V2_5_MODEL
-        | "mimo-v2.5"
-        | "mimo-v2-5"
-        | "xiaomi-mimo-v2.5"
-        | "xiaomi-mimo-v2-5" => Some(OPENROUTER_XIAOMI_MIMO_V2_5_MODEL),
-        _ => None,
-    }
-}
-
 fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
     let normalized = model.trim().to_ascii_lowercase();
     let normalized = normalized.replace(['_', ' '], "-");
@@ -524,82 +402,6 @@ fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
         | "voiceclone"
         | "voice-clone" => Some(XIAOMI_MIMO_TTS_VOICE_CLONE_MODEL),
         "mimo-v2-tts" => Some(XIAOMI_MIMO_V2_TTS_MODEL),
-        _ => None,
-    }
-}
-
-fn canonical_arcee_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "trinity" | "arcee-trinity" | "trinity-large-thinking" | "arcee-trinity-large-thinking" => {
-            Some(DEFAULT_ARCEE_MODEL)
-        }
-        "arcee-trinity-mini" | ARCEE_TRINITY_MINI_MODEL => Some(ARCEE_TRINITY_MINI_MODEL),
-        "arcee-trinity-large-preview" | ARCEE_TRINITY_LARGE_PREVIEW_MODEL => {
-            Some(ARCEE_TRINITY_LARGE_PREVIEW_MODEL)
-        }
-        _ => None,
-    }
-}
-
-fn canonical_moonshot_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "kimi"
-        | "kimi-k2"
-        | "kimi-k2.7"
-        | "kimi-k2-7"
-        | "kimi-k2.7-code"
-        | "kimi-k2-7-code"
-        | "kimi-code"
-        | "moonshot-kimi-k2.7-code" => Some(DEFAULT_MOONSHOT_MODEL),
-        "kimi-k2.6" | "kimi-k2-6" | "moonshot-kimi-k2.6" => Some(MOONSHOT_KIMI_K2_6_MODEL),
-        _ => None,
-    }
-}
-
-fn canonical_zai_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "glm-5.1" | "glm-5-1" | "zai-glm-5.1" | "zai-glm-5-1" => Some(ZAI_GLM_5_1_MODEL),
-        "glm-5.2" | "glm-5-2" | "zai-glm-5.2" | "zai-glm-5-2" => Some(DEFAULT_ZAI_MODEL),
-        "glm-5-turbo" | "glm-5turbo" | "zai-glm-5-turbo" => Some(ZAI_GLM_5_TURBO_MODEL),
-        _ => None,
-    }
-}
-
-fn canonical_minimax_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "minimax" | "minimax-m3" | "minimax-m-3" | "minimax-m-3-thinking" => {
-            Some(DEFAULT_MINIMAX_MODEL)
-        }
-        "minimax-m2.7" | "minimax-m2-7" | "minimax-m-2.7" | "minimax-m-2-7" => {
-            Some(MINIMAX_M2_7_MODEL)
-        }
-        "minimax-m2.7-highspeed"
-        | "minimax-m2-7-highspeed"
-        | "minimax-m-2.7-highspeed"
-        | "minimax-m-2-7-highspeed" => Some(MINIMAX_M2_7_HIGHSPEED_MODEL),
-        "minimax-m2.5" | "minimax-m2-5" | "minimax-m-2.5" | "minimax-m-2-5" => {
-            Some(MINIMAX_M2_5_MODEL)
-        }
-        "minimax-m2.5-highspeed"
-        | "minimax-m2-5-highspeed"
-        | "minimax-m-2.5-highspeed"
-        | "minimax-m-2-5-highspeed" => Some(MINIMAX_M2_5_HIGHSPEED_MODEL),
-        "minimax-m2.1" | "minimax-m2-1" | "minimax-m-2.1" | "minimax-m-2-1" => {
-            Some(MINIMAX_M2_1_MODEL)
-        }
-        "minimax-m2.1-highspeed"
-        | "minimax-m2-1-highspeed"
-        | "minimax-m-2.1-highspeed"
-        | "minimax-m-2-1-highspeed" => Some(MINIMAX_M2_1_HIGHSPEED_MODEL),
-        "minimax-m2" | "minimax-m-2" => Some(MINIMAX_M2_MODEL),
         _ => None,
     }
 }
@@ -2177,12 +1979,7 @@ impl Config {
             return;
         }
         let provider = self.api_provider();
-        if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo) {
-            return;
-        }
-        if matches!(provider, ApiProvider::XiaomiMimo)
-            && root_base.contains("integrate.api.nvidia.com")
-        {
+        if matches!(provider, ApiProvider::XiaomiMimo) {
             return;
         }
         // Only warn if the per-provider table doesn't have an explicit
@@ -3054,10 +2851,6 @@ impl Config {
     }
 }
 
-fn root_deepseek_model_is_foreign_to_direct_provider(_provider: ApiProvider, _model: &str) -> bool {
-    false
-}
-
 // === Defaults ===
 
 // Pure filesystem path helpers live in the `paths` leaf module. The two
@@ -3378,7 +3171,7 @@ fn apply_env_overrides(config: &mut Config) {
     let active_provider = config.api_provider();
     if matches!(
         active_provider,
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
+        ApiProvider::XiaomiMimo
     ) && let Ok(value) = std::env::var("SILICONFLOW_BASE_URL")
         && !value.trim().is_empty()
     {
@@ -3437,31 +3230,7 @@ fn apply_env_overrides(config: &mut Config) {
             .providers
             .get_or_insert_with(ProvidersConfig::default);
         let entry = match provider {
-            ApiProvider::XiaomiMimo => &mut providers.deepseek,
-            ApiProvider::XiaomiMimo => &mut providers.deepseek_cn,
-            ApiProvider::XiaomiMimo => &mut providers.deepseek_anthropic,
-            ApiProvider::XiaomiMimo => &mut providers.nvidia_nim,
-            ApiProvider::XiaomiMimo => &mut providers.openai,
-            ApiProvider::XiaomiMimo => &mut providers.atlascloud,
-            ApiProvider::XiaomiMimo => &mut providers.wanjie_ark,
-            ApiProvider::XiaomiMimo => &mut providers.openrouter,
             ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-            ApiProvider::XiaomiMimo => &mut providers.novita,
-            ApiProvider::XiaomiMimo => &mut providers.fireworks,
-            ApiProvider::XiaomiMimo => &mut providers.siliconflow,
-            ApiProvider::XiaomiMimo => &mut providers.siliconflow_cn,
-            ApiProvider::XiaomiMimo => &mut providers.arcee,
-            ApiProvider::XiaomiMimo => &mut providers.moonshot,
-            ApiProvider::XiaomiMimo => &mut providers.volcengine,
-            ApiProvider::XiaomiMimo => &mut providers.huggingface,
-            ApiProvider::XiaomiMimo => &mut providers.deepinfra,
-            ApiProvider::XiaomiMimo => &mut providers.together,
-            ApiProvider::XiaomiMimo => &mut providers.qianfan,
-            ApiProvider::XiaomiMimo => &mut providers.openai_codex,
-            ApiProvider::XiaomiMimo => &mut providers.anthropic,
-            ApiProvider::XiaomiMimo => &mut providers.zai,
-            ApiProvider::XiaomiMimo => &mut providers.stepfun,
-            ApiProvider::XiaomiMimo => &mut providers.minimax,
             ApiProvider::Custom => providers
                 .custom
                 .entry(custom_key.expect("custom key captured for custom provider"))
@@ -3563,7 +3332,7 @@ fn apply_env_overrides(config: &mut Config) {
     let active_provider = config.api_provider();
     if matches!(
         active_provider,
-        ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
+        ApiProvider::XiaomiMimo
     ) && let Ok(value) = std::env::var("SILICONFLOW_MODEL")
         && !value.trim().is_empty()
     {
@@ -3613,47 +3382,18 @@ fn apply_env_overrides(config: &mut Config) {
                 .clone()
                 .unwrap_or_else(|| "__custom__".to_string())
         });
-        if matches!(
-            provider,
-            ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo
-        ) {
+        if matches!(provider, ApiProvider::XiaomiMimo) {
             config.default_text_model = Some(value);
         } else {
             let providers = config
                 .providers
                 .get_or_insert_with(ProvidersConfig::default);
             let entry = match provider {
-                ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo => {
-                    unreachable!(
-                        "DeepSeek providers are handled in the if branch above (issue #1714)"
-                    )
-                }
+                ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
                 ApiProvider::Custom => providers
                     .custom
                     .entry(custom_key.expect("custom key captured for custom provider"))
                     .or_default(),
-                ApiProvider::XiaomiMimo => &mut providers.nvidia_nim,
-                ApiProvider::XiaomiMimo => &mut providers.openai,
-                ApiProvider::XiaomiMimo => &mut providers.atlascloud,
-                ApiProvider::XiaomiMimo => &mut providers.wanjie_ark,
-                ApiProvider::XiaomiMimo => &mut providers.openrouter,
-                ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-                ApiProvider::XiaomiMimo => &mut providers.novita,
-                ApiProvider::XiaomiMimo => &mut providers.fireworks,
-                ApiProvider::XiaomiMimo => &mut providers.siliconflow,
-                ApiProvider::XiaomiMimo => &mut providers.siliconflow_cn,
-                ApiProvider::XiaomiMimo => &mut providers.arcee,
-                ApiProvider::XiaomiMimo => &mut providers.moonshot,
-                ApiProvider::XiaomiMimo => &mut providers.volcengine,
-                ApiProvider::XiaomiMimo => &mut providers.huggingface,
-                ApiProvider::XiaomiMimo => &mut providers.deepinfra,
-                ApiProvider::XiaomiMimo => &mut providers.together,
-                ApiProvider::XiaomiMimo => &mut providers.qianfan,
-                ApiProvider::XiaomiMimo => &mut providers.openai_codex,
-                ApiProvider::XiaomiMimo => &mut providers.anthropic,
-                ApiProvider::XiaomiMimo => &mut providers.zai,
-                ApiProvider::XiaomiMimo => &mut providers.stepfun,
-                ApiProvider::XiaomiMimo => &mut providers.minimax,
             };
             entry.model = Some(value);
         }
@@ -3756,13 +3496,6 @@ fn normalize_model_for_provider(provider: ApiProvider, model: &str) -> Option<St
 
 pub(crate) fn provider_passes_model_through(provider: ApiProvider) -> bool {
     matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::Custom)
-}
-
-fn provider_entry_uses_custom_base_url(provider: ApiProvider, entry: &ProviderConfig) -> bool {
-    entry
-        .base_url
-        .as_deref()
-        .is_some_and(|base_url| provider_preserves_custom_base_url_model(provider, base_url))
 }
 
 fn default_base_url_for_provider(provider: ApiProvider) -> &'static str {
@@ -3912,38 +3645,6 @@ fn base_url_is_custom_for_provider(provider: ApiProvider, base_url: &str) -> boo
 
 fn provider_preserves_custom_base_url_model(provider: ApiProvider, base_url: &str) -> bool {
     base_url_is_custom_for_provider(provider, base_url)
-}
-
-fn siliconflow_base_url_is_official(base_url: &str) -> bool {
-    matches!(
-        normalize_base_url(base_url).to_ascii_lowercase().as_str(),
-        "https://api.siliconflow.com/v1" | "https://api.siliconflow.cn/v1"
-    )
-}
-
-fn moonshot_base_url_uses_kimi_code(base_url: &str) -> bool {
-    let normalized = normalize_base_url(base_url).to_ascii_lowercase();
-    normalized == DEFAULT_KIMI_CODE_BASE_URL
-        || normalized == "https://api.kimi.com/coding"
-        || normalized.starts_with("https://api.kimi.com/coding/")
-}
-
-fn provider_config_uses_kimi_oauth(config: &ProviderConfig) -> bool {
-    config
-        .auth_mode
-        .as_deref()
-        .is_some_and(auth_mode_uses_kimi_oauth)
-}
-
-fn auth_mode_uses_kimi_oauth(mode: &str) -> bool {
-    matches!(
-        normalize_auth_mode(mode).as_str(),
-        "kimi" | "kimi_oauth" | "kimi_cli" | "oauth"
-    )
-}
-
-fn normalize_auth_mode(mode: &str) -> String {
-    mode.trim().to_ascii_lowercase().replace(['-', ' '], "_")
 }
 
 fn base_url_uses_local_host(base_url: &str) -> bool {
@@ -4860,101 +4561,7 @@ fn missing_provider_api_key_message(provider: ApiProvider) -> Result<String> {
     ))
 }
 
-const KIMI_CODE_CLIENT_ID: &str = "17e5f671-d194-4dfb-9706-5516cb48c098";
 const KIMI_CODE_CREDENTIAL_FILE: &str = "kimi-code.json";
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-struct KimiOAuthCredential {
-    access_token: Option<String>,
-    refresh_token: Option<String>,
-    expires_at: Option<f64>,
-    expires_in: Option<f64>,
-    scope: Option<String>,
-    token_type: Option<String>,
-}
-
-fn kimi_cli_oauth_access_token() -> Result<String> {
-    let path = kimi_cli_oauth_credentials_path()?;
-    let raw = fs::read_to_string(&path).with_context(|| {
-        format!(
-            "Kimi OAuth credentials not found at {}. Run `kimi login`, then set \
-             [providers.moonshot] auth_mode = \"kimi_oauth\".",
-            path.display()
-        )
-    })?;
-    let mut credential: KimiOAuthCredential =
-        serde_json::from_str(&raw).context("Failed to parse Kimi OAuth credentials")?;
-
-    if kimi_oauth_access_token_is_fresh(&credential) {
-        return credential
-            .access_token
-            .filter(|token| !token.trim().is_empty())
-            .context("Kimi OAuth access token is empty");
-    }
-
-    let refresh_token = credential
-        .refresh_token
-        .as_deref()
-        .filter(|token| !token.trim().is_empty())
-        .context("Kimi OAuth refresh token is empty. Run `kimi login` again.")?;
-    credential = refresh_kimi_oauth_token(refresh_token)?;
-    write_kimi_oauth_credential(&path, &credential)?;
-    credential
-        .access_token
-        .filter(|token| !token.trim().is_empty())
-        .context("Kimi OAuth refresh returned an empty access token")
-}
-
-fn kimi_oauth_access_token_is_fresh(credential: &KimiOAuthCredential) -> bool {
-    let Some(now) = now_unix_secs() else {
-        return false;
-    };
-
-    credential
-        .access_token
-        .as_deref()
-        .is_some_and(|token| !token.trim().is_empty())
-        && credential
-            .expires_at
-            .is_some_and(|expires_at| expires_at - now > 60.0)
-}
-
-fn refresh_kimi_oauth_token(refresh_token: &str) -> Result<KimiOAuthCredential> {
-    let oauth_host = std::env::var("KIMI_CODE_OAUTH_HOST")
-        .or_else(|_| std::env::var("KIMI_OAUTH_HOST"))
-        .unwrap_or_else(|_| "https://auth.kimi.com".to_string());
-    let url = format!("{}/api/oauth/token", oauth_host.trim_end_matches('/'));
-    let client = crate::tls::reqwest_blocking_client_builder()
-        .timeout(Duration::from_secs(15))
-        .build()
-        .context("Failed to build Kimi OAuth refresh client")?;
-    let params = [
-        ("client_id", KIMI_CODE_CLIENT_ID),
-        ("grant_type", "refresh_token"),
-        ("refresh_token", refresh_token),
-    ];
-    let response = client
-        .post(url)
-        .header("X-Msh-Platform", "kimi_cli")
-        .header("X-Msh-Version", env!("CARGO_PKG_VERSION"))
-        .form(&params)
-        .send()
-        .context("Kimi OAuth refresh request failed")?;
-    let status = response.status();
-    if !status.is_success() {
-        anyhow::bail!("Kimi OAuth refresh failed with HTTP {status}. Run `kimi login` again.");
-    }
-
-    let mut refreshed: KimiOAuthCredential = response
-        .json()
-        .context("Failed to parse Kimi OAuth refresh response")?;
-    if let Some(expires_in) = refreshed.expires_in
-        && let Some(now) = now_unix_secs()
-    {
-        refreshed.expires_at = Some(now + expires_in);
-    }
-    Ok(refreshed)
-}
 
 fn kimi_cli_oauth_credentials_path() -> Result<PathBuf> {
     if let Some(kimi_code_home) = kimi_code_home_override() {
@@ -4996,34 +4603,6 @@ fn kimi_legacy_share_dir_override() -> Option<PathBuf> {
 
 fn kimi_oauth_credential_path(home: PathBuf) -> PathBuf {
     home.join("credentials").join(KIMI_CODE_CREDENTIAL_FILE)
-}
-
-fn write_kimi_oauth_credential(path: &Path, credential: &KimiOAuthCredential) -> Result<()> {
-    let serialized = serde_json::to_vec_pretty(credential)
-        .context("Failed to serialize Kimi OAuth credentials")?;
-    crate::utils::write_atomic(path, &serialized).with_context(|| {
-        format!(
-            "Failed to write Kimi OAuth credentials to {}",
-            path.display()
-        )
-    })?;
-    #[cfg(unix)]
-    if let Err(err) = fs::set_permissions(path, fs::Permissions::from_mode(0o600)) {
-        tracing::warn!(
-            target: "mimofan::config",
-            path = %path.display(),
-            error = %err,
-            "could not enforce 0o600 on Kimi OAuth credentials; relying on host ACLs"
-        );
-    }
-    Ok(())
-}
-
-fn now_unix_secs() -> Option<f64> {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs_f64())
-        .ok()
 }
 
 #[must_use]

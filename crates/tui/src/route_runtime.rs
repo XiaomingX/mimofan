@@ -77,7 +77,7 @@ fn prepared_route_config(
     {
         route_config.base_url = Some(DEFAULT_NVIDIA_NIM_BASE_URL.to_string());
     }
-    if matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::XiaomiMimo)
+    if matches!(provider, ApiProvider::XiaomiMimo)
         && route_config
             .base_url
             .as_deref()

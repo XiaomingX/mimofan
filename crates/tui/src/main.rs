@@ -31,7 +31,6 @@ mod composer_stash;
 mod config;
 mod config_persistence;
 mod config_ui;
-mod constants;
 mod context_budget;
 mod context_report;
 mod core;
@@ -2232,7 +2231,7 @@ fn resolve_api_key_source(config: &Config) -> ApiKeySource {
         .is_some_and(|k| !k.trim().is_empty());
     let root_deepseek_key = matches!(
         provider,
-        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo
+        crate::config::ApiProvider::XiaomiMimo
     ) && config
         .api_key
         .as_ref()
@@ -3902,7 +3901,7 @@ fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
                     .to_string(),
             );
         }
-        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo => {
+        crate::config::ApiProvider::XiaomiMimo => {
             lines.push(
                 "If this is a custom DeepSeek-compatible endpoint, confirm it serves `/v1/models` and `/v1/chat/completions` over HTTPS."
                     .to_string(),
@@ -6061,7 +6060,7 @@ fn config_for_cli_route(config: &Config, route: &CliAutoRoute) -> Config {
         .model = Some(route.model.clone());
     if matches!(
         route.provider,
-        crate::config::ApiProvider::XiaomiMimo | crate::config::ApiProvider::XiaomiMimo
+        crate::config::ApiProvider::XiaomiMimo
     ) {
         execution_config.default_text_model = Some(route.model.clone());
     }

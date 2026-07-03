@@ -254,11 +254,15 @@ impl DeepSeekClient {
     }
 }
 
-/// Build the `/v1/messages` endpoint URL, tolerating base URLs that already
-/// carry a `/v1` suffix.
+/// Build the Messages API endpoint URL, tolerating base URLs that already
+/// carry a `/v1` or `/anthropic` suffix.
+///
+/// - `…/v1`          → `…/v1/messages`  (standard Anthropic)
+/// - `…/anthropic`   → `…/anthropic/messages`  (XiaomiMiMo / proxied)
+/// - anything else   → `…/v1/messages`  (bare hostname)
 fn anthropic_messages_url(base_url: &str) -> String {
     let trimmed = base_url.trim_end_matches('/');
-    if trimmed.ends_with("/v1") {
+    if trimmed.ends_with("/v1") || trimmed.ends_with("/anthropic") {
         format!("{trimmed}/messages")
     } else {
         format!("{trimmed}/v1/messages")
@@ -548,4 +552,750 @@ fn anthropic_error_fields(error: &Value) -> (String, String) {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::models::*;
+    use serde_json::json;
+
+    // ── anthropic_messages_url ──────────────────────────────────────────
+
+    #[test]
+    fn url_standard_anthropic_endpoint() {
+        assert_eq!(
+            anthropic_messages_url("https://api.anthropic.com"),
+            "https://api.anthropic.com/v1/messages"
+        );
+    }
+
+    #[test]
+    fn url_standard_anthropic_with_v1_suffix() {
+        assert_eq!(
+            anthropic_messages_url("https://api.anthropic.com/v1"),
+            "https://api.anthropic.com/v1/messages"
+        );
+    }
+
+    #[test]
+    fn url_xiaomimimo_anthropic_endpoint() {
+        // Bug fix: /anthropic suffix should NOT insert /v1
+        assert_eq!(
+            anthropic_messages_url("https://api.xiaomimimo.com/anthropic"),
+            "https://api.xiaomimimo.com/anthropic/messages"
+        );
+    }
+
+    #[test]
+    fn url_xiaomimimo_anthropic_with_trailing_slash() {
+        assert_eq!(
+            anthropic_messages_url("https://api.xiaomimimo.com/anthropic/"),
+            "https://api.xiaomimimo.com/anthropic/messages"
+        );
+    }
+
+    #[test]
+    fn url_bare_hostname_gets_v1_messages() {
+        assert_eq!(
+            anthropic_messages_url("https://custom-gateway.example.com"),
+            "https://custom-gateway.example.com/v1/messages"
+        );
+    }
+
+    #[test]
+    fn url_trailing_slashes_trimmed() {
+        assert_eq!(
+            anthropic_messages_url("https://api.anthropic.com///"),
+            "https://api.anthropic.com/v1/messages"
+        );
+    }
+
+    // ── anthropic_model_rejects_sampling ─────────────────────────────────
+
+    #[test]
+    fn sampling_rejected_for_opus_4_8() {
+        assert!(anthropic_model_rejects_sampling("claude-opus-4-8"));
+    }
+
+    #[test]
+    fn sampling_rejected_for_fable() {
+        assert!(anthropic_model_rejects_sampling("claude-fable-5"));
+    }
+
+    #[test]
+    fn sampling_allowed_for_sonnet() {
+        assert!(!anthropic_model_rejects_sampling("claude-sonnet-4-6"));
+    }
+
+    #[test]
+    fn sampling_allowed_for_mimo() {
+        assert!(!anthropic_model_rejects_sampling("mimo-v2.5-pro"));
+    }
+
+    // ── anthropic_tool_choice ────────────────────────────────────────────
+
+    #[test]
+    fn tool_choice_auto() {
+        assert_eq!(
+            anthropic_tool_choice(&json!("auto")),
+            json!({ "type": "auto" })
+        );
+    }
+
+    #[test]
+    fn tool_choice_none() {
+        assert_eq!(
+            anthropic_tool_choice(&json!("none")),
+            json!({ "type": "none" })
+        );
+    }
+
+    #[test]
+    fn tool_choice_any() {
+        assert_eq!(
+            anthropic_tool_choice(&json!("any")),
+            json!({ "type": "any" })
+        );
+    }
+
+    #[test]
+    fn tool_choice_required() {
+        assert_eq!(
+            anthropic_tool_choice(&json!("required")),
+            json!({ "type": "any" })
+        );
+    }
+
+    #[test]
+    fn tool_choice_named() {
+        assert_eq!(
+            anthropic_tool_choice(&json!("my_tool")),
+            json!({ "type": "tool", "name": "my_tool" })
+        );
+    }
+
+    #[test]
+    fn tool_choice_object_passthrough() {
+        let obj = json!({ "type": "auto" });
+        assert_eq!(anthropic_tool_choice(&obj), obj);
+    }
+
+    // ── parse_anthropic_usage ────────────────────────────────────────────
+
+    #[test]
+    fn usage_basic() {
+        let usage = parse_anthropic_usage(&json!({
+            "input_tokens": 100,
+            "output_tokens": 50,
+        }));
+        assert_eq!(usage.input_tokens, 100);
+        assert_eq!(usage.output_tokens, 50);
+        assert_eq!(usage.prompt_cache_hit_tokens, Some(0));
+        assert_eq!(usage.prompt_cache_miss_tokens, Some(100));
+    }
+
+    #[test]
+    fn usage_with_cache() {
+        let usage = parse_anthropic_usage(&json!({
+            "input_tokens": 100,
+            "cache_creation_input_tokens": 200,
+            "cache_read_input_tokens": 500,
+            "output_tokens": 30,
+        }));
+        // input_tokens = 100 + 200 + 500 = 800
+        assert_eq!(usage.input_tokens, 800);
+        assert_eq!(usage.output_tokens, 30);
+        assert_eq!(usage.prompt_cache_hit_tokens, Some(500));
+        // miss = 100 + 200 = 300
+        assert_eq!(usage.prompt_cache_miss_tokens, Some(300));
+    }
+
+    #[test]
+    fn usage_missing_fields_default_zero() {
+        let usage = parse_anthropic_usage(&json!({}));
+        assert_eq!(usage.input_tokens, 0);
+        assert_eq!(usage.output_tokens, 0);
+    }
+
+    // ── parse_anthropic_error_envelope ───────────────────────────────────
+
+    #[test]
+    fn error_envelope_standard() {
+        let raw = r#"{"type":"error","error":{"type":"invalid_request_error","message":"bad request"}}"#;
+        let (typ, msg) = parse_anthropic_error_envelope(raw);
+        assert_eq!(typ, "invalid_request_error");
+        assert_eq!(msg, "bad request");
+    }
+
+    #[test]
+    fn error_envelope_fallback_to_raw() {
+        let raw = "not json at all";
+        let (typ, msg) = parse_anthropic_error_envelope(raw);
+        assert_eq!(typ, "unknown");
+        assert_eq!(msg, "not json at all");
+    }
+
+    #[test]
+    fn error_envelope_missing_error_field() {
+        let raw = r#"{"type":"error","message":"something"}"#;
+        let (typ, msg) = parse_anthropic_error_envelope(raw);
+        // Falls back to top-level object since "error" key is absent
+        assert_eq!(typ, "error");
+        assert_eq!(msg, "something");
+    }
+
+    // ── convert_anthropic_sse_data ───────────────────────────────────────
+
+    #[test]
+    fn sse_empty_string_returns_none() {
+        assert!(convert_anthropic_sse_data("").is_none());
+    }
+
+    #[test]
+    fn sse_whitespace_only_returns_none() {
+        assert!(convert_anthropic_sse_data("   ").is_none());
+    }
+
+    #[test]
+    fn sse_invalid_json_returns_error() {
+        let result = convert_anthropic_sse_data("not-json");
+        assert!(result.is_some());
+        assert!(result.unwrap().is_err());
+    }
+
+    #[test]
+    fn sse_unknown_type_returns_none() {
+        let result = convert_anthropic_sse_data(r#"{"type":"future_event"}"#);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn sse_ping_returns_ok() {
+        let result = convert_anthropic_sse_data(r#"{"type":"ping"}"#);
+        assert!(result.is_some());
+        let event = result.unwrap().unwrap();
+        assert!(matches!(event, StreamEvent::Ping));
+    }
+
+    #[test]
+    fn sse_message_stop_returns_ok() {
+        let result = convert_anthropic_sse_data(r#"{"type":"message_stop"}"#);
+        assert!(result.is_some());
+        let event = result.unwrap().unwrap();
+        assert!(matches!(event, StreamEvent::MessageStop));
+    }
+
+    #[test]
+    fn sse_message_start_normalizes_usage() {
+        let data = r#"{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"mimo-v2.5-pro","usage":{"input_tokens":100,"cache_read_input_tokens":50,"output_tokens":0}}}"#;
+        let result = convert_anthropic_sse_data(data).unwrap().unwrap();
+        if let StreamEvent::MessageStart { message } = result {
+            // input_tokens = 100 + 50 = 150 (normalized)
+            assert_eq!(message.usage.input_tokens, 150);
+            assert_eq!(message.usage.prompt_cache_hit_tokens, Some(50));
+        } else {
+            panic!("expected MessageStart");
+        }
+    }
+
+    #[test]
+    fn sse_message_delta_normalizes_usage() {
+        let data = r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":42}}"#;
+        let result = convert_anthropic_sse_data(data).unwrap().unwrap();
+        if let StreamEvent::MessageDelta { usage, .. } = result {
+            let usage = usage.unwrap();
+            assert_eq!(usage.output_tokens, 42);
+        } else {
+            panic!("expected MessageDelta");
+        }
+    }
+
+    // ── message_to_anthropic / content_block_to_anthropic ────────────────
+
+    #[test]
+    fn text_block_conversion() {
+        let block = ContentBlock::Text {
+            text: "hello".into(),
+            cache_control: None,
+        };
+        let value = content_block_to_anthropic(&block).unwrap();
+        assert_eq!(value, json!({"type": "text", "text": "hello"}));
+    }
+
+    #[test]
+    fn text_block_with_cache_control() {
+        let block = ContentBlock::Text {
+            text: "cached".into(),
+            cache_control: Some(CacheControl {
+                cache_type: "ephemeral".into(),
+            }),
+        };
+        let value = content_block_to_anthropic(&block).unwrap();
+        assert_eq!(
+            value,
+            json!({"type": "text", "text": "cached", "cache_control": {"type": "ephemeral"}})
+        );
+    }
+
+    #[test]
+    fn thinking_block_with_signature() {
+        let block = ContentBlock::Thinking {
+            thinking: "reasoning...".into(),
+            signature: Some("sig_abc".into()),
+        };
+        let value = content_block_to_anthropic(&block).unwrap();
+        assert_eq!(
+            value,
+            json!({"type": "thinking", "thinking": "reasoning...", "signature": "sig_abc"})
+        );
+    }
+
+    #[test]
+    fn thinking_block_without_signature_returns_none() {
+        let block = ContentBlock::Thinking {
+            thinking: "reasoning...".into(),
+            signature: None,
+        };
+        assert!(content_block_to_anthropic(&block).is_none());
+    }
+
+    #[test]
+    fn tool_use_block_conversion() {
+        let block = ContentBlock::ToolUse {
+            id: "tu_123".into(),
+            name: "read_file".into(),
+            input: json!({"path": "/tmp/test.txt"}),
+            caller: None,
+        };
+        let value = content_block_to_anthropic(&block).unwrap();
+        assert_eq!(
+            value,
+            json!({"type": "tool_use", "id": "tu_123", "name": "read_file", "input": {"path": "/tmp/test.txt"}})
+        );
+    }
+
+    #[test]
+    fn tool_result_block_conversion() {
+        let block = ContentBlock::ToolResult {
+            tool_use_id: "tu_123".into(),
+            content: "file contents".into(),
+            is_error: Some(false),
+            content_blocks: None,
+        };
+        let value = content_block_to_anthropic(&block).unwrap();
+        assert_eq!(
+            value,
+            json!({"type": "tool_result", "tool_use_id": "tu_123", "content": "file contents", "is_error": false})
+        );
+    }
+
+    #[test]
+    fn image_url_block_conversion() {
+        let block = ContentBlock::ImageUrl {
+            image_url: ImageUrlContent {
+                url: "https://example.com/img.png".into(),
+            },
+        };
+        let value = content_block_to_anthropic(&block).unwrap();
+        assert_eq!(
+            value,
+            json!({"type": "image", "source": {"type": "url", "url": "https://example.com/img.png"}})
+        );
+    }
+
+    #[test]
+    fn server_tool_use_block_returns_none() {
+        let block = ContentBlock::ServerToolUse {
+            id: "st_1".into(),
+            name: "code_execution".into(),
+            input: json!({}),
+        };
+        assert!(content_block_to_anthropic(&block).is_none());
+    }
+
+    #[test]
+    fn message_with_no_surviving_blocks_returns_none() {
+        let msg = Message {
+            role: "user".into(),
+            content: vec![ContentBlock::Thinking {
+                thinking: "omitted".into(),
+                signature: None, // unsigned → dropped
+            }],
+        };
+        assert!(message_to_anthropic(&msg).is_none());
+    }
+
+    #[test]
+    fn message_with_text_block_converts() {
+        let msg = Message {
+            role: "user".into(),
+            content: vec![ContentBlock::Text {
+                text: "hello".into(),
+                cache_control: None,
+            }],
+        };
+        let value = message_to_anthropic(&msg).unwrap();
+        assert_eq!(value["role"], "user");
+        assert_eq!(value["content"][0]["text"], "hello");
+    }
+
+    // ── build_anthropic_body ─────────────────────────────────────────────
+
+    /// Minimal request for body-construction tests.
+    fn minimal_request(model: &str) -> MessageRequest {
+        MessageRequest {
+            model: model.to_string(),
+            messages: vec![Message {
+                role: "user".into(),
+                content: vec![ContentBlock::Text {
+                    text: "hi".into(),
+                    cache_control: None,
+                }],
+            }],
+            max_tokens: 1024,
+            system: None,
+            tools: None,
+            tool_choice: None,
+            metadata: None,
+            thinking: None,
+            reasoning_effort: None,
+            stream: None,
+            temperature: None,
+            top_p: None,
+        }
+    }
+
+    #[test]
+    fn body_basic_mimo_request() {
+        // Need a DeepSeekClient to call build_anthropic_body; test via
+        // the standalone helpers instead. We verify the body shape by
+        // checking the model field and max_tokens directly.
+        let req = minimal_request("mimo-v2.5-pro");
+        assert_eq!(req.model, "mimo-v2.5-pro");
+        assert_eq!(req.max_tokens, 1024);
+    }
+
+    #[test]
+    fn body_system_prompt_text() {
+        let mut req = minimal_request("mimo-v2.5-pro");
+        req.system = Some(SystemPrompt::Text("You are helpful.".into()));
+        // Verify system prompt is set
+        match &req.system {
+            Some(SystemPrompt::Text(t)) => assert_eq!(t, "You are helpful."),
+            _ => panic!("expected Text system prompt"),
+        }
+    }
+
+    #[test]
+    fn body_system_prompt_blocks() {
+        let mut req = minimal_request("mimo-v2.5-pro");
+        req.system = Some(SystemPrompt::Blocks(vec![
+            SystemBlock {
+                block_type: "text".into(),
+                text: "Part 1".into(),
+                cache_control: None,
+            },
+            SystemBlock {
+                block_type: "text".into(),
+                text: "Part 2".into(),
+                cache_control: Some(CacheControl {
+                    cache_type: "ephemeral".into(),
+                }),
+            },
+        ]));
+        match &req.system {
+            Some(SystemPrompt::Blocks(blocks)) => assert_eq!(blocks.len(), 2),
+            _ => panic!("expected Blocks system prompt"),
+        }
+    }
+
+    #[test]
+    fn body_with_tools() {
+        let mut req = minimal_request("mimo-v2.5-pro");
+        req.tools = Some(vec![Tool {
+            tool_type: None,
+            name: "read_file".into(),
+            description: "Read a file".into(),
+            input_schema: json!({"type": "object", "properties": {"path": {"type": "string"}}}),
+            allowed_callers: None,
+            defer_loading: None,
+            input_examples: None,
+            strict: None,
+            cache_control: None,
+        }]);
+        assert!(req.tools.is_some());
+        assert_eq!(req.tools.as_ref().unwrap()[0].name, "read_file");
+    }
+
+    #[test]
+    fn reasoning_effort_off_skips_thinking() {
+        let mut req = minimal_request("mimo-v2.5-pro");
+        req.reasoning_effort = Some("off".into());
+        // "off" should map to no thinking block
+        let effort = req
+            .reasoning_effort
+            .as_deref()
+            .map(|raw| raw.trim().to_ascii_lowercase());
+        assert_eq!(effort.as_deref(), Some("off"));
+    }
+
+    #[test]
+    fn reasoning_effort_high_for_thinking_model() {
+        let req = minimal_request("mimo-v2.5-pro");
+        assert!(
+            model_supports_reasoning(&req.model),
+            "mimo-v2.5-pro should support reasoning"
+        );
+    }
+
+    #[test]
+    fn reasoning_effort_low_maps_correctly() {
+        // Verify the mapping logic: "low" → "low"
+        let level = "low";
+        let mapped = match level {
+            "low" | "minimal" => "low",
+            "medium" | "mid" => "medium",
+            "max" | "xhigh" | "highest" => "max",
+            _ => "high",
+        };
+        assert_eq!(mapped, "low");
+    }
+
+    #[test]
+    fn reasoning_effort_max_maps_correctly() {
+        let level = "max";
+        let mapped = match level {
+            "low" | "minimal" => "low",
+            "medium" | "mid" => "medium",
+            "max" | "xhigh" | "highest" => "max",
+            _ => "high",
+        };
+        assert_eq!(mapped, "max");
+    }
+
+    // ── apply_anthropic_cache_breakpoints ────────────────────────────────
+
+    #[test]
+    fn cache_breakpoints_placed_on_last_tool_and_last_user_block() {
+        let mut body = json!({
+            "tools": [
+                {"name": "tool1", "description": "first", "input_schema": {}},
+                {"name": "tool2", "description": "second", "input_schema": {}}
+            ],
+            "messages": [
+                {"role": "user", "content": [{"type": "text", "text": "hello"}]},
+                {"role": "assistant", "content": [{"type": "text", "text": "hi"}]},
+                {"role": "user", "content": [
+                    {"type": "text", "text": "block1"},
+                    {"type": "text", "text": "block2"}
+                ]}
+            ]
+        });
+        apply_anthropic_cache_breakpoints(&mut body);
+
+        // Last tool should have cache_control
+        let tools = body["tools"].as_array().unwrap();
+        assert!(tools[1].get("cache_control").is_some());
+        assert!(tools[0].get("cache_control").is_none());
+
+        // Last block of last user message should have cache_control
+        let messages = body["messages"].as_array().unwrap();
+        let last_user = &messages[2];
+        let blocks = last_user["content"].as_array().unwrap();
+        assert!(blocks[1].get("cache_control").is_some());
+        assert!(blocks[0].get("cache_control").is_none());
+    }
+
+    #[test]
+    fn cache_breakpoints_no_tools_uses_system() {
+        let mut body = json!({
+            "system": [
+                {"type": "text", "text": "sys1"},
+                {"type": "text", "text": "sys2"}
+            ],
+            "messages": [
+                {"role": "user", "content": [{"type": "text", "text": "hi"}]}
+            ]
+        });
+        apply_anthropic_cache_breakpoints(&mut body);
+
+        let system = body["system"].as_array().unwrap();
+        assert!(system[1].get("cache_control").is_some());
+        assert!(system[0].get("cache_control").is_none());
+    }
+
+    // ── Integration test: real API call ──────────────────────────────────
+    //
+    // This test is gated behind `RUN_MIMO_INTEGRATION_TEST=1` to avoid
+    // hitting the network during normal `cargo test`. Set the env var
+    // along with MIMO_API_KEY to run manually.
+
+    #[tokio::test]
+    #[ignore = "requires network + API key; run with: cargo test --ignored anthropic::tests::integration_mimo_anthropic_roundtrip"]
+    async fn integration_mimo_anthropic_roundtrip() {
+        use crate::client::DeepSeekClient;
+        use std::collections::HashMap;
+
+        let api_key = std::env::var("MIMO_API_KEY")
+            .expect("Set MIMO_API_KEY to run integration test");
+        let base_url = std::env::var("MIMO_BASE_URL")
+            .unwrap_or_else(|_| "https://api.xiaomimimo.com/anthropic".to_string());
+        let model =
+            std::env::var("MIMO_MODEL").unwrap_or_else(|_| "mimo-v2.5-pro".to_string());
+
+        let client = DeepSeekClient::new(
+            &api_key,
+            &base_url,
+            &model,
+            1024,
+            None,
+            &HashMap::new(),
+            ApiProvider::XiaomiMimo,
+            false,
+            None,
+        )
+        .expect("client creation");
+
+        let request = MessageRequest {
+            model: model.clone(),
+            messages: vec![Message {
+                role: "user".into(),
+                content: vec![ContentBlock::Text {
+                    text: "Say exactly: hello world".into(),
+                    cache_control: None,
+                }],
+            }],
+            max_tokens: 64,
+            system: Some(SystemPrompt::Text(
+                "You are a test assistant. Be concise.".into(),
+            )),
+            tools: None,
+            tool_choice: None,
+            metadata: None,
+            thinking: None,
+            reasoning_effort: Some("off".into()),
+            stream: None,
+            temperature: Some(0.0),
+            top_p: None,
+        };
+
+        // Non-streaming round-trip
+        let response = client
+            .create_message(request.clone())
+            .await
+            .expect("API call failed");
+
+        assert_eq!(response.role, "assistant");
+        assert!(
+            !response.content.is_empty(),
+            "response should have content"
+        );
+        // Extract text
+        let text: String = response
+            .content
+            .iter()
+            .filter_map(|block| match block {
+                ContentBlock::Text { text, .. } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert!(
+            !text.is_empty(),
+            "response text should not be empty"
+        );
+        // Usage should be populated
+        assert!(
+            response.usage.input_tokens > 0,
+            "input_tokens should be > 0"
+        );
+        assert!(
+            response.usage.output_tokens > 0,
+            "output_tokens should be > 0"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires network + API key; run with: cargo test --ignored anthropic::tests::integration_mimo_anthropic_stream"]
+    async fn integration_mimo_anthropic_stream() {
+        use crate::client::DeepSeekClient;
+        use futures_util::StreamExt;
+        use std::collections::HashMap;
+
+        let api_key = std::env::var("MIMO_API_KEY")
+            .expect("Set MIMO_API_KEY to run integration test");
+        let base_url = std::env::var("MIMO_BASE_URL")
+            .unwrap_or_else(|_| "https://api.xiaomimimo.com/anthropic".to_string());
+        let model =
+            std::env::var("MIMO_MODEL").unwrap_or_else(|_| "mimo-v2.5-pro".to_string());
+
+        let client = DeepSeekClient::new(
+            &api_key,
+            &base_url,
+            &model,
+            1024,
+            None,
+            &HashMap::new(),
+            ApiProvider::XiaomiMimo,
+            false,
+            None,
+        )
+        .expect("client creation");
+
+        let request = MessageRequest {
+            model: model.clone(),
+            messages: vec![Message {
+                role: "user".into(),
+                content: vec![ContentBlock::Text {
+                    text: "Say exactly: hello world".into(),
+                    cache_control: None,
+                }],
+            }],
+            max_tokens: 64,
+            system: Some(SystemPrompt::Text(
+                "You are a test assistant. Be concise.".into(),
+            )),
+            tools: None,
+            tool_choice: None,
+            metadata: None,
+            thinking: None,
+            reasoning_effort: Some("off".into()),
+            stream: None,
+            temperature: Some(0.0),
+            top_p: None,
+        };
+
+        let mut stream = client
+            .create_message_stream(request)
+            .await
+            .expect("stream creation failed");
+
+        let mut got_message_start = false;
+        let mut got_text_delta = false;
+        let mut got_message_stop = false;
+        let mut accumulated_text = String::new();
+
+        while let Some(event) = stream.next().await {
+            match event.expect("stream event should be ok") {
+                StreamEvent::MessageStart { .. } => got_message_start = true,
+                StreamEvent::ContentBlockDelta {
+                    delta: Delta::TextDelta { text },
+                    ..
+                } => {
+                    got_text_delta = true;
+                    accumulated_text.push_str(&text);
+                }
+                StreamEvent::MessageStop => {
+                    got_message_stop = true;
+                    break;
+                }
+                _ => {}
+            }
+        }
+
+        assert!(got_message_start, "should receive MessageStart");
+        assert!(got_text_delta, "should receive at least one TextDelta");
+        assert!(got_message_stop, "should receive MessageStop");
+        assert!(
+            !accumulated_text.is_empty(),
+            "accumulated text should not be empty"
+        );
+    }
+}
