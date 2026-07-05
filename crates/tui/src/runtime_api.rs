@@ -36,7 +36,7 @@ use crate::automation_manager::{
     AutomationManager, AutomationRecord, AutomationRunRecord, AutomationSchedulerConfig,
     CreateAutomationRequest, SharedAutomationManager, UpdateAutomationRequest, spawn_scheduler,
 };
-use crate::config::{Config, DEFAULT_TEXT_MODEL};
+use crate::config::Config;
 use crate::fleet::ledger::{FleetLedgerState, FleetTaskLedgerStatus};
 use crate::fleet::manager::{
     FleetManager, FleetStatusSnapshot, FleetWorkerInspection, FleetWorkerRuntimeProjection,
@@ -1469,13 +1469,7 @@ async fn create_task(
         req.workspace = Some(state.workspace.clone());
     }
     if req.model.is_none() {
-        req.model = Some(
-            state
-                .config
-                .default_text_model
-                .clone()
-                .unwrap_or_else(|| DEFAULT_TEXT_MODEL.to_string()),
-        );
+        req.model = Some(state.config.default_model());
     }
     let task = state
         .task_manager
@@ -1490,13 +1484,7 @@ async fn create_thread(
     Json(mut req): Json<CreateThreadRequest>,
 ) -> Result<(StatusCode, Json<ThreadRecord>), ApiError> {
     if req.model.as_ref().is_none_or(|m| m.trim().is_empty()) {
-        req.model = Some(
-            state
-                .config
-                .default_text_model
-                .clone()
-                .unwrap_or_else(|| DEFAULT_TEXT_MODEL.to_string()),
-        );
+        req.model = Some(state.config.default_model());
     }
     if req.workspace.is_none() {
         req.workspace = Some(state.workspace.clone());
@@ -2579,6 +2567,7 @@ async fn retry_thread_turn(
                 auto_approve: None,
                 dynamic_tools: Vec::new(),
                 environment_id: None,
+                response_format: None,
             },
         )
         .await
@@ -2779,13 +2768,10 @@ async fn stream_turn(
         return Err(ApiError::bad_request("prompt is required"));
     }
 
-    let model = req.model.clone().unwrap_or_else(|| {
-        state
-            .config
-            .default_text_model
-            .clone()
-            .unwrap_or_else(|| DEFAULT_TEXT_MODEL.to_string())
-    });
+    let model = req
+        .model
+        .clone()
+        .unwrap_or_else(|| state.config.default_model());
     let workspace = req
         .workspace
         .clone()

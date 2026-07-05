@@ -524,6 +524,7 @@ pub async fn run_purge(
         stream: Some(false),
         temperature: Some(0.2),
         top_p: None,
+        response_format: None,
     };
 
     // 4. Send to the model.

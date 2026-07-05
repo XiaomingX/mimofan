@@ -6,8 +6,20 @@
 //! re-exported from `crate::config` via `pub use models::*;`, so every existing
 //! `crate::config::<CONST>` path keeps resolving unchanged (#3311).
 
-pub const DEFAULT_TEXT_MODEL: &str = "deepseek-v4-pro";
-pub const DEFAULT_MIMO_BASE_URL: &str = "https://api.deepseek.com/beta";
+// Default text model is `mimo-v2.5-pro` because the default API provider
+// (`XiaomiMimo`, see `Config::api_provider()`) speaks the Xiaomi MiMo dialect
+// and exposes this as its flagship model. The `Config::default_model()` method
+// resolves this in conjunction with any per-provider `default_text_model` in
+// `config.toml`, so per-provider overrides still win.
+pub const DEFAULT_TEXT_MODEL: &str = "mimo-v2.5-pro";
+// Default MiMo base URL points at the Xiaomi MiMo Anthropic-compatible
+// gateway. The `base_url` field is the primary signal mimofan uses to
+// decide which wire dialect to speak: when it ends in `/anthropic`
+// (`api_provider_uses_anthropic_messages`), we use the native Anthropic
+// Messages API; otherwise we fall back to the OpenAI-compatible
+// `/v1/chat/completions` dialect. See `client::anthropic_messages_url`
+// and `client::api_provider_uses_anthropic_messages` for the routing.
+pub const DEFAULT_MIMO_BASE_URL: &str = "https://api.xiaomimimo.com/anthropic";
 pub const DEFAULT_NVIDIA_NIM_BASE_URL: &str = "https://integrate.api.nvidia.com/v1";
 pub const DEFAULT_XIAOMI_MIMO_MODEL: &str = "mimo-v2.5-pro";
 pub const XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL: &str = "mimo-v2.5-pro-ultraspeed";

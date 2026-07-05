@@ -20,7 +20,7 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::config::{Config, DEFAULT_TEXT_MODEL, MAX_SUBAGENTS};
+use crate::config::{Config, MAX_SUBAGENTS};
 use crate::runtime_threads::{
     CreateThreadRequest, RuntimeThreadManager, RuntimeThreadManagerConfig, RuntimeTurnStatus,
     SharedRuntimeThreadManager, StartTurnRequest,
@@ -323,12 +323,7 @@ impl TaskManagerConfig {
             data_dir: default_tasks_dir(),
             worker_count: worker_count.unwrap_or(DEFAULT_WORKERS),
             default_workspace: workspace,
-            default_model: default_model.unwrap_or_else(|| {
-                config
-                    .default_text_model
-                    .clone()
-                    .unwrap_or_else(|| DEFAULT_TEXT_MODEL.to_string())
-            }),
+            default_model: default_model.unwrap_or_else(|| config.default_model()),
             default_mode: "agent".to_string(),
             allow_shell: config.allow_shell(),
             trust_mode: false,

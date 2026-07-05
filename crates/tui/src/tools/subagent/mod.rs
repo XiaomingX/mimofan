@@ -4615,6 +4615,7 @@ async fn run_subagent(
             stream: Some(false),
             temperature: None,
             top_p: None,
+            response_format: None,
         };
         latest_checkpoint = Some(
             checkpoint_subagent_progress(

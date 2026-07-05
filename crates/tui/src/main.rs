@@ -4131,6 +4131,7 @@ async fn test_api_connectivity(config: &Config) -> Result<()> {
         stream: Some(false),
         temperature: None,
         top_p: None,
+        response_format: None,
     };
 
     // Use tokio timeout to catch hanging requests
@@ -4465,6 +4466,7 @@ Provide findings ordered by severity with file references, then open questions, 
         stream: Some(false),
         temperature: Some(0.2),
         top_p: Some(0.9),
+        response_format: None,
     };
 
     let response = client.create_message(request).await?;
@@ -6154,6 +6156,7 @@ async fn run_one_shot(config: &Config, model: &str, prompt: &str) -> Result<()> 
         stream: Some(false),
         temperature: None,
         top_p: None,
+        response_format: None,
     };
 
     let response = client.create_message(request).await?;
@@ -6201,6 +6204,7 @@ async fn run_one_shot_json(config: &Config, model: &str, prompt: &str) -> Result
         stream: Some(false),
         temperature: Some(0.2),
         top_p: Some(0.9),
+        response_format: None,
     };
 
     let response = client.create_message(request).await?;
@@ -6550,6 +6554,7 @@ async fn run_exec_agent(
             hook_executor: None,
             reasoning_effort: effective_reasoning_effort,
             reasoning_effort_auto: auto_model,
+            response_format: None,
             auto_model,
             allow_shell: auto_approve || execution_config.allow_shell(),
             trust_mode,

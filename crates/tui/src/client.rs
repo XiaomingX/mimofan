@@ -786,7 +786,7 @@ fn build_default_headers(
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     let api_key = api_key.trim();
-    if api_provider_uses_anthropic_messages(api_provider) {
+    if api_provider_uses_anthropic_messages(api_provider, base_url) {
         // #3014: the Messages API authenticates with `x-api-key` (never
         // `Authorization: Bearer`) and pins the wire contract via
         // `anthropic-version`.
@@ -796,7 +796,7 @@ fn build_default_headers(
         );
     }
     let auth_header_name =
-        if !api_key.is_empty() && api_provider_uses_anthropic_messages(api_provider) {
+        if !api_key.is_empty() && api_provider_uses_anthropic_messages(api_provider, base_url) {
             Some(HeaderName::from_static("x-api-key"))
         } else if !api_key.is_empty()
             && api_provider == ApiProvider::XiaomiMimo
@@ -842,8 +842,16 @@ fn is_auth_dialect_header(header_name: &HeaderName) -> bool {
         || header_name == HeaderName::from_static("x-api-key")
 }
 
-fn api_provider_uses_anthropic_messages(api_provider: ApiProvider) -> bool {
-    matches!(api_provider, ApiProvider::XiaomiMimo)
+fn api_provider_uses_anthropic_messages(api_provider: ApiProvider, base_url: &str) -> bool {
+    // XiaomiMiMo serves two protocol dialects from different paths. When the
+    // configured base URL ends in `/anthropic` (e.g.
+    // `https://api.xiaomimimo.com/anthropic`) the gateway expects the native
+    // Anthropic Messages wire format. Other base URLs (token-plan pay-as-you-
+    // go, local proxies, custom gateways) keep using the Responses dialect.
+    if matches!(api_provider, ApiProvider::XiaomiMimo) {
+        return base_url.trim_end_matches('/').ends_with("/anthropic");
+    }
+    false
 }
 
 fn api_provider_skips_models_probe(api_provider: ApiProvider) -> bool {
@@ -879,6 +887,7 @@ fn translation_message_request(text: &str, model: String, target_language: &str)
         stream: Some(false),
         temperature: Some(0.1),
         top_p: None,
+        response_format: None,
     }
 }
 
@@ -942,7 +951,7 @@ impl DeepSeekClient {
         target_language: &str,
     ) -> Result<String> {
         let model = wire_model_for_provider(self.api_provider, model);
-        if api_provider_uses_anthropic_messages(self.api_provider) {
+        if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
             let response = self
                 .handle_anthropic_message(translation_message_request(text, model, target_language))
                 .await?;
@@ -1417,12 +1426,14 @@ impl LlmClient for DeepSeekClient {
     }
 
     async fn create_message(&self, request: MessageRequest) -> Result<MessageResponse> {
-        if self.api_provider == ApiProvider::XiaomiMimo {
-            return self.handle_responses_message(request).await;
-        }
-        if api_provider_uses_anthropic_messages(self.api_provider) {
+        if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
             return self.handle_anthropic_message(request).await;
         }
+        // XiaomiMiMo's public API is OpenAI Chat-Completions compatible at
+        // `/v1/chat/completions`. The Codex Responses API in
+        // `client/responses.rs` is not served by the XiaomiMiMo gateway
+        // (sending it there 404s), so the OpenAI Chat path is the correct
+        // destination for any non-Anthropic MiMo base URL.
         self.create_message_chat(&request).await
     }
 
@@ -1430,12 +1441,12 @@ impl LlmClient for DeepSeekClient {
         &self,
         request: MessageRequest,
     ) -> Result<crate::llm_client::StreamEventBox> {
-        if self.api_provider == ApiProvider::XiaomiMimo {
-            return self.handle_responses_stream(request).await;
-        }
-        if api_provider_uses_anthropic_messages(self.api_provider) {
+        if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
             return self.handle_anthropic_stream(request).await;
         }
+        // See `create_message` above — XiaomiMiMo non-Anthropic base URLs
+        // speak the OpenAI Chat-Completions dialect, not the Codex
+        // Responses dialect.
         self.handle_chat_completion_stream(request).await
     }
 }
@@ -1616,7 +1627,7 @@ impl DeepSeekClient {
         suffix: &str,
         max_tokens: u32,
     ) -> anyhow::Result<String> {
-        if api_provider_uses_anthropic_messages(self.api_provider) {
+        if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
             bail!(
                 "FIM completion is not supported for {} because it uses the Anthropic Messages protocol",
                 self.api_provider.display_name()
@@ -1677,4 +1688,104 @@ pub(crate) fn build_cache_warmup_request(request: &MessageRequest) -> MessageReq
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use crate::config::ApiProvider;
+
+    #[test]
+    fn xiaomi_mimo_anthropic_base_url_picks_messages_protocol() {
+        // ~/.mimofan/config.toml providers.xiaomi_mimo.base_url =
+        // `https://api.xiaomimimo.com/anthropic` must dispatch to the
+        // Anthropic Messages client, not the Responses client.
+        assert!(api_provider_uses_anthropic_messages(
+            ApiProvider::XiaomiMimo,
+            "https://api.xiaomimimo.com/anthropic"
+        ));
+    }
+
+    #[test]
+    fn xiaomi_mimo_anthropic_base_url_with_trailing_slash() {
+        assert!(api_provider_uses_anthropic_messages(
+            ApiProvider::XiaomiMimo,
+            "https://api.xiaomimimo.com/anthropic/"
+        ));
+    }
+
+    #[test]
+    fn xiaomi_mimo_token_plan_base_url_uses_chat_completions_dialect() {
+        // Pay-as-you-go token-plan endpoint keeps the OpenAI Chat
+        // Completions dialect. The Codex Responses API in
+        // `client/responses.rs` is *not* served by the XiaomiMiMo
+        // gateway — dispatch must fall through to the Chat path instead.
+        assert!(!api_provider_uses_anthropic_messages(
+            ApiProvider::XiaomiMimo,
+            "https://token-plan-sgp.xiaomimimo.com/v1"
+        ));
+    }
+
+    #[test]
+    fn non_xiaomi_providers_never_use_anthropic_messages() {
+        // No other provider exposes the Anthropic Messages dialect yet.
+        for provider in [ApiProvider::Custom] {
+            assert!(
+                !api_provider_uses_anthropic_messages(
+                    provider,
+                    "https://api.xiaomimimo.com/anthropic"
+                ),
+                "{provider:?} should not dispatch through Anthropic Messages"
+            );
+        }
+    }
+
+    // ── MessageRequest::response_format round-trip (#0.0.3-rc.3) ──────────
+    // The OpenAI Chat Completions body builder forwards `response_format`
+    // (e.g. XiaomiMiMo `{"type":"json_object"}` JSON mode). Lock in the
+    // field's serde shape so downstream `serde_json::from_value` of a
+    // caller-supplied body still parses.
+    #[test]
+    fn message_request_response_format_round_trips() {
+        let rf = json!({ "type": "json_object" });
+        let req = MessageRequest {
+            model: "mimo-v2.5-pro".to_string(),
+            messages: vec![],
+            max_tokens: 256,
+            system: None,
+            tools: None,
+            tool_choice: None,
+            metadata: None,
+            thinking: None,
+            reasoning_effort: None,
+            stream: None,
+            temperature: None,
+            top_p: None,
+            response_format: Some(rf.clone()),
+        };
+        let value = serde_json::to_value(&req).expect("serialize");
+        assert_eq!(value["response_format"], rf);
+        let parsed: MessageRequest = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed.response_format.as_ref(), Some(&rf));
+    }
+
+    #[test]
+    fn message_request_response_format_omitted_when_none() {
+        // `skip_serializing_if = "Option::is_none"` keeps the wire body
+        // clean for callers that don't opt in.
+        let req = MessageRequest {
+            model: "mimo-v2.5-pro".to_string(),
+            messages: vec![],
+            max_tokens: 256,
+            system: None,
+            tools: None,
+            tool_choice: None,
+            metadata: None,
+            thinking: None,
+            reasoning_effort: None,
+            stream: None,
+            temperature: None,
+            top_p: None,
+            response_format: None,
+        };
+        let value = serde_json::to_value(&req).expect("serialize");
+        assert!(value.get("response_format").is_none());
+    }
+}

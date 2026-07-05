@@ -1361,6 +1361,7 @@ fn build_cache_aligned_summary_request(
         stream: Some(false),
         temperature: Some(0.3),
         top_p: None,
+        response_format: None,
     }
 }
 
@@ -1438,6 +1439,7 @@ fn build_formatted_summary_request(
         stream: Some(false),
         temperature: Some(0.3),
         top_p: None,
+        response_format: None,
     }
 }
 

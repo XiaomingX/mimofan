@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use tokio::runtime::Runtime;
 use uuid::Uuid;
 
@@ -404,6 +404,7 @@ impl McpServer {
             stream: None,
             temperature: None,
             top_p: None,
+            response_format: None,
         };
 
         let response = runtime

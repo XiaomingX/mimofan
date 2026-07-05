@@ -24,6 +24,7 @@ use super::{DeepSeekClient, ERROR_BODY_MAX_BYTES, bounded_error_text, system_to_
 const CODEX_RESPONSES_PATH: &str = "/codex/responses";
 
 /// Build the Responses API request body from a `MessageRequest`.
+#[allow(dead_code)] // Kept for the OpenAI Codex provider; XiaomiMiMo no longer routes here.
 fn build_responses_body(request: &MessageRequest) -> Value {
     let model = &request.model;
     let mut body = json!({
@@ -75,6 +76,7 @@ fn build_responses_body(request: &MessageRequest) -> Value {
 
 impl DeepSeekClient {
     /// Handle a streaming Responses API request for the OpenAI Codex provider.
+    #[allow(dead_code)] // Kept for the OpenAI Codex provider; XiaomiMiMo no longer routes here.
     pub(super) async fn handle_responses_stream(
         &self,
         request: MessageRequest,
@@ -358,6 +360,7 @@ impl DeepSeekClient {
     /// non-streaming entry point (`create_message`, used by `exec`) reuses the
     /// same wire path as the interactive stream rather than a second request
     /// shape.
+    #[allow(dead_code)] // Kept for the OpenAI Codex provider; XiaomiMiMo no longer routes here.
     pub(super) async fn handle_responses_message(
         &self,
         request: MessageRequest,

@@ -5080,6 +5080,7 @@ async fn run_cache_warmup(app: &App, config: &Config) -> Result<(Usage, String, 
         stream: None,
         temperature: None,
         top_p: None,
+        response_format: None,
     };
     let warmup = build_cache_warmup_request(&request);
     let inspection = inspect_prompt_for_request(&warmup);
@@ -6268,6 +6269,7 @@ async fn dispatch_user_message(
             goal_status: app.hunt.verdict.goal_status(),
             reasoning_effort: effective_reasoning_effort,
             reasoning_effort_auto: auto_controls_reasoning,
+            response_format: None,
             auto_model: app.auto_model,
             allow_shell: app.allow_shell,
             trust_mode: app.trust_mode,

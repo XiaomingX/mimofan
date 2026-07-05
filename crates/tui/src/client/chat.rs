@@ -162,6 +162,13 @@ impl DeepSeekClient {
         if let Some(top_p) = request.top_p {
             body["top_p"] = json!(top_p);
         }
+        if let Some(response_format) = request.response_format.as_ref() {
+            // OpenAI Chat-Completions pass-through (e.g. XiaomiMiMo
+            // `{"type":"json_object"}` JSON mode). Anthropic Messages
+            // dialect ignores this field; the dispatcher routes that
+            // provider through `build_anthropic_body` instead.
+            body["response_format"] = json!(response_format);
+        }
         if let Some(tools) = request.tools.as_ref() {
             let mut chat_tools: Vec<_> = tools
                 .iter()
@@ -291,6 +298,13 @@ impl DeepSeekClient {
         }
         if let Some(top_p) = request.top_p {
             body["top_p"] = json!(top_p);
+        }
+        if let Some(response_format) = request.response_format.as_ref() {
+            // OpenAI Chat-Completions pass-through (e.g. XiaomiMiMo
+            // `{"type":"json_object"}` JSON mode). Anthropic Messages
+            // dialect ignores this field; the dispatcher routes that
+            // provider through `build_anthropic_body` instead.
+            body["response_format"] = json!(response_format);
         }
         if let Some(tools) = request.tools.as_ref() {
             let mut chat_tools: Vec<_> = tools
@@ -662,6 +676,7 @@ impl<'a> PromptBuilder<'a> {
             stream: None,
             temperature: Some(0.0),
             top_p: None,
+            response_format: None,
         }
     }
 }

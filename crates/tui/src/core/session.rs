@@ -4,7 +4,7 @@
 
 use crate::models::{Message, SystemPrompt, Usage};
 use crate::prefix_cache::PrefixStabilityManager;
-use crate::project_context::{ProjectContext, load_project_context_with_parents};
+use crate::project_context::{load_project_context_with_parents, ProjectContext};
 use crate::prompt_zones::{AppendLog, FrozenPrefix};
 use crate::tui::approval::ApprovalMode;
 use crate::working_set::WorkingSet;
@@ -22,6 +22,12 @@ pub struct Session {
     pub reasoning_effort: Option<String>,
     /// Whether the user selected automatic reasoning effort.
     pub reasoning_effort_auto: bool,
+
+    /// Per-turn OpenAI-compatible `response_format` (e.g.
+    /// `Some(json!({"type":"json_object"}))` for JSON mode). The Anthropic
+    /// Messages dialect ignores this field by design; the dispatcher routes
+    /// that provider through `build_anthropic_body` instead.
+    pub response_format: Option<serde_json::Value>,
 
     /// Whether the user selected automatic model routing.
     pub auto_model: bool,
@@ -140,6 +146,7 @@ impl Session {
             model,
             reasoning_effort: None,
             reasoning_effort_auto: false,
+            response_format: None,
             auto_model: false,
             workspace,
             system_prompt: None,

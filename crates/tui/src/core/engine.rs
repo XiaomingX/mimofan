@@ -1300,6 +1300,7 @@ impl Engine {
                         goal_status,
                         reasoning_effort,
                         reasoning_effort_auto,
+                        response_format,
                         auto_model,
                         allow_shell,
                         trust_mode,
@@ -1323,6 +1324,7 @@ impl Engine {
                             goal_status,
                             reasoning_effort,
                             reasoning_effort_auto,
+                            response_format,
                             auto_model,
                             allow_shell,
                             trust_mode,
@@ -1657,6 +1659,7 @@ impl Engine {
                             self.config.goal_status,
                             self.session.reasoning_effort.clone(),
                             self.session.reasoning_effort_auto,
+                            self.session.response_format.clone(),
                             self.session.auto_model,
                             self.session.allow_shell,
                             self.session.trust_mode,
@@ -1905,6 +1908,7 @@ impl Engine {
             self.config.goal_status,
             self.session.reasoning_effort.clone(),
             self.session.reasoning_effort_auto,
+            self.session.response_format.clone(),
             self.session.auto_model,
             self.session.allow_shell,
             self.session.trust_mode,
@@ -2026,6 +2030,7 @@ impl Engine {
         goal_status: GoalStatus,
         reasoning_effort: Option<String>,
         reasoning_effort_auto: bool,
+        response_format: Option<serde_json::Value>,
         auto_model: bool,
         allow_shell: bool,
         trust_mode: bool,
@@ -2198,6 +2203,7 @@ impl Engine {
         self.config.hook_executor = hook_executor;
         self.session.reasoning_effort = reasoning_effort;
         self.session.reasoning_effort_auto = reasoning_effort_auto;
+        self.session.response_format = response_format;
         self.session.auto_model = auto_model;
         self.session.allow_shell = input_policy.allow_shell;
         self.config.allow_shell = input_policy.allow_shell;
@@ -2492,6 +2498,7 @@ impl Engine {
                         goal_status: GoalStatus::Active,
                         reasoning_effort: self.session.reasoning_effort.clone(),
                         reasoning_effort_auto,
+                        response_format: self.session.response_format.clone(),
                         auto_model,
                         allow_shell,
                         trust_mode,

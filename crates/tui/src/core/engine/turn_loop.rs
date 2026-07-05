@@ -469,6 +469,7 @@ impl Engine {
                 stream: Some(true),
                 temperature: None,
                 top_p: None,
+                response_format: self.session.response_format.clone(),
             };
 
             // Stream the response. Keep the request around (cloned into the

@@ -54,6 +54,15 @@ pub struct PromptRequest {
     /// Model override, or the default if omitted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// OpenAI-compatible `response_format` (e.g. `{"type":"json_object"}`).
+    ///
+    /// Forwarded to the upstream Chat Completions endpoint when set. The
+    /// Anthropic Messages dialect ignores this field by design; clients
+    /// targeting `…/anthropic` should rely on prompt-level JSON instructions
+    /// instead. Schema is exposed before the underlying runtime pipeline
+    /// wires it through, so CLI / app-server callers can already opt in.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<Value>,
 }
 
 /// Response to a [`PromptRequest`].
@@ -66,4 +75,39 @@ pub struct PromptResponse {
     /// Streaming events associated with this response.
     #[serde(default)]
     pub events: Vec<EventFrame>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn prompt_request_response_format_round_trips() {
+        let rf = json!({ "type": "json_object" });
+        let req = PromptRequest {
+            thread_id: Some("thr_1".to_string()),
+            prompt: "hi".to_string(),
+            model: Some("mimo-v2.5-pro".to_string()),
+            response_format: Some(rf.clone()),
+        };
+        let value = serde_json::to_value(&req).expect("serialize");
+        assert_eq!(value["response_format"], rf);
+        let parsed: PromptRequest = serde_json::from_value(value).expect("deserialize");
+        assert_eq!(parsed.response_format.as_ref(), Some(&rf));
+    }
+
+    #[test]
+    fn prompt_request_response_format_omitted_when_none() {
+        // `skip_serializing_if = "Option::is_none"` keeps the wire body clean
+        // for callers that don't opt in (mirrors StartTurnRequest behavior).
+        let req = PromptRequest {
+            thread_id: None,
+            prompt: "hi".to_string(),
+            model: None,
+            response_format: None,
+        };
+        let value = serde_json::to_value(&req).expect("serialize");
+        assert!(value.get("response_format").is_none());
+    }
 }

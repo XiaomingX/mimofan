@@ -5,11 +5,11 @@
 use std::time::Instant;
 
 use super::CommandResult;
-use crate::client::{CacheWarmupKey, PromptInspection, inspect_prompt_for_request};
+use crate::client::{inspect_prompt_for_request, CacheWarmupKey, PromptInspection};
 use crate::compaction::estimate_input_tokens_conservative;
 use crate::dependencies::{ExternalTool, Git};
-use crate::localization::{Locale, MessageId, tr};
-use crate::models::{ContentBlock, MessageRequest, SystemPrompt, context_window_for_model};
+use crate::localization::{tr, Locale, MessageId};
+use crate::models::{context_window_for_model, ContentBlock, MessageRequest, SystemPrompt};
 use crate::tui::app::{App, AppAction, TurnCacheRecord};
 use crate::tui::history::HistoryCell;
 
@@ -212,6 +212,7 @@ fn format_cache_inspect(app: &mut App, verbose: bool, json_mode: bool) -> String
         stream: Some(true),
         temperature: None,
         top_p: None,
+        response_format: None,
     };
     let inspection = inspect_prompt_for_request(&request);
     let previous = app.session.last_cache_inspection.as_ref();
@@ -1012,7 +1013,11 @@ pub fn patch_undo(app: &mut App) -> CommandResult {
                 .ok()
                 .and_then(|o| {
                     let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                    if s.is_empty() { None } else { Some(s) }
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s)
+                    }
                 })
         })
         .unwrap_or(None);

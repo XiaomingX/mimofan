@@ -26,7 +26,7 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::compaction::CompactionConfig;
-use crate::config::{Config, DEFAULT_TEXT_MODEL, MAX_SUBAGENTS};
+use crate::config::{Config, MAX_SUBAGENTS};
 use crate::core::engine::{EngineConfig, EngineHandle, spawn_engine};
 use crate::core::events::{Event as EngineEvent, TurnOutcomeStatus};
 use crate::core::ops::Op;
@@ -678,6 +678,12 @@ pub struct StartTurnRequest {
     pub dynamic_tools: Vec<DynamicToolSpec>,
     #[serde(default)]
     pub environment_id: Option<String>,
+    /// OpenAI-compatible `response_format` (e.g.
+    /// `{"type":"json_object"}` for JSON mode). The Anthropic Messages
+    /// dialect ignores this field by design; the engine routes that
+    /// provider through `build_anthropic_body` instead.
+    #[serde(default)]
+    pub response_format: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1070,8 +1076,7 @@ impl RuntimeThreadManager {
         let model = req
             .model
             .filter(|m| !m.trim().is_empty())
-            .or_else(|| self.config.default_text_model.clone())
-            .unwrap_or_else(|| DEFAULT_TEXT_MODEL.to_string());
+            .unwrap_or_else(|| self.config.default_model());
         let workspace = req.workspace.unwrap_or_else(|| self.workspace.clone());
         let mode = req
             .mode
@@ -2058,6 +2063,7 @@ impl RuntimeThreadManager {
                 goal_status: crate::tools::goal::GoalStatus::Active,
                 reasoning_effort,
                 reasoning_effort_auto: auto_model,
+                response_format: req.response_format,
                 auto_model,
                 allow_shell,
                 trust_mode,

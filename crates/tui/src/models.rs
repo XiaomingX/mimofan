@@ -45,6 +45,13 @@ pub struct MessageRequest {
     pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
+    /// OpenAI-compatible `response_format` (e.g. `{"type":"json_object"}`).
+    /// Currently passed through for the OpenAI Chat Completions dialect
+    /// (`/v1/chat/completions`); the Anthropic Messages dialect does not
+    /// honour this field, so callers should pair it with a JSON-only system
+    /// prompt when targeting `…/anthropic`.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub response_format: Option<serde_json::Value>,
 }
 
 /// System prompt representation (plain text or structured blocks).

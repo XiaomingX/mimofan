@@ -86,6 +86,10 @@ pub enum Op {
         /// True when the user selected auto thinking, even though the UI sends
         /// a concrete per-turn value to the model API.
         reasoning_effort_auto: bool,
+        /// Per-turn OpenAI-compatible `response_format` (e.g.
+        /// `Some(json!({"type":"json_object"}))`). `None` means the engine
+        /// will not pin a response shape and the provider's default is used.
+        response_format: Option<serde_json::Value>,
         /// True when the user selected auto model routing.
         auto_model: bool,
         allow_shell: bool,

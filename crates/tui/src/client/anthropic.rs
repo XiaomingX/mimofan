@@ -142,13 +142,26 @@ impl DeepSeekClient {
         body
     }
 
-    async fn send_anthropic_request(&self, body: &Value) -> Result<reqwest::Response> {
+    async fn send_anthropic_request(&self, body: &Value, stream: bool) -> Result<reqwest::Response> {
         let url = anthropic_messages_url(&self.base_url);
         self.wait_for_rate_limit().await;
+        // Pin the Accept header to the wire format we're asking for. The
+        // XiaomiMiMo `/anthropic` gateway keys the response shape off the
+        // Accept header (not the body's `stream` field): it always returns
+        // SSE-wrapped `data: {...}` frames when the client advertises
+        // `text/event-stream`, even for non-streaming calls. Pinning
+        // `application/json` for non-streaming requests keeps the body
+        // directly parseable; the standard Anthropic Messages API behaves
+        // the same way.
+        let accept = if stream {
+            "text/event-stream"
+        } else {
+            "application/json"
+        };
         let response = self
             .http_client
             .post(&url)
-            .header("Accept", "text/event-stream")
+            .header("Accept", accept)
             .json(body)
             .send()
             .await
@@ -172,7 +185,7 @@ impl DeepSeekClient {
         request: MessageRequest,
     ) -> Result<StreamEventBox> {
         let body = self.build_anthropic_body(&request, true);
-        let response = self.send_anthropic_request(&body).await?;
+        let response = self.send_anthropic_request(&body, true).await?;
 
         let stream_idle_timeout = self.stream_idle_timeout;
         let byte_stream = response.bytes_stream();
@@ -242,7 +255,7 @@ impl DeepSeekClient {
         request: MessageRequest,
     ) -> Result<MessageResponse> {
         let body = self.build_anthropic_body(&request, false);
-        let response = self.send_anthropic_request(&body).await?;
+        let response = self.send_anthropic_request(&body, false).await?;
         let mut value: Value = response
             .json()
             .await
@@ -255,14 +268,14 @@ impl DeepSeekClient {
 }
 
 /// Build the Messages API endpoint URL, tolerating base URLs that already
-/// carry a `/v1` or `/anthropic` suffix.
+/// carry a `/v1` suffix.
 ///
 /// - `…/v1`          → `…/v1/messages`  (standard Anthropic)
-/// - `…/anthropic`   → `…/anthropic/messages`  (XiaomiMiMo / proxied)
+/// - `…/anthropic`   → `…/anthropic/v1/messages`  (XiaomiMiMo)
 /// - anything else   → `…/v1/messages`  (bare hostname)
 fn anthropic_messages_url(base_url: &str) -> String {
     let trimmed = base_url.trim_end_matches('/');
-    if trimmed.ends_with("/v1") || trimmed.ends_with("/anthropic") {
+    if trimmed.ends_with("/v1") {
         format!("{trimmed}/messages")
     } else {
         format!("{trimmed}/v1/messages")
@@ -577,10 +590,10 @@ mod tests {
 
     #[test]
     fn url_xiaomimimo_anthropic_endpoint() {
-        // Bug fix: /anthropic suffix should NOT insert /v1
+        // XiaomiMiMo Anthropic endpoint: /anthropic → /anthropic/v1/messages
         assert_eq!(
             anthropic_messages_url("https://api.xiaomimimo.com/anthropic"),
-            "https://api.xiaomimimo.com/anthropic/messages"
+            "https://api.xiaomimimo.com/anthropic/v1/messages"
         );
     }
 
@@ -588,7 +601,7 @@ mod tests {
     fn url_xiaomimimo_anthropic_with_trailing_slash() {
         assert_eq!(
             anthropic_messages_url("https://api.xiaomimimo.com/anthropic/"),
-            "https://api.xiaomimimo.com/anthropic/messages"
+            "https://api.xiaomimimo.com/anthropic/v1/messages"
         );
     }
 
@@ -960,6 +973,7 @@ mod tests {
             stream: None,
             temperature: None,
             top_p: None,
+            response_format: None,
         }
     }
 
@@ -1069,6 +1083,82 @@ mod tests {
             _ => "high",
         };
         assert_eq!(mapped, "max");
+    }
+
+    // ── XiaomiMiMo live response fixture (#0.0.3.1 regression) ──────────
+    // Captured from `POST https://api.xiaomimimo.com/anthropic/v1/messages`
+    // with `model=mimo-v2.5-pro`, `stream=false`, `max_tokens=1024` against
+    // the Anthropic-format example in the project guide. Locks in the
+    // `/anthropic/v1/messages` URL routing and the `text` + `thinking`
+    // content block shape so the XiaomiMiMo provider keeps working.
+    const XIAOMIMIMO_LIVE_RESPONSE: &str = r#"{
+        "id": "de877b3eb8fc400a82300513cabc1dd0",
+        "type": "message",
+        "role": "assistant",
+        "model": "mimo-v2.5-pro",
+        "stop_reason": "end_turn",
+        "content": [
+            {
+                "type": "text",
+                "text": "Hi there! I'm MiMo, a friendly AI developed by Xiaomi."
+            },
+            {
+                "type": "thinking",
+                "thinking": "The user is asking me to introduce myself.",
+                "signature": ""
+            }
+        ],
+        "usage": {"input_tokens": 55, "output_tokens": 101}
+    }"#;
+
+    #[test]
+    fn xiaomimimo_live_response_decodes_to_message_response() {
+        let mut value: Value = serde_json::from_str(XIAOMIMIMO_LIVE_RESPONSE).unwrap();
+        if let Some(usage) = value.get_mut("usage") {
+            *usage = json!(parse_anthropic_usage(usage));
+        }
+        let parsed: MessageResponse =
+            serde_json::from_value(value).expect("XiaomiMiMo Anthropic response must decode");
+
+        assert_eq!(parsed.role, "assistant");
+        assert_eq!(parsed.model, "mimo-v2.5-pro");
+        assert_eq!(parsed.stop_reason.as_deref(), Some("end_turn"));
+        assert_eq!(parsed.content.len(), 2);
+
+        match &parsed.content[0] {
+            ContentBlock::Text { text, .. } => {
+                assert!(text.contains("MiMo"));
+            }
+            other => panic!("expected text block, got {other:?}"),
+        }
+        match &parsed.content[1] {
+            ContentBlock::Thinking {
+                thinking,
+                signature,
+            } => {
+                assert!(!thinking.is_empty());
+                assert_eq!(signature.as_deref(), Some(""));
+            }
+            other => panic!("expected thinking block, got {other:?}"),
+        }
+
+        // Usage normalized to the internal convention: input_tokens only
+        // (no cache read), output_tokens passed through, cache fields
+        // explicitly zeroed since the upstream payload omits them.
+        assert_eq!(parsed.usage.input_tokens, 55);
+        assert_eq!(parsed.usage.output_tokens, 101);
+        assert_eq!(parsed.usage.prompt_cache_hit_tokens, Some(0));
+        assert_eq!(parsed.usage.prompt_cache_miss_tokens, Some(55));
+    }
+
+    #[test]
+    fn xiaomimimo_endpoint_url_for_anthropic_provider() {
+        // base_url from ~/.mimofan/config.toml providers.xiaomi_mimo →
+        // `https://api.xiaomimimo.com/anthropic`
+        assert_eq!(
+            anthropic_messages_url("https://api.xiaomimimo.com/anthropic"),
+            "https://api.xiaomimimo.com/anthropic/v1/messages"
+        );
     }
 
     // ── apply_anthropic_cache_breakpoints ────────────────────────────────
