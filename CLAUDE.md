@@ -25,7 +25,6 @@ mimofan-hooks        Pre/post tool hooks
 mimofan-execpolicy   Execution policy (security sandbox)
 mimofan-secrets      Secret/key management
 mimofan-state        State persistence (SQLite via rusqlite)
-mimofan-whaleflow    Workflow engine
 mimofan-release      Release tooling
 ```
 
@@ -44,8 +43,7 @@ cli / app-server / tui   (binary crates, top-level entry points)
        ├─ hooks           (pre/post hooks)
        ├─ execpolicy      (sandbox)
        ├─ secrets         (key management)
-       ├─ state           (SQLite persistence)
-       └─ whaleflow       (workflow engine)
+       └─ state           (SQLite persistence)
 ```
 
 ## Tech Stack
@@ -113,12 +111,13 @@ See `docs/PROVIDERS.md` for provider-specific details.
 ## File Organization
 
 ```
-docs/ARCHITECTURE_CN.md   Architecture doc (Chinese)
+ARCHITECTURE.md           Architecture doc (Chinese, root-level)
+USER_GUIDE.md             Usage guide (Chinese, root-level)
 docs/CONFIGURATION.md     Configuration guide
-docs/PROVIDERS.md         Provider guide
 docs/SUBAGENTS.md         Sub-agent guide
 docs/MCP.md               MCP integration guide
 docs/MODES.md             Modes (plan/agent/yolo)
+docs/PROMPTS.md           Prompt engineering index
 CHANGELOG.md              Changelog
 config.example.toml       Example configuration
 ~/.mimofan/settings.toml          User settings
@@ -140,12 +139,12 @@ to avoid loading thousands of lines into context:
 ## Detailed Docs
 
 For deep dives, read the corresponding doc under `docs/`:
-- Architecture and crate relationships: `docs/ARCHITECTURE_CN.md`
+- Architecture and crate relationships: `ARCHITECTURE.md` (root)
 - Configuration and routing: `docs/CONFIGURATION.md`
-- Provider setup: `docs/PROVIDERS.md`
 - Sub-agent system: `docs/SUBAGENTS.md`
 - MCP integration: `docs/MCP.md`
 - Operating modes: `docs/MODES.md`
+- Prompt engineering: `docs/PROMPTS.md`
 
 ---
 
