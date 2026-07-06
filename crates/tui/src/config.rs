@@ -517,7 +517,7 @@ pub struct TuiConfig {
     /// empty `Some(vec![])` means "show nothing in the footer".
     ///
     /// Edited interactively via `/statusline`; persisted to `tui.status_items`
-    /// in `~/.deepseek/config.toml`.
+    /// in `~/.mimofanfan/config.toml`.
     #[serde(default, deserialize_with = "deser_status_items")]
     pub status_items: Option<Vec<StatusItem>>,
     /// Emit OSC 8 hyperlink escape sequences around URLs in the transcript so
@@ -716,7 +716,7 @@ pub struct ToolsConfig {
     /// frontmatter header (`# name:`, `# description:`, `# schema:`) are
     /// auto-discovered and registered as tools.
     ///
-    /// Defaults to `~/.mimofan/tools/` when `None`.
+    /// Defaults to `~/.mimofanfan/tools/` when `None`.
     #[serde(default)]
     pub plugin_dir: Option<String>,
 
@@ -1496,7 +1496,7 @@ pub enum ToolOverride {
     /// Run a local script file. The script receives the tool's JSON input
     /// on stdin and must return a JSON `ToolResult` on stdout.
     Script {
-        /// Path to the script (absolute, or relative to `~/.mimofan/tools/`).
+        /// Path to the script (absolute, or relative to `~/.mimofanfan/tools/`).
         path: String,
         /// Optional static arguments prepended before the tool's JSON input.
         #[serde(default)]
@@ -1759,8 +1759,6 @@ pub struct ProvidersConfig {
     pub openai: ProviderConfig,
     #[serde(default)]
     pub atlascloud: ProviderConfig,
-    #[serde(default, alias = "wanjieArk")]
-    pub wanjie_ark: ProviderConfig,
     #[serde(default)]
     pub volcengine: ProviderConfig,
     #[serde(default)]
@@ -1774,10 +1772,6 @@ pub struct ProvidersConfig {
     )]
     pub xiaomi_mimo: ProviderConfig,
     #[serde(default)]
-    pub novita: ProviderConfig,
-    #[serde(default)]
-    pub fireworks: ProviderConfig,
-    #[serde(default)]
     pub siliconflow: ProviderConfig,
     #[serde(
         default,
@@ -1787,15 +1781,7 @@ pub struct ProvidersConfig {
     )]
     pub siliconflow_cn: ProviderConfig,
     #[serde(default)]
-    pub arcee: ProviderConfig,
-    #[serde(default)]
     pub moonshot: ProviderConfig,
-    #[serde(default, alias = "hugging-face", alias = "hf")]
-    pub huggingface: ProviderConfig,
-    #[serde(default, alias = "deep-infra", alias = "deep_infra")]
-    pub deepinfra: ProviderConfig,
-    #[serde(default, alias = "together-ai")]
-    pub together: ProviderConfig,
     #[serde(
         default,
         alias = "baidu-qianfan",
@@ -1969,7 +1955,7 @@ impl Config {
     /// `base_url` field but their active provider is not DeepSeek (the only
     /// provider that actually reads that field, plus an NvidiaNim back-compat
     /// sniff). Common confusion: users add `base_url = "..."` at the top of
-    /// `~/.deepseek/config.toml` for openai-compat servers
+    /// `~/.mimofanfan/config.toml` for openai-compat servers
     /// and wonder why it's silently ignored (#1308).
     fn warn_on_misplaced_root_base_url(&self) {
         let Some(root_base) = self.base_url.as_deref().map(str::trim) else {
@@ -2344,7 +2330,7 @@ impl Config {
                     None => anyhow::bail!(
                         "Custom provider '{provider_name}' has no auth configured.\n\
                          Add api_key_env = \"YOUR_ENV_VAR\" (or api_key) to \
-                         [providers.{provider_name}] in ~/.mimofan/config.toml."
+                         [providers.{provider_name}] in ~/.mimofanfan/config.toml."
                     ),
                 }
             }
@@ -2880,7 +2866,7 @@ pub(crate) fn workspace_trust_config_candidate_paths() -> Vec<PathBuf> {
     };
     vec![
         home.join(".mimofan").join("config.toml"),
-        home.join(".deepseek").join("config.toml"),
+        home.join(".mimofan").join("config.toml"),
     ]
 }
 
@@ -3125,18 +3111,6 @@ fn apply_env_overrides(config: &mut Config) {
             .mode = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("WANJIE_ARK_BASE_URL")
-            .or_else(|_| std::env::var("WANJIE_BASE_URL"))
-            .or_else(|_| std::env::var("WANJIE_MAAS_BASE_URL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .wanjie_ark
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
         && let Ok(value) = std::env::var("VOLCENGINE_BASE_URL")
             .or_else(|_| std::env::var("VOLCENGINE_ARK_BASE_URL"))
             .or_else(|_| std::env::var("ARK_BASE_URL"))
@@ -3148,26 +3122,6 @@ fn apply_env_overrides(config: &mut Config) {
             .volcengine
             .base_url = Some(value);
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("NOVITA_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .novita
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("FIREWORKS_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .fireworks
-            .base_url = Some(value);
-    }
     let active_provider = config.api_provider();
     if matches!(
         active_provider,
@@ -3176,27 +3130,6 @@ fn apply_env_overrides(config: &mut Config) {
         && !value.trim().is_empty()
     {
         config.provider_config_for_mut(active_provider).base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("ARCEE_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .arcee
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) =
-            std::env::var("HUGGINGFACE_BASE_URL").or_else(|_| std::env::var("HF_BASE_URL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .huggingface
-            .base_url = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
         && let Ok(value) =
@@ -3265,18 +3198,6 @@ fn apply_env_overrides(config: &mut Config) {
         config.default_text_model = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("WANJIE_ARK_MODEL")
-            .or_else(|_| std::env::var("WANJIE_MODEL"))
-            .or_else(|_| std::env::var("WANJIE_MAAS_MODEL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .wanjie_ark
-            .model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
         && let Ok(value) = std::env::var("OPENROUTER_MODEL")
         && !value.trim().is_empty()
     {
@@ -3295,26 +3216,6 @@ fn apply_env_overrides(config: &mut Config) {
             .providers
             .get_or_insert_with(ProvidersConfig::default)
             .volcengine
-            .model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("NOVITA_MODEL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .novita
-            .model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("FIREWORKS_MODEL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .fireworks
             .model = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
@@ -3337,26 +3238,6 @@ fn apply_env_overrides(config: &mut Config) {
         && !value.trim().is_empty()
     {
         config.provider_config_for_mut(active_provider).model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("ARCEE_MODEL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .arcee
-            .model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("HUGGINGFACE_MODEL").or_else(|_| std::env::var("HF_MODEL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .huggingface
-            .model = Some(value);
     }
     if let Some(value) = mimofan_env_var("MIMOFAN_MODEL", "DEEPSEEK_MODEL")
         .ok()
@@ -3713,7 +3594,7 @@ fn apply_profile(config: ConfigFile, profile: Option<&str>) -> Result<Config> {
     if let Some(profile_name) = profile {
         let profiles = config.profiles.as_ref();
         match profiles.and_then(|profiles| profiles.get(profile_name)) {
-            Some(override_cfg) => Ok(merge_config(config.base, override_cfg.clone())),
+            Some(override_cfg) => Ok(override_cfg.clone()),
             None => {
                 let available = profiles
                     .map(|profiles| {
@@ -3933,19 +3814,12 @@ fn merge_providers(
             openai: merge_provider_config(base.openai, override_cfg.openai),
             anthropic: merge_provider_config(base.anthropic, override_cfg.anthropic),
             atlascloud: merge_provider_config(base.atlascloud, override_cfg.atlascloud),
-            wanjie_ark: merge_provider_config(base.wanjie_ark, override_cfg.wanjie_ark),
             openrouter: merge_provider_config(base.openrouter, override_cfg.openrouter),
             xiaomi_mimo: merge_provider_config(base.xiaomi_mimo, override_cfg.xiaomi_mimo),
-            novita: merge_provider_config(base.novita, override_cfg.novita),
-            fireworks: merge_provider_config(base.fireworks, override_cfg.fireworks),
             siliconflow: merge_provider_config(base.siliconflow, override_cfg.siliconflow),
             siliconflow_cn: merge_provider_config(base.siliconflow_cn, override_cfg.siliconflow_cn),
-            arcee: merge_provider_config(base.arcee, override_cfg.arcee),
             moonshot: merge_provider_config(base.moonshot, override_cfg.moonshot),
             volcengine: merge_provider_config(base.volcengine, override_cfg.volcengine),
-            huggingface: merge_provider_config(base.huggingface, override_cfg.huggingface),
-            deepinfra: merge_provider_config(base.deepinfra, override_cfg.deepinfra),
-            together: merge_provider_config(base.together, override_cfg.together),
             qianfan: merge_provider_config(base.qianfan, override_cfg.qianfan),
             openai_codex: merge_provider_config(base.openai_codex, override_cfg.openai_codex),
             zai: merge_provider_config(base.zai, override_cfg.zai),
@@ -4180,7 +4054,7 @@ pub enum SavedCredential {
     /// install hide the freshly-entered key (#593). The `backend`
     /// label is the value of [`mimofan_secrets::Secrets::backend_name`]
     /// at write time so the toast text can name the actual backend
-    /// (`"system keyring"`, `"file-based (~/.mimofan/secrets/)"`).
+    /// (`"system keyring"`, `"file-based (~/.mimofanfan/secrets/)"`).
     KeyringAndConfigFile {
         /// `Secrets::backend_name()` at write time.
         backend: String,
@@ -4209,7 +4083,7 @@ impl SavedCredential {
 
 /// Save the active provider's API key.
 ///
-/// **Dual-write strategy (#593):** writes to `~/.mimofan/config.toml`
+/// **Dual-write strategy (#593):** writes to `~/.mimofanfan/config.toml`
 /// (always) and to the OS keyring via [`mimofan_secrets::Secrets`]
 /// (when a backend is reachable). The runtime resolves credentials in
 /// `keyring → env → config-file` order; writing to the config file
@@ -4350,7 +4224,7 @@ reasoning_effort = "max"
 /// Platform credential stores are intentionally not queried here.
 /// Startup/onboarding checks must be cheap and prompt-free, so v0.8.8
 /// keeps the default auth path to environment variables and
-/// `~/.mimofan/config.toml`.
+/// `~/.mimofanfan/config.toml`.
 ///
 /// Used by [`crate::tui::app::App::new`] to decide whether to gate
 /// the user behind the in-TUI api-key onboarding screen — getting
@@ -4427,7 +4301,7 @@ pub fn has_api_key_for(config: &Config, provider: ApiProvider) -> bool {
 
 /// Save an API key to the appropriate place for the given provider.
 /// DeepSeek goes through [`save_api_key`]. Other providers write
-/// `[providers.<name>] api_key = "..."` to `~/.mimofan/config.toml`.
+/// `[providers.<name>] api_key = "..."` to `~/.mimofanfan/config.toml`.
 /// Returns the config file path.
 pub fn save_api_key_for(provider: ApiProvider, api_key: &str) -> Result<PathBuf> {
     let config_path = default_config_path()
@@ -4552,7 +4426,7 @@ fn missing_provider_api_key_message(provider: ApiProvider) -> Result<String> {
         .map(|url| format!(" Get a key: {url}."))
         .unwrap_or_default();
     Ok(format!(
-        "{} API key not found.{} Run 'mimofan auth set --provider {}', set {}, or add [{}] api_key in ~/.mimofan/config.toml.",
+        "{} API key not found.{} Run 'mimofan auth set --provider {}', set {}, or add [{}] api_key in ~/.mimofanfan/config.toml.",
         provider.display_name(),
         credential_hint,
         provider.as_str(),

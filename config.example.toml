@@ -12,15 +12,15 @@
 # Choose which provider to use by default. Per-provider credentials live in the
 # `[providers.*]` sections near the bottom of
 # this file — keeping both stored at once means `/provider deepseek` and
-# `/provider nvidia-nim` (or `--provider openai`, `--provider wanjie-ark`,
+# `/provider nvidia-nim` (or `--provider openai`, ``,
 # `--provider volcengine`, `--provider openrouter`, `--provider xiaomi-mimo`,
-# `--provider fireworks`, `--provider siliconflow`, `--provider siliconflow-CN`,
-# `/provider arcee`, `/provider moonshot`, `/provider qianfan`, `/provider sglang`, `/provider vllm`,
-# `/provider ollama`, `/provider huggingface`, `/provider stepfun`) toggle without having to re-enter keys. Top-level
+# ``, `--provider siliconflow`, `--provider siliconflow-CN`,
+# ``, `/provider moonshot`, `/provider qianfan`, `/provider sglang`, `/provider vllm`,
+# ``, ``, `/provider stepfun`) toggle without having to re-enter keys. Top-level
 # `api_key` / `base_url` are
 # still read as DeepSeek defaults when `[providers.deepseek]` is absent
 # (backward compatibility).
-provider = "deepseek" # deepseek | deepseek-cn | deepseek-anthropic | nvidia-nim | openai | atlascloud | wanjie-ark | volcengine | openrouter | xiaomi-mimo | novita | fireworks | siliconflow | siliconflow-CN | arcee | moonshot | zai | stepfun | minimax | sglang | vllm | ollama | huggingface | together | qianfan | openai-codex | anthropic | deepinfra
+provider = "deepseek" # deepseek | deepseek-cn | deepseek-anthropic | nvidia-nim | openai | atlascloud | wanjie-ark | volcengine | openrouter | xiaomi-mimo | siliconflow | siliconflow-CN | moonshot | zai | stepfun | minimax | sglang | vllm | qianfan | openai-codex | anthropic | deepinfra
 api_key = "YOUR_DEEPSEEK_API_KEY" # must be non-empty
 base_url = "https://api.deepseek.com/beta"
 # provider = "deepseek-cn"                       # legacy alias (official host is still https://api.deepseek.com)
@@ -125,9 +125,7 @@ check_for_updates = true
 # ─────────────────────────────────────────────────────────────────────────────────
 # Paths
 # ─────────────────────────────────────────────────────────────────────────────────
-# New installs write product state under ~/.mimofan/. Existing ~/.deepseek/
-# files are still read as compatibility fallbacks when the .mimofan file is
-# absent.
+# All product state lives under ~/.mimofan/.
 skills_dir = "~/.mimofan/skills"
 mcp_config_path = "~/.mimofan/mcp.json"
 notes_path = "~/.mimofan/notes.txt"
@@ -272,8 +270,8 @@ max_subagents = 10 # optional (1-20)
 # ─────────────────────────────────────────────────────────────────────────────────
 # Providers can be stored at once; `provider = "..."` (top of file) or
 # `/provider deepseek` / `/provider nvidia-nim` / `--provider openai` /
-# `--provider wanjie-ark` / `/provider volcengine` / `/provider fireworks` /
-# `--provider siliconflow` / `/provider arcee` / `/provider moonshot`
+# `` / `/provider volcengine` / `` /
+# `--provider siliconflow` / `` / `/provider moonshot`
 # switches between them without having to re-enter keys. Env vars override anything set here:
 #   DeepSeek: DEEPSEEK_API_KEY, MIMO_BASE_URL, DEEPSEEK_MODEL
 #   DeepSeek Anthropic-compatible: DEEPSEEK_API_KEY, DEEPSEEK_ANTHROPIC_BASE_URL
@@ -362,12 +360,6 @@ max_subagents = 10 # optional (1-20)
 # model = "deepseek-ai/deepseek-v4-flash"
 
 # Wanjie Ark / 万界方舟 OpenAI-compatible endpoint
-[providers.wanjie_ark]
-# api_key = "YOUR_WANJIE_API_KEY"
-# base_url = "https://maas-openapi.wanjiedata.com/api/v1"
-# model = "deepseek-reasoner"                # or the exact model ID enabled on your Wanjie account
-
-# Volcengine / Volcano Engine Ark Coding API
 [providers.volcengine]
 # api_key = "YOUR_VOLCENGINE_API_KEY"
 # base_url = "https://ark.cn-beijing.volces.com/api/coding/v3"
@@ -405,18 +397,6 @@ max_subagents = 10 # optional (1-20)
 # TTS model IDs: mimo-v2.5-tts, mimo-v2.5-tts-voicedesign, mimo-v2.5-tts-voiceclone, mimo-v2-tts
 
 # Novita AI-hosted inference (https://novita.ai)
-[providers.novita]
-# api_key = "YOUR_NOVITA_API_KEY"
-# base_url = "https://api.novita.ai/openai/v1"
-# model = "deepseek/deepseek-v4-pro"         # or deepseek/deepseek-v4-flash
-
-# Fireworks AI-hosted DeepSeek V4 (https://fireworks.ai)
-[providers.fireworks]
-# api_key = "YOUR_FIREWORKS_API_KEY"
-# base_url = "https://api.fireworks.ai/inference/v1"
-# model = "accounts/fireworks/models/deepseek-v4-pro"
-
-# SiliconFlow-hosted DeepSeek V4 (https://siliconflow.com)
 [providers.siliconflow]
 # api_key = "YOUR_SILICONFLOW_API_KEY"
 # base_url = "https://api.siliconflow.com/v1"
@@ -430,12 +410,6 @@ max_subagents = 10 # optional (1-20)
 # model = "deepseek-ai/DeepSeek-V4-Pro"
 
 # Arcee AI direct OpenAI-compatible endpoint (https://docs.arcee.ai)
-[providers.arcee]
-# api_key = "YOUR_ARCEE_API_KEY"
-# base_url = "https://api.arcee.ai/api/v1"
-# model = "trinity-large-thinking"          # or trinity-large-preview
-
-# Moonshot/Kimi OpenAI-compatible endpoint (https://platform.moonshot.ai)
 [providers.moonshot]
 # api_key = "YOUR_MOONSHOT_API_KEY"           # or KIMI_API_KEY
 # base_url = "https://api.moonshot.ai/v1"      # or KIMI_BASE_URL
@@ -480,34 +454,9 @@ max_subagents = 10 # optional (1-20)
 # model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
 
 # Self-hosted Ollama OpenAI-compatible server
-[providers.ollama]
-# api_key = "OPTIONAL_OLLAMA_TOKEN"
-# base_url = "http://localhost:11434/v1"
-# model = "deepseek-coder:1.3b"             # or any local Ollama tag
-
-# Hugging Face Inference Providers (https://huggingface.co/docs/api-inference)
-# Provider aliases: huggingface, hugging-face, hugging_face, hf
-# Env var aliases: HUGGINGFACE_API_KEY / HF_TOKEN, HUGGINGFACE_BASE_URL / HF_BASE_URL,
-#                  HUGGINGFACE_MODEL / HF_MODEL
-[providers.huggingface]
-# api_key = "YOUR_HF_TOKEN"
-# base_url = "https://router.huggingface.co/v1"
-# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
-
-# DeepInfra — AI inference cloud (https://deepinfra.com)
-[providers.deepinfra]
-# api_key = "YOUR_DEEPINFRA_TOKEN"
-# base_url = "https://api.deepinfra.com/v1/openai"
-# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
-
 # ─────────────────────────────────────────────────────────────────────────────────
 # Together AI Provider (https://www.together.ai/)
 # Env var aliases: TOGETHER_API_KEY, TOGETHER_BASE_URL, TOGETHER_MODEL
-[providers.together]
-# api_key = "YOUR_TOGETHER_API_KEY"
-# base_url = "https://api.together.xyz/v1"
-# model = "deepseek-ai/DeepSeek-V4-Pro"     # or deepseek-ai/DeepSeek-V4-Flash
-
 # ─────────────────────────────────────────────────────────────────────────────────
 # Baidu Qianfan Provider (https://intl.cloud.baidu.com/product/qianfan.html)
 # Provider aliases: qianfan, baidu-qianfan, baidu_qianfan, baidu
@@ -775,14 +724,16 @@ fallback_default_prior = 3.8
 # ─────────────────────────────────────────────────────────────────────────────────
 # Profile Example (for multiple environments)
 # ─────────────────────────────────────────────────────────────────────────────────
-# Select a profile with `deepseek --profile <name>` or `DEEPSEEK_PROFILE=<name>`.
-[profiles.work]
-api_key = "WORK_DEEPSEEK_API_KEY"
-base_url = "https://api.deepseek.com/beta"
+# Select a profile with `mimofan --profile <name>` or `MIMOFAN_PROFILE=<name>`.
+[profiles.mimo]
+provider = "xiaomi-mimo"
+api_key = "YOUR_XIAOMI_KEY"
+default_text_model = "mimo-v2.5-pro"
 
-[profiles.dev]
-api_key = "DEV_DEEPSEEK_API_KEY"
-allow_shell = true
+[profiles.deepseek]
+provider = "deepseek"
+api_key = "YOUR_DEEPSEEK_API_KEY"
+default_text_model = "deepseek-v4-pro"
 
 [profiles.nvidia-nim]
 provider = "nvidia-nim"

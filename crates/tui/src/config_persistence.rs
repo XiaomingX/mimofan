@@ -310,7 +310,7 @@ pub(crate) fn config_toml_path(config_path: Option<&Path>) -> anyhow::Result<Pat
             return Ok(PathBuf::from(trimmed));
         }
     }
-    if let Ok(env) = std::env::var("DEEPSEEK_CONFIG_PATH") {
+    if let Ok(env) = std::env::var("MIMOFAN_CONFIG_PATH") {
         let trimmed = env.trim();
         if !trimmed.is_empty() {
             return Ok(PathBuf::from(trimmed));
@@ -321,10 +321,6 @@ pub(crate) fn config_toml_path(config_path: Option<&Path>) -> anyhow::Result<Pat
     let primary = home.join(".mimofan").join("config.toml");
     if primary.exists() {
         return Ok(primary);
-    }
-    let legacy = home.join(".deepseek").join("config.toml");
-    if legacy.exists() {
-        return Ok(legacy);
     }
     Ok(primary)
 }

@@ -1835,7 +1835,7 @@ pub struct App {
     /// remaining English output before it reaches the user.
     pub translation_enabled: bool,
     /// Ordered list of footer items the user wants visible. Sourced from
-    /// `tui.status_items` in `~/.deepseek/config.toml` at startup; mutated
+    /// `tui.status_items` in `~/.mimofanfan/config.toml` at startup; mutated
     /// live by `/statusline`. The renderer iterates this slice; no item is
     /// hardcoded in the footer code path.
     pub status_items: Vec<crate::config::StatusItem>,

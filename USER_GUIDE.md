@@ -60,31 +60,26 @@ mimofan --profile work
 
 ## 2. Profile：多环境并存
 
-把不同服务商放进同一份配置的不同 profile，免去重复切换：
+把不同服务商或使用场景配置为独立的 Profile，免去重复修改：
 
 ```toml
-# 顶层仍是默认 provider / model（兼容老配置）
+[profiles.mimo]
 provider = "xiaomi-mimo"
-api_key = "DEFAULT_KEY"
+api_key = "YOUR_XIAOMI_KEY"
 default_text_model = "mimo-v2.5-pro"
 
-[profiles.work]
-api_key = "WORK_KEY"
-base_url = "https://api.xiaomimimo.com/v1"
-
-[profiles.backup-deepseek]
+[profiles.deepseek]
 provider = "deepseek"
-api_key = "DEEPSEEK_KEY"
-base_url = "https://api.deepseek.com/beta"
+api_key = "YOUR_DEEPSEEK_KEY"
 default_text_model = "deepseek-v4-pro"
 ```
 
-切换方式：
+切换方式（启动时指定要使用的 Profile）：
 
 ```bash
-mimofan --profile backup-deepseek
-# 或
-DEEPSEEK_PROFILE=work mimofan
+mimofan --profile deepseek
+# 或使用环境变量
+MIMOFAN_PROFILE=deepseek mimofan
 ```
 
 ---
@@ -215,11 +210,4 @@ api_key = "YOUR_KEY"
 ```
 环境变量：`MOONSHOT_API_KEY`
 
-### Ollama（本地推理）
-```toml
-provider = "ollama"
-# base_url = "http://localhost:11434/v1"
-default_text_model = "qwen2.5-coder:7b"
-```
-
-> 完整 provider 列表与更多模型 ID（NVIDIA NIM、Novita、Fireworks、Arcee、SGLang、vLLM、HuggingFace、Together、Qianfan、StepFun、Z.AI、Codex 等）请直接看 `config.example.toml` 顶部注释与 `[providers.*]` 段。
+> 完整 provider 列表与更多模型 ID（NVIDIA NIM、SGLang、vLLM、Qianfan、StepFun、Z.AI、Codex 等）请直接看 `config.example.toml` 顶部注释与 `[providers.*]` 段。

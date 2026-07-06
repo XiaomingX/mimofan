@@ -4,12 +4,12 @@ use std::path::Path;
 
 /// Directories that must remain discoverable for `@`-mention completion and
 /// fuzzy file resolution even when excluded by `.gitignore`.
-pub(crate) const DISCOVERY_ALWAYS_DIRS: &[&str] = &[".deepseek", ".cursor", ".claude", ".agents"];
+pub(crate) const DISCOVERY_ALWAYS_DIRS: &[&str] = &[".mimofan", ".cursor", ".claude", ".agents"];
 
 /// Root-relative directories that are too large or generated to discover
 /// with gitignore disabled. Exact user-specified paths may still resolve.
 const DISCOVERY_EXCLUDED_SUBDIRS: &[&str] =
-    &[".deepseek/snapshots", ".worktrees", ".claude/worktrees"];
+    &[".mimofan/snapshots", ".worktrees", ".claude/worktrees"];
 
 /// Directory basenames that should not be traversed by fallback discovery
 /// walks that deliberately disable gitignore.

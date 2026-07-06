@@ -30,7 +30,7 @@ DeepSeek skill.
 4. After installing, tell the user to restart the session if the skill does not
    appear immediately in the available-skills list.
 5. If a skill conflicts by name with a workspace skill, explain that workspace
-   skill directories take precedence over global `~/.deepseek/skills`.
+   skill directories take precedence over global `~/.mimofan/skills`.
 
 Do not execute community skill scripts unless the user explicitly asks and the
 skill has been reviewed or trusted.

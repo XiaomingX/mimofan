@@ -302,7 +302,7 @@ pub struct EngineConfig {
     pub goal_state: SharedGoalState,
     /// Maximum sub-agent recursion depth (default 3). See
     /// `SubAgentRuntime::max_spawn_depth`. Override via
-    /// `[subagents] max_depth = N` in `~/.mimofan/config.toml`.
+    /// `[subagents] max_depth = N` in `~/.mimofanfan/config.toml`.
     pub max_spawn_depth: u32,
     /// Optional aggregate token budget for each root sub-agent run.
     /// Descendant agents inherit the root pool unless a child starts a new
@@ -725,7 +725,7 @@ impl Engine {
         Some(format!(
             "The rejected key came from {env_var}; no saved config key is present.\n\
              Run `mimofan auth status` to inspect credential sources, then \
-             `mimofan auth set --provider {provider}` to save a valid key in ~/.mimofan/config.toml, \
+             `mimofan auth set --provider {provider}` to save a valid key in ~/.mimofanfan/config.toml, \
              or remove the stale export and open a fresh shell.",
             provider = provider.as_str()
         ))
@@ -2428,7 +2428,7 @@ impl Engine {
                     Some(format!(
                         "The engine hit an internal error and stopped this turn: {detail}. \
                          Your session is intact — send your message again to retry. \
-                         A crash report was saved to ~/.mimofan/crashes/."
+                         A crash report was saved to ~/.mimofanfan/crashes/."
                     )),
                 )
             }

@@ -526,8 +526,8 @@ pub async fn run_http_server(
 
     let sessions_dir = default_sessions_dir().unwrap_or_else(|_| {
         dirs::home_dir()
-            .map(|h| h.join(".deepseek").join("sessions"))
-            .unwrap_or_else(|| PathBuf::from(".deepseek").join("sessions"))
+            .map(|h| h.join(".mimofan").join("sessions"))
+            .unwrap_or_else(|| PathBuf::from(".mimofan").join("sessions"))
     });
     let runtime_token_env = std::env::var("MIMOFAN_RUNTIME_TOKEN")
         .ok()

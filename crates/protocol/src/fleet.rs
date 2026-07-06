@@ -448,7 +448,7 @@ pub struct FleetSecretRef {
     /// Optional source hint for resolution order.
     /// - `"env"` — resolve from environment variable
     /// - `"keyring"` — resolve from OS keyring
-    /// - `"file"` — resolve from `~/.mimofan/secrets/`
+    /// - `"file"` — resolve from `~/.mimofanfan/secrets/`
     /// - absent / null — try all sources in default order
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,

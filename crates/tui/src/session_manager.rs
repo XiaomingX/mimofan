@@ -513,9 +513,7 @@ impl SessionManager {
     /// files are candidates.
     ///
     /// `max_age` is checked against the metadata's `updated_at`
-    /// timestamp embedded in the JSON, not the filesystem mtime — the
-    /// user may have rsynced their `~/.deepseek` between machines and
-    /// fs mtimes can lie.
+    /// timestamp embedded in the JSON, not the filesystem mtime.
     pub fn prune_sessions_older_than(
         &self,
         max_age: std::time::Duration,
@@ -618,10 +616,10 @@ fn is_git_metadata_entry(path: &Path) -> bool {
 
 /// Resolve the default session directory path.
 ///
-/// v0.8.44: prefers `~/.mimo/sessions`, falls back to
-/// `~/.mimofan/sessions` and `~/.deepseek/sessions` for existing installs.
-/// Uses the write-path resolver so the first access relocates any legacy
-/// directories into `~/.mimo/sessions` (#3240); reads still surface migrated data.
+/// v0.8.44: prefers `~/.mimofanfan/sessions`, falls back to
+/// existing installs. Uses the write-path resolver so the first access
+/// relocates any legacy directories into `~/.mimofanfan/sessions` (#3240);
+/// reads still surface migrated data.
 pub fn default_sessions_dir() -> std::io::Result<PathBuf> {
     mimofan_config::ensure_state_dir("sessions")
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e.to_string()))

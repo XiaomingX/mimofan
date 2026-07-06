@@ -15,7 +15,7 @@ it is referenced from a skill, hook, MCP server, or future plugin loader.
 ## Workflow
 
 1. Pick the location:
-   - Global user plugin: `~/.deepseek/plugins/<plugin-name>/`
+   - Global user plugin: `~/.mimofan/plugins/<plugin-name>/`
    - Workspace plugin: `<workspace>/plugins/<plugin-name>/`
 2. Normalize names to lower-case hyphen-case.
 3. Create `PLUGIN.md` with frontmatter:

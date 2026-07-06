@@ -106,7 +106,7 @@ const SUBAGENT_TRANSIENT_PROVIDER_INITIAL_BACKOFF: Duration = Duration::from_mil
 /// stuck API call from blocking the sub-agent indefinitely.
 /// Legacy fallback for the per-step DeepSeek API timeout. The active timeout
 /// now travels on `SubAgentRuntime::step_api_timeout` so users can override
-/// it via `[subagents] api_timeout_secs` in `~/.deepseek/config.toml`. The
+/// it via `[subagents] api_timeout_secs` in `~/.mimofanfan/config.toml`. The
 /// constant only exists for tests/stub runtimes that need a hard-coded
 /// default; production runtimes set the field explicitly (#1806, #1808).
 const DEFAULT_STEP_API_TIMEOUT: Duration =
@@ -3171,7 +3171,7 @@ fn default_state_path(workspace: &Path) -> Result<PathBuf> {
     }
     checked_subagent_state_path(
         &workspace,
-        &Path::new(".deepseek")
+        &Path::new(".mimofan")
             .join("state")
             .join(SUBAGENT_STATE_FILE),
     )
@@ -3785,7 +3785,7 @@ async fn spawn_subagent_from_input(
 ///
 /// Starts with the per-type prompt (`SubAgentType::system_prompt`) and
 /// appends a one-line role overlay when `assignment.role` is set. The
-/// full role library — TOML overlays from `~/.deepseek/roles/`, the
+/// full role library — TOML overlays from `~/.mimofanfan/roles/`, the
 /// `/roles` slash command, model overrides per role — lands in 0.6.7.
 /// For 0.6.6 we just don't drop the role on the floor: the model sees
 /// "You are operating in the role of `{name}`." as a final line so its

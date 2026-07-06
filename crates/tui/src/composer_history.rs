@@ -1,8 +1,7 @@
 //! Cross-session composer input history (#366).
 //!
-//! Persists user-typed prompts to `~/.mimofan/composer_history.txt`
-//! (falling back to a legacy `~/.deepseek/composer_history.txt` only when
-//! one already exists, #3240) so pressing Up-arrow at the composer recalls
+//! Persists user-typed prompts to `~/.mimofanfan/composer_history.txt`
+//! so pressing Up-arrow at the composer recalls
 //! submissions from previous sessions, not just the current one. One entry
 //! per line, oldest first,
 //! capped at [`MAX_HISTORY_ENTRIES`] entries (older entries are pruned
@@ -40,28 +39,17 @@ fn default_history_path() -> Option<PathBuf> {
     history_path_with_home(dirs::home_dir())
 }
 
-/// Resolve the composer-history file under `home`, preferring the mimofan
-/// root and only falling back to the legacy `.deepseek` root when a legacy
-/// file already exists.
-///
-/// On a fresh install (neither file present) this returns the `.mimofan`
-/// path, so the writer never recreates `~/.deepseek/` at runtime (#3240),
-/// while users who haven't migrated keep reading and appending to their
-/// existing legacy history. Mirrors the primary/legacy resolution used by
-/// `snapshot::paths` and `artifacts`.
+/// Resolve the composer-history file under `home`, preferring the `.mimofan`
+/// root and falling back to existing installs when a file already exists there.
 fn history_path_with_home(home: Option<PathBuf>) -> Option<PathBuf> {
     let home = home?;
-    let primary = home.join(".mimo").join(HISTORY_FILE_NAME);
+    let primary = home.join(".mimofan").join(HISTORY_FILE_NAME);
     if primary.exists() {
         return Some(primary);
     }
     let previous = home.join(".mimofan").join(HISTORY_FILE_NAME);
     if previous.exists() {
         return Some(previous);
-    }
-    let legacy = home.join(".deepseek").join(HISTORY_FILE_NAME);
-    if legacy.exists() {
-        return Some(legacy);
     }
     Some(primary)
 }

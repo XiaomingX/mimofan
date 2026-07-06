@@ -113,7 +113,7 @@ impl TuningSupport {
 /// `provider_name` is matched (case-insensitively) against the canonical
 /// provider id strings used elsewhere in the codebase — e.g.
 /// [`crate::config::ApiProvider::as_str`] / `ProviderKind::as_str`, which yield
-/// `"deepseek"`, `"openai"`, `"moonshot"`, `"ollama"`, `"atlascloud"`, etc.
+/// `"deepseek"`, `"openai"`, `"moonshot"`, `"atlascloud"`, etc.
 /// Unknown names fall back to [`TuningSupport::UNKNOWN`].
 ///
 /// ## Documented rows (grounded in current client behavior, #3024)
@@ -123,7 +123,6 @@ impl TuningSupport {
 /// | `deepseek`   | yes              | yes               | Emits `reasoning_effort` + `thinking`; sends `max_tokens`. The reference "honors both" provider. |
 /// | `openai`     | no               | no                | `apply_reasoning_effort` emits nothing for OpenAI; the plain `max_tokens` field is not the ceiling its reasoning models read (they expect `max_completion_tokens`, which is not sent for this provider). Both knobs are silent no-ops. |
 /// | `moonshot`   | no               | no                | Kimi only toggles `thinking` enabled/disabled — every non-`Off` tier collapses to "enabled", so the effort *tier* is not honored. Token ceiling flagged by #3024. |
-/// | `ollama`     | no               | no                | Only sets a `think: true/false` boolean — the effort tier is dropped. Token ceiling flagged by #3024. |
 /// | `atlascloud` | no               | no                | Speaks the DeepSeek dialect but collapses Low/Medium → `high` (lossy: the chosen tier is not preserved) and the token ceiling is flagged by #3024. |
 ///
 /// The `false` cells are the deliberate gaps #3024 exists to fix; this table
@@ -144,10 +143,6 @@ pub fn provider_tuning_support(provider_name: &str) -> TuningSupport {
             honors_max_output_tokens: false,
         },
         "moonshot" => TuningSupport {
-            honors_reasoning_effort: false,
-            honors_max_output_tokens: false,
-        },
-        "ollama" => TuningSupport {
             honors_reasoning_effort: false,
             honors_max_output_tokens: false,
         },

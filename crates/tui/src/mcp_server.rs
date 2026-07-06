@@ -499,7 +499,7 @@ impl McpServer {
 }
 
 fn default_config_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|home| home.join(".mimo").join("mcp_server.toml"))
+    dirs::home_dir().map(|home| home.join(".mimofan").join("mcp_server.toml"))
 }
 
 fn default_expose_tools() -> Vec<String> {

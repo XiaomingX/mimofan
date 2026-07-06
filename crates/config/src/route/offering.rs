@@ -99,14 +99,6 @@ const OFFERING_SEEDS: &[OfferingSeed] = &[
         endpoint_key: "chat",
         default_for_provider: false,
     },
-    // Together aggregator: same canonical model, prefixed wire id.
-    OfferingSeed {
-        provider: "together",
-        canonical_model: Some("deepseek-v4-pro"),
-        wire_model_id: "deepseek-ai/DeepSeek-V4-Pro",
-        endpoint_key: "chat",
-        default_for_provider: true,
-    },
     // OpenRouter aggregator: same canonical model, different prefixed wire id.
     OfferingSeed {
         provider: "openrouter",

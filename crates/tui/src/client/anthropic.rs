@@ -1153,7 +1153,7 @@ mod tests {
 
     #[test]
     fn xiaomimimo_endpoint_url_for_anthropic_provider() {
-        // base_url from ~/.mimofan/config.toml providers.xiaomi_mimo →
+        // base_url from ~/.mimofanfan/config.toml providers.xiaomi_mimo →
         // `https://api.xiaomimimo.com/anthropic`
         assert_eq!(
             anthropic_messages_url("https://api.xiaomimimo.com/anthropic"),

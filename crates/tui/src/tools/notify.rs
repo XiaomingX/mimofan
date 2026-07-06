@@ -44,7 +44,7 @@ impl ToolSpec for NotifyTool {
          routine progress updates, conversational acknowledgements, or \
          confirmation that the model is alive — that's noise. The user \
          can disable notifications entirely via \
-         `[notifications].method = \"off\"` in `~/.deepseek/config.toml`; \
+         `[notifications].method = \"off\"` in `~/.mimofanfan/config.toml`; \
          when disabled this tool is a silent no-op."
     }
 

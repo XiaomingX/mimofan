@@ -80,7 +80,7 @@ where
 /// Build the sanitized child environment used for MCP stdio servers.
 ///
 /// MCP stdio servers are user-configured integrations declared in
-/// `~/.deepseek/mcp.json` (or equivalent). They are not arbitrary processes
+/// `~/.mimofanfan/mcp.json` (or equivalent). They are not arbitrary processes
 /// the agent decided to launch on its own. To avoid breaking common
 /// `npx ...` / `uvx ...` / `python -m mcp_server_*` setups (#1244), the
 /// MCP-launch allowlist is wider than the base shell-tool allowlist: it

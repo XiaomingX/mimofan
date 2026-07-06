@@ -1,7 +1,7 @@
 //! Path resolution for the per-workspace snapshot side-repos.
 //!
 //! Snapshots live under the resolved state directory
-//! (`~/.mimofan/snapshots` or legacy `~/.deepseek/snapshots`) with
+//! (`~/.mimofanfan/snapshots`) with
 //! a two-level hash split so we can snapshot multiple worktrees of the
 //! same project independently — `git worktree list` users won't get
 //! cross-talk between feature branches.
@@ -42,8 +42,8 @@ pub fn snapshot_dir_with_home(workspace: &Path, home: Option<PathBuf>) -> PathBu
 
 fn snapshot_base_with_home(home: Option<PathBuf>) -> PathBuf {
     let home = home.unwrap_or_else(|| PathBuf::from("."));
-    // Prefer .mimo, fall back to .mimofan, then .deepseek
-    let primary = home.join(".mimo").join("snapshots");
+    // Prefer .mimofan, fall back to legacy paths
+    let primary = home.join(".mimofan").join("snapshots");
     if primary.exists() {
         return primary;
     }
@@ -51,7 +51,7 @@ fn snapshot_base_with_home(home: Option<PathBuf>) -> PathBuf {
     if previous.exists() {
         return previous;
     }
-    home.join(".deepseek").join("snapshots")
+    home.join(".mimofan").join("snapshots")
 }
 
 /// Resolve the `.git` directory inside the snapshot dir.

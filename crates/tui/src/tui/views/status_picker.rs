@@ -3,7 +3,7 @@
 //! Mirrors codex-rs's `bottom_pane::status_line_setup` ergonomically: a
 //! checklist of footer items the user can toggle on/off with Space (or
 //! Enter), reordered by ↑/↓, applied immediately so the live footer
-//! reflects every change. Enter saves to `~/.deepseek/config.toml` under
+//! reflects every change. Enter saves to `~/.mimofanfan/config.toml` under
 //! `tui.status_items`; Esc reverts to the snapshot taken on open.
 //!
 //! The picker enumerates [`StatusItem::all`] so adding a new variant in

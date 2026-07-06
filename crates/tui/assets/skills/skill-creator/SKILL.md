@@ -25,7 +25,7 @@ Discovery paths, in precedence order:
 - `<workspace>/.cursor/skills`
 - `~/.agents/skills`
 - `~/.claude/skills`
-- `~/.deepseek/skills`
+- `~/.mimofan/skills`
 
 Use skills for model instructions, workflows, and lightweight conventions. Use
 MCP for live external APIs or durable tools. Use hooks for automatic local

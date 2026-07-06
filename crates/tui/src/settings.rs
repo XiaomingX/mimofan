@@ -1,6 +1,6 @@
 //! Settings system - Persistent user preferences
 //!
-//! Settings are stored at ~/.mimofan/settings.toml, with legacy fallbacks.
+//! Settings are stored at ~/.mimofanfan/settings.toml, with legacy fallbacks.
 //!
 //! TUI-specific preferences (theme, keybinds, font_size) that survive project
 //! switches are stored separately in tui.toml. See [`TuiPrefs`].
@@ -18,19 +18,18 @@ const SETTINGS_FILE_NAME: &str = "settings.toml";
 const TUI_PREFS_FILE_NAME: &str = "tui.toml";
 
 // ============================================================================
-// TuiPrefs — ~/.mimofan/tui.toml
+// TuiPrefs — ~/.mimofanfan/tui.toml
 // ============================================================================
 
 /// TUI-specific preferences that are decoupled from agent/project config so
 /// they survive project switches (issue #437).
 ///
-/// Stored at `~/.mimofan/tui.toml` on new installs, with
-/// `~/.deepseek/tui.toml` retained as a legacy read fallback. When the file is
+/// Stored at `~/.mimofanfan/tui.toml`. When the file is
 /// absent the values fall back to the `[tui]` section of the normal
 /// `config.toml` (via [`TuiPrefs::load`]), and then to the struct's own
 /// defaults.
 ///
-/// # Example `~/.mimofan/tui.toml`
+/// # Example `~/.mimofanfan/tui.toml`
 ///
 /// ```toml
 /// theme    = "dark"        # "system" | "dark" | "light" | "grayscale" | "catppuccin-mocha" | ...
@@ -94,15 +93,15 @@ pub struct KeybindPrefs {
 #[allow(dead_code)] // see TuiPrefs note above; deferred to a later settings pass (#657).
 impl TuiPrefs {
     /// Return the canonical path of the TUI preferences file:
-    /// `~/.mimofan/tui.toml`, or legacy `~/.deepseek/tui.toml` when present.
+    /// `~/.mimofanfan/tui.toml`, or legacy `~/.mimofanfan/tui.toml` when present.
     ///
     /// Tests may override the home directory through the
-    /// `DEEPSEEK_CONFIG_PATH` environment variable (the parent directory of
-    /// the pointed-to config is used instead of `~/.deepseek`).
+    /// `MIMOFAN_CONFIG_PATH` environment variable (the parent directory of
+    /// the pointed-to config is used instead of `~/.mimofanfan`).
     pub fn path() -> Result<PathBuf> {
         // Honour the same env-var escape hatch used by Settings::path so that
         // integration tests can redirect all config I/O to a temp directory.
-        if let Ok(config_path) = std::env::var("DEEPSEEK_CONFIG_PATH") {
+        if let Ok(config_path) = std::env::var("MIMOFAN_CONFIG_PATH") {
             let config_path = config_path.trim();
             if !config_path.is_empty() {
                 let p = expand_path(config_path);
@@ -115,14 +114,11 @@ impl TuiPrefs {
         let primary = mimofan_config::mimofan_home()
             .ok()
             .map(|home| home.join(TUI_PREFS_FILE_NAME));
-        let legacy_home = mimofan_config::legacy_deepseek_home()
-            .ok()
-            .map(|home| home.join(TUI_PREFS_FILE_NAME));
 
-        resolve_tui_prefs_path_from_candidates(primary, legacy_home)
+        resolve_tui_prefs_path_from_candidates(primary, None)
     }
 
-    /// Load TUI preferences from `~/.mimofan/tui.toml` or a legacy fallback.
+    /// Load TUI preferences from `~/.mimofanfan/tui.toml` or a legacy fallback.
     ///
     /// If the file does not exist the struct defaults are returned — no error
     /// is produced. Parse errors surface as `Err` so the caller can warn the
@@ -144,7 +140,7 @@ impl TuiPrefs {
         Ok(prefs)
     }
 
-    /// Save TUI preferences to `~/.mimofan/tui.toml` (or a legacy file when
+    /// Save TUI preferences to `~/.mimofanfan/tui.toml` (or a legacy file when
     /// it already exists), creating the target directory if needed.
     pub fn save(&self) -> Result<()> {
         let path = Self::path()?;
@@ -427,7 +423,7 @@ pub fn preset_fields(name: &str) -> Option<&'static [(&'static str, &'static str
 impl Settings {
     /// Get the canonical settings file path.
     ///
-    /// New writes should target `~/.mimofan/settings.toml`. Legacy
+    /// New writes should target `~/.mimofanfan/settings.toml`. Legacy
     /// DeepSeek-branded paths remain readable as fallbacks during load, but we
     /// no longer surface them as the primary path in `/config`.
     pub fn path() -> Result<PathBuf> {
@@ -1199,9 +1195,9 @@ fn resolve_settings_path_from_candidates(
 
 fn settings_path_candidates() -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
     // Allow tests to override the settings directory via the same env var
-    // used for config (DEEPSEEK_CONFIG_PATH points at config.toml; the
+    // used for config (MIMOFAN_CONFIG_PATH points at config.toml; the
     // settings file lives as a sibling in the same directory).
-    if let Ok(config_path) = std::env::var("DEEPSEEK_CONFIG_PATH") {
+    if let Ok(config_path) = std::env::var("MIMOFAN_CONFIG_PATH") {
         let config_path = config_path.trim();
         if !config_path.is_empty() {
             let p = expand_path(config_path);
@@ -1214,13 +1210,8 @@ fn settings_path_candidates() -> (Option<PathBuf>, Option<PathBuf>, Option<PathB
     let primary = mimofan_config::mimofan_home()
         .ok()
         .map(|home| home.join(SETTINGS_FILE_NAME));
-    let legacy_home = mimofan_config::legacy_deepseek_home()
-        .ok()
-        .map(|home| home.join(SETTINGS_FILE_NAME));
-    let legacy_config_dir =
-        dirs::config_dir().map(|dir| dir.join("deepseek").join(SETTINGS_FILE_NAME));
 
-    (primary, legacy_home, legacy_config_dir)
+    (primary, None, None)
 }
 
 fn migrate_settings_file_to_primary_if_needed(primary: &Path, active_read_path: &Path) {

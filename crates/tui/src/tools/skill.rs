@@ -123,10 +123,10 @@ impl ToolSpec for LoadSkillTool {
                     .collect();
                 if dirs.is_empty() {
                     if context.skills_scan_mimofan_only {
-                        "no skills directories found; install skills under `<workspace>/.mimofan/skills/<name>/SKILL.md` or `~/.mimofan/skills/<name>/SKILL.md`"
+                        "no skills directories found; install skills under `<workspace>/.mimofan/skills/<name>/SKILL.md` or `~/.mimofanfan/skills/<name>/SKILL.md`"
                             .to_string()
                     } else {
-                        "no skills directories found; install skills under `<workspace>/.agents/skills/<name>/SKILL.md`, `~/.mimofan/skills/<name>/SKILL.md`, or `~/.deepseek/skills/<name>/SKILL.md`"
+                        "no skills directories found; install skills under `<workspace>/.agents/skills/<name>/SKILL.md`, `~/.mimofanfan/skills/<name>/SKILL.md`, or `~/.mimofanfan/skills/<name>/SKILL.md`"
                             .to_string()
                     }
                 } else {

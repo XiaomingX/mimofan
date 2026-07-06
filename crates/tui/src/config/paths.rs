@@ -65,7 +65,7 @@ pub(crate) fn home_config_path() -> Option<PathBuf> {
         if primary.exists() {
             return primary;
         }
-        let legacy = home.join(".deepseek").join("config.toml");
+        let legacy = home.join(".mimofan").join("config.toml");
         if legacy.exists() {
             return legacy;
         }
@@ -90,7 +90,7 @@ pub(crate) fn env_config_path() -> Option<PathBuf> {
             return Some(expand_path(trimmed));
         }
     }
-    if let Ok(path) = std::env::var("DEEPSEEK_CONFIG_PATH") {
+    if let Ok(path) = std::env::var("MIMOFAN_CONFIG_PATH") {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
             return Some(expand_path(trimmed));
@@ -109,7 +109,7 @@ pub(crate) fn expand_pathbuf(path: PathBuf) -> PathBuf {
 pub(crate) fn default_managed_config_path() -> Option<PathBuf> {
     #[cfg(unix)]
     {
-        Some(PathBuf::from("/etc/deepseek/managed_config.toml"))
+        Some(PathBuf::from("/etc/mimofan/managed_config.toml"))
     }
     #[cfg(not(unix))]
     {
@@ -118,7 +118,7 @@ pub(crate) fn default_managed_config_path() -> Option<PathBuf> {
             if primary.exists() {
                 return primary;
             }
-            home.join(".deepseek").join("managed_config.toml")
+            home.join(".mimofan").join("managed_config.toml")
         })
     }
 }
@@ -126,7 +126,7 @@ pub(crate) fn default_managed_config_path() -> Option<PathBuf> {
 pub(crate) fn default_requirements_path() -> Option<PathBuf> {
     #[cfg(unix)]
     {
-        Some(PathBuf::from("/etc/deepseek/requirements.toml"))
+        Some(PathBuf::from("/etc/mimofan/requirements.toml"))
     }
     #[cfg(not(unix))]
     {
@@ -135,7 +135,7 @@ pub(crate) fn default_requirements_path() -> Option<PathBuf> {
             if primary.exists() {
                 return primary;
             }
-            home.join(".deepseek").join("requirements.toml")
+            home.join(".mimofan").join("requirements.toml")
         })
     }
 }
@@ -166,7 +166,7 @@ pub(crate) fn default_mcp_config_path() -> Option<PathBuf> {
         if primary.exists() {
             return primary;
         }
-        let legacy = home.join(".deepseek").join("mcp.json");
+        let legacy = home.join(".mimofan").join("mcp.json");
         if legacy.exists() {
             return legacy;
         }
@@ -180,7 +180,7 @@ pub(crate) fn default_notes_path() -> Option<PathBuf> {
         if primary.exists() {
             return primary;
         }
-        let legacy = home.join(".deepseek").join("notes.txt");
+        let legacy = home.join(".mimofan").join("notes.txt");
         if legacy.exists() {
             return legacy;
         }
@@ -194,7 +194,7 @@ pub(crate) fn default_memory_path() -> Option<PathBuf> {
         if primary.exists() {
             return primary;
         }
-        let legacy = home.join(".deepseek").join("memory.md");
+        let legacy = home.join(".mimofan").join("memory.md");
         if legacy.exists() {
             return legacy;
         }

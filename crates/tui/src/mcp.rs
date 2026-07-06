@@ -256,7 +256,7 @@ pub struct McpServerConfig {
     /// Header keys and values are passed through as-is — we do not
     /// substitute environment variables in v0.8.31. If you store a
     /// real token here, the value lives in plain text in
-    /// `~/.deepseek/mcp.json`; treat that file with the same care
+    /// `~/.mimofanfan/mcp.json`; treat that file with the same care
     /// as any other secret-bearing config.
     #[serde(default)]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
@@ -1381,7 +1381,7 @@ impl McpConnection {
                         // portion of the URL) before logging so an
                         // HTTPS_PROXY that embeds credentials
                         // (common in corporate setups) doesn't leak the
-                        // password to the on-disk `~/.deepseek/logs/`.
+                        // password to the on-disk `~/.mimofanfan/logs/`.
                         let proxy_redacted = redact_proxy_userinfo(&proxy_url);
                         tracing::warn!(
                             target: "mcp",

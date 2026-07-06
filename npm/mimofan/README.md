@@ -54,7 +54,7 @@ Claude key; the full registry lives in
 
 The `mimofan` facade and `mimofan-tui` binary share
 `~/.mimofan/config.toml` for auth and default model settings. Legacy
-`~/.deepseek/config.toml` installs are still read as a compatibility fallback.
+`~/.mimofan/config.toml` installs are still read as a compatibility fallback.
 Common TUI commands are available directly through the facade, including
 `mimofan doctor`, `mimofan models`, `mimofan sessions`, and
 `mimofan resume --last`.

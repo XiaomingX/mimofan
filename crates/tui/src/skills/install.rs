@@ -57,7 +57,7 @@ fn reqwest_client() -> reqwest::Client {
 
 /// Cache directory for registry-synced skills.
 ///
-/// Lives at `~/.mimofan/cache/skills/` so it's separate from user-installed
+/// Lives at `~/.mimofanfan/cache/skills/` so it's separate from user-installed
 /// skills and can be blown away without losing anything irreplaceable.
 pub fn default_cache_skills_dir() -> PathBuf {
     dirs::home_dir().map_or_else(

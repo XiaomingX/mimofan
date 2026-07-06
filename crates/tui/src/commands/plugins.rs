@@ -12,7 +12,7 @@ use crate::tui::app::App;
 pub fn plugins(app: &mut App, arg: Option<&str>) -> CommandResult {
     let Some(plugin_dir) = plugin_dir_for(app) else {
         return CommandResult::error(
-            "Could not resolve plugin directory. Set [tools].plugin_dir in config.toml or ensure ~/.mimofan/tools exists.".to_string(),
+            "Could not resolve plugin directory. Set [tools].plugin_dir in config.toml or ensure ~/.mimofanfan/tools exists.".to_string(),
         );
     };
 
@@ -111,7 +111,7 @@ fn approval_label(approval: crate::tools::spec::ApprovalRequirement) -> &'static
     }
 }
 
-/// Resolve the configured plugin directory, defaulting to `~/.mimofan/tools`.
+/// Resolve the configured plugin directory, defaulting to `~/.mimofanfan/tools`.
 fn plugin_dir_for(app: &App) -> Option<PathBuf> {
     let config = match &app.config_path {
         Some(path) => {

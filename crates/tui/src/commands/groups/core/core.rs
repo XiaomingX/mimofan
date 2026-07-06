@@ -243,7 +243,7 @@ pub fn profile_switch(_app: &mut App, arg: Option<&str>) -> CommandResult {
         Some(name) if !name.trim().is_empty() => name.trim().to_string(),
         _ => {
             return CommandResult::error(
-                "Usage: /profile <name>\n\nSwitch to a named config profile. Profiles are defined in ~/.mimofan/config.toml under [profiles] sections.",
+                "Usage: /profile <name>\n\nSwitch to a named config profile. Profiles are defined in ~/.mimofanfan/config.toml under [profiles] sections.",
             );
         }
     };
@@ -347,16 +347,6 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
             docs_url: "https://mimo.mi.com/docs/en-US/tokenplan/Token%20Plan/subscription",
             note: "Token Plan keys use the base URL shown on the Xiaomi MiMo Token Plan page.",
         },
-        "novita" => ProviderLinkInfo {
-            key_url: Some("https://novita.ai/en/settings/key-management"),
-            docs_url: "https://novita.ai/docs/guides/quickstart",
-            note: "Novita keys are managed from Key Management in account settings.",
-        },
-        "fireworks" => ProviderLinkInfo {
-            key_url: Some("https://fireworks.ai/api-keys"),
-            docs_url: "https://docs.fireworks.ai/getting-started/quickstart",
-            note: "Create a Fireworks API key before exporting FIREWORKS_API_KEY.",
-        },
         "siliconflow" => ProviderLinkInfo {
             key_url: Some("https://cloud.siliconflow.com/account/ak"),
             docs_url: "https://docs.siliconflow.com/en/userguide/quickstart",
@@ -366,11 +356,6 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
             key_url: Some("https://cloud.siliconflow.cn/account/ak"),
             docs_url: "https://docs.siliconflow.cn/en/userguide/quickstart",
             note: "Use the China SiliconFlow console for the China endpoint.",
-        },
-        "arcee" => ProviderLinkInfo {
-            key_url: None,
-            docs_url: "https://docs.arcee.ai/other/create-your-first-api-key",
-            note: "Arcee documents key creation from the platform API Keys page.",
         },
         "moonshot" => ProviderLinkInfo {
             key_url: Some("https://platform.kimi.ai/console/api-keys"),
@@ -386,21 +371,6 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
             key_url: None,
             docs_url: "https://docs.vllm.ai/en/stable/serving/openai_compatible_server/",
             note: "Self-hosted vLLM usually needs a local base URL, not a hosted token.",
-        },
-        "ollama" => ProviderLinkInfo {
-            key_url: None,
-            docs_url: "https://docs.ollama.com/api",
-            note: "Local Ollama does not require an API key by default.",
-        },
-        "huggingface" => ProviderLinkInfo {
-            key_url: Some("https://huggingface.co/settings/tokens"),
-            docs_url: "https://huggingface.co/docs/hub/en/security-tokens",
-            note: "Use a scoped Hugging Face access token.",
-        },
-        "together" => ProviderLinkInfo {
-            key_url: Some("https://api.together.ai/settings/api-keys"),
-            docs_url: "https://docs.together.ai/docs/api-keys-authentication",
-            note: "Together API keys are project-scoped.",
         },
         "openai-codex" => ProviderLinkInfo {
             key_url: None,
@@ -428,11 +398,6 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
             ),
             docs_url: "https://platform.minimax.io/docs/api-reference/api-overview",
             note: "MiniMax has separate pay-as-you-go API keys and Token Plan subscription keys.",
-        },
-        "deepinfra" => ProviderLinkInfo {
-            key_url: Some("https://deepinfra.com/dash/api_keys"),
-            docs_url: "https://docs.deepinfra.com/quickstart",
-            note: "Create DeepInfra API keys from the dashboard.",
         },
         _ => ProviderLinkInfo {
             key_url: None,

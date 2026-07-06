@@ -1,4 +1,4 @@
-//! User-defined slash commands from `~/.mimofan/commands/<name>.md` and
+//! User-defined slash commands from `~/.mimofanfan/commands/<name>.md` and
 //! workspace-local `<workspace>/.mimofan/commands/<name>.md`.
 //!
 //! Users drop `.md` files into a commands directory and the filename
@@ -17,8 +17,8 @@
 //! 2. `<workspace>/.deepseek/commands/`  (legacy project-local)
 //! 3. `<workspace>/.claude/commands/`    (Claude Code interop)
 //! 4. `<workspace>/.cursor/commands/`    (Cursor interop)
-//! 5. `~/.mimofan/commands/`           (user-global)
-//! 6. `~/.deepseek/commands/`            (legacy user-global)
+//! 5. `~/.mimofanfan/commands/`           (user-global)
+//! 6. `~/.mimofanfan/commands/`            (legacy user-global)
 //!
 //! ## Permanent Role
 //!
@@ -29,7 +29,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// Path to the global user commands directory: `~/.mimofan/commands/`.
+/// Path to the global user commands directory: `~/.mimofanfan/commands/`.
 fn global_commands_dir() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("~"));
     home.join(".mimofan").join("commands")
@@ -37,7 +37,7 @@ fn global_commands_dir() -> PathBuf {
 
 fn legacy_global_commands_dir() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("~"));
-    home.join(".deepseek").join("commands")
+    home.join(".mimofan").join("commands")
 }
 
 /// Return all candidate commands directories in precedence order.
@@ -45,7 +45,7 @@ pub(crate) fn commands_dirs(workspace: Option<&Path>) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(ws) = workspace {
         dirs.push(ws.join(".mimofan").join("commands"));
-        dirs.push(ws.join(".deepseek").join("commands"));
+        dirs.push(ws.join(".mimofan").join("commands"));
         dirs.push(ws.join(".claude").join("commands"));
         dirs.push(ws.join(".cursor").join("commands"));
     }

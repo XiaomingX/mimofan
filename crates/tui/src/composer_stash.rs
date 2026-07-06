@@ -7,7 +7,7 @@
 //!
 //! ## On-disk format
 //!
-//! `~/.mimo/composer_stash.jsonl` — one JSON object per line:
+//! `~/.mimofanfan/composer_stash.jsonl` — one JSON object per line:
 //!
 //! ```jsonl
 //! {"ts":"2026-05-04T01:23:45Z","text":"draft here"}
@@ -53,16 +53,12 @@ pub struct StashedDraft {
 
 fn default_stash_path() -> Option<PathBuf> {
     dirs::home_dir().map(|home| {
-        let primary = home.join(".mimo").join(STASH_FILE_NAME);
+        let primary = home.join(".mimofan").join(STASH_FILE_NAME);
         let previous = home.join(".mimofan").join(STASH_FILE_NAME);
-        let legacy = home.join(".deepseek").join(STASH_FILE_NAME);
-        if primary.exists() || (!previous.exists() && !legacy.exists()) {
+        if primary.exists() || !previous.exists() {
             return primary;
         }
-        if previous.exists() {
-            return previous;
-        }
-        legacy
+        previous
     })
 }
 

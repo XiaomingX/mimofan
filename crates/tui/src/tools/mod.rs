@@ -4,7 +4,7 @@
 // inside this module tree leaks into ratatui's diff-renderer buffer and
 // produces the "scroll demon" regression (#1085 / v0.8.27 follow-up).
 // Route status/error reporting through `tracing::*` instead — the
-// `runtime_log` subscriber captures it to `~/.deepseek/logs/`.
+// `runtime_log` subscriber captures it to `~/.mimofanfan/logs/`.
 #![deny(clippy::print_stdout)]
 #![deny(clippy::print_stderr)]
 

@@ -10,7 +10,7 @@
 //!    the user can open it in `$EDITOR`.
 //!
 //! This module owns the disk side. Files land in
-//! `~/.mimofan/tool_outputs/<sanitised-id>.txt`. The id is the tool
+//! `~/.mimofanfan/tool_outputs/<sanitised-id>.txt`. The id is the tool
 //! call id the engine assigns; we sanitise it conservatively (ASCII
 //! alphanumeric + `-`/`_`) so a hostile id can't escape the directory
 //! via `..` or absolute-path tricks.
@@ -53,11 +53,11 @@ pub const SPILLOVER_DIR_NAME: &str = "tool_outputs";
 pub const SPILLOVER_THRESHOLD_BYTES: usize = 100 * 1024; // 100 KiB
 
 /// Default boot-prune age. Older spillover files are deleted on
-/// startup to keep `~/.mimofan/tool_outputs/` from growing without
+/// startup to keep `~/.mimofanfan/tool_outputs/` from growing without
 /// bound. Mirrors the workspace-snapshot 7-day default.
 pub const SPILLOVER_MAX_AGE: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
-/// Resolve `~/.mimofan/tool_outputs/`. Returns `None` if the home
+/// Resolve `~/.mimofanfan/tool_outputs/`. Returns `None` if the home
 /// directory can't be determined (CI containers occasionally hit
 /// this). Callers should treat `None` as "spillover unavailable" and
 /// degrade gracefully rather than fail the tool call.
@@ -81,7 +81,7 @@ pub fn spillover_root() -> Option<PathBuf> {
 
     let home = dirs::home_dir()?;
     let primary = home.join(".mimofan").join(SPILLOVER_DIR_NAME);
-    let legacy = home.join(".deepseek").join(SPILLOVER_DIR_NAME);
+    let legacy = home.join(".mimofan").join(SPILLOVER_DIR_NAME);
     if primary.exists() || !legacy.exists() {
         return Some(primary);
     }
@@ -253,7 +253,7 @@ pub const SPILLOVER_HEAD_BYTES: usize = 32 * 1024;
 
 /// Apply spillover to a tool result in place. If the result's
 /// content exceeds [`SPILLOVER_THRESHOLD_BYTES`], writes the full
-/// content to a sibling file under `~/.mimofan/tool_outputs/`,
+/// content to a sibling file under `~/.mimofanfan/tool_outputs/`,
 /// replaces `result.content` with a [`SPILLOVER_HEAD_BYTES`] head
 /// plus a footer pointing the model at the spillover file, and
 /// stamps `metadata.spillover_path` so the UI can render its
@@ -279,7 +279,7 @@ pub fn apply_spillover(result: &mut ToolResult, tool_id: &str) -> Option<PathBuf
 /// The home-level `tool_outputs/<tool-id>.txt` file is still written
 /// so `retrieve_tool_result ref=<tool-id>` keeps working during the
 /// transition. The canonical artifact content is also written under
-/// `~/.mimofan/sessions/<session-id>/artifacts/`, and the inline tool result
+/// `~/.mimofanfan/sessions/<session-id>/artifacts/`, and the inline tool result
 /// becomes a fixed-format artifact reference block.
 pub fn apply_spillover_with_artifact(
     result: &mut ToolResult,
@@ -493,7 +493,7 @@ fn sanitise_id(id: &str) -> Option<String> {
 }
 
 /// Override the storage roots for tests so they don't pollute the
-/// user's real `~/.mimofan/` directory. This uses explicit test hooks instead
+/// user's real `~/.mimofanfan/` directory. This uses explicit test hooks instead
 /// of `$HOME` because Windows home-dir resolution can ignore environment
 /// overrides and return the runner profile directory.
 #[cfg(test)]

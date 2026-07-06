@@ -7,8 +7,7 @@
 //! - `WHALE.md` - **Deprecated** legacy mimofan-native instructions (read-only fallback)
 //! - `.claude/instructions.md` - Claude-style hidden instructions (compat)
 //! - `CLAUDE.md` - Claude-style instructions (compat)
-//! - `.mimofan/instructions.md` - Hidden instructions file (compat)
-//! - `.deepseek/instructions.md` - Hidden instructions file (legacy)
+//! - `.mimofan/instructions.md` - Hidden instructions file
 //!
 //! mimofan-specific repo authority/prioritization policy lives separately in
 //! `.mimofan/constitution.json` and is rendered as its own higher-authority
@@ -37,14 +36,13 @@ const PROJECT_CONTEXT_FILES: &[&str] = &[
     ".claude/instructions.md",
     "CLAUDE.md",
     ".mimofan/instructions.md",
-    ".deepseek/instructions.md",
 ];
 
 /// File name of the deprecated mimofan-native instructions file.
 const DEPRECATED_WHALE_FILENAME: &str = "WHALE.md";
 
 /// Warning surfaced when a `WHALE.md` is still the active instruction source.
-const WHALE_DEPRECATION_WARNING: &str = "WHALE.md is deprecated; move project instructions to AGENTS.md, or mimofan-specific authority policy to .mimo/constitution.json. WHALE.md is still read for now but will be dropped from default discovery in a future release.";
+const WHALE_DEPRECATION_WARNING: &str = "WHALE.md is deprecated; move project instructions to AGENTS.md, or mimofan-specific authority policy to .mimofan/constitution.json. WHALE.md is still read for now but will be dropped from default discovery in a future release.";
 
 /// Relative path (within a workspace or one of its parents) to the
 /// mimofan-specific repo authority/prioritization policy.
@@ -58,19 +56,16 @@ const SUPPORTED_CONSTITUTION_SCHEMA: u32 = 1;
 /// priority over a global instructions.md (#3012), which takes priority over
 /// any deprecated global WHALE.md; within each file name,
 /// `.mimofan/` takes priority over vendor-neutral `.agents/`, which takes
-/// priority over legacy `.deepseek/`.
+/// `.mimofan/` takes priority over vendor-neutral `.agents/`.
 const GLOBAL_AGENTS_RELATIVE_PATH: &[&str] = &[".mimofan", "AGENTS.md"];
 const GLOBAL_AGENTS_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "AGENTS.md"];
-const GLOBAL_AGENTS_LEGACY_PATH: &[&str] = &[".deepseek", "AGENTS.md"];
 const GLOBAL_WHALE_RELATIVE_PATH: &[&str] = &[".mimofan", "WHALE.md"];
 const GLOBAL_WHALE_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "WHALE.md"];
-const GLOBAL_WHALE_LEGACY_PATH: &[&str] = &[".deepseek", "WHALE.md"];
 /// Global `instructions.md` (#3012): auto-loaded as a fallback context layer,
 /// ranked between AGENTS.md (higher priority) and the deprecated WHALE.md
 /// (lower), mirroring the project-level precedence.
 const GLOBAL_INSTRUCTIONS_RELATIVE_PATH: &[&str] = &[".mimofan", "instructions.md"];
 const GLOBAL_INSTRUCTIONS_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "instructions.md"];
-const GLOBAL_INSTRUCTIONS_LEGACY_PATH: &[&str] = &[".deepseek", "instructions.md"];
 
 /// Maximum size for project context files (to prevent loading huge files)
 const MAX_CONTEXT_SIZE: usize = 100 * 1024; // 100KB
@@ -805,8 +800,6 @@ pub(crate) fn project_context_cache_candidate_paths(
     }
 
     paths.extend(repo_constitution_candidate_paths(&workspace));
-    paths.push(workspace.join(".deepseek").join("trusted"));
-    paths.push(workspace.join(".deepseek").join("trust.json"));
     paths.extend(crate::config::workspace_trust_config_candidate_paths());
 
     paths
@@ -834,17 +827,14 @@ fn repo_constitution_candidate_paths(workspace: &Path) -> Vec<PathBuf> {
     paths
 }
 
-fn global_context_relative_paths() -> [&'static [&'static str]; 9] {
+fn global_context_relative_paths() -> [&'static [&'static str]; 6] {
     [
         GLOBAL_AGENTS_RELATIVE_PATH,
         GLOBAL_AGENTS_VENDOR_NEUTRAL_PATH,
-        GLOBAL_AGENTS_LEGACY_PATH,
         GLOBAL_INSTRUCTIONS_RELATIVE_PATH,
         GLOBAL_INSTRUCTIONS_VENDOR_NEUTRAL_PATH,
-        GLOBAL_INSTRUCTIONS_LEGACY_PATH,
         GLOBAL_WHALE_RELATIVE_PATH,
         GLOBAL_WHALE_VENDOR_NEUTRAL_PATH,
-        GLOBAL_WHALE_LEGACY_PATH,
     ]
 }
 
@@ -889,15 +879,12 @@ fn load_global_agents_context(workspace: &Path, home_dir: Option<&Path>) -> Opti
 
     // Priority order (AGENTS.md preferred; instructions.md next, #3012;
     // WHALE.md deprecated and last):
-    // 1. ~/.mimofan/AGENTS.md       (canonical)
+    // 1. ~/.mimofanfan/AGENTS.md       (canonical)
     // 2. ~/.agents/AGENTS.md          (vendor-neutral fallback)
-    // 3. ~/.deepseek/AGENTS.md        (legacy fallback)
-    // 4. ~/.mimofan/instructions.md (canonical)
-    // 5. ~/.agents/instructions.md    (vendor-neutral fallback)
-    // 6. ~/.deepseek/instructions.md  (legacy fallback)
-    // 7. ~/.mimofan/WHALE.md        (deprecated, legacy fallback)
-    // 8. ~/.agents/WHALE.md           (deprecated, vendor-neutral legacy)
-    // 9. ~/.deepseek/WHALE.md         (deprecated, legacy)
+    // 3. ~/.mimofanfan/instructions.md (canonical)
+    // 4. ~/.agents/instructions.md    (vendor-neutral fallback)
+    // 5. ~/.mimofanfan/WHALE.md        (deprecated)
+    // 6. ~/.agents/WHALE.md           (deprecated, vendor-neutral)
     let mut warnings = Vec::new();
 
     for candidate in global_context_relative_paths() {
@@ -939,7 +926,7 @@ fn generate_ephemeral_context(workspace: &Path) -> Option<String> {
     Some(format!(
         "# Project Context (Auto-generated, ephemeral)\n\n\
          > This context was generated in memory by mimofan.\n\
-         > No .mimo/instructions.md file was written.\n\n\
+         > No .mimofan/instructions.md file was written.\n\n\
          {overview}"
     ))
 }
@@ -1033,8 +1020,8 @@ fn check_trust_status(workspace: &Path) -> bool {
 
     // Check for trust markers
     let trust_markers = [
-        workspace.join(".deepseek").join("trusted"),
-        workspace.join(".deepseek").join("trust.json"),
+        workspace.join(".mimofan").join("trusted"),
+        workspace.join(".mimofan").join("trust.json"),
     ];
 
     for marker in &trust_markers {

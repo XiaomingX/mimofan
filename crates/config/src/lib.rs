@@ -1303,8 +1303,7 @@ pub struct LspConfigToml {
 }
 
 impl ConfigToml {
-    /// Merge safe project-level overrides from `$WORKSPACE/.mimo/config.toml`,
-    /// `$WORKSPACE/.mimofan/config.toml`, or legacy `$WORKSPACE/.deepseek/config.toml`.
+    /// Merge safe project-level overrides from `$WORKSPACE/.mimofan/config.toml`.
     ///
     /// Repo-local config is untrusted input. This helper intentionally ignores
     /// credentials, endpoints, provider selection, auth/session values, telemetry,
@@ -1800,33 +1799,27 @@ fn sandbox_mode_rank(value: &str) -> Option<u8> {
     }
 }
 
-/// Load a project-level config from the workspace.
-///
-/// Checks `$WORKSPACE/.mimo/config.toml` first, then `$WORKSPACE/.mimofan/config.toml`,
-/// falling back to `$WORKSPACE/.deepseek/config.toml` for backward compatibility.
-/// Returns `None` if none of the files exist or can't be parsed.
+/// Load a project-level config from `$WORKSPACE/.mimofan/config.toml`.
+/// Returns `None` if the file doesn't exist or can't be parsed.
 pub fn load_project_config(workspace: &Path) -> Option<ConfigToml> {
-    for dir in [MIMOFAN_APP_DIR, PREVIOUS_APP_DIR, LEGACY_APP_DIR] {
-        let path = workspace.join(dir).join(CONFIG_FILE_NAME);
-        if !project_config_candidate_exists(&path) {
-            continue;
+    let path = workspace.join(MIMOFAN_APP_DIR).join(CONFIG_FILE_NAME);
+    if !project_config_candidate_exists(&path) {
+        return None;
+    }
+    let raw = match read_checked_config_file(&path) {
+        Ok(raw) => raw,
+        Err(e) => {
+            tracing::warn!("Failed to read project config {}: {e:#}", path.display());
+            return None;
         }
-        let raw = match read_checked_config_file(&path) {
-            Ok(raw) => raw,
-            Err(e) => {
-                tracing::warn!("Failed to read project config {}: {e:#}", path.display());
-                return None;
-            }
-        };
-        match toml::from_str(&raw) {
-            Ok(config) => return Some(config),
-            Err(e) => {
-                tracing::warn!("Failed to parse project config {}: {e}", path.display());
-                return None;
-            }
+    };
+    match toml::from_str(&raw) {
+        Ok(config) => Some(config),
+        Err(e) => {
+            tracing::warn!("Failed to parse project config {}: {e}", path.display());
+            None
         }
     }
-    None
 }
 
 fn project_config_candidate_exists(path: &Path) -> bool {
@@ -2531,19 +2524,8 @@ pub fn default_secrets() -> &'static Secrets {
 
 // ── mimofan state root (v0.8.44) ──────────────────────────────────
 //
-// v0.8.44 migrates product-owned app state from ~/.deepseek/ to
-// ~/.mimo/ while keeping ~/.deepseek/ as a compatibility fallback.
-// New installs write to ~/.mimo/. Existing installs with only
-// ~/.deepseek/ or ~/.mimofan/ continue working without data loss.
-
 /// Canonical mimofan app directory name under $HOME.
-pub const MIMOFAN_APP_DIR: &str = ".mimo";
-
-/// Previous mimofan-branded app directory name (compatibility fallback).
-pub const PREVIOUS_APP_DIR: &str = ".mimofan";
-
-/// Legacy DeepSeek-branded app directory name (compatibility fallback).
-pub const LEGACY_APP_DIR: &str = ".deepseek";
+pub const MIMOFAN_APP_DIR: &str = ".mimofan";
 
 /// Resolve the primary mimofan home directory.
 ///
@@ -2567,14 +2549,6 @@ fn mimofan_home_env_override() -> Option<PathBuf> {
     } else {
         Some(PathBuf::from(trimmed))
     }
-}
-
-/// Resolve the legacy DeepSeek home directory (`$HOME/.deepseek`).
-///
-/// Always returns the legacy path regardless of whether it exists.
-pub fn legacy_deepseek_home() -> Result<PathBuf> {
-    let home = effective_home_dir().context("failed to resolve home directory")?;
-    Ok(home.join(LEGACY_APP_DIR))
 }
 
 fn effective_home_dir() -> Option<PathBuf> {
@@ -2616,169 +2590,34 @@ fn ensure_safe_state_subdir(subdir: &str) -> Result<()> {
     Ok(())
 }
 
-/// Resolve a state subdirectory, preferring the mimofan root if
-/// it already exists, then `.mimofan`, otherwise falling back to the
-/// legacy `.deepseek` root.
-///
-/// This is the read-path resolver: it returns the primary path when
-/// migration has occurred or on a fresh install, but keeps reading
-/// from legacy paths for users who haven't migrated yet.
+/// Resolve a state subdirectory under the mimofan home (`~/.mimofanfan`).
 pub fn resolve_state_dir(subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
-    let explicit_home = mimofan_home_env_override().is_some();
-    let primary = mimofan_home()?.join(subdir);
-    if explicit_home || primary.exists() {
-        return Ok(primary);
-    }
-    // Check previous .mimofan directory
-    if let Ok(home) = effective_home_dir().context("failed to resolve home directory") {
-        let previous = home.join(PREVIOUS_APP_DIR).join(subdir);
-        if previous.exists() {
-            return Ok(previous);
-        }
-    }
-    // Check legacy .deepseek directory
-    let legacy = legacy_deepseek_home()?.join(subdir);
-    if legacy.exists() {
-        return Ok(legacy);
-    }
-    // None exists — return primary for first-write creation.
-    Ok(primary)
+    Ok(mimofan_home()?.join(subdir))
 }
 
 /// Ensure a state subdirectory exists under the primary mimofan root,
 /// creating it if necessary. This is the write-path resolver.
 ///
 /// On the first creation of a real subdirectory (not the root sentinel `"."`),
-/// legacy directories (`~/.mimofan/<subdir>` and `~/.deepseek/<subdir>`)
-/// are relocated into the primary `~/.mimo/<subdir>` location so the user
-/// keeps their data and legacy trees stop growing.
+/// Ensure a state subdirectory exists under `~/.mimofanfan/`,
+/// creating it if necessary. Returns the directory path.
 pub fn ensure_state_dir(subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
-    let explicit_home = mimofan_home_env_override().is_some();
     let dir = mimofan_home()?.join(subdir);
-    if !explicit_home {
-        // Migrate from .mimofan first (more recent), then .deepseek
-        let home = effective_home_dir().context("failed to resolve home directory")?;
-        let previous = home.join(PREVIOUS_APP_DIR).join(subdir);
-        migrate_legacy_state_dir(&dir, subdir, &previous)?;
-        let legacy = home.join(LEGACY_APP_DIR).join(subdir);
-        migrate_legacy_state_dir(&dir, subdir, &legacy)?;
-    }
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("failed to create {}/", dir.display()))?;
     Ok(dir)
 }
 
-/// One-time relocation of a legacy state directory into the primary
-/// `~/.mimo/<subdir>` location. No-op once the primary exists, for the
-/// root sentinel `"."` (a whole-tree move is owned by the config-file
-/// migration), or when no legacy directory is present.
-fn migrate_legacy_state_dir(primary: &Path, subdir: &str, legacy: &Path) -> Result<()> {
-    if primary.exists() || subdir == "." || subdir.is_empty() {
-        return Ok(());
-    }
-    if !legacy.exists() {
-        return Ok(());
-    }
-    // The primary's parent (the ~/.mimo root) must exist for the rename.
-    if let Some(parent) = primary.parent() {
-        if let Err(err) = std::fs::create_dir_all(parent) {
-            tracing::warn!(
-                target: "config::migration",
-                "Could not create {} for state migration ({}); writing to primary anyway",
-                parent.display(),
-                err
-            );
-        }
-    }
-    match std::fs::rename(&legacy, primary) {
-        Ok(()) => {
-            tracing::info!(
-                target: "config::migration",
-                "Migrated legacy state directory {} -> {} (relocated). The .deepseek copy was removed.",
-                legacy.display(),
-                primary.display()
-            );
-        }
-        Err(err) => {
-            // Cross-device rename or permission issue: fall back to a
-            // recursive copy so the user keeps their data. The legacy tree is
-            // left in place; it stops growing because writes now target the
-            // primary path.
-            match copy_dir_recursive(&legacy, primary) {
-                Ok(()) => {
-                    tracing::info!(
-                        target: "config::migration",
-                        "Migrated legacy state directory {} -> {} (copied; rename failed: {err}). \
-                         The legacy .deepseek copy was left in place.",
-                        legacy.display(),
-                        primary.display()
-                    );
-                }
-                Err(copy_err) => {
-                    tracing::warn!(
-                        target: "config::migration",
-                        "Could not migrate legacy state {} -> {} (rename: {err}; copy: {copy_err}). \
-                         New data is written to the primary path; the legacy tree remains untouched.",
-                        legacy.display(),
-                        primary.display()
-                    );
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Recursively copy a directory tree from `src` to `dst`, creating `dst`.
-/// Symlinks and other non-file/non-dir entries are skipped (rare in state dirs).
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    std::fs::create_dir_all(dst).with_context(|| format!("failed to create {}", dst.display()))?;
-    for entry in
-        std::fs::read_dir(src).with_context(|| format!("failed to read {}", src.display()))?
-    {
-        let entry = entry.with_context(|| format!("failed to read entry in {}", src.display()))?;
-        let path = entry.path();
-        let target = dst.join(entry.file_name());
-        let file_type = entry
-            .file_type()
-            .with_context(|| format!("failed to read file type for {}", path.display()))?;
-        if file_type.is_dir() {
-            copy_dir_recursive(&path, &target)?;
-        } else if file_type.is_file() {
-            std::fs::copy(&path, &target).with_context(|| {
-                format!("failed to copy {} -> {}", path.display(), target.display())
-            })?;
-        }
-    }
-    Ok(())
-}
-
-/// Resolve a project-local state subdirectory, preferring `.mimo/`
-/// when it exists, then `.mimofan/`, falling back to `.deepseek/` for
-/// legacy projects.
-///
-/// Returns `(true, path)` when the primary `.mimo/` path is used,
-/// `(false, path)` for a legacy fallback. The boolean helps callers
-/// emit a deprecation notice on legacy paths.
-pub fn resolve_project_state_dir(workspace: &Path, subdir: &str) -> Result<(bool, PathBuf)> {
+/// Resolve a project-local state subdirectory under `.mimofan/`.
+pub fn resolve_project_state_dir(workspace: &Path, subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
     let workspace = normalize_project_workspace(workspace)?;
-    let primary = workspace.join(MIMOFAN_APP_DIR).join(subdir);
-    if primary.exists() {
-        return Ok((true, primary));
-    }
-    // Check previous .mimofan directory
-    let previous = workspace.join(PREVIOUS_APP_DIR).join(subdir);
-    if previous.exists() {
-        return Ok((false, previous));
-    }
-    let legacy = workspace.join(LEGACY_APP_DIR).join(subdir);
-    Ok((false, legacy))
+    Ok(workspace.join(MIMOFAN_APP_DIR).join(subdir))
 }
 
-/// Ensure a project-local state subdirectory exists under `.mimo/`,
+/// Ensure a project-local state subdirectory exists under `.mimofan/`,
 /// creating it if necessary. Returns the directory path.
 pub fn ensure_project_state_dir(workspace: &Path, subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
@@ -2800,12 +2639,6 @@ pub fn resolve_config_path(explicit: Option<PathBuf>) -> Result<PathBuf> {
         return default_config_path();
     }
     if let Ok(path) = std::env::var("MIMOFAN_CONFIG_PATH") {
-        if let Some(path) = config_path_from_env_value(&path)? {
-            return Ok(path);
-        }
-        return default_config_path();
-    }
-    if let Ok(path) = std::env::var("DEEPSEEK_CONFIG_PATH") {
         if let Some(path) = config_path_from_env_value(&path)? {
             return Ok(path);
         }
@@ -2937,64 +2770,7 @@ fn write_permissions_atomic(path: &Path, body: &[u8]) -> Result<()> {
 }
 
 pub fn default_config_path() -> Result<PathBuf> {
-    // Prefer ~/.mimo/config.toml when it exists (fresh install or
-    // migrated), otherwise fall back to ~/.mimofan/config.toml and ~/.deepseek/config.toml.
-    let primary = mimofan_home()?.join(CONFIG_FILE_NAME);
-    if primary.exists() {
-        return Ok(primary);
-    }
-    let legacy = legacy_deepseek_home()?.join(CONFIG_FILE_NAME);
-    if legacy.exists() {
-        return Ok(legacy);
-    }
-    // Neither exists — return primary so first write creates it there.
-    Ok(primary)
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConfigMigration {
-    pub legacy_path: PathBuf,
-    pub primary_path: PathBuf,
-}
-
-impl ConfigMigration {
-    pub fn user_notice(&self) -> String {
-        format!(
-            "Migrated legacy config from {} to {}. Use the .mimo path for future edits; the .deepseek file remains only as a compatibility fallback.",
-            self.legacy_path.display(),
-            self.primary_path.display()
-        )
-    }
-}
-
-/// v0.8.44: one-time migration from `~/.deepseek/config.toml` to
-/// `~/.mimo/config.toml`. Called on first launch after the config
-/// is loaded; copies the legacy file if the primary doesn't exist yet.
-/// Never overwrites an existing primary config.
-pub fn migrate_config_if_needed() -> Result<Option<ConfigMigration>> {
-    let primary = mimofan_home()?.join(CONFIG_FILE_NAME);
-    if primary.exists() {
-        return Ok(None);
-    }
-    let legacy = legacy_deepseek_home()?.join(CONFIG_FILE_NAME);
-    if !legacy.exists() {
-        return Ok(None);
-    }
-    // Copy the config to the new home.
-    if let Some(parent) = primary.parent() {
-        std::fs::create_dir_all(parent).context("failed to create mimofan config directory")?;
-    }
-    std::fs::copy(&legacy, &primary)
-        .context("failed to migrate config from deepseek to mimofan home")?;
-    tracing::info!(
-        "Migrated config from {} to {}",
-        legacy.display(),
-        primary.display()
-    );
-    Ok(Some(ConfigMigration {
-        legacy_path: legacy,
-        primary_path: primary,
-    }))
+    Ok(mimofan_home()?.join(CONFIG_FILE_NAME))
 }
 
 fn parse_bool(raw: &str) -> Result<bool> {

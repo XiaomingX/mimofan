@@ -294,7 +294,7 @@ fn browser_open_command(url: &str) -> Result<Command> {
 ///
 /// Wraps the future in `AssertUnwindSafe` + `catch_unwind`. On panic:
 /// 1. Logs the panic with the task name and caller location via `tracing::error!`.
-/// 2. Writes a crash dump to `~/.mimofan/crashes/<timestamp>-<name>.log`.
+/// 2. Writes a crash dump to `~/.mimofanfan/crashes/<timestamp>-<name>.log`.
 ///
 /// The returned `JoinHandle` resolves to `()` — the panic is caught and
 /// handled internally so the parent process stays alive.
@@ -338,7 +338,7 @@ pub fn panic_message(panic: &(dyn std::any::Any + Send)) -> String {
 
 /// Record a panic that was caught at a call site (via `catch_unwind`) rather
 /// than by a task supervisor. Logs it on the `panic` target and writes a
-/// best-effort crash dump to `~/.mimofan/crashes/`, so diagnostics land in
+/// best-effort crash dump to `~/.mimofanfan/crashes/`, so diagnostics land in
 /// the same place `spawn_supervised` writes them even when the caller recovers
 /// and keeps running.
 #[track_caller]
@@ -348,7 +348,7 @@ pub fn record_caught_panic(name: &'static str, message: &str) {
     let _ = write_panic_dump(name, location, message);
 }
 
-/// Write a panic dump file to `~/.mimofan/crashes/`.
+/// Write a panic dump file to `~/.mimofanfan/crashes/`.
 ///
 /// Creates the directory if needed and writes a timestamped log
 /// with the task name, caller location, and panic message.
@@ -361,17 +361,8 @@ fn write_panic_dump(
     let home = dirs::home_dir().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "home directory not found")
     })?;
-    // Prefer .mimofan, fall back to .deepseek
     let crash_dir = home.join(".mimofan").join("crashes");
-    if !crash_dir.exists() {
-        // Try legacy path for reading, but prefer new for writing
-        let _ = std::fs::create_dir_all(&crash_dir);
-    }
-    let crash_dir = if crash_dir.exists() {
-        crash_dir
-    } else {
-        home.join(".deepseek").join("crashes")
-    };
+    let _ = std::fs::create_dir_all(&crash_dir);
     write_panic_dump_to(&crash_dir, name, location, message)
 }
 
@@ -399,7 +390,7 @@ fn write_panic_dump_to(
 /// CPU-bound or blocking-I/O task must run off the async runtime and its
 /// completion is *not* awaited — for example a post-turn disk snapshot or a
 /// file-tree build polled later via a shared data structure.  If the closure
-/// panics, a crash dump is written to `~/.mimofan/crashes/` and the panic
+/// panics, a crash dump is written to `~/.mimofanfan/crashes/` and the panic
 /// is logged at ERROR level rather than being silently swallowed.
 #[track_caller]
 pub fn spawn_blocking_supervised<F>(name: &'static str, f: F) -> tokio::task::JoinHandle<()>

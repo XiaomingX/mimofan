@@ -70,9 +70,7 @@ impl Default for PromptSessionContext<'_> {
 /// A previous session writes it on exit / `/compact`; the next session reads
 /// it back on startup and prepends it to the system prompt so a fresh agent
 /// doesn't have to re-discover open blockers from scratch.
-pub const HANDOFF_RELATIVE_PATH: &str = ".mimo/handoff.md";
-/// Legacy handoff path for reading from existing installs.
-const LEGACY_HANDOFF_RELATIVE_PATH: &str = ".deepseek/handoff.md";
+pub const HANDOFF_RELATIVE_PATH: &str = ".mimofan/handoff.md";
 
 /// Per-file size cap for `instructions = [...]` entries (#454). Mirrors
 /// the existing project-context cap in `project_context::load_context_file`
@@ -293,12 +291,7 @@ fn render_instructions_block(sources: &[InstructionSource]) -> Option<String> {
 /// system-prompt block. Returns `None` when the file is absent or empty so
 /// callers can keep the default-uncluttered prompt for fresh workspaces.
 fn load_handoff_block(workspace: &Path) -> Option<String> {
-    let primary = workspace.join(HANDOFF_RELATIVE_PATH);
-    let path = if primary.exists() {
-        primary
-    } else {
-        workspace.join(LEGACY_HANDOFF_RELATIVE_PATH)
-    };
+    let path = workspace.join(HANDOFF_RELATIVE_PATH);
     let raw = std::fs::read_to_string(&path).ok()?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -549,7 +542,7 @@ pub const NEVER_APPROVAL: &str = include_str!("prompts/approvals/never.md");
 pub const SHELL_POLICY_DISABLED: &str = include_str!("prompts/shell_policy_disabled.md");
 
 /// Compaction relay template — written into the system prompt so the
-/// model knows the format to use when writing `.mimo/handoff.md`.
+/// model knows the format to use when writing `.mimofan/handoff.md`.
 pub const COMPACT_TEMPLATE: &str = include_str!("prompts/compact.md");
 
 /// Goal continuation audit template — injected by the engine when a runtime
@@ -993,7 +986,7 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
     }
 
     // 5. Compaction relay template — so the model knows the format to use
-    //    when writing `.mimo/handoff.md` on exit / `/compact`.
+    //    when writing `.mimofan/handoff.md` on exit / `/compact`.
     full_prompt.push_str("\n\n");
     full_prompt.push_str(COMPACT_TEMPLATE);
 

@@ -31,7 +31,7 @@ deepseek mcp validate
 deepseek mcp tools
 ```
 
-HTTP/SSE entries can include per-server headers in `~/.deepseek/mcp.json` when
+HTTP/SSE entries can include per-server headers in `~/.mimofan/mcp.json` when
 credentials or custom routing headers are required.
 
 ## Workflow
@@ -39,6 +39,6 @@ credentials or custom routing headers are required.
 1. Define the service boundary and the minimum useful tools.
 2. Choose transport and credential handling.
 3. Implement the server using a maintained MCP SDK when available.
-4. Add the server with `deepseek mcp add` or edit `~/.deepseek/mcp.json`.
+4. Add the server with `mimofan mcp add` or edit `~/.mimofan/mcp.json`.
 5. Run `deepseek mcp validate`, then `deepseek mcp tools`.
 6. Test one happy path and one failure path before calling it done.

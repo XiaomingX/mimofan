@@ -470,8 +470,8 @@ impl SkillRegistry {
 /// 6. `<workspace>/.mimofan/skills` — mimofan workspace skills.
 /// 7. [`agents_global_skills_dir`] — agentskills.io global.
 /// 8. `~/.claude/skills` — Claude-ecosystem global (#902).
-/// 9. `~/.mimofan/skills` — mimofan global, primary install target.
-/// 10. `~/.deepseek/skills` — legacy DeepSeek global fallback.
+/// 9. `~/.mimofanfan/skills` — mimofan global, primary install target.
+/// 10. `~/.mimofanfan/skills` — legacy DeepSeek global fallback.
 ///
 /// Only directories that exist on disk are returned — callers don't
 /// need to filter further. Returns an empty vec when nothing is
@@ -512,7 +512,7 @@ fn skills_directories_with_home_and_mode(
                 candidates.push(home.join(".agents").join("skills"));
                 candidates.push(home.join(".claude").join("skills"));
                 candidates.push(home.join(".mimofan").join("skills"));
-                candidates.push(home.join(".deepseek").join("skills"));
+                candidates.push(home.join(".mimofan").join("skills"));
             }
             SkillDiscoveryMode::MimofanOnly => {
                 candidates.push(home.join(".mimofan").join("skills"));

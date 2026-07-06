@@ -10,7 +10,7 @@
 //!
 //! ## Design
 //!
-//! - **Storage**: `~/.mimo/slop_ledger.json` (a JSON array of entries).
+//! - **Storage**: `~/.mimofanfan/slop_ledger.json` (a JSON array of entries).
 //! - **Schema**: each entry has a bucket, severity, confidence, owner,
 //!   source links, status, cleanup recommendation, and timestamps.
 //! - **Tools**: `slop_ledger_append`, `slop_ledger_query`,
@@ -259,9 +259,7 @@ pub struct SlopLedger {
 }
 
 impl SlopLedger {
-    /// Resolve the default ledger path under the primary `~/.mimofan` root
-    /// (with one-time legacy migration) so loads and saves never perpetuate
-    /// `~/.deepseek` (#3240).
+    /// Resolve the default ledger path under `~/.mimofanfan`.
     pub fn default_path() -> io::Result<PathBuf> {
         mimofan_config::ensure_state_dir("slop_ledger")
             .map(|p| p.join("slop_ledger.json"))
@@ -296,9 +294,7 @@ impl SlopLedger {
 
     /// Persist the ledger to disk.
     pub fn save(&self) -> io::Result<()> {
-        // `ledger_path` is resolved by `default_path()` against the primary
-        // ~/.mimofan root (with one-time legacy migration), so persisting
-        // here never perpetuates ~/.deepseek (#3240).
+        // `ledger_path` is resolved by `default_path()` against ~/.mimofanfan.
         if let Some(parent) = self.ledger_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -931,7 +927,7 @@ pub fn short_id(id: &str) -> String {
 /// paths. Scan the output for known key prefixes (`sk-`, `Bearer `, `dsk-`)
 /// and replace the token until a whitespace / punctuation boundary with
 /// `[REDACTED]`. Also normalises fully-qualified secrets directory paths
-/// to the portable `~/.mimofan/secrets` form.
+/// to the portable `~/.mimofanfan/secrets` form.
 fn redact_exported_text(text: &mut String) {
     let prefixes: &[&[u8]] = &[b"sk-", b"Bearer ", b"dsk-", b"deepseek-"];
     let mut result = String::with_capacity(text.len());
@@ -970,10 +966,10 @@ fn redact_exported_text(text: &mut String) {
 
     // Normalise secrets directory paths.
     if let Some(home) = dirs::home_dir() {
-        for leaf in [".mimo/secrets", ".mimofan/secrets", ".deepseek/secrets"] {
+        for leaf in [".mimofan/secrets"] {
             let dir = home.join(leaf);
             let prefix = dir.to_string_lossy().to_string();
-            result = result.replace(&prefix, "~/.mimo/secrets");
+            result = result.replace(&prefix, "~/.mimofanfan/secrets");
         }
     }
     *text = result;

@@ -3,7 +3,7 @@
 //! Lets the model itself notice a durable preference, convention, or fact
 //! worth keeping across sessions and write it to the user's `memory.md`.
 //! The tool is auto-approved and side-effecting only on the user-owned
-//! memory file (`~/.deepseek/memory.md` by default), so it doesn't get
+//! memory file (`~/.mimofanfan/memory.md` by default), so it doesn't get
 //! gated behind the same approval flow as shell or arbitrary file writes.
 //!
 //! Only registered when `[memory] enabled = true` (or

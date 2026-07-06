@@ -34,7 +34,7 @@ struct DiagnosticsOutput {
     cargo_version: Option<String>,
     /// User-trusted external paths the agent may access from this workspace
     /// (`/trust add <path>` from the slash command, persisted in
-    /// `~/.deepseek/workspace-trust.json`). See issue #29.
+    /// `~/.mimofanfan/workspace-trust.json`). See issue #29.
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     trusted_external_paths: Vec<String>,
 }

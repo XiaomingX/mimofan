@@ -1668,8 +1668,8 @@ fn default_auto_approve() -> bool {
     true
 }
 
-/// Default task manager data location (`~/.mimofan/tasks`, or legacy
-/// `~/.deepseek/tasks` when only the legacy directory exists).
+/// Default task manager data location (`~/.mimofanfan/tasks`, falling back to
+/// existing installs when only that directory exists).
 #[must_use]
 pub fn default_tasks_dir() -> PathBuf {
     if let Ok(path) = std::env::var("DEEPSEEK_TASKS_DIR")
@@ -1679,21 +1679,17 @@ pub fn default_tasks_dir() -> PathBuf {
     }
     dirs::home_dir()
         .map(|home| default_tasks_dir_for_home(&home))
-        .unwrap_or_else(|| PathBuf::from(".mimo").join("tasks"))
+        .unwrap_or_else(|| PathBuf::from(".mimofan").join("tasks"))
 }
 
 fn default_tasks_dir_for_home(home: &Path) -> PathBuf {
-    let primary = home.join(".mimo").join("tasks");
+    let primary = home.join(".mimofan").join("tasks");
     if primary.is_dir() {
         return primary;
     }
     let previous = home.join(".mimofan").join("tasks");
     if previous.is_dir() {
         return previous;
-    }
-    let legacy = home.join(".deepseek").join("tasks");
-    if legacy.is_dir() {
-        return legacy;
     }
     primary
 }

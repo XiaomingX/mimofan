@@ -73,7 +73,7 @@ fn anchors_path(app: &App) -> std::path::PathBuf {
     if primary.exists() {
         return primary;
     }
-    app.workspace.join(".deepseek").join("anchors.md")
+    app.workspace.join(".mimofan").join("anchors.md")
 }
 
 /// Read and split anchors from the file. Each anchor is separated by "\n---\n".

@@ -1,7 +1,7 @@
 //! Clipboard handling for paste support in TUI
 //!
 //! Supports text and image paste operations. Images on the clipboard are
-//! encoded as PNG and persisted under `~/.mimofan/clipboard-images/` so the
+//! encoded as PNG and persisted under `~/.mimofanfan/clipboard-images/` so the
 //! model can reach them via the existing `@`-mention / file tools (DeepSeek
 //! V4 does not currently accept inline image input on its Chat Completions
 //! endpoint, so we materialize the bytes to disk instead of base64-embedding
@@ -155,7 +155,7 @@ impl ClipboardHandler {
 
     /// Read the clipboard and return the parsed content.
     ///
-    /// `workspace` is used as a fallback location when `~/.mimofan/` cannot
+    /// `workspace` is used as a fallback location when `~/.mimofanfan/` cannot
     /// be resolved (e.g. running with a stripped HOME in CI sandboxes).
     pub fn read(&mut self, workspace: &Path) -> Option<ClipboardContent> {
         #[cfg(all(target_os = "linux", not(target_env = "ohos"), not(test)))]
@@ -352,7 +352,7 @@ fn osc52_sequence(text: &str, in_tmux: bool) -> Result<String> {
 }
 
 /// Resolve the directory pasted images should land in. Prefers
-/// `~/.mimofan/clipboard-images/` so the path is stable across worktrees and
+/// `~/.mimofanfan/clipboard-images/` so the path is stable across worktrees and
 /// matches the location described in user-facing docs; falls back to
 /// `<workspace>/clipboard-images/` if the home dir is unavailable.
 pub(crate) fn clipboard_images_dir(workspace: &Path) -> PathBuf {

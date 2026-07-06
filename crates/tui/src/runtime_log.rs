@@ -1,5 +1,5 @@
 //! TUI runtime logging. Initializes a `tracing-subscriber` that writes to a
-//! per-process file under `~/.mimofan/logs/tui-YYYY-MM-DD-PID.log`, and (on
+//! per-process file under `~/.mimofanfan/logs/tui-YYYY-MM-DD-PID.log`, and (on
 //! Unix and Windows) redirects the process's `stderr` handle/fd to that same
 //! file for the lifetime of the alt-screen TUI.
 //!
@@ -22,7 +22,7 @@
 //!
 //! Defence-in-depth:
 //!   1. A `tracing-subscriber` writes formatted logs to
-//!      `~/.mimofan/logs/tui-YYYY-MM-DD-PID.log` so `tracing::warn!` /
+//!      `~/.mimofanfan/logs/tui-YYYY-MM-DD-PID.log` so `tracing::warn!` /
 //!      `tracing::error!` calls go somewhere observable instead of
 //!      disappearing into the void (the TUI previously had no global
 //!      subscriber, so contributors reached for `eprintln!`).
@@ -47,7 +47,7 @@ use anyhow::{Context, Result};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 const DEFAULT_LOG_RETENTION_DAYS: u64 = 7;
-const LOG_RETENTION_ENV: &str = "DEEPSEEK_LOG_RETENTION_DAYS";
+const LOG_RETENTION_ENV: &str = "MIMOFAN_LOG_RETENTION_DAYS";
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
 /// Owns the active tracing subscriber and (on Unix/Windows) a saved copy of
@@ -209,26 +209,15 @@ pub fn init() -> Result<TuiLogGuard> {
 }
 
 pub(crate) fn log_directory() -> Option<PathBuf> {
-    // $MIMOFAN_HOME is a hard override of the base data directory
-    // (docs/CONFIGURATION.md): when SET, logs live under it and we do NOT fall
-    // back to the legacy ~/.deepseek path — silent fallback would defeat the
-    // isolation the override promises (CI, containers, test harnesses). We
-    // check the env var directly rather than mimofan_home()'s Ok/Err because
-    // that helper succeeds (returns $HOME/.mimofan) even when the override is
-    // unset, which would short-circuit the legacy fallback below.
+    // $MIMOFAN_HOME 是基础数据目录的硬覆盖
+    // (docs/CONFIGURATION.md)：当设置了它时，日志将保存在其下。
+    // 我们直接检查环境变量，而不是使用 mimofan_home() 的 Ok/Err，
+    // 以保证覆盖逻辑的严格优先级。
     if let Some(home) = std::env::var_os("MIMOFAN_HOME").filter(|value| !value.is_empty()) {
         return Some(PathBuf::from(home).join("logs"));
     }
     let resolve = |base: PathBuf| -> Option<PathBuf> {
-        let primary = base.join(".mimofan").join("logs");
-        if primary.exists() {
-            return Some(primary);
-        }
-        let legacy = base.join(".deepseek").join("logs");
-        if legacy.exists() {
-            return Some(legacy);
-        }
-        Some(primary)
+        Some(base.join(".mimofan").join("logs"))
     };
     if let Some(home) = std::env::var_os("HOME").map(PathBuf::from)
         && !home.as_os_str().is_empty()

@@ -204,7 +204,7 @@ impl SandboxPolicy {
                         if mimofan_dir.is_dir() {
                             read_only_subpaths.push(mimofan_dir);
                         }
-                        let deepseek_dir = root.join(".deepseek");
+                        let deepseek_dir = root.join(".mimofan");
                         if deepseek_dir.is_dir() {
                             read_only_subpaths.push(deepseek_dir);
                         }

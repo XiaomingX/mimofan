@@ -138,7 +138,7 @@ fn marker_path_with_home(home: &Path) -> PathBuf {
     if primary.exists() {
         return primary;
     }
-    let legacy = home.join(".deepseek").join(ONBOARDED_MARKER_FILE);
+    let legacy = home.join(".mimofan").join(ONBOARDED_MARKER_FILE);
     if legacy.exists() {
         return legacy;
     }
@@ -171,8 +171,8 @@ pub fn needs_trust(workspace: &Path) -> bool {
     }
 
     let markers = [
-        workspace.join(".deepseek").join("trusted"),
-        workspace.join(".deepseek").join("trust.json"),
+        workspace.join(".mimofan").join("trusted"),
+        workspace.join(".mimofan").join("trust.json"),
     ];
     !markers.iter().any(|path| path.exists())
 }

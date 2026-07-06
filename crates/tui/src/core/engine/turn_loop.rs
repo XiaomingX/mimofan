@@ -2180,7 +2180,7 @@ impl Engine {
                         // metadata pointing at the session-owned full file.
                         // Emit a discrete `tool.spillover` audit event so
                         // operators can correlate large-output episodes with
-                        // disk-usage growth in `~/.deepseek/tool_outputs/`.
+                        // disk-usage growth in `~/.mimofanfan/tool_outputs/`.
                         if let Ok(tool_result) = result.as_mut()
                             && let Some(path) =
                                 crate::tools::truncate::apply_spillover_with_artifact(

@@ -107,7 +107,7 @@
   "CmdNetworkDescription": "管理网络允许和拒绝规则",
   "CmdNoteDescription": "添加、列出、编辑或删除工作区笔记",
   "CmdThemeDescription": "切换主题：深色、浅色、灰度或系统",
-  "CmdProviderDescription": "切换或查看当前 LLM 后端（deepseek | nvidia-nim | ollama）",
+  "CmdProviderDescription": "切换或查看当前 LLM 后端（deepseek | nvidia-nim）",
   "CmdQueueDescription": "查看或编辑已排队的消息",
   "CmdQueueUsage": "用法: /queue [list|send <n>|edit <n>|drop <n>|clear]",
   "CmdQueueDraftHeader": "正在编辑已排队的消息:",

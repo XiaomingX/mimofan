@@ -277,8 +277,8 @@ pub struct StateStore {
 impl StateStore {
     /// Open (or create) a state store at the given database path.
     ///
-    /// If `path` is `None`, the default location (`~/.mimofan/state.db`, with
-    /// `~/.deepseek/state.db` as a legacy fallback) is used.
+    /// If `path` is `None`, the default location (`~/.mimofanfan/state.db`, with
+    /// `~/.mimofanfan/state.db` as a legacy fallback) is used.
     /// The database schema is created automatically if it does not exist.
     pub fn open(path: Option<PathBuf>) -> Result<Self> {
         let db_path = path.unwrap_or_else(default_state_db_path);
@@ -1587,9 +1587,9 @@ impl StateStore {
 fn default_state_db_path() -> PathBuf {
     // $MIMOFAN_HOME is a hard override of the base data directory
     // (docs/CONFIGURATION.md): when set, the state DB lives under it and we do
-    // NOT fall back to the legacy ~/.deepseek path — silent fallback would
+    // NOT fall back to the legacy ~/.mimofanfan path — silent fallback would
     // defeat the isolation the override promises (CI, containers, multi-project,
-    // test harnesses). Legacy ~/.deepseek migration only applies to the default
+    // test harnesses). Legacy ~/.mimofanfan migration only applies to the default
     // home location.
     if let Some(overridden) = mimofan_home_override() {
         return overridden.join("state.db");
@@ -1598,10 +1598,10 @@ fn default_state_db_path() -> PathBuf {
     // Prefer the mimofan directory, falling back to legacy DeepSeek path
     // so existing installs don't lose their session history.
     let primary = home.join(".mimofan").join("state.db");
-    if primary.exists() || !home.join(".deepseek").join("state.db").exists() {
+    if primary.exists() || !home.join(".mimofan").join("state.db").exists() {
         primary
     } else {
-        home.join(".deepseek").join("state.db")
+        home.join(".mimofan").join("state.db")
     }
 }
 
@@ -2114,7 +2114,7 @@ mod tests {
         ));
         let _g = mimofanHomeGuard::set(dir.to_str().unwrap());
         // Hard override: the DB is <MIMOFAN_HOME>/state.db, NOT
-        // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.deepseek
+        // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.mimofanfan
         // fallback is bypassed entirely.
         assert_eq!(default_state_db_path(), dir.join("state.db"));
     }

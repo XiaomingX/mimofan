@@ -2,9 +2,9 @@
 //! a human-readable usage rollup.
 //!
 //! Data sources:
-//! - `~/.deepseek/audit.log`   — one JSON line per event (approvals, credentials)
-//! - `~/.deepseek/sessions/`   — saved session JSON files (tool call history)
-//! - `~/.deepseek/tasks/runtime/events/` — runtime thread JSONL event streams
+//! - `~/.mimofanfan/audit.log`   — one JSON line per event (approvals, credentials)
+//! - `~/.mimofanfan/sessions/`   — saved session JSON files (tool call history)
+//! - `~/.mimofanfan/tasks/runtime/events/` — runtime thread JSONL event streams
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -823,15 +823,15 @@ fn print_human(rollup: &Rollup) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 fn deepseek_home() -> PathBuf {
-    // Respect DEEPSEEK_HOME env override; fall back to ~/.deepseek.
-    if let Ok(v) = std::env::var("DEEPSEEK_HOME")
+    // Respect MIMOFAN_HOME env override; fall back to ~/.mimofanfan.
+    if let Ok(v) = std::env::var("MIMOFAN_HOME")
         && !v.is_empty()
     {
         return PathBuf::from(v);
     }
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".deepseek")
+        .join(".mimofan")
 }
 
 /// Parse a timestamp from a JSON value field (tries RFC3339).

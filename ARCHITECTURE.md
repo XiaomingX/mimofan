@@ -346,11 +346,7 @@ mimofan app-server --stdio
 
 新人想"加一个 slash 命令"得先搞清楚 7 个目录才能动手。
 
-### 7.5 文档严重过时
 
-`README.md`、`docs/PROVIDERS.md`、`docs/USAGE_CN.md`、`docs/ARCHITECTURE_CN.md`、`docs/STABILITY_ANALYSIS_CN.md` 都还停留在"25 个 provider 多家支持"的旧故事，与当前"MiMo 二元化"现实不符。这会让贡献者走错方向、用户找不到真正的入口。
-
-### 7.6 `prompts/` 与 `locales/` 容易混淆
 
 `prompts/*.md` 是发给 LLM 的内容（中文 prompt），`locales/zh-Hans.json` 是 TUI UI 字符串。`docs/PROMPTS.md` 同时提到两者会让新人误解为「提示词就是本地化」。实际上两者机制完全不同。
 
@@ -366,8 +362,8 @@ mimofan app-server --stdio
 - [x] **本地化只保留中文一档**（`locales/zh-Hans.json`）—— 已实现。
 - [x] **TUI 提示词分层宪法落地（Tier 1-9）** —— 已在 `crates/tui/src/prompts/` 落地，`docs/PROMPTS.md` 维护索引。
 - [x] **聚合根 `Runtime` 明确化** —— 已在 `crates/core/src/lib.rs` 落地。
-- [ ] **删除根目录过时 md 文档**（`MIMOFAN_GUIDE_CN.md`、`report.md`、旧的 `docs/ARCHITECTURE_CN.md` / `docs/USAGE_CN.md` / `docs/STABILITY_ANALYSIS_CN.md` / `docs/DEAD_CODE_*.md` / `docs/PROVIDERS.md`）。
-- [ ] **统一中文架构与使用文档到根目录**（`ARCHITECTURE.md`、`USER_GUIDE.md`），其余子文档保持现状或随 ARCHITECTURE.md 同步。
+- [x] **删除根目录过时 md 文档**（`MIMOFAN_GUIDE_CN.md`、`report.md`、旧的 `docs/ARCHITECTURE_CN.md` / `docs/USAGE_CN.md` / `docs/STABILITY_ANALYSIS_CN.md` / `docs/DEAD_CODE_*.md` / `docs/PROVIDERS.md`）。
+- [x] **统一中文架构与使用文档到根目录**（`ARCHITECTURE.md`、`USER_GUIDE.md`），其余子文档保持现状或随 ARCHITECTURE.md 同步。
 
 ### 8.2 中优先级（需要评估再动手）
 

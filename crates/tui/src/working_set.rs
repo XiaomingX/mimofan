@@ -195,7 +195,7 @@ impl Workspace {
                 if total >= FILE_INDEX_MAX_ENTRIES {
                     break;
                 }
-                // Exclude machine-generated bulk (e.g. .deepseek/snapshots/).
+                // Exclude machine-generated bulk (e.g. .mimofan/snapshots/).
                 if path_is_excluded_from_discovery(&self.root, entry.path()) {
                     continue;
                 }
@@ -446,7 +446,7 @@ fn discovery_walk_builder(
     builder
 }
 
-/// Walk the AI-tool dot-directories (`.deepseek/`, `.cursor/`, `.claude/`,
+/// Walk the AI-tool dot-directories (`.mimofan/`, `.cursor/`, `.claude/`,
 /// `.agents/`) with gitignore disabled so their contents are discoverable
 /// even when the project's `.gitignore` / `.ignore` excludes them.
 fn walk_always_discoverable_dirs(
@@ -475,7 +475,7 @@ fn walk_always_discoverable_dirs(
                 break;
             }
             let path = entry.path();
-            // Exclude machine-generated bulk (e.g. .deepseek/snapshots/)
+            // Exclude machine-generated bulk (e.g. .mimofan/snapshots/)
             // even though gitignore is disabled for this walk.
             if path_is_excluded_from_discovery(walk_root, path) {
                 continue;
@@ -539,7 +539,7 @@ fn walk_for_completions(
     }
 
     // Also walk the AI-tool dot-directories with gitignore disabled so
-    // `.deepseek/`, `.cursor/`, etc. are always discoverable.
+    // `.mimofan/`, `.cursor/`, etc. are always discoverable.
     walk_always_discoverable_dirs(walk_root, display_root, ctx, max_depth, follow_links);
 }
 

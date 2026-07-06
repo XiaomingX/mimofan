@@ -16,8 +16,8 @@ use super::CommandResult;
 ///
 /// When an explicit path is given, the session is exported there
 /// (user-visible explicit export).  Without a path, v0.8.44 saves
-/// into the managed session directory (`~/.mimofan/sessions`
-/// or legacy `~/.deepseek/sessions`) so repo-local `session_*.json`
+/// into the managed session directory (`~/.mimofanfan/sessions`
+/// or legacy `~/.mimofanfan/sessions`) so repo-local `session_*.json`
 /// artifacts are no longer created by default.
 pub fn save(app: &mut App, path: Option<&str>) -> CommandResult {
     let save_path = if let Some(p) = path {
@@ -375,7 +375,7 @@ pub fn sessions(app: &mut App, arg: Option<&str>) -> CommandResult {
 }
 
 /// Prune persisted sessions older than `<days>` from
-/// `~/.deepseek/sessions/`. Wraps
+/// `~/.mimofanfan/sessions/`. Wraps
 /// [`crate::session_manager::SessionManager::prune_sessions_older_than`]
 /// so users can run a safe cleanup without leaving the TUI. Skips
 /// the checkpoint subdirectory (the helper guarantees that already).

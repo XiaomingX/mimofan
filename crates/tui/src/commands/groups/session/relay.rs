@@ -30,13 +30,13 @@ impl RegisterCommand for RelayCmd {
 /// Ask the active model to write a compact relay artifact for the next thread.
 ///
 /// The visible command is `/relay` (with `/接力` for Chinese users), but the
-/// durable file path remains `.deepseek/handoff.md` for compatibility with
+/// durable file path remains `.mimofan/handoff.md` for compatibility with
 /// existing sessions and startup prompt loading.
 pub fn relay(app: &mut App, arg: Option<&str>) -> CommandResult {
     let focus = arg.map(str::trim).filter(|value| !value.is_empty());
     let message = build_relay_instruction(app, focus);
     CommandResult::with_message_and_action(
-        "Preparing session relay at .deepseek/handoff.md...",
+        "Preparing session relay at .mimofan/handoff.md...",
         AppAction::SendMessage(message),
     )
 }
@@ -48,7 +48,7 @@ fn build_relay_instruction(app: &App, focus: Option<&str>) -> String {
         "Create a compact session relay (接力) for a future mimofan thread."
     );
     let _ = writeln!(out);
-    let _ = writeln!(out, "Write or update `.deepseek/handoff.md`.");
+    let _ = writeln!(out, "Write or update `.mimofan/handoff.md`.");
     let _ = writeln!(
         out,
         "Keep the existing file path for compatibility, but title the artifact `# Session relay`."

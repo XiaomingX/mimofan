@@ -89,8 +89,9 @@ cargo build --release -p mimofan-cli \
 
 ## Provider System
 
-Mimofan supports cloud API providers only. Local inference providers (Ollama,
-Vllm, Sglang) have been removed. Provider configuration lives in
+Mimofan supports cloud API providers only. Local inference providers (Ollama) and 
+various redundant cloud providers (HuggingFace, DeepInfra, Together, Arcee, Fireworks, 
+Novita, WanjieArk) have been explicitly removed. Provider configuration lives in
 `mimofan-config` with route resolution in `config/src/route/`.
 
 See `docs/PROVIDERS.md` for provider-specific details.

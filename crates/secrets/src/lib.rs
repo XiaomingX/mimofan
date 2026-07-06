@@ -28,7 +28,7 @@ pub const DEFAULT_SERVICE: &str = "deepseek";
 pub const SECRET_BACKEND_ENV: &str = "MIMOFAN_SECRET_BACKEND";
 /// Legacy alias for [`SECRET_BACKEND_ENV`].
 pub const LEGACY_SECRET_BACKEND_ENV: &str = "DEEPSEEK_SECRET_BACKEND";
-const FILE_BACKEND_LABEL: &str = "file-based (~/.mimofan/secrets/)";
+const FILE_BACKEND_LABEL: &str = "file-based (~/.mimofanfan/secrets/)";
 
 /// Errors that may arise from a [`KeyringStore`] backend.
 #[derive(Debug, Error)]
@@ -55,7 +55,7 @@ pub enum SecretsError {
 /// Abstract secret store trait.
 ///
 /// Concrete implementations may use the OS keyring ([`DefaultKeyringStore`]),
-/// a JSON file under `~/.mimofan/secrets/` ([`FileKeyringStore`]), or an
+/// a JSON file under `~/.mimofanfan/secrets/` ([`FileKeyringStore`]), or an
 /// in-memory map for tests ([`InMemoryKeyringStore`]).
 ///
 /// All implementations must be [`Send`] + [`Sync`] so they can be shared
@@ -82,7 +82,7 @@ pub trait KeyringStore: Send + Sync {
     /// Short, human-readable label for this backend.
     ///
     /// Used by diagnostic output (e.g. `doctor` command) to indicate which
-    /// storage backend is active. Examples: `"file-based (~/.mimofan/secrets/)"`,
+    /// storage backend is active. Examples: `"file-based (~/.mimofanfan/secrets/)"`,
     /// `"system keyring"`, `"in-memory (test)"`.
     fn backend_name(&self) -> &'static str;
 }
@@ -567,7 +567,7 @@ fn default_mimofan_secrets_path() -> Result<PathBuf, SecretsError> {
 
 fn legacy_deepseek_secrets_path() -> Result<PathBuf, SecretsError> {
     Ok(FileKeyringStore::home_dir()?
-        .join(".deepseek")
+        .join(".mimofan")
         .join("secrets")
         .join("secrets.json"))
 }
@@ -1051,7 +1051,7 @@ mod tests {
         let _userprofile = EnvVarGuard::set("USERPROFILE", tmp.path());
         let legacy = tmp
             .path()
-            .join(".deepseek")
+            .join(".mimofan")
             .join("secrets")
             .join("secrets.json");
         FileKeyringStore::new(legacy.clone())
@@ -1087,7 +1087,7 @@ mod tests {
         let _userprofile = EnvVarGuard::set("USERPROFILE", tmp.path());
         let legacy = tmp
             .path()
-            .join(".deepseek")
+            .join(".mimofan")
             .join("secrets")
             .join("secrets.json");
         let primary = tmp

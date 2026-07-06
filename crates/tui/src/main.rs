@@ -208,7 +208,7 @@ struct Cli {
     #[arg(long = "fresh")]
     fresh: bool,
 
-    /// Skip loading project-level config from $WORKSPACE/.mimo/config.toml
+    /// Skip loading project-level config from $WORKSPACE/.mimofan/config.toml
     #[arg(long = "no-project-config")]
     no_project_config: bool,
 }
@@ -940,7 +940,7 @@ enum McpCommand {
     /// For the HTTP/SSE runtime API, use `mimo serve --http` directly instead.
     #[command(
         name = "add-self",
-        long_about = "Register this mimofan binary as a local MCP stdio server.\n\nAdds a config entry to ~/.mimo/mcp.json that launches `mimo serve --mcp`\nvia the stdio transport. Other mimofan sessions (or any MCP client) can then\ndiscover and call tools exposed by this server.\n\nUse `mimo serve --http` instead if you need the HTTP/SSE runtime API."
+        long_about = "Register this mimofan binary as a local MCP stdio server.\n\nAdds a config entry to ~/.mimofanfan/mcp.json that launches `mimo serve --mcp`\nvia the stdio transport. Other mimofan sessions (or any MCP client) can then\ndiscover and call tools exposed by this server.\n\nUse `mimo serve --http` instead if you need the HTTP/SSE runtime API."
     )]
     AddSelf {
         /// Server name in mcp.json (default: "mimofan")
@@ -1024,7 +1024,7 @@ async fn main() -> Result<()> {
     crate::sandbox::process_hardening::apply_process_hardening();
 
     // Set up process panic hook before anything else — writes crash dumps
-    // to ~/.deepseek/crashes/ even if the panic happens before tokio is up,
+    // to ~/.mimofanfan/crashes/ even if the panic happens before tokio is up,
     // and restores the terminal so a panicked TUI doesn't leave the user's
     // shell stuck in alt-screen mode.
     let orig_hook = std::panic::take_hook();
@@ -1050,7 +1050,7 @@ async fn main() -> Result<()> {
         tracing::error!(target: "panic", "Process panicked at {location}: {msg}");
         // Write crash dump best-effort
         if let Some(home) = dirs::home_dir() {
-            let crash_dir = home.join(".deepseek").join("crashes");
+            let crash_dir = home.join(".mimofan").join("crashes");
             let _ = std::fs::create_dir_all(&crash_dir);
             use chrono::Utc;
             let ts = Utc::now().format("%Y%m%dT%H%M%S%.3fZ");
@@ -1905,7 +1905,7 @@ fn tools_readme_template() -> &'static str {
      Drop self-describing scripts here so they can be discovered by\n\
      `mimofan setup --status` and surfaced in `mimofan doctor`.\n\n\
      When `[tools.plugin_dir]` is set in config.toml (or when the default\n\
-     `~/.mimo/tools/` directory exists), they are auto-discovered and\n\
+     `~/.mimofanfan/tools/` directory exists), they are auto-discovered and\n\
      registered as model-visible tools.\n\n\
      Each script should start with a frontmatter-style header so the\n\
      description is visible without executing the file and the agent knows\n\
@@ -1946,7 +1946,7 @@ fn plugins_readme_template() -> &'static str {
      Plugins are richer than tools: each one lives in its own subdirectory\n\
      with a `PLUGIN.md` describing what it does and how to enable it. The\n\
      directory is created so users have a documented place to drop\n\
-     experiments without touching `~/.mimo/skills/`.\n\n\
+     experiments without touching `~/.mimofanfan/skills/`.\n\n\
      A plugin layout looks like:\n\n\
      ```\n\
      plugins/\n\
@@ -2031,7 +2031,7 @@ fn resolve_cors_origins(config: &Config, flag_origins: &[String]) -> Vec<String>
 
 fn deepseek_home_dir() -> PathBuf {
     mimofan_config::mimofan_home().unwrap_or_else(|_| {
-        dirs::home_dir().map_or_else(|| PathBuf::from(".mimo"), |h| h.join(".mimo"))
+        dirs::home_dir().map_or_else(|| PathBuf::from(".mimofan"), |h| h.join(".mimofan"))
     })
 }
 
@@ -2344,7 +2344,7 @@ fn run_setup_status(config: &Config, workspace: &Path) -> Result<()> {
             let login_hint = provider_auth_hint(provider);
             let table_key = provider_config_table_key(provider);
             println!(
-                "  {} api_key: missing  (set {env_var} or `[providers.{table_key}].api_key` in ~/.mimo/config.toml; or run `{login_hint}`)",
+                "  {} api_key: missing  (set {env_var} or `[providers.{table_key}].api_key` in ~/.mimofanfan/config.toml; or run `{login_hint}`)",
                 "✗".truecolor(red_r, red_g, red_b),
             );
         }
@@ -2562,7 +2562,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
         .or_else(|| mimofan_config::resolve_config_path(None).ok())
         .unwrap_or_else(|| {
             mimofan_config::mimofan_home()
-                .unwrap_or_else(|_| PathBuf::from(".mimo"))
+                .unwrap_or_else(|_| PathBuf::from(".mimofan"))
                 .join("config.toml")
         });
 
@@ -2582,33 +2582,11 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
     println!("  workspace: {}", crate::utils::display_path(workspace));
     println!("  {}", doctor_search_provider_line(config));
 
-    // State root (v0.8.44)
+    // State root
     println!();
     println!("{}", "State Root:".bold());
-    let code_home = mimofan_config::mimofan_home().unwrap_or_else(|_| PathBuf::from("~/.mimofan"));
-    let legacy_home =
-        mimofan_config::legacy_deepseek_home().unwrap_or_else(|_| PathBuf::from("~/.deepseek"));
-    let active_root = if code_home.exists() {
-        &code_home
-    } else if legacy_home.exists() {
-        &legacy_home
-    } else {
-        &code_home
-    };
-    println!("  active: {}", crate::utils::display_path(active_root));
-    if active_root != &code_home {
-        println!(
-            "  note: legacy {} found; migrate with `mimofan setup --migrate`",
-            crate::utils::display_path(&legacy_home)
-        );
-    }
-    if legacy_home.exists() && code_home.exists() {
-        println!(
-            "  dual roots: {} (primary) + {} (legacy)",
-            crate::utils::display_path(&code_home),
-            crate::utils::display_path(&legacy_home)
-        );
-    }
+    let code_home = mimofan_config::mimofan_home().unwrap_or_else(|_| PathBuf::from("~/.mimofanfan"));
+    println!("  active: {}", crate::utils::display_path(&code_home));
 
     // Check API keys
     println!();
@@ -2651,7 +2629,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
             if in_config { "yes" } else { "no" }
         );
     }
-    println!("  · credential precedence: ~/.mimo/config.toml, OS keyring, then env");
+    println!("  · credential precedence: ~/.mimofanfan/config.toml, OS keyring, then env");
 
     let api_key_source = resolve_api_key_source(config);
     let has_api_key = if config.deepseek_api_key().is_ok() {
@@ -2674,7 +2652,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
             "✗".truecolor(red_r, red_g, red_b)
         );
         println!(
-            "    Run 'mimofan auth set --provider <name>' to save a key to ~/.mimo/config.toml."
+            "    Run 'mimofan auth set --provider <name>' to save a key to ~/.mimofanfan/config.toml."
         );
         false
     };
@@ -2821,7 +2799,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
         Ok(cfg) if cfg.servers.is_empty() => {
             println!("  {} 0 merged server(s) configured", "·".dimmed());
             if !mcp_config_path.exists() && !project_mcp_config_path.exists() {
-                println!("    Run `mimo mcp init` or add `.mimo/mcp.json`.");
+                println!("    Run `mimo mcp init` or add `.mimofan/mcp.json`.");
             }
         }
         Ok(cfg) => {
@@ -3363,7 +3341,7 @@ fn run_doctor_json(
         .or_else(|| mimofan_config::resolve_config_path(None).ok())
         .unwrap_or_else(|| {
             mimofan_config::mimofan_home()
-                .unwrap_or_else(|_| PathBuf::from(".mimo"))
+                .unwrap_or_else(|_| PathBuf::from(".mimofan"))
                 .join("config.toml")
         });
 
@@ -3897,7 +3875,7 @@ fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
                 && !target.base_url.contains("api.deepseeki.com") =>
         {
             lines.push(
-                "If this is a custom DeepSeek-compatible endpoint, set its HTTPS base URL in ~/.mimo/config.toml and rerun `mimo doctor`."
+                "If this is a custom DeepSeek-compatible endpoint, set its HTTPS base URL in ~/.mimofanfan/config.toml and rerun `mimo doctor`."
                     .to_string(),
             );
         }
@@ -4282,7 +4260,7 @@ fn load_config_from_cli(cli: &Cli) -> Result<Config> {
     let profile = cli
         .profile
         .clone()
-        .or_else(|| std::env::var("DEEPSEEK_PROFILE").ok());
+        .or_else(|| std::env::var("MIMOFAN_PROFILE").ok());
     let mut config = Config::load(cli.config.clone(), profile.as_deref())?;
     cli.feature_toggles.apply(&mut config)?;
     Ok(config)
@@ -5500,7 +5478,7 @@ fn should_use_mouse_capture_with(
 /// Off elsewhere only for JetBrains' JediTerm, which advertises mouse
 /// support but forwards the same SGR escape sequences as raw input. The
 /// user can still opt back in with `[tui] mouse_capture = true` in
-/// `~/.mimo/config.toml` or `--mouse-capture`.
+/// `~/.mimofanfan/config.toml` or `--mouse-capture`.
 fn default_mouse_capture_enabled(
     terminal_emulator: Option<&str>,
     wt_session: Option<&str>,
@@ -5633,8 +5611,8 @@ fn preserve_interrupted_checkpoint_for_explicit_resume(launch_workspace: &Path) 
     }
 }
 
-/// Load project-level config from `$WORKSPACE/.mimo/config.toml`, with
-/// legacy `$WORKSPACE/.deepseek/config.toml` fallback, then apply its fields as
+/// Load project-level config from `$WORKSPACE/.mimofan/config.toml`,
+/// then apply its fields as
 /// overrides on top of the global config (#485).
 /// Only explicitly set fields in the project file are applied; everything
 /// else falls back to the global value.
@@ -5653,28 +5631,12 @@ fn merge_project_config(config: &mut Config, workspace: &Path) {
         return;
     }
 
-    // v0.8.44: prefer .mimo/config.toml, fall back to .deepseek/
     let path = workspace
         .join(mimofan_config::MIMOFAN_APP_DIR)
         .join("config.toml");
     let raw = match read_project_config_file(&path) {
         Ok(Some(r)) => r,
-        Ok(None) => {
-            let legacy = workspace
-                .join(mimofan_config::LEGACY_APP_DIR)
-                .join("config.toml");
-            match read_project_config_file(&legacy) {
-                Ok(Some(r)) => r,
-                Ok(None) => return,
-                Err(err) => {
-                    eprintln!(
-                        "warning: failed to read project-scope config {}: {err}",
-                        legacy.display()
-                    );
-                    return;
-                }
-            }
-        }
+        Ok(None) => return,
         Err(err) => {
             eprintln!(
                 "warning: failed to read project-scope config {}: {err}",
@@ -5719,7 +5681,7 @@ fn merge_project_config(config: &mut Config, workspace: &Path) {
         if table.contains_key(*key) {
             eprintln!(
                 "warning: project-scope config key `{key}` is ignored — \
-                 set it in `~/.mimo/config.toml` instead. \
+                 set it in `~/.mimofanfan/config.toml` instead. \
                  (See #417 for the deny-list rationale.)"
             );
         }
@@ -5924,7 +5886,7 @@ async fn run_interactive(
         .clone()
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
-    // Merge project-level config from $WORKSPACE/.mimo/config.toml
+    // Merge project-level config from $WORKSPACE/.mimofan/config.toml
     // or legacy $WORKSPACE/.deepseek/config.toml
     // unless --no-project-config was passed (#485).
     let mut merged_config = config.clone();
@@ -5943,16 +5905,6 @@ async fn run_interactive(
             Ok(None) => {}
             Err(err) => logging::warn(format!("Failed to create first-run config file: {err}")),
         }
-    }
-
-    // v0.8.44: migrate config from ~/.deepseek/ to ~/.mimo/ on first
-    // launch. Non-fatal — existing installs keep working either way.
-    match mimofan_config::migrate_config_if_needed() {
-        Ok(Some(migration)) => {
-            eprintln!("{}", migration.user_notice());
-        }
-        Ok(None) => {}
-        Err(err) => logging::warn(format!("Config migration skipped: {err}")),
     }
 
     let model = config.default_model();

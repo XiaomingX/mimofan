@@ -94,7 +94,7 @@ impl Default for PersistedTabState {
 }
 
 /// Get the default path for the tab state file
-/// `~/.mimofan/tabs.json`
+/// `~/.mimofanfan/tabs.json`
 pub fn default_tab_state_path() -> Option<PathBuf> {
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
     Some(PathBuf::from(home).join(".mimofan").join("tabs.json"))

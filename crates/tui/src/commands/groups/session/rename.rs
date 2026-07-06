@@ -32,7 +32,7 @@ impl RegisterCommand for RenameCmd {
 ///
 /// Usage: `/rename <new title>`
 ///
-/// The new title is persisted immediately to `~/.deepseek/sessions/<id>.json`
+/// The new title is persisted immediately to `~/.mimofanfan/sessions/<id>.json`
 /// so the updated name is visible the next time the session picker is opened.
 pub fn rename(app: &mut App, arg: Option<&str>) -> CommandResult {
     let new_title = match arg.map(str::trim).filter(|s| !s.is_empty()) {

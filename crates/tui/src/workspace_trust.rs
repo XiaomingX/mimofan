@@ -1,7 +1,7 @@
 //! Per-workspace trust list of external paths the agent may read/write
 //! without triggering a `PathEscape` error (#29).
 //!
-//! Storage: `~/.deepseek/workspace-trust.json`. The file is a JSON object
+//! Storage: `~/.mimofanfan/workspace-trust.json`. The file is a JSON object
 //! mapping each workspace's canonical path to a sorted list of canonical
 //! paths the user has explicitly trusted from that workspace. Trust granted
 //! in workspace A does not apply when running from workspace B.

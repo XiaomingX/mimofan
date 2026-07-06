@@ -17,7 +17,7 @@
 //!    with **deny-wins precedence**: a host that matches an entry in `deny`
 //!    is denied even if it also matches `allow`.
 //! 3. [`NetworkAuditor`] — appends one plaintext line per outbound call to
-//!    `~/.mimofan/audit.log` in the format described below.
+//!    `~/.mimofanfan/audit.log` in the format described below.
 //!
 //! In addition, [`NetworkSessionCache`] holds in-process "approve once for
 //! this session" state for the `Prompt` flow, and [`NetworkDenied`] is the
@@ -41,7 +41,7 @@
 //! ```
 //!
 //! Plaintext, one line per call, appended to `<audit_path>` (defaults to
-//! `~/.mimofan/audit.log`). Best-effort: write failures are logged but do
+//! `~/.mimofanfan/audit.log`). Best-effort: write failures are logged but do
 //! not block the call.
 
 use std::fs::{self, OpenOptions};
@@ -301,7 +301,7 @@ impl NetworkAuditor {
         Self { path, enabled }
     }
 
-    /// Auditor pointing at `~/.mimofan/audit.log`. Returns `None` if the
+    /// Auditor pointing at `~/.mimofanfan/audit.log`. Returns `None` if the
     /// home directory can't be resolved.
     #[must_use]
     pub fn default_path(enabled: bool) -> Option<Self> {
@@ -317,7 +317,7 @@ impl NetworkAuditor {
         }
         if let Err(err) = self.try_record(host, tool, decision_label) {
             // Routed through tracing so it lands in
-            // `~/.mimofan/logs/tui-YYYY-MM-DD.log` rather than the
+            // `~/.mimofanfan/logs/tui-YYYY-MM-DD.log` rather than the
             // alt-screen — see `runtime_log` for the scroll-demon
             // rationale.
             tracing::warn!(target: "network_policy", ?err, host, tool, "network audit write failed");
@@ -489,7 +489,7 @@ impl NetworkPolicyDecider {
     }
 
     /// Convenience: build a decider with default audit logging at
-    /// `~/.mimofan/audit.log`, if `policy.audit` is true.
+    /// `~/.mimofanfan/audit.log`, if `policy.audit` is true.
     #[must_use]
     pub fn with_default_audit(policy: NetworkPolicy) -> Self {
         let audit_enabled = policy.audit_enabled();

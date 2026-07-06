@@ -26,7 +26,7 @@
 //!
 //! # Configuration
 //!
-//! The `[lsp]` table in `~/.deepseek/config.toml` controls behavior:
+//! The `[lsp]` table in `~/.mimofanfan/config.toml` controls behavior:
 //! `enabled`, `poll_after_edit_ms`, `max_diagnostics_per_file`,
 //! `include_warnings`, and an optional `servers` override. See
 //! [`LspConfig`] for defaults and `config.example.toml` for documentation.

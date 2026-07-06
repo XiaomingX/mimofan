@@ -43,7 +43,7 @@ fn notes_path(app: &App) -> PathBuf {
     if primary.exists() {
         return primary;
     }
-    app.workspace.join(".deepseek").join("notes.md")
+    app.workspace.join(".mimofan").join("notes.md")
 }
 
 fn split_command(input: &str) -> (&str, Option<&str>) {
