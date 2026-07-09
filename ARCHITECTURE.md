@@ -399,7 +399,85 @@ mimofan app-server --stdio
 
 ---
 
-## 10. 进一步阅读
+## 10. 数据流概览
+
+```
+用户输入
+  │
+  ▼
+┌─────┐    ┌─────┐    ┌─────┐
+│ CLI │───▶│ TUI │───▶│ API │  (三种入口)
+└─────┘    └─────┘    └─────┘
+  │          │          │
+  └──────────┼──────────┘
+             ▼
+        ┌─────────┐
+        │  core   │  核心引擎
+        │ engine  │  对话轮次循环
+        └────┬────┘
+             │
+     ┌───────┼───────┐
+     ▼       ▼       ▼
+┌────────┐┌─────┐┌───────┐
+│  LLM   ││tools││agent  │  工具执行 / 子智能体
+│provider││     ││manager│
+└────────┘└─────┘└───────┘
+     │       │       │
+     ▼       ▼       ▼
+┌────────┐┌─────┐┌───────┐
+│config  ││exec-││ state │  配置 / 安全 / 持久化
+│provider││pol. ││  db   │
+└────────┘└─────┘└───────┘
+```
+
+---
+
+## 11. 技术栈总结
+
+| 层级 | 技术 | 用途 |
+|------|------|------|
+| CLI | `clap` | 命令行参数解析 |
+| HTTP | `axum` | REST API 服务器 |
+| TUI | `ratatui` + `crossterm` | 终端界面渲染 |
+| 异步运行时 | `tokio` | 全异步 I/O |
+| 序列化 | `serde` + `serde_json` + `toml` | 数据序列化 |
+| HTTP 客户端 | `reqwest` (rustls) | LLM API 调用 |
+| 数据库 | `rusqlite` (bundled) | SQLite 状态持久化 |
+| 错误处理 | `thiserror` + `anyhow` | 类型化错误 |
+| 日志 | `tracing` | 结构化日志 |
+
+---
+
+## 12. 快速定位指南
+
+| 我想了解... | 去看... |
+|------------|---------|
+| CLI 命令怎么解析的 | `cli/src/main.rs`、`cli/src/args.rs` |
+| TUI 界面怎么渲染的 | `tui/src/ui/`、`tui/src/widgets/` |
+| 对话轮次怎么循环的 | `core/src/engine.rs` |
+| LLM 提供商怎么配置的 | `config/src/provider/` |
+| 工具怎么执行的 | `tools/src/`、`protocol/src/tool.rs` |
+| 子智能体怎么管理的 | `agent/src/`、`tui/src/fleet/` |
+| 安全策略怎么控制的 | `execpolicy/src/` |
+| 密钥怎么存储的 | `secrets/src/` |
+| 会话状态怎么持久化的 | `state/src/` |
+| MCP 工具怎么集成的 | `mcp/src/` |
+| 国际化字符串在哪 | `tui/src/localization.rs` |
+| 系统提示词怎么构建的 | `tui/src/prompts.rs` |
+
+---
+
+## 13. 关键设计约束
+
+1. **仅支持 agent 工具**：子智能体工具只有 `agent`，不存在 `agent_open`/`agent_eval` 等变体
+2. **无生命周期/一致性系统**：不引入 capacity/coherence/runtime-tag 系统
+3. **无运行时提示注入**：`constitution.json` 是唯一的 base prompt
+4. **子智能体深度可配置**：无硬编码嵌套限制
+5. **执行策略强制**：所有 Shell 命令必须经过 `execpolicy` 沙箱
+
+---
+
+## 14. 进一步阅读
 
 - `USER_GUIDE.md` — 终端用户使用手册
 - `docs/INSTALL.md` — 安装方式

@@ -48,10 +48,6 @@ crates/*/tests/
 
 # ── 文档 ──
 docs/
-report.md
-MIMOFAN_GUIDE_CN.md
-SKILLS_AUDIT_LIST.md
-ARCHITECTURE_PLAN.md
 README.md
 CLAUDE.md
 

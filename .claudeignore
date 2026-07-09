@@ -48,10 +48,6 @@ crates/*/tests/
 
 # ── 文档（全部排除，核心信息已在 CLAUDE.md）──
 docs/
-report.md
-MIMOFAN_GUIDE_CN.md
-SKILLS_AUDIT_LIST.md
-ARCHITECTURE_PLAN.md
 README.md
 
 # ── 变更日志与历史记录 ──

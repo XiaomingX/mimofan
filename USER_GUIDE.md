@@ -117,16 +117,16 @@ max_subagents = 10   # 1-20
 
 | 字段 | 说明 | 默认值 |
 |------|------|--------|
-| `provider` | 服务商 ID | `deepseek` |
+| `provider` | 服务商 ID | `xiaomi-mimo` |
 | `api_key` | API 密钥 | 必填 |
 | `base_url` | API 地址 | 服务商默认 |
-| `default_text_model` | 默认模型 | `deepseek-v4-pro` |
+| `default_text_model` | 默认模型 | `mimo-v2.5-pro` |
 | `allow_shell` | 允许执行 shell | `true` |
 | `approval_policy` | 审批策略 | `on-request` |
 | `max_subagents` | 最大子代理数 | `10` |
 | `reasoning_effort` | 推理等级 | `max` |
 
-> 想用 MiMo 时，把 `provider` 改成 `xiaomi-mimo`，并把 `default_text_model` 设为 `mimo-v2.5-pro`。
+> MiMo 是默认 provider。如需切换其他服务商，修改 `provider` 和 `default_text_model` 即可。
 
 ---
 

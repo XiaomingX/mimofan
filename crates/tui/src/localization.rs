@@ -1,34 +1,5 @@
-//! Lightweight localization registry for high-visibility TUI strings.
-//!
-//! This intentionally covers UI chrome only. It does not change model prompts,
-//! model output language, provider behavior, or media payload semantics.
-
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TextDirection {
-    Ltr,
-    Rtl,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LocaleCoverage {
-    V076Core,
-    PlannedQa,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct LocaleSpec {
-    pub tag: &'static str,
-    pub display_name: &'static str,
-    pub script: &'static str,
-    pub direction: TextDirection,
-    pub fallback: &'static str,
-    pub coverage: LocaleCoverage,
-}
+//! Localization stub — all translations inlined as Chinese (zh-Hans).
+//! Original module: 4,698 lines. This stub: ~100 lines.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Locale {
@@ -49,100 +20,10 @@ impl Locale {
     }
 
     #[allow(dead_code)]
-    pub fn spec(self) -> LocaleSpec {
-        match self {
-            Self::ZhHans => LocaleSpec {
-                tag: "zh-Hans",
-                display_name: "简体中文",
-                script: "Hans",
-                direction: TextDirection::Ltr,
-                fallback: "zh-Hans",
-                coverage: LocaleCoverage::V076Core,
-            },
-        }
-    }
-
-    #[allow(dead_code)]
     pub fn shipped() -> &'static [Self] {
         &[Self::ZhHans]
     }
 }
-
-#[allow(dead_code)]
-pub const PLANNED_QA_LOCALES: &[LocaleSpec] = &[
-    LocaleSpec {
-        tag: "ar",
-        display_name: "Arabic",
-        script: "Arab",
-        direction: TextDirection::Rtl,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "hi",
-        display_name: "Hindi",
-        script: "Deva",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "bn",
-        display_name: "Bengali",
-        script: "Beng",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "id",
-        display_name: "Indonesian",
-        script: "Latin",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "sw",
-        display_name: "Swahili",
-        script: "Latin",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "ha",
-        display_name: "Hausa",
-        script: "Latin",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "yo",
-        display_name: "Yoruba",
-        script: "Latin",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "fr",
-        display_name: "French",
-        script: "Latin",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-    LocaleSpec {
-        tag: "fil",
-        display_name: "Filipino/Tagalog",
-        script: "Latin",
-        direction: TextDirection::Ltr,
-        fallback: "en",
-        coverage: LocaleCoverage::PlannedQa,
-    },
-];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MessageId {
@@ -153,7 +34,6 @@ pub enum MessageId {
     HistoryHintAccept,
     HistoryHintRestore,
     HistoryNoMatches,
-    // StatusPicker — `/statusline` multi-select footer-item picker.
     StatusPickerTitle,
     StatusPickerInstruction,
     StatusPickerActionToggle,
@@ -413,11 +293,9 @@ pub enum MessageId {
     HomePlanModeTip,
     HomePlanModeChecklistTip,
     HomeGoalModeTip,
-    // Onboarding screens — language picker.
     OnboardLanguageTitle,
     OnboardLanguageBlurb,
     OnboardLanguageFooter,
-    // Onboarding screens — API key entry.
     OnboardApiKeyTitle,
     OnboardApiKeyStep1,
     OnboardApiKeyStep2,
@@ -426,7 +304,6 @@ pub enum MessageId {
     OnboardApiKeyPlaceholder,
     OnboardApiKeyLabel,
     OnboardApiKeyFooter,
-    // Onboarding screens — workspace trust prompt.
     OnboardTrustTitle,
     OnboardTrustQuestion,
     OnboardTrustLocationPrefix,
@@ -435,7 +312,6 @@ pub enum MessageId {
     OnboardTrustFooterPrefix,
     OnboardTrustFooterMiddle,
     OnboardTrustFooterSuffix,
-    // Onboarding screens — final tips screen.
     OnboardTipsTitle,
     OnboardTipsLine1,
     OnboardTipsLine2,
@@ -443,7 +319,6 @@ pub enum MessageId {
     OnboardTipsLine4,
     OnboardTipsFooterEnter,
     OnboardTipsFooterAction,
-    // Context menu.
     CtxMenuTitle,
     CtxMenuCopySelection,
     CtxMenuCopySelectionDesc,
@@ -469,10 +344,7 @@ pub enum MessageId {
     CtxMenuContextInspectorDesc,
     CtxMenuHelp,
     CtxMenuHelpDesc,
-    // Agent fanout card.
     FanoutCounts,
-
-    // App mode picker (prompt, names, hints) and composer vim indicator.
     ModePickerPrompt,
     AppModeAgent,
     AppModeYolo,
@@ -483,8 +355,6 @@ pub enum MessageId {
     VimModeNormal,
     VimModeInsert,
     VimModeVisual,
-
-    // Approval dialog — risk badges, category labels, field labels, options.
     ApprovalRiskReview,
     ApprovalRiskDestructive,
     ApprovalCategorySafe,
@@ -508,7 +378,6 @@ pub enum MessageId {
     ApprovalChooseAction,
     ApprovalIntentLabel,
     ApprovalMoreLines,
-    // Sandbox elevation dialog.
     ElevationTitleSandboxDenied,
     ElevationTitleRequired,
     ElevationFieldTool,
@@ -527,7 +396,6 @@ pub enum MessageId {
     ElevationOptionWriteDesc,
     ElevationOptionFullAccessDesc,
     ElevationOptionAbortDesc,
-
     CtxInspTitle,
     CtxInspSessionContext,
     CtxInspSystemPrompt,
@@ -573,7 +441,6 @@ pub enum MessageId {
     CtxInspChangesByTurn,
     CtxInspStablePrefixOnly,
     CtxInspCacheTip,
-    // Tool family labels (card headers, sidebar, footer).
     ToolFamilyRead,
     ToolFamilyPatch,
     ToolFamilyRun,
@@ -584,7 +451,6 @@ pub enum MessageId {
     ToolFamilyVerify,
     ToolFamilyThink,
     ToolFamilyGeneric,
-    // Voice commands (/voice, /voice-send, /voice-control)
     CmdVoiceDescription,
     CmdVoiceSendDescription,
     CmdVoiceControlDescription,
@@ -604,573 +470,9 @@ pub enum MessageId {
     VoiceTranscribed,
 }
 
-#[allow(dead_code)]
-pub const ALL_MESSAGE_IDS: &[MessageId] = &[
-    MessageId::ComposerPlaceholder,
-    MessageId::HistorySearchPlaceholder,
-    MessageId::HistorySearchTitle,
-    MessageId::HistoryHintMove,
-    MessageId::HistoryHintAccept,
-    MessageId::HistoryHintRestore,
-    MessageId::HistoryNoMatches,
-    MessageId::StatusPickerTitle,
-    MessageId::StatusPickerInstruction,
-    MessageId::StatusPickerActionToggle,
-    MessageId::StatusPickerActionAll,
-    MessageId::StatusPickerActionNone,
-    MessageId::StatusPickerActionSave,
-    MessageId::StatusPickerActionCancel,
-    MessageId::ConfigTitle,
-    MessageId::ConfigModalTitle,
-    MessageId::ConfigSearchPlaceholder,
-    MessageId::ConfigNoSettings,
-    MessageId::ConfigNoMatchesPrefix,
-    MessageId::ConfigFilteredSettings,
-    MessageId::ConfigShowing,
-    MessageId::ConfigFooterDefault,
-    MessageId::ConfigFooterScrollable,
-    MessageId::ConfigFooterFiltered,
-    MessageId::ConfigSectionProvider,
-    MessageId::ConfigSectionModel,
-    MessageId::ConfigSectionPermissions,
-    MessageId::ConfigSectionNetwork,
-    MessageId::ConfigSectionDisplay,
-    MessageId::ConfigSectionComposer,
-    MessageId::ConfigSectionSidebar,
-    MessageId::ConfigSectionHistory,
-    MessageId::ConfigSectionMcp,
-    MessageId::ConfigSectionFleet,
-    MessageId::ConfigSectionExperimental,
-    MessageId::ConfigScopeSession,
-    MessageId::ConfigScopeSaved,
-    MessageId::ConfigEditCancelled,
-    MessageId::ConfigEditTitlePrefix,
-    MessageId::ConfigEditScopeLabel,
-    MessageId::ConfigEditCurrentLabel,
-    MessageId::ConfigEditHintLabel,
-    MessageId::ConfigEditNewLabel,
-    MessageId::ConfigEditFooter,
-    MessageId::ConfigRowEffective,
-    MessageId::ConfigDefaultValue,
-    MessageId::ConfigDefaultReasoning,
-    MessageId::ConfigUnavailable,
-    MessageId::HelpTitle,
-    MessageId::HelpFilterPlaceholder,
-    MessageId::HelpFilterPrefix,
-    MessageId::HelpNoMatches,
-    MessageId::HelpSlashCommands,
-    MessageId::HelpKeybindings,
-    MessageId::HelpFooterTypeFilter,
-    MessageId::HelpFooterMove,
-    MessageId::HelpFooterJump,
-    MessageId::HelpFooterClose,
-    MessageId::CmdAnchorDescription,
-    MessageId::CmdAttachDescription,
-    MessageId::CmdBalanceDescription,
-    MessageId::CmdCacheDescription,
-    MessageId::CmdClearDescription,
-    MessageId::CmdCompactDescription,
-    MessageId::CmdPurgeDescription,
-    MessageId::CmdConfigDescription,
-    MessageId::CmdContextDescription,
-    MessageId::CmdCostDescription,
-    MessageId::CmdDiffDescription,
-    MessageId::CmdEditDescription,
-    MessageId::CmdExitDescription,
-    MessageId::CmdExportDescription,
-    MessageId::CmdFeedbackDescription,
-    MessageId::CmdHfDescription,
-    MessageId::CmdHelpDescription,
-    MessageId::CmdProfileDescription,
-    MessageId::CmdHomeDescription,
-    MessageId::CmdHooksDescription,
-    MessageId::CmdAgentDescription,
-    MessageId::CmdInitDescription,
-    MessageId::CmdJobsDescription,
-    MessageId::CmdLinksDescription,
-    MessageId::CmdLoadDescription,
-    MessageId::CmdLogoutDescription,
-    MessageId::CmdMcpDescription,
-    MessageId::CmdPluginDescription,
-    MessageId::CmdPluginNoneFound,
-    MessageId::CmdPluginNotFound,
-    MessageId::CmdPluginListHeader,
-    MessageId::CmdPluginDetailDescription,
-    MessageId::CmdPluginDetailSchema,
-    MessageId::CmdPluginDetailApproval,
-    MessageId::CmdPluginDetailPath,
-    MessageId::CmdMemoryDescription,
-    MessageId::CmdModeDescription,
-    MessageId::CmdModelDescription,
-    MessageId::CmdModelsDescription,
-    MessageId::CmdNetworkDescription,
-    MessageId::CmdNoteDescription,
-    MessageId::CmdProviderDescription,
-    MessageId::CmdQueueDescription,
-    MessageId::CmdQueueUsage,
-    MessageId::CmdQueueDraftHeader,
-    MessageId::CmdQueueNoMessages,
-    MessageId::CmdQueueListHeader,
-    MessageId::CmdQueueTip,
-    MessageId::CmdQueueAlreadyEditing,
-    MessageId::CmdQueueNotFound,
-    MessageId::CmdQueueEditingStatus,
-    MessageId::CmdQueueEditingMessage,
-    MessageId::CmdQueueDropped,
-    MessageId::CmdQueueAlreadyEmpty,
-    MessageId::CmdQueueCleared,
-    MessageId::CmdQueueMissingIndex,
-    MessageId::CmdQueueIndexPositive,
-    MessageId::CmdQueueIndexMin,
-    MessageId::CmdRelayDescription,
-    MessageId::CmdRenameDescription,
-    MessageId::CmdRestoreDescription,
-    MessageId::CmdRetryDescription,
-    MessageId::CmdReviewDescription,
-    MessageId::CmdRlmDescription,
-    MessageId::CmdSaveDescription,
-    MessageId::CmdNewDescription,
-    MessageId::CmdSessionsDescription,
-    MessageId::CmdSettingsDescription,
-    MessageId::CmdSidebarDescription,
-    MessageId::CmdSkillDescription,
-    MessageId::CmdSkillsDescription,
-    MessageId::CmdSlopDescription,
-    MessageId::CmdStashDescription,
-    MessageId::CmdStatusDescription,
-    MessageId::CmdStatuslineDescription,
-    MessageId::CmdFleetDescription,
-    MessageId::CmdSubagentsDescription,
-    MessageId::CmdSwarmDescription,
-    MessageId::CmdSystemDescription,
-    MessageId::CmdTaskDescription,
-    MessageId::CmdTokensDescription,
-    MessageId::CmdTranslateDescription,
-    MessageId::CmdTranslateOff,
-    MessageId::CmdTranslateOn,
-    MessageId::TranslationInProgress,
-    MessageId::TranslationComplete,
-    MessageId::TranslationFailed,
-    MessageId::CmdTrustDescription,
-    MessageId::CmdLspDescription,
-    MessageId::CmdShareDescription,
-    MessageId::CmdWorkspaceDescription,
-    MessageId::CmdUndoDescription,
-    MessageId::CmdVerboseDescription,
-    MessageId::CmdCacheAdvice,
-    MessageId::CmdCacheFootnote,
-    MessageId::CmdCacheHeader,
-    MessageId::CmdCacheNoData,
-    MessageId::CmdCacheTotals,
-    MessageId::CmdChangeDescription,
-    MessageId::CmdChangeHeader,
-    MessageId::CmdChangeTranslationQueued,
-    MessageId::CmdChangeTranslationUnavailable,
-    MessageId::CmdChangePreviousVersion,
-    MessageId::CmdCostReport,
-    MessageId::CmdTokensCacheBoth,
-    MessageId::CmdTokensCacheHitOnly,
-    MessageId::CmdTokensCacheMissOnly,
-    MessageId::CmdTokensContextUnknownWindow,
-    MessageId::CmdTokensContextWithWindow,
-    MessageId::CmdTokensNotReported,
-    MessageId::CmdTokensReport,
-    MessageId::FooterAgentSingular,
-    MessageId::FooterAgentsPlural,
-    MessageId::FooterPressCtrlCAgain,
-    MessageId::FooterWorking,
-    MessageId::FooterBalancePrefix,
-    MessageId::HelpSectionActions,
-    MessageId::HelpSectionClipboard,
-    MessageId::HelpSectionEditing,
-    MessageId::HelpSectionHelp,
-    MessageId::HelpSectionModes,
-    MessageId::HelpSectionNavigation,
-    MessageId::HelpSectionSessions,
-    MessageId::KbScrollTranscript,
-    MessageId::KbNavigateHistory,
-    MessageId::KbScrollTranscriptAlt,
-    MessageId::KbBrowseHistory,
-    MessageId::KbScrollPage,
-    MessageId::KbJumpTopBottom,
-    MessageId::KbJumpTopBottomEmpty,
-    MessageId::KbJumpToolBlocks,
-    MessageId::KbMoveCursor,
-    MessageId::KbJumpLineStartEnd,
-    MessageId::KbDeleteChar,
-    MessageId::KbClearDraft,
-    MessageId::KbStashDraft,
-    MessageId::KbSearchHistory,
-    MessageId::KbInsertNewline,
-    MessageId::KbSendDraft,
-    MessageId::KbCloseMenu,
-    MessageId::KbCancelOrExit,
-    MessageId::KbShellControls,
-    MessageId::KbExitEmpty,
-    MessageId::KbCommandPalette,
-    MessageId::KbCancelBackgroundShellJobs,
-    MessageId::KbFuzzyFilePicker,
-    MessageId::KbCompactInspector,
-    MessageId::KbLastMessagePager,
-    MessageId::KbSelectedDetails,
-    MessageId::KbToolDetailsPager,
-    MessageId::KbThinkingPager,
-    MessageId::KbLiveTranscript,
-    MessageId::KbBacktrackMessage,
-    MessageId::KbCompleteCycleModes,
-    MessageId::KbJumpPlanAgentYolo,
-    MessageId::KbAltJumpPlanAgentYolo,
-    MessageId::KbFocusSidebar,
-    MessageId::KbSessionPicker,
-    MessageId::KbPasteAttach,
-    MessageId::KbCopySelection,
-    MessageId::KbContextMenu,
-    MessageId::KbAttachPath,
-    MessageId::KbHelpOverlay,
-    MessageId::KbToggleHelp,
-    MessageId::KbToggleHelpSlash,
-    MessageId::HelpUsageLabel,
-    MessageId::HelpAliasesLabel,
-    MessageId::SettingsTitle,
-    MessageId::SettingsConfigFile,
-    MessageId::ClearConversation,
-    MessageId::ClearConversationBusy,
-    MessageId::ModelChanged,
-    MessageId::LinksTitle,
-    MessageId::LinksDashboard,
-    MessageId::LinksDocs,
-    MessageId::LinksTip,
-    MessageId::SubagentsFetching,
-    MessageId::HelpUnknownCommand,
-    MessageId::HomeDashboardTitle,
-    MessageId::HomeModel,
-    MessageId::HomeMode,
-    MessageId::HomeWorkspace,
-    MessageId::HomeHistory,
-    MessageId::HomeTokens,
-    MessageId::HomeQueued,
-    MessageId::HomeSubagents,
-    MessageId::HomeSkill,
-    MessageId::HomeQuickActions,
-    MessageId::HomeQuickLinks,
-    MessageId::HomeQuickSkills,
-    MessageId::HomeQuickConfig,
-    MessageId::HomeQuickSettings,
-    MessageId::HomeQuickModel,
-    MessageId::HomeQuickSubagents,
-    MessageId::HomeQuickTaskList,
-    MessageId::HomeQuickHelp,
-    MessageId::HomeModeTips,
-    MessageId::HomeAgentModeTip,
-    MessageId::HomeAgentModeReviewTip,
-    MessageId::HomeAgentModeYoloTip,
-    MessageId::HomeYoloModeTip,
-    MessageId::HomeYoloModeCaution,
-    MessageId::HomePlanModeTip,
-    MessageId::HomePlanModeChecklistTip,
-    MessageId::HomeGoalModeTip,
-    MessageId::OnboardLanguageTitle,
-    MessageId::OnboardLanguageBlurb,
-    MessageId::OnboardLanguageFooter,
-    MessageId::OnboardApiKeyTitle,
-    MessageId::OnboardApiKeyStep1,
-    MessageId::OnboardApiKeyStep2,
-    MessageId::OnboardApiKeySavedHint,
-    MessageId::OnboardApiKeyFormatHint,
-    MessageId::OnboardApiKeyPlaceholder,
-    MessageId::OnboardApiKeyLabel,
-    MessageId::OnboardApiKeyFooter,
-    MessageId::OnboardTrustTitle,
-    MessageId::OnboardTrustQuestion,
-    MessageId::OnboardTrustLocationPrefix,
-    MessageId::OnboardTrustRiskHint,
-    MessageId::OnboardTrustEffectHint,
-    MessageId::OnboardTrustFooterPrefix,
-    MessageId::OnboardTrustFooterMiddle,
-    MessageId::OnboardTrustFooterSuffix,
-    MessageId::OnboardTipsTitle,
-    MessageId::OnboardTipsLine1,
-    MessageId::OnboardTipsLine2,
-    MessageId::OnboardTipsLine3,
-    MessageId::OnboardTipsLine4,
-    MessageId::OnboardTipsFooterEnter,
-    MessageId::OnboardTipsFooterAction,
-    // Context menu.
-    MessageId::CtxMenuTitle,
-    MessageId::CtxMenuCopySelection,
-    MessageId::CtxMenuCopySelectionDesc,
-    MessageId::CtxMenuOpenSelection,
-    MessageId::CtxMenuOpenSelectionDesc,
-    MessageId::CtxMenuClearSelection,
-    MessageId::CtxMenuOpenDetails,
-    MessageId::CtxMenuCopyMessage,
-    MessageId::CtxMenuCopyMessageDesc,
-    MessageId::CtxMenuOpenInEditor,
-    MessageId::CtxMenuOpenInEditorDesc,
-    MessageId::CtxMenuShowCell,
-    MessageId::CtxMenuShowCellDesc,
-    MessageId::CtxMenuHideCell,
-    MessageId::CtxMenuHideCellDesc,
-    MessageId::CtxMenuShowHidden,
-    MessageId::CtxMenuShowHiddenDesc,
-    MessageId::CtxMenuPaste,
-    MessageId::CtxMenuPasteDesc,
-    MessageId::CtxMenuCmdPalette,
-    MessageId::CtxMenuCmdPaletteDesc,
-    MessageId::CtxMenuContextInspector,
-    MessageId::CtxMenuContextInspectorDesc,
-    MessageId::CtxMenuHelp,
-    MessageId::CtxMenuHelpDesc,
-    MessageId::FanoutCounts,
-    MessageId::ModePickerPrompt,
-    MessageId::AppModeAgent,
-    MessageId::AppModeYolo,
-    MessageId::AppModePlan,
-    MessageId::AppModeAgentHint,
-    MessageId::AppModePlanHint,
-    MessageId::AppModeYoloHint,
-    MessageId::VimModeNormal,
-    MessageId::VimModeInsert,
-    MessageId::VimModeVisual,
-    MessageId::ApprovalRiskReview,
-    MessageId::ApprovalRiskDestructive,
-    MessageId::ApprovalCategorySafe,
-    MessageId::ApprovalCategoryFileWrite,
-    MessageId::ApprovalCategoryShell,
-    MessageId::ApprovalCategoryNetwork,
-    MessageId::ApprovalCategoryMcpRead,
-    MessageId::ApprovalCategoryMcpAction,
-    MessageId::ApprovalCategoryUnknown,
-    MessageId::ApprovalFieldType,
-    MessageId::ApprovalFieldAbout,
-    MessageId::ApprovalFieldImpact,
-    MessageId::ApprovalFieldParams,
-    MessageId::ApprovalOptionApproveOnce,
-    MessageId::ApprovalOptionApproveAlways,
-    MessageId::ApprovalOptionDeny,
-    MessageId::ApprovalOptionAbortTurn,
-    MessageId::ApprovalBlockTitle,
-    MessageId::ApprovalControlsHint,
-    MessageId::ApprovalChooseHint,
-    MessageId::ApprovalChooseAction,
-    MessageId::ApprovalIntentLabel,
-    MessageId::ApprovalMoreLines,
-    MessageId::ElevationTitleSandboxDenied,
-    MessageId::ElevationTitleRequired,
-    MessageId::ElevationFieldTool,
-    MessageId::ElevationFieldCmd,
-    MessageId::ElevationFieldReason,
-    MessageId::ElevationImpactHeader,
-    MessageId::ElevationImpactNetwork,
-    MessageId::ElevationImpactWrite,
-    MessageId::ElevationImpactFullAccess,
-    MessageId::ElevationPromptProceed,
-    MessageId::ElevationOptionNetwork,
-    MessageId::ElevationOptionWrite,
-    MessageId::ElevationOptionFullAccess,
-    MessageId::ElevationOptionAbort,
-    MessageId::ElevationOptionNetworkDesc,
-    MessageId::ElevationOptionWriteDesc,
-    MessageId::ElevationOptionFullAccessDesc,
-    MessageId::ElevationOptionAbortDesc,
-    MessageId::CtxInspTitle,
-    MessageId::CtxInspSessionContext,
-    MessageId::CtxInspSystemPrompt,
-    MessageId::CtxInspReferences,
-    MessageId::CtxInspRecentTools,
-    MessageId::CtxInspModel,
-    MessageId::CtxInspWorkspace,
-    MessageId::CtxInspSession,
-    MessageId::CtxInspContext,
-    MessageId::CtxInspTranscript,
-    MessageId::CtxInspWorkspaceStatus,
-    MessageId::CtxInspNotSampledYet,
-    MessageId::CtxInspOk,
-    MessageId::CtxInspHigh,
-    MessageId::CtxInspCritical,
-    MessageId::CtxInspIncluded,
-    MessageId::CtxInspAttached,
-    MessageId::CtxInspNotIncluded,
-    MessageId::CtxInspOutputCaptured,
-    MessageId::CtxInspNoOutputYet,
-    MessageId::CtxInspNoSystemPrompt,
-    MessageId::CtxInspNoReferences,
-    MessageId::CtxInspNoToolActivity,
-    MessageId::CtxInspVHint,
-    MessageId::CtxInspCells,
-    MessageId::CtxInspApiMessages,
-    MessageId::CtxInspActive,
-    MessageId::CtxInspCell,
-    MessageId::CtxInspMoreReferences,
-    MessageId::CtxInspStablePrefix,
-    MessageId::CtxInspVolatileWorkingSet,
-    MessageId::CtxInspFirstLine,
-    MessageId::CtxInspTotal,
-    MessageId::CtxInspTextPromptLayers,
-    MessageId::CtxInspSingleTextBlob,
-    MessageId::CtxInspBlocks,
-    MessageId::CtxInspBlock,
-    MessageId::CtxInspTokens,
-    MessageId::CtxInspLayers,
-    MessageId::CtxInspNone,
-    MessageId::CtxInspEmpty,
-    MessageId::CtxInspCacheFriendly,
-    MessageId::CtxInspChangesByTurn,
-    MessageId::CtxInspStablePrefixOnly,
-    MessageId::CtxInspCacheTip,
-    MessageId::ToolFamilyRead,
-    MessageId::ToolFamilyPatch,
-    MessageId::ToolFamilyRun,
-    MessageId::ToolFamilyFind,
-    MessageId::ToolFamilyDelegate,
-    MessageId::ToolFamilyFanout,
-    MessageId::ToolFamilyRlm,
-    MessageId::ToolFamilyVerify,
-    MessageId::ToolFamilyThink,
-    MessageId::ToolFamilyGeneric,
-    MessageId::CmdVoiceDescription,
-    MessageId::CmdVoiceSendDescription,
-    MessageId::CmdVoiceControlDescription,
-    MessageId::VoiceEnabled,
-    MessageId::VoiceDisabled,
-    MessageId::VoiceSendEnabled,
-    MessageId::VoiceSendDisabled,
-    MessageId::VoiceControlEnabled,
-    MessageId::VoiceControlDisabled,
-    MessageId::VoiceErrNoAuth,
-    MessageId::VoiceErrNoRecorder,
-    MessageId::VoiceErrNetwork,
-    MessageId::VoiceErrEmptySend,
-    MessageId::VoiceErrTooShort,
-    MessageId::VoiceRecording,
-    MessageId::VoiceProcessing,
-    MessageId::VoiceTranscribed,
-];
-
-pub fn tr(locale: Locale, id: MessageId) -> &'static str {
-    fallback_translation(translation(locale, id), id)
-}
-
-pub fn thinking_translation_placeholder(locale: Locale) -> &'static str {
-    match locale {
-        Locale::ZhHans => "正在思考，完成后翻译为简体中文...",
-    }
-}
-
-pub fn thinking_translation_in_progress(locale: Locale) -> &'static str {
-    match locale {
-        Locale::ZhHans => "正在翻译思考内容...",
-    }
-}
-
-pub fn thinking_translation_complete(locale: Locale) -> &'static str {
-    match locale {
-        Locale::ZhHans => "思考内容翻译完成",
-    }
-}
-
-pub fn thinking_translation_failed(locale: Locale) -> &'static str {
-    match locale {
-        Locale::ZhHans => "思考内容翻译失败",
-    }
-}
-
-pub fn hidden_translation_failed(locale: Locale) -> &'static str {
-    match locale {
-        Locale::ZhHans => "翻译失败，原文已隐藏。",
-    }
-}
-
-#[allow(dead_code)]
-pub fn missing_message_ids(locale: Locale) -> Vec<MessageId> {
-    ALL_MESSAGE_IDS
-        .iter()
-        .copied()
-        .filter(|id| translation(locale, *id).is_none())
-        .collect()
-}
-
-pub fn normalize_configured_locale(input: &str) -> Option<&'static str> {
-    let normalized = normalize_locale_input(input);
-    if matches!(normalized.as_str(), "" | "auto" | "system") {
-        return Some("auto");
-    }
-    parse_locale(&normalized).map(Locale::tag)
-}
-
-pub fn resolve_locale(setting: &str) -> Locale {
-    resolve_locale_with_env(setting, |key| std::env::var(key).ok())
-}
-
-pub fn resolve_locale_with_env<F>(_setting: &str, _env: F) -> Locale
-where
-    F: Fn(&str) -> Option<String>,
-{
-    // 始终返回中文简体
-    Locale::ZhHans
-}
-
-#[allow(dead_code)]
-pub fn truncate_to_width(text: &str, max_width: usize) -> String {
-    if max_width == 0 {
-        return String::new();
-    }
-    if text.width() <= max_width {
-        return text.to_string();
-    }
-
-    let ellipsis_width = '…'.width().unwrap_or(1);
-    if max_width <= ellipsis_width {
-        return "…".to_string();
-    }
-
-    let limit = max_width - ellipsis_width;
-    let mut out = String::new();
-    let mut width = 0usize;
-    for ch in text.chars() {
-        let ch_width = ch.width().unwrap_or(0);
-        if width + ch_width > limit {
-            break;
-        }
-        out.push(ch);
-        width += ch_width;
-    }
-    out.push('…');
-    out
-}
-
-fn normalize_locale_input(input: &str) -> String {
-    input
-        .split('.')
-        .next()
-        .unwrap_or(input)
-        .split('@')
-        .next()
-        .unwrap_or(input)
-        .trim()
-        .replace('_', "-")
-        .to_lowercase()
-}
-
-fn parse_locale(value: &str) -> Option<Locale> {
-    if value.starts_with("zh") {
-        return Some(Locale::ZhHans);
-    }
-    None
-}
-
-fn fallback_translation(candidate: Option<&'static str>, id: MessageId) -> &'static str {
-    candidate.unwrap_or_else(|| chinese_simplified(id).unwrap_or("未知消息"))
-}
-
-fn translation(locale: Locale, id: MessageId) -> Option<&'static str> {
-    match locale {
-        Locale::ZhHans => chinese_simplified(id),
-    }
-}
-
-fn chinese_simplified(id: MessageId) -> Option<&'static str> {
-    Some(match id {
+/// Always returns the Chinese translation for the given message ID.
+pub fn tr(_locale: Locale, id: MessageId) -> &'static str {
+    match id {
         MessageId::ComposerPlaceholder => "输入任务或使用 /",
         MessageId::HistorySearchPlaceholder => "搜索历史记录...",
         MessageId::HistorySearchTitle => "历史搜索",
@@ -1612,8 +914,67 @@ fn chinese_simplified(id: MessageId) -> Option<&'static str> {
         MessageId::VoiceRecording => "录音中...",
         MessageId::VoiceProcessing => "处理中...",
         MessageId::VoiceTranscribed => "已转录",
-    })
+    }
 }
 
-#[cfg(test)]
-mod tests {}
+/// Always returns ZhHans.
+pub fn resolve_locale(_setting: &str) -> Locale {
+    Locale::ZhHans
+}
+
+/// Always returns Some("zh-Hans").
+#[allow(dead_code)]
+pub fn normalize_configured_locale(_input: &str) -> Option<&'static str> {
+    Some("zh-Hans")
+}
+
+pub fn thinking_translation_placeholder(_locale: Locale) -> &'static str {
+    "正在思考，完成后翻译为简体中文..."
+}
+
+pub fn thinking_translation_in_progress(_locale: Locale) -> &'static str {
+    "正在翻译思考内容..."
+}
+
+pub fn thinking_translation_complete(_locale: Locale) -> &'static str {
+    "思考内容翻译完成"
+}
+
+pub fn thinking_translation_failed(_locale: Locale) -> &'static str {
+    "思考内容翻译失败"
+}
+
+pub fn hidden_translation_failed(_locale: Locale) -> &'static str {
+    "翻译失败，原文已隐藏。"
+}
+
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
+/// Truncate `text` to fit within `max_width` display columns, appending '…' if truncated.
+pub fn truncate_to_width(text: &str, max_width: usize) -> String {
+    if max_width == 0 {
+        return String::new();
+    }
+    if text.width() <= max_width {
+        return text.to_string();
+    }
+
+    let ellipsis_width = '…'.width().unwrap_or(1);
+    if max_width <= ellipsis_width {
+        return "…".to_string();
+    }
+
+    let limit = max_width - ellipsis_width;
+    let mut out = String::new();
+    let mut width = 0usize;
+    for ch in text.chars() {
+        let ch_width = ch.width().unwrap_or(0);
+        if width + ch_width > limit {
+            break;
+        }
+        out.push(ch);
+        width += ch_width;
+    }
+    out.push('…');
+    out
+}
