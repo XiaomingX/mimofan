@@ -1,27 +1,25 @@
 # ============================================
 # mimofan .claudeignore
-# 策略：仅保留 tui + cli 及其依赖 crate 的源码
-# 排除一切与 tui/cli 无关的路径，节省 token 消耗
+# 策略：仅保留核心 Rust crates 源码，减少 token 消耗
 # ============================================
 
-# ── 与 tui/cli 无关的 crate ──
+# ── Workspace crates ──
 # tui 依赖: config, execpolicy, protocol, release, secrets, tools
 # cli 依赖: agent, app-server, config, execpolicy, mcp, release, secrets, state
 # core/hooks 是 app-server 的传递依赖
-# 唯一无关的 crate:
 crates/whaleflow/
 
 # ── 构建产物 ──
 target/
 node_modules/
 
-# ── 前端 / 非 Rust 代码（与 tui/cli 完全无关）──
+# ── 非 Rust 代码（与 tui/cli 完全无关）──
 web/
 npm/
 extensions/
 integrations/
 
-# ── Lock 文件（数千行，零信息密度）──
+# ── Lock 文件（零信息密度）──
 Cargo.lock
 pnpm-lock.yaml
 pnpm-workspace.yaml
@@ -46,7 +44,7 @@ crates/*/tests/
 **/test_support.rs
 **/test_runner.rs
 
-# ── 文档（全部排除，核心信息已在 CLAUDE.md）──
+# ── 文档（核心信息已在根目录文档）──
 docs/
 README.md
 
