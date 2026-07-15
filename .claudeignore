@@ -13,7 +13,7 @@ crates/whaleflow/
 target/
 node_modules/
 
-# ── 非 Rust 代码（与 tui/cli 完全无关）──
+# ── 非 Rust 代码（与 Rust 核心无关）──
 web/
 npm/
 extensions/
@@ -46,7 +46,6 @@ crates/*/tests/
 
 # ── 文档（核心信息已在根目录文档）──
 docs/
-README.md
 
 # ── 变更日志与历史记录 ──
 CHANGELOG.md

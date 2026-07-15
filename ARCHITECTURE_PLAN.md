@@ -139,7 +139,7 @@ UI 字符串只保留 `locales/zh-Hans.json`（中文一档），不影响模型
 
 ## 5. 改进计划
 
-> 标 `[x]` 的项目已完成；标 `[ ]` 的项目是建议改进。
+> 标 `[x]` 的项目已完成；标 `[ ]` 的项目是建议改进；标 `[x]` 但注明"不需要"的表示经分析不应做。
 
 ### 5.1 高优先级（低成本高收益，已完成）
 
@@ -148,34 +148,33 @@ UI 字符串只保留 `locales/zh-Hans.json`（中文一档），不影响模型
 - [x] **TUI 提示词分层宪法落地**（Tier 1-9）
 - [x] **聚合根 `Runtime` 明确化**
 - [x] **统一中文架构与使用文档到根目录**（`ARCHITECTURE.md`、`USER_GUIDE.md`）
+- [x] **TUI 拆 lib + bin**（`main.rs` 只有 8 行，逻辑在 `lib.rs`）
 
-### 5.2 中优先级（需要评估再动手）
+### 5.2 经分析不应做的项目
 
-- [ ] **把 `mimofan-tui` 拆成 lib + bin**
-  - 把 `src/main.rs` 的内容下沉到 `src/lib.rs`，按职责拆成 `app/`、`repl/`、`transport/` 等模块
-  - 预期收益：增量编译变快、可被 app-server 复用部分 UI 组件
-  - 前提：保证二进制入口不变（CLI 参数完全兼容）
+- [x] **合并 `provider_resolver` 与 `ModelRegistry`**（不需要）
+  - `provider_resolver`：模型名解析逻辑（normalize, model_matches, passthrough）
+  - `ModelRegistry`：模型元数据存储
+  - 这是不同层次的抽象，合并会破坏内聚性
 
-- [ ] **合并 `provider_resolver` 与 `ModelRegistry`**
-  - 把"模型名解析"集中到一个服务，提供统一的 fallback 链语义
-  - 预期收益：消除双轨语义
-  - 前提：全量回归测试
+### 5.3 中优先级（收益有限，暂不动）
 
 - [ ] **把 `Runtime` 拆为 `RuntimeServices` + `RuntimeContext`**
-  - 纯应用服务集合 + 不可变快照
-  - 预期收益：测试粒度更细
-  - 前提：保留 re-export 兼容现有导入路径
+  - 风险收益比不佳：拆分可能导致循环依赖或大量穿透代码
+  - 当前 Runtime 持有 8 个组件虽多，但职责清晰
+  - **结论**：暂不动，等有具体测试痛点再改
 
-### 5.3 低优先级（暂不动）
+### 5.4 低优先级（暂不动）
 
 - [ ] **TUI 内部目录重组**：按 DDD 限界上下文重新切分（`ui/` / `application/` / `infrastructure/`）
 - [ ] **替换 `mimofan-protocol` 为 trait-based IPC**：放弃 JSON DTO，改成 trait-based 强类型消息
 
-### 5.4 明确不需要做的事
+### 5.5 明确不需要做的事
 
 - **不要**把 `mimofan-state` 抽象成 trait 化存储 —— 当前 SQLite 单后端够用，抽象只会带来间接成本
 - **不要**新增 provider enum 变体 —— 当前 `XiaomiMimo` + `Custom` 已覆盖所有需求
 - **不要**把 LLM 客户端拆成独立 crate —— 它高度耦合提示词拼装，独立出来会让循环依赖更复杂
+- **不要**合并 `provider_resolver` 与 `ModelRegistry` —— 职责不同，破坏内聚
 
 ---
 
@@ -186,7 +185,7 @@ UI 字符串只保留 `locales/zh-Hans.json`（中文一档），不影响模型
 - `docs/CLAUDE.local.md` — 局部开发笔记
 - `crates/tui/locales/CLAUDE.local.md` — 局部开发笔记
 - 所有 `**/CLAUDE.local.md` — 散落在各 crate 的局部开发笔记
-- `.aiderignore` / `.codeiumignore` / `.cursorignore` — 与 .claudeignore 重复，已合并
+- `.aiderignore` / `.codeiumignore` / `.clineignore` — 与 .claudeignore 重复，已合并
 
 ### 6.2 保留的文件
 
