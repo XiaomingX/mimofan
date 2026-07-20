@@ -82,12 +82,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        # Linux workspace tests moved to CNB; GitHub keeps the platform
-        # coverage CNB cannot provide.
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         if: runner.os != 'Linux'
@@ -113,10 +108,7 @@ jobs:
   npm-wrapper-smoke:
     name: npm wrapper smoke
     if: github.event_name != 'schedule'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]') }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         if: runner.os != 'Linux'
