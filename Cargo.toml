@@ -90,6 +90,8 @@ strip = true
 lto = "thin"
 # Enable parallel code generation for faster release compilation without sacrificing thin LTO benefits
 codegen-units = 16
+# Fast macOS compilation: avoid slow dsymutil debuginfo aggregation during linking
+split-debuginfo = "unpacked"
 
 [profile.bench]
 strip = true
