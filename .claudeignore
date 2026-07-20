@@ -3,12 +3,6 @@
 # 策略：仅保留核心 Rust crates 源码，减少 token 消耗
 # ============================================
 
-# ── Workspace crates ──
-# tui 依赖: config, execpolicy, protocol, release, secrets, tools
-# cli 依赖: agent, app-server, config, execpolicy, mcp, release, secrets, state
-# core/hooks 是 app-server 的传递依赖
-crates/whaleflow/
-
 # ── 构建产物 ──
 target/
 node_modules/
@@ -31,11 +25,21 @@ crates/tui/assets/model_catalog.bundled.json
 crates/config/assets/models_dev.bundled.json
 config.example.toml
 
-# ── 超大稳定模块（摘要见 CLAUDE.md）──
-crates/tui/src/localization.rs
-crates/tui/src/prompts.rs
-crates/tui/src/tui/widgets/mod.rs
-crates/tui/src/tui/views/mod.rs
+# ── 超大稳定模块（摘要见 CLAUDE.md "大文件摘要" 章节）──
+crates/tui/src/localization.rs          # 4,698 行 - TUI 字符串翻译
+crates/tui/src/prompts.rs               # 3,071 行 - 模式系统提示词
+crates/tui/src/tui/widgets/mod.rs       # 2,986 行 - UI 组件实现
+crates/tui/src/tui/views/mod.rs         # 2,205 行 - 模态框/对话框视图
+crates/tui/src/tui/ui.rs                # 11,317 行 - UI 渲染
+crates/tui/src/lib.rs                   # 6,827 行 - 模块声明与 re-export
+crates/tui/src/tools/subagent/mod.rs    # 6,584 行 - 子智能体工具
+crates/tui/src/tui/app.rs               # 5,922 行 - TUI 应用状态
+crates/tui/src/config.rs                # 4,602 行 - TUI 配置管理
+crates/tui/src/runtime_threads.rs       # 3,943 行 - 线程运行时
+crates/tui/src/core/engine.rs           # 3,678 行 - 引擎核心
+crates/tui/src/runtime_api.rs           # 3,444 行 - 运行时 API
+crates/tui/src/tools/shell.rs           # 3,413 行 - Shell 工具
+crates/tui/src/mcp.rs                   # 3,261 行 - MCP 集成
 
 # ── 测试文件（统一模式，不影响代码理解）──
 crates/*/tests/
@@ -45,16 +49,25 @@ crates/*/tests/
 **/test_runner.rs
 
 # ── 文档（核心信息已在根目录文档）──
-docs/
-
-# ── 变更日志与历史记录 ──
+docs/examples/
+docs/rfcs/
+docs/skills/
+docs/evidence/
+docs/*HANDOFF*.md
+docs/*handoff*.md
+docs/*_PLAN.md
+!docs/archive/**
 CHANGELOG.md
 crates/tui/CHANGELOG.md
 
 # ── AI 记忆文件与本地设置 ──
 **/CLAUDE.local.md
-AGENTS.md
 settings.example.json
+
+# ── AI 工具本地配置目录 ──
+.kilo/
+.kiro/
+.codewhale/
 
 # ── Nix 配置 ──
 flake.nix
@@ -87,7 +100,13 @@ package.json
 rust-toolchain.toml
 .env.example
 
-# ── 临时/生成文件 ──
-*.sh
-*.cmd
-*.log
+# ── 根目录本地脚本与临时草稿 ──
+doctor.sh
+build.sh
+test.sh
+verify.sh
+check.sh
+IMPROVEMENT_PLAN.md
+ARCHITECTURE_PLAN.md
+.gemini/
+.antigravity/

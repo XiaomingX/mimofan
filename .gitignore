@@ -185,3 +185,17 @@ scripts/**/__pycache__/
 issues/
 logs/
 notes/
+
+# Temporary local scripts and draft plans
+doctor.sh
+build.sh
+test.sh
+verify.sh
+check.sh
+IMPROVEMENT_PLAN.md
+ARCHITECTURE_PLAN.md
+settings.example.json
+
+# Local agent runtimes & caches
+.gemini/
+.antigravity/
