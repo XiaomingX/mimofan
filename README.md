@@ -1,220 +1,200 @@
 # mimofan 🚀
 
-> **高性能、开源、轻量级的终端 AI 编码助手与智能体运行时**
+> **跑在终端里的 AI 编程助手 —— 像 Pair Developer 一样帮你写代码、修 Bug、跑测试**
 > 
-> 基于 Rust 实现，原生支持 **Xiaomi MiMo** 模型，兼容 DeepSeek、OpenAI、Anthropic 及通用 OpenAI 兼容协议。
+> 基于 Rust 实现，原生支持 **Xiaomi MiMo** 模型，同时兼容 DeepSeek、OpenAI、通义千问等主流大模型。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)]()
 [![MCP Ready](https://img.shields.io/badge/MCP-Supported-green.svg)](docs/MCP.md)
 
-`mimofan` 专注于为开发者提供高效、智能、安全的命令行 AI 协作体验。只需输入目标任务，`mimofan` 即可自主完成任务拆解、代码检索、文件编辑、工具调用与测试验证。
-
 ---
 
-## ✨ 核心特性
+## ⚡ 新手 3 分钟极速上手
 
-- ⚡ **极致性能**：基于 Rust 编写，毫秒级启动，极低内存占用与流畅的 TUI 终端体验。
-- 🤖 **原生 MiMo & 多 Provider 路由**：默认针对 **Xiaomi MiMo** 深度优化，同时支持 DeepSeek、OpenAI、Qwen 及各类 OpenAI 兼容 Endpoint。
-- 🖥️ **三大灵活使用形态**：
-  - **TUI 交互模式**：全功能终端界面，实时查看 Agent 思考链与文件变更。
-  - **CLI 命令行模式**：支持一行命令单次调用，易于脚本集成与 CI/CD 自动化。
-  - **HTTP/JSON-RPC 服务**：支持作为后台 Server 运行，方便嵌入 IDE 插件或第三方系统。
-- 🛡️ **安全策略与沙箱防护**：内置 `execpolicy` 权限控制与工作区写防护（Workspace-write），有效拦截危险命令与越权操作。
-- 🔌 **生态扩展支持**：
-  - **MCP (Model Context Protocol)**：无缝桥接上下文插件与外部 Server 工具。
-  - **多子 Agent 协同**：支持并发衍生专职 Subagent 处理独立子任务。
-  - **IM 机器人桥接**：提供飞书 (Feishu) 和微信 (WeChat) 桥接组件。
+### 第一步：安装 `mimofan`
 
----
-
-## 📦 快速安装
-
-### 方式一：使用 Node.js 包管理器（推荐）
+确保本地已安装 Node.js (推荐 18+)，直接在终端运行以下命令：
 
 ```bash
-# 使用 pnpm 全局安装
+# 使用 pnpm 安装（推荐）
 pnpm add -g mimofan
 
-# 或使用 npm
+# 或使用 npm 安装
 npm install -g mimofan
 ```
 
-### 方式二：使用一键安装脚本
-
-```bash
-curl -fsSL https://mimofan.net/install.sh | sh
-```
-
-### 方式三：源码编译安装（需要 Rust 1.88+）
-
-```bash
-git clone https://github.com/XiaomingX/mimofan.git
-cd mimofan
-cargo install --path crates/cli --locked
-```
+*(如果你是 Rust 开发者，也可以直接使用 `cargo install mimofan-cli --locked` 源码安装)*
 
 ---
 
-## ⚡ 快速上手
+### 第二步：配置 API Key
 
-### 1. 初始化配置文件
+1. 凭据获取：前往 [Xiaomi MiMo 开放平台](https://api.xiaomimimo.com) 或你的模型服务商后台获取 `API_KEY`。
+2. 创建配置文件夹并添加配置：
+
+在终端中执行以下命令（复制粘贴即可）：
 
 ```bash
 mkdir -p ~/.mimofan
-cp config.example.toml ~/.mimofan/config.toml
-```
+cat << 'EOF' > ~/.mimofan/config.toml
+# mimofan 基础配置文件
 
-编辑 `~/.mimofan/config.toml` 填入 API Key：
-
-```toml
 provider = "xiaomi-mimo"
-api_key = "你的_MIMO_API_KEY"
+api_key = "替换为你的_MIMO_API_KEY"
 base_url = "https://api.xiaomimimo.com/v1"
 default_text_model = "mimo-v2.5-pro"
+EOF
 ```
 
-*或者通过环境变量直接配置：*
+*(提示：用文本编辑器打开 `~/.mimofan/config.toml`，将 `替换为你的_MIMO_API_KEY` 改为你真实的密钥)*
 
-```bash
-export MIMO_API_KEY="你的_MIMO_API_KEY"
-export MIMO_BASE_URL="https://api.xiaomimimo.com/v1"
-```
+---
 
-### 2. 环境健康检查
+### 第三步：检查环境健康状态
 
-运行诊断命令校验网络与 API 鉴权状态：
+运行诊断命令，确认 API Key 与网络连接是否一切正常：
 
 ```bash
 mimofan doctor
 ```
 
-### 3. 启动交互式 TUI
+如果看到 `OK` 提示，说明你已成功配置！
+
+---
+
+### 第四步：进入终端界面开始体验
+
+在你的代码项目根目录下直接运行：
 
 ```bash
 mimofan
 ```
 
+界面启动后，试着输入：
+> `“帮我检查一下当前目录下的代码，给我总结一下它的功能”`
+
 ---
 
-## ⚙️ 多模型 Provider 配置指南
+## 🎮 新手必看：TUI 终端界面操作指南
 
-`mimofan` 内置灵活的 Provider 路由系统，支持快速切换不同模型服务商：
+启动 `mimofan` 后，你将进入全屏交互式终端界面。
 
-### 1. Xiaomi MiMo (默认推荐)
-```toml
-provider = "xiaomi-mimo"
-api_key = "sk-..."
-base_url = "https://api.xiaomimimo.com/v1"
-default_text_model = "mimo-v2.5-pro"
+### 1. 基础按键与交互
+
+| 按键操作 | 功能说明 |
+|----------|----------|
+| `Enter` (回车) | **发送消息** 给 AI |
+| `Shift + Enter` 或 `Alt + Enter` | 在输入框中 **换行** |
+| `Ctrl + C` | 中止当前正在运行的任务 / 退出程序 |
+| `Ctrl + L` | **清空屏** 历史记录 |
+| `PageUp / PageDown` | 向上/向下滚动查看历史对话 |
+
+---
+
+### 2. 安全授权确认 (AI 执行命令时的弹窗)
+
+当 AI 需要修改你的文件或在你的电脑上运行终端脚本时，界面会弹出 **授权询问弹窗**：
+
+- **按 `y`**：授权允许 AI 执行当前操作。
+- **按 `n`**：拒绝该操作，AI 会停止此步并寻找其他方案。
+
+---
+
+### 3. 常用斜杠指令 (Slash Commands)
+
+在对话框中输入 `/` 可以触发快捷指令：
+
+* `/plan <目标>`：让 AI 先列出详细的设计/重构计划，由你审核通过后再开始改代码。
+* `/clear`：清屏并重置当前对话上下文。
+* `/help`：查看内置的帮助信息与常用操作快捷键。
+* `/exit`：退出 `mimofan` 界面。
+
+---
+
+## 💡 真实开发场景实战
+
+### 场景一：给项目添加新功能 / 修改 Bug
+打开终端，进入你的代码目录，启动 `mimofan` 后直接对话：
+
+```text
+> 帮我在 src/main.rs 里加一个检查网络连接的函数，并写对应的单元测试
 ```
 
-### 2. DeepSeek
+`mimofan` 会自动做以下事情：
+1. 🔍 **读取代码**：自动找到 `src/main.rs` 并分析上下文。
+2. ✍️ **编写代码**：插入符合规范的新函数与测试。
+3. 🧪 **运行验证**：自动运行 `cargo test` 确保测试通过！
+
+---
+
+### 场景二：单次命令行快捷调用 (无需进入 TUI)
+
+如果你只是想在 Bash 脚本里使用，或者快速问一个问题，可以使用 `mimofan-cli`：
+
+```bash
+# 让 AI 一句话回答问题
+mimofan-cli "帮我写一个匹配电子邮件地址的正则表达式"
+
+# 让 AI 在当前目录下生成文件
+mimofan-cli "帮我用 Python 写一个简单的爬虫脚本，保存到 spider.py"
+```
+
+---
+
+## ⚙️ 切换其他大模型 (DeepSeek / Qwen / OpenAI)
+
+除了默认的小米 MiMo 外，你可以在 `~/.mimofan/config.toml` 中轻松切换其他模型：
+
+### 切换到 DeepSeek
+
 ```toml
 provider = "deepseek"
-api_key = "sk-..."
+api_key = "你的_DEEPSEEK_API_KEY"
 base_url = "https://api.deepseek.com/v1"
 default_text_model = "deepseek-chat"
 ```
 
-### 3. 通用 OpenAI 兼容接口 (如 Qwen / Local LLM)
+### 切换到通义千问 / 阿里云 / 其他 OpenAI 兼容 Endpoints
+
 ```toml
 provider = "openai-compatible"
-api_key = "sk-..."
-base_url = "https://your-custom-endpoint/v1"
+api_key = "你的_DASHSCOPE_API_KEY"
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 default_text_model = "qwen-max"
 ```
 
 ---
 
-## 🖥️ 三大使用形态说明
-
-| 形态 | 启动命令 | 典型适用场景 |
-|------|----------|--------------|
-| **TUI 交互界面** | `mimofan` | 每日开发协同、复杂代码重构、交互式调试 |
-| **CLI 单次调用** | `mimofan-cli "帮我用 Python 实现快速排序"` | 快速生成代码片段、终端自动化脚本 |
-| **HTTP/RPC 服务** | `mimofan app-server --bind 127.0.0.1:8787` | 集成到 Web 应用、IDE 扩展或企业内部工作流 |
-
-### 快捷键一览 (TUI 模式)
-
-- `Ctrl + C`：取消当前执行任务 / 退出
-- `Ctrl + L`：清屏
-- `Tab`：切换输入模式与焦点区域
-- `PageUp / PageDown`：向上/向下翻阅历史对话
-
----
-
-## 🏗️ 系统架构
-
-`mimofan` 采用模块化的 Rust 工作区 (Workspace) 结构，各 Crates 职责明确：
-
-```mermaid
-graph TD
-    A[用户入口: TUI / CLI / App-Server] --> B[Core Engine 核心引擎]
-    B --> C[Agent & Provider Router]
-    B --> D[Tools & MCP Integrations]
-    B --> E[ExecPolicy 安全沙箱]
-    B --> F[State & Secrets 持久化]
-    C --> G[External LLM APIs]
-```
-
-### 核心 Crates 划分
-
-```
-crates/
-├── cli/          # CLI 命令行入口 dispatcher
-├── app-server/   # HTTP / JSON-RPC 服务入口
-├── tui/          # 交互式 TUI 界面与渲染引擎
-├── core/         # 核心运行时 (Runtime) 与 Turn 执行循环
-├── agent/        # 模型注册、路由解析与能力分流
-├── config/       # 配置 Schema 管理与 Provider 路径解析
-├── protocol/     # 应用层 JSON DTO 交互协议
-├── tools/        # 内置文件读写、Grep、Command 执行工具集
-├── mcp/          # MCP (Model Context Protocol) Client 实现
-├── hooks/        # 生命周期 Hook 触发器
-├── execpolicy/   # 命令安全拦截策略与沙箱验证
-├── state/        # 基于 SQLite 的历史会话与状态持久化
-└── secrets/      # 本地安全密钥与凭据存储
-```
-
----
-
-## 🔌 高阶功能扩展
-
-* **[MCP 扩展指南](docs/MCP.md)**：了解如何连接外部 MCP 工具服务（如数据库查询、浏览器自动化等）。
-* **[子 Agent 机制说明](docs/SUBAGENTS.md)**：如何利用并行 Subagent 拆分处理大规模任务。
-* **[飞书 & 微信 IM 桥接](integrations/)**：将 `mimofan` 接入企业飞书或微信机器人。
-
----
-
-## 📚 文档索引
-
-| 文档 | 说明 |
-|------|------|
-| 📖 [USER_GUIDE.md](USER_GUIDE.md) | 详细用户使用向导与进阶教程 |
-| 📐 [ARCHITECTURE.md](ARCHITECTURE.md) | 开发者架构设计与内部运作原理 |
-| ⚙️ [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | 完整配置文件字段参考与环境变量说明 |
-| 🔌 [docs/MCP.md](docs/MCP.md) | MCP 协议集成指南 |
-| 🤖 [docs/SUBAGENTS.md](docs/SUBAGENTS.md) | 子 Agent 架构与使用最佳实践 |
-| ⌨️ [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) | TUI 模式完整快捷键指南 |
-| 🤝 [AGENTS.md](AGENTS.md) | 开发者贡献规范与工作约定 |
-
----
-
-## ❓ 常见问题 (FAQ)
+## ❓ 新手踩坑 FAQ
 
 <details>
-<summary><b>1. 运行 <code>mimofan doctor</code> 提示 API Key 无效或连接超时怎么办？</b></summary>
+<summary><b>Q1: 启动时提示 <code>Config not found</code> 或连接超时？</b></summary>
 
-请先检查 `~/.mimofan/config.toml` 中配置的 `base_url` 是否正确，并确认本地网络代理设置。如果使用的是 Xiaomi MiMo 服务，请确认凭据具备访问权限。
+请检查 `~/.mimofan/config.toml` 文件路径是否正确，以及 `api_key` 是否正确填入。运行 `mimofan doctor` 命令可自动查明网络及配置问题。
 </details>
 
 <details>
-<summary><b>2. 如何控制命令执行的安全性？</b></summary>
+<summary><b>Q2: 执行命令时一直要按 <code>y</code> 确认，觉得麻烦怎么关掉？</b></summary>
 
-`mimofan` 提供了三种安全拦截模式（`yolo` / `on-request` / `strict`）。默认配置下对于破坏性 shell 命令和越权文件修改会进行安全提示或拦截。可以在 `config.toml` 中配置 `approval_policy` 进行定制。
+在 `~/.mimofan/config.toml` 中添加 `approval_policy = "yolo"` 即可开启全自动无人值守模式（注意：全自动模式下 AI 会自动运行脚本，请在信任的代码仓库中使用）。
 </details>
+
+<details>
+<summary><b>Q3: 我能让 AI 读取我本地的 Markdown 文档或项目说明吗？</b></summary>
+
+可以！直接在对话里告诉 AI：“读取根目录下的 USER_GUIDE.md 并回答我的问题”，AI 会自动调用内置的文件读取工具加载文档。
+</details>
+
+---
+
+## 📚 进阶文档导航
+
+* 📖 [USER_GUIDE.md](USER_GUIDE.md) — 完整用户进阶教程
+* 📐 [ARCHITECTURE.md](ARCHITECTURE.md) — 系统架构设计与原理
+* 🔌 [docs/MCP.md](docs/MCP.md) — 连接外部 MCP 扩展服务
+* 🤝 [AGENTS.md](AGENTS.md) — 参与项目贡献指南
 
 ---
 
