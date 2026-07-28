@@ -144,6 +144,7 @@ pub fn append_entry(path: &Path, entry: &str) -> io::Result<()> {
 /// Load memories from an external memory service and format them as a
 /// `<user_memory>` block. Returns `None` when the service is not configured
 /// or when no memories are found.
+#[allow(dead_code)] // Reserved for external memory service integration
 pub async fn load_from_service(
     service_url: &str,
     api_key: Option<&str>,
@@ -172,6 +173,7 @@ pub async fn load_from_service(
 }
 
 /// Store a memory to the external service.
+#[allow(dead_code)] // Reserved for external memory service integration
 pub async fn store_to_service(
     service_url: &str,
     api_key: Option<&str>,

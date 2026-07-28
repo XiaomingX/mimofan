@@ -44,6 +44,7 @@ pub struct MemorySearchRequest {
 
 /// Response from memory search.
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // Reserved for external memory service integration
 pub struct MemorySearchResponse {
     /// List of matching memories.
     pub memories: Vec<MemoryEntry>,
@@ -64,12 +65,14 @@ pub struct MemoryStoreRequest {
 
 /// Client for interacting with an external memory service.
 #[derive(Clone)]
+#[allow(dead_code)] // Reserved for external memory service integration
 pub struct MemoryServiceClient {
     client: Client,
     base_url: String,
     api_key: Option<String>,
 }
 
+#[allow(dead_code)] // Reserved for external memory service integration
 impl MemoryServiceClient {
     /// Create a new client for the given service URL.
     pub fn new(base_url: &str, api_key: Option<&str>) -> Result<Self> {

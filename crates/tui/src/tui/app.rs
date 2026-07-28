@@ -1656,7 +1656,7 @@ pub struct App {
     pub system_prompt: Option<SystemPrompt>,
     pub auto_compact: bool,
     pub auto_compact_user_configured: bool,
-    pub auto_compact_threshold_percent: f64,
+    pub compact_threshold_percent: f64,
     pub calm_mode: bool,
     pub low_motion: bool,
     /// Pending #61 (animated working strip). Set from config but not read
