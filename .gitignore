@@ -12,6 +12,7 @@ out/
 *.dylib
 *.rlib
 *.o
+*.tar.gz
 
 # Development
 .env
