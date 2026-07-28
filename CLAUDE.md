@@ -1,261 +1,227 @@
-# Claude Repository Guidance
+# Claude 项目指南
 
-Read `AGENTS.md` first for full agent work conventions.
+请先阅读 `AGENTS.md` 了解完整的智能体工作约定。
 
-## Project Overview
+## 项目概述
 
-Mimofan is a Rust-based terminal AI programming assistant (对标 opencode / claude code),
-supporting multiple LLM providers (DeepSeek, OpenAI, Anthropic, Zai, etc.) with a
-TUI interface, sub-agent system, and MCP tool integration.
+Mimofan 是一个基于 Rust 的终端 AI 编程助手（对标 opencode / claude code），
+支持多种 LLM 服务商（DeepSeek、OpenAI、Anthropic、Zai 等），提供
+TUI 界面、子智能体系统和 MCP 工具集成。
 
-## Workspace Crates (15 members)
-
-```
-mimofan-cli          CLI entry point, clap argument parsing
-mimofan-app-server   HTTP application server (axum)
-mimofan-tui          TUI interface (ratatui), runtime API, task management,
-                       tool execution loop, model/provider picker
-mimofan-core         Core engine: turn loop, session, events
-mimofan-config       Configuration: providers, routes, model inventory
-mimofan-protocol     Protocol definitions: tools, message formats
-mimofan-agent        Sub-agent system
-mimofan-tools        Built-in tool implementations
-mimofan-mcp          MCP server integration
-mimofan-hooks        Pre/post tool hooks
-mimofan-execpolicy   Execution policy (security sandbox)
-mimofan-secrets      Secret/key management
-mimofan-state        State persistence (SQLite via rusqlite)
-mimofan-release      Release tooling
-```
-
-default-members: `cli`, `app-server`, `tui`
-
-### Crate Dependency Flow (simplified)
+## 工作区 Crate（14 个成员）
 
 ```
-cli / app-server / tui   (binary crates, top-level entry points)
-  └─ core                 (engine, turn loop, session)
-       ├─ config          (provider, route, model config)
-       ├─ protocol        (tool & message types)
-       ├─ agent           (sub-agent orchestration)
-       ├─ tools           (builtin tools)
-       ├─ mcp             (MCP integration)
-       ├─ hooks           (pre/post hooks)
-       ├─ execpolicy      (sandbox)
-       ├─ secrets         (key management)
-       └─ state           (SQLite persistence)
+mimofan-cli          CLI 库：参数解析，子命令分发（库 crate）
+mimofan-app-server   HTTP 应用服务器（axum）
+mimofan              TUI 界面 + CLI 入口（ratatui），运行时 API，任务管理，
+                       工具执行循环，模型/服务商选择器
+mimofan-core         核心引擎：轮次循环、会话、事件
+mimofan-config       配置：服务商、路由、模型清单
+mimofan-protocol     协议定义：工具、消息格式
+mimofan-agent        子智能体系统
+mimofan-tools        内置工具实现
+mimofan-mcp          MCP 服务器集成
+mimofan-hooks        工具前后钩子
+mimofan-execpolicy   执行策略（安全沙箱）
+mimofan-secrets      密钥/密钥管理
+mimofan-state        状态持久化（通过 rusqlite 的 SQLite）
+mimofan-release      发布工具
 ```
 
-## Tech Stack
+默认成员：`cli`、`app-server`、`tui`
 
-- Rust 2024 edition, rust-version = "1.88" (requires `let_chains` feature)
-- tokio (full features) async runtime
-- ratatui TUI framework
-- clap CLI parsing
-- serde / serde_json / toml serialization
-- reqwest HTTP client (rustls)
-- rusqlite SQLite (bundled)
-- axum HTTP framework
-- tracing logging
+### Crate 依赖流（简化版）
 
-## Build / Test / Format Quick Reference
+```
+cli / app-server       （二进制 crate，顶层入口点）
+  └─ core               （引擎、轮次循环、会话）
+
+tui                     （二进制 crate，自己实现运行时，不依赖 core）
+  ├─ config             （服务商、路由、模型配置）
+  ├─ protocol           （工具和消息类型）
+  ├─ tools              （内置工具）
+  ├─ execpolicy         （沙箱）
+  └─ secrets            （密钥管理）
+
+core → config, protocol, agent, tools, mcp, hooks, execpolicy, secrets, state
+config → execpolicy, secrets
+hooks → protocol
+tools → protocol
+```
+
+## 技术栈
+
+- Rust 2024 版本，rust-version = "1.88"（需要 `let_chains` 特性）
+- tokio（完整特性）异步运行时
+- ratatui TUI 框架
+- clap CLI 解析
+- serde / serde_json / toml 序列化
+- reqwest HTTP 客户端（rustls）
+- rusqlite SQLite（bundled）
+- axum HTTP 框架
+- tracing 日志
+
+## 构建 / 测试 / 格式化快速参考
 
 ```bash
-cargo fmt                                         # Format all code
-cargo test -p mimofan-tui --locked              # TUI tests
-cargo test -p mimofan-config                    # Config tests
-cargo test -p mimofan-protocol                  # Protocol tests
-cargo test --workspace                            # Full workspace tests
+cargo fmt                                         # 格式化所有代码
+cargo test -p mimofan --locked                  # TUI 测试
+cargo test -p mimofan-config                    # 配置测试
+cargo test -p mimofan-protocol                  # 协议测试
+cargo test --workspace                            # 完整工作区测试
 cargo build --release -p mimofan-cli \
-                        -p mimofan-tui          # Release build
+                        -p mimofan              # Release 构建
 ```
 
-### Known Test Papercuts (pre-existing, not regressions)
+### 已知测试问题（预先存在，非回归）
 
-- `config_command_allow_shell_*` fails when `~/.mimofan/settings.toml` has
-  `default_mode = "yolo"` (tests are not hermetic)
-- `run_verifiers_background_*` is flaky under full-suite parallelism but passes
-  in isolation
+- `config_command_allow_shell_*` 在 `~/.mimofan/settings.toml` 有
+  `default_mode = "yolo"` 时失败（测试不是隔离的）
+- `run_verifiers_background_*` 在完整套件并行时不稳定，但单独运行时通过
 
-## Code Style Conventions
+## 代码风格约定
 
-- Rust standard style; run `cargo fmt` before every commit
-- No `any`-equivalent: avoid `Box<dyn Any>` where a trait or enum suffices
-- Prefer `thiserror` for library error types, `anyhow` only in binary crates
-- Async everywhere via tokio; avoid `spawn_blocking` unless I/O-bound and measured
-- One concern per commit; write a real commit body
-- Commit as **WIP** unless behavior is actually verified (built binary, ran test,
-  reproduced fix)
+- Rust 标准风格；每次提交前运行 `cargo fmt`
+- 无 `any` 等效类型：避免使用 `Box<dyn Any>`，改用 trait 或枚举
+- 库错误类型优先使用 `thiserror`，二进制 crate 只用 `anyhow`
+- 所有代码都通过 tokio 异步；除非是 I/O 密集型且经过测量，否则避免使用 `spawn_blocking`
+- 每次提交只关注一个问题；写真实的提交信息
+- 除非行为已实际验证（构建了二进制、运行了测试、复现了修复），否则提交为 **WIP**
 
-## Provider System
+## 服务商系统
 
-Mimofan supports cloud API providers only. Local inference providers (Ollama) and 
-various redundant cloud providers (HuggingFace, DeepInfra, Together, Arcee, Fireworks, 
-Novita, WanjieArk) have been explicitly removed. Provider configuration lives in
-`mimofan-config` with route resolution in `config/src/route/`.
+Mimofan 只支持云 API 服务商。本地推理服务商（Ollama）和
+各种冗余云服务商（HuggingFace、DeepInfra、Together、Arcee、Fireworks、
+Novita、WanjieArk）已被明确移除。服务商配置位于
+`mimofan-config`，路由解析在 `config/src/route/`。
 
-See `docs/PROVIDERS.md` for provider-specific details.
+详见 `config.example.toml` 了解服务商配置。
 
-## Key Design Constraints
+## 关键设计约束
 
-1. **Agent-only surface**: The model-facing sub-agent tool is **`agent` only**.
-   There is no `agent_open` / `agent_eval` / `agent_close` / `delegate_to_agent`.
-2. **No lifecycle / coherence system**: Do not introduce capacity / coherence /
-   runtime-tag systems or lifecycle tools.
-3. **No runtime prompt / tag injection**: `constitution.md` (via
-   `~/.mimofan/constitution.json`) is the sole base prompt.
-4. **Sub-agent depth is configurable**; no arbitrary new limits unless clearly
-   needed and explained.
-5. **Sub-agent TUI freeze resolved**: v0.8.61 cutover fixed it. Do not commit
-   speculative `spawn_blocking` fixes.
+1. **仅限智能体表面**：面向模型的子智能体工具是 **`agent` 仅**。
+   不存在 `agent_open` / `agent_eval` / `agent_close` / `delegate_to_agent`。
+2. **无生命周期/一致性系统**：不要引入容量/一致性/
+   运行时标签系统或生命周期工具。
+3. **无运行时提示词/标签注入**：`constitution.md`（通过
+   `~/.mimofan/constitution.json`）是唯一的基础提示词。
+4. **子智能体深度可配置**；除非明确需要并解释清楚，否则不要新增任意限制。
+5. **子智能体 TUI 冻结已解决**：v0.8.61 切换修复了它。不要提交
+   推测性的 `spawn_blocking` 修复。
 
-## File Organization
+## 文件组织
 
 ```
-ARCHITECTURE.md           Architecture doc (Chinese, root-level)
-USER_GUIDE.md             Usage guide (Chinese, root-level)
-docs/CONFIGURATION.md     Configuration guide
-docs/SUBAGENTS.md         Sub-agent guide
-docs/MCP.md               MCP integration guide
-docs/MODES.md             Modes (plan/agent/yolo)
-docs/PROMPTS.md           Prompt engineering index
-CHANGELOG.md              Changelog
-config.example.toml       Example configuration
-~/.mimofan/settings.toml          User settings
-~/.mimofan/constitution.json      Constitution (base prompt)
+ARCHITECTURE.md           架构文档（中文，根目录）
+USER_GUIDE.md             使用指南（中文，根目录）
+IMPROVEMENT_PLAN.md       改进计划（DDD 视角，根目录）
+docs/CONFIGURATION.md     配置指南
+docs/SUBAGENTS.md         子智能体指南
+docs/MCP.md               MCP 集成指南
+docs/MODES.md             模式（plan/agent/yolo）
+docs/PROMPTS.md           提示词工程索引
+config.example.toml       示例配置
+~/.mimofan/settings.toml          用户设置
+~/.mimofan/constitution.json      宪法（基础提示词）
 ```
 
-### Large Files (excluded from .claudeignore)
+### 大文件（已从 .claudeignore 排除）
 
-These files are stable and rarely modified. Their summaries are provided here
-to avoid loading thousands of lines into context:
+这些文件稳定且很少修改。此处提供其摘要以避免将数千行加载到上下文中：
 
-| File | Lines | Purpose | Key APIs |
-|------|-------|---------|----------|
-| `localization.rs` | 4,698 | TUI string translations (zh-Hans) | `tr(MessageId)`, `Locale`, `MessageId` enum |
-| `prompts.rs` | 3,071 | System prompts for modes | `PromptSessionContext`, `build_system_prompt()` |
-| `tui/widgets/mod.rs` | 4,848 | UI widget implementations | `FooterWidget`, `HeaderWidget`, `AgentCard`, `ToolCard` |
-| `tui/views/mod.rs` | 3,125 | Modal/dialog view system | `ModalKind` enum, `CommandPaletteAction`, view rendering |
+| 文件 | 行数 | 用途 | 关键 API |
+|------|------|------|----------|
+| `localization.rs` | 4,698 | TUI 字符串翻译（zh-Hans） | `tr(MessageId)`、`Locale`、`MessageId` 枚举 |
+| `prompts.rs` | 3,071 | 模式系统提示词 | `PromptSessionContext`、`build_system_prompt()` |
+| `tui/widgets/mod.rs` | 4,848 | UI 组件实现 | `FooterWidget`、`HeaderWidget`、`AgentCard`、`ToolCard` |
+| `tui/views/mod.rs` | 3,125 | 模态框/对话框视图系统 | `ModalKind` 枚举、`CommandPaletteAction`、视图渲染 |
+| `tui/ui.rs` | 11,317 | UI 渲染主循环 | `render()`、`draw_*()` 系列函数 |
+| `tui/lib.rs` | 6,827 | 模块声明与 re-export | 所有 pub 模块入口 |
+| `tools/subagent/mod.rs` | 6,584 | 子智能体工具 | `SubagentTool`、`SubagentConfig` |
+| `tui/app.rs` | 5,922 | TUI 应用状态机 | `App`、`AppEvent`、`handle_key()` |
+| `config.rs` (tui) | 4,602 | TUI 配置管理 | `TuiConfig`、`load_tui_config()` |
+| `runtime_threads.rs` | 3,943 | 线程运行时 | `RuntimeThread`、`ThreadHandle` |
+| `core/engine.rs` | 3,678 | 引擎核心 | `Engine`、`TurnResult`、`dispatch_tool()` |
+| `runtime_api.rs` | 3,444 | 运行时 API | `RuntimeApi`、`send_message()`、`cancel()` |
+| `tools/shell.rs` | 3,413 | Shell 工具 | `ShellTool`、`ShellConfig`、`execute_command()` |
+| `mcp.rs` (tui) | 3,261 | MCP 集成 | `McpManager`、`connect_server()`、`list_tools()` |
 
-## Detailed Docs
+## 详细文档
 
-For deep dives, read the corresponding doc under `docs/`:
-- Architecture and crate relationships: `ARCHITECTURE.md` (root)
-- Configuration and routing: `docs/CONFIGURATION.md`
-- Sub-agent system: `docs/SUBAGENTS.md`
-- MCP integration: `docs/MCP.md`
-- Operating modes: `docs/MODES.md`
-- Prompt engineering: `docs/PROMPTS.md`
+深入了解请阅读 `docs/` 下的相应文档：
+- 架构和 crate 关系：`ARCHITECTURE.md`（根目录）
+- 配置和路由：`docs/CONFIGURATION.md`
+- 子智能体系统：`docs/SUBAGENTS.md`
+- MCP 集成：`docs/MCP.md`
+- 操作模式：`docs/MODES.md`
+- 提示词工程：`docs/PROMPTS.md`
 
 ---
 
-## Performance Best Practices
+## 性能最佳实践
 
-### Memory & Allocation
+### 内存与分配
 
-- **Avoid unnecessary `.clone()`**: The codebase has high `clone()` density in
-  `subagent/mod.rs`, `ui.rs`, `engine.rs`, `runtime_threads.rs`. Prefer borrowing
-  (`&str` over `String`, `&[T]` over `Vec<T>`) where lifetime permits. Use
-  `Arc::clone()` for shared ownership instead of deep-cloning data.
-- **Minimize `.to_string()` in hot paths**: UI rendering (`ui.rs` ~200+ calls) and
-  test files are the worst offenders. Use `format!` only when concatenating;
-  prefer `&str` references for static text. For `Display` types, use
-  `write!` into a reused buffer instead of repeated `to_string()`.
-- **Prefer `RwLock` over `Mutex` for read-heavy data**: Engine and runtime use
-  `tokio::sync::RwLock` correctly for shared state. New code accessing
-  config/session/registry should follow this pattern. `Mutex` is acceptable only
-  for short critical sections with infrequent reads.
-- **Use `Bytes` / `Cow<'static, str>` for large payloads**: LLM responses,
-  streaming chunks, and tool outputs can be large. Avoid copying large strings
-  across async boundaries; use `bytes::Bytes` or `Cow` where possible.
+- **避免不必要的 `.clone()`**：代码库在 `subagent/mod.rs`、`ui.rs`、`engine.rs`、`runtime_threads.rs` 中有高密度的 `clone()`。在生命周期允许的情况下优先使用借用（`&str` 优于 `String`，`&[T]` 优于 `Vec<T>`）。使用 `Arc::clone()` 进行共享所有权，而不是深拷贝数据。
+- **最小化热路径中的 `.to_string()`**：UI 渲染（`ui.rs` 约 200+ 次调用）和测试文件是最大的问题。仅在拼接时使用 `format!`；对于静态文本优先使用 `&str` 引用。对于 `Display` 类型，使用 `write!` 写入复用的缓冲区，而不是重复的 `to_string()`。
+- **读多写少的数据优先使用 `RwLock` 而非 `Mutex`**：引擎和运行时正确使用了 `tokio::sync::RwLock` 进行共享状态。访问配置/会话/注册表的新代码应遵循此模式。`Mutex` 仅适用于短临界区且读取不频繁的情况。
+- **大型负载使用 `Bytes` / `Cow<'static, str>`**：LLM 响应、流式块和工具输出可能很大。避免在异步边界间复制大字符串；尽可能使用 `bytes::Bytes` 或 `Cow`。
 
-### Async & Concurrency
+### 异步与并发
 
-- **Structured concurrency**: Use `tokio::select!` with `CancellationToken` for
-  cancellation (already used in engine). Avoid raw `tokio::spawn` without a
-  handle — use `spawn_supervised` pattern from `utils.rs`.
-- **Channel patterns**: Use `mpsc` for producer-consumer (engine→UI),
-  `broadcast` for fan-out (events), `oneshot` for request-response. The codebase
-  already follows this; new code must too.
-- **Avoid blocking the runtime**: `spawn_blocking` is justified only for
-  CPU-bound work (git rev-parse, file hashing). I/O-bound blocking (file reads)
-  should use `tokio::fs`. The codebase uses `spawn_blocking` in ~24 places —
-  verify necessity before adding new ones.
-- **Batch operations**: Group related async operations with `FuturesUnordered`
-  (already used in engine for sub-agent orchestration). Avoid sequential
-  `await`s where parallelism is possible.
+- **结构化并发**：使用 `tokio::select!` 配合 `CancellationToken` 进行取消（已在引擎中使用）。避免没有句柄的原始 `tokio::spawn`——使用 `utils.rs` 中的 `spawn_supervised` 模式。
+- **通道模式**：使用 `mpsc` 进行生产者-消费者（engine→UI），`broadcast` 进行扇出（事件），`oneshot` 进行请求-响应。代码库已遵循此模式；新代码也必须如此。
+- **避免阻塞运行时**：`spawn_blocking` 仅对 CPU 密集型工作（git rev-parse、文件哈希）是合理的。I/O 密集型阻塞（文件读取）应使用 `tokio::fs`。代码库在约 24 个地方使用了 `spawn_blocking`——在新增之前验证必要性。
+- **批量操作**：使用 `FuturesUnordered` 分组相关异步操作（已在引擎的子智能体编排中使用）。避免在可能并行时顺序 `await`。
 
-### HTTP & Network
+### HTTP 与网络
 
-- **Connection reuse**: `reqwest::Client` is shared via `Arc` (in `client.rs`).
-  Never create a new client per request.
-- **Streaming**: Use `reqwest` streaming for LLM responses (already in place).
-  Buffer tool outputs before sending to avoid partial-message overhead.
-- **Retry strategy**: Follow existing `with_retry` pattern in `llm_client/mod.rs`
-  with exponential backoff + jitter. Respect `Retry-After` headers.
+- **连接复用**：`reqwest::Client` 通过 `Arc` 共享（在 `client.rs` 中）。永远不要为每个请求创建新客户端。
+- **流式处理**：对 LLM 响应使用 `reqwest` 流式处理（已到位）。在发送前缓冲工具输出以避免部分消息开销。
+- **重试策略**：遵循 `llm_client/mod.rs` 中现有的 `with_retry` 模式，使用指数退避 + 抖动。尊重 `Retry-After` 头。
 
 ---
 
-## Maintainability Best Practices
+## 可维护性最佳实践
 
-### File Size & Module Structure
+### 文件大小与模块结构
 
-- **Hotspot files requiring decomposition**:
-  - `tui/ui.rs` (11,412 lines) — split into `ui/chat.rs`, `ui/sidebar.rs`,
-    `ui/footer.rs`, `ui/picker.rs` etc.
-  - `tui/main.rs` (9,231 lines) — extract initialization, argument parsing,
-    and module wiring into separate files.
-  - `tui/ui/tests.rs` (11,197 lines) — co-locate tests with their UI modules.
-- **Target**: No source file should exceed 1,000 lines. Test files should
-  mirror source structure and stay under 500 lines each.
-- **Module depth**: The `tui/src/` directory has 71 top-level `.rs` files —
-  consider grouping related modules into subdirectories (e.g., `tools/`, `core/`,
-  `fleet/` already exist; `config_*`, `model_*`, `runtime_*` modules should be
-  similarly grouped).
+- **需要分解的热点文件**：
+  - `tui/ui.rs`（11,317 行）—— 拆分为 `ui/chat.rs`、`ui/sidebar.rs`、`ui/footer.rs`、`ui/picker.rs` 等
+  - `tui/lib.rs`（6,827 行）—— 模块声明与 re-export，可按子目录分组
+  - `tools/subagent/mod.rs`（6,584 行）—— 子智能体工具，可拆分为独立子模块
+- **目标**：源文件不超过 1,000 行。测试文件应镜像源结构，每个不超过 500 行。
+- **模块深度**：`tui/src/` 目录有 71 个顶层 `.rs` 文件——考虑将相关模块分组到子目录（例如 `tools/`、`core/`、`fleet/` 已存在；`config_*`、`model_*`、`runtime_*` 模块应类似分组）。
 
-### Dependency Hygiene
+### 依赖卫生
 
-- **Workspace dependencies**: All shared crates (`serde`, `tokio`, `anyhow`, etc.)
-  are declared in `[workspace.dependencies]`. New dependencies MUST be added there
-  first, then referenced with `workspace = true` in crate `Cargo.toml`.
-- **Feature flags**: The `tui` crate has `tui`/`web`/`json`/`toml` features.
-  Keep features minimal and avoid feature-gating core logic.
-- **No duplicate versions**: Run `cargo tree -d` periodically to catch version
-  drift. The CI `check-versions.sh` script enforces this.
+- **工作区依赖**：所有共享 crate（`serde`、`tokio`、`anyhow` 等）在 `[workspace.dependencies]` 中声明。新依赖必须先在此添加，然后在 crate `Cargo.toml` 中用 `workspace = true` 引用。
+- **特性标志**：`tui` crate 有 `tui`/`web`/`json`/`toml` 特性。保持特性最小化，避免用特性门控核心逻辑。
+- **无重复版本**：定期运行 `cargo tree -d` 检查版本漂移。CI `check-versions.sh` 脚本强制执行。
 
-### Error Handling
+### 错误处理
 
-- **Library crates** (`config`, `protocol`, `secrets`, `execpolicy`, `tools`):
-  Use `thiserror` for typed errors. Define `enum FooError` with `#[derive(Error)]`.
-- **Binary crates** (`tui`, `cli`, `app-server`): Use `anyhow::Result` with
-  `.context()` for rich error chains. Use `bail!` for early returns.
-- **Anti-pattern: raw `unwrap()`**: The codebase has ~2,600 `unwrap()` calls.
-  In production code, replace with `?` or `.expect("reason")`. In tests,
-  `expect()` with a descriptive message is preferred over bare `unwrap()`.
-  Hotspots: `mcp/tests.rs` (233), `fleet/manager.rs` (117), `snapshot/repo.rs` (116).
-- **Anti-pattern: silent error swallowing**: Never `let _ = result` for
-  fallible operations without a comment explaining why the error is safe to ignore.
+- **库 crate**（`config`、`protocol`、`secrets`、`execpolicy`、`tools`）：使用 `thiserror` 进行类型化错误。定义 `enum FooError` 并加 `#[derive(Error)]`。
+- **二进制 crate**（`tui`、`cli`、`app-server`）：使用 `anyhow::Result` 配合 `.context()` 获取丰富的错误链。使用 `bail!` 进行提前返回。
+- **反模式：裸 `unwrap()`**：代码库有约 2,600 个 `unwrap()` 调用。在生产代码中，替换为 `?` 或 `.expect("reason")`。在测试中，首选带描述性消息的 `expect()` 而非裸 `unwrap()`。热点：`mcp/tests.rs`（233）、`fleet/manager.rs`（117）、`snapshot/repo.rs`（116）。
+- **反模式：静默吞错**：永远不要 `let _ = result` 用于可失败操作，除非有注释解释为什么错误可以忽略。
 
-### Testing Standards
+### 测试标准
 
-- **Coverage**: 5,654 sync tests + 531 async tests. New features require tests.
-- **Test naming**: Use `test_<module>_<scenario>_<expected>` pattern.
-- **Async tests**: Use `#[tokio::test]` for async code. Prefer
-  `#[tokio::test(start_paused = true)]` for time-sensitive tests.
-- **Test isolation**: Tests must not depend on external state (`~/.mimofan/`,
-  env vars). Use `tempfile` and env guards (`EnvGuard` in `config/tests.rs`).
-- **Snapshot tests**: Use `insta` or `expect_test` for UI output verification
-  where appropriate.
-- **Integration tests**: Place in `tests/` directory with `support/` helpers.
-  Use the PTY harness (`qa_harness/`) for terminal interaction tests.
+- **覆盖率**：5,654 个同步测试 + 531 个异步测试。新功能需要测试。
+- **测试命名**：使用 `test_<模块>_<场景>_<预期>` 模式。
+- **异步测试**：对异步代码使用 `#[tokio::test]`。对时间敏感测试优先使用 `#[tokio::test(start_paused = true)]`。
+- **测试隔离**：测试不能依赖外部状态（`~/.mimofan/`、环境变量）。使用 `tempfile` 和环境守卫（`config/tests.rs` 中的 `EnvGuard`）。
+- **快照测试**：在适当时使用 `insta` 或 `expect_test` 进行 UI 输出验证。
+- **集成测试**：放在 `tests/` 目录，带 `support/` 辅助工具。使用 PTY 工具（`qa_harness/`）进行终端交互测试。
 
 ---
 
-## Code Quality Rules
+## 代码质量规则
 
-### Clippy Configuration
+### Clippy 配置
 
-CI runs clippy with:
+CI 运行 clippy：
 ```bash
 cargo clippy --workspace --all-features --locked -- \
   -D warnings \
@@ -265,99 +231,58 @@ cargo clippy --workspace --all-features --locked -- \
   -A clippy::assertions_on_constants
 ```
 
-New code must pass clippy without adding new `#[allow(clippy::...)]` attributes.
-Currently 40 files have clippy allow attributes — reduce, don't increase.
+新代码必须通过 clippy 而不添加新的 `#[allow(clippy::...)]` 属性。
+目前 40 个文件有 clippy allow 属性——减少，不要增加。
 
-### Formatting
+### 格式化
 
-- No `rustfmt.toml` — use default rustfmt settings.
-- CI enforces `cargo fmt --all -- --check`.
-- Always run `cargo fmt` before committing.
+- 无 `rustfmt.toml`——使用默认 rustfmt 设置。
+- CI 强制执行 `cargo fmt --all -- --check`。
+- 提交前始终运行 `cargo fmt`。
 
-### Type Safety
+### 类型安全
 
-- **No `Box<dyn Any>`**: Use enums or traits for polymorphism. The codebase
-  has minimal `Box<dyn>` usage (~10 files) — keep it that way.
-- **Newtype pattern**: Prefer `struct ProviderId(String)` over raw `String` for
-  domain identifiers (already used in `route/ids.rs`).
-- **Serde hygiene**: Use `#[serde(deny_unknown_fields)]` on config structs.
-  Use `#[serde(default)]` for optional fields with sensible defaults.
+- **无 `Box<dyn Any>`**：使用枚举或 trait 进行多态。代码库中 `Box<dyn>` 使用极少（约 10 个文件）——保持如此。
+- **新类型模式**：优先使用 `struct ProviderId(String)` 而非原始 `String` 作为领域标识符（已在 `route/ids.rs` 中使用）。
+- **Serde 卫生**：在配置结构体上使用 `#[serde(deny_unknown_fields)]`。对具有合理默认值的可选字段使用 `#[serde(default)]`。
 
-### Concurrency Safety
+### 并发安全
 
-- **`Arc<Mutex<T>>` vs `Arc<RwLock<T>>`**: Use `RwLock` when reads dominate
-  (config, session state). Use `Mutex` for write-heavy or short critical sections.
-- **Avoid lock ordering bugs**: Document lock acquisition order in comments
-  when multiple locks are held simultaneously.
-- **`CancellationToken`**: Use for graceful shutdown of spawned tasks.
-  The engine already uses this pattern.
+- **`Arc<Mutex<T>>` vs `Arc<RwLock<T>>`**：读主导时使用 `RwLock`（配置、会话状态）。写密集或短临界区使用 `Mutex`。
+- **避免锁顺序错误**：同时持有多个锁时在注释中记录锁获取顺序。
+- **`CancellationToken`**：用于生成任务的优雅关闭。引擎已使用此模式。
 
-### Security
+### 安全
 
-- **No hardcoded secrets**: All keys come from `mimofan-secrets` or env vars.
-- **File permissions**: The `secrets` crate checks 0600 on secret files.
-- **Command execution**: All shell commands go through `execpolicy` sandbox.
-  Never bypass with raw `Command::new()` in user-facing paths.
-- **Input sanitization**: Tool names are sanitized via `to_api_tool_name()`.
-  User input to LLMs must be properly escaped.
+- **无硬编码密钥**：所有密钥来自 `mimofan-secrets` 或环境变量。
+- **文件权限**：`secrets` crate 检查密钥文件的 0600 权限。
+- **命令执行**：所有 shell 命令通过 `execpolicy` 沙箱。永远不要在用户可见路径中用原始 `Command::new()` 绕过。
+- **输入清理**：工具名称通过 `to_api_tool_name()` 清理。发送给 LLM 的用户输入必须正确转义。
 
 ---
 
-## Stewardship Defaults
+## 管理默认值
 
-- Treat community PRs and issues as maintainer evidence. Inspect code, tests,
-  linked issues, comments, and CI before merging, harvesting, closing, or
-  deferring work.
-- Do not tag, publish, create a GitHub Release, or push release artifacts
-  without Hunter's explicit approval.
-- Keep Mimofan branding while preserving first-class DeepSeek model/provider
-  support and legacy migration care.
-- Preserve contributor credit for harvested work with authorship,
-  `Co-authored-by`, `Harvested from PR #N by @handle`, and changelog/release
-  notes where applicable. Use canonical GitHub-noreply identities from
-  `.github/AUTHOR_MAP`; never add bot/tool `Co-authored-by` trailers (Claude,
-  codex, cursor) -- the `check-coauthor-trailers.py` CI gate rejects them.
+- 将社区 PR 和问题视为维护者证据。在合并、收割、关闭或推迟工作前检查代码、测试、链接的问题、评论和 CI。
+- 没有 Hunter 的明确批准，不要打标签、发布、创建 GitHub Release 或推送发布工件。
+- 保持 Mimofan 品牌同时保留对 DeepSeek 模型/服务商的一等支持和遗留迁移关怀。
+- 为收割的工作保留贡献者信誉，包括作者身份、`Co-authored-by`、`Harvested from PR #N by @handle` 以及适用的变更日志/发布说明。使用 `.github/AUTHOR_MAP` 中的规范 GitHub noreply 身份；永远不要添加机器人/工具 `Co-authored-by` 尾部（Claude、codex、cursor）——`check-coauthor-trailers.py` CI 门会拒绝它们。
 
-## Scratch Integration Branches
+## 暂存集成分支
 
-- For release queues, create disposable local branches from the real landing
-  branch, for example `scratch/vX.Y.Z-pr-train-YYYYMMDD`.
-- Use the scratch branch to merge or cherry-pick candidate PR heads in batches
-  and learn which conflicts, tests, and overlaps are real.
-- Do not ship the scratch branch itself. It may contain noisy merge commits,
-  partial conflict resolutions, and unrelated PR interactions.
-- After the scratch experiment, move only the safe result back to the release
-  branch as narrow commits or direct merges. Keep each final commit explainable
-  and testable.
-- A PR that is clean against `main` is not necessarily clean against a release
-  branch. Test mergeability against the branch that will actually receive the
-  work.
-- For already approved PRs, treat approval as a strong priority signal. Still
-  inspect diffs, comments, check results, and release-branch conflicts before
-  landing.
+- 对于发布队列，从实际登陆分支创建一次性本地分支，例如 `scratch/vX.Y.Z-pr-train-YYYYMMDD`。
+- 使用暂存分支批量合并或挑选候选 PR 头，以发现哪些冲突、测试和重叠是真实的。
+- 不要发布暂存分支本身。它可能包含嘈杂的合并提交、部分冲突解决和不相关的 PR 交互。
+- 暂存实验后，仅将安全结果作为窄提交或直接合并移回发布分支。保持每个最终提交可解释和可测试。
+- 对 `main` 干净的 PR 不一定对发布分支干净。在称为合并就绪之前，针对将实际接收工作的分支测试可合并性。
+- 对于已批准的 PR，将批准视为强优先级信号。在登陆前仍检查差异、评论、检查结果和发布分支冲突。
 
-## Current Release Work
+## 当前发布工作
 
-- Confirm the active branch for the current release lane from the latest handoff
-  and `git branch --show-current`; recent work has landed on `main` through small
-  PRs rather than a long-lived `codex/...` integration branch. This repo lives on
-  multiple devices, so do not hard-code a checkout path; work in whichever local
-  checkout you have and confirm the branch before editing. Never commit directly
-  to `main`.
-- Read the workspace version from `Cargo.toml`; it advances per release lane. Do
-  not tag, publish, create a GitHub Release, push release artifacts, or merge to
-  `main` without Hunter's explicit approval.
-- Base release triage on the current GitHub release milestone named in the active
-  handoff (`gh issue list --repo XiaomingX/mimofan --milestone "<current>" --state open`)
-  unless Hunter gives a newer branch/milestone.
-- Work the queue in this order: release blockers, recently approved PRs, clean
-  PRs with small scope, blocked PRs with obvious fixes, dirty PRs that can be
-  harvested safely, then larger architecture issues.
-- Prefer batching PR conflict discovery on scratch branches, then harvesting
-  reviewed, credited, tested slices back into the release branch.
-- Before claiming an issue is done, verify whether the branch already contains
-  equivalent work. If it does, prepare the GitHub note/closure path instead of
-  reimplementing it.
-- See `AGENTS.md` -> "Where to work right now" for build/test commands, known
-  suite papercuts, and the removed-machinery guardrails (agent-only surface,
-  no lifecycle/coherence systems).
+- 从最新交接和 `git branch --show-current` 确认当前发布通道的活动分支；最近的工作通过小 PR 在 `main` 上登陆，而非长期存在的 `codex/...` 集成分支。此仓库存在于多设备，因此不要硬编码检出路径；在你拥有的本地检出中工作，并在编辑前确认分支。永远不要直接提交到 `main`。
+- 从 `Cargo.toml` 读取工作区版本；它随发布通道推进。没有 Hunter 的明确批准，不要打标签、发布、创建 GitHub Release、推送发布工件或合并到 `main`。
+- 基于活动交接中命名的当前 GitHub 发布里程碑进行发布分类（`gh issue list --repo XiaomingX/mimofan --milestone "<current>" --state open`），除非 Hunter 给出更新的分支/里程碑。
+- 按此顺序处理队列：发布阻塞项、最近批准的 PR、小范围的干净 PR、有明显修复的阻塞 PR、可安全收割的脏 PR，然后是更大的架构问题。
+- 优先在暂存分支上批量发现 PR 冲突，然后将已审查、已署名、已测试的切片收割回发布分支。
+- 在声称问题完成之前，验证分支是否已包含等效工作。如果已包含，准备 GitHub 注释/关闭路径而非重新实现。
+- 见 `AGENTS.md` -> "当前工作位置" 了解构建/测试命令、已知套件问题和已移除机制护栏（仅限智能体表面、无生命周期/一致性系统）。

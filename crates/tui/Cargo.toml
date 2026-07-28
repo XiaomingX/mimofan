@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "MiMo 专属中文编码助手 TUI"
-default-run = "mimofan-tui"
+default-run = "mimofan"
 
 [features]
 default = ["tui", "json", "toml"]
@@ -16,11 +16,12 @@ toml = ["schemaui/toml"]
 long-running-tests = []
 
 [[bin]]
-name = "mimofan-tui"
+name = "mimofan"
 path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
+mimofan-cli = { path = "../cli" }
 mimofan-config = { path = "../config" }
 mimofan-execpolicy = { path = "../execpolicy" }
 mimofan-protocol = { path = "../protocol" }

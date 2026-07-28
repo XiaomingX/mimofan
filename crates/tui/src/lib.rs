@@ -1,4 +1,4 @@
-//! mimofan-tui library crate.
+//! mimofan library crate.
 //!
 //! This library contains the core TUI functionality.
 
@@ -55,6 +55,7 @@ mod lsp;
 mod mcp;
 mod mcp_server;
 mod memory;
+mod memory_service;
 mod model_catalog;
 mod model_inventory;
 mod model_profile;

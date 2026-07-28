@@ -56,7 +56,7 @@
     - name: linux npm wrapper smoke
       script: |
         set -eu
-        cargo build --release --locked -p mimofan-cli -p mimofan-tui
+        cargo build --release --locked -p mimofan-cli -p mimofan
         export PATH="$PWD/target/release:$PATH"
         node scripts/release/npm-wrapper-smoke.js
         ./target/release/mimofan --version
@@ -90,7 +90,7 @@
     - name: release binary smoke
       script: |
         set -eu
-        cargo build --release --locked -p mimofan-cli -p mimofan-tui
+        cargo build --release --locked -p mimofan-cli -p mimofan
         export PATH="$PWD/target/release:$PATH"
         node scripts/release/npm-wrapper-smoke.js
         ./target/release/mimofan --version
@@ -127,7 +127,7 @@ $:
             ./scripts/release/check-ohos-deps.sh
             cargo build --release --locked \
               --target x86_64-unknown-linux-musl \
-              -p mimofan-cli -p mimofan-tui
+              -p mimofan-cli -p mimofan
 
             mkdir -p target/cnb-release
             BIN_DIR="target/x86_64-unknown-linux-musl/release"
@@ -142,7 +142,6 @@ $:
               cd target/cnb-release
               sha256sum \
                 mimofan-linux-x64 \
-                mimofan-tui-linux-x64 \
                 > mimofan-artifacts-sha256.txt
             )
 
@@ -170,7 +169,6 @@ $:
               echo
               echo "Assets:"
               echo "- mimofan-linux-x64"
-              echo "- mimofan-tui-linux-x64"
               echo "- mimofan-artifacts-sha256.txt"
             } > target/cnb-release/CNB_RELEASE.md
 

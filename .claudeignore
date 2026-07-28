@@ -102,10 +102,7 @@ rust-toolchain.toml
 
 # ── 根目录本地脚本与临时草稿 ──
 doctor.sh
-build.sh
-test.sh
 verify.sh
-check.sh
 IMPROVEMENT_PLAN.md
 ARCHITECTURE_PLAN.md
 .gemini/

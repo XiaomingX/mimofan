@@ -819,6 +819,10 @@ pub struct FleetExecConfig {
     /// `"text"` (default) or `"stream-json"` for newline-delimited JSON events.
     #[serde(default = "default_fleet_output_format")]
     pub output_format: String,
+    /// Maximum number of concurrent fleet tasks. Defaults to 4 to match
+    /// `max_subagents`. Set to 1 to disable parallel execution.
+    #[serde(default = "default_fleet_max_concurrent_tasks")]
+    pub max_concurrent_tasks: u32,
 }
 
 fn default_fleet_max_turns() -> u32 {
@@ -833,6 +837,10 @@ fn default_fleet_output_format() -> String {
     "text".to_string()
 }
 
+fn default_fleet_max_concurrent_tasks() -> u32 {
+    4
+}
+
 impl Default for FleetExecConfig {
     fn default() -> Self {
         Self {
@@ -842,6 +850,7 @@ impl Default for FleetExecConfig {
             max_spawn_depth: default_fleet_max_spawn_depth(),
             append_system_prompt: String::new(),
             output_format: default_fleet_output_format(),
+            max_concurrent_tasks: default_fleet_max_concurrent_tasks(),
         }
     }
 }

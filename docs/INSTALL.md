@@ -79,16 +79,15 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --defaul
 
 ## 4. 手动下载
 
-从 [Releases](https://github.com/XiaomingX/mimofan/releases) 下载对应平台的两个二进制文件，放到 `PATH` 目录：
+从 [Releases](https://github.com/XiaomingX/mimofan/releases) 下载对应平台的二进制文件，放到 `PATH` 目录：
 
 ```bash
 mkdir -p ~/.local/bin
 curl -L -o ~/.local/bin/mimofan https://github.com/XiaomingX/mimofan/releases/latest/download/mimofan-linux-x64
-curl -L -o ~/.local/bin/mimofan-tui https://github.com/XiaomingX/mimofan/releases/latest/download/mimofan-linux-x64-tui
-chmod +x ~/.local/bin/mimofan ~/.local/bin/mimofan-tui
+chmod +x ~/.local/bin/mimofan
 ```
 
-> **macOS 提示"无法验证开发者"：** 运行 `xattr -d com.apple.quarantine ~/.local/bin/mimofan ~/.local/bin/mimofan-tui`
+> **macOS 提示"无法验证开发者"：** 运行 `xattr -d com.apple.quarantine ~/.local/bin/mimofan`
 
 ---
 

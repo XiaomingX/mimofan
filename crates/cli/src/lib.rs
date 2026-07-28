@@ -2185,7 +2185,7 @@ fn build_tui_command(
 fn exit_with_tui_status(status: std::process::ExitStatus) -> Result<()> {
     match status.code() {
         Some(code) => std::process::exit(code),
-        None => bail!("mimofan-tui terminated by signal"),
+        None => bail!("mimofan terminated by signal"),
     }
 }
 
@@ -2197,7 +2197,7 @@ fn delegate_simple_tui(args: Vec<String>) -> Result<()> {
         .map_err(|err| anyhow!("{}", tui_spawn_error(&tui, &err)))?;
     match status.code() {
         Some(code) => std::process::exit(code),
-        None => bail!("mimofan-tui terminated by signal"),
+        None => bail!("mimofan terminated by signal"),
     }
 }
 
@@ -2205,15 +2205,12 @@ fn tui_spawn_error(tui: &Path, err: &io::Error) -> String {
     format!(
         "failed to spawn companion TUI binary at {}: {err}\n\
 \n\
-The `mimofan` dispatcher found a `mimofan-tui` file, but the OS refused \
+The `mimofan` dispatcher found a `mimofan` file, but the OS refused \
 to execute it. Common fixes:\n\
   - Reinstall with `npm install -g mimofan`, or run `mimofan update`.\n\
-  - On Windows, run `where mimofan` and `where mimofan-tui`; both should \
-come from the same install directory.\n\
-  - If you downloaded release assets manually, keep both `mimofan` and \
-`mimofan-tui` binaries together and make sure the TUI binary is executable.\n\
-  - Set MIMOFAN_TUI_BIN to the absolute path of a working `mimofan-tui` \
-binary.",
+  - On Windows, run `where mimofan`; it should come from the install directory.\n\
+  - If you downloaded release assets manually, make sure `mimofan` is executable.\n\
+  - Set MIMOFAN_TUI_BIN to the absolute path of a working `mimofan` binary.",
         tui.display()
     )
 }
@@ -2227,6 +2224,10 @@ binary.",
 /// explicit override for custom installs and CI test layouts. On Windows we
 /// additionally try the suffix-less name as a fallback for users who already
 /// manually renamed the file before this fix landed.
+///
+/// After the binary merge, `mimofan` is a single binary. This function
+/// locates the same binary (or a legacy `mimofan-tui` companion) for
+/// backward compatibility.
 fn locate_sibling_tui_binary() -> Result<PathBuf> {
     let bin_override =
         std::env::var("MIMOFAN_TUI_BIN").or_else(|_| std::env::var("MIMOFAN_BIN"));
@@ -2248,19 +2249,19 @@ fn locate_sibling_tui_binary() -> Result<PathBuf> {
 
     // Build a stable error path so the user sees the platform-correct
     // expected name, not "mimofan" on Windows.
-    let expected = current.with_file_name(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX));
+    let expected = current.with_file_name(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
     bail!(
-        "Companion `mimofan-tui` binary not found at {}.\n\
+        "Companion `mimofan` binary not found at {}.\n\
 \n\
 The `mimofan` dispatcher delegates interactive sessions to a sibling \
-`mimofan-tui` binary. To fix this, install one of:\n\
-  • npm:    npm install -g mimofan                (downloads both binaries)\n\
-  • cargo:  cargo install mimofan-cli mimofan-tui --locked\n\
-  • GitHub Releases: download BOTH `mimofan-<platform>` AND \
-`mimofan-tui-<platform>` from https://github.com/XiaomingX/mimofan/releases/latest \
-and place them in the same directory.\n\
+`mimofan` binary. To fix this, install one of:\n\
+  • npm:    npm install -g mimofan                (downloads the binary)\n\
+  • cargo:  cargo install mimofan --locked\n\
+  • GitHub Releases: download `mimofan-<platform>` from \
+https://github.com/XiaomingX/mimofan/releases/latest \
+and place it in the same directory.\n\
 \n\
-Or set MIMOFAN_TUI_BIN to the absolute path of an existing `mimofan-tui` binary.",
+Or set MIMOFAN_TUI_BIN to the absolute path of an existing `mimofan` binary.",
         expected.display()
     );
 }
@@ -2271,14 +2272,14 @@ Or set MIMOFAN_TUI_BIN to the absolute path of an existing `mimofan-tui` binary.
 fn sibling_tui_candidate(dispatcher: &Path) -> Option<PathBuf> {
     // Primary: platform-correct name. EXE_SUFFIX is "" on Unix and ".exe"
     // on Windows.
-    let primary = dispatcher.with_file_name(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX));
+    let primary = dispatcher.with_file_name(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
     if primary.is_file() {
         return Some(primary);
     }
     // Windows fallback: a user who manually renamed `.exe` away (per the
     // workaround in #247) still launches successfully under the new code.
     if cfg!(windows) {
-        let suffixless = dispatcher.with_file_name("mimofan-tui");
+        let suffixless = dispatcher.with_file_name("mimofan");
         if suffixless.is_file() {
             return Some(suffixless);
         }

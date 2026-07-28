@@ -977,7 +977,8 @@ pub fn format_session_line(meta: &SessionMetadata) -> String {
 }
 
 pub(crate) fn format_session_updated_at(dt: &DateTime<Utc>, age: &str) -> String {
-    format!("{} ({age})", dt.format("%Y-%m-%d %H:%M UTC"))
+    let local_dt: DateTime<chrono::Local> = DateTime::from(*dt);
+    format!("{} ({age})", local_dt.format("%Y-%m-%d %H:%M"))
 }
 
 /// Format a datetime as relative age

@@ -75,7 +75,7 @@ impl ToolSpec for ReadFileTool {
         // without re-loading the entire file on every turn. Harvested
         // from PR #1451 by @Oliver-ZPLiu, closes part of #1450.
         const DEFAULT_READ_LINES: usize = 200;
-        const HARD_MAX_READ_LINES: usize = 500;
+        const HARD_MAX_READ_LINES: usize = 1500;
         const MAX_VISIBLE_BYTES: usize = 16 * 1024;
         const SMALL_FILE_LINES: usize = 200;
         const SMALL_FILE_BYTES: usize = 16 * 1024;

@@ -1,8 +1,8 @@
 //! Binary entry point for mimofan.
+//!
+//! Delegates to `mimofan_cli::run_cli()` which handles CLI argument parsing
+//! and either runs the TUI directly or spawns sub-commands.
 
-use anyhow::Result;
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    mimofan::run().await
+fn main() -> std::process::ExitCode {
+    mimofan_cli::run_cli()
 }

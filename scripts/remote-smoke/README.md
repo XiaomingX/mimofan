@@ -97,7 +97,7 @@ docs/REMOTE_VM_US.md default spec).
 - `mimofan-runtime.service` hard-fails activation if
   `/home/mimofan/.mimofan` or `/home/mimofan/.deepseek` don't exist
   (`ReadWritePaths`); `setup-vm.sh` pre-creates them.
-- Both binaries are required (`mimofan` delegates to `mimofan-tui`).
+- `mimofan` is a single binary (TUI + CLI merged).
 - Exactly one bridge process per bot token — a second poller causes endless
   Telegram 409s. Stop any local bridge before starting the VM one.
 - `/interrupt` is queued behind an active streaming turn (known limitation,

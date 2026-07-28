@@ -29,6 +29,7 @@ use crate::logging;
 use crate::models::{
     ContentBlock, Message, MessageRequest, MessageResponse, ServerToolUsage, SystemPrompt, Usage,
 };
+use crate::model_catalog::resolved_supports_image;
 
 pub(super) fn to_api_tool_name(name: &str) -> String {
     let mut out = String::new();
@@ -644,6 +645,24 @@ fn add_extra_root_certs(
 }
 
 impl DeepSeekClient {
+    /// Returns an error if the request contains image content blocks but the
+    /// model does not support image input.
+    fn check_image_support(&self, request: &MessageRequest) -> Result<()> {
+        let has_images = request.messages.iter().any(|msg| {
+            msg.content
+                .iter()
+                .any(|block| matches!(block, ContentBlock::ImageUrl { .. }))
+        });
+        if has_images && !resolved_supports_image(&request.model) {
+            bail!(
+                "模型 \"{}\" 不支持图片输入。当前消息包含图片，但该模型仅支持文本。\
+                 请切换到支持图片的模型（如 gpt-4o、claude-sonnet-4-20250514）或移除图片内容。",
+                request.model
+            );
+        }
+        Ok(())
+    }
+
     /// Create a DeepSeek client from CLI configuration.
     pub fn new(config: &Config) -> Result<Self> {
         Self::from_parts(config.deepseek_base_url(), config.default_model(), config)
@@ -1426,6 +1445,7 @@ impl LlmClient for DeepSeekClient {
     }
 
     async fn create_message(&self, request: MessageRequest) -> Result<MessageResponse> {
+        self.check_image_support(&request)?;
         if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
             return self.handle_anthropic_message(request).await;
         }
@@ -1441,6 +1461,7 @@ impl LlmClient for DeepSeekClient {
         &self,
         request: MessageRequest,
     ) -> Result<crate::llm_client::StreamEventBox> {
+        self.check_image_support(&request)?;
         if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
             return self.handle_anthropic_stream(request).await;
         }

@@ -8,7 +8,7 @@ use super::CommandResult;
 
 pub(in crate::commands) const COMMAND_INFO: CommandInfo = CommandInfo {
     name: "compact",
-    aliases: &["yasuo"],
+    aliases: &["yasuo", "compress"],
     usage: "/compact",
     description_id: MessageId::CmdCompactDescription,
 };

@@ -235,7 +235,8 @@ impl FleetManager {
         ));
         let now = timestamp();
         if doc.workers.is_empty() {
-            doc.workers = default_local_workers(&run_id, max_workers);
+            doc.workers =
+                default_local_workers(&run_id, max_workers, self.exec_config.max_concurrent_tasks);
         }
         let run = FleetRun {
             id: run_id.clone(),
@@ -703,7 +704,7 @@ impl FleetManager {
                     trust_level: Some(FleetTrustLevel::Local),
                     labels: BTreeMap::new(),
                     capabilities: vec![],
-                    max_concurrent_tasks: Some(1),
+                    max_concurrent_tasks: Some(self.exec_config.max_concurrent_tasks as usize),
                 });
             let agent_profiles = super::profile::load_workspace_agent_profiles(&self.workspace)?;
             let worker = worker_runtime::fleet_task_to_worker_spec_with_profiles(
@@ -802,7 +803,9 @@ impl FleetManager {
                 .iter()
                 .find(|worker| worker.id == worker_id)
                 .cloned()
-                .unwrap_or_else(|| default_local_worker(worker_id));
+                .unwrap_or_else(|| {
+                    default_local_worker(worker_id, self.exec_config.max_concurrent_tasks)
+                });
             let command = build_worker_exec_command_with_profiles(
                 mimofan_binary,
                 &task_spec,
@@ -1181,15 +1184,27 @@ impl FleetManager {
     }
 }
 
-fn default_local_workers(run_id: &FleetRunId, max_workers: usize) -> Vec<FleetWorkerSpec> {
+fn default_local_workers(
+    run_id: &FleetRunId,
+    max_workers: usize,
+    max_concurrent_tasks: u32,
+) -> Vec<FleetWorkerSpec> {
     (1..=max_workers)
         .map(|index| {
-            default_local_worker_with_name(&format!("{}-local-{}", run_id.0, index), index)
+            default_local_worker_with_name(
+                &format!("{}-local-{}", run_id.0, index),
+                index,
+                max_concurrent_tasks,
+            )
         })
         .collect()
 }
 
-fn default_local_worker_with_name(worker_id: &str, index: usize) -> FleetWorkerSpec {
+fn default_local_worker_with_name(
+    worker_id: &str,
+    index: usize,
+    max_concurrent_tasks: u32,
+) -> FleetWorkerSpec {
     FleetWorkerSpec {
         id: worker_id.to_string(),
         name: format!("Local worker {index}"),
@@ -1197,11 +1212,11 @@ fn default_local_worker_with_name(worker_id: &str, index: usize) -> FleetWorkerS
         trust_level: Some(FleetTrustLevel::Local),
         labels: BTreeMap::new(),
         capabilities: vec!["local".to_string()],
-        max_concurrent_tasks: Some(1),
+        max_concurrent_tasks: Some(max_concurrent_tasks as usize),
     }
 }
 
-fn default_local_worker(worker_id: &str) -> FleetWorkerSpec {
+fn default_local_worker(worker_id: &str, max_concurrent_tasks: u32) -> FleetWorkerSpec {
     FleetWorkerSpec {
         id: worker_id.to_string(),
         name: worker_id.to_string(),
@@ -1209,7 +1224,7 @@ fn default_local_worker(worker_id: &str) -> FleetWorkerSpec {
         trust_level: Some(FleetTrustLevel::Local),
         labels: BTreeMap::new(),
         capabilities: vec!["local".to_string()],
-        max_concurrent_tasks: Some(1),
+        max_concurrent_tasks: Some(max_concurrent_tasks as usize),
     }
 }
 

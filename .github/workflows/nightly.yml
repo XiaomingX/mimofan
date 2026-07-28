@@ -37,19 +37,6 @@ jobs:
             target: riscv64gc-unknown-linux-gnu
             binary: mimofan
             artifact_name: mimofan-linux-riscv64
-          # --- mimofan-tui (TUI runtime, canonical) ---
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-linux-x64
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-linux-arm64
-          - os: ubuntu-latest
-            target: riscv64gc-unknown-linux-gnu
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-linux-riscv64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7

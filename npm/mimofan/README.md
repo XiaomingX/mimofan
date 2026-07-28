@@ -9,9 +9,9 @@ and it speaks natively to Anthropic Claude and OpenAI when that's what you have
 rollback.
 
 This npm package is a small launcher: it downloads the matching native
-Mimofan binaries for your platform, verifies them against the release
-SHA-256 manifest, and installs the `mimofan`, `codew`, and `mimofan-tui`
-commands. The application state and credentials still live in Mimofan's
+Mimofan binary for your platform, verifies it against the release
+SHA-256 manifest, and installs the `mimofan` and `codew` commands.
+The application state and credentials still live in Mimofan's
 normal config files, not inside `node_modules`.
 
 > Previously published as `mimofan`. See
@@ -52,10 +52,10 @@ Every provider is the same one-line shape — `--provider openrouter`,
 Claude key; the full registry lives in
 [docs/PROVIDERS.md](https://github.com/XiaomingX/mimofan/blob/main/docs/PROVIDERS.md).
 
-The `mimofan` facade and `mimofan-tui` binary share
+The `mimofan` binary provides both CLI and TUI interfaces, sharing
 `~/.mimofan/config.toml` for auth and default model settings. Legacy
 `~/.mimofan/config.toml` installs are still read as a compatibility fallback.
-Common TUI commands are available directly through the facade, including
+Common TUI commands are available directly, including
 `mimofan doctor`, `mimofan models`, `mimofan sessions`, and
 `mimofan resume --last`.
 
@@ -74,7 +74,7 @@ binaries matching your CPU architecture (x64, arm64, or riscv64). Other
 platform/architecture combinations (musl, FreeBSD, …) aren't
 shipped as prebuilts. Unsupported platforms, checksum failures, and glibc
 compatibility problems still fail with a clear error pointing you at
-`cargo install mimofan-cli mimofan-tui --locked` and the full
+`cargo install mimofan --locked` and the full
 [docs/INSTALL.md](https://github.com/XiaomingX/mimofan/blob/main/docs/INSTALL.md)
 build-from-source guide.
 

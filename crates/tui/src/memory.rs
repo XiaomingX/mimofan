@@ -141,5 +141,50 @@ pub fn append_entry(path: &Path, entry: &str) -> io::Result<()> {
     Ok(())
 }
 
+/// Load memories from an external memory service and format them as a
+/// `<user_memory>` block. Returns `None` when the service is not configured
+/// or when no memories are found.
+pub async fn load_from_service(
+    service_url: &str,
+    api_key: Option<&str>,
+    query: &str,
+    max_memories: usize,
+) -> Option<String> {
+    let client = crate::memory_service::MemoryServiceClient::new(service_url, api_key).ok()?;
+
+    let memories = client.search_memories(query, max_memories).await.ok()?;
+
+    if memories.is_empty() {
+        return None;
+    }
+
+    let mut content = String::from("## Long-term Memory\n\n");
+    for (i, memory) in memories.iter().enumerate() {
+        content.push_str(&format!("{}. {}\n", i + 1, memory.content));
+        if !memory.tags.is_empty() {
+            content.push_str(&format!("   Tags: {}\n", memory.tags.join(", ")));
+        }
+    }
+
+    Some(format!(
+        "<user_memory source=\"memory_service://{service_url}\">\n{content}\n</user_memory>"
+    ))
+}
+
+/// Store a memory to the external service.
+pub async fn store_to_service(
+    service_url: &str,
+    api_key: Option<&str>,
+    content: &str,
+    tags: &[String],
+) -> bool {
+    let client = match crate::memory_service::MemoryServiceClient::new(service_url, api_key) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    client.store_memory(content, tags).await.is_ok()
+}
+
 #[cfg(test)]
 mod tests {}

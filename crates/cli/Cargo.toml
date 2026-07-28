@@ -6,10 +6,6 @@ license.workspace = true
 repository.workspace = true
 description = "MiMo 专属中文编码助手"
 
-[[bin]]
-name = "mimofan"
-path = "src/main.rs"
-
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true

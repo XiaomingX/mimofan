@@ -222,8 +222,14 @@ fn provider_model_selection_persist_warning(provider: ApiProvider, model: &str) 
         .map(|err| format!(" (not persisted: {err})"))
 }
 
-/// Fetch and list available models from the configured API endpoint.
-pub fn models(_app: &mut App) -> CommandResult {
+/// Fetch and list available models from the configured API endpoint, or switch model if argument provided.
+pub fn models(app: &mut App, arg: Option<&str>) -> CommandResult {
+    if let Some(target) = arg.map(str::trim).filter(|s| !s.is_empty()) {
+        return model(app, Some(target));
+    }
+    if app.view_stack.top_kind() != Some(ModalKind::ModelPicker) {
+        app.view_stack.push(crate::tui::model_picker::ModelPickerView::new(app));
+    }
     CommandResult::action(AppAction::FetchModels)
 }
 

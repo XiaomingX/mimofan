@@ -215,10 +215,9 @@ fn legacy_binary_message(current_exe: &Path) -> String {
         "\
 this binary ({exe}) is using the legacy deepseek/mimofan command name.
 
-The package has been renamed to `mimofan`. This update will install canonical
-mimofan binaries (`mimofan` and, when present, `mimofan-tui`) beside the
-legacy command when the install directory is writable. DeepSeek provider support
-is unchanged.
+The package has been renamed to `mimofan`. This update will install the canonical
+mimofan binary beside the legacy command when the install directory is writable.
+DeepSeek provider support is unchanged.
 
 If this update cannot write to the install directory, reinstall using your
 original install method:
@@ -230,14 +229,13 @@ original install method:
   Cargo:
     cargo uninstall mimofan-cli 2>/dev/null || true
     cargo uninstall mimofan 2>/dev/null || true
-    cargo install mimofan-cli --locked
-    cargo install mimofan-tui --locked
+    cargo install mimofan --locked
 
   Homebrew:
     brew upgrade mimofan
 
   Manual binary:
-    download the matched mimofan and mimofan-tui assets from
+    download the matched mimofan asset from
     https://github.com/XiaomingX/mimofan/releases/latest
 
 Once `mimofan` is on your PATH, run `mimofan update` for future updates.",
@@ -245,17 +243,9 @@ Once `mimofan` is on your PATH, run `mimofan update` for future updates.",
     )
 }
 
-pub(crate) fn binary_prefix_for_exe(current_exe: &Path) -> &'static str {
-    let exe_name = current_exe
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("mimofan")
-        .to_ascii_lowercase();
-    if exe_name.contains("mimofan-tui") || exe_name.contains("mimofan") {
-        "mimofan-tui"
-    } else {
-        "mimofan"
-    }
+pub(crate) fn binary_prefix_for_exe(_current_exe: &Path) -> &'static str {
+    // After the binary merge, all mimofan variants use "mimofan" prefix
+    "mimofan"
 }
 
 fn sibling_prefix_for(prefix: &str) -> &'static str {
@@ -321,17 +311,21 @@ fn update_targets_for_exe(current_exe: &Path) -> Vec<UpdateTarget> {
         ),
     }];
 
+    // After the binary merge, mimofan is a single binary. Only update the
+    // sibling if it's a legacy two-binary layout (mimofan + mimofan-tui).
     let sibling_prefix = sibling_prefix_for(current_prefix);
-    let sibling = sibling_binary_path(current_exe, sibling_prefix);
-    if should_update_sibling(current_exe, &sibling, sibling_prefix) {
-        targets.push(UpdateTarget {
-            path: sibling,
-            asset_stem: release_asset_stem_for_prefix(
-                sibling_prefix,
-                std::env::consts::OS,
-                std::env::consts::ARCH,
-            ),
-        });
+    if sibling_prefix != current_prefix {
+        let sibling = sibling_binary_path(current_exe, sibling_prefix);
+        if should_update_sibling(current_exe, &sibling, sibling_prefix) {
+            targets.push(UpdateTarget {
+                path: sibling,
+                asset_stem: release_asset_stem_for_prefix(
+                    sibling_prefix,
+                    std::env::consts::OS,
+                    std::env::consts::ARCH,
+                ),
+            });
+        }
     }
 
     targets
@@ -533,13 +527,11 @@ fn release_from_asset_base_url(
         browser_download_url: mirror_asset_url(base_url, CHECKSUM_MANIFEST_ASSET),
     }];
 
-    for prefix in ["mimofan", "mimofan-tui"] {
-        let name = release_asset_name_for_prefix(prefix, os, rust_arch);
-        assets.push(Asset {
-            browser_download_url: mirror_asset_url(base_url, &name),
-            name,
-        });
-    }
+    let name = release_asset_name_for_prefix("mimofan", os, rust_arch);
+    assets.push(Asset {
+        browser_download_url: mirror_asset_url(base_url, &name),
+        name,
+    });
 
     Release {
         tag_name: tag_name.to_string(),
@@ -907,8 +899,7 @@ Official Linux release binaries are GNU libc builds. Ubuntu 22.04 ships glibc
 
 Install from source on this host instead:
 
-  cargo install mimofan-cli --locked
-  cargo install mimofan-tui --locked
+  cargo install mimofan --locked
 
 Release engineering follow-up: build Linux GNU assets against an older glibc
 baseline, or add a musl/static Linux asset. Set MIMOFAN_SKIP_GLIBC_CHECK=1 to
@@ -1034,22 +1025,19 @@ mod tests {
     /// Verify binary prefix detection for dispatcher vs TUI binary.
     #[test]
     fn test_binary_prefix_detection() {
-        // TUI binary should use mimofan prefix
-        assert_eq!(
-            binary_prefix_for_exe(Path::new("mimofan-tui")),
-            "mimofan-tui"
-        );
+        // After the merge, all mimofan variants use "mimofan" prefix
+        assert_eq!(binary_prefix_for_exe(Path::new("mimofan-tui")), "mimofan");
         assert_eq!(
             binary_prefix_for_exe(Path::new("mimofan-tui.exe")),
-            "mimofan-tui"
+            "mimofan"
         );
         assert_eq!(
             binary_prefix_for_exe(Path::new("mimofan-TUI.exe")),
-            "mimofan-tui"
+            "mimofan"
         );
         assert_eq!(
             binary_prefix_for_exe(Path::new("/usr/local/bin/mimofan-tui")),
-            "mimofan-tui"
+            "mimofan"
         );
 
         // Dispatcher binary should use mimofan prefix
@@ -1063,31 +1051,29 @@ mod tests {
         // Fallback for unknown names
         assert_eq!(binary_prefix_for_exe(Path::new("other-binary")), "mimofan");
 
-        // Legacy names still map to the canonical update asset prefixes.
-        assert_eq!(
-            binary_prefix_for_exe(Path::new("mimofan")),
-            "mimofan-tui"
-        );
+        // Legacy names still map to the canonical update asset prefix.
+        assert_eq!(binary_prefix_for_exe(Path::new("mimofan")), "mimofan");
         assert_eq!(
             binary_prefix_for_exe(Path::new("/usr/local/bin/mimofan")),
-            "mimofan-tui"
+            "mimofan"
         );
         assert_eq!(
             binary_prefix_for_exe(Path::new("Mimofan.exe")),
-            "mimofan-tui"
+            "mimofan"
         );
         assert_eq!(binary_prefix_for_exe(Path::new("deepseek")), "mimofan");
     }
 
     #[test]
     fn test_is_legacy_binary_detection() {
+        // Only "deepseek*" binaries are considered legacy
         assert!(is_legacy_binary(Path::new("deepseek")));
-        assert!(is_legacy_binary(Path::new("mimofan")));
         assert!(is_legacy_binary(Path::new("/usr/local/bin/deepseek")));
-        assert!(is_legacy_binary(Path::new("/usr/local/bin/mimofan")));
         assert!(is_legacy_binary(Path::new("DeepSeek.exe")));
-        assert!(is_legacy_binary(Path::new("Mimofan.exe")));
+        // "mimofan" is the current canonical name, not legacy
         assert!(!is_legacy_binary(Path::new("mimofan")));
+        assert!(!is_legacy_binary(Path::new("/usr/local/bin/mimofan")));
+        assert!(!is_legacy_binary(Path::new("Mimofan.exe")));
         assert!(!is_legacy_binary(Path::new("mimofan-tui")));
         assert!(!is_legacy_binary(Path::new("codew")));
     }
@@ -1097,30 +1083,29 @@ mod tests {
         let message = legacy_binary_message(Path::new("/usr/local/bin/mimofan"));
 
         assert!(message.contains("legacy deepseek/mimofan command name"));
-        assert!(message.contains("install canonical"));
+        assert!(message.contains("install the canonical"));
         assert!(message.contains("DeepSeek provider support"));
         assert!(message.contains("is unchanged"));
         assert!(message.contains("npm uninstall -g mimofan"));
         assert!(message.contains("npm install -g mimofan"));
         assert!(message.contains("cargo uninstall mimofan-cli 2>/dev/null || true"));
         assert!(message.contains("cargo uninstall mimofan 2>/dev/null || true"));
-        assert!(message.contains("cargo install mimofan-cli --locked"));
-        assert!(message.contains("cargo install mimofan-tui --locked"));
+        assert!(message.contains("cargo install mimofan --locked"));
         assert!(message.contains("brew upgrade mimofan"));
         assert!(message.contains("https://github.com/XiaomingX/mimofan/releases/latest"));
     }
 
     #[test]
-    fn legacy_dispatcher_update_targets_canonical_mimofan_pair() {
+    fn legacy_dispatcher_update_targets_canonical_mimofan() {
         let dir = tempfile::TempDir::new().unwrap();
         let dispatcher = dir
             .path()
             .join(format!("deepseek{}", std::env::consts::EXE_SUFFIX));
-        let tui = dir
+        let mimofan_bin = dir
             .path()
             .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
         std::fs::write(&dispatcher, b"legacy dispatcher").unwrap();
-        std::fs::write(&tui, b"legacy tui").unwrap();
+        std::fs::write(&mimofan_bin, b"mimofan binary").unwrap();
 
         let targets = update_targets_for_exe(&dispatcher);
         let paths = targets
@@ -1128,48 +1113,29 @@ mod tests {
             .map(|target| target.path.clone())
             .collect::<Vec<_>>();
 
-        assert_eq!(
-            paths,
-            vec![
-                dir.path()
-                    .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX)),
-                dir.path()
-                    .join(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX))
-            ]
-        );
+        // Legacy deepseek dispatcher targets both itself and the mimofan companion
+        assert_eq!(paths.len(), 2);
         assert!(targets[0].asset_stem.starts_with("mimofan-"));
-        assert!(targets[1].asset_stem.starts_with("mimofan-tui-"));
+        assert!(targets[1].asset_stem.starts_with("mimofan-"));
     }
 
     #[test]
-    fn legacy_tui_update_targets_canonical_tui_pair() {
+    fn mimofan_update_targets_only_itself() {
         let dir = tempfile::TempDir::new().unwrap();
-        let dispatcher = dir
-            .path()
-            .join(format!("deepseek{}", std::env::consts::EXE_SUFFIX));
-        let tui = dir
+        let mimofan = dir
             .path()
             .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
-        std::fs::write(&dispatcher, b"legacy dispatcher").unwrap();
-        std::fs::write(&tui, b"legacy tui").unwrap();
+        std::fs::write(&mimofan, b"mimofan binary").unwrap();
 
-        let targets = update_targets_for_exe(&tui);
+        let targets = update_targets_for_exe(&mimofan);
         let paths = targets
             .iter()
             .map(|target| target.path.clone())
             .collect::<Vec<_>>();
 
-        assert_eq!(
-            paths,
-            vec![
-                dir.path()
-                    .join(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX)),
-                dir.path()
-                    .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX))
-            ]
-        );
-        assert!(targets[0].asset_stem.starts_with("mimofan-tui-"));
-        assert!(targets[1].asset_stem.starts_with("mimofan-"));
+        // After the merge, mimofan is a single binary - no sibling to update
+        assert_eq!(paths, vec![mimofan]);
+        assert!(targets[0].asset_stem.starts_with("mimofan-"));
     }
 
     #[test]
@@ -1179,8 +1145,6 @@ mod tests {
             ("mimofan", "macos", "x86_64", "mimofan-macos-x64"),
             ("mimofan", "linux", "x86_64", "mimofan-linux-x64"),
             ("mimofan", "windows", "x86_64", "mimofan-windows-x64"),
-            ("mimofan-tui", "macos", "aarch64", "mimofan-tui-macos-arm64"),
-            ("mimofan-tui", "linux", "x86_64", "mimofan-tui-linux-x64"),
         ];
 
         for (exe, os, arch, expected) in cases {
@@ -1189,26 +1153,22 @@ mod tests {
     }
 
     #[test]
-    fn update_targets_include_existing_sibling_tui_for_dispatcher() {
+    fn update_targets_include_only_mimofan() {
         let dir = tempfile::TempDir::new().unwrap();
-        let dispatcher = dir
+        let mimofan = dir
             .path()
             .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
-        let tui = dir
-            .path()
-            .join(format!("mimofan-tui{}", std::env::consts::EXE_SUFFIX));
-        std::fs::write(&dispatcher, b"dispatcher").unwrap();
-        std::fs::write(&tui, b"tui").unwrap();
+        std::fs::write(&mimofan, b"mimofan").unwrap();
 
-        let targets = update_targets_for_exe(&dispatcher);
+        let targets = update_targets_for_exe(&mimofan);
         let paths = targets
             .iter()
             .map(|target| target.path.as_path())
             .collect::<Vec<_>>();
 
-        assert_eq!(paths, vec![dispatcher.as_path(), tui.as_path()]);
+        // After the merge, only mimofan is updated
+        assert_eq!(paths, vec![mimofan.as_path()]);
         assert!(targets[0].asset_stem.starts_with("mimofan-"));
-        assert!(targets[1].asset_stem.starts_with("mimofan-tui-"));
     }
 
     #[test]
@@ -1237,12 +1197,12 @@ mod tests {
             "mimofan-macos-arm64"
         ));
         assert!(asset_matches_platform(
-            "mimofan-tui-windows-x64.exe",
-            "mimofan-tui-windows-x64"
+            "mimofan-windows-x64.exe",
+            "mimofan-windows-x64"
         ));
         assert!(!asset_matches_platform(
-            "mimofan-tui-windows-x64.exe.sha256",
-            "mimofan-tui-windows-x64"
+            "mimofan-windows-x64.exe.sha256",
+            "mimofan-windows-x64"
         ));
         assert!(!asset_matches_platform(
             "mimofan-macos-aarch64.tar.gz",
@@ -1303,7 +1263,7 @@ mod tests {
         assert!(message.contains("Prebuilt mimofan asset `mimofan-linux-x64`"));
         assert!(message.contains("requires GLIBC_2.39"));
         assert!(message.contains("this system has glibc 2.35"));
-        assert!(message.contains("cargo install mimofan-cli --locked"));
+        assert!(message.contains("cargo install mimofan --locked"));
         assert!(message.contains("build Linux GNU assets against an older glibc"));
     }
 
@@ -1382,11 +1342,7 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
             { "name": "mimofan-macos-x64",          "browser_download_url": "https://example.invalid/mimofan-macos-x64" },
             { "name": "mimofan-macos-arm64",        "browser_download_url": "https://example.invalid/mimofan-macos-arm64" },
             { "name": "mimofan-windows-x64.exe",    "browser_download_url": "https://example.invalid/mimofan-windows-x64.exe" },
-            { "name": "mimofan-windows-x64.exe.sha256", "browser_download_url": "https://example.invalid/mimofan-windows-x64.exe.sha256" },
-            { "name": "mimofan-tui-linux-x64",      "browser_download_url": "https://example.invalid/mimofan-tui-linux-x64" },
-            { "name": "mimofan-tui-macos-x64",      "browser_download_url": "https://example.invalid/mimofan-tui-macos-x64" },
-            { "name": "mimofan-tui-macos-arm64",    "browser_download_url": "https://example.invalid/mimofan-tui-macos-arm64" },
-            { "name": "mimofan-tui-windows-x64.exe","browser_download_url": "https://example.invalid/mimofan-tui-windows-x64.exe" }
+            { "name": "mimofan-windows-x64.exe.sha256", "browser_download_url": "https://example.invalid/mimofan-windows-x64.exe.sha256" }
           ]
         }"#;
         serde_json::from_str(json).expect("mock release JSON")
@@ -1411,12 +1367,12 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
     }
 
     #[test]
-    fn mocked_release_selects_tui_asset_when_tui_binary_invokes_update() {
+    fn mocked_release_selects_mimofan_asset() {
         let release = mocked_release();
         let stem =
-            release_asset_stem_for(Path::new("/usr/local/bin/mimofan-tui"), "macos", "aarch64");
-        let asset = select_platform_asset(&release, &stem).expect("TUI platform asset");
-        assert_eq!(asset.name, "mimofan-tui-macos-arm64");
+            release_asset_stem_for(Path::new("/usr/local/bin/mimofan"), "macos", "aarch64");
+        let asset = select_platform_asset(&release, &stem).expect("mimofan platform asset");
+        assert_eq!(asset.name, "mimofan-macos-arm64");
     }
 
     #[test]
@@ -1441,11 +1397,8 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
             dispatcher.browser_download_url,
             "https://mirror.example/releases/v0.8.36/mimofan-linux-x64"
         );
-        let tui = select_platform_asset(&release, "mimofan-tui-linux-x64").expect("tui asset");
-        assert_eq!(
-            tui.browser_download_url,
-            "https://mirror.example/releases/v0.8.36/mimofan-tui-linux-x64"
-        );
+        // After the binary merge, only mimofan assets exist (no mimofan-tui)
+        assert!(select_platform_asset(&release, "mimofan-tui-linux-x64").is_none());
     }
 
     #[test]
@@ -1462,10 +1415,8 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
             select_platform_asset(&release, "mimofan-windows-x64")
                 .is_some_and(|asset| asset.name == "mimofan-windows-x64.exe")
         );
-        assert!(
-            select_platform_asset(&release, "mimofan-tui-windows-x64")
-                .is_some_and(|asset| asset.name == "mimofan-tui-windows-x64.exe")
-        );
+        // After the binary merge, only mimofan assets exist (no mimofan-tui)
+        assert!(select_platform_asset(&release, "mimofan-tui-windows-x64").is_none());
     }
 
     #[test]
@@ -1494,11 +1445,8 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
             dispatcher.browser_download_url,
             "https://github.com/XiaomingX/mimofan/releases/download/v0.8.61/mimofan-macos-arm64"
         );
-        let tui = select_platform_asset(&release, "mimofan-tui-macos-arm64").expect("tui asset");
-        assert_eq!(
-            tui.browser_download_url,
-            "https://github.com/XiaomingX/mimofan/releases/download/v0.8.61/mimofan-tui-macos-arm64"
-        );
+        // After the binary merge, only mimofan assets exist (no mimofan-tui)
+        assert!(select_platform_asset(&release, "mimofan-tui-macos-arm64").is_none());
     }
 
     #[test]
@@ -1609,8 +1557,7 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
             "{hint}"
         );
         assert!(hint.contains(mimofan_release::UPDATE_VERSION_ENV), "{hint}");
-        assert!(hint.contains("mimofan-cli"), "{hint}");
-        assert!(hint.contains("mimofan-tui --locked"), "{hint}");
+        assert!(hint.contains("mimofan --locked"), "{hint}");
     }
 
     fn serve_http_responses(

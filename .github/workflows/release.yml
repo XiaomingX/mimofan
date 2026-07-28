@@ -141,31 +141,6 @@ jobs:
             target: x86_64-pc-windows-msvc
             binary: mimofan.exe
             artifact_name: mimofan-windows-x64.exe
-          # --- mimofan-tui (TUI runtime, canonical) ---
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-linux-x64
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-linux-arm64
-          - os: ubuntu-latest
-            target: riscv64gc-unknown-linux-gnu
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-linux-riscv64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-macos-x64
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            binary: mimofan-tui
-            artifact_name: mimofan-tui-macos-arm64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary: mimofan-tui.exe
-            artifact_name: mimofan-tui-windows-x64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -282,24 +257,20 @@ jobs:
 
           bundle() {
             local platform="$1"   # linux-x64, linux-arm64, macos-x64, macos-arm64, windows-x64
-            local cli_src="$2"    # artifact name for mimofan binary
-            local tui_src="$3"    # artifact name for mimofan-tui binary
-            local ext="$4"        # tar.gz or zip
-            local variant="$5"    # '' (standard) or 'portable' (Windows only, no install script)
-            shift 5
+            local src="$2"        # artifact name for mimofan binary
+            local ext="$3"        # tar.gz or zip
+            local variant="$4"    # '' (standard) or 'portable' (Windows only, no install script)
+            shift 4
 
             local dir="bundles/mimofan-${platform}${variant:+-}${variant}"
             mkdir -p "$dir"
 
-            # Copy binaries, stripping platform suffixes
-            local cli_dst="mimofan"
-            local tui_dst="mimofan-tui"
+            # Copy binary
+            local dst="mimofan"
             if [[ "$platform" == windows-* ]]; then
-              cli_dst="mimofan.exe"
-              tui_dst="mimofan-tui.exe"
+              dst="mimofan.exe"
             fi
-            cp "artifacts/${cli_src}/${cli_src}" "$dir/${cli_dst}"
-            cp "artifacts/${tui_src}/${tui_src}" "$dir/${tui_dst}"
+            cp "artifacts/${src}/${src}" "$dir/${dst}"
 
             # Add install script (standard variant only)
             if [[ "$variant" != "portable" ]]; then
@@ -326,29 +297,29 @@ jobs:
 
           # Platform: linux-x64
           bundle linux-x64 \
-            mimofan-linux-x64 mimofan-tui-linux-x64 tar.gz ""
+            mimofan-linux-x64 tar.gz ""
 
           # Platform: linux-arm64
           bundle linux-arm64 \
-            mimofan-linux-arm64 mimofan-tui-linux-arm64 tar.gz ""
+            mimofan-linux-arm64 tar.gz ""
 
           # Platform: linux-riscv64
           bundle linux-riscv64 \
-            mimofan-linux-riscv64 mimofan-tui-linux-riscv64 tar.gz ""
+            mimofan-linux-riscv64 tar.gz ""
 
           # Platform: macos-x64
           bundle macos-x64 \
-            mimofan-macos-x64 mimofan-tui-macos-x64 tar.gz ""
+            mimofan-macos-x64 tar.gz ""
 
           # Platform: macos-arm64
           bundle macos-arm64 \
-            mimofan-macos-arm64 mimofan-tui-macos-arm64 tar.gz ""
+            mimofan-macos-arm64 tar.gz ""
 
           # Platform: windows-x64 (standard + portable)
           bundle windows-x64 \
-            mimofan-windows-x64.exe mimofan-tui-windows-x64.exe zip ""
+            mimofan-windows-x64.exe zip ""
           bundle windows-x64 \
-            mimofan-windows-x64.exe mimofan-tui-windows-x64.exe zip "portable"
+            mimofan-windows-x64.exe zip "portable"
 
           echo ""
           echo "=== Archive checksums ==="
@@ -382,7 +353,6 @@ jobs:
           $ErrorActionPreference = "Stop"
           $version = "${{ needs.resolve.outputs.tag }}".TrimStart("v")
           Copy-Item "artifacts\mimofan-windows-x64.exe\mimofan-windows-x64.exe" "scripts\installer\mimofan.exe"
-          Copy-Item "artifacts\mimofan-tui-windows-x64.exe\mimofan-tui-windows-x64.exe" "scripts\installer\mimofan-tui.exe"
           $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
           if (!(Test-Path $makensis)) {
             $makensis = "${env:ProgramFiles}\NSIS\makensis.exe"

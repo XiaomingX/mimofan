@@ -1878,26 +1878,28 @@ pub fn try_open_file_at_line(text: &str, workspace: &Path) -> bool {
     let mut any_opened = false;
     for line in text.lines() {
         let trimmed = line.trim();
-        if let Some((before, after)) = trimmed.rsplit_once(':')
+        let (path_str, line_num) = if let Some((before, after)) = trimmed.rsplit_once(':')
             && after.chars().all(|c| c.is_ascii_digit())
         {
-            let line_num: u32 = after.parse().unwrap_or(1);
-            let path_str = before.trim();
-            if !path_str.is_empty() && looks_like_file_path(path_str) {
-                let abs_path = if Path::new(path_str).is_absolute() {
-                    PathBuf::from(path_str)
-                } else {
-                    workspace.join(path_str)
-                };
-                if abs_path.is_file()
-                    && Command::new(&editor)
-                        .arg(format!("+{line_num}"))
-                        .arg(&abs_path)
-                        .spawn()
-                        .is_ok()
-                {
-                    any_opened = true;
-                }
+            (before.trim(), after.parse::<u32>().unwrap_or(1))
+        } else {
+            (trimmed, 1)
+        };
+
+        if !path_str.is_empty() && looks_like_file_path(path_str) {
+            let abs_path = if Path::new(path_str).is_absolute() {
+                PathBuf::from(path_str)
+            } else {
+                workspace.join(path_str)
+            };
+            if abs_path.is_file()
+                && Command::new(&editor)
+                    .arg(format!("+{line_num}"))
+                    .arg(&abs_path)
+                    .spawn()
+                    .is_ok()
+            {
+                any_opened = true;
             }
         }
     }

@@ -690,6 +690,61 @@ impl Engine {
             .await;
     }
 
+    /// Spawns a background cache warmup after compaction to restore the prefix
+    /// cache hit rate.  Errors are silently logged — a failed warmup should
+    /// never interrupt the user's turn.
+    pub(super) fn spawn_cache_warmup_after_compaction(
+        &self,
+        client: &DeepSeekClient,
+        messages: &[Message],
+        system: Option<&SystemPrompt>,
+        tools: Option<&[Tool]>,
+        model: &str,
+        reasoning_effort: Option<&str>,
+    ) {
+        use crate::client::build_cache_warmup_request;
+
+        let request = MessageRequest {
+            model: model.to_string(),
+            messages: messages.to_vec(),
+            max_tokens: 1024,
+            system: system.cloned(),
+            tools: tools.map(|t| t.to_vec()),
+            tool_choice: None,
+            metadata: None,
+            thinking: None,
+            reasoning_effort: reasoning_effort.map(str::to_string),
+            stream: None,
+            temperature: None,
+            top_p: None,
+            response_format: None,
+        };
+        let warmup = build_cache_warmup_request(&request);
+        let client = client.clone();
+        tokio::spawn(async move {
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(45),
+                client.create_message(warmup),
+            )
+            .await
+            {
+                Ok(Ok(_)) => {
+                    crate::logging::info("Post-compaction cache warmup succeeded".to_string());
+                }
+                Ok(Err(err)) => {
+                    crate::logging::info(format!(
+                        "Post-compaction cache warmup failed: {err}"
+                    ));
+                }
+                Err(_) => {
+                    crate::logging::info(
+                        "Post-compaction cache warmup timed out".to_string(),
+                    );
+                }
+            }
+        });
+    }
+
     fn reset_cancel_token(&mut self) {
         let token = CancellationToken::new();
         self.cancel_token = token.clone();
@@ -2593,6 +2648,15 @@ impl Engine {
                         Some(messages_after),
                     )
                     .await;
+                    // Warm up prefix cache so the next request doesn't cold-start.
+                    self.spawn_cache_warmup_after_compaction(
+                        &client,
+                        &self.session.messages,
+                        self.session.system_prompt.as_ref(),
+                        None,
+                        &self.session.model,
+                        None,
+                    );
                 } else {
                     let message = "Compaction skipped: produced empty result".to_string();
                     self.emit_compaction_failed(id, false, message.clone())

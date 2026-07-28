@@ -680,6 +680,23 @@ pub struct MemoryConfig {
     /// `# foo` typed in the composer to append to that file. Default `false`.
     #[serde(default)]
     pub enabled: Option<bool>,
+
+    /// Optional external memory service URL for long-term memory (e.g.
+    /// claude-mem). When set, the system will load relevant memories from
+    /// this service at session start and store important information.
+    /// Format: `http://host:port` or `https://host:port`.
+    #[serde(default)]
+    pub service_url: Option<String>,
+
+    /// API key for the external memory service (optional, may be required
+    /// by some services).
+    #[serde(default)]
+    pub service_api_key: Option<String>,
+
+    /// Maximum number of memories to load from the service per session.
+    /// Default: 20.
+    #[serde(default)]
+    pub max_memories: Option<usize>,
 }
 
 /// Xiaomi MiMo speech/TTS output configuration.
@@ -2425,6 +2442,33 @@ impl Config {
             .as_ref()
             .and_then(|m| m.enabled)
             .unwrap_or(false)
+    }
+
+    /// Returns the external memory service URL if configured.
+    #[must_use]
+    pub fn memory_service_url(&self) -> Option<&str> {
+        self.memory
+            .as_ref()
+            .and_then(|m| m.service_url.as_deref())
+            .filter(|s| !s.is_empty())
+    }
+
+    /// Returns the API key for the external memory service.
+    #[must_use]
+    pub fn memory_service_api_key(&self) -> Option<&str> {
+        self.memory
+            .as_ref()
+            .and_then(|m| m.service_api_key.as_deref())
+            .filter(|s| !s.is_empty())
+    }
+
+    /// Returns the maximum number of memories to load from the service.
+    #[must_use]
+    pub fn memory_max_memories(&self) -> usize {
+        self.memory
+            .as_ref()
+            .and_then(|m| m.max_memories)
+            .unwrap_or(20)
     }
 
     /// Return the configured vision model config, inheriting api_key from main config.

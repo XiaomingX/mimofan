@@ -105,6 +105,7 @@ web/pnpm-lock.yaml
 !scripts/**
 !.github/scripts/**
 !web/public/install.sh
+!redeploy.sh
 test.txt
 TODO*.md
 todo*.md
@@ -188,10 +189,7 @@ notes/
 
 # Temporary local scripts and draft plans
 doctor.sh
-build.sh
-test.sh
 verify.sh
-check.sh
 IMPROVEMENT_PLAN.md
 ARCHITECTURE_PLAN.md
 settings.example.json

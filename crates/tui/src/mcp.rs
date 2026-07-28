@@ -1556,7 +1556,7 @@ impl McpConnection {
             "params": {
                 "protocolVersion": "2024-11-05",
                 "clientInfo": {
-                    "name": "mimofan-tui",
+                    "name": "mimofan",
                     "version": env!("CARGO_PKG_VERSION")
                 },
                 "capabilities": {

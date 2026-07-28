@@ -169,6 +169,17 @@ pub fn resolved_supports_reasoning(model: &str) -> Option<bool> {
     resolved_entry(model).and_then(|entry| entry.supports_reasoning)
 }
 
+/// Returns `true` if the model's catalog entry lists `"image"` among its
+/// modalities.  Returns `true` conservatively when no catalog entry is found
+/// (unknown models are assumed to accept images so we don't reject valid
+/// requests).
+#[must_use]
+pub fn resolved_supports_image(model: &str) -> bool {
+    resolved_entry(model)
+        .map(|entry| entry.modalities.iter().any(|m| m == "image"))
+        .unwrap_or(true)
+}
+
 #[must_use]
 pub fn resolved_usd_pricing(model: &str) -> Option<(f64, f64)> {
     let entry = resolved_entry(model)?;

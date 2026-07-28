@@ -23,6 +23,7 @@ mod profile;
 mod provider;
 mod queue;
 mod rlm;
+mod schedule;
 mod stash;
 mod subagents;
 mod swarm;
@@ -137,6 +138,14 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 voice::VoiceControlCmd::info(),
                 voice::VoiceControlCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                schedule::NightCmd::info(),
+                schedule::NightCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                schedule::TimeCmd::info(),
+                schedule::TimeCmd::execute,
             )),
         ]
     }

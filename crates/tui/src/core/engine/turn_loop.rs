@@ -261,6 +261,15 @@ impl Engine {
                             )
                             .await;
                             let _ = self.tx_event.send(Event::status(status)).await;
+                            // Warm up prefix cache after auto-compaction.
+                            self.spawn_cache_warmup_after_compaction(
+                                &client,
+                                &self.session.messages,
+                                self.session.system_prompt.as_ref(),
+                                None,
+                                &self.session.model,
+                                None,
+                            );
                         } else {
                             let message = "Auto-compaction skipped: empty result".to_string();
                             self.emit_compaction_failed(

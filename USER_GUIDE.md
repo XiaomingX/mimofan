@@ -1,6 +1,6 @@
 # mimofan 用户指南
 
-本指南帮助你从零开始使用 mimofan，以 **小米 MiMo** 为主线，其他服务商作为参考。
+> 从零开始使用 mimofan，以 **小米 MiMo** 为主线。
 
 ---
 
@@ -11,10 +11,8 @@
 **方式一：npm/pnpm（推荐）**
 
 ```bash
-# pnpm（推荐）
 pnpm add -g mimofan
-
-# 或 npm
+# 或
 npm install -g mimofan
 ```
 
@@ -28,38 +26,34 @@ curl -fsSL https://mimofan.net/install.sh | sh
 
 ```bash
 cargo install mimofan-cli --locked
-cargo install mimofan --locked
 ```
 
 ### 1.2 配置
 
 ```bash
-# 创建配置目录
 mkdir -p ~/.mimofan
-
-# 复制配置文件
 cp config.example.toml ~/.mimofan/config.toml
 ```
 
-编辑 `~/.mimofan/config.toml`，配置 MiMo：
+编辑 `~/.mimofan/config.toml`：
 
 ```toml
 provider = "xiaomi-mimo"
-api_key = "YOUR_MIMO_API_KEY"
+api_key = "你的 MIMO_API_KEY"
 base_url = "https://api.xiaomimimo.com/v1"
 default_text_model = "mimo-v2.5-pro"
 ```
 
-或使用环境变量：
+或用环境变量：
 
 ```bash
-export MIMO_API_KEY="YOUR_MIMO_API_KEY"
+export MIMO_API_KEY="你的 MIMO_API_KEY"
 export MIMO_BASE_URL="https://api.xiaomimimo.com/v1"
 export MIMOFAN_MODEL="mimo-v2.5-pro"
 export MIMOFAN_PROVIDER="xiaomi-mimo"
 ```
 
-### 1.3 验证安装
+### 1.3 验证
 
 ```bash
 mimofan doctor       # 检查配置、API key、网络连接
@@ -69,48 +63,27 @@ mimofan auth status  # 查看当前生效的认证信息
 ### 1.4 启动
 
 ```bash
-# TUI 交互式终端（推荐）
-mimofan
-
-# CLI 单次对话
-mimofan-cli "用 Python 写一个 hello world"
-
-# 指定 profile
-mimofan --profile work
+mimofan                        # TUI 终端界面（推荐）
+mimofan-cli "帮我写个 hello world"  # CLI 单次调用
+mimofan --profile work         # 指定 profile
 ```
 
 ---
 
 ## 2. 三种使用形态
 
-### TUI 终端界面（推荐）
+| 形态 | 命令 | 适用场景 |
+|------|------|----------|
+| **TUI 终端界面** | `mimofan` | 交互式，全功能，推荐 |
+| **CLI 单次调用** | `mimofan-cli "问题"` | 脚本、自动化、单次任务 |
+| **HTTP 服务** | `mimofan app-server --bind 127.0.0.1:8787` | 嵌入其他系统或 IDE |
 
-交互式全功能界面，支持即时反馈、流式输出、上下文记忆。
-
-```bash
-mimofan
-mimofan --provider xiaomi-mimo  # 临时切换
-mimofan --config /path/to/config.toml
-```
-
-### CLI 命令行
-
-适合脚本、自动化、单次任务。
+### CLI 用法示例
 
 ```bash
-mimofan-cli "帮我写一个 Hello World"
+mimofan-cli "用 Python 写一个 hello world"
 echo "解释这段代码" | mimofan-cli
 mimofan-cli --model mimo-v2.5-pro "快速回答"
-```
-
-### HTTP 服务
-
-嵌入到其他系统或 IDE 插件。
-
-```bash
-mimofan app-server --bind 127.0.0.1:8787
-# 或 stdio 模式
-mimofan app-server --stdio
 ```
 
 ---
@@ -121,9 +94,9 @@ mimofan app-server --stdio
 
 | 模式 | 说明 | 适用场景 |
 |------|------|----------|
-| **Plan** | 设计优先。只读工具可用，禁止 shell 和文件写入 | 调研、分析、规划 |
-| **Agent** | 多步工具使用。shell 需配置 `allow_shell = true`，每次调用需审批 | 日常开发 |
-| **YOLO** | 全自动。启用 shell + 信任模式，所有工具自动通过 | 可信仓库的快速任务 |
+| **Plan** | 只读工具可用，禁止 shell 和文件写入 | 调研、分析、规划 |
+| **Agent** | 多步工具使用，shell 需审批 | 日常开发 |
+| **YOLO** | 全自动，所有工具自动通过 | 可信仓库的快速任务 |
 
 ### 工具可用性对比
 
@@ -169,7 +142,7 @@ MIMOFAN_PROFILE=deepseek mimofan
 
 ## 5. 配置文件说明
 
-### 5.1 配置文件位置
+### 5.1 文件位置
 
 | 文件 | 用途 |
 |------|------|
@@ -240,17 +213,13 @@ agent(
 
 mimofan 支持通过 MCP（Model Context Protocol）加载外部工具。
 
-### 初始化
-
 ```bash
 mimofan mcp init    # 创建 MCP 配置文件
 mimofan mcp list    # 查看已配置的服务器
 mimofan mcp tools   # 查看可用工具
 ```
 
-### 配置文件
-
-默认路径：`~/.mimofan/mcp.json`
+配置文件 `~/.mimofan/mcp.json`：
 
 ```json
 {
@@ -270,59 +239,37 @@ MCP 工具名称格式：`mcp__<server>__<tool>`
 
 ## 8. 常用命令
 
-### 诊断命令
-
 ```bash
 mimofan doctor         # 检查配置 / API key / 连接
 mimofan doctor --json  # JSON 输出，便于脚本处理
 mimofan auth status    # 当前生效的认证
-```
-
-### 会话管理
-
-```bash
-mimofan --resume <ID>    # 恢复指定会话
-mimofan --continue       # 继续最近会话
-mimofan --workspace <DIR> # 指定工作区
+mimofan --resume <ID>  # 恢复指定会话
+mimofan --continue     # 继续最近会话
 ```
 
 ---
 
-## 9. 其他服务商配置
+## 9. 服务商配置
 
 所有服务商都通过 OpenAI 兼容协议接入，配置方式一致。
 
-### DeepSeek
-
 ```toml
+# DeepSeek
 provider = "deepseek"
 api_key = "YOUR_DEEPSEEK_KEY"
-```
 
-### Anthropic
-
-```toml
+# Anthropic
 provider = "anthropic"
 api_key = "sk-ant-xxxxxx"
-```
 
-### 通用 OpenAI 兼容
-
-```toml
+# 通用 OpenAI 兼容
 provider = "openai"
 api_key = "YOUR_KEY"
 base_url = "https://api.openai.com/v1"
 default_text_model = "gpt-4o"
-```
 
-### 国内常用服务商
-
-```toml
 # 硅基流动
 provider = "siliconflow"
-
-# OpenRouter
-provider = "openrouter"
 
 # 阿里云百炼
 provider = "openai"
@@ -332,7 +279,7 @@ base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 model = "qwen-plus"
 ```
 
-完整 provider 列表和模型 ID 见 `config.example.toml` 顶部注释。
+完整 provider 列表见 `config.example.toml` 顶部注释。
 
 ---
 
@@ -369,15 +316,11 @@ model = "qwen-plus"
 
 ### npm 下载超时
 
-设置镜像源或使用 cargo 安装：
-
 ```bash
 npm config set registry https://registry.npmmirror.com
 ```
 
 ### `mimofan update` 被墙
-
-通过 CNB 镜像安装：
 
 ```bash
 cargo install --git https://cnb.cool/mimofan.net/mimofan --tag vX.Y.Z mimofan-cli --locked --force
@@ -388,16 +331,3 @@ cargo install --git https://cnb.cool/mimofan.net/mimofan --tag vX.Y.Z mimofan-cl
 ```bash
 xattr -d com.apple.quarantine ~/.local/bin/mimofan
 ```
-
----
-
-## 12. 进一步阅读
-
-- [ARCHITECTURE.md](ARCHITECTURE.md) — 架构说明（面向开发者）
-- [docs/INSTALL.md](docs/INSTALL.md) — 详细安装指南
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) — 配置文件字段参考
-- [docs/MODES.md](docs/MODES.md) — TUI 模式详解
-- [docs/MCP.md](docs/MCP.md) — MCP 外部工具桥接
-- [docs/SUBAGENTS.md](docs/SUBAGENTS.md) — 子 Agent 用法
-- [docs/KEYBINDINGS.md](docs/KEYBINDINGS.md) — 快捷键完整列表
-- [docs/PROMPTS.md](docs/PROMPTS.md) — 提示词工程详解

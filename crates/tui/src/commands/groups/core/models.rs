@@ -20,7 +20,7 @@ impl RegisterCommand for ModelsCmd {
         &COMMAND_INFO
     }
 
-    fn execute(app: &mut App, _arg: Option<&str>) -> CommandResult {
-        super::core::models(app)
+    fn execute(app: &mut App, arg: Option<&str>) -> CommandResult {
+        super::core::models(app, arg)
     }
 }
