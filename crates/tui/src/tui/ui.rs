@@ -6477,7 +6477,7 @@ async fn drain_web_config_events(
 
 /// Apply the choice made in the `/model` picker (#39): mutate App state so
 /// the next turn uses the new model/effort, persist the selection to
-/// `~/.mimofanfan/settings.toml` (legacy: `~/.mimofanfan/settings.toml`) so it survives a restart, push the change to
+/// `~/.mimofanfan/settings.json` so it survives a restart, push the change to
 /// the running engine via `Op::SetModel`/`Op::SetCompaction`, and surface
 /// a one-line status describing what changed.
 // The model/effort transition needs both the previous and next model+effort
@@ -7329,7 +7329,7 @@ async fn apply_command_result(
                 if app.view_stack.top_kind() != Some(ModalKind::ThemePicker) {
                     // Capture the active theme name straight from `app` so
                     // Esc can revert through the same ConfigUpdated channel.
-                    // Avoids re-reading settings.toml from disk on every
+                    // Avoids re-reading settings.json from disk on every
                     // `/theme` invocation.
                     let original = app.theme_id.name().to_string();
                     app.view_stack

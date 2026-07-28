@@ -214,7 +214,7 @@ impl ModalView for ThemePickerView {
 
         let mut lines: Vec<Line> = Vec::with_capacity(SELECTABLE_THEMES.len() + 5);
         lines.push(Line::from(Span::styled(
-            "Pick a theme — preview is live; Enter saves to settings.toml.",
+            "Pick a theme — preview is live; Enter saves to settings.json.",
             Style::default().fg(live.text_muted),
         )));
         lines.push(Line::from(""));

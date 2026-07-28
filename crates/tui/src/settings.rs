@@ -18,7 +18,7 @@ const SETTINGS_FILE_NAME: &str = "settings.json";
 const TUI_PREFS_FILE_NAME: &str = "tui.json";
 
 // ============================================================================
-// TuiPrefs — ~/.mimofanfan/tui.toml
+// TuiPrefs — ~/.mimofanfan/tui.json
 // ============================================================================
 
 /// TUI-specific preferences that are decoupled from agent/project config so
@@ -549,7 +549,7 @@ impl Settings {
         //
         // Only flip `auto` to `off`; respect an explicit `"on"` so users
         // who upgrade Ptyxis or want to confirm the fix landed upstream
-        // can override the heuristic from the persisted settings.toml or
+        // can override the heuristic from the persisted settings.json or
         // `/set synchronized_output on`.
         if self.synchronized_output.eq_ignore_ascii_case("auto") && detected_ptyxis_terminal() {
             self.synchronized_output = "off".to_string();

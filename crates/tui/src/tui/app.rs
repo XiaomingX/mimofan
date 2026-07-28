@@ -57,7 +57,7 @@ pub enum OnboardingState {
     Welcome,
     /// Pick the UI locale before any other config decisions (#566).
     /// Defaults to auto-detection from `LC_ALL` / `LANG`; explicit picks
-    /// land in the persisted settings.toml via `Settings::set("locale", …)`.
+    /// land in the persisted settings.json via `Settings::set("locale", …)`.
     Language,
     ApiKey,
     TrustDirectory,
@@ -1030,7 +1030,7 @@ pub struct TuiOptions {
     /// Capture mouse input for internal scrolling/selection.
     pub use_mouse_capture: bool,
     /// Enable terminal bracketed-paste mode (OSC `?2004h` / `?2004l`). Defaults
-    /// on; settable via `bracketed_paste = false` in `settings.toml` for the
+    /// on; settable via `bracketed_paste = false` in `settings.json` for the
     /// rare terminal that mishandles it.
     pub use_bracketed_paste: bool,
     /// Maximum number of concurrent sub-agents.
@@ -1148,7 +1148,7 @@ fn base_policy_for_mode(mode: AppMode, prefs: &ModeSessionPrefs) -> EffectiveMod
 
 /// Vim modal editing mode for the composer input area.
 ///
-/// Enabled via `[composer] mode = "vim"` in `settings.toml`.  When the
+/// Enabled via `[composer] mode = "vim"` in `settings.json`.  When the
 /// composer vim mode is active the user starts in `Normal` mode and presses
 /// `i`, `a`, or `o` to enter `Insert` mode.  `Esc` from `Insert` returns to
 /// `Normal`.  Standard vim motions (`h`/`j`/`k`/`l`, `w`/`b`, `0`/`$`, `x`,
@@ -2251,15 +2251,15 @@ impl App {
 
         let settings = Settings::load().unwrap_or_else(|_| Settings::default());
 
-        // If settings.toml exists on disk but couldn't be parsed (we fell back
+        // If settings.json exists on disk but couldn't be parsed (we fell back
         // to defaults), surface a warning in the TUI so the user knows their
         // file is broken instead of silently losing all settings.
         let settings_parse_warning = crate::settings::Settings::path().ok().and_then(|p| {
             if p.exists() {
                 std::fs::read_to_string(&p).ok().and_then(|raw| {
-                    ::toml::from_str::<::toml::Value>(&raw)
+                    ::serde_json::from_str::<::serde_json::Value>(&raw)
                         .err()
-                        .map(|e| format!("⚠ settings.toml is malformed — using defaults ({e})"))
+                        .map(|e| format!("⚠ settings.json is malformed — using defaults ({e})"))
                 })
             } else {
                 None
@@ -2268,9 +2268,9 @@ impl App {
         let tui_prefs_warning = crate::settings::TuiPrefs::path().ok().and_then(|p| {
             if p.exists() {
                 std::fs::read_to_string(&p).ok().and_then(|raw| {
-                    ::toml::from_str::<::toml::Value>(&raw)
+                    ::serde_json::from_str::<::serde_json::Value>(&raw)
                         .err()
-                        .map(|e| format!("⚠ tui.toml is malformed — using defaults ({e})"))
+                        .map(|e| format!("⚠ tui.json is malformed — using defaults ({e})"))
                 })
             } else {
                 None
@@ -2810,7 +2810,7 @@ impl App {
     }
 
     /// Apply a locale tag selected from the onboarding language picker (#566).
-    /// Persists the value to settings.toml and immediately
+    /// Persists the value to settings.json and immediately
     /// re-resolves `ui_locale` so the rest of onboarding renders in the new
     /// language. `App` doesn't keep `Settings` resident — it loads on entry
     /// and rewrites on exit, mirroring the pattern used by the `/config`
@@ -2824,7 +2824,7 @@ impl App {
         Ok(())
     }
 
-    /// Locale tag currently persisted in settings.toml (or
+    /// Locale tag currently persisted in settings.json (or
     /// `"auto"` when no settings file exists). Used by the onboarding
     /// language picker to highlight the current selection without `App`
     /// having to keep `Settings` resident.

@@ -335,8 +335,7 @@ fn read_pdf(path: &Path, pages: Option<&str>) -> Result<ToolResult, ToolError> {
     // path). Users with column-heavy / complex-table PDFs (academic
     // papers, financial filings) can opt into the historical
     // `pdftotext -layout` route by setting
-    // `prefer_external_pdftotext = true` in `~/.mimofanfan/settings.toml`
-    // (legacy: `~/.config/deepseek/settings.toml`).
+    // `prefer_external_pdftotext = true` in `~/.mimofanfan/settings.json`.
     let prefer_external = crate::settings::Settings::load()
         .map(|s| s.prefer_external_pdftotext)
         .unwrap_or(false);
@@ -360,7 +359,7 @@ fn read_pdf_via_pdf_extract(
         // 0-indexed half-open slice with bounds clamping.
         let pages = guard_pdf_extract(|| pdf_extract::extract_text_by_pages(path)).map_err(|e| {
             ToolError::execution_failed(format!(
-                "pdf-extract failed on {}: {e} (set `prefer_external_pdftotext = true` in settings.toml to retry via pdftotext)",
+                "pdf-extract failed on {}: {e} (set `prefer_external_pdftotext = true` in settings.json to retry via pdftotext)",
                 path.display()
             ))
         })?;
@@ -385,7 +384,7 @@ fn read_pdf_via_pdf_extract(
             .map(|pages| pages.join("\n"))
             .map_err(|e| {
                 ToolError::execution_failed(format!(
-                    "pdf-extract failed on {}: {e} (set `prefer_external_pdftotext = true` in settings.toml to retry via pdftotext)",
+                    "pdf-extract failed on {}: {e} (set `prefer_external_pdftotext = true` in settings.json to retry via pdftotext)",
                     path.display()
                 ))
             })?
