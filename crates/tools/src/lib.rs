@@ -369,6 +369,8 @@ impl Default for ToolCallRuntime {
 #[derive(Debug)]
 enum ToolExecutionGuard {
     Reentrant,
+    Parallel(OwnedRwLockReadGuard<()>),
+    Serial(OwnedRwLockWriteGuard<()>),
 }
 
 impl ToolCallRuntime {
