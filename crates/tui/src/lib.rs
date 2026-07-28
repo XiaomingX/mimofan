@@ -55,7 +55,6 @@ mod lsp;
 mod mcp;
 mod mcp_server;
 mod memory;
-mod memory_service;
 mod model_catalog;
 mod model_inventory;
 mod model_profile;
@@ -116,16 +115,6 @@ use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
 use crate::session_manager::{SessionManager, create_saved_session, truncate_id};
 use crate::tui::history::{summarize_tool_args, summarize_tool_output};
 
-#[cfg(windows)]
-fn configure_windows_console_utf8() {
-    use windows::Win32::System::Console::{SetConsoleCP, SetConsoleOutputCP};
-
-    const CP_UTF8: u32 = 65001;
-    unsafe {
-        let _ = SetConsoleCP(CP_UTF8);
-        let _ = SetConsoleOutputCP(CP_UTF8);
-    }
-}
 
 #[cfg(not(windows))]
 fn configure_windows_console_utf8() {}
@@ -4651,15 +4640,6 @@ fn is_command_available(name: &str) -> bool {
         if candidate.is_file() {
             return true;
         }
-        #[cfg(windows)]
-        {
-            // PATHEXT gives `.exe`/`.cmd`/`.bat` etc. priority — we only
-            // probe `.exe` because that's the case that actually trips
-            // up the negative case (`gh` resolves as `gh.exe`).
-            if candidate.extension().is_none() && candidate.with_extension("exe").is_file() {
-                return true;
-            }
-        }
     }
     false
 }
@@ -5845,21 +5825,12 @@ fn workspace_config_path_matches(raw_path: &str, workspace: &Path) -> bool {
     paths_equal_for_config(&configured, &workspace)
 }
 
-#[cfg(windows)]
-fn paths_equal_for_config(left: &Path, right: &Path) -> bool {
-    normalize_windows_config_path_for_compare(left)
-        == normalize_windows_config_path_for_compare(right)
-}
 
 #[cfg(not(windows))]
 fn paths_equal_for_config(left: &Path, right: &Path) -> bool {
     left == right
 }
 
-#[cfg(windows)]
-fn normalize_windows_config_path_for_compare(path: &Path) -> String {
-    normalize_windows_config_path_str(&path.to_string_lossy())
-}
 
 #[cfg(any(windows, test))]
 fn normalize_windows_config_path_str(path: &str) -> String {

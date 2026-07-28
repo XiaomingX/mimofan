@@ -12,7 +12,6 @@ const pkg = require("../package.json");
 function resolveBinaryVersion() {
   const configuredVersion =
     process.env.MIMOFAN_VERSION ||
-    process.env.MIMOFAN_VERSION ||
     process.env.DEEPSEEK_VERSION ||
     pkg.mimofanBinaryVersion || pkg.deepseekBinaryVersion ||
     pkg.version;
@@ -20,7 +19,7 @@ function resolveBinaryVersion() {
 }
 
 function resolveRepo() {
-  return process.env.MIMOFAN_GITHUB_REPO || process.env.MIMOFAN_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "XiaomingX/mimo-tui";
+  return process.env.MIMOFAN_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "XiaomingX/mimofan";
 }
 
 function requestStatus(url, method = "HEAD", redirects = 0) {

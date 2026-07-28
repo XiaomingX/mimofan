@@ -1,14 +1,5 @@
-[build]
-# Avoid duplicating debug symbol sections across incremental builds
-rustflags = ["-C", "split-debuginfo=unpacked"]
-
-[profile.dev]
-# Reduce debuginfo level to 1 (line tables only) to drastically shrink target size (50%-70% reduction)
-debug = 1
-# Incremental builds can accumulate large old artifacts over time
-incremental = true
-
-[profile.release]
-debug = false
-lto = "thin"
-codegen-units = 1
+# NOTE: Build profiles (debug info level, LTO, codegen-units, split-debuginfo)
+# are defined ONLY in the workspace Cargo.toml `[profile.*]` sections.
+# Do NOT re-declare `[profile.*]` or debuginfo rustflags here — settings in
+# .cargo/config.toml silently override Cargo.toml and previously caused a
+# conflict (release codegen-units 1 vs 16), slowing down release builds.

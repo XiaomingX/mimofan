@@ -21,7 +21,7 @@
 set -euo pipefail
 
 RELEASE_TAG="${RELEASE_TAG:-v0.8.57}"
-REPO_URL="${REPO_URL:-https://github.com/XiaomingX/mimo-tui.git}"
+REPO_URL="${REPO_URL:-https://github.com/XiaomingX/mimofan.git}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 SECRETS_FILE="${SECRETS_FILE:-/tmp/cw-secrets.env}"
 
@@ -52,7 +52,7 @@ echo "== [3/8] install prebuilt ${RELEASE_TAG} binaries (no Rust build) =="
 # the release binaries exactly there.
 BIN_DIR=/home/mimofan/.cargo/bin
 install -d -o mimofan -g mimofan "$BIN_DIR"
-BASE="https://github.com/XiaomingX/mimo-tui/releases/download/${RELEASE_TAG}"
+BASE="https://github.com/XiaomingX/mimofan/releases/download/${RELEASE_TAG}"
 TMP=$(mktemp -d)
 curl -fsSL -o "$TMP/mimofan" "$BASE/mimofan-linux-x64"
 curl -fsSL -o "$TMP/mimofan-tui" "$BASE/mimofan-tui-linux-x64"

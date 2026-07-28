@@ -266,22 +266,8 @@ fn browser_open_command(url: &str) -> Result<Command> {
         Ok(command)
     }
 
-    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    {
-        let mut command = Command::new("xdg-open");
-        command.arg(url);
-        Ok(command)
-    }
 
-    #[cfg(target_os = "windows")]
-    {
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/C", "start", "", url]);
-        Ok(cmd)
-    }
 
-    #[cfg(not(any(
-        target_os = "macos",
         all(target_os = "linux", not(target_env = "ohos")),
         target_os = "windows"
     )))]

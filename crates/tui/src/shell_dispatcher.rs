@@ -17,8 +17,6 @@
 
 use std::fs::OpenOptions;
 use std::io::Write;
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 use std::sync::Mutex;
@@ -50,18 +48,12 @@ impl ShellKind {
     /// Binary name for the shell. Appends `.exe` on Windows where needed.
     pub fn binary(&self) -> &str {
         match self {
-            #[cfg(windows)]
-            ShellKind::Pwsh => "pwsh.exe",
             #[cfg(not(windows))]
             ShellKind::Pwsh => "pwsh",
 
-            #[cfg(windows)]
-            ShellKind::WindowsPowerShell => "powershell.exe",
             #[cfg(not(windows))]
             ShellKind::WindowsPowerShell => "powershell",
 
-            #[cfg(windows)]
-            ShellKind::Cmd => "cmd.exe",
             #[cfg(not(windows))]
             ShellKind::Cmd => "cmd",
 
@@ -177,10 +169,6 @@ impl ShellDispatcher {
             cmd.arg(shell_command);
         } else if matches!(self.kind, ShellKind::Cmd) {
             cmd.arg(self.kind.command_flag());
-            #[cfg(windows)]
-            {
-                cmd.raw_arg(shell_command);
-            }
             #[cfg(not(windows))]
             {
                 cmd.arg(shell_command);
@@ -279,30 +267,6 @@ impl ShellDispatcher {
     // -- Detection --------------------------------------------------------
 
     fn detect_shell() -> ShellKind {
-        #[cfg(windows)]
-        {
-            // 1. $env:SHELL — WSL interop or Git Bash often set this.
-            if let Ok(shell) = std::env::var("SHELL") {
-                let lower = shell.to_lowercase();
-                if lower.contains("bash") {
-                    return ShellKind::Bash;
-                }
-                if lower.contains("pwsh") {
-                    return ShellKind::Pwsh;
-                }
-                if lower.contains("powershell") {
-                    return ShellKind::WindowsPowerShell;
-                }
-            }
-
-            if Self::find_exe("pwsh.exe") {
-                return ShellKind::Pwsh;
-            }
-            if Self::find_exe("powershell.exe") {
-                return ShellKind::WindowsPowerShell;
-            }
-            ShellKind::Cmd
-        }
 
         #[cfg(not(windows))]
         {
@@ -328,33 +292,7 @@ impl ShellDispatcher {
         }
     }
 
-    /// Check PATH first, then fall back to well-known install directories.
-    #[cfg(windows)]
-    fn find_exe(name: &str) -> bool {
-        if Self::binary_on_path(name) {
-            return true;
-        }
-        // Well-known install locations (order by preference).
-        let known_dirs: &[&str] = &[
-            r"C:\Program Files\PowerShell\7",
-            r"C:\Windows\System32\WindowsPowerShell\v1.0",
-        ];
-        known_dirs
-            .iter()
-            .any(|dir| std::path::Path::new(dir).join(name).is_file())
-    }
 
-    #[cfg(windows)]
-    fn binary_on_path(name: &str) -> bool {
-        std::env::var_os("PATH")
-            .map(|path| {
-                std::env::split_paths(&path).any(|dir| {
-                    let candidate = dir.join(name);
-                    candidate.is_file()
-                })
-            })
-            .unwrap_or(false)
-    }
 }
 
 // -- Helpers ---------------------------------------------------------------

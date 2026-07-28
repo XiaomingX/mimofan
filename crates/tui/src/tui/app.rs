@@ -1229,7 +1229,7 @@ pub struct ComposerState {
     /// the cursor moves inside the same mention token.
     pub mention_completion_cache: Option<MentionCompletionCache>,
     /// Whether vim modal editing is enabled for this composer.
-    /// Sourced from `Settings::composer_vim_mode` at startup.
+    /// Sourced from `Settings::vim_mode` at startup.
     pub vim_enabled: bool,
     /// Current vim editing mode.  Only meaningful when `vim_enabled` is true.
     pub vim_mode: VimMode,
@@ -1632,13 +1632,13 @@ pub struct App {
     pub composer_arrows_scroll: bool,
     /// Data-side cap for the `@`-mention popup. The renderer still limits the
     /// visible rows to available terminal height.
-    pub mention_menu_limit: usize,
+    pub mention_limit: usize,
     /// Maximum workspace depth for `@`-mention completion walks. `0` means
     /// unlimited depth.
-    pub mention_walk_depth: usize,
+    pub mention_depth: usize,
     /// `@`-mention completion behavior: fuzzy workspace search or deterministic
     /// directory browser.
-    pub mention_menu_behavior: String,
+    pub mention_behavior: String,
     /// Follow symbolic links during workspace file discovery walks.
     /// When `true`, symlinked directories are traversed, enabling
     /// multi-project workspaces.
@@ -2310,7 +2310,7 @@ impl App {
         let was_onboarded = crate::tui::onboarding::is_onboarded();
         let settings_auto_compact = settings.auto_compact;
         let auto_compact_user_configured = Settings::auto_compact_explicitly_configured();
-        let auto_compact_threshold_percent = settings.auto_compact_threshold_percent;
+        let compact_threshold_percent = settings.compact_threshold;
         let calm_mode = settings.calm_mode;
         let low_motion = settings.low_motion;
         let fancy_animations = settings.fancy_animations;
@@ -2373,7 +2373,7 @@ impl App {
         };
         let compact_threshold = compaction_threshold_for_model_at_percent(
             threshold_model,
-            auto_compact_threshold_percent,
+            compact_threshold_percent,
         );
         let auto_compact = if auto_compact_user_configured {
             settings_auto_compact
@@ -2552,7 +2552,7 @@ impl App {
             system_prompt: None,
             auto_compact,
             auto_compact_user_configured,
-            auto_compact_threshold_percent,
+            compact_threshold_percent,
             calm_mode,
             low_motion,
             fancy_animations,
@@ -2587,7 +2587,7 @@ impl App {
             context_panel: settings.context_panel,
             tool_collapse_threshold: 3,
             expanded_tool_runs: HashSet::new(),
-            tool_collapse_mode: ToolCollapseMode::from_setting(&settings.tool_collapse_mode),
+            tool_collapse_mode: ToolCollapseMode::from_setting(&settings.tool_collapse),
             file_tree: None,
             file_tree_visible: false,
             compact_threshold,
@@ -2730,9 +2730,9 @@ impl App {
                 .as_ref()
                 .and_then(|tui| tui.composer_arrows_scroll)
                 .unwrap_or_else(|| default_composer_arrows_scroll(use_mouse_capture)),
-            mention_menu_limit: settings.mention_menu_limit,
-            mention_walk_depth: settings.mention_walk_depth,
-            mention_menu_behavior: settings.mention_menu_behavior.clone(),
+            mention_limit: settings.mention_limit,
+            mention_depth: settings.mention_depth,
+            mention_behavior: settings.mention_behavior.clone(),
             workspace_follow_symlinks: settings.workspace_follow_symlinks,
             session_title: None,
             receipt_text: None,
@@ -5503,7 +5503,7 @@ impl App {
             self.api_provider,
             &model,
             self.active_route_limits,
-            self.auto_compact_threshold_percent,
+            self.compact_threshold_percent,
         );
         if !self.auto_compact_user_configured {
             self.auto_compact = crate::route_budget::auto_compact_default_for_route(

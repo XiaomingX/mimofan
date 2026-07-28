@@ -37,9 +37,6 @@ use ratatui::{
     widgets::Block,
 };
 use tracing;
-#[cfg(target_os = "windows")]
-use windows::Win32::System::Console::{GetConsoleMode, GetStdHandle, SetConsoleMode};
-
 use crate::audit::log_sensitive_event;
 use crate::automation_manager::{AutomationManager, AutomationSchedulerConfig, spawn_scheduler};
 use crate::client::{
@@ -457,27 +454,12 @@ impl TerminalInputPump {
         now.saturating_duration_since(self.last_alive_at.get())
     }
 
-    #[cfg(target_os = "windows")]
-    fn restart_detached(&mut self) -> io::Result<()> {
-        self.stop.store(true, Ordering::Release);
-        let _ = self.handle.take();
-        let (rx, stop, handle) = Self::spawn_parts()?;
-        self.rx = rx;
-        self.stop = stop;
-        self.handle = Some(handle);
-        self.last_alive_at.set(Instant::now());
-        Ok(())
-    }
 }
 
 impl Drop for TerminalInputPump {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Release);
         if let Some(handle) = self.handle.take() {
-            #[cfg(target_os = "windows")]
-            {
-                drop(handle);
-            }
             #[cfg(not(target_os = "windows"))]
             let _ = handle.join();
         }
@@ -566,8 +548,6 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
         }
     }
 
-    #[cfg(target_os = "windows")]
-    enable_windows_ime_console_mode();
 
     let mut stdout = io::stdout();
     // Initialize the file-backed TUI log and redirect raw stderr away from
@@ -592,10 +572,6 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
         // Windows also suppresses mimofan's own verbose CLI logger while
         // the alt-screen is active. The stderr redirect above catches raw
         // writes; this prevents the known verbose source at the origin.
-        #[cfg(windows)]
-        crate::logging::snapshot_verbose_state();
-        #[cfg(windows)]
-        crate::logging::set_verbose(false);
     }
     // Mouse capture, bracketed paste, focus events, and the Kitty
     // keyboard-protocol escape-disambiguation flag (#442). Single source
@@ -860,8 +836,6 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
     disable_raw_mode()?;
     if use_alt_screen {
         execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-        #[cfg(windows)]
-        crate::logging::restore_verbose_state();
     }
     if use_mouse_capture {
         execute!(terminal.backend_mut(), DisableMouseCapture)?;
@@ -1566,8 +1540,6 @@ async fn run_event_loop(
     let mut last_focus_recovery = Instant::now()
         .checked_sub(Duration::from_secs(60))
         .unwrap_or_else(Instant::now);
-    #[cfg(target_os = "windows")]
-    let mut terminal_input = TerminalInputPump::spawn()?;
     #[cfg(not(target_os = "windows"))]
     let terminal_input = TerminalInputPump::spawn()?;
     let mut pending_terminal_events: VecDeque<Event> = VecDeque::new();
@@ -3214,24 +3186,6 @@ async fn run_event_loop(
                     app.use_mouse_capture,
                     app.use_bracketed_paste,
                 );
-                #[cfg(target_os = "windows")]
-                match terminal_input.restart_detached() {
-                    Ok(()) => {
-                        app.push_status_toast(
-                            "Recovered terminal input after a stalled Windows console poll.",
-                            StatusToastLevel::Warning,
-                            None,
-                        );
-                    }
-                    Err(err) => {
-                        tracing::warn!(error = %err, "failed to restart terminal input pump");
-                        app.push_status_toast(
-                            "Terminal input stalled; recovery failed. Restart mimofan if keys stop responding.",
-                            StatusToastLevel::Error,
-                            None,
-                        );
-                    }
-                }
                 #[cfg(not(target_os = "windows"))]
                 {
                     app.push_status_toast(
@@ -9715,8 +9669,6 @@ fn pause_terminal(
     disable_raw_mode()?;
     if use_alt_screen {
         execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-        #[cfg(windows)]
-        crate::logging::restore_verbose_state();
     }
     if use_mouse_capture {
         execute!(terminal.backend_mut(), DisableMouseCapture)?;
@@ -9739,8 +9691,6 @@ fn resume_terminal(
         execute!(terminal.backend_mut(), EnterAlternateScreen)?;
         // Re-entering alt-screen after mode recovery — suppress verbose
         // CLI logging again so eprintln! doesn't leak into the TUI.
-        #[cfg(windows)]
-        crate::logging::set_verbose(false);
     }
     recover_terminal_modes(
         terminal.backend_mut(),
@@ -9804,16 +9754,6 @@ fn push_keyboard_enhancement_flags<W: Write>(writer: &mut W) {
     // the kitty keyboard protocol but crossterm's event reader does not
     // decode CSI u sequences on Windows (issue #1599). Write \033[>0u to
     // probe the protocol without enabling any flags — Enter stays as \n.
-    #[cfg(windows)]
-    {
-        if let Err(err) = write!(writer, "\x1b[>0u").and_then(|()| writer.flush()) {
-            tracing::debug!(
-                target: "kitty_keyboard",
-                ?err,
-                "PushKeyboardEnhancementFlags direct write failed on Windows"
-            );
-        }
-    }
     #[cfg(not(windows))]
     if let Err(err) = execute!(
         writer,
@@ -9835,16 +9775,6 @@ pub(crate) fn pop_keyboard_enhancement_flags<W: Write>(writer: &mut W) {
     // pub(crate) so the panic hook in main.rs and external_editor.rs can
     // also call the Windows-aware path instead of using the raw crossterm
     // execute!() macro which silently no-ops on Windows.
-    #[cfg(windows)]
-    {
-        if let Err(err) = write!(writer, "\x1b[<1u").and_then(|()| writer.flush()) {
-            tracing::debug!(
-                target: "kitty_keyboard",
-                ?err,
-                "PopKeyboardEnhancementFlags direct write failed on Windows"
-            );
-        }
-    }
     #[cfg(not(windows))]
     let _ = execute!(writer, PopKeyboardEnhancementFlags);
 }
@@ -9890,35 +9820,6 @@ pub fn emergency_restore_terminal() {
     let _ = execute!(stdout, LeaveAlternateScreen);
 }
 
-/// On Windows, ensure the console input handle has `ENABLE_WINDOW_INPUT`
-/// (0x0008) set. crossterm's `enable_raw_mode()` removes this flag, which
-/// breaks IME composition (Chinese/Japanese/Korean input methods cannot
-/// commit characters) on some Windows configurations (e.g. Windows Terminal
-/// in conhost compatibility mode, or the legacy console with VT input).
-///
-/// Best-effort and idempotent. Silently ignored if the console handle or
-/// mode query fails.
-#[cfg(target_os = "windows")]
-fn enable_windows_ime_console_mode() {
-    use windows::Win32::System::Console::CONSOLE_MODE;
-    const ENABLE_WINDOW_INPUT: CONSOLE_MODE = CONSOLE_MODE(0x0008);
-
-    // SAFETY: Win32 console API is safe to call from any thread.
-    // Failures (console handle invalid, mode query fails) are silently
-    // ignored — this is a best-effort IME compatibility tweak.
-    unsafe {
-        let Ok(handle) = GetStdHandle(windows::Win32::System::Console::STD_INPUT_HANDLE) else {
-            return;
-        };
-        let mut mode = CONSOLE_MODE(0);
-        if GetConsoleMode(handle, &mut mode).is_err() {
-            return;
-        }
-        if mode.0 & ENABLE_WINDOW_INPUT.0 == 0 {
-            let _ = SetConsoleMode(handle, mode | ENABLE_WINDOW_INPUT);
-        }
-    }
-}
 
 /// Re-establish terminal mode flags. Idempotent and best-effort: each
 /// underlying flag is silently discarded by terminals that don't support
@@ -9938,8 +9839,6 @@ fn recover_terminal_modes<W: Write>(
     use_mouse_capture: bool,
     use_bracketed_paste: bool,
 ) {
-    #[cfg(target_os = "windows")]
-    enable_windows_ime_console_mode();
 
     pop_keyboard_enhancement_flags(writer);
     push_keyboard_enhancement_flags(writer);
@@ -10295,7 +10194,7 @@ fn should_auto_compact_before_send(app: &App) -> bool {
         return false;
     }
     context_usage_snapshot(app)
-        .map(|(_, _, pct)| pct >= app.auto_compact_threshold_percent.clamp(10.0, 100.0))
+        .map(|(_, _, pct)| pct >= app.compact_threshold_percent.clamp(10.0, 100.0))
         .unwrap_or(false)
 }
 

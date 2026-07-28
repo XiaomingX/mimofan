@@ -10,14 +10,9 @@ rollback.
 
 This npm package is a small launcher: it downloads the matching native
 Mimofan binary for your platform, verifies it against the release
-SHA-256 manifest, and installs the `mimofan` and `codew` commands.
+SHA-256 manifest, and installs the `mimofan` command.
 The application state and credentials still live in Mimofan's
 normal config files, not inside `node_modules`.
-
-> Previously published as `mimofan`. See
-> [docs/REBRAND.md](https://github.com/XiaomingX/mimofan/blob/main/docs/REBRAND.md)
-> for the migration notes; the legacy `mimofan` npm package is deprecated
-> and receives no further releases.
 
 ## Install
 
@@ -25,6 +20,8 @@ normal config files, not inside `node_modules`.
 npm install -g mimofan
 # or
 pnpm add -g mimofan
+# or
+bun add -g mimofan
 ```
 
 For project-local usage:
@@ -83,10 +80,10 @@ build-from-source guide.
 | Setting | What it does |
 | --- | --- |
 | `mimofanBinaryVersion` in `package.json` | Default native binary version. `deepseekBinaryVersion` is still read as a backward-compat fallback. |
-| `MIMOFAN_RELEASE_BASE_URL` | Canonical override: use an internal or mirrored release-asset directory when GitHub Releases is unavailable. The directory must contain `mimofan-artifacts-sha256.txt` and the platform binaries. `MIMOFAN_RELEASE_BASE_URL` is the primary alias; legacy `MIMOFAN_*` names also work. |
+| `MIMOFAN_RELEASE_BASE_URL` | Canonical override: use an internal or mirrored release-asset directory when GitHub Releases is unavailable. The directory must contain `mimofan-artifacts-sha256.txt` and the platform binaries. `MIMOFAN_RELEASE_BASE_URL` is the primary alias; legacy `DEEPSEEK_*` names also work. |
 | `MIMOFAN_USE_CNB_MIRROR=1` | Download release assets from the CNB (China-friendly) mirror instead of GitHub. |
-| `MIMOFAN_VERSION` | Override the GitHub release version to download. Legacy `MIMOFAN_VERSION` and `DEEPSEEK_VERSION` also work. |
-| `MIMOFAN_GITHUB_REPO` | Override the source repo. Defaults to `XiaomingX/mimofan`. Legacy `MIMOFAN_GITHUB_REPO` also works. |
+| `MIMOFAN_VERSION` | Override the GitHub release version to download. Legacy `DEEPSEEK_VERSION` also works. |
+| `MIMOFAN_GITHUB_REPO` | Override the source repo. Defaults to `XiaomingX/mimofan`. Legacy `DEEPSEEK_GITHUB_REPO` also works. |
 | `MIMOFAN_FORCE_DOWNLOAD=1` | Force download even when the cached binary is already present. |
 | `MIMOFAN_DISABLE_INSTALL=1` | Skip install-time download. |
 | `MIMOFAN_OPTIONAL_INSTALL=1` | Make install-time retryable download failures warn and exit `0` instead of failing `npm install` or `pnpm install`. |

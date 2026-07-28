@@ -9,7 +9,7 @@ fi
 MIMOFAN_USER="${MIMOFAN_USER:-${DEEPSEEK_USER:-mimofan}}"
 MIMOFAN_ROOT="${MIMOFAN_ROOT:-${DEEPSEEK_ROOT:-/opt/mimofan}}"
 WHALEBRO_ROOT="${WHALEBRO_ROOT:-/opt/whalebro}"
-REPO_URL="${MIMOFAN_REPO_URL:-${DEEPSEEK_REPO_URL:-https://github.com/XiaomingX/mimo-tui.git}}"
+REPO_URL="${MIMOFAN_REPO_URL:-${DEEPSEEK_REPO_URL:-https://github.com/XiaomingX/mimofan.git}}"
 WHALEBRO_EXTRA_REPOS="${WHALEBRO_EXTRA_REPOS:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -123,7 +123,7 @@ Next:
    cd ${WHALEBRO_ROOT}/mimofan
    cargo install --path crates/cli --locked --force
    cargo install --path crates/tui --locked --force
-3. Copy integrations/feishu-bridge or integrations/telegram-bridge to ${MIMOFAN_ROOT} and run pnpm install.
+3. Copy integrations/feishu-bridge or integrations/telegram-bridge to ${MIMOFAN_ROOT} and run bun install.
 4. Edit /etc/mimofan/runtime.env and the selected bridge env file.
 5. Install systemd units with scripts/tencent-lighthouse/install-services.sh.
 6. After the env files are edited and services are started, run:

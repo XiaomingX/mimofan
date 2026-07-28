@@ -117,5 +117,68 @@ pub fn pattern_matches(pattern: &str, command: &str) -> bool {
     re.is_match(&command)
 }
 
+/// Reduce a command to a canonical executable form for deny-rule matching:
+/// strip common wrapper prefixes (`sudo`, `command`, `env VAR=`, …) and replace
+/// the executable with its filesystem basename, so a `deny = ["rm *"]` rule also
+/// blocks `/bin/rm -rf /` or `sudo rm -rf /`.
+///
+/// Case-preserving, matching the convention of [`normalize_command`] in this
+/// module. `bash -c "rm -rf /"` is intentionally *not* flattened — parsing the
+/// `-c` argument would risk mis-classifying unrelated commands.
+pub fn canonical_executable_form(command: &str) -> String {
+    let tokens: Vec<&str> = command.split_whitespace().collect();
+    let mut idx = 0;
+    while idx < tokens.len() {
+        let t = tokens[idx];
+        if matches!(
+            t,
+            "command" | "sudo" | "time" | "nohup" | "doas" | "setsid" | "env"
+        ) {
+            idx += 1;
+            continue;
+        }
+        if t.contains('=') && !t.starts_with('-') {
+            idx += 1;
+            continue;
+        }
+        break;
+    }
+    let positional: &[&str] = &tokens[idx..];
+    if positional.is_empty() {
+        return command.to_string();
+    }
+    let first = std::path::Path::new(positional[0])
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(positional[0]);
+    let mut out: Vec<&str> = Vec::with_capacity(positional.len());
+    out.push(first);
+    out.extend_from_slice(&positional[1..]);
+    out.join(" ")
+}
+
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_executable_form_strips_wrappers_and_path() {
+        assert_eq!(canonical_executable_form("/bin/rm -rf /"), "rm -rf /");
+        assert_eq!(canonical_executable_form("sudo rm -rf /"), "rm -rf /");
+        assert_eq!(canonical_executable_form("command rm -rf /"), "rm -rf /");
+        assert_eq!(
+            canonical_executable_form("env FOO=bar rm -rf /"),
+            "rm -rf /"
+        );
+        assert_eq!(canonical_executable_form("rmdir foo"), "rmdir foo");
+    }
+
+    #[test]
+    fn deny_bypass_closed_by_canonical_form() {
+        // `rm *` must match the path/wrapper forms via the canonical variant.
+        assert!(pattern_matches("rm *", "/bin/rm -rf /"));
+        assert!(pattern_matches("rm *", "sudo rm -rf /"));
+        // Bare `rm` (no wildcard) still requires exact match of the executable.
+        assert!(!pattern_matches("rm", "rm -rf /"));
+    }
+}

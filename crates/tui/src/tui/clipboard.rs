@@ -158,10 +158,6 @@ impl ClipboardHandler {
     /// `workspace` is used as a fallback location when `~/.mimofan/` cannot
     /// be resolved (e.g. running with a stripped HOME in CI sandboxes).
     pub fn read(&mut self, workspace: &Path) -> Option<ClipboardContent> {
-        #[cfg(all(target_os = "linux", not(target_env = "ohos"), not(test)))]
-        if let Ok(text) = read_text_with_wlpaste() {
-            return Some(ClipboardContent::Text(text));
-        }
 
         #[cfg(any(
             test,
@@ -197,10 +193,6 @@ impl ClipboardHandler {
 
         #[cfg(not(test))]
         {
-            #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-            if write_text_with_wlcopy(text).is_ok() {
-                return Ok(());
-            }
 
             #[cfg(any(
                 target_os = "macos",
@@ -221,10 +213,6 @@ impl ClipboardHandler {
                 return Ok(());
             }
 
-            #[cfg(target_os = "windows")]
-            if write_text_with_set_clipboard(text).is_ok() {
-                return Ok(());
-            }
 
             write_text_with_osc52(text)
                 .map_err(|err| anyhow::anyhow!("Clipboard unavailable: {err}"))
@@ -274,15 +262,7 @@ fn write_text_with_stdin_command(
     Ok(())
 }
 
-#[cfg(all(target_os = "linux", not(target_env = "ohos"), not(test)))]
-fn write_text_with_wlcopy(text: &str) -> Result<()> {
-    write_text_with_wlcopy_using_argv("wl-copy", text)
-}
 
-#[cfg(all(target_os = "linux", not(target_env = "ohos"), not(test)))]
-fn read_text_with_wlpaste() -> Result<String> {
-    read_text_with_wlpaste_using_argv("wl-paste")
-}
 
 #[cfg(any(all(test, unix), all(target_os = "linux", not(target_env = "ohos"))))]
 fn read_text_with_wlpaste_using_argv(program: &str) -> Result<String> {
@@ -300,28 +280,6 @@ fn read_text_with_wlpaste_using_argv(program: &str) -> Result<String> {
     String::from_utf8(output.stdout).context("wl-paste returned non-UTF-8 text")
 }
 
-#[cfg(all(target_os = "linux", not(target_env = "ohos"), not(test)))]
-fn write_text_with_wlcopy_using_argv(program: &str, text: &str) -> Result<()> {
-    let mut child = Command::new(program)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| anyhow::anyhow!("Failed to run {program}: {e}"))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(text.as_bytes())
-            .map_err(|e| anyhow::anyhow!("Failed to write to {program}: {e}"))?;
-    }
-    // stdin is dropped here, closing the pipe so wl-copy flushes.
-    let status = child
-        .wait()
-        .map_err(|e| anyhow::anyhow!("Failed to wait on {program}: {e}"))?;
-    if !status.success() {
-        bail!("{program} exited with {status}");
-    }
-    Ok(())
-}
 
 #[cfg(not(test))]
 fn write_text_with_osc52(text: &str) -> Result<()> {

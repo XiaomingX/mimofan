@@ -20,7 +20,7 @@
 
 ```bash
 cd /opt/mimofan/weixin-bot-bridge
-pnpm install --prod
+bun install --production
 cp .env.example /etc/mimofan/weixin-bot-bridge.env
 sudoedit /etc/mimofan/weixin-bot-bridge.env
 node src/index.mjs

@@ -137,10 +137,7 @@ async function main() {
   const releaseAssetsDir = path.join(tempRoot, "release-assets");
   const packDir = path.join(tempRoot, "pack");
   const installDir = path.join(tempRoot, "install");
-  let keepTemp =
-    process.env.MIMOFAN_KEEP_SMOKE_DIR === "1" ||
-    process.env.MIMOFAN_KEEP_SMOKE_DIR === "1" ||
-    process.env.MIMOFAN_KEEP_SMOKE_DIR === "1";
+  let keepTemp = process.env.MIMOFAN_KEEP_SMOKE_DIR === "1";
   let server;
 
   try {

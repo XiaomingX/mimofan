@@ -164,6 +164,8 @@ against the live API (`/v1/chat/completions` and `/anthropic/v1/messages`):
   `url_xiaomimimo_anthropic_with_trailing_slash` to expect the corrected
   `/anthropic/v1/messages` URL.
 
----
-
-Older releases: [CHANGELOG.md](https://github.com/XiaomingX/mimofan/blob/main/CHANGELOG.md) and [docs/CHANGELOG_ARCHIVE.md](https://github.com/XiaomingX/mimofan/blob/main/docs/CHANGELOG_ARCHIVE.md).
+[0.0.4]: https://github.com/XiaomingX/mimofan/compare/v0.0.3...v0.0.4
+[0.0.3-rc.4]: https://github.com/XiaomingX/mimofan/compare/v0.0.3-rc.3...v0.0.3-rc.4
+[0.0.3-rc.3]: https://github.com/XiaomingX/mimofan/compare/v0.0.3-rc.2...v0.0.3-rc.3
+[0.0.3-rc.2]: https://github.com/XiaomingX/mimofan/compare/v0.0.3-rc.1...v0.0.3-rc.2
+[0.0.3-rc.1]: https://github.com/XiaomingX/mimofan/compare/v0.0.3...v0.0.3-rc.1

@@ -221,8 +221,8 @@ pub fn visible_mention_menu_entries(app: &mut App, limit: usize) -> Vec<String> 
 
     let workspace = app.workspace.clone();
     let cwd = std::env::current_dir().ok();
-    let walk_depth = app.mention_walk_depth;
-    let behavior = app.mention_menu_behavior.clone();
+    let walk_depth = app.mention_depth;
+    let behavior = app.mention_behavior.clone();
     let follow_links = app.workspace_follow_symlinks;
     if let Some(ref cache) = app.composer.mention_completion_cache
         && cache.workspace == workspace
@@ -303,7 +303,7 @@ pub fn try_autocomplete_file_mention(app: &mut App) -> bool {
         return false;
     };
     let ws = workspace_for_app(app);
-    let candidates = if app.mention_menu_behavior == "browser" {
+    let candidates = if app.mention_behavior == "browser" {
         find_file_mention_browser_completions(&ws, &partial, FILE_MENTION_COMPLETION_LIMIT)
     } else {
         find_file_mention_completions(&ws, &partial, FILE_MENTION_COMPLETION_LIMIT)
@@ -311,7 +311,7 @@ pub fn try_autocomplete_file_mention(app: &mut App) -> bool {
     if candidates.is_empty() {
         app.status_message = Some(no_file_mention_matches_status(
             &partial,
-            app.mention_walk_depth,
+            app.mention_depth,
         ));
         return true;
     }
@@ -342,7 +342,7 @@ pub fn try_autocomplete_file_mention(app: &mut App) -> bool {
 fn no_file_mention_matches_status(partial: &str, walk_depth: usize) -> String {
     if path_partial_reaches_walk_depth(partial, walk_depth) {
         format!(
-            "No files match @{partial} (mention_walk_depth={walk_depth}; use /config set mention_walk_depth 0 to search deeper)"
+            "No files match @{partial} (mention_depth={walk_depth}; use /config set mention_depth 0 to search deeper)"
         )
     } else {
         format!("No files match @{partial}")

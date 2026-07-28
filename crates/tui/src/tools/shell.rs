@@ -21,18 +21,6 @@ use wait_timeout::ChildExt;
 
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
-#[cfg(windows)]
-use std::os::windows::io::AsRawHandle;
-#[cfg(windows)]
-use windows::Win32::Foundation::{CloseHandle, HANDLE};
-#[cfg(windows)]
-use windows::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
-    SetInformationJobObject, TerminateJobObject,
-};
-#[cfg(windows)]
-use windows::core::PCWSTR;
 
 #[cfg(not(target_env = "ohos"))]
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
@@ -186,72 +174,7 @@ fn kill_child_process_group(child: &mut Child) -> std::io::Result<()> {
     }
 }
 
-/// Configure parent-death signaling so shell-spawned children are reaped when
-/// the TUI dies abnormally (#421). On Linux this installs
-/// `PR_SET_PDEATHSIG(SIGTERM)` via `pre_exec` — the kernel then sends SIGTERM
-/// to the child the moment the parent process exits, even on SIGKILL of the
-/// TUI. The cancellation path already SIGKILLs the whole process group, so
-/// this only fires when the parent dies without running its drop / cleanup
-/// code (panic during shutdown, OOM, hardware crash, etc.).
-///
-/// On macOS / Windows there's no kernel equivalent. The existing graceful
-/// path (`kill_child_process_group` from the cancellation token) still
-/// handles normal shutdown; abnormal exit can leak children — tracked as a
-/// follow-up watchdog item per the original issue's acceptance criteria.
-#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-fn install_parent_death_signal(cmd: &mut Command) {
-    use std::os::unix::process::CommandExt;
-    // SAFETY: `pre_exec` runs in the child between fork and exec. The closure
-    // only calls `libc::prctl` with stack-allocated constant arguments and
-    // does not touch heap memory or the parent's locks. Both requirements
-    // (async-signal-safe + no allocation in the post-fork window) are met.
-    unsafe {
-        cmd.pre_exec(|| {
-            let result = libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM, 0, 0, 0);
-            if result == -1 {
-                // Surface the errno but do not abort the spawn — the child
-                // will simply lose the parent-death cleanup safety net.
-                Err(std::io::Error::last_os_error())
-            } else {
-                Ok(())
-            }
-        });
-    }
-}
 
-/// Attach `args` to a `std::process::Command`, honoring shell-quoting on
-/// Windows.
-///
-/// Issue #1691: on Windows the shell command is invoked as
-/// `cmd /C "chcp 65001 >NUL & <command>"`. Rust's `Command::arg` applies
-/// MSVCRT (`CommandLineToArgvW`) escaping, turning the embedded `"` in a
-/// quoted argument (e.g. `git commit -m "feat: complete sub-pages"`) into
-/// `\"`. `cmd.exe` does NOT use MSVCRT parsing — it treats `\` literally and
-/// `"` as a bare quote toggle — so the escaped payload is mis-tokenized and
-/// `git` receives `feat:`, `complete`, `sub-pages"` as separate pathspecs
-/// (the reported `pathspec 'sub-pages"' did not match` symptom). Passing the
-/// `cmd /C` payload through `CommandExt::raw_arg` suppresses std's escaping so
-/// the string reaches `cmd.exe` verbatim, exactly as a terminal would.
-#[cfg(windows)]
-fn push_shell_args(cmd: &mut Command, program: &str, args: &[String]) {
-    use std::os::windows::process::CommandExt;
-    // The `cmd /C <payload>` shape is the only place std's per-arg escaping
-    // corrupts a quoted command. Pass `/C` and the payload raw so the quotes
-    // survive; any other program keeps normal (correct) escaping. Match `cmd`
-    // by file stem so a full path (`C:\Windows\System32\cmd.exe`) or `.exe`
-    // suffix still triggers the raw-arg path.
-    let is_cmd = std::path::Path::new(program)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .map(|s| s.eq_ignore_ascii_case("cmd"))
-        .unwrap_or(false);
-    if is_cmd && args.len() == 2 && args[0].eq_ignore_ascii_case("/C") {
-        cmd.raw_arg(&args[0]);
-        cmd.raw_arg(&args[1]);
-    } else {
-        cmd.args(args);
-    }
-}
 
 #[cfg(not(windows))]
 fn push_shell_args(cmd: &mut Command, _program: &str, args: &[String]) {
@@ -268,98 +191,16 @@ fn install_parent_death_signal(_cmd: &mut Command) {
     // leak children on those platforms — tracked as a follow-up.
 }
 
-#[cfg(windows)]
-#[derive(Debug)]
-struct WindowsJob {
-    handle: HANDLE,
-}
 
-#[cfg(windows)]
-// SAFETY: Windows job handles are process-wide kernel handles. Moving the
-// wrapper between threads does not invalidate the handle, and access is
 // externally synchronized by ShellManager's mutex.
 unsafe impl Send for WindowsJob {}
-#[cfg(windows)]
-// SAFETY: The wrapper exposes only terminate/drop operations around a kernel
-// handle; concurrent use is guarded by ShellManager.
 unsafe impl Sync for WindowsJob {}
 
-#[cfg(windows)]
-impl WindowsJob {
-    fn attach_to_child(child: &Child) -> std::io::Result<Self> {
-        let handle = unsafe { CreateJobObjectW(None, PCWSTR::null()).map_err(windows_io_error)? };
-        let job = Self { handle };
 
-        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
-        unsafe {
-            SetInformationJobObject(
-                job.handle,
-                JobObjectExtendedLimitInformation,
-                &limits as *const _ as *const core::ffi::c_void,
-                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-            )
-            .map_err(windows_io_error)?;
 
-            let process_handle = HANDLE(child.as_raw_handle());
-            AssignProcessToJobObject(job.handle, process_handle).map_err(windows_io_error)?;
-        }
 
-        Ok(job)
-    }
 
-    fn terminate(&self) -> std::io::Result<()> {
-        unsafe { TerminateJobObject(self.handle, 1).map_err(windows_io_error) }
-    }
-}
-
-#[cfg(windows)]
-impl Drop for WindowsJob {
-    fn drop(&mut self) {
-        unsafe {
-            let _ = CloseHandle(self.handle);
-        }
-    }
-}
-
-#[cfg(windows)]
-fn windows_io_error(error: windows::core::Error) -> std::io::Error {
-    std::io::Error::other(error)
-}
-
-#[cfg(windows)]
-fn terminate_windows_job(job: Option<&WindowsJob>, child: &mut Child) -> std::io::Result<()> {
-    if let Some(job) = job {
-        match job.terminate() {
-            Ok(()) => return Ok(()),
-            Err(error) => {
-                tracing::warn!(
-                    ?error,
-                    "failed to terminate Windows job object; falling back to immediate child kill"
-                );
-            }
-        }
-    }
-    child.kill()
-}
-
-#[cfg(windows)]
-fn terminate_and_close_windows_job(windows_job: Option<WindowsJob>) {
-    if let Some(job) = windows_job.as_ref()
-        && let Err(err) = job.terminate()
-    {
-        tracing::warn!(
-            ?err,
-            "failed to terminate Windows shell job before closing job handle"
-        );
-    }
-    drop(windows_job);
-}
-
-#[cfg(windows)]
-fn terminate_child_and_close_windows_job(
-    windows_job: Option<WindowsJob>,
     child: &mut Child,
 ) -> std::io::Result<()> {
     let result = terminate_windows_job(windows_job.as_ref(), child);
@@ -367,20 +208,6 @@ fn terminate_child_and_close_windows_job(
     result
 }
 
-#[cfg(windows)]
-fn attach_windows_job(child: &Child, command: &str) -> Option<WindowsJob> {
-    match WindowsJob::attach_to_child(child) {
-        Ok(job) => Some(job),
-        Err(error) => {
-            tracing::warn!(
-                ?error,
-                command,
-                "failed to attach Windows shell process to job object; descendant cleanup degraded"
-            );
-            None
-        }
-    }
-}
 
 #[derive(Clone, Copy, Debug)]
 struct ShellExitStatus {
@@ -464,6 +291,16 @@ impl StdinWriter {
     }
 }
 
+/// Cap on bytes retained per background-process output stream (stdout/stderr).
+///
+/// The reader thread appends indefinitely while a long-running job produces
+/// output. Without a cap a multi-hour job can grow the buffer without bound.
+/// We keep the most recent [`MAX_OUTPUT_BUFFER_BYTES`] and drop the oldest,
+/// which is safe: the only consumer that indexes by an absolute cursor is
+/// [`take_delta_from_buffer`], and it clamps with `cursor.min(total)` so a
+/// head-drop never panics (at worst a single over-cap poll skips a few bytes).
+const MAX_OUTPUT_BUFFER_BYTES: usize = 8 * 1024 * 1024;
+
 fn spawn_reader_thread<R: Read + Send + 'static>(
     mut reader: R,
     buffer: Arc<Mutex<Vec<u8>>>,
@@ -476,6 +313,10 @@ fn spawn_reader_thread<R: Read + Send + 'static>(
                 Ok(n) => {
                     if let Ok(mut guard) = buffer.lock() {
                         guard.extend_from_slice(&chunk[..n]);
+                        let overflow = guard.len().saturating_sub(MAX_OUTPUT_BUFFER_BYTES);
+                        if overflow > 0 {
+                            guard.drain(0..overflow);
+                        }
                     }
                 }
                 Err(_) => break,
@@ -524,8 +365,6 @@ pub struct BackgroundShell {
     completion_reported: bool,
     stdin: Option<StdinWriter>,
     child: Option<ShellChild>,
-    #[cfg(windows)]
-    windows_job: Option<WindowsJob>,
     stdout_thread: Option<std::thread::JoinHandle<()>>,
     stderr_thread: Option<std::thread::JoinHandle<()>>,
 }
@@ -601,8 +440,6 @@ impl BackgroundShell {
                 ShellChild::Pty(_) => {}
             }
         }
-        #[cfg(windows)]
-        terminate_and_close_windows_job(self.windows_job.take());
         if let Some(handle) = self.stdout_thread.take() {
             let _ = handle.join();
         }
@@ -701,12 +538,6 @@ impl BackgroundShell {
         if let Some(ref mut child) = self.child {
             match child {
                 ShellChild::Process(proc) => {
-                    #[cfg(windows)]
-                    {
-                        terminate_windows_job(self.windows_job.as_ref(), proc)
-                            .context("Failed to kill process tree")?;
-                        let _ = proc.wait();
-                    }
                     #[cfg(not(windows))]
                     {
                         proc.kill().context("Failed to kill process")?;
@@ -829,16 +660,6 @@ impl Drop for BackgroundShell {
         if self.status == ShellStatus::Running
             && let Some(ref mut child) = self.child
         {
-            #[cfg(windows)]
-            match child {
-                ShellChild::Process(proc) => {
-                    let _ = terminate_windows_job(self.windows_job.as_ref(), proc);
-                }
-                #[cfg(not(target_env = "ohos"))]
-                ShellChild::Pty(child) => {
-                    let _ = child.kill();
-                }
-            }
             #[cfg(not(windows))]
             let _ = child.kill();
             let _ = child.wait();
@@ -1182,8 +1003,6 @@ impl ShellManager {
         let mut child = cmd
             .spawn()
             .with_context(|| format!("Failed to execute: {original_command}"))?;
-        #[cfg(windows)]
-        let windows_job = attach_windows_job(&child, original_command);
 
         if let Some(input) = stdin_data
             && let Some(mut stdin) = child.stdin.take()
@@ -1207,8 +1026,6 @@ impl ShellManager {
         if let Some(status) = child.wait_timeout(timeout)? {
             #[cfg(unix)]
             let _ = kill_child_process_group(&mut child);
-            #[cfg(windows)]
-            terminate_and_close_windows_job(windows_job);
             let stdout = recv_sync_reader_output(&stdout_rx);
             let stderr = recv_sync_reader_output(&stderr_rx);
             let stdout_str = String::from_utf8_lossy(&stdout).to_string();
@@ -1249,8 +1066,6 @@ impl ShellManager {
             // Timeout - kill the process
             #[cfg(unix)]
             let _ = kill_child_process_group(&mut child);
-            #[cfg(windows)]
-            let _ = terminate_child_and_close_windows_job(windows_job, &mut child);
             #[cfg(all(not(unix), not(windows)))]
             let _ = child.kill();
             let status = child.wait().ok();
@@ -1337,12 +1152,8 @@ impl ShellManager {
         let mut child = cmd
             .spawn()
             .with_context(|| format!("Failed to execute: {original_command}"))?;
-        #[cfg(windows)]
-        let windows_job = attach_windows_job(&child, original_command);
 
         if let Some(status) = child.wait_timeout(timeout)? {
-            #[cfg(windows)]
-            terminate_and_close_windows_job(windows_job);
             Ok(ShellResult {
                 task_id: None,
                 status: if status.success() {
@@ -1371,8 +1182,6 @@ impl ShellManager {
         } else {
             #[cfg(unix)]
             let _ = kill_child_process_group(&mut child);
-            #[cfg(windows)]
-            let _ = terminate_child_and_close_windows_job(windows_job, &mut child);
             #[cfg(all(not(unix), not(windows)))]
             let _ = child.kill();
             let status = child.wait().ok();
@@ -1434,8 +1243,6 @@ impl ShellManager {
             Some(Arc::new(Mutex::new(Vec::new())))
         };
 
-        #[cfg(windows)]
-        let mut windows_job = None;
 
         let (child, stdin, stdout_thread, stderr_thread) = if tty {
             #[cfg(target_env = "ohos")]
@@ -1500,10 +1307,6 @@ impl ShellManager {
             let mut child = cmd
                 .spawn()
                 .with_context(|| format!("Failed to spawn background: {original_command}"))?;
-            #[cfg(windows)]
-            {
-                windows_job = attach_windows_job(&child, original_command);
-            }
 
             let stdout_handle = child.stdout.take().context("Failed to capture stdout")?;
             let stderr_handle = child.stderr.take().context("Failed to capture stderr")?;
@@ -1544,8 +1347,6 @@ impl ShellManager {
             completion_reported: false,
             stdin,
             child: Some(child),
-            #[cfg(windows)]
-            windows_job,
             stdout_thread,
             stderr_thread,
         };

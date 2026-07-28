@@ -67,7 +67,7 @@ settings.example.json
 # ── AI 工具本地配置目录 ──
 .kilo/
 .kiro/
-.codewhale/
+.mimofan/
 .cursor/
 .windsurf/
 

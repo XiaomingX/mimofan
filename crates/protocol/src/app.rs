@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{EventFrame, UserInputAnswerEvent};
+use crate::EventFrame;
 
 /// Application-level requests that are not tied to a specific thread.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,14 +21,6 @@ pub enum AppRequest {
     Models,
     /// List threads that are currently loaded in memory.
     ThreadLoadedList,
-    /// Submit answers to a prior [`EventFrame::UserInputRequest`].
-    ///
-    /// `request_id` must match a pending clarification request. Headless
-    /// clients use this to return the user's selections back to the runtime.
-    SubmitUserInput {
-        request_id: String,
-        answers: Vec<UserInputAnswerEvent>,
-    },
 }
 
 /// Response to an [`AppRequest`].

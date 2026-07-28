@@ -35,7 +35,7 @@ pub(super) fn open_file_picker(app: &mut App) {
         .push(FilePickerView::new_with_relevance_and_depth(
             &app.workspace,
             relevance,
-            app.mention_walk_depth,
+            app.mention_depth,
         ));
 }
 

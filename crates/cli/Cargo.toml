@@ -30,14 +30,4 @@ sha2.workspace = true
 tempfile.workspace = true
 tracing.workspace = true
 
-# Parent-death cleanup for delegated server children (#3259): on Linux the
-# dispatcher sets PR_SET_PDEATHSIG so the child is signalled if the dispatcher
-# dies uncatchably; on Windows it assigns the child to a kill-on-job-close Job
-# Object.
-[target.'cfg(all(target_os = "linux", not(target_env = "ohos")))'.dependencies]
-libc = "0.2"
-
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
-
 [dev-dependencies]

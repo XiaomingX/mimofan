@@ -114,8 +114,9 @@ jobs:
         if: runner.os != 'Linux'
       - uses: dtolnay/rust-toolchain@stable
         if: runner.os != 'Linux'
-      - uses: pnpm/action-setup@v4
-        if: runner.os != 'Linux'
+      # setup-node stays: the smoke script exercises the real npm/npx user
+      # path (npm pack / npm install / npx). bun is the dev-tooling package
+      # manager for this repo, not a replacement for the npm UX under test.
       - uses: actions/setup-node@v6
         if: runner.os != 'Linux'
         with:

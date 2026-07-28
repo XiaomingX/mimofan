@@ -358,15 +358,23 @@ impl ExecPolicyEngine {
     /// matching (arity-aware), then typed ask rules, and finally the approval mode.
     pub fn check(&self, ctx: ExecPolicyContext<'_>) -> Result<ExecPolicyDecision> {
         let normalized = normalize_command(ctx.command);
+        // Also match against the executable-basename / wrapper-stripped form so a
+        // `deny` rule for `rm` cannot be bypassed via `/bin/rm`, `sudo rm`, or
+        // `command rm`.
+        let normalized_exe = normalize_command(&canonical_executable_form(ctx.command));
         let (trusted_prefixes, denied_prefixes) = self.resolve_prefixes();
         // Deny rules use word-boundary prefix matching: the command must either
         // equal the rule or start with the rule followed by a space, so "rm"
-        // blocks "rm -rf /" but NOT "rmdir" or "rmview".
+        // blocks "rm -rf /" but NOT "rmdir" or "rmview". The same test is run
+        // against the canonical executable form to close path/wrapper bypasses.
         if let Some(rule) = denied_prefixes.iter().find(|rule| {
             let norm_rule = normalize_command(rule);
-            normalized == norm_rule
-                || (normalized.starts_with(&norm_rule)
-                    && normalized.as_bytes().get(norm_rule.len()) == Some(&b' '))
+            let matches = |n: &str| {
+                n == norm_rule
+                    || (n.starts_with(&norm_rule)
+                        && n.as_bytes().get(norm_rule.len()) == Some(&b' '))
+            };
+            matches(&normalized) || matches(&normalized_exe)
         }) {
             return Ok(ExecPolicyDecision {
                 allow: false,
@@ -492,6 +500,48 @@ fn normalize_command(value: &str) -> String {
         .to_ascii_lowercase()
 }
 
+/// Reduce a command to a canonical executable form used for deny-rule matching:
+/// strip common wrapper prefixes (`sudo`, `command`, `env VAR=`, …) and replace
+/// the executable with its filesystem basename, so a rule written for `rm` also
+/// matches `/bin/rm`, `sudo rm`, or `command rm`.
+///
+/// Operates on the lowercased, whitespace-collapsed form to stay consistent with
+/// [`normalize_command`]. `bash -c "rm -rf /"` is intentionally *not* flattened —
+/// parsing the `-c` argument would risk mis-classifying unrelated commands, and
+/// that deeper class of bypass is out of scope here.
+fn canonical_executable_form(command: &str) -> String {
+    let lowered = command.to_ascii_lowercase();
+    let mut tokens = lowered.split_whitespace().peekable();
+    // Drop leading wrappers / environment assignments.
+    while let Some(&tok) = tokens.peek() {
+        if matches!(
+            tok,
+            "command" | "sudo" | "time" | "nohup" | "doas" | "setsid" | "env"
+        ) {
+            tokens.next();
+            continue;
+        }
+        if tok.contains('=') && !tok.starts_with('-') {
+            // `env KEY=VALUE` assignment.
+            tokens.next();
+            continue;
+        }
+        break;
+    }
+    let positional: Vec<&str> = tokens.collect();
+    if positional.is_empty() {
+        return lowered;
+    }
+    let first = std::path::Path::new(positional[0])
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(positional[0]);
+    let mut out: Vec<&str> = Vec::with_capacity(positional.len());
+    out.push(first);
+    out.extend_from_slice(&positional[1..]);
+    out.join(" ")
+}
+
 fn first_token(command: &str) -> String {
     command
         .split_whitespace()
@@ -604,6 +654,40 @@ mod tests {
             ask_for_approval,
             sandbox_mode: Some("workspace-write"),
         }
+    }
+
+    #[test]
+    fn deny_rule_blocks_path_and_wrapper_bypasses() {
+        // Regression: a `deny` rule for `rm` must block absolute-path and
+        // wrapper invocations, not just the bare command.
+        let engine = ExecPolicyEngine::new(vec![], vec!["rm".to_string()]);
+
+        for cmd in ["rm -rf /", "/bin/rm -rf /", "sudo rm -rf /", "command rm -rf /"] {
+            let decision = engine.check(ctx(cmd, AskForApproval::Never)).unwrap();
+            assert!(!decision.allow, "expected block for {cmd}");
+            assert!(matches!(
+                decision.requirement,
+                ExecApprovalRequirement::Forbidden { .. }
+            ), "expected forbidden for {cmd}");
+        }
+
+        // Non-matching commands must NOT be caught by the `rm` rule.
+        for cmd in ["rmdir foo", "rmview", "git rm file"] {
+            let decision = engine.check(ctx(cmd, AskForApproval::Never)).unwrap();
+            assert!(decision.allow, "expected allow for {cmd}");
+        }
+    }
+
+    #[test]
+    fn canonical_executable_form_strips_wrappers_and_path() {
+        assert_eq!(canonical_executable_form("/bin/rm -rf /"), "rm -rf /");
+        assert_eq!(canonical_executable_form("sudo rm -rf /"), "rm -rf /");
+        assert_eq!(canonical_executable_form("command rm -rf /"), "rm -rf /");
+        assert_eq!(
+            canonical_executable_form("env FOO=bar rm -rf /"),
+            "rm -rf /"
+        );
+        assert_eq!(canonical_executable_form("rmdir foo"), "rmdir foo");
     }
 
     #[test]

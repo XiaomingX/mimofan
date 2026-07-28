@@ -81,7 +81,6 @@ class DownloadTimeoutError extends Error {
 function resolvePackageVersion() {
   const configuredVersion =
     process.env.MIMOFAN_VERSION ||
-    process.env.MIMOFAN_VERSION ||
     process.env.DEEPSEEK_VERSION ||
     pkg.deepseekBinaryVersion ||
     pkg.version;
@@ -89,13 +88,12 @@ function resolvePackageVersion() {
 }
 
 function resolveRepo() {
-  return process.env.MIMOFAN_GITHUB_REPO || process.env.MIMOFAN_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "XiaomingX/mimo-tui";
+  return process.env.MIMOFAN_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "XiaomingX/mimofan";
 }
 
 function isOptionalInstall(argv = process.argv.slice(2), env = process.env) {
   return (
     argv.includes("--optional") ||
-    env.MIMOFAN_OPTIONAL_INSTALL === "1" ||
     env.MIMOFAN_OPTIONAL_INSTALL === "1" ||
     env.DEEPSEEK_OPTIONAL_INSTALL === "1"
   );
@@ -109,12 +107,23 @@ function isPnpmUserAgent(env = process.env) {
   return String(env.npm_config_user_agent || "").toLowerCase().includes("pnpm/");
 }
 
+// bun sets npm_config_user_agent to "bun/x.y.z ..." during installs. Like
+// pnpm, treat optional installs under bun as deferred: skip the install-time
+// download and verify the binary on first run instead.
+function isBunUserAgent(env = process.env) {
+  return String(env.npm_config_user_agent || "").toLowerCase().includes("bun/");
+}
+
 function shouldSkipOptionalPostinstall(
   context,
   argv = process.argv.slice(2),
   env = process.env,
 ) {
-  return isInstallContext(context) && isOptionalInstall(argv, env) && isPnpmUserAgent(env);
+  return (
+    isInstallContext(context) &&
+    isOptionalInstall(argv, env) &&
+    (isPnpmUserAgent(env) || isBunUserAgent(env))
+  );
 }
 
 // Optional install only relaxes npm postinstall behavior. Runtime downloads
@@ -157,7 +166,7 @@ function binaryPaths() {
 // ────────────────────────────────────────────────────────────────────────────
 
 function isQuietInstall() {
-  if (process.env.MIMOFAN_QUIET_INSTALL === "1" || process.env.MIMOFAN_QUIET_INSTALL === "1") {
+  if (process.env.MIMOFAN_QUIET_INSTALL === "1") {
     return true;
   }
   const level = (process.env.npm_config_loglevel || "").toLowerCase();
@@ -175,7 +184,6 @@ function installFailureHint(error) {
   const message = error && error.message ? String(error.message) : "";
   const code = error && error.code ? String(error.code) : "";
   const releaseBase =
-    process.env.MIMOFAN_RELEASE_BASE_URL ||
     process.env.MIMOFAN_RELEASE_BASE_URL ||
     process.env.DEEPSEEK_RELEASE_BASE_URL;
   const networkMarkers = [
@@ -1060,7 +1068,7 @@ async function adoptExistingBinaryIfValid(targetPath, assetName, version, getChe
 async function ensureBinary(targetPath, assetName, version, repo, getChecksums, options = {}) {
   const marker = `${targetPath}.version`;
   const downloadIfNeeded =
-    process.env.MIMOFAN_FORCE_DOWNLOAD === "1" || process.env.MIMOFAN_FORCE_DOWNLOAD === "1" || process.env.DEEPSEEK_FORCE_DOWNLOAD === "1";
+    process.env.MIMOFAN_FORCE_DOWNLOAD === "1" || process.env.DEEPSEEK_FORCE_DOWNLOAD === "1";
   if (!downloadIfNeeded) {
     const existing = await fileExists(targetPath);
     if (existing) {
@@ -1107,12 +1115,12 @@ function shouldIgnoreInstallFailure(
 async function run(options = {}) {
   const context =
     options.context === undefined || options.context === null ? "runtime" : options.context;
-  if (process.env.MIMOFAN_DISABLE_INSTALL === "1" || process.env.MIMOFAN_DISABLE_INSTALL === "1" || process.env.DEEPSEEK_DISABLE_INSTALL === "1") {
+  if (process.env.MIMOFAN_DISABLE_INSTALL === "1" || process.env.DEEPSEEK_DISABLE_INSTALL === "1") {
     return;
   }
   if (shouldSkipOptionalPostinstall(context)) {
     logInfo(
-      "pnpm optional postinstall detected; skipping install-time download. The binary will be checked on first run.",
+      "pnpm/bun optional postinstall detected; skipping install-time download. The binary will be checked on first run.",
     );
     return;
   }

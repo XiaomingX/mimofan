@@ -119,15 +119,7 @@ fn native_ocr_available() -> bool {
     true
 }
 
-#[cfg(not(target_os = "macos"))]
-fn native_ocr_available() -> bool {
-    false
-}
 
-#[cfg(not(target_os = "macos"))]
-fn try_native_ocr(_image_path: &Path) -> Result<Option<String>, ToolError> {
-    Ok(None)
-}
 
 #[cfg(target_os = "macos")]
 #[link(name = "Vision", kind = "framework")]

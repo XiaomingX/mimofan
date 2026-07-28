@@ -12,11 +12,13 @@
     - name: feishu bridge tests
       script: |
         set -eu
-        npm install -g pnpm
+        export BUN_INSTALL="$HOME/.bun"
+        curl -fsSL https://bun.sh/install | bash
+        export PATH="$BUN_INSTALL/bin:$PATH"
+        bun install --frozen-lockfile
         cd integrations/feishu-bridge
-        pnpm install --frozen-lockfile
-        pnpm check
-        pnpm test
+        bun run check
+        bun run test
 
 .rust_workspace_gates_stage: &rust_workspace_gates_stage
   name: rust workspace gates
@@ -45,8 +47,9 @@
       script: |
         set -eu
         apt-get update
+        # nodejs + npm stay: the npm wrapper smoke exercises the real
+        # npm/npx user path and version checks shell out to `node -p`.
         apt-get install -y git libdbus-1-dev nodejs npm pkg-config
-        npm install -g pnpm
         if command -v rustup >/dev/null 2>&1; then
           rustup component add rustfmt clippy
         fi
@@ -74,8 +77,9 @@
       script: |
         set -eu
         apt-get update
+        # nodejs + npm stay: the npm wrapper smoke exercises the real
+        # npm/npx user path and version checks shell out to `node -p`.
         apt-get install -y curl git libdbus-1-dev nodejs npm pkg-config
-        npm install -g pnpm
         if command -v rustup >/dev/null 2>&1; then
           rustup component add rustfmt clippy
         fi

@@ -5,7 +5,8 @@
 #
 # Touches: Cargo.toml (workspace version), crates/*/Cargo.toml (internal
 # mimofan-* dependency pins), npm/mimofan/package.json (version +
-# mimofanBinaryVersion), README*.md install-tag examples, Cargo.lock,
+# mimofanBinaryVersion), npm/runtime-sdk/package.json (version),
+# README*.md install-tag examples, Cargo.lock,
 # crates/tui/CHANGELOG.md (via sync-changelog.sh) and
 # web/lib/facts.generated.ts (via derive-facts.mjs).
 #
@@ -76,6 +77,14 @@ bump(
     2,
 )
 
+# 3b) npm runtime-sdk (kept on the same version line as the workspace).
+bump(
+    "npm/runtime-sdk/package.json",
+    rf'("version": "){old_re}(")',
+    rf"\g<1>{new}\g<2>",
+    1,
+)
+
 # 4) README install-tag examples (all translations).
 for readme in ["README.md", "README.zh-CN.md", "README.ja-JP.md", "README.vi.md"]:
     bump(readme, rf"--tag v{old_re}\b", f"--tag v{new}", 1)
@@ -87,8 +96,10 @@ cargo update --workspace --offline >/dev/null
 echo "Regenerating crates/tui/CHANGELOG.md slice..."
 ./scripts/sync-changelog.sh
 
-echo "Regenerating web/lib/facts.generated.ts..."
-node web/scripts/derive-facts.mjs
+if [[ -f web/scripts/derive-facts.mjs ]]; then
+  echo "Regenerating web/lib/facts.generated.ts..."
+  node web/scripts/derive-facts.mjs
+fi
 
 echo "Validating..."
 ./scripts/release/check-versions.sh

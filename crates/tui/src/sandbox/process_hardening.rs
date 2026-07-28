@@ -45,84 +45,12 @@
 /// hardening is defense-in-depth — the sandbox still protects child processes
 /// even if these prctls fail (e.g., in a container where some are restricted).
 pub fn apply_process_hardening() {
-    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    {
-        apply_linux_hardening();
-    }
     #[cfg(not(all(target_os = "linux", not(target_env = "ohos"))))]
     {
         tracing::debug!("Process hardening skipped: not on Linux");
     }
 }
 
-/// Linux-specific hardening implementation.
-#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-fn apply_linux_hardening() {
-    // ── PR_SET_DUMPABLE = 0 ────────────────────────────────────────────────
-    //
-    // When dumpable is 0:
-    // - The process cannot be ptraced by non-root
-    // - /proc/<pid>/ becomes owned by root:root (mode 0400)
-    // - No core dumps are produced
-    //
-    // Pattern from openai/codex codex-rs/codex-sandbox/src/linux.rs; reimplemented.
-    //
-    // Safety: prctl with PR_SET_DUMPABLE modifies only the calling process.
-    let result = unsafe { libc::prctl(libc::PR_SET_DUMPABLE, 0i64, 0i64, 0i64, 0i64) };
-    if result != 0 {
-        let err = std::io::Error::last_os_error();
-        tracing::warn!(
-            "PR_SET_DUMPABLE failed ({}); continuing without this hardening",
-            err
-        );
-    } else {
-        tracing::debug!("PR_SET_DUMPABLE=0 applied");
-    }
-
-    // ── PR_SET_NO_NEW_PRIVS = 1 ────────────────────────────────────────────
-    //
-    // Once set, neither this process nor any descendant can ever gain new
-    // privileges via setuid, setgid, file capabilities, or LSMs like SELinux
-    // transitions. This is the strongest anti-escalation primitive the kernel
-    // offers.
-    //
-    // Pattern from openai/codex codex-rs/codex-sandbox/src/linux.rs; reimplemented.
-    //
-    // Safety: prctl with PR_SET_NO_NEW_PRIVS modifies only the calling process
-    // and its future descendants.
-    let result = unsafe { libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1i64, 0i64, 0i64, 0i64) };
-    if result != 0 {
-        let err = std::io::Error::last_os_error();
-        tracing::warn!(
-            "PR_SET_NO_NEW_PRIVS failed ({}); continuing without this hardening",
-            err
-        );
-    } else {
-        tracing::debug!("PR_SET_NO_NEW_PRIVS=1 applied");
-    }
-
-    // ── RLIMIT_CORE = 0 ────────────────────────────────────────────────────
-    //
-    // Disables core dumps at the rlimit level. In combination with
-    // PR_SET_DUMPABLE=0, this provides a belt-and-suspenders guarantee that
-    // no core file will ever be written.
-    //
-    // Safety: setrlimit modifies resource limits for the calling process only.
-    let rlim_core = libc::rlimit {
-        rlim_cur: 0,
-        rlim_max: 0,
-    };
-    let result = unsafe { libc::setrlimit(libc::RLIMIT_CORE, &raw const rlim_core) };
-    if result != 0 {
-        let err = std::io::Error::last_os_error();
-        tracing::warn!(
-            "RLIMIT_CORE failed ({}); continuing without this hardening",
-            err
-        );
-    } else {
-        tracing::debug!("RLIMIT_CORE=0 applied");
-    }
-}
 
 #[cfg(test)]
 mod tests {}

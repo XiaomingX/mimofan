@@ -98,17 +98,6 @@ fn executable_path_candidates(program: &str) -> Vec<PathBuf> {
         let bare = dir.join(program);
         candidates.push(bare.clone());
 
-        #[cfg(windows)]
-        if Path::new(program).extension().is_none() {
-            let pathext =
-                std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
-            for ext in pathext.to_string_lossy().split(';') {
-                if ext.is_empty() {
-                    continue;
-                }
-                candidates.push(bare.with_extension(ext.trim_start_matches('.')));
-            }
-        }
     }
 
     candidates

@@ -286,7 +286,7 @@ fn show_single_setting(app: &App, key: &str) -> CommandResult {
         ),
         "mode" | "default_mode" => Some(app.mode.as_setting().to_string()),
         "max_history" | "history" => Some(app.max_input_history.to_string()),
-        "sidebar_width" | "sidebar" => Some(app.sidebar_width_percent.to_string()),
+        "sidebar_width" | "sidebar" => Some(app.sidebar_width.to_string()),
         "sidebar_focus" | "focus" => Some(app.sidebar_focus.as_setting().to_string()),
         "tool_collapse" | "tool_collapse_mode" | "collapse" => {
             Some(app.tool_collapse_mode.as_setting().to_string())
@@ -298,7 +298,7 @@ fn show_single_setting(app: &App, key: &str) -> CommandResult {
         "composer_border" | "border" => {
             Some(if app.composer_border { "true" } else { "false" }.to_string())
         }
-        "composer_vim_mode" | "vim_mode" | "vim" => Some(
+        "vim_mode" | "vim" => Some(
             if app.composer.vim_enabled {
                 "vim"
             } else {
@@ -1497,8 +1497,8 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
             app.composer_border = settings.composer_border;
             app.needs_redraw = true;
         }
-        "composer_vim_mode" | "vim_mode" | "vim" => {
-            app.composer.vim_enabled = settings.composer_vim_mode == "vim";
+        "vim_mode" | "vim" => {
+            app.composer.vim_enabled = settings.vim_mode == "vim";
             app.composer.vim_mode = if app.composer.vim_enabled {
                 VimMode::Normal
             } else {
@@ -1513,18 +1513,18 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
                 app.paste_burst.clear_after_explicit_paste();
             }
         }
-        "mention_menu_limit" | "mention_limit" => {
-            app.mention_menu_limit = settings.mention_menu_limit;
+        "mention_limit" => {
+            app.mention_limit = settings.mention_limit;
             app.composer.mention_completion_cache = None;
             app.needs_redraw = true;
         }
-        "mention_menu_behavior" | "mention_behavior" | "mention_menu" => {
-            app.mention_menu_behavior = settings.mention_menu_behavior.clone();
+        "mention_behavior" => {
+            app.mention_behavior = settings.mention_behavior.clone();
             app.composer.mention_completion_cache = None;
             app.needs_redraw = true;
         }
-        "mention_walk_depth" | "mention_depth" | "completions_walk_depth" => {
-            app.mention_walk_depth = settings.mention_walk_depth;
+        "mention_depth" => {
+            app.mention_depth = settings.mention_depth;
             app.composer.mention_completion_cache = None;
             app.needs_redraw = true;
         }
@@ -1553,9 +1553,9 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
                 crate::tui::app::TranscriptSpacing::from_setting(&settings.transcript_spacing);
             app.mark_history_updated();
         }
-        "tool_collapse" | "tool_collapse_mode" | "collapse" => {
+        "tool_collapse" | "collapse" => {
             app.tool_collapse_mode =
-                crate::tui::app::ToolCollapseMode::from_setting(&settings.tool_collapse_mode);
+                crate::tui::app::ToolCollapseMode::from_setting(&settings.tool_collapse);
             app.expanded_tool_runs.clear();
             app.mark_history_updated();
         }
@@ -1596,7 +1596,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
             action = Some(AppAction::UpdateCompaction(app.compaction_config()));
         }
         "sidebar_width" | "sidebar" => {
-            app.sidebar_width_percent = settings.sidebar_width_percent;
+            app.sidebar_width = settings.sidebar_width;
             app.mark_history_updated();
         }
         "sidebar_focus" | "focus" => {
@@ -1626,7 +1626,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
                     .to_string()
             },
         ),
-        "composer_vim_mode" | "vim_mode" | "vim" => settings.composer_vim_mode.clone(),
+        "vim_mode" | "vim" => settings.vim_mode.clone(),
         "low_motion" | "motion" => settings.low_motion.to_string(),
         "fancy_animations" | "fancy" | "animations" => settings.fancy_animations.to_string(),
         _ => value.to_string(),

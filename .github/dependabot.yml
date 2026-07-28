@@ -9,11 +9,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
-  - package-ecosystem: npm
-    directory: /web
-    schedule:
-      interval: monthly
-    open-pull-requests-limit: 3
+  # Root JS workspace is managed with bun (bun.lock). Dependabot monitors
+  # package.json version ranges; verify bun.lock support on the platform
+  # before relying on lockfile update PRs.
   - package-ecosystem: npm
     directory: /
     schedule:

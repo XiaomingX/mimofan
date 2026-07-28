@@ -166,18 +166,6 @@ pub fn has_ctrl_or_alt(mods: KeyModifiers) -> bool {
     (mods.contains(KeyModifiers::CONTROL) || mods.contains(KeyModifiers::ALT)) && !is_altgr(mods)
 }
 
-/// On Windows, AltGr is delivered as `Ctrl+Alt`. There's no terminal-portable
-/// way to tell a real `Ctrl+Alt` chord apart from a layout-emitted AltGr glyph
-/// — crossterm doesn't expose left-vs-right modifier distinction across all
-/// backends — so we treat any `Ctrl+Alt` (with no other modifiers) as AltGr.
-/// This trades the (rare) ability to bind `Ctrl+Alt+<char>` for not
-/// swallowing accented characters European users type. On non-Windows
-/// platforms this always returns `false`.
-#[cfg(windows)]
-#[inline]
-pub fn is_altgr(mods: KeyModifiers) -> bool {
-    mods.contains(KeyModifiers::ALT) && mods.contains(KeyModifiers::CONTROL)
-}
 
 #[cfg(not(windows))]
 #[inline]

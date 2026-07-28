@@ -140,21 +140,10 @@ impl DefaultKeyringStore {
             // the real provider key lookup.
             let entry = keyring::Entry::new(&self.service, "__probe__")
                 .map_err(|err| SecretsError::Keyring(err.to_string()))?;
-            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            #[cfg(target_os = "macos")]
             {
                 let _ = entry;
                 Ok(())
-            }
-            #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-            match entry.get_password() {
-                Ok(_) | Err(keyring::Error::NoEntry) => Ok(()),
-                Err(keyring::Error::PlatformFailure(err)) => {
-                    Err(SecretsError::Keyring(format!("platform failure: {err}")))
-                }
-                Err(keyring::Error::NoStorageAccess(err)) => {
-                    Err(SecretsError::Keyring(format!("no storage access: {err}")))
-                }
-                Err(other) => Err(SecretsError::Keyring(other.to_string())),
             }
         }
         #[cfg(not(any(

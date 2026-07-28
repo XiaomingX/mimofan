@@ -654,7 +654,7 @@ impl ConfigView {
             ConfigRow {
                 section: ConfigSection::Display,
                 key: "tool_collapse".to_string(),
-                value: settings.tool_collapse_mode.clone(),
+                value: settings.tool_collapse.clone(),
                 editable: true,
                 scope: ConfigScope::Saved,
             },
@@ -674,8 +674,8 @@ impl ConfigView {
             },
             ConfigRow {
                 section: ConfigSection::Composer,
-                key: "composer_vim_mode".to_string(),
-                value: settings.composer_vim_mode.clone(),
+                key: "vim_mode".to_string(),
+                value: settings.vim_mode.clone(),
                 editable: true,
                 scope: ConfigScope::Saved,
             },
@@ -695,22 +695,22 @@ impl ConfigView {
             },
             ConfigRow {
                 section: ConfigSection::Composer,
-                key: "mention_menu_limit".to_string(),
-                value: settings.mention_menu_limit.to_string(),
+                key: "mention_limit".to_string(),
+                value: settings.mention_limit.to_string(),
                 editable: true,
                 scope: ConfigScope::Saved,
             },
             ConfigRow {
                 section: ConfigSection::Composer,
-                key: "mention_menu_behavior".to_string(),
-                value: settings.mention_menu_behavior.clone(),
+                key: "mention_behavior".to_string(),
+                value: settings.mention_behavior.clone(),
                 editable: true,
                 scope: ConfigScope::Saved,
             },
             ConfigRow {
                 section: ConfigSection::Composer,
-                key: "mention_walk_depth".to_string(),
-                value: settings.mention_walk_depth.to_string(),
+                key: "mention_depth".to_string(),
+                value: settings.mention_depth.to_string(),
                 editable: true,
                 scope: ConfigScope::Saved,
             },
@@ -724,7 +724,7 @@ impl ConfigView {
             ConfigRow {
                 section: ConfigSection::Sidebar,
                 key: "sidebar_width".to_string(),
-                value: settings.sidebar_width_percent.to_string(),
+                value: settings.sidebar_width.to_string(),
                 editable: true,
                 scope: ConfigScope::Saved,
             },
@@ -751,8 +751,8 @@ impl ConfigView {
             },
             ConfigRow {
                 section: ConfigSection::History,
-                key: "auto_compact_threshold_percent".to_string(),
-                value: format!("{:.0}", settings.auto_compact_threshold_percent),
+                key: "compact_threshold".to_string(),
+                value: format!("{:.0}", settings.compact_threshold),
                 editable: true,
                 scope: ConfigScope::Saved,
             },
@@ -1259,7 +1259,7 @@ fn config_hint_for_key(key: &str) -> &'static str {
         "sidebar_width" => "10..=50",
         "sidebar_focus" => "auto | work | tasks | agents | context | hidden",
         "max_history" => "integer (0 allowed)",
-        "auto_compact_threshold_percent" => "10..=100",
+        "compact_threshold" => "10..=100",
         "default_model" => "deepseek-v4-pro | deepseek-v4-flash | deepseek-* | none/default",
         "reasoning_effort" => {
             "DeepSeek: auto/off/high/max; Codex: low/medium/high/xhigh; default clears saved value"

@@ -16,7 +16,7 @@ use mimofan_hooks::{HookDispatcher, JsonlHookSink, StdoutHookSink, UnixSocketHoo
 use mimofan_mcp::McpManager;
 use mimofan_protocol::{
     AppRequest, AppResponse, PromptRequest, PromptResponse, ThreadGoalClearParams,
-    ThreadGoalGetParams, ThreadGoalSetParams, ThreadRequest, ThreadResponse, UserInputAnswerEvent,
+    ThreadGoalGetParams, ThreadGoalSetParams, ThreadRequest, ThreadResponse,
 };
 use mimofan_state::StateStore;
 use mimofan_tools::{ToolCall, ToolRegistry};
@@ -27,16 +27,6 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, RwLock};
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
-
-/// Answers submitted for a pending `request_user_input` clarification.
-///
-/// The headless runtime emits [`mimofan_protocol::EventFrame::UserInputRequest`]
-/// fire-and-return (it has no resume channel, mirroring headless approval).
-/// Clients POST answers back via [`AppRequest::SubmitUserInput`]; we record
-/// them here keyed by `request_id` so a driver can retrieve and feed them into
-/// the next turn as structured context. True in-flight resume would require an
-/// awaiter in `invoke_tool` and is left as a follow-up.
-type PendingUserInputAnswers = Vec<UserInputAnswerEvent>;
 
 mod chat_completions;
 
@@ -81,10 +71,6 @@ struct AppState {
     runtime: Arc<Mutex<Runtime>>,
     registry: ModelRegistry,
     auth_token: Option<String>,
-    /// Answers submitted via `AppRequest::SubmitUserInput`, keyed by
-    /// `request_id`. A driver polls this to resolve clarification questions
-    /// raised by the model during a headless run.
-    pending_user_input: Arc<Mutex<std::collections::HashMap<String, PendingUserInputAnswers>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -383,7 +369,6 @@ fn build_state(config_path: Option<PathBuf>, auth_token: Option<String>) -> Resu
         runtime: Arc::new(Mutex::new(runtime)),
         registry,
         auth_token,
-        pending_user_input: Arc::new(Mutex::new(std::collections::HashMap::new())),
     })
 }
 
@@ -1020,33 +1005,6 @@ async fn process_app_request(
                     data: json!({ "error": err.to_string() }),
                     events: Vec::new(),
                 },
-            }
-        }
-        AppRequest::SubmitUserInput {
-            request_id,
-            answers,
-        } => {
-            // Record the user's answers against the pending clarification
-            // request so a driver can retrieve them. The headless runtime does
-            // not block on `request_user_input` (fire-and-return, like
-            // approval), so there is no in-flight turn to resume here — the
-            // caller is expected to feed these answers into the next turn.
-            let mut pending = state.pending_user_input.lock().await;
-            if pending.contains_key(&request_id) {
-                return AppResponse {
-                    ok: false,
-                    data: json!({
-                        "error": "request_id already resolved",
-                        "request_id": request_id,
-                    }),
-                    events: Vec::new(),
-                };
-            }
-            pending.insert(request_id.clone(), answers);
-            AppResponse {
-                ok: true,
-                data: json!({ "request_id": request_id, "resolved": true }),
-                events: Vec::new(),
             }
         }
     }

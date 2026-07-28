@@ -93,9 +93,9 @@ nix/
 # Dev container
 .devcontainer/
 
-# Lock files (pnpm-lock.yaml for various sub-projects)
-# Note: Cargo.lock is intentionally NOT ignored for reproducible builds
-pnpm-lock.yaml
+# Lock files: bun.lock is committed (not ignored) for reproducible
+# `bun install --frozen-lockfile`. (Cargo.lock is also committed.)
+
 extensions/vscode/pnpm-lock.yaml
 integrations/*/pnpm-lock.yaml
 web/pnpm-lock.yaml
@@ -180,7 +180,7 @@ scripts/**/__pycache__/
 .aiderignore
 .codeiumignore
 .clineignore
-.codewhale/
+.mimofan/
 .kiro/specs/tui-lib-bin-refactor/
 
 # Cargo local

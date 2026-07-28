@@ -35,17 +35,9 @@ pub mod process_hardening;
 #[cfg(target_os = "macos")]
 pub mod seatbelt;
 
-#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-pub mod landlock;
 
-#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-pub mod seccomp;
 
-#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-pub mod bwrap;
 
-#[cfg(target_os = "windows")]
-pub mod windows;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -88,24 +80,6 @@ impl CommandSpec {
     pub fn shell(command: &str, cwd: PathBuf, timeout: Duration) -> Self {
         let dispatcher = crate::shell_dispatcher::global_dispatcher();
 
-        #[cfg(windows)]
-        let (program, args) = {
-            // Force UTF-8 output. cmd.exe uses chcp; PowerShell sets the
-            // console output encoding directly. See issue #982.
-            let kind = dispatcher.kind();
-            let cmd = if matches!(
-                kind,
-                crate::shell_dispatcher::ShellKind::Pwsh
-                    | crate::shell_dispatcher::ShellKind::WindowsPowerShell
-            ) {
-                format!("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; {command}")
-            } else if matches!(kind, crate::shell_dispatcher::ShellKind::Cmd) {
-                format!("chcp 65001 >NUL & {command}")
-            } else {
-                command.to_string()
-            };
-            dispatcher.build_command_parts(&cmd)
-        };
         #[cfg(not(windows))]
         let (program, args) = dispatcher.build_command_parts(command);
 
@@ -222,16 +196,7 @@ pub enum SandboxType {
     #[cfg(target_os = "macos")]
     MacosSeatbelt,
 
-    /// Linux Landlock sandboxing (kernel 5.13+).
-    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    LinuxLandlock,
 
-    /// Windows process-containment helper.
-    ///
-    /// Not advertised until a helper enforces Job Object cleanup. This does
-    /// not imply filesystem, network, registry, or AppContainer isolation.
-    #[cfg(target_os = "windows")]
-    Windows,
 }
 
 impl std::fmt::Display for SandboxType {
@@ -240,10 +205,6 @@ impl std::fmt::Display for SandboxType {
             SandboxType::None => write!(f, "none"),
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => write!(f, "macos-seatbelt"),
-            #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-            SandboxType::LinuxLandlock => write!(f, "linux-landlock"),
-            #[cfg(target_os = "windows")]
-            SandboxType::Windows => write!(f, "windows-sandbox"),
         }
     }
 }
@@ -305,19 +266,7 @@ pub fn get_platform_sandbox() -> Option<SandboxType> {
         }
     }
 
-    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    {
-        if landlock::is_available() {
-            return Some(SandboxType::LinuxLandlock);
-        }
-    }
 
-    #[cfg(target_os = "windows")]
-    {
-        if windows::is_available() {
-            return Some(SandboxType::Windows);
-        }
-    }
 
     None
 }
@@ -409,11 +358,7 @@ impl SandboxManager {
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => Self::prepare_seatbelt(spec),
 
-            #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-            SandboxType::LinuxLandlock => self.prepare_landlock(spec),
 
-            #[cfg(target_os = "windows")]
-            SandboxType::Windows => Self::prepare_windows(spec),
         }
     }
 
@@ -461,87 +406,14 @@ impl SandboxManager {
         }
     }
 
-    /// Prepare a Landlock-sandboxed execution environment (Linux).
-    ///
-    /// If `prefer_bwrap` is set and `/usr/bin/bwrap` is available, routes the
-    /// command through bubblewrap for stronger filesystem isolation (#2184).
-    /// Otherwise falls back to Landlock markers.
-    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    fn prepare_landlock(&self, spec: &CommandSpec) -> ExecEnv {
-        // Check if bwrap passthrough should be used (#2184).
-        if self.prefer_bwrap && bwrap::is_available() {
-            let command = bwrap::build_bwrap_command(&spec.cwd, &spec.program, &spec.args);
 
-            let mut env = spec.env.clone();
-            env.insert("DEEPSEEK_SANDBOX".to_string(), "bwrap".to_string());
-
-            return ExecEnv {
-                command,
-                cwd: spec.cwd.clone(),
-                env,
-                timeout: spec.timeout,
-                sandbox_type: SandboxType::LinuxLandlock,
-                policy: spec.sandbox_policy.clone(),
-            };
-        }
-
-        // Fall back to Landlock (marker only — full implementation needs a helper).
-        let mut command = vec![spec.program.clone()];
-        command.extend(spec.args.clone());
-
-        let mut env = spec.env.clone();
-        env.insert("DEEPSEEK_SANDBOX".to_string(), "landlock".to_string());
-
-        ExecEnv {
-            command,
-            cwd: spec.cwd.clone(),
-            env,
-            timeout: spec.timeout,
-            sandbox_type: SandboxType::LinuxLandlock,
-            policy: spec.sandbox_policy.clone(),
-        }
-    }
-
-    /// Prepare a Windows helper execution environment.
-    ///
-    /// Windows support is currently not advertised by `get_platform_sandbox`.
-    /// This branch only exists for forced tests and future helper wiring.
-    /// The first supported helper contract is process-tree containment only;
-    /// it must not be presented as filesystem or network isolation.
-    #[cfg(target_os = "windows")]
-    fn prepare_windows(spec: &CommandSpec) -> ExecEnv {
-        let mut command = vec![spec.program.clone()];
-        command.extend(spec.args.clone());
-
-        let mut env = spec.env.clone();
-        let kind = windows::select_best_kind(&spec.sandbox_policy, &spec.cwd);
-        env.insert("DEEPSEEK_SANDBOX".to_string(), format!("windows:{kind}"));
-        if !spec.sandbox_policy.has_network_access() {
-            env.insert(
-                "DEEPSEEK_SANDBOX_BLOCK_NETWORK".to_string(),
-                "1".to_string(),
-            );
-        }
-
-        ExecEnv {
-            command,
-            cwd: spec.cwd.clone(),
-            env,
-            timeout: spec.timeout,
-            sandbox_type: SandboxType::Windows,
-            policy: spec.sandbox_policy.clone(),
-        }
-    }
 
     /// Check if a command failure was due to sandbox denial.
     ///
     /// This helps distinguish between legitimate command failures and
     /// sandbox-blocked operations.
     pub fn was_denied(sandbox_type: SandboxType, exit_code: i32, stderr: &str) -> bool {
-        #[cfg(not(any(
-            target_os = "macos",
-            all(target_os = "linux", not(target_env = "ohos"))
-        )))]
+        #[cfg(not(target_os = "macos"))]
         let _ = (exit_code, stderr);
 
         match sandbox_type {
@@ -550,20 +422,13 @@ impl SandboxManager {
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => seatbelt::detect_denial(exit_code, stderr),
 
-            #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-            SandboxType::LinuxLandlock => landlock::detect_denial(exit_code, stderr),
 
-            #[cfg(target_os = "windows")]
-            SandboxType::Windows => windows::detect_denial(exit_code, stderr),
         }
     }
 
     /// Get a human-readable description of why a command was blocked.
     pub fn denial_message(sandbox_type: SandboxType, stderr: &str) -> String {
-        #[cfg(not(any(
-            target_os = "macos",
-            all(target_os = "linux", not(target_env = "ohos"))
-        )))]
+        #[cfg(not(target_os = "macos"))]
         let _ = stderr;
 
         match sandbox_type {
@@ -583,42 +448,7 @@ impl SandboxManager {
                 }
             }
 
-            #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-            SandboxType::LinuxLandlock => {
-                // Seccomp patterns checked first because they are more specific (#2182).
-                if stderr.contains("Bad system call")
-                    || stderr.contains("bad system call")
-                    || stderr.contains("SIGSYS")
-                    || stderr.contains("seccomp")
-                {
-                    "Seccomp blocked a disallowed system call (e.g., ptrace, mount, kexec)."
-                        .to_string()
-                } else if stderr.contains("Permission denied") {
-                    "Landlock blocked access. The command tried to access a restricted path."
-                        .to_string()
-                } else {
-                    format!(
-                        "Landlock blocked operation: {}",
-                        stderr.lines().next().unwrap_or("unknown")
-                    )
-                }
-            }
 
-            #[cfg(target_os = "windows")]
-            SandboxType::Windows => {
-                if stderr.contains("Access is denied") {
-                    "Windows sandbox blocked access. The command lacked required privileges."
-                        .to_string()
-                } else if stderr.contains("network") {
-                    "Windows sandbox blocked network access. Enable network_access in policy if needed."
-                        .to_string()
-                } else {
-                    format!(
-                        "Windows sandbox blocked operation: {}",
-                        stderr.lines().next().unwrap_or("unknown")
-                    )
-                }
-            }
         }
     }
 }

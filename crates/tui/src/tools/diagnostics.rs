@@ -155,10 +155,6 @@ fn probe_git(workspace: &Path) -> GitProbe {
 }
 
 fn probe_bwrap_available() -> bool {
-    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    {
-        crate::sandbox::bwrap::is_available()
-    }
     #[cfg(not(all(target_os = "linux", not(target_env = "ohos"))))]
     {
         false
@@ -166,18 +162,6 @@ fn probe_bwrap_available() -> bool {
 }
 
 fn probe_cgroup_version() -> Option<u8> {
-    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
-    {
-        let path = std::path::Path::new("/sys/fs/cgroup/cgroup.controllers");
-        if path.exists() {
-            return Some(2);
-        }
-        let path = std::path::Path::new("/sys/fs/cgroup");
-        if path.exists() {
-            return Some(1);
-        }
-        None
-    }
     #[cfg(not(all(target_os = "linux", not(target_env = "ohos"))))]
     {
         None

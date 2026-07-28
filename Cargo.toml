@@ -47,7 +47,9 @@ thiserror = "2.0"
 tempfile = "3.27"
 tokio = { version = "1.50.0", features = ["full"] }
 toml = "1.0.6"
-toml_edit = "0.23.10"
+# 0.25 与 toml 1.x / proc-macro-crate 共享同一套 winnow 1.0 + toml_datetime 1.1，
+# 避免 toml_edit/winnow/toml_datetime 各编译两个版本
+toml_edit = "0.25"
 sha2 = "0.10"
 tower-http = { version = "0.6", features = ["cors"] }
 tracing = "0.1"

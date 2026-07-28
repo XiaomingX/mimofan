@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-use super::matcher::pattern_matches;
+use super::matcher::{canonical_executable_form, pattern_matches};
 use crate::command_safety::prefix_allow_matches;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,9 +42,13 @@ impl ExecPolicyConfig {
     }
 
     pub fn evaluate(&self, command: &str) -> ExecPolicyDecision {
+        // Deny is security-critical: also test the executable-basename /
+        // wrapper-stripped form so `/bin/rm` or `sudo rm` cannot slip past a
+        // `deny` rule written for the bare command.
+        let command_exe = canonical_executable_form(command);
         for (group, rules) in &self.rules {
             for pattern in &rules.deny {
-                if pattern_matches(pattern, command) {
+                if pattern_matches(pattern, command) || pattern_matches(pattern, &command_exe) {
                     return ExecPolicyDecision::Deny(format!(
                         "execpolicy denied by {group}: {pattern}"
                     ));

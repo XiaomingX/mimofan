@@ -136,10 +136,6 @@ pub(crate) fn normalize_macos_modifiers(modifiers: KeyModifiers) -> KeyModifiers
     }
 }
 
-#[cfg(not(target_os = "macos"))]
-pub(crate) fn normalize_macos_modifiers(modifiers: KeyModifiers) -> KeyModifiers {
-    modifiers
-}
 
 pub(crate) fn handle_composer_alt_word_motion_key(app: &mut App, key: KeyEvent) -> bool {
     if !key.modifiers.contains(KeyModifiers::ALT) || key.modifiers.contains(KeyModifiers::CONTROL) {

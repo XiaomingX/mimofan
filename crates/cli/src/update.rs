@@ -940,32 +940,6 @@ fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
         }
     }
 
-    #[cfg(windows)]
-    {
-        let backup = backup_path_for(target);
-        if target.exists() {
-            std::fs::rename(target, &backup).with_context(|| {
-                format!(
-                    "failed to move current executable {} to {}",
-                    target.display(),
-                    backup.display()
-                )
-            })?;
-        }
-
-        if let Err(err) = tmp.persist(target) {
-            if backup.exists() {
-                let _ = std::fs::rename(&backup, target);
-            }
-            bail!(
-                "failed to install new binary at {}: {}",
-                target.display(),
-                err.error
-            );
-        }
-
-        let _ = std::fs::remove_file(&backup);
-    }
 
     #[cfg(not(windows))]
     {
@@ -977,23 +951,6 @@ fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-#[cfg(windows)]
-fn backup_path_for(target: &Path) -> std::path::PathBuf {
-    let pid = std::process::id();
-    for index in 0..100 {
-        let mut candidate = target.to_path_buf();
-        let suffix = if index == 0 {
-            format!("old-{pid}")
-        } else {
-            format!("old-{pid}-{index}")
-        };
-        candidate.set_extension(suffix);
-        if !candidate.exists() {
-            return candidate;
-        }
-    }
-    target.with_extension(format!("old-{pid}-fallback"))
-}
 
 #[cfg(test)]
 mod tests {
@@ -1075,7 +1032,6 @@ mod tests {
         assert!(!is_legacy_binary(Path::new("/usr/local/bin/mimofan")));
         assert!(!is_legacy_binary(Path::new("Mimofan.exe")));
         assert!(!is_legacy_binary(Path::new("mimofan-tui")));
-        assert!(!is_legacy_binary(Path::new("codew")));
     }
 
     #[test]

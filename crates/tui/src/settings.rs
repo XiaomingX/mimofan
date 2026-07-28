@@ -543,7 +543,7 @@ impl Settings {
                 self.mention_depth = parse_usize_setting("mention_depth", value)?;
             }
             "mention_behavior" => {
-                self.mention_behavior = normalize_mention_menu_behavior(value)?;
+                self.mention_behavior = normalize_mention_behavior(value)?;
             }
             "show_thinking" | "thinking" => {
                 self.show_thinking = parse_bool(value)?;
@@ -1097,13 +1097,13 @@ fn parse_percent_setting(key: &str, value: &str) -> Result<f64> {
     Ok(percent)
 }
 
-fn normalize_mention_menu_behavior(value: &str) -> Result<String> {
+fn normalize_mention_behavior(value: &str) -> Result<String> {
     match value.trim().to_ascii_lowercase().as_str() {
         "fuzzy" | "default" => Ok("fuzzy".to_string()),
         "browser" | "browse" | "file-browser" | "file_browser" => Ok("browser".to_string()),
         _ => {
             anyhow::bail!(
-                "Failed to update setting: invalid mention_menu_behavior '{value}'. Expected: fuzzy, browser."
+                "Failed to update setting: invalid mention_behavior '{value}'. Expected: fuzzy, browser."
             )
         }
     }

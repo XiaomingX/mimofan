@@ -617,15 +617,6 @@ pub struct HookExecutor {
 
 impl HookExecutor {
     fn build_shell_command(command: &str) -> Command {
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt as _;
-            let mut cmd = Command::new("cmd");
-            // raw_arg: cmd.exe does not parse the CRT-style \" escapes that
-            // Command::arg would insert, so pass the command line verbatim.
-            cmd.arg("/C").raw_arg(command);
-            cmd
-        }
         #[cfg(not(windows))]
         {
             let mut cmd = Command::new("sh");

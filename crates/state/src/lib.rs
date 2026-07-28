@@ -1595,14 +1595,8 @@ fn default_state_db_path() -> PathBuf {
         return overridden.join("state.db");
     }
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    // Prefer the mimofan directory, falling back to legacy DeepSeek path
-    // so existing installs don't lose their session history.
-    let primary = home.join(".mimofan").join("state.db");
-    if primary.exists() || !home.join(".mimofan").join("state.db").exists() {
-        primary
-    } else {
-        home.join(".mimofan").join("state.db")
-    }
+    // Prefer the mimofan directory under the user's home.
+    home.join(".mimofan").join("state.db")
 }
 
 /// Resolve `$MIMOFAN_HOME` as a hard override of the data directory root.

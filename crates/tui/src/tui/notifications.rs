@@ -11,10 +11,6 @@
 //! current terminal; Windows falls back to `Bel`, which is routed through
 //! `MessageBeep(MB_OK)` for an audible default notification sound.
 
-#[cfg(target_os = "windows")]
-use windows::Win32::System::Diagnostics::Debug::MessageBeep;
-#[cfg(target_os = "windows")]
-use windows::Win32::UI::WindowsAndMessaging::MESSAGEBOX_STYLE;
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -22,13 +18,6 @@ use std::sync::atomic::AtomicU8;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
-
-#[cfg(target_os = "windows")]
-use std::os::windows::ffi::OsStrExt;
-#[cfg(target_os = "windows")]
-use windows::Win32::Media::Audio::{PlaySoundW, SND_ASYNC, SND_FILENAME, SND_NODEFAULT};
-#[cfg(target_os = "windows")]
-use windows::core::PCWSTR;
 
 /// Notification delivery method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -53,20 +42,6 @@ pub enum Method {
     Off,
 }
 
-/// Emit a Windows system beep via `MessageBeep(MB_OK)`.
-///
-/// Writing BEL (`\\x07`) to the terminal is silent on most Windows
-/// terminals (Windows Terminal, Conhost, etc.), so we call the Win32
-/// API directly to produce the standard notification sound.
-#[cfg(target_os = "windows")]
-fn windows_bell() {
-    // MB_OK = 0x00000000 — plays the default system sound. Best-effort: a
-    // failed beep is not worth surfacing to the caller, so the Result is
-    // discarded.
-    unsafe {
-        let _ = MessageBeep(MESSAGEBOX_STYLE(0));
-    }
-}
 
 /// Resolve `Auto` to a concrete method by inspecting `$TERM_PROGRAM`,
 /// `$LC_TERMINAL`, and `$TERM`.
@@ -212,10 +187,6 @@ pub fn notify_done_to<W: Write>(
     // On Windows, writing BEL (`\x07`) to the terminal is silent in most
     // terminals (Windows Terminal, Conhost, etc.). Call MessageBeep to
     // produce an actual notification sound via the system audio scheme.
-    #[cfg(target_os = "windows")]
-    if effective == Method::Bel {
-        windows_bell();
-    }
 }
 
 /// Emit a turn-complete notification to **stdout** if `elapsed >= threshold`.
@@ -407,14 +378,6 @@ pub fn play_completion_sound() {
     }
 }
 
-/// Play a short completion sound via the system beep.
-///
-/// On Windows uses `MessageBeep(MB_OK)` which plays the default system
-/// notification sound. On other platforms writes `BEL` (`\x07`) to stdout.
-#[cfg(target_os = "windows")]
-fn beep_sound() {
-    windows_bell();
-}
 
 /// Non-Windows: write BEL to stdout for the terminal bell.
 #[cfg(not(target_os = "windows"))]
@@ -434,19 +397,6 @@ fn configured_sound_file() -> Option<PathBuf> {
         .and_then(|slot| slot.clone())
 }
 
-#[cfg(target_os = "windows")]
-fn play_sound_file(path: &Path) {
-    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
-    // Best-effort and async: notification sound failure should not block or
-    // fail a completed agent turn.
-    unsafe {
-        let _ = PlaySoundW(
-            PCWSTR(wide.as_ptr()),
-            None,
-            SND_FILENAME | SND_ASYNC | SND_NODEFAULT,
-        );
-    }
-}
 
 #[cfg(not(target_os = "windows"))]
 fn play_sound_file(_path: &Path) {

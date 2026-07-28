@@ -639,10 +639,9 @@ impl Runtime {
         // branch (issue #3102). The TUI intercepts this tool by name before
         // dispatch and blocks on a reply channel; the headless runtime instead
         // emits a typed `UserInputRequest` frame and returns a
-        // `user_input_required` status so the client can render the question
-        // and POST answers back via `AppRequest::SubmitUserInput`. It does NOT
-        // block — consistent with the headless approval model, which has no
-        // resume channel either.
+        // `user_input_required` status so the client can render the question.
+        // It does NOT block — consistent with the headless approval model,
+        // which has no resume channel either.
         if call.name == REQUEST_USER_INPUT_TOOL_NAME {
             let request_id = format!("user-input-{}", Uuid::new_v4());
             let arguments = match &call.payload {

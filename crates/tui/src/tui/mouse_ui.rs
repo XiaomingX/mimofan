@@ -90,8 +90,8 @@ fn handle_sidebar_resize_mouse(app: &mut App, mouse: MouseEvent) -> bool {
             let new_width = (app.sidebar_resize_anchor_width as i32 + delta).max(24) as u16;
             let total = app.sidebar_resize_total_width.max(1);
             let new_pct = ((new_width as u32 * 100) / total as u32).clamp(10, 50) as u16;
-            if new_pct != app.sidebar_width_percent {
-                app.sidebar_width_percent = new_pct;
+            if new_pct != app.sidebar_width {
+                app.sidebar_width = new_pct;
                 app.needs_redraw = true;
             }
             true

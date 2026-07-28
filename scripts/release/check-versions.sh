@@ -5,19 +5,21 @@
 # Checks performed:
 #   1. No `crates/*/Cargo.toml` carries a literal `version = "x.y.z"`; every
 #      crate must inherit `version.workspace = true`.
-#   2. `npm/mimofan/package.json` `version` matches the workspace
-#      `version` in the root `Cargo.toml`. (`npm/mimofan/` still
-#      exists only as an unpublished compatibility notice and must stay
-#      private.)
+#   2. `npm/mimofan/package.json` `version` (and `mimofanBinaryVersion`)
+#      matches the workspace version in the root `Cargo.toml`.
+#   2b. `npm/runtime-sdk/package.json` `version` matches the workspace version.
 #   3. Internal `mimofan-*` path dependency pins match the workspace version.
 #   4. The TUI crate's packaged changelog copy matches root `CHANGELOG.md`.
 #   5. The current release has a dated Keep a Changelog entry and compare link.
 #   6. README contributor additions are mentioned in the current release entry.
 #   7. `SECURITY.md` keeps the dedicated security contact.
-#   8. `mimofan-app-server` stays library-only; the shipped app-server
-#      entrypoint belongs to `mimofan-cli`.
-#   9. `Cargo.lock` is in sync with the manifests (`cargo metadata --locked`
-#      fails if not).
+#   8. Generated web facts carry the workspace version (skipped when the
+#      `web/` frontend is absent after its removal from this repo).
+#   9. README install-tag examples point at the current release tag.
+#   10. `mimofan-app-server` stays library-only; the shipped app-server
+#       entrypoint belongs to `mimofan-cli`.
+#   11. `Cargo.lock` is in sync with the manifests (`cargo metadata --locked`
+#       fails if not).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -39,17 +41,20 @@ if [[ "${workspace_version}" != "${npm_version}" ]]; then
   echo "::error::npm/mimofan/package.json version (${npm_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
   fail=1
 fi
-if [[ -f npm/mimofan/package.json ]]; then
-  legacy_private="$(node -p "Boolean(require('./npm/mimofan/package.json').private)")"
-  legacy_publish_config="$(node -p "Boolean(require('./npm/mimofan/package.json').publishConfig)")"
-  if [[ "${legacy_private}" != "true" ]]; then
-    echo "::error::npm/mimofan/package.json must stay private so the legacy package is not republished." >&2
-    fail=1
-  fi
-  if [[ "${legacy_publish_config}" == "true" ]]; then
-    echo "::error::npm/mimofan/package.json must not define publishConfig; the legacy package is deprecated." >&2
-    fail=1
-  fi
+# The canonical `mimofan` package publishes from npm/mimofan; keep the
+# binary-version pin aligned with the package version unless a
+# packaging-only release intentionally decouples them.
+wrapper_binary_version="$(node -p "require('./npm/mimofan/package.json').mimofanBinaryVersion || ''")"
+if [[ -n "${wrapper_binary_version}" && "${wrapper_binary_version}" != "${npm_version}" ]]; then
+  echo "::warning::npm/mimofan mimofanBinaryVersion (${wrapper_binary_version}) differs from package version (${npm_version}); expected only for npm packaging-only releases." >&2
+fi
+
+# 2b) Workspace ↔ npm runtime-sdk package.json. The runtime SDK publishes
+# independently but must stay on the same version line as the workspace.
+runtime_sdk_version="$(node -p "require('./npm/runtime-sdk/package.json').version")"
+if [[ "${workspace_version}" != "${runtime_sdk_version}" ]]; then
+  echo "::error::npm/runtime-sdk/package.json version (${runtime_sdk_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
+  fail=1
 fi
 
 # 3) Internal path dependency pins.
@@ -151,24 +156,26 @@ if grep -qF "hmbown.dev@gmail.com" SECURITY.md; then
   fail=1
 fi
 
-# 8) Generated web facts carry the workspace version. The file is ignored and
-# generated during web builds, so a clean CI checkout must derive it before this
-# release guard can inspect it.
-if [[ ! -f web/lib/facts.generated.ts ]]; then
-  node web/scripts/derive-facts.mjs
-fi
-facts_version="$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' web/lib/facts.generated.ts | head -n1 | sed -E 's/.*"([0-9.]+)".*/\1/')"
-if [[ "${facts_version}" != "${workspace_version}" ]]; then
-  node web/scripts/derive-facts.mjs
+# 8) Generated web facts carry the workspace version. The web frontend was
+# removed from this repository; keep this guard only when the directory is
+# restored so a clean checkout never fails on a missing script.
+if [[ -f web/scripts/derive-facts.mjs ]]; then
+  if [[ ! -f web/lib/facts.generated.ts ]]; then
+    node web/scripts/derive-facts.mjs
+  fi
   facts_version="$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' web/lib/facts.generated.ts | head -n1 | sed -E 's/.*"([0-9.]+)".*/\1/')"
   if [[ "${facts_version}" != "${workspace_version}" ]]; then
-    echo "::error::web/lib/facts.generated.ts version (${facts_version}) does not match workspace (${workspace_version}). Run: node web/scripts/derive-facts.mjs" >&2
-    fail=1
+    node web/scripts/derive-facts.mjs
+    facts_version="$(grep -oE '"version": "[0-9]+\.[0-9]+\.[0-9]+"' web/lib/facts.generated.ts | head -n1 | sed -E 's/.*"([0-9.]+)".*/\1/')"
+    if [[ "${facts_version}" != "${workspace_version}" ]]; then
+      echo "::error::web/lib/facts.generated.ts version (${facts_version}) does not match workspace (${workspace_version}). Run: node web/scripts/derive-facts.mjs" >&2
+      fail=1
+    fi
   fi
 fi
 
 # 9) README install-tag examples point at the current release.
-for readme in README.md README.zh-CN.md README.ja-JP.md README.vi.md; do
+for readme in README.md; do
   stale_tags="$(grep -nE -- "--tag v[0-9]+\.[0-9]+\.[0-9]+" "${readme}" | grep -v -- "--tag v${workspace_version}" || true)"
   if [[ -n "${stale_tags}" ]]; then
     echo "::error::${readme} has install examples pinned to an old tag (want v${workspace_version}):" >&2

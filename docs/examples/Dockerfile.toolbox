@@ -1,19 +1,19 @@
 # syntax=docker/dockerfile:1
 #
-# Opt-in mimo-tui toolbox image.
+# Opt-in mimofan toolbox image.
 #
-# The published ghcr.io/hmbown/mimo-tui:latest image intentionally stays
+# The published ghcr.io/hmbown/mimofan:latest image intentionally stays
 # minimal, non-root, and without passwordless sudo. Use this Dockerfile only for
 # workspaces where you deliberately want package installation, custom CA setup,
 # or project-specific build tools inside the container.
 #
 # Example:
 #   docker build -f docs/examples/Dockerfile.toolbox \
-#     --build-arg MIMO_IMAGE=ghcr.io/hmbown/mimo-tui:vX.Y.Z \
+#     --build-arg MIMO_IMAGE=ghcr.io/hmbown/mimofan:vX.Y.Z \
 #     --build-arg TOOLBOX_PACKAGES="git openssh-client curl build-essential pkg-config python3 python3-pip nodejs npm" \
 #     -t mimo-toolbox:my-project .
 
-ARG MIMO_IMAGE=ghcr.io/hmbown/mimo-tui:latest
+ARG MIMO_IMAGE=ghcr.io/hmbown/mimofan:latest
 FROM ${MIMO_IMAGE}
 
 USER root

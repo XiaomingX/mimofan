@@ -15,7 +15,7 @@ case "${mode}" in
 esac
 
 packages=("${release_crates[@]}")
-crates_user_agent="Mimofan release publish check (https://github.com/XiaomingX/mimo-tui)"
+crates_user_agent="Mimofan release publish check (https://github.com/XiaomingX/mimofan)"
 
 workspace_version=""
 workspace_mimofan_packages=()

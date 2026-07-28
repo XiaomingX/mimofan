@@ -22,7 +22,7 @@ Security model:
 
 ```bash
 cd /opt/mimofan/feishu-bridge
-pnpm install --prod
+bun install --production
 cp .env.example /etc/mimofan/feishu-bridge.env
 sudoedit /etc/mimofan/feishu-bridge.env
 node src/index.mjs
@@ -31,7 +31,7 @@ node src/index.mjs
 Validate the env files before starting the service:
 
 ```bash
-pnpm validate:config -- \
+bun run validate:config -- \
   --env /etc/mimofan/feishu-bridge.env \
   --runtime-env /etc/mimofan/runtime.env \
   --workspace-root /opt/whalebro \

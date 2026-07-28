@@ -22,7 +22,7 @@ curl -fsSL https://mimofan.net/install.sh | sh
 
 ---
 
-## 2. npm / pnpm 安装（推荐）
+## 2. npm / pnpm / bun 安装（推荐）
 
 ```bash
 # npm
@@ -30,6 +30,10 @@ npm install -g mimofan
 
 # pnpm
 pnpm add -g mimofan
+
+# bun（默认不执行依赖 postinstall，安装期跳过下载，首次运行时自动获取二进制；
+# 如需安装期立即下载，先执行 bun pm trust mimofan）
+bun add -g mimofan
 ```
 
 常用环境变量：

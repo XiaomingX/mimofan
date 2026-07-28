@@ -64,12 +64,12 @@ function unsupportedBuildHint() {
     "",
     "Or build from a checkout:",
     "",
-    "  git clone https://github.com/XiaomingX/mimo-tui.git",
+    "  git clone https://github.com/XiaomingX/mimofan.git",
     "  cd Mimofan",
     "  cargo install --path crates/cli --locked",
     "  cargo install --path crates/tui --locked",
     "",
-    "See https://github.com/XiaomingX/mimo-tui/blob/main/docs/INSTALL.md",
+    "See https://github.com/XiaomingX/mimofan/blob/main/docs/INSTALL.md",
     "for cross-compilation, mirror, and Linux ARM64 specifics.",
   ].join("\n");
 }
@@ -78,12 +78,9 @@ function executableName(base, platform) {
   return platform === "win32" ? `${base}.exe` : base;
 }
 
-function releaseBaseUrl(version, repo = "XiaomingX/mimo-tui") {
-  // MIMOFAN_RELEASE_BASE_URL is the canonical override.
-  // MIMOFAN_RELEASE_BASE_URL / MIMOFAN_RELEASE_BASE_URL / DEEPSEEK_RELEASE_BASE_URL are legacy aliases.
+function releaseBaseUrl(version, repo = "XiaomingX/mimofan") {
+  // MIMOFAN_RELEASE_BASE_URL is the canonical override; DEEPSEEK_RELEASE_BASE_URL is a legacy alias.
   const override =
-    process.env.MIMOFAN_RELEASE_BASE_URL ||
-    process.env.MIMOFAN_RELEASE_BASE_URL ||
     process.env.MIMOFAN_RELEASE_BASE_URL ||
     process.env.DEEPSEEK_RELEASE_BASE_URL;
   if (override) {
@@ -93,16 +90,16 @@ function releaseBaseUrl(version, repo = "XiaomingX/mimo-tui") {
   // When MIMOFAN_USE_CNB_MIRROR is set, use the CNB (China-friendly)
   // mirror that already builds and publishes binary release assets.
   if (process.env.MIMOFAN_USE_CNB_MIRROR) {
-    return `https://cnb.cool/XiaomingX/mimo-tui/-/releases/v${version}/`;
+    return `https://cnb.cool/XiaomingX/mimofan/-/releases/v${version}/`;
   }
   return `https://github.com/${repo}/releases/download/v${version}/`;
 }
 
-function releaseAssetUrl(baseName, version, repo = "XiaomingX/mimo-tui") {
+function releaseAssetUrl(baseName, version, repo = "XiaomingX/mimofan") {
   return new URL(baseName, releaseBaseUrl(version, repo)).toString();
 }
 
-function checksumManifestUrl(version, repo = "XiaomingX/mimo-tui") {
+function checksumManifestUrl(version, repo = "XiaomingX/mimofan") {
   return releaseAssetUrl(CHECKSUM_MANIFEST, version, repo);
 }
 

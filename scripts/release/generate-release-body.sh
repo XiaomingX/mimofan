@@ -20,9 +20,9 @@ section="$(awk -v version="${version}" '
 
 cat <<EOF
 > **Mimofan** is the canonical project, command, npm package, and
-> release-asset name. The legacy npm package \`mimofan\` is
+> release-asset name. The legacy npm package \`deepseek-tui\` is
 > deprecated and receives no further releases. Users coming from
-> v0.8.x legacy \`deepseek\` / \`mimofan\` names should migrate
+> v0.8.x legacy \`deepseek\` / \`deepseek-tui\` names should migrate
 > with \`docs/REBRAND.md\`.
 
 ## Install
@@ -35,13 +35,15 @@ npm install -g mimofan
 
 The wrapper downloads both binaries from this Release and places them in the same directory.
 
-### Alternative — pnpm (one command, both binaries)
+### Alternative — pnpm / bun (one command, both binaries)
 
 \`\`\`bash
 pnpm add -g mimofan
+# or
+bun add -g mimofan
 \`\`\`
 
-The wrapper downloads both binaries from this Release and places them in the same directory.
+The wrapper downloads both binaries from this Release and places them in the same directory. pnpm and bun defer the download to the first run (their installers skip install-time scripts by default).
 
 ### Docker / GHCR
 
@@ -92,7 +94,7 @@ cd mimofan-<platform>
 
 The **portable** Windows archive skips the install script — extract and run from any directory. The NSIS installer is currently unsigned and may trigger Windows SmartScreen until a signing certificate is wired into the release pipeline.
 
-Each platform also has **bare, unarchived** binaries attached below (\`mimofan-<platform>\` and \`mimofan-tui-<platform>\`) — these are what the npm wrapper and the in-app \`mimofan update\` download, whereas the \`.tar.gz\` / \`.zip\` archives above are the recommended manual download and additionally bundle an install script. The legacy npm package \`mimofan\` is deprecated and is not republished. For migration from v0.8.x legacy binary names, see \`docs/REBRAND.md\`.
+Each platform also has **bare, unarchived** binaries attached below (\`mimofan-<platform>\` and \`mimofan-tui-<platform>\`) — these are what the npm wrapper and the in-app \`mimofan update\` download, whereas the \`.tar.gz\` / \`.zip\` archives above are the recommended manual download and additionally bundle an install script. The legacy npm package \`deepseek-tui\` is deprecated and is not republished. For migration from v0.8.x legacy binary names, see \`docs/REBRAND.md\`.
 
 ### Verify (recommended)
 
@@ -124,5 +126,5 @@ cat <<EOF
 Contributor credits for this release live in the changelog entry above —
 thank you to everyone whose reports, PRs, reviews, and reproductions shaped it.
 
-See [CHANGELOG.md](https://github.com/XiaomingX/mimo-tui/blob/main/CHANGELOG.md) for full notes and [docs/CHANGELOG_ARCHIVE.md](https://github.com/XiaomingX/mimo-tui/blob/main/docs/CHANGELOG_ARCHIVE.md) for older releases.
+See [CHANGELOG.md](https://github.com/XiaomingX/mimofan/blob/main/CHANGELOG.md) for full notes and [docs/CHANGELOG_ARCHIVE.md](https://github.com/XiaomingX/mimofan/blob/main/docs/CHANGELOG_ARCHIVE.md) for older releases.
 EOF

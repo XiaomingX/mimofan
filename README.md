@@ -18,11 +18,12 @@
 确保本地已安装 Node.js (推荐 18+)，直接在终端运行以下命令：
 
 ```bash
-# 使用 pnpm 安装（推荐）
-pnpm add -g mimofan
-
-# 或使用 npm 安装
+# 使用 npm 安装（推荐）
 npm install -g mimofan
+
+# 或使用 pnpm / bun 安装
+pnpm add -g mimofan
+bun add -g mimofan   # bun 默认跳过安装期下载，首次运行时自动获取二进制
 ```
 
 *(如果你是 Rust 开发者，也可以直接使用 `cargo install mimofan-cli --locked` 源码安装)*

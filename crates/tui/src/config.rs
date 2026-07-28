@@ -2443,33 +2443,6 @@ impl Config {
             .unwrap_or(false)
     }
 
-    /// Returns the external memory service URL if configured.
-    #[must_use]
-    pub fn memory_service_url(&self) -> Option<&str> {
-        self.memory
-            .as_ref()
-            .and_then(|m| m.service_url.as_deref())
-            .filter(|s| !s.is_empty())
-    }
-
-    /// Returns the API key for the external memory service.
-    #[must_use]
-    pub fn memory_service_api_key(&self) -> Option<&str> {
-        self.memory
-            .as_ref()
-            .and_then(|m| m.service_api_key.as_deref())
-            .filter(|s| !s.is_empty())
-    }
-
-    /// Returns the maximum number of memories to load from the service.
-    #[must_use]
-    pub fn memory_max_memories(&self) -> usize {
-        self.memory
-            .as_ref()
-            .and_then(|m| m.max_memories)
-            .unwrap_or(20)
-    }
-
     /// Return the configured vision model config, inheriting api_key from main config.
     #[must_use]
     pub fn vision_model_config(&self) -> Option<VisionModelConfig> {

@@ -35,8 +35,6 @@ where
             value.as_ref().to_os_string(),
         );
     }
-    #[cfg(windows)]
-    fill_windows_common_program_files(&mut env);
     env
 }
 

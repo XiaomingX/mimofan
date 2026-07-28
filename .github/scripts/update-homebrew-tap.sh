@@ -52,12 +52,12 @@ trap 'rm -rf "${TAP_DIR}" "${FORMULA_FILE}"' EXIT
 
 # --- generate formula --------------------------------------------------
 
-readonly BASE_URL="https://github.com/XiaomingX/mimo-tui/releases/download/${TAG}"
+readonly BASE_URL="https://github.com/XiaomingX/mimofan/releases/download/${TAG}"
 
 cat > "${FORMULA_FILE}" << EOF
 class DeepseekTui < Formula
   desc "Terminal-native coding agent for DeepSeek V4"
-  homepage "https://github.com/XiaomingX/mimo-tui"
+  homepage "https://github.com/XiaomingX/mimofan"
   version "${VERSION}"
   license "MIT"
 

@@ -579,12 +579,8 @@ fn detect_macos_palette_mode() -> Option<PaletteMode> {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
-fn detect_macos_palette_mode() -> Option<PaletteMode> {
-    None
-}
 
-#[cfg(any(target_os = "macos", test))]
+#[cfg(target_os = "macos")]
 fn palette_mode_from_apple_interface_style(value: &str) -> PaletteMode {
     if value.trim().eq_ignore_ascii_case("dark") {
         PaletteMode::Dark
