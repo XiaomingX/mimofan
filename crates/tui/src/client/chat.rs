@@ -788,7 +788,7 @@ const TOOL_RESULT_DEDUP_MIN_CHARS: usize = 1_024;
 /// Tool results shorter than this are also exempt from disk persistence —
 /// no SHA file is written. The wire-dedup path won't fire for them
 /// anyway (see `TOOL_RESULT_DEDUP_MIN_CHARS`), so there's no retrieval
-/// burden to satisfy. Keeps `~/.mimofanfan/tool_outputs/` from filling
+/// burden to satisfy. Keeps `~/.mimofan/tool_outputs/` from filling
 /// up with tiny `gh auth status` and `cat package.json` files.
 const TOOL_RESULT_SHA_PERSIST_MIN_CHARS: usize = 1_024;
 
@@ -1194,7 +1194,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 /// Persist a SHA-addressed copy of `content` to
-/// `~/.mimofanfan/tool_outputs/sha_<sha>.txt` so the model can retrieve
+/// `~/.mimofan/tool_outputs/sha_<sha>.txt` so the model can retrieve
 /// the original bytes after the wire-dedup compactor has replaced
 /// later occurrences with a `<TOOL_RESULT_REF sha="..." />` block.
 ///
@@ -2327,7 +2327,6 @@ pub(super) fn parse_chat_message(payload: &Value) -> Result<MessageResponse> {
 // === Streaming Helpers ===
 
 /// Build synthetic stream events from a non-streaming response (used as fallback).
-#[allow(dead_code)]
 fn build_stream_events(response: &MessageResponse) -> Vec<StreamEvent> {
     let mut events = Vec::new();
     let mut index = 0u32;

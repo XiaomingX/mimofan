@@ -106,7 +106,7 @@ const SUBAGENT_TRANSIENT_PROVIDER_INITIAL_BACKOFF: Duration = Duration::from_mil
 /// stuck API call from blocking the sub-agent indefinitely.
 /// Legacy fallback for the per-step DeepSeek API timeout. The active timeout
 /// now travels on `SubAgentRuntime::step_api_timeout` so users can override
-/// it via `[subagents] api_timeout_secs` in `~/.mimofanfan/config.toml`. The
+/// it via `[subagents] api_timeout_secs` in `~/.mimofan/config.toml`. The
 /// constant only exists for tests/stub runtimes that need a hard-coded
 /// default; production runtimes set the field explicitly (#1806, #1808).
 const DEFAULT_STEP_API_TIMEOUT: Duration =
@@ -1357,7 +1357,6 @@ pub struct SubAgentCompletion {
     /// The completing child's agent id. Held for routing/logging — the
     /// engine's turn loop does not currently key on it (it just injects
     /// the payload), but downstream tooling and tests need the field.
-    #[allow(dead_code)]
     pub agent_id: String,
     /// Human summary on line 1, sentinel on line 2. Same payload shape as
     /// `Event::AgentComplete::result`.
@@ -1554,7 +1553,6 @@ impl SubAgentRuntime {
     /// stream. Pair with [`Self::with_cancel_token`] when the mailbox close
     /// token should match this runtime's cancellation token.
     #[must_use]
-    #[allow(dead_code)] // wired by #128 (in-transcript cards) when it lands.
     pub fn with_mailbox(mut self, mailbox: Mailbox) -> Self {
         self.mailbox = Some(mailbox);
         self
@@ -1563,7 +1561,6 @@ impl SubAgentRuntime {
     /// Replace the cancellation token (e.g. when the engine constructs the
     /// runtime alongside a mailbox bound to the same token).
     #[must_use]
-    #[allow(dead_code)] // wired by #128 alongside `with_mailbox`.
     pub fn with_cancel_token(mut self, token: CancellationToken) -> Self {
         self.cancel_token = token;
         self
@@ -1572,7 +1569,6 @@ impl SubAgentRuntime {
     /// Override the maximum spawn depth (default `DEFAULT_MAX_SPAWN_DEPTH`).
     /// Used by config wiring (`[subagents] max_depth = N`) and tests.
     #[must_use]
-    #[allow(dead_code)]
     pub fn with_max_spawn_depth(mut self, max: u32) -> Self {
         self.max_spawn_depth = max;
         self
@@ -1775,7 +1771,6 @@ pub struct SubAgentManager {
     agents: HashMap<String, SubAgent>,
     worker_records: HashMap<String, AgentWorkerRecord>,
     worker_event_seq: u64,
-    #[allow(dead_code)] // Stored for future workspace-scoped operations
     workspace: PathBuf,
     state_path: Option<PathBuf>,
     max_steps: u32,
@@ -3785,7 +3780,7 @@ async fn spawn_subagent_from_input(
 ///
 /// Starts with the per-type prompt (`SubAgentType::system_prompt`) and
 /// appends a one-line role overlay when `assignment.role` is set. The
-/// full role library — TOML overlays from `~/.mimofanfan/roles/`, the
+/// full role library — TOML overlays from `~/.mimofan/roles/`, the
 /// `/roles` slash command, model overrides per role — lands in 0.6.7.
 /// For 0.6.6 we just don't drop the role on the floor: the model sees
 /// "You are operating in the role of `{name}`." as a final line so its

@@ -2,9 +2,9 @@
 //! a human-readable usage rollup.
 //!
 //! Data sources:
-//! - `~/.mimofanfan/audit.log`   — one JSON line per event (approvals, credentials)
-//! - `~/.mimofanfan/sessions/`   — saved session JSON files (tool call history)
-//! - `~/.mimofanfan/tasks/runtime/events/` — runtime thread JSONL event streams
+//! - `~/.mimofan/audit.log`   — one JSON line per event (approvals, credentials)
+//! - `~/.mimofan/sessions/`   — saved session JSON files (tool call history)
+//! - `~/.mimofan/tasks/runtime/events/` — runtime thread JSONL event streams
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -823,7 +823,7 @@ fn print_human(rollup: &Rollup) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 fn deepseek_home() -> PathBuf {
-    // Respect MIMOFAN_HOME env override; fall back to ~/.mimofanfan.
+    // Respect MIMOFAN_HOME env override; fall back to ~/.mimofan.
     if let Ok(v) = std::env::var("MIMOFAN_HOME")
         && !v.is_empty()
     {

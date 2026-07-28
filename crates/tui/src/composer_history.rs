@@ -1,6 +1,6 @@
 //! Cross-session composer input history (#366).
 //!
-//! Persists user-typed prompts to `~/.mimofanfan/composer_history.txt`
+//! Persists user-typed prompts to `~/.mimofan/composer_history.txt`
 //! so pressing Up-arrow at the composer recalls
 //! submissions from previous sessions, not just the current one. One entry
 //! per line, oldest first,

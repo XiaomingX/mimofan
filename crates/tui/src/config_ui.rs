@@ -65,12 +65,12 @@ pub struct SettingsSection {
     pub bracketed_paste: bool,
     pub composer_density: ComposerDensityValue,
     pub composer_border: bool,
-    pub composer_vim_mode: ComposerVimModeValue,
+    pub vim_mode: VimModeValue,
     #[schemars(range(min = 0))]
-    pub mention_menu_limit: usize,
-    pub mention_menu_behavior: MentionMenuBehaviorValue,
+    pub mention_limit: usize,
+    pub mention_behavior: MentionBehaviorValue,
     #[schemars(range(min = 0))]
-    pub mention_walk_depth: usize,
+    pub mention_depth: usize,
     pub transcript_spacing: TranscriptSpacingValue,
     pub status_indicator: StatusIndicatorValue,
     pub synchronized_output: SynchronizedOutputValue,
@@ -110,7 +110,6 @@ pub struct ConfigUiApplyOutcome {
 #[cfg(feature = "web")]
 #[derive(Debug)]
 pub struct WebConfigSession {
-    #[allow(dead_code)]
     task: tokio::task::JoinHandle<()>,
     pub receiver: tokio::sync::mpsc::UnboundedReceiver<WebConfigSessionEvent>,
     pub addr: SocketAddr,
@@ -119,7 +118,6 @@ pub struct WebConfigSession {
 #[cfg(not(feature = "web"))]
 #[derive(Debug)]
 pub struct WebConfigSession {
-    #[allow(dead_code)]
     pub receiver: tokio::sync::mpsc::UnboundedReceiver<WebConfigSessionEvent>,
 }
 
@@ -185,14 +183,14 @@ pub enum ComposerDensityValue {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum ComposerVimModeValue {
+pub enum VimModeValue {
     Normal,
     Vim,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum MentionMenuBehaviorValue {
+pub enum MentionBehaviorValue {
     Fuzzy,
     Browser,
 }
@@ -322,15 +320,15 @@ pub fn build_document(app: &App, config: &Config) -> Result<ConfigUiDocument> {
             bracketed_paste: settings.bracketed_paste,
             composer_density: settings.composer_density.as_str().into(),
             composer_border: settings.composer_border,
-            composer_vim_mode: settings.composer_vim_mode.as_str().into(),
-            mention_menu_limit: settings.mention_menu_limit,
-            mention_menu_behavior: settings.mention_menu_behavior.as_str().into(),
-            mention_walk_depth: settings.mention_walk_depth,
+            vim_mode: settings.vim_mode.as_str().into(),
+            mention_limit: settings.mention_limit,
+            mention_behavior: settings.mention_behavior.as_str().into(),
+            mention_depth: settings.mention_depth,
             transcript_spacing: settings.transcript_spacing.as_str().into(),
             status_indicator: settings.status_indicator.as_str().into(),
             synchronized_output: settings.synchronized_output.as_str().into(),
             default_mode: settings.default_mode.as_str().into(),
-            sidebar_width: settings.sidebar_width_percent,
+            sidebar_width: settings.sidebar_width,
             sidebar_focus: settings.sidebar_focus.as_str().into(),
             context_panel: settings.context_panel,
             max_history: settings.max_input_history,
@@ -499,22 +497,13 @@ pub fn apply_document(
             doc.settings.composer_density.as_setting(),
         ),
         ("composer_border", bool_str(doc.settings.composer_border)),
+        ("vim_mode", doc.settings.vim_mode.as_setting()),
+        ("mention_limit", &doc.settings.mention_limit.to_string()),
         (
-            "composer_vim_mode",
-            doc.settings.composer_vim_mode.as_setting(),
+            "mention_behavior",
+            doc.settings.mention_behavior.as_setting(),
         ),
-        (
-            "mention_menu_limit",
-            &doc.settings.mention_menu_limit.to_string(),
-        ),
-        (
-            "mention_menu_behavior",
-            doc.settings.mention_menu_behavior.as_setting(),
-        ),
-        (
-            "mention_walk_depth",
-            &doc.settings.mention_walk_depth.to_string(),
-        ),
+        ("mention_depth", &doc.settings.mention_depth.to_string()),
         (
             "transcript_spacing",
             doc.settings.transcript_spacing.as_setting(),
@@ -768,7 +757,7 @@ impl ComposerDensityValue {
     }
 }
 
-impl ComposerVimModeValue {
+impl VimModeValue {
     fn as_setting(self) -> &'static str {
         match self {
             Self::Normal => "normal",
@@ -777,7 +766,7 @@ impl ComposerVimModeValue {
     }
 }
 
-impl From<&str> for ComposerVimModeValue {
+impl From<&str> for VimModeValue {
     fn from(value: &str) -> Self {
         match value.trim().to_ascii_lowercase().as_str() {
             "vim" => Self::Vim,
@@ -786,7 +775,7 @@ impl From<&str> for ComposerVimModeValue {
     }
 }
 
-impl MentionMenuBehaviorValue {
+impl MentionBehaviorValue {
     fn as_setting(self) -> &'static str {
         match self {
             Self::Fuzzy => "fuzzy",
@@ -795,7 +784,7 @@ impl MentionMenuBehaviorValue {
     }
 }
 
-impl From<&str> for MentionMenuBehaviorValue {
+impl From<&str> for MentionBehaviorValue {
     fn from(value: &str) -> Self {
         match value.trim().to_ascii_lowercase().as_str() {
             "browser" => Self::Browser,

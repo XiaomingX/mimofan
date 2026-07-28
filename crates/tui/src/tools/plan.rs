@@ -24,7 +24,6 @@ pub enum StepStatus {
 }
 
 impl StepStatus {
-    #[allow(dead_code)]
     #[must_use]
     pub fn from_str(value: &str) -> Option<Self> {
         match value.trim().to_lowercase().as_str() {
@@ -35,7 +34,6 @@ impl StepStatus {
         }
     }
 
-    #[allow(dead_code)]
     #[must_use]
     pub fn symbol(&self) -> &'static str {
         match self {
@@ -402,7 +400,6 @@ fn clean_list(values: Vec<String>) -> Vec<String> {
 
 /// Validation result for plan transitions
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum PlanValidation {
     Ok,
     Warning(String),
@@ -410,7 +407,6 @@ pub enum PlanValidation {
 }
 
 /// Validate a plan update
-#[allow(dead_code)]
 pub fn validate_plan_update(current: &PlanState, update: &UpdatePlanArgs) -> PlanValidation {
     let current_steps: std::collections::HashMap<_, _> = current
         .steps()

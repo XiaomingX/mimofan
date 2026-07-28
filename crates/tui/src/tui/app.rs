@@ -406,7 +406,6 @@ impl SidebarFocus {
     }
 
     #[must_use]
-    #[allow(dead_code)]
     pub fn as_setting(self) -> &'static str {
         match self {
             Self::Auto => "auto",
@@ -987,7 +986,6 @@ impl AppMode {
         )
     }
 
-    #[allow(dead_code)]
     /// Description shown in help or onboarding text.
     pub fn description(self) -> &'static str {
         match self {
@@ -1035,15 +1033,10 @@ pub struct TuiOptions {
     pub use_bracketed_paste: bool,
     /// Maximum number of concurrent sub-agents.
     pub max_subagents: usize,
-    #[allow(dead_code)]
     pub skills_dir: PathBuf,
-    #[allow(dead_code)]
     pub memory_path: PathBuf,
-    #[allow(dead_code)]
     pub notes_path: PathBuf,
-    #[allow(dead_code)]
     pub mcp_config_path: PathBuf,
-    #[allow(dead_code)]
     pub use_memory: bool,
     /// Start in agent mode (defaults to agent; --yolo starts in YOLO)
     pub start_in_agent_mode: bool,
@@ -1100,7 +1093,6 @@ struct ModeSessionPrefs {
 /// booleans without a type migration.
 #[derive(Debug, Clone, Copy)]
 struct EffectiveModePolicy {
-    #[allow(dead_code)]
     mode: AppMode,
     allow_shell: bool,
     trust_mode: bool,
@@ -1524,7 +1516,6 @@ pub(crate) struct PendingProviderSwitch {
 pub struct App {
     pub mode: AppMode,
     /// Registered hotbar actions available for future slot config/render layers.
-    #[allow(dead_code)]
     pub hotbar_actions: HotbarActionRegistry,
     /// Composer sub-state (input, cursor, history, menus).
     pub composer: ComposerState,
@@ -1662,7 +1653,6 @@ pub struct App {
     /// fast typing or IME commits could otherwise be mis-classified as a
     /// paste burst (#1322 follow-up).
     pub bracketed_paste_seen: bool,
-    #[allow(dead_code)]
     pub system_prompt: Option<SystemPrompt>,
     pub auto_compact: bool,
     pub auto_compact_user_configured: bool,
@@ -1671,7 +1661,6 @@ pub struct App {
     pub low_motion: bool,
     /// Pending #61 (animated working strip). Set from config but not read
     /// until the footer widget consumes it.
-    #[allow(dead_code)]
     pub fancy_animations: bool,
     /// Whether the renderer should wrap each frame in DEC mode 2026
     /// synchronized output. Resolved from `Settings::synchronized_output`
@@ -1702,7 +1691,7 @@ pub struct App {
     /// Toggled by `/voice-control`.
     pub voice_control_enabled: bool,
     pub transcript_spacing: TranscriptSpacing,
-    pub sidebar_width_percent: u16,
+    pub sidebar_width: u16,
     pub sidebar_focus: SidebarFocus,
     /// Sidebar hover state for mouse tooltip support.
     pub sidebar_hover: SidebarHoverState,
@@ -1745,7 +1734,6 @@ pub struct App {
     /// Whether the file-tree pane was actually rendered in the last frame.
     /// Set false when the terminal is too narrow to show the tree.
     pub file_tree_visible: bool,
-    #[allow(dead_code)]
     pub compact_threshold: usize,
     pub max_input_history: usize,
     pub allow_shell: bool,
@@ -1801,7 +1789,6 @@ pub struct App {
     pub api_key_cursor: usize,
     // Hooks system
     pub hooks: HookExecutor,
-    #[allow(dead_code)]
     pub yolo: bool,
     /// Durable Agent-era permission baseline that Plan/YOLO derive from and
     /// restore to (#3386). Refreshed from the live fields whenever the user
@@ -1835,12 +1822,11 @@ pub struct App {
     /// remaining English output before it reaches the user.
     pub translation_enabled: bool,
     /// Ordered list of footer items the user wants visible. Sourced from
-    /// `tui.status_items` in `~/.mimofanfan/config.toml` at startup; mutated
+    /// `tui.status_items` in `~/.mimofan/config.toml` at startup; mutated
     /// live by `/statusline`. The renderer iterates this slice; no item is
     /// hardcoded in the footer code path.
     pub status_items: Vec<crate::config::StatusItem>,
     /// Project documentation (AGENTS.md or CLAUDE.md)
-    #[allow(dead_code)]
     pub project_doc: Option<String>,
     /// Plan state for tracking tasks
     pub plan_state: SharedPlanState,
@@ -2100,11 +2086,9 @@ pub enum SubmitDisposition {
     /// Park on `queued_messages` (offline, or engine busy — #382).
     Queue,
     /// Explicit steer via Ctrl+Enter (#382). Not returned by `decide_submit_disposition`.
-    #[allow(dead_code)]
     Steer,
     /// Park on `queued_messages` for dispatch after TurnComplete.
     /// Legacy path; #382 unified busy states under `Queue`.
-    #[allow(dead_code)]
     QueueFollowUp,
 }
 
@@ -2145,7 +2129,6 @@ impl QueuedMessage {
         }
     }
 
-    #[allow(dead_code)] // Tests and queue helpers use the display-only form; send path resolves @mentions.
     pub fn content(&self) -> String {
         if let Some(skill_instruction) = self.skill_instruction.as_ref() {
             format!(
@@ -2343,11 +2326,11 @@ impl App {
         let composer_density = ComposerDensity::from_setting(&settings.composer_density);
         let composer_border = settings.composer_border;
         let composer_vim_enabled = settings
-            .composer_vim_mode
+            .vim_mode
             .trim()
             .eq_ignore_ascii_case("vim");
         let transcript_spacing = TranscriptSpacing::from_setting(&settings.transcript_spacing);
-        let sidebar_width_percent = settings.sidebar_width_percent;
+        let sidebar_width = settings.sidebar_width;
         let sidebar_focus = SidebarFocus::from_setting(&settings.sidebar_focus);
         let max_input_history = settings.max_input_history;
         let use_paste_burst_detection = settings.paste_burst_detection;
@@ -2586,7 +2569,7 @@ impl App {
             voice_send_enabled: false,
             voice_control_enabled: false,
             transcript_spacing,
-            sidebar_width_percent,
+            sidebar_width,
             sidebar_focus,
             sidebar_hover: SidebarHoverState::default(),
             sidebar_hover_tooltip: None,
@@ -2915,7 +2898,6 @@ impl App {
     }
 
     /// Cycle through modes in reverse.
-    #[allow(dead_code)]
     pub fn cycle_mode_reverse(&mut self) {
         if self.reject_setting_change_while_busy("Mode") {
             return;
@@ -2995,7 +2977,6 @@ impl App {
 
     /// Add `delta` to the parent-turn session cost and bump the displayed
     /// high-water mark so the footer total never reverses (#244).
-    #[allow(dead_code)]
     pub fn accrue_session_cost(&mut self, delta: f64) {
         self.accrue_session_cost_estimate(CostEstimate::usd_only(delta));
     }
@@ -3009,7 +2990,6 @@ impl App {
 
     /// Add `delta` to the running sub-agent cost and bump the displayed
     /// high-water mark so the footer total never reverses (#244).
-    #[allow(dead_code)]
     pub fn accrue_subagent_cost(&mut self, delta: f64) {
         self.accrue_subagent_cost_estimate(CostEstimate::usd_only(delta));
     }
@@ -3051,7 +3031,6 @@ impl App {
     /// Read the visible session+sub-agent cost. Guaranteed monotonic across
     /// reconciliation events (cache adjustments, provisional → final swaps)
     /// for the lifetime of one session (#244).
-    #[allow(dead_code)]
     pub fn displayed_session_cost(&self) -> f64 {
         self.displayed_session_cost_for_currency(CostCurrency::Usd)
     }
@@ -3463,7 +3442,6 @@ impl App {
     /// Total number of cells in the *virtual* transcript: `history.len()`
     /// plus active cell entries (if any).
     #[must_use]
-    #[allow(dead_code)] // Reserved for renderers that need a unified cell count.
     pub fn virtual_cell_count(&self) -> usize {
         self.history.len() + self.active_cell.as_ref().map_or(0, ActiveCell::entry_count)
     }
@@ -3472,7 +3450,6 @@ impl App {
     /// transcript. Used by `register_tool_cell`-style callsites that record
     /// cell-index metadata before the active cell flushes to history.
     #[must_use]
-    #[allow(dead_code)] // Reserved for the eventual merged push helper.
     pub fn next_virtual_cell_index(&self) -> usize {
         self.virtual_cell_count()
     }
@@ -3489,7 +3466,6 @@ impl App {
     /// active-cell entry. Used by the pager / details lookup code so it can
     /// transparently address still-in-flight cells.
     #[must_use]
-    #[allow(dead_code)] // Used by the upcoming pager rewrite (read-only resolver).
     pub fn cell_at_virtual_index(&self, index: usize) -> Option<&HistoryCell> {
         if index < self.history.len() {
             self.history.get(index)
@@ -5353,7 +5329,6 @@ impl App {
 
     /// Park a legacy pending steer. New keyboard handling routes running-turn
     /// drafts through Enter (same-turn steer) or Tab (next-turn follow-up).
-    #[allow(dead_code)]
     pub fn push_pending_steer(&mut self, message: QueuedMessage) {
         self.pending_steers.push_back(message);
         self.submit_pending_steers_after_interrupt = true;
@@ -5762,9 +5737,7 @@ pub fn media_attachment_reference(kind: &str, path: &Path, description: Option<&
 #[derive(Debug, Clone, PartialEq)]
 pub enum AppAction {
     Quit,
-    #[allow(dead_code)] // For explicit /save command
     SaveSession(PathBuf),
-    #[allow(dead_code)] // For explicit /load command
     LoadSession(PathBuf),
     SyncSession {
         session_id: Option<String>,

@@ -277,8 +277,8 @@ pub struct StateStore {
 impl StateStore {
     /// Open (or create) a state store at the given database path.
     ///
-    /// If `path` is `None`, the default location (`~/.mimofanfan/state.db`, with
-    /// `~/.mimofanfan/state.db` as a legacy fallback) is used.
+    /// If `path` is `None`, the default location (`~/.mimofan/state.db`, with
+    /// `~/.mimofan/state.db` as a legacy fallback) is used.
     /// The database schema is created automatically if it does not exist.
     pub fn open(path: Option<PathBuf>) -> Result<Self> {
         let db_path = path.unwrap_or_else(default_state_db_path);
@@ -1587,9 +1587,9 @@ impl StateStore {
 fn default_state_db_path() -> PathBuf {
     // $MIMOFAN_HOME is a hard override of the base data directory
     // (docs/CONFIGURATION.md): when set, the state DB lives under it and we do
-    // NOT fall back to the legacy ~/.mimofanfan path — silent fallback would
+    // NOT fall back to the legacy ~/.mimofan path — silent fallback would
     // defeat the isolation the override promises (CI, containers, multi-project,
-    // test harnesses). Legacy ~/.mimofanfan migration only applies to the default
+    // test harnesses). Legacy ~/.mimofan migration only applies to the default
     // home location.
     if let Some(overridden) = mimofan_home_override() {
         return overridden.join("state.db");
@@ -2114,7 +2114,7 @@ mod tests {
         ));
         let _g = mimofanHomeGuard::set(dir.to_str().unwrap());
         // Hard override: the DB is <MIMOFAN_HOME>/state.db, NOT
-        // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.mimofanfan
+        // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.mimofan
         // fallback is bypassed entirely.
         assert_eq!(default_state_db_path(), dir.join("state.db"));
     }

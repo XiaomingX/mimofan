@@ -91,18 +91,13 @@ pub struct SeamMetadata {
     pub level: u8,
     /// Message range covered (inclusive-exclusive indices).
     /// Reserved for future diagnostic use.
-    #[allow(dead_code)]
     pub start_idx: usize,
-    #[allow(dead_code)]
     pub end_idx: usize,
     /// Approximate token count of the summary.
-    #[allow(dead_code)]
     pub token_estimate: usize,
     /// When the seam was produced.
-    #[allow(dead_code)]
     pub timestamp: DateTime<Utc>,
     /// Model that produced it.
-    #[allow(dead_code)]
     pub model: String,
 }
 

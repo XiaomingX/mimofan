@@ -339,7 +339,6 @@ pub struct SandboxManager {
     sandbox_available: Option<bool>,
 
     /// Force a specific sandbox type (for testing).
-    #[allow(dead_code)]
     forced_sandbox: Option<SandboxType>,
 
     /// When true and bwrap is available on Linux, route commands through

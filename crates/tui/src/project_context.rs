@@ -124,7 +124,6 @@ pub struct ProjectContext {
     /// the cross-agent prose in `instructions`.
     pub constitution_block: Option<String>,
     /// Project root directory
-    #[allow(dead_code)] // Part of ProjectContext public interface
     pub project_root: PathBuf,
     /// Whether this is a trusted project
     pub is_trusted: bool,
@@ -857,9 +856,9 @@ fn load_global_agents_context(workspace: &Path, home_dir: Option<&Path>) -> Opti
     let home = home_dir?;
 
     // Priority order (AGENTS.md preferred; instructions.md next, #3012):
-    // 1. ~/.mimofanfan/AGENTS.md       (canonical)
+    // 1. ~/.mimofan/AGENTS.md       (canonical)
     // 2. ~/.agents/AGENTS.md          (vendor-neutral fallback)
-    // 3. ~/.mimofanfan/instructions.md (canonical)
+    // 3. ~/.mimofan/instructions.md (canonical)
     // 4. ~/.agents/instructions.md    (vendor-neutral fallback)
     let mut warnings = Vec::new();
 
@@ -1066,7 +1065,6 @@ Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore
 }
 
 /// Merge multiple project contexts (e.g., from nested directories)
-#[allow(dead_code)] // Public API for monorepo context merging
 pub fn merge_contexts(contexts: &[ProjectContext]) -> Option<String> {
     let non_empty: Vec<_> = contexts
         .iter()

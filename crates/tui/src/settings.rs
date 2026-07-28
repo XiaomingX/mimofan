@@ -1,6 +1,6 @@
 //! Settings system - Persistent user preferences
 //!
-//! Settings are stored at ~/.mimofanfan/settings.json.
+//! Settings are stored at ~/.mimofan/settings.json.
 //!
 //! TUI-specific preferences (theme, keybinds, font_size) that survive project
 //! switches are stored separately in tui.json. See [`TuiPrefs`].
@@ -18,16 +18,16 @@ const SETTINGS_FILE_NAME: &str = "settings.json";
 const TUI_PREFS_FILE_NAME: &str = "tui.json";
 
 // ============================================================================
-// TuiPrefs — ~/.mimofanfan/tui.json
+// TuiPrefs — ~/.mimofan/tui.json
 // ============================================================================
 
 /// TUI-specific preferences that are decoupled from agent/project config so
 /// they survive project switches (issue #437).
 ///
-/// Stored at `~/.mimofanfan/tui.json`. When the file is
+/// Stored at `~/.mimofan/tui.json`. When the file is
 /// absent the values fall back to the struct's own defaults.
 ///
-/// # Example `~/.mimofanfan/tui.json`
+/// # Example `~/.mimofan/tui.json`
 ///
 /// ```json
 /// {
@@ -41,9 +41,7 @@ const TUI_PREFS_FILE_NAME: &str = "tui.json";
 /// ```
 //
 // NOTE: the loader is defined but not yet called from startup — wiring is
-// deferred to a later settings pass (#657). The `#[allow(dead_code)]` suppresses the CI
 // `-D warnings` failure until the call site lands.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TuiPrefs {
@@ -69,7 +67,6 @@ impl Default for TuiPrefs {
 }
 
 /// Per-action keybinding overrides stored inside [`TuiPrefs`].
-#[allow(dead_code)] // see TuiPrefs note above; deferred to a later settings pass (#657).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct KeybindPrefs {
@@ -90,14 +87,13 @@ pub struct KeybindPrefs {
     pub toggle_sidebar: Option<String>,
 }
 
-#[allow(dead_code)] // see TuiPrefs note above; deferred to a later settings pass (#657).
 impl TuiPrefs {
     /// Return the canonical path of the TUI preferences file:
-    /// `~/.mimofanfan/tui.json`.
+    /// `~/.mimofan/tui.json`.
     ///
     /// Tests may override the home directory through the
     /// `MIMOFAN_CONFIG_PATH` environment variable (the parent directory of
-    /// the pointed-to config is used instead of `~/.mimofanfan`).
+    /// the pointed-to config is used instead of `~/.mimofan`).
     pub fn path() -> Result<PathBuf> {
         // Honour the same env-var escape hatch used by Settings::path so that
         // integration tests can redirect all config I/O to a temp directory.
@@ -117,7 +113,7 @@ impl TuiPrefs {
             .ok_or_else(|| anyhow::anyhow!("Failed to resolve tui preferences path: no home directory found."))
     }
 
-    /// Load TUI preferences from `~/.mimofanfan/tui.json`.
+    /// Load TUI preferences from `~/.mimofan/tui.json`.
     ///
     /// If the file does not exist the struct defaults are returned — no error
     /// is produced. Parse errors surface as `Err` so the caller can warn the
@@ -139,7 +135,7 @@ impl TuiPrefs {
         Ok(prefs)
     }
 
-    /// Save TUI preferences to `~/.mimofanfan/tui.json`, creating the target
+    /// Save TUI preferences to `~/.mimofan/tui.json`, creating the target
     /// directory if needed.
     pub fn save(&self) -> Result<()> {
         let path = Self::path()?;
@@ -179,161 +175,94 @@ pub struct Settings {
     pub auto_compact: bool,
     /// Context-window percentage that triggers pre-send auto-compaction when
     /// `auto_compact` is enabled. The hard token floor still applies.
-    pub auto_compact_threshold_percent: f64,
-    /// Reduce status noise and collapse details more aggressively
+    pub compact_threshold: f64,
+    /// Reduce status noise and collapse details more aggressively.
     pub calm_mode: bool,
     /// Dense tool-run collapse mode: compact, expanded, or calm.
-    pub tool_collapse_mode: String,
+    pub tool_collapse: String,
     /// Streaming pacing mode. `true` pins the chunker to one-character-per-
-    /// commit-tick (typewriter); `false` drains the upstream cadence (each
-    /// commit flushes everything queued, which matches V4-pro's burst pattern
-    /// when the prefix cache is warm). Has no effect on the footer water-spout
-    /// animation — that is gated independently by [`Self::fancy_animations`].
+    /// commit-tick (typewriter); `false` drains the upstream cadence.
     pub low_motion: bool,
-    /// Enable the footer water-spout animation strip during live turns. The
-    /// strip's wave cadence is synchronized with the character-commit rate, so
-    /// the visual flow matches whatever streaming pacing [`Self::low_motion`]
-    /// selects: typewriter mode drips, upstream mode surges, tool calls /
-    /// planning pauses freeze the surface. Set `false` to keep the gap as
-    /// plain whitespace.
+    /// Enable the footer water-spout animation strip during live turns.
     pub fancy_animations: bool,
-    /// Enable terminal bracketed-paste mode. Default true. Disable if your
-    /// terminal mishandles the `\e[?2004h` escape (rare; some legacy
-    /// terminals over SSH+screen multiplex without the cap).
+    /// Enable terminal bracketed-paste mode. Default true.
     pub bracketed_paste: bool,
     /// Enable rapid-key paste-burst detection for terminals that do not emit
-    /// bracketed-paste events. Independent from `bracketed_paste`.
+    /// bracketed-paste events.
     pub paste_burst_detection: bool,
-    /// Maximum number of file-mention popup candidates retained before the
-    /// composer renders its visible window. The widget paginates by terminal
-    /// height, so this is a data-side cap rather than a visible-row budget.
-    pub mention_menu_limit: usize,
+    /// Maximum number of file-mention popup candidates.
+    pub mention_limit: usize,
     /// Maximum workspace depth for `@`-mention completion walks. `0` means
-    /// unlimited depth; use with care in very large repositories.
-    pub mention_walk_depth: usize,
-    /// `@`-mention completion behavior: fuzzy workspace search or deterministic
-    /// directory browser.
-    pub mention_menu_behavior: String,
-    /// Show thinking blocks from the model
+    /// unlimited depth.
+    pub mention_depth: usize,
+    /// `@`-mention completion behavior: fuzzy or directory.
+    pub mention_behavior: String,
+    /// Show thinking blocks from the model.
     pub show_thinking: bool,
-    /// Show detailed tool output
+    /// Show detailed tool output.
     pub show_tool_details: bool,
-    /// UI locale: auto, en, ja, zh-Hans, pt-BR, es-419
+    /// UI locale: auto, en, ja, zh-Hans, pt-BR, es-419.
     pub locale: String,
-    /// Named UI theme. Accepts `"system"` (follow terminal background),
-    /// `"dark"`, `"light"`, `"grayscale"`, or one of the community
-    /// presets: `"catppuccin-mocha"`, `"tokyo-night"`, `"dracula"`,
-    /// `"gruvbox-dark"`. The `background_color` setting still overrides the
-    /// surface color on top of the resolved theme.
+    /// Named UI theme: system, dark, light, grayscale, catppuccin-mocha,
+    /// tokyo-night, dracula, gruvbox-dark.
     pub theme: String,
     /// Optional main TUI background color as a 6-digit hex RGB value.
     pub background_color: Option<String>,
-    /// Composer layout density: compact, comfortable, spacious
+    /// Composer layout density: compact, comfortable, spacious.
     pub composer_density: String,
-    /// Show a border around the composer input area
+    /// Show a border around the composer input area.
     pub composer_border: bool,
-    /// Composer editing mode: "normal" (default) or "vim" for modal editing.
-    /// When set to "vim" the composer starts in Normal mode; press i/a/o to
-    /// enter Insert mode and Esc to return to Normal.
-    pub composer_vim_mode: String,
-    /// Transcript spacing rhythm: compact, comfortable, spacious
+    /// Composer editing mode: normal or vim.
+    pub vim_mode: String,
+    /// Transcript spacing rhythm: compact, comfortable, spacious.
     pub transcript_spacing: String,
-    /// Default mode: "agent", "plan", "yolo"
+    /// Default mode: agent, plan, yolo.
     pub default_mode: String,
-    /// Sidebar width as percentage of terminal width
-    pub sidebar_width_percent: u16,
-    /// Sidebar focus mode: pinned, auto, tasks, agents, context, hidden
+    /// Sidebar width as percentage of terminal width (10-50).
+    pub sidebar_width: u16,
+    /// Sidebar focus mode: pinned, auto, tasks, agents, context, hidden.
     pub sidebar_focus: String,
-    /// Migration marker for users who explicitly opt into idle auto-collapse.
+    /// Allow idle auto-collapse of sidebar.
     #[serde(default, skip_serializing_if = "is_false")]
-    pub sidebar_auto_collapse_opt_in: bool,
-    /// Enable the session-context panel (#504). Shows working set, tokens,
-    /// cost, MCP/LSP status, cycle count, and memory info.
+    pub sidebar_collapse: bool,
+    /// Enable the session-context panel.
     pub context_panel: bool,
     /// Cost display currency: usd or cny.
     pub cost_currency: String,
-    /// Maximum number of input history entries to save
+    /// Maximum number of input history entries to save.
     pub max_input_history: usize,
     /// Default provider override (e.g. "deepseek", "openai").
     pub default_provider: Option<String>,
-    /// Default model to use
+    /// Default model to use.
     pub default_model: Option<String>,
     /// Default reasoning effort selected from the TUI model picker.
-    /// `None` falls back to `config.toml` and then the runtime default.
     pub reasoning_effort: Option<String>,
-    /// Per-provider model overrides. Key is provider name (e.g. "openai"),
-    /// value is the model id. Takes precedence over `default_model`.
+    /// Per-provider model overrides. Key is provider name, value is model id.
     pub provider_models: Option<std::collections::HashMap<String, String>>,
-    /// Header status indicator next to the effort chip. Cycles through a
-    /// per-turn animation keyed off `App::turn_started_at`:
-    /// - `"whale"` (default): historical `🐳 → 🐋` 12-frame sequence
-    ///   originally shipped in v0.3.5, removed in v0.8.x's "smoother TUI
-    ///   streaming" pass, restored in v0.8.30. Idle frame is a steady `🐳`.
-    /// - `"dots"`: the 6-frame geometric sequence (`◍ ◉ ◌ ◌ ◉ ◍`) that
-    ///   replaced the whale during the dots era.
-    /// - `"off"`: hide the indicator entirely.
+    /// Header status indicator: whale, dots, or off.
     pub status_indicator: String,
-    /// Whether to wrap each draw in DEC mode 2026 synchronized output
-    /// (`\x1b[?2026h` … `\x1b[?2026l`). Synchronized output asks the
-    /// terminal to defer rendering until the whole frame is staged so
-    /// GPU-accelerated terminals (Ghostty, VS Code, Kitty, WezTerm)
-    /// don't flash a blank intermediate frame.
-    ///
-    /// - `"auto"` (default): emit DEC 2026 unless an environment signal
-    ///   says the active terminal mishandles it (currently Ptyxis 50.x
-    ///   on VTE 0.84.x — see [`Settings::apply_env_overrides`]).
-    /// - `"on"`: always emit DEC 2026 (override the auto opt-out).
-    /// - `"off"`: never emit DEC 2026. Use this if your terminal flashes
-    ///   the whole screen on every redraw — most often Ptyxis on
-    ///   Ubuntu 26.04 today; historically also some legacy ssh+screen
-    ///   stacks. The cost of `off` is brief tearing on terminals that
-    ///   *do* support DEC 2026; it is purely a rendering-quality knob,
-    ///   not a correctness one.
+    /// Synchronized output mode: auto, on, or off.
     pub synchronized_output: String,
-    /// Prefer the external `pdftotext` binary (Poppler) over the bundled
-    /// pure-Rust `pdf-extract` extractor for PDF reads in `read_file`.
-    /// Pure-Rust extraction is the v0.8.32 default because it removes the
-    /// install-poppler-first hurdle most users hit, but `pdftotext -layout`
-    /// still wins for column-heavy or complex-table PDFs (academic papers
-    /// laid out in two columns, financial filings, etc.). Set to `true` to
-    /// route every PDF read through `pdftotext` instead — when the binary
-    /// is missing in that mode the tool returns the structured
-    /// `binary_unavailable` response with an install hint, matching the
-    /// pre-v0.8.32 behavior.
+    /// Prefer external pdftotext over pure-Rust extractor for PDF reads.
     pub prefer_external_pdftotext: bool,
-    /// Follow symbolic links during workspace file discovery walks (`@`-mention
-    /// completion, fuzzy resolve, and the file-index builder). When `false`
-    /// (default) symlinked directories are skipped, which keeps walks fast and
-    /// avoids accidentally traversing into system paths. Set to `true` to
-    /// support symlink-based multi-project workspaces where several project
-    /// directories are symlinked into a single hub directory.
-    ///
-    /// **Note**: The walker has built-in cycle detection that skips already-
-    /// visited real paths, so symlink loops (A→B→A) will not cause infinite
-    /// recursion. However, enabling this on workspaces with symlinks that
-    /// point to large directory trees (e.g. `/usr`, home directories) can
-    /// significantly increase first-turn latency and memory usage.
+    /// Follow symbolic links during workspace file discovery walks.
     pub workspace_follow_symlinks: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            // Keep the persisted fallback `false`; startup code enables
-            // auto-compaction by known model window when the user has not saved
-            // an explicit preference. This preserves an explicit opt-out while
-            // making long-session continuity the default runtime behavior.
             auto_compact: false,
-            auto_compact_threshold_percent: 80.0,
+            compact_threshold: 80.0,
             calm_mode: false,
-            tool_collapse_mode: "compact".to_string(),
+            tool_collapse: "compact".to_string(),
             low_motion: false,
             fancy_animations: true,
             bracketed_paste: true,
             paste_burst_detection: true,
-            mention_menu_limit: 128,
-            mention_walk_depth: 10,
-            mention_menu_behavior: "fuzzy".to_string(),
+            mention_limit: 128,
+            mention_depth: 10,
+            mention_behavior: "fuzzy".to_string(),
             show_thinking: true,
             show_tool_details: true,
             locale: "auto".to_string(),
@@ -341,12 +270,12 @@ impl Default for Settings {
             background_color: None,
             composer_density: "comfortable".to_string(),
             composer_border: true,
-            composer_vim_mode: "normal".to_string(),
+            vim_mode: "normal".to_string(),
             transcript_spacing: "comfortable".to_string(),
             default_mode: "agent".to_string(),
-            sidebar_width_percent: 28,
+            sidebar_width: 28,
             sidebar_focus: "pinned".to_string(),
-            sidebar_auto_collapse_opt_in: false,
+            sidebar_collapse: false,
             context_panel: false,
             cost_currency: "usd".to_string(),
             max_input_history: 100,
@@ -391,7 +320,7 @@ pub fn preset_fields(name: &str) -> Option<&'static [(&'static str, &'static str
 impl Settings {
     /// Get the canonical settings file path.
     ///
-    /// Settings are stored at `~/.mimofanfan/settings.json`.
+    /// Settings are stored at `~/.mimofan/settings.json`.
     pub fn path() -> Result<PathBuf> {
         settings_path().ok_or_else(|| {
             anyhow::anyhow!("Failed to resolve settings path: no config directory found.")
@@ -419,14 +348,9 @@ impl Settings {
         s.default_mode = normalize_mode(&s.default_mode).to_string();
         s.composer_density = normalize_composer_density(&s.composer_density).to_string();
         s.transcript_spacing = normalize_transcript_spacing(&s.transcript_spacing).to_string();
-        s.tool_collapse_mode = normalize_tool_collapse_mode(&s.tool_collapse_mode).to_string();
+        s.tool_collapse = normalize_tool_collapse_mode(&s.tool_collapse).to_string();
         s.sidebar_focus = normalize_sidebar_focus(&s.sidebar_focus).to_string();
-        if s.sidebar_focus == "auto" && !s.sidebar_auto_collapse_opt_in {
-            // v0.8.62 wrote the surprising auto-collapse default into many
-            // full settings files. Treat unmarked saved "auto" as that
-            // legacy default so upgraded users get the sidebar back, while
-            // `/sidebar auto --save` and `/set sidebar_focus auto` below
-            // preserve an explicit opt-in from this release onward (#3328).
+        if s.sidebar_focus == "auto" && !s.sidebar_collapse {
             s.sidebar_focus = "pinned".to_string();
         }
         s.status_indicator = normalize_status_indicator(&s.status_indicator).to_string();
@@ -576,7 +500,7 @@ impl Settings {
     /// Update and persist sidebar width percentage (10-50) — used by the
     /// drag-to-resize handle in the TUI.
     pub fn update_sidebar_width(&mut self, percent: u16) {
-        self.sidebar_width_percent = percent.clamp(10, 50);
+        self.sidebar_width = percent.clamp(10, 50);
     }
 
     /// Set a single setting by key
@@ -585,21 +509,20 @@ impl Settings {
             "auto_compact" | "compact" => {
                 self.auto_compact = parse_bool(value)?;
             }
-            "auto_compact_threshold" | "auto_compact_threshold_percent" => {
-                self.auto_compact_threshold_percent =
-                    parse_percent_setting("auto_compact_threshold_percent", value)?;
+            "compact_threshold" => {
+                self.compact_threshold = parse_percent_setting("compact_threshold", value)?;
             }
             "calm_mode" | "calm" => {
                 self.calm_mode = parse_bool(value)?;
             }
-            "tool_collapse" | "tool_collapse_mode" | "collapse" => {
+            "tool_collapse" | "collapse" => {
                 let normalized = normalize_tool_collapse_mode(value);
                 if !matches!(normalized, "compact" | "expanded" | "calm") {
                     return Err(anyhow::anyhow!(
-                        "Failed to update setting: invalid tool collapse mode '{value}'. Expected: compact, expanded, or calm."
+                        "Failed to update setting: invalid tool collapse '{value}'. Expected: compact, expanded, or calm."
                     ));
                 }
-                self.tool_collapse_mode = normalized.to_string();
+                self.tool_collapse = normalized.to_string();
             }
             "low_motion" | "motion" => {
                 self.low_motion = parse_bool(value)?;
@@ -613,14 +536,14 @@ impl Settings {
             "paste_burst_detection" | "paste_burst" => {
                 self.paste_burst_detection = parse_bool(value)?;
             }
-            "mention_menu_limit" | "mention_limit" => {
-                self.mention_menu_limit = parse_usize_setting("mention_menu_limit", value)?;
+            "mention_limit" => {
+                self.mention_limit = parse_usize_setting("mention_limit", value)?;
             }
-            "mention_walk_depth" | "mention_depth" | "completions_walk_depth" => {
-                self.mention_walk_depth = parse_usize_setting("mention_walk_depth", value)?;
+            "mention_depth" => {
+                self.mention_depth = parse_usize_setting("mention_depth", value)?;
             }
-            "mention_menu_behavior" | "mention_behavior" | "mention_menu" => {
-                self.mention_menu_behavior = normalize_mention_menu_behavior(value)?;
+            "mention_behavior" => {
+                self.mention_behavior = normalize_mention_menu_behavior(value)?;
             }
             "show_thinking" | "thinking" => {
                 self.show_thinking = parse_bool(value)?;
@@ -644,14 +567,6 @@ impl Settings {
                 };
                 self.theme = id.name().to_string();
             }
-            "ui_theme" => {
-                let Some(id) = crate::palette::ThemeId::from_name(value) else {
-                    anyhow::bail!(
-                        "Failed to update setting: invalid theme '{value}'. Expected: system, dark, light, grayscale, catppuccin-mocha, tokyo-night, dracula, gruvbox-dark, solarized-light."
-                    );
-                };
-                self.theme = id.name().to_string();
-            }
             "background_color" | "background" | "bg" => {
                 self.background_color = normalize_background_color_setting(value)?;
             }
@@ -667,14 +582,14 @@ impl Settings {
             "composer_border" | "border" => {
                 self.composer_border = parse_bool(value)?;
             }
-            "composer_vim_mode" | "vim_mode" | "vim" => {
+            "vim_mode" | "vim" => {
                 let normalized = value.trim().to_ascii_lowercase();
                 if !["vim", "normal"].contains(&normalized.as_str()) {
                     anyhow::bail!(
-                        "Failed to update setting: invalid composer vim mode '{value}'. Expected: normal, vim."
+                        "Failed to update setting: invalid vim mode '{value}'. Expected: normal, vim."
                     );
                 }
-                self.composer_vim_mode = normalized;
+                self.vim_mode = normalized;
             }
             "transcript_spacing" | "spacing" => {
                 let normalized = normalize_transcript_spacing(value);
@@ -731,7 +646,7 @@ impl Settings {
                         "Failed to update setting: width must be between 10 and 50 percent."
                     );
                 }
-                self.sidebar_width_percent = width;
+                self.sidebar_width = width;
             }
             "sidebar_focus" | "focus" => {
                 let normalized = match value.trim().to_ascii_lowercase().as_str() {
@@ -748,7 +663,7 @@ impl Settings {
                     }
                 };
                 self.sidebar_focus = normalized.to_string();
-                self.sidebar_auto_collapse_opt_in = normalized == "auto";
+                self.sidebar_collapse = normalized == "auto";
             }
             "context_panel" | "context" | "session_panel" => {
                 self.context_panel = parse_bool(value)?;
@@ -833,12 +748,9 @@ impl Settings {
         lines.push(tr(locale, MessageId::SettingsTitle).to_string());
         lines.push("─────────────────────────────".to_string());
         lines.push(format!("  auto_compact:       {}", self.auto_compact));
-        lines.push(format!(
-            "  auto_compact_pct:   {:.0}",
-            self.auto_compact_threshold_percent
-        ));
+        lines.push(format!("  compact_threshold:  {:.0}", self.compact_threshold));
         lines.push(format!("  calm_mode:          {}", self.calm_mode));
-        lines.push(format!("  tool_collapse:      {}", self.tool_collapse_mode));
+        lines.push(format!("  tool_collapse:      {}", self.tool_collapse));
         lines.push(format!("  low_motion:         {}", self.low_motion));
         lines.push(format!("  fancy_animations:   {}", self.fancy_animations));
         lines.push(format!("  bracketed_paste:    {}", self.bracketed_paste));
@@ -846,15 +758,12 @@ impl Settings {
             "  paste_burst_detect: {}",
             self.paste_burst_detection
         ));
-        lines.push(format!("  mention_menu_limit: {}", self.mention_menu_limit));
-        lines.push(format!("  mention_walk_depth: {}", self.mention_walk_depth));
-        lines.push(format!(
-            "  mention_behavior:   {}",
-            self.mention_menu_behavior
-        ));
+        lines.push(format!("  mention_limit:      {}", self.mention_limit));
+        lines.push(format!("  mention_depth:      {}", self.mention_depth));
+        lines.push(format!("  mention_behavior:   {}", self.mention_behavior));
         lines.push(format!("  show_thinking:      {}", self.show_thinking));
         lines.push(format!("  show_tool_details:  {}", self.show_tool_details));
-        lines.push(format!("  locale:            {}", self.locale));
+        lines.push(format!("  locale:             {}", self.locale));
         lines.push(format!("  theme:              {}", self.theme));
         lines.push(format!(
             "  background_color:   {}",
@@ -862,7 +771,7 @@ impl Settings {
         ));
         lines.push(format!("  composer_density:   {}", self.composer_density));
         lines.push(format!("  composer_border:    {}", self.composer_border));
-        lines.push(format!("  composer_vim_mode:  {}", self.composer_vim_mode));
+        lines.push(format!("  vim_mode:           {}", self.vim_mode));
         lines.push(format!("  transcript_spacing: {}", self.transcript_spacing));
         lines.push(format!("  status_indicator:   {}", self.status_indicator));
         lines.push(format!(
@@ -878,10 +787,7 @@ impl Settings {
             self.workspace_follow_symlinks
         ));
         lines.push(format!("  default_mode:       {}", self.default_mode));
-        lines.push(format!(
-            "  sidebar_width:      {}%",
-            self.sidebar_width_percent
-        ));
+        lines.push(format!("  sidebar_width:      {}%", self.sidebar_width));
         lines.push(format!("  sidebar_focus:      {}", self.sidebar_focus));
         lines.push(format!("  context_panel:      {}", self.context_panel));
         lines.push(format!("  cost_currency:      {}", self.cost_currency));
@@ -906,7 +812,6 @@ impl Settings {
     }
 
     /// Get available setting keys and their descriptions
-    #[allow(dead_code)]
     pub fn available_settings() -> Vec<(&'static str, &'static str)> {
         vec![
             (
@@ -914,7 +819,7 @@ impl Settings {
                 "Auto-compact near the hard context limit: on/off (model-aware default)",
             ),
             (
-                "auto_compact_threshold_percent",
+                "compact_threshold",
                 "Auto-compact trigger threshold percent when auto_compact is on: 10-100 (default 80)",
             ),
             ("calm_mode", "Calmer UI defaults: on/off"),
@@ -939,15 +844,15 @@ impl Settings {
                 "Fallback rapid-key paste detection: on/off",
             ),
             (
-                "mention_menu_limit",
+                "mention_limit",
                 "Maximum @-mention popup candidates retained before rendering (default 128)",
             ),
             (
-                "mention_walk_depth",
+                "mention_depth",
                 "Maximum @-mention workspace walk depth; 0 means unlimited (default 6)",
             ),
             (
-                "mention_menu_behavior",
+                "mention_behavior",
                 "@-mention completion behavior: fuzzy/browser (default fuzzy)",
             ),
             ("show_thinking", "Show model thinking: on/off"),
@@ -976,7 +881,7 @@ impl Settings {
                 "composer_border",
                 "Show a border around the composer input area: on/off",
             ),
-            ("composer_vim_mode", "Composer editing mode: normal, vim"),
+            ("vim_mode", "Composer editing mode: normal, vim"),
             (
                 "transcript_spacing",
                 "Transcript spacing: compact, comfortable, spacious",
@@ -1071,7 +976,6 @@ impl Settings {
 
     /// Load, update, and save a provider/model tuple as the global default
     /// (the explicit "save as default" path).
-    #[allow(dead_code)] // wired to an explicit save-as-default action in a later UX pass (#3227).
     pub fn persist_provider_model_selection_as_default(
         provider: ApiProvider,
         model: &str,

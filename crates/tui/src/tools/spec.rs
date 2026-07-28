@@ -159,12 +159,10 @@ pub struct ToolContext {
     /// Whether to allow paths outside workspace
     pub trust_mode: bool,
     /// Current sandbox policy
-    #[allow(dead_code)]
     pub sandbox_policy: SandboxPolicy,
     /// Path for notes file
     pub notes_path: PathBuf,
     /// MCP configuration path
-    #[allow(dead_code)]
     pub mcp_config_path: PathBuf,
     /// Explicit skills directory used for model-visible skill discovery.
     pub skills_dir: Option<PathBuf>,
@@ -186,7 +184,7 @@ pub struct ToolContext {
     /// Namespace for tool state that should be scoped to the current session/thread.
     pub state_namespace: String,
     /// User-trusted external paths the agent may read/write even when they
-    /// fall outside `workspace`. Loaded from `~/.mimofanfan/workspace-trust.json`
+    /// fall outside `workspace`. Loaded from `~/.mimofan/workspace-trust.json`
     /// and refreshed when the user runs `/trust add <path>`. Distinct from
     /// `trust_mode`, which is the all-or-nothing legacy switch (#29).
     pub trusted_external_paths: Vec<PathBuf>,
@@ -295,7 +293,6 @@ impl ToolContext {
     }
 
     /// Create a `ToolContext` with all settings specified.
-    #[allow(dead_code)]
     pub fn with_options(
         workspace: impl Into<PathBuf>,
         trust_mode: bool,
@@ -448,14 +445,13 @@ impl ToolContext {
 
     /// Attach an external sandbox backend for remote shell execution.
     #[must_use]
-    #[allow(dead_code)]
     pub fn with_sandbox_backend(mut self, backend: std::sync::Arc<dyn SandboxBackend>) -> Self {
         self.sandbox_backend = Some(backend);
         self
     }
 
     /// Set the user's trusted external paths (loaded from
-    /// `~/.mimofanfan/workspace-trust.json`). See [`Self::resolve_path`] for
+    /// `~/.mimofan/workspace-trust.json`). See [`Self::resolve_path`] for
     /// how the list is consulted.
     #[must_use]
     pub fn with_trusted_external_paths(mut self, paths: Vec<PathBuf>) -> Self {
@@ -476,7 +472,6 @@ impl ToolContext {
     /// Attach an LSP manager so that edit tools can auto-inject diagnostics
     /// into their results after a successful file modification (#428).
     #[must_use]
-    #[allow(dead_code)]
     pub fn with_lsp_manager(mut self, manager: Arc<LspManager>) -> Self {
         self.lsp_manager = Some(manager);
         self
@@ -697,7 +692,7 @@ impl ToolContext {
 
         // Validate it's under workspace, OR is under a user-trusted external
         // path (`/trust add <path>` from the slash command, persisted in
-        // `~/.mimofanfan/workspace-trust.json`).
+        // `~/.mimofan/workspace-trust.json`).
         if !canonical.starts_with(workspace_canonical)
             && !canonical.starts_with(&workspace_normalized)
             && !self.is_trusted_external_path(&canonical)
@@ -717,14 +712,12 @@ impl ToolContext {
     }
 
     /// Set the trust mode.
-    #[allow(dead_code)]
     pub fn with_trust_mode(mut self, trust: bool) -> Self {
         self.trust_mode = trust;
         self
     }
 
     /// Set the sandbox policy.
-    #[allow(dead_code)]
     pub fn with_sandbox_policy(mut self, policy: SandboxPolicy) -> Self {
         self.sandbox_policy = policy;
         self
@@ -886,7 +879,6 @@ pub trait ToolSpec: Send + Sync {
     }
 
     /// Returns whether this tool is sandboxable.
-    #[allow(dead_code)]
     fn is_sandboxable(&self) -> bool {
         self.capabilities().contains(&ToolCapability::Sandboxable)
     }

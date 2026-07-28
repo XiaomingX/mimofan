@@ -138,7 +138,6 @@ impl LargeOutputRouter {
     /// registry layer). The method is public so callers outside this crate
     /// can unit-test the prompt shape.
     #[must_use]
-    #[allow(dead_code)] // used by future Flash synthesis call; keep for API stability
     pub fn synthesis_prompt(tool_name: &str, raw_output: &str, estimated_tokens: usize) -> String {
         format!(
             include_str!("../prompts/synthesis_assistant.md"),
@@ -193,7 +192,6 @@ impl WorkshopVariables {
     ///
     /// Called by the `promote_to_context` tool (not yet wired in this PR).
     #[must_use]
-    #[allow(dead_code)] // consumed by promote_to_context tool in follow-up
     pub fn take_raw(&mut self) -> Option<(String, String)> {
         if self.last_tool_result.is_empty() {
             return None;

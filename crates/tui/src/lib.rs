@@ -86,7 +86,6 @@ mod runtime_log;
 mod runtime_threads;
 mod sandbox;
 mod seam_manager;
-#[allow(dead_code)]
 mod session_manager;
 mod settings;
 mod shell_dispatcher;
@@ -943,7 +942,7 @@ enum McpCommand {
     /// For the HTTP/SSE runtime API, use `mimo serve --http` directly instead.
     #[command(
         name = "add-self",
-        long_about = "Register this mimofan binary as a local MCP stdio server.\n\nAdds a config entry to ~/.mimofanfan/mcp.json that launches `mimo serve --mcp`\nvia the stdio transport. Other mimofan sessions (or any MCP client) can then\ndiscover and call tools exposed by this server.\n\nUse `mimo serve --http` instead if you need the HTTP/SSE runtime API."
+        long_about = "Register this mimofan binary as a local MCP stdio server.\n\nAdds a config entry to ~/.mimofan/mcp.json that launches `mimo serve --mcp`\nvia the stdio transport. Other mimofan sessions (or any MCP client) can then\ndiscover and call tools exposed by this server.\n\nUse `mimo serve --http` instead if you need the HTTP/SSE runtime API."
     )]
     AddSelf {
         /// Server name in mcp.json (default: "mimofan")
@@ -1026,7 +1025,7 @@ pub async fn run() -> Result<()> {
     crate::sandbox::process_hardening::apply_process_hardening();
 
     // Set up process panic hook before anything else — writes crash dumps
-    // to ~/.mimofanfan/crashes/ even if the panic happens before tokio is up,
+    // to ~/.mimofan/crashes/ even if the panic happens before tokio is up,
     // and restores the terminal so a panicked TUI doesn't leave the user's
     // shell stuck in alt-screen mode.
     let orig_hook = std::panic::take_hook();
@@ -1906,7 +1905,7 @@ fn tools_readme_template() -> &'static str {
      Drop self-describing scripts here so they can be discovered by\n\
      `mimofan setup --status` and surfaced in `mimofan doctor`.\n\n\
      When `[tools.plugin_dir]` is set in config.toml (or when the default\n\
-     `~/.mimofanfan/tools/` directory exists), they are auto-discovered and\n\
+     `~/.mimofan/tools/` directory exists), they are auto-discovered and\n\
      registered as model-visible tools.\n\n\
      Each script should start with a frontmatter-style header so the\n\
      description is visible without executing the file and the agent knows\n\
@@ -1947,7 +1946,7 @@ fn plugins_readme_template() -> &'static str {
      Plugins are richer than tools: each one lives in its own subdirectory\n\
      with a `PLUGIN.md` describing what it does and how to enable it. The\n\
      directory is created so users have a documented place to drop\n\
-     experiments without touching `~/.mimofanfan/skills/`.\n\n\
+     experiments without touching `~/.mimofan/skills/`.\n\n\
      A plugin layout looks like:\n\n\
      ```\n\
      plugins/\n\
@@ -2345,7 +2344,7 @@ fn run_setup_status(config: &Config, workspace: &Path) -> Result<()> {
             let login_hint = provider_auth_hint(provider);
             let table_key = provider_config_table_key(provider);
             println!(
-                "  {} api_key: missing  (set {env_var} or `[providers.{table_key}].api_key` in ~/.mimofanfan/config.toml; or run `{login_hint}`)",
+                "  {} api_key: missing  (set {env_var} or `[providers.{table_key}].api_key` in ~/.mimofan/config.toml; or run `{login_hint}`)",
                 "✗".truecolor(red_r, red_g, red_b),
             );
         }
@@ -2586,7 +2585,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
     // State root
     println!();
     println!("{}", "State Root:".bold());
-    let code_home = mimofan_config::mimofan_home().unwrap_or_else(|_| PathBuf::from("~/.mimofanfan"));
+    let code_home = mimofan_config::mimofan_home().unwrap_or_else(|_| PathBuf::from("~/.mimofan"));
     println!("  active: {}", crate::utils::display_path(&code_home));
 
     // Check API keys
@@ -2630,7 +2629,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
             if in_config { "yes" } else { "no" }
         );
     }
-    println!("  · credential precedence: ~/.mimofanfan/config.toml, OS keyring, then env");
+    println!("  · credential precedence: ~/.mimofan/config.toml, OS keyring, then env");
 
     let api_key_source = resolve_api_key_source(config);
     let has_api_key = if config.deepseek_api_key().is_ok() {
@@ -2653,7 +2652,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
             "✗".truecolor(red_r, red_g, red_b)
         );
         println!(
-            "    Run 'mimofan auth set --provider <name>' to save a key to ~/.mimofanfan/config.toml."
+            "    Run 'mimofan auth set --provider <name>' to save a key to ~/.mimofan/config.toml."
         );
         false
     };
@@ -3876,7 +3875,7 @@ fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
                 && !target.base_url.contains("api.deepseeki.com") =>
         {
             lines.push(
-                "If this is a custom DeepSeek-compatible endpoint, set its HTTPS base URL in ~/.mimofanfan/config.toml and rerun `mimo doctor`."
+                "If this is a custom DeepSeek-compatible endpoint, set its HTTPS base URL in ~/.mimofan/config.toml and rerun `mimo doctor`."
                     .to_string(),
             );
         }
@@ -5479,7 +5478,7 @@ fn should_use_mouse_capture_with(
 /// Off elsewhere only for JetBrains' JediTerm, which advertises mouse
 /// support but forwards the same SGR escape sequences as raw input. The
 /// user can still opt back in with `[tui] mouse_capture = true` in
-/// `~/.mimofanfan/config.toml` or `--mouse-capture`.
+/// `~/.mimofan/config.toml` or `--mouse-capture`.
 fn default_mouse_capture_enabled(
     terminal_emulator: Option<&str>,
     wt_session: Option<&str>,
@@ -5682,7 +5681,7 @@ fn merge_project_config(config: &mut Config, workspace: &Path) {
         if table.contains_key(*key) {
             eprintln!(
                 "warning: project-scope config key `{key}` is ignored — \
-                 set it in `~/.mimofanfan/config.toml` instead. \
+                 set it in `~/.mimofan/config.toml` instead. \
                  (See #417 for the deny-list rationale.)"
             );
         }
@@ -6346,7 +6345,7 @@ async fn run_exec_agent(
         model: effective_model.clone(),
         token_threshold: compaction_threshold_for_model_at_percent(
             &effective_model,
-            settings.auto_compact_threshold_percent,
+            settings.compact_threshold,
         ),
         ..Default::default()
     };

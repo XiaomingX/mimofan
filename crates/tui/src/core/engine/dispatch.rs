@@ -25,7 +25,6 @@ use super::ToolUseState;
 
 // === Types ============================================================
 
-#[allow(dead_code)] // `index` mirrors batch order for diagnostic ergonomics.
 pub(super) struct ToolExecOutcome {
     pub(super) index: usize,
     pub(super) id: String,
@@ -75,8 +74,6 @@ pub(super) struct ParallelToolResult {
 // Hold the lock guard for the duration of a tool execution.
 // The inner guards are held for RAII purposes (dropped when the guard is dropped).
 pub(super) enum ToolExecGuard<'a> {
-    Read(#[allow(dead_code)] tokio::sync::RwLockReadGuard<'a, ()>),
-    Write(#[allow(dead_code)] tokio::sync::RwLockWriteGuard<'a, ()>),
 }
 
 // === Caller policy and errors ========================================

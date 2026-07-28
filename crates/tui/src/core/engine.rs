@@ -302,7 +302,7 @@ pub struct EngineConfig {
     pub goal_state: SharedGoalState,
     /// Maximum sub-agent recursion depth (default 3). See
     /// `SubAgentRuntime::max_spawn_depth`. Override via
-    /// `[subagents] max_depth = N` in `~/.mimofanfan/config.toml`.
+    /// `[subagents] max_depth = N` in `~/.mimofan/config.toml`.
     pub max_spawn_depth: u32,
     /// Optional aggregate token budget for each root sub-agent run.
     /// Descendant agents inherit the root pool unless a child starts a new
@@ -383,7 +383,6 @@ pub struct EngineConfig {
     pub tools_always_load: HashSet<String>,
     /// When true and `/usr/bin/bwrap` is present on Linux, route exec_shell
     /// through bubblewrap instead of relying solely on Landlock (#2184).
-    #[allow(dead_code)] // Wired through ShellManager in follow-up PR
     pub prefer_bwrap: bool,
     /// Tool override and plugin configuration (`[tools]` table in config.toml).
     /// Applied to the per-turn tool registry after built-in tools are registered.
@@ -482,7 +481,6 @@ impl Default for EngineConfig {
 /// `External`, `Preempted`, and `Internal` are reserved for the
 /// remaining direct cancellation paths tracked in #1541.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum CancelReason {
     /// User-initiated cancel (Esc, `/cancel`, click cancel on modal).
     User,
@@ -780,7 +778,7 @@ impl Engine {
         Some(format!(
             "The rejected key came from {env_var}; no saved config key is present.\n\
              Run `mimofan auth status` to inspect credential sources, then \
-             `mimofan auth set --provider {provider}` to save a valid key in ~/.mimofanfan/config.toml, \
+             `mimofan auth set --provider {provider}` to save a valid key in ~/.mimofan/config.toml, \
              or remove the stale export and open a fresh shell.",
             provider = provider.as_str()
         ))
@@ -2483,7 +2481,7 @@ impl Engine {
                     Some(format!(
                         "The engine hit an internal error and stopped this turn: {detail}. \
                          Your session is intact — send your message again to retry. \
-                         A crash report was saved to ~/.mimofanfan/crashes/."
+                         A crash report was saved to ~/.mimofan/crashes/."
                     )),
                 )
             }

@@ -14,7 +14,6 @@ use super::spec::{
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
-#[allow(dead_code)]
 pub struct MultiToolUseParallelTool;
 
 #[async_trait]

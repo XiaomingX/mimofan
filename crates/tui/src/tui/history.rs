@@ -311,7 +311,6 @@ impl HistoryCell {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn lines_with_copy_metadata(
         &self,
         width: u16,

@@ -7,7 +7,7 @@
 //!
 //! ## On-disk format
 //!
-//! `~/.mimofanfan/composer_stash.jsonl` — one JSON object per line:
+//! `~/.mimofan/composer_stash.jsonl` — one JSON object per line:
 //!
 //! ```jsonl
 //! {"ts":"2026-05-04T01:23:45Z","text":"draft here"}

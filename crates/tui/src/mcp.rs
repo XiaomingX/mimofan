@@ -256,7 +256,7 @@ pub struct McpServerConfig {
     /// Header keys and values are passed through as-is — we do not
     /// substitute environment variables in v0.8.31. If you store a
     /// real token here, the value lives in plain text in
-    /// `~/.mimofanfan/mcp.json`; treat that file with the same care
+    /// `~/.mimofan/mcp.json`; treat that file with the same care
     /// as any other secret-bearing config.
     #[serde(default)]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
@@ -562,7 +562,6 @@ pub struct SseTransport {
     endpoint_url: Option<String>,
     receiver: tokio::sync::mpsc::UnboundedReceiver<SseInbound>,
     pending_messages: VecDeque<Vec<u8>>,
-    #[allow(dead_code)]
     sse_task: tokio::task::JoinHandle<()>,
 }
 
@@ -1381,7 +1380,7 @@ impl McpConnection {
                         // portion of the URL) before logging so an
                         // HTTPS_PROXY that embeds credentials
                         // (common in corporate setups) doesn't leak the
-                        // password to the on-disk `~/.mimofanfan/logs/`.
+                        // password to the on-disk `~/.mimofan/logs/`.
                         let proxy_redacted = redact_proxy_userinfo(&proxy_url);
                         tracing::warn!(
                             target: "mcp",
@@ -1899,7 +1898,6 @@ impl McpConnection {
     }
 
     /// Get server name
-    #[allow(dead_code)] // Public API for MCP consumers
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -1915,7 +1913,6 @@ impl McpConnection {
     }
 
     /// Get connection state
-    #[allow(dead_code)] // Public API for MCP consumers
     pub fn state(&self) -> ConnectionState {
         self.state
     }
@@ -1980,7 +1977,6 @@ impl McpConnection {
     }
 
     /// Gracefully close the connection
-    #[allow(dead_code)] // Public API for MCP consumers
     pub fn close(&mut self) {
         self.cancel_token.cancel();
         self.state = ConnectionState::Disconnected;
@@ -2254,7 +2250,6 @@ impl McpPool {
     }
 
     /// Get all discovered resource templates with server-prefixed names
-    #[allow(dead_code)] // Public API for MCP resource discovery
     pub fn all_resource_templates(&self) -> Vec<(String, &McpResourceTemplate)> {
         let mut templates = Vec::new();
         for (server, conn) in &self.connections {
@@ -2643,7 +2638,6 @@ impl McpPool {
     }
 
     /// Get list of configured server names
-    #[allow(dead_code)] // Public API for MCP consumers
     pub fn server_names(&self) -> Vec<&str> {
         self.config
             .servers
@@ -2653,7 +2647,6 @@ impl McpPool {
     }
 
     /// Get list of connected server names
-    #[allow(dead_code)] // Public API; the HTTP list endpoint no longer spawns a pool to call it (#3532)
     pub fn connected_servers(&self) -> Vec<&str> {
         self.connections
             .iter()
@@ -2663,7 +2656,6 @@ impl McpPool {
     }
 
     /// Disconnect all connections
-    #[allow(dead_code)] // Public API for MCP lifecycle management
     pub fn disconnect_all(&mut self) {
         self.drop_all_connections("disconnect all");
     }
@@ -2676,7 +2668,6 @@ impl McpPool {
     /// MCP servers a chance to flush state. The fallback Drop on
     /// `StdioTransport` still sends SIGTERM if this never runs, so even
     /// abnormal exits avoid leaking PIDs without a signal.
-    #[allow(dead_code)] // Wired in by callers that want graceful shutdown
     pub async fn shutdown_all(&mut self) {
         let names: Vec<String> = self.connections.keys().cloned().collect();
         for name in names {
@@ -2688,7 +2679,6 @@ impl McpPool {
     }
 
     /// Get the underlying configuration
-    #[allow(dead_code)] // Public API for MCP consumers
     pub fn config(&self) -> &McpConfig {
         &self.config
     }
@@ -3230,7 +3220,6 @@ fn snapshot_from_config(
 // === Helper Functions ===
 
 /// Format MCP tool result for display
-#[allow(dead_code)] // Will be used when MCP tool results are displayed in TUI
 pub fn format_tool_result(result: &serde_json::Value) -> String {
     let is_error = result
         .get("isError")

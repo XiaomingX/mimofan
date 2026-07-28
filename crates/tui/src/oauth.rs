@@ -5,7 +5,6 @@
 //! using the OpenAI auth endpoint.
 //!
 //! NOTE: This entire module is currently unused (Codex OAuth is not wired into
-//! the main flow yet). `#[allow(dead_code)]` suppresses warnings until it is
 //! integrated.
 
 #![allow(dead_code)]

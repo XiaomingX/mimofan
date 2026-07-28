@@ -299,7 +299,6 @@ pub trait ExternalTool {
     fn resolve() -> Option<String>;
 
     /// Quick availability check — true when the tool was found on PATH.
-    #[allow(dead_code)]
     fn available() -> bool {
         Self::resolve().is_some()
     }
@@ -334,7 +333,6 @@ pub trait ExternalTool {
 
     /// Convenience: run the tool with arguments and return only the
     /// exit status (discards stdout/stderr).
-    #[allow(dead_code)]
     fn status(args: &[&str], cwd: &std::path::Path) -> std::io::Result<std::process::ExitStatus> {
         let mut cmd = Self::command().ok_or_else(|| {
             std::io::Error::new(

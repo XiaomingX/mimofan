@@ -43,7 +43,6 @@ pub enum RetryState {
     /// `TurnStarted`.
     Failed {
         reason: String,
-        #[allow(dead_code)]
         since: Instant,
     },
 }

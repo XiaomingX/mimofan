@@ -5,7 +5,7 @@
 //! filesystem-discovered `SkillRegistry`: the registry tells us which skills
 //! exist on disk, and this store tells API clients which ones are marked active.
 //!
-//! Storage shape (TOML at `~/.mimofanfan/skills_state.toml`):
+//! Storage shape (TOML at `~/.mimofan/skills_state.toml`):
 //!
 //! ```toml
 //! disabled = ["skill-name-1", "skill-name-2"]
@@ -86,7 +86,6 @@ impl SkillStateStore {
         self.persist()
     }
 
-    #[allow(dead_code)]
     pub fn disabled(&self) -> Vec<String> {
         self.disabled.iter().cloned().collect()
     }

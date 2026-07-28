@@ -57,7 +57,7 @@ fn reqwest_client() -> reqwest::Client {
 
 /// Cache directory for registry-synced skills.
 ///
-/// Lives at `~/.mimofanfan/cache/skills/` so it's separate from user-installed
+/// Lives at `~/.mimofan/cache/skills/` so it's separate from user-installed
 /// skills and can be blown away without losing anything irreplaceable.
 pub fn default_cache_skills_dir() -> PathBuf {
     dirs::home_dir().map_or_else(
@@ -199,7 +199,6 @@ pub struct InstalledSkill {
     /// SHA-256 over the downloaded tarball bytes. Used by [`update`] to detect
     /// upstream changes without re-extracting; also surfaced for telemetry /
     /// future signature-verification work.
-    #[allow(dead_code)]
     pub source_checksum: String,
 }
 
@@ -269,7 +268,6 @@ pub enum InstallError {
 /// [`DEFAULT_REGISTRY_URL`]. Public for downstream consumers (tests, runtime
 /// API) even though the slash-command path always goes through
 /// [`install_with_registry`] so the user's configured registry wins.
-#[allow(dead_code)]
 pub async fn install(
     source: InstallSource,
     skills_dir: &Path,
@@ -388,7 +386,6 @@ pub async fn install_with_registry(
 /// `/skill update bar` without the user re-typing the spec.
 ///
 /// Convenience wrapper over [`update_with_registry`].
-#[allow(dead_code)]
 pub async fn update(
     name: &str,
     skills_dir: &Path,

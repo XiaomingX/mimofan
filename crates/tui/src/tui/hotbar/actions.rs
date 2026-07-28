@@ -10,7 +10,6 @@ use crate::tui::command_palette::{
 };
 
 /// Result of firing a hotbar action.
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum HotbarDispatch {
     /// The action was fully handled by mutating [`App`].
@@ -20,7 +19,6 @@ pub enum HotbarDispatch {
 }
 
 /// Uniform interface for actions that can be bound to a hotbar slot.
-#[allow(dead_code)]
 pub trait HotbarAction: Send + Sync {
     /// Stable action id used in config and dispatch.
     fn id(&self) -> &str;
@@ -121,25 +119,21 @@ impl HotbarActionRegistry {
         }
     }
 
-    #[allow(dead_code)]
     #[must_use]
     pub fn get(&self, id: &str) -> Option<Arc<dyn HotbarAction>> {
         self.actions.get(id).cloned()
     }
 
-    #[allow(dead_code)]
     #[must_use]
     pub fn len(&self) -> usize {
         self.actions.len()
     }
 
-    #[allow(dead_code)]
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.actions.is_empty()
     }
 
-    #[allow(dead_code)]
     pub fn iter(&self) -> impl Iterator<Item = &dyn HotbarAction> {
         self.actions.values().map(Arc::as_ref)
     }
@@ -164,7 +158,6 @@ enum AppHotbarKind {
     TrustToggle,
 }
 
-#[allow(dead_code)]
 struct AppHotbarAction {
     id: &'static str,
     short_label: &'static str,
@@ -295,7 +288,6 @@ impl HotbarAction for AppHotbarAction {
     }
 }
 
-#[allow(dead_code)]
 struct SlashHotbarAction {
     info: &'static CommandInfo,
     id: String,

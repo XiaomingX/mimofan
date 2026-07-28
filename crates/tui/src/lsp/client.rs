@@ -58,7 +58,6 @@ pub trait LspTransport: Send + Sync {
     ) -> Result<Vec<Diagnostic>>;
 
     /// Best-effort shutdown. Called via `LspManager::shutdown_all`.
-    #[allow(dead_code)]
     async fn shutdown(&self);
 }
 
@@ -68,7 +67,6 @@ pub trait LspTransport: Send + Sync {
 pub struct StdioLspTransport {
     /// JoinHandle for the running server. Held so the child stays alive for
     /// the transport's lifetime; consumed during `shutdown`.
-    #[allow(dead_code)]
     child: AsyncMutex<Option<Child>>,
     /// Outgoing message sender to the writer task.
     tx_outbound: mpsc::Sender<Vec<u8>>,
@@ -78,11 +76,9 @@ pub struct StdioLspTransport {
     /// Map of in-flight request id -> reply slot. We do not currently call
     /// methods that need replies after `initialize`, but this is the hook
     /// for it.
-    #[allow(dead_code)]
     pending: Arc<AsyncMutex<HashMap<i64, oneshot::Sender<Value>>>>,
     /// Monotonic request id counter. Reserved for future LSP request/reply
     /// methods (workspace symbol queries, etc.).
-    #[allow(dead_code)]
     next_id: AsyncMutex<i64>,
     /// Language id passed in `textDocument/didOpen` (e.g. "rust").
     language_id: &'static str,

@@ -2599,7 +2599,7 @@ fn ensure_safe_state_subdir(subdir: &str) -> Result<()> {
     Ok(())
 }
 
-/// Resolve a state subdirectory under the mimofan home (`~/.mimofanfan`).
+/// Resolve a state subdirectory under the mimofan home (`~/.mimofan`).
 pub fn resolve_state_dir(subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;
     Ok(mimofan_home()?.join(subdir))
@@ -2609,7 +2609,7 @@ pub fn resolve_state_dir(subdir: &str) -> Result<PathBuf> {
 /// creating it if necessary. This is the write-path resolver.
 ///
 /// On the first creation of a real subdirectory (not the root sentinel `"."`),
-/// Ensure a state subdirectory exists under `~/.mimofanfan/`,
+/// Ensure a state subdirectory exists under `~/.mimofan/`,
 /// creating it if necessary. Returns the directory path.
 pub fn ensure_state_dir(subdir: &str) -> Result<PathBuf> {
     ensure_safe_state_subdir(subdir)?;

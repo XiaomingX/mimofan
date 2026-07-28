@@ -1,7 +1,7 @@
 //! Path resolution for the per-workspace snapshot side-repos.
 //!
 //! Snapshots live under the resolved state directory
-//! (`~/.mimofanfan/snapshots`) with
+//! (`~/.mimofan/snapshots`) with
 //! a two-level hash split so we can snapshot multiple worktrees of the
 //! same project independently — `git worktree list` users won't get
 //! cross-talk between feature branches.

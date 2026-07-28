@@ -26,7 +26,7 @@
 //!
 //! # Configuration
 //!
-//! The `[lsp]` table in `~/.mimofanfan/config.toml` controls behavior:
+//! The `[lsp]` table in `~/.mimofan/config.toml` controls behavior:
 //! `enabled`, `poll_after_edit_ms`, `max_diagnostics_per_file`,
 //! `include_warnings`, and an optional `servers` override. See
 //! [`LspConfig`] for defaults and `config.example.toml` for documentation.
@@ -250,7 +250,6 @@ impl LspManager {
 
     /// Best-effort shutdown of every spawned transport. Called when the
     /// session ends.
-    #[allow(dead_code)]
     pub async fn shutdown_all(&self) {
         let transports: Vec<Arc<dyn LspTransport>> =
             self.transports.lock().await.values().cloned().collect();

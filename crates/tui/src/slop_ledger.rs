@@ -10,7 +10,7 @@
 //!
 //! ## Design
 //!
-//! - **Storage**: `~/.mimofanfan/slop_ledger.json` (a JSON array of entries).
+//! - **Storage**: `~/.mimofan/slop_ledger.json` (a JSON array of entries).
 //! - **Schema**: each entry has a bucket, severity, confidence, owner,
 //!   source links, status, cleanup recommendation, and timestamps.
 //! - **Tools**: `slop_ledger_append`, `slop_ledger_query`,
@@ -81,7 +81,6 @@ impl SlopBucket {
         }
     }
 
-    #[allow(dead_code)]
     pub fn all_buckets() -> &'static [SlopBucket] {
         &[
             Self::RetainedCompatibility,
@@ -259,7 +258,7 @@ pub struct SlopLedger {
 }
 
 impl SlopLedger {
-    /// Resolve the default ledger path under `~/.mimofanfan`.
+    /// Resolve the default ledger path under `~/.mimofan`.
     pub fn default_path() -> io::Result<PathBuf> {
         mimofan_config::ensure_state_dir("slop_ledger")
             .map(|p| p.join("slop_ledger.json"))
@@ -294,7 +293,7 @@ impl SlopLedger {
 
     /// Persist the ledger to disk.
     pub fn save(&self) -> io::Result<()> {
-        // `ledger_path` is resolved by `default_path()` against ~/.mimofanfan.
+        // `ledger_path` is resolved by `default_path()` against ~/.mimofan.
         if let Some(parent) = self.ledger_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -313,7 +312,6 @@ impl SlopLedger {
 
     /// Return the total number of entries.
     #[must_use]
-    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -927,7 +925,7 @@ pub fn short_id(id: &str) -> String {
 /// paths. Scan the output for known key prefixes (`sk-`, `Bearer `, `dsk-`)
 /// and replace the token until a whitespace / punctuation boundary with
 /// `[REDACTED]`. Also normalises fully-qualified secrets directory paths
-/// to the portable `~/.mimofanfan/secrets` form.
+/// to the portable `~/.mimofan/secrets` form.
 fn redact_exported_text(text: &mut String) {
     let prefixes: &[&[u8]] = &[b"sk-", b"Bearer ", b"dsk-", b"deepseek-"];
     let mut result = String::with_capacity(text.len());
@@ -969,7 +967,7 @@ fn redact_exported_text(text: &mut String) {
         for leaf in [".mimofan/secrets"] {
             let dir = home.join(leaf);
             let prefix = dir.to_string_lossy().to_string();
-            result = result.replace(&prefix, "~/.mimofanfan/secrets");
+            result = result.replace(&prefix, "~/.mimofan/secrets");
         }
     }
     *text = result;
@@ -982,7 +980,6 @@ impl SlopLedger {
     ///
     /// Tools and engine hooks can call this on claim-of-done to surface
     /// architectural residue the agent may have overlooked.
-    #[allow(dead_code)]
     #[must_use]
     pub fn has_open_entries(&self) -> bool {
         self.entries.iter().any(|e| {
@@ -996,7 +993,6 @@ impl SlopLedger {
     /// Return a concise completion-gate summary suitable for a verifier
     /// sub-agent or the claim-of-done prompt. Returns `None` when all
     /// entries are resolved — the caller can then treat the gate as "pass".
-    #[allow(dead_code)]
     #[must_use]
     pub fn completion_gate_summary(&self) -> Option<String> {
         let open: Vec<&SlopEntry> = self

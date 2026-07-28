@@ -5351,7 +5351,7 @@ fn recover_engine_event_disconnect(app: &mut App) -> bool {
     }
 
     app.add_message(HistoryCell::Error {
-        message: "Engine stopped before completing the turn. Check ~/.mimofanfan/crashes and retry."
+        message: "Engine stopped before completing the turn. Check ~/.mimofan/crashes and retry."
             .to_string(),
         severity: crate::error_taxonomy::ErrorSeverity::Error,
     });
@@ -5469,7 +5469,7 @@ pub(crate) fn apply_engine_error_to_app(
         app.onboarding_needs_api_key = true;
         app.onboarding = OnboardingState::ApiKey;
         app.status_message = Some(
-            "The API key from DEEPSEEK_API_KEY was rejected. Paste a valid key to save it to ~/.mimofanfan/config.toml, or update the environment variable.".to_string(),
+            "The API key from DEEPSEEK_API_KEY was rejected. Paste a valid key to save it to ~/.mimofan/config.toml, or update the environment variable.".to_string(),
         );
         return;
     }
@@ -6477,7 +6477,7 @@ async fn drain_web_config_events(
 
 /// Apply the choice made in the `/model` picker (#39): mutate App state so
 /// the next turn uses the new model/effort, persist the selection to
-/// `~/.mimofanfan/settings.json` so it survives a restart, push the change to
+/// `~/.mimofan/settings.json` so it survives a restart, push the change to
 /// the running engine via `Op::SetModel`/`Op::SetCompaction`, and surface
 /// a one-line status describing what changed.
 // The model/effort transition needs both the previous and next model+effort
@@ -9407,7 +9407,7 @@ fn apply_backtrack(app: &mut App, depth: usize) {
     app.needs_redraw = true;
 }
 
-/// Persist the typed API key to `~/.mimofanfan/config.toml`, refresh the
+/// Persist the typed API key to `~/.mimofan/config.toml`, refresh the
 /// in-memory config so the engine can see it, then switch to the provider.
 async fn apply_provider_picker_api_key(
     app: &mut App,
@@ -10124,7 +10124,6 @@ pub(crate) fn terminal_pause_has_live_owner(app: &App) -> bool {
     })
 }
 
-#[allow(dead_code)]
 fn transcript_scroll_percent(top: usize, visible: usize, total: usize) -> Option<u16> {
     if total <= visible {
         return None;
@@ -10243,7 +10242,6 @@ pub(crate) fn context_usage_snapshot(app: &App) -> Option<(i64, u32, f64)> {
 /// it directly (#115 makes the estimate the primary signal), but tests in
 /// `ui/tests.rs` still exercise it and a future heuristic may want to
 /// distinguish "obviously inflated reported tokens" from healthy reports.
-#[allow(dead_code)]
 fn is_reported_context_inflated(reported: i64, estimated: i64) -> bool {
     const MIN_ABSOLUTE_GAP: i64 = 4_096;
     if estimated <= 0 || reported <= estimated {

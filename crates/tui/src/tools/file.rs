@@ -335,7 +335,7 @@ fn read_pdf(path: &Path, pages: Option<&str>) -> Result<ToolResult, ToolError> {
     // path). Users with column-heavy / complex-table PDFs (academic
     // papers, financial filings) can opt into the historical
     // `pdftotext -layout` route by setting
-    // `prefer_external_pdftotext = true` in `~/.mimofanfan/settings.json`.
+    // `prefer_external_pdftotext = true` in `~/.mimofan/settings.json`.
     let prefer_external = crate::settings::Settings::load()
         .map(|s| s.prefer_external_pdftotext)
         .unwrap_or(false);

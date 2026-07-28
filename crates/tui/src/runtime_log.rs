@@ -1,5 +1,5 @@
 //! TUI runtime logging. Initializes a `tracing-subscriber` that writes to a
-//! per-process file under `~/.mimofanfan/logs/tui-YYYY-MM-DD-PID.log`, and (on
+//! per-process file under `~/.mimofan/logs/tui-YYYY-MM-DD-PID.log`, and (on
 //! Unix and Windows) redirects the process's `stderr` handle/fd to that same
 //! file for the lifetime of the alt-screen TUI.
 //!
@@ -22,7 +22,7 @@
 //!
 //! Defence-in-depth:
 //!   1. A `tracing-subscriber` writes formatted logs to
-//!      `~/.mimofanfan/logs/tui-YYYY-MM-DD-PID.log` so `tracing::warn!` /
+//!      `~/.mimofan/logs/tui-YYYY-MM-DD-PID.log` so `tracing::warn!` /
 //!      `tracing::error!` calls go somewhere observable instead of
 //!      disappearing into the void (the TUI previously had no global
 //!      subscriber, so contributors reached for `eprintln!`).
@@ -65,13 +65,11 @@ pub struct TuiLogGuard {
     // `--print-log-path`). Currently no caller — keep the accessor
     // wired up so adding one later doesn't require revisiting the
     // guard struct.
-    #[allow(dead_code)]
     log_path: PathBuf,
 }
 
 impl TuiLogGuard {
     /// Path the subscriber is writing to.
-    #[allow(dead_code)]
     #[must_use]
     pub fn log_path(&self) -> &std::path::Path {
         &self.log_path

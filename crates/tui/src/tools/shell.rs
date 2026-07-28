@@ -726,7 +726,6 @@ impl BackgroundShell {
     }
 
     /// Get a snapshot of the current state
-    #[allow(dead_code)]
     pub fn snapshot(&self) -> ShellResult {
         let sandboxed = !matches!(self.sandbox_type, SandboxType::None);
         let (stdout_full, stderr_full, _, _) = self.full_output();
@@ -886,7 +885,6 @@ impl ShellManager {
     }
 
     /// Create a new `ShellManager` with a specific sandbox policy.
-    #[allow(dead_code)]
     pub fn with_sandbox(workspace: PathBuf, policy: ExecutionSandboxPolicy) -> Self {
         Self {
             processes: HashMap::new(),
@@ -899,13 +897,11 @@ impl ShellManager {
     }
 
     /// Set the sandbox policy for future commands.
-    #[allow(dead_code)]
     pub fn set_sandbox_policy(&mut self, policy: ExecutionSandboxPolicy) {
         self.sandbox_policy = policy;
     }
 
     /// Get the current sandbox policy.
-    #[allow(dead_code)]
     pub fn sandbox_policy(&self) -> &ExecutionSandboxPolicy {
         &self.sandbox_policy
     }
@@ -914,7 +910,6 @@ impl ShellManager {
     ///
     /// When enabled and `/usr/bin/bwrap` is present on Linux, exec_shell
     /// commands are routed through bubblewrap for filesystem isolation.
-    #[allow(dead_code)] // Wired from EngineConfig in follow-up PR
     pub fn set_prefer_bwrap(&mut self, prefer: bool) {
         self.sandbox_manager.set_prefer_bwrap(prefer);
     }
@@ -936,18 +931,15 @@ impl ShellManager {
     }
 
     /// Check if sandboxing is available on this platform.
-    #[allow(dead_code)]
     pub fn is_sandbox_available(&mut self) -> bool {
         self.sandbox_manager.is_available()
     }
 
-    #[allow(dead_code)]
     pub fn default_workspace(&self) -> &Path {
         &self.default_workspace
     }
 
     /// Execute a shell command with the configured sandbox policy.
-    #[allow(dead_code)]
     pub fn execute(
         &mut self,
         command: &str,
@@ -959,7 +951,6 @@ impl ShellManager {
     }
 
     /// Execute a shell command with a specific sandbox policy (overrides default).
-    #[allow(dead_code)]
     pub fn execute_with_policy(
         &mut self,
         command: &str,
@@ -1084,7 +1075,6 @@ impl ShellManager {
     }
 
     /// Execute a shell command interactively (stdin/stdout/stderr inherit from terminal).
-    #[allow(dead_code)]
     pub fn execute_interactive(
         &mut self,
         command: &str,
@@ -1590,7 +1580,6 @@ impl ShellManager {
     }
 
     /// Get output from a background process
-    #[allow(dead_code)]
     pub fn get_output(
         &mut self,
         task_id: &str,
@@ -1804,7 +1793,6 @@ impl ShellManager {
     }
 
     /// Remember a restart-stale job so the UI can show it instead of hiding it.
-    #[allow(dead_code)]
     pub fn remember_stale_job(
         &mut self,
         id: impl Into<String>,

@@ -307,7 +307,6 @@ pub struct TaskManagerConfig {
     pub default_mode: String,
     pub allow_shell: bool,
     pub trust_mode: bool,
-    #[allow(dead_code)]
     pub max_subagents: usize,
 }
 
@@ -800,12 +799,10 @@ impl TaskManager {
         Ok(manager)
     }
 
-    #[allow(dead_code)] // Public API for external callers (runtime API)
     pub fn shutdown(&self) {
         self.cancel_token.cancel();
     }
 
-    #[allow(dead_code)] // Public API for external callers
     pub fn is_shutdown(&self) -> bool {
         self.cancel_token.is_cancelled()
     }
@@ -1668,7 +1665,7 @@ fn default_auto_approve() -> bool {
     true
 }
 
-/// Default task manager data location (`~/.mimofanfan/tasks`, falling back to
+/// Default task manager data location (`~/.mimofan/tasks`, falling back to
 /// existing installs when only that directory exists).
 #[must_use]
 pub fn default_tasks_dir() -> PathBuf {

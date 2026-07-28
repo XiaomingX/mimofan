@@ -60,7 +60,6 @@ impl Default for CompactionConfig {
 }
 
 pub const KEEP_RECENT_MESSAGES: usize = 4;
-#[allow(dead_code)]
 pub const HARD_COMPACT_KEEP_RECENT: usize = 8;
 const RECENT_WORKING_SET_WINDOW: usize = 12;
 const MAX_WORKING_SET_PATHS: usize = 24;
@@ -124,7 +123,6 @@ pub struct CompactionPlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(dead_code)]
 pub struct HardCompactionConfig {
     pub enabled: bool,
     pub keep_recent: usize,
@@ -140,7 +138,6 @@ impl Default for HardCompactionConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(dead_code)]
 pub struct HardCompactionPlan {
     pub summarize_indices: Vec<usize>,
     pub preserved_indices: Vec<usize>,
@@ -475,7 +472,6 @@ pub fn plan_compaction(
     }
 }
 
-#[allow(dead_code)]
 pub fn plan_hard_compaction(
     messages: &[Message],
     workspace: Option<&Path>,
@@ -894,7 +890,6 @@ pub struct CompactionResult {
     /// Summary system prompt
     pub summary_prompt: Option<SystemPrompt>,
     /// Messages that were removed from the active window
-    #[allow(dead_code)]
     pub removed_messages: Vec<Message>,
     /// Number of retries used before success
     pub retries_used: u32,

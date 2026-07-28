@@ -1,4 +1,4 @@
-//! User-defined slash commands from `~/.mimofanfan/commands/<name>.md` and
+//! User-defined slash commands from `~/.mimofan/commands/<name>.md` and
 //! workspace-local `<workspace>/.mimofan/commands/<name>.md`.
 //!
 //! Users drop `.md` files into a commands directory and the filename
@@ -16,8 +16,8 @@
 //! 1. `<workspace>/.mimofan/commands/` (project-local, highest)
 //! 2. `<workspace>/.claude/commands/`    (Claude Code interop)
 //! 4. `<workspace>/.cursor/commands/`    (Cursor interop)
-//! 5. `~/.mimofanfan/commands/`           (user-global)
-//! 6. `~/.mimofanfan/commands/`            (legacy user-global)
+//! 5. `~/.mimofan/commands/`           (user-global)
+//! 6. `~/.mimofan/commands/`            (legacy user-global)
 //!
 //! ## Permanent Role
 //!
@@ -28,7 +28,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// Path to the global user commands directory: `~/.mimofanfan/commands/`.
+/// Path to the global user commands directory: `~/.mimofan/commands/`.
 fn global_commands_dir() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("~"));
     home.join(".mimofan").join("commands")

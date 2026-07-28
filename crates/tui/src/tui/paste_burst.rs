@@ -67,7 +67,6 @@ impl PasteBurst {
         CharDecision::RetainFirstChar
     }
 
-    #[allow(dead_code)]
     pub fn on_plain_char_no_hold(&mut self, now: Instant) -> Option<CharDecision> {
         self.note_plain_char(now);
 
@@ -167,7 +166,6 @@ impl PasteBurst {
         self.burst_window_until = Some(now + PASTE_ENTER_SUPPRESS_WINDOW);
     }
 
-    #[allow(dead_code)]
     pub fn try_append_char_if_active(&mut self, ch: char, now: Instant) -> bool {
         if self.active || !self.buffer.is_empty() {
             self.append_char_to_buffer(ch, now);

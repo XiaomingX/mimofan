@@ -470,14 +470,13 @@ impl SkillRegistry {
 /// 6. `<workspace>/.mimofan/skills` — mimofan workspace skills.
 /// 7. [`agents_global_skills_dir`] — agentskills.io global.
 /// 8. `~/.claude/skills` — Claude-ecosystem global (#902).
-/// 9. `~/.mimofanfan/skills` — mimofan global, primary install target.
-/// 10. `~/.mimofanfan/skills` — legacy DeepSeek global fallback.
+/// 9. `~/.mimofan/skills` — mimofan global, primary install target.
+/// 10. `~/.mimofan/skills` — legacy DeepSeek global fallback.
 ///
 /// Only directories that exist on disk are returned — callers don't
 /// need to filter further. Returns an empty vec when nothing is
 /// installed (the system-prompt skills block is then suppressed).
 #[must_use]
-#[allow(dead_code)]
 pub fn skills_directories(workspace: &Path) -> Vec<PathBuf> {
     skills_directories_for_mode(workspace, SkillDiscoveryMode::Compatible)
 }
@@ -585,7 +584,6 @@ pub fn discover_in_workspace_with_mode(
 /// outside that set so explicit configuration cannot be buried by large global
 /// libraries.
 #[must_use]
-#[allow(dead_code)]
 pub fn discover_for_workspace_and_dir(workspace: &Path, skills_dir: &Path) -> SkillRegistry {
     discover_for_workspace_and_dir_with_mode(workspace, skills_dir, SkillDiscoveryMode::Compatible)
 }

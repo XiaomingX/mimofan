@@ -19,7 +19,6 @@ impl Locale {
         }
     }
 
-    #[allow(dead_code)]
     pub fn shipped() -> &'static [Self] {
         &[Self::ZhHans]
     }
@@ -136,7 +135,6 @@ pub enum MessageId {
     CmdProviderDescription,
     CmdQueueDescription,
     CmdQueueUsage,
-    #[allow(dead_code)]
     CmdQueueDraftHeader,
     CmdQueueNoMessages,
     CmdQueueListHeader,
@@ -247,7 +245,6 @@ pub enum MessageId {
     KbCompactInspector,
     KbLastMessagePager,
     KbSelectedDetails,
-    #[allow(dead_code)]
     KbToolDetailsPager,
     KbThinkingPager,
     KbLiveTranscript,
@@ -263,7 +260,6 @@ pub enum MessageId {
     KbAttachPath,
     KbHelpOverlay,
     KbToggleHelp,
-    #[allow(dead_code)]
     KbToggleHelpSlash,
     HelpUsageLabel,
     HelpAliasesLabel,
@@ -304,7 +300,6 @@ pub enum MessageId {
     HomeYoloModeCaution,
     HomePlanModeTip,
     HomePlanModeChecklistTip,
-    #[allow(dead_code)]
     HomeGoalModeTip,
     OnboardLanguageTitle,
     OnboardLanguageBlurb,
@@ -945,7 +940,6 @@ pub fn resolve_locale(_setting: &str) -> Locale {
 }
 
 /// Always returns Some("zh-Hans").
-#[allow(dead_code)]
 pub fn normalize_configured_locale(_input: &str) -> Option<&'static str> {
     Some("zh-Hans")
 }

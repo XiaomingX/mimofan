@@ -368,8 +368,6 @@ impl Default for ToolCallRuntime {
 
 #[derive(Debug)]
 enum ToolExecutionGuard {
-    Parallel(#[allow(dead_code)] OwnedRwLockReadGuard<()>),
-    Serial(#[allow(dead_code)] OwnedRwLockWriteGuard<()>),
     Reentrant,
 }
 

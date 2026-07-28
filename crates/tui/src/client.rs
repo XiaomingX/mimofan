@@ -1715,7 +1715,7 @@ mod tests {
 
     #[test]
     fn xiaomi_mimo_anthropic_base_url_picks_messages_protocol() {
-        // ~/.mimofanfan/config.toml providers.xiaomi_mimo.base_url =
+        // ~/.mimofan/config.toml providers.xiaomi_mimo.base_url =
         // `https://api.xiaomimimo.com/anthropic` must dispatch to the
         // Anthropic Messages client, not the Responses client.
         assert!(api_provider_uses_anthropic_messages(

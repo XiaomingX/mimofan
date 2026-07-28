@@ -245,7 +245,6 @@ pub(crate) struct AutoRouteSelection {
 /// Render the auto-router system prompt with the actual candidate ids
 /// (#3018): the classifier must answer with ids the active provider can
 /// serve, not hardcoded DeepSeek spellings.
-#[allow(dead_code)] // legacy active-provider flash router tests still exercise this prompt.
 pub(crate) fn auto_router_system_prompt(
     candidates: &RouterCandidates,
     cost_saving: bool,
@@ -346,7 +345,6 @@ pub(crate) fn normalize_auto_route_effort_for_provider(
     }
 }
 
-#[allow(dead_code)] // superseded by the route-effective inventory resolver (#3205).
 pub(crate) async fn resolve_auto_route_with_flash(
     config: &Config,
     latest_request: &str,
@@ -397,7 +395,6 @@ pub(crate) async fn resolve_auto_route_with_flash(
     }
 }
 
-#[allow(dead_code)] // retained for the legacy active-provider flash resolver.
 fn auto_route_from_heuristic(
     provider: ApiProvider,
     latest_request: &str,
@@ -658,7 +655,6 @@ fn parse_inventory_auto_route_recommendation(
     })
 }
 
-#[allow(dead_code)] // retained for the legacy active-provider flash resolver.
 async fn auto_route_flash_recommendation(
     config: &Config,
     candidates: &RouterCandidates,

@@ -517,7 +517,7 @@ pub struct TuiConfig {
     /// empty `Some(vec![])` means "show nothing in the footer".
     ///
     /// Edited interactively via `/statusline`; persisted to `tui.status_items`
-    /// in `~/.mimofanfan/config.toml`.
+    /// in `~/.mimofan/config.toml`.
     #[serde(default, deserialize_with = "deser_status_items")]
     pub status_items: Option<Vec<StatusItem>>,
     /// Emit OSC 8 hyperlink escape sequences around URLs in the transcript so
@@ -733,7 +733,7 @@ pub struct ToolsConfig {
     /// frontmatter header (`# name:`, `# description:`, `# schema:`) are
     /// auto-discovered and registered as tools.
     ///
-    /// Defaults to `~/.mimofanfan/tools/` when `None`.
+    /// Defaults to `~/.mimofan/tools/` when `None`.
     #[serde(default)]
     pub plugin_dir: Option<String>,
 
@@ -955,7 +955,6 @@ pub struct RetryPolicy {
 impl RetryPolicy {
     /// Compute the backoff delay for a retry attempt.
     #[must_use]
-    #[allow(dead_code)] // used by runtime_api; will be wired into client retry loop
     pub fn delay_for_attempt(&self, attempt: u32) -> std::time::Duration {
         let exponent = i32::try_from(attempt).unwrap_or(i32::MAX);
         let delay = self.initial_delay * self.exponential_base.powi(exponent);
@@ -1513,7 +1512,7 @@ pub enum ToolOverride {
     /// Run a local script file. The script receives the tool's JSON input
     /// on stdin and must return a JSON `ToolResult` on stdout.
     Script {
-        /// Path to the script (absolute, or relative to `~/.mimofanfan/tools/`).
+        /// Path to the script (absolute, or relative to `~/.mimofan/tools/`).
         path: String,
         /// Optional static arguments prepended before the tool's JSON input.
         #[serde(default)]
@@ -1972,7 +1971,7 @@ impl Config {
     /// `base_url` field but their active provider is not DeepSeek (the only
     /// provider that actually reads that field, plus an NvidiaNim back-compat
     /// sniff). Common confusion: users add `base_url = "..."` at the top of
-    /// `~/.mimofanfan/config.toml` for openai-compat servers
+    /// `~/.mimofan/config.toml` for openai-compat servers
     /// and wonder why it's silently ignored (#1308).
     fn warn_on_misplaced_root_base_url(&self) {
         let Some(root_base) = self.base_url.as_deref().map(str::trim) else {
@@ -2347,7 +2346,7 @@ impl Config {
                     None => anyhow::bail!(
                         "Custom provider '{provider_name}' has no auth configured.\n\
                          Add api_key_env = \"YOUR_ENV_VAR\" (or api_key) to \
-                         [providers.{provider_name}] in ~/.mimofanfan/config.toml."
+                         [providers.{provider_name}] in ~/.mimofan/config.toml."
                     ),
                 }
             }
@@ -4098,7 +4097,7 @@ pub enum SavedCredential {
     /// install hide the freshly-entered key (#593). The `backend`
     /// label is the value of [`mimofan_secrets::Secrets::backend_name`]
     /// at write time so the toast text can name the actual backend
-    /// (`"system keyring"`, `"file-based (~/.mimofanfan/secrets/)"`).
+    /// (`"system keyring"`, `"file-based (~/.mimofan/secrets/)"`).
     KeyringAndConfigFile {
         /// `Secrets::backend_name()` at write time.
         backend: String,
@@ -4127,7 +4126,7 @@ impl SavedCredential {
 
 /// Save the active provider's API key.
 ///
-/// **Dual-write strategy (#593):** writes to `~/.mimofanfan/config.toml`
+/// **Dual-write strategy (#593):** writes to `~/.mimofan/config.toml`
 /// (always) and to the OS keyring via [`mimofan_secrets::Secrets`]
 /// (when a backend is reachable). The runtime resolves credentials in
 /// `keyring → env → config-file` order; writing to the config file
@@ -4268,7 +4267,7 @@ reasoning_effort = "max"
 /// Platform credential stores are intentionally not queried here.
 /// Startup/onboarding checks must be cheap and prompt-free, so v0.8.8
 /// keeps the default auth path to environment variables and
-/// `~/.mimofanfan/config.toml`.
+/// `~/.mimofan/config.toml`.
 ///
 /// Used by [`crate::tui::app::App::new`] to decide whether to gate
 /// the user behind the in-TUI api-key onboarding screen — getting
@@ -4345,7 +4344,7 @@ pub fn has_api_key_for(config: &Config, provider: ApiProvider) -> bool {
 
 /// Save an API key to the appropriate place for the given provider.
 /// DeepSeek goes through [`save_api_key`]. Other providers write
-/// `[providers.<name>] api_key = "..."` to `~/.mimofanfan/config.toml`.
+/// `[providers.<name>] api_key = "..."` to `~/.mimofan/config.toml`.
 /// Returns the config file path.
 pub fn save_api_key_for(provider: ApiProvider, api_key: &str) -> Result<PathBuf> {
     let config_path = default_config_path()
@@ -4470,7 +4469,7 @@ fn missing_provider_api_key_message(provider: ApiProvider) -> Result<String> {
         .map(|url| format!(" Get a key: {url}."))
         .unwrap_or_default();
     Ok(format!(
-        "{} API key not found.{} Run 'mimofan auth set --provider {}', set {}, or add [{}] api_key in ~/.mimofanfan/config.toml.",
+        "{} API key not found.{} Run 'mimofan auth set --provider {}', set {}, or add [{}] api_key in ~/.mimofan/config.toml.",
         provider.display_name(),
         credential_hint,
         provider.as_str(),

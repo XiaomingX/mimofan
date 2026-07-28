@@ -31,7 +31,6 @@ pub struct SessionSnapshot {
 ///
 /// Chat providers force several runtime/control-plane signals through
 /// `role = "user"` for compatibility, so role alone is not authority.
-#[allow(dead_code)] // Some origins are reserved for ingestion sites landing after the first gate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UserInputProvenance {
     /// Text typed or submitted through the active UI/API input boundary.
@@ -134,30 +133,24 @@ pub enum Op {
     },
 
     /// Cancel the current request
-    #[allow(dead_code)]
     CancelRequest,
 
     /// Approve a tool call that requires permission
-    #[allow(dead_code)]
     ApproveToolCall { id: String },
 
     /// Deny a tool call that requires permission
-    #[allow(dead_code)]
     DenyToolCall { id: String },
 
     /// Spawn a sub-agent
-    #[allow(dead_code)]
     SpawnSubAgent { prompt: String },
 
     /// List current sub-agents and their status
     ListSubAgents,
 
     /// Change the operating mode
-    #[allow(dead_code)]
     ChangeMode { mode: AppMode },
 
     /// Update the model being used and refresh stable prompt context.
-    #[allow(dead_code)]
     SetModel {
         model: String,
         mode: AppMode,
@@ -205,7 +198,6 @@ pub enum Op {
 
     /// Edit the last user message: remove the last user+assistant exchange
     /// from the session, then re-send with the new content.
-    #[allow(dead_code)]
     EditLastTurn { new_message: String },
 
     /// Shutdown the engine

@@ -2,7 +2,7 @@
 //!
 //! Automations are local-first recurring jobs that enqueue standard background
 //! tasks. This module stores automation definitions and run history under
-//! `~/.mimofanfan/automations` (or `DEEPSEEK_AUTOMATIONS_DIR` override).
+//! `~/.mimofan/automations` (or `DEEPSEEK_AUTOMATIONS_DIR` override).
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -881,7 +881,7 @@ pub fn default_automations_dir() -> PathBuf {
     }
     // $MIMOFAN_HOME is a hard override of the base data directory
     // (docs/CONFIGURATION.md): when SET, automations live under it and we do
-    // NOT fall back to the legacy ~/.mimofanfan path — silent fallback would
+    // NOT fall back to the legacy ~/.mimofan path — silent fallback would
     // defeat the isolation the override promises. Check the env var directly
     // (not mimofan_home()'s Ok/Err, which succeeds for the default home too).
     if let Some(home) = std::env::var_os("MIMOFAN_HOME").filter(|value| !value.is_empty()) {

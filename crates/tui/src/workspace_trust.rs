@@ -1,7 +1,7 @@
 //! Per-workspace trust list of external paths the agent may read/write
 //! without triggering a `PathEscape` error (#29).
 //!
-//! Storage: `~/.mimofanfan/workspace-trust.json`. The file is a JSON object
+//! Storage: `~/.mimofan/workspace-trust.json`. The file is a JSON object
 //! mapping each workspace's canonical path to a sorted list of canonical
 //! paths the user has explicitly trusted from that workspace. Trust granted
 //! in workspace A does not apply when running from workspace B.
@@ -40,7 +40,6 @@ pub struct WorkspaceTrust {
 
 impl WorkspaceTrust {
     #[must_use]
-    #[allow(dead_code)]
     pub fn empty() -> Self {
         Self { paths: Vec::new() }
     }
@@ -80,7 +79,6 @@ impl WorkspaceTrust {
     /// normalization) starts with one of the trusted prefixes. Directory
     /// trust grants access to anything under the directory.
     #[must_use]
-    #[allow(dead_code)]
     pub fn permits(&self, candidate: &Path) -> bool {
         let canonical = candidate
             .canonicalize()

@@ -249,7 +249,7 @@ pub fn profile_switch(_app: &mut App, arg: Option<&str>) -> CommandResult {
         Some(name) if !name.trim().is_empty() => name.trim().to_string(),
         _ => {
             return CommandResult::error(
-                "Usage: /profile <name>\n\nSwitch to a named config profile. Profiles are defined in ~/.mimofanfan/config.toml under [profiles] sections.",
+                "Usage: /profile <name>\n\nSwitch to a named config profile. Profiles are defined in ~/.mimofan/config.toml under [profiles] sections.",
             );
         }
     };
