@@ -138,6 +138,7 @@ apps/
 .claude/worktrees/
 .worktrees/
 .ace-tool/
+.github/
 
 # Local-only Claude / ralph notes
 .claude/*.local.md
@@ -178,6 +179,11 @@ scripts/**/__pycache__/
 .aiderignore
 .codeiumignore
 .clineignore
+.codewhale/
+.kiro/specs/tui-lib-bin-refactor/
+
+# Cargo local
+.cargo/
 
 # Maintainer-local verification artifacts
 .uv-bin/
