@@ -838,7 +838,7 @@ fn default_fleet_output_format() -> String {
 }
 
 fn default_fleet_max_concurrent_tasks() -> u32 {
-    4
+    8
 }
 
 impl Default for FleetExecConfig {
