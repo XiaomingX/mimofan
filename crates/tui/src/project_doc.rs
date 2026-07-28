@@ -1,25 +1,20 @@
 //! Project document discovery and loading
 //!
 //! Supports auto-discovery of project instructions like Claude Code.
-//! Priority: AGENTS.md > WHALE.md (deprecated) > .claude/instructions.md > CLAUDE.md > .mimo/instructions.md > .mimofan/instructions.md > .deepseek/instructions.md
+//! Priority: AGENTS.md > .claude/instructions.md > CLAUDE.md > .mimofan/instructions.md
 
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 /// Document filenames to search for (in priority order).
-/// `AGENTS.md` is canonical. `WHALE.md` is **deprecated** (read-only legacy
-/// fallback, now below `AGENTS.md`); mimofan-specific authority policy lives
-/// in `.mimofan/constitution.json`. `CLAUDE.md` and the `*/instructions.md`
+/// `AGENTS.md` is canonical. `CLAUDE.md` and the `*/instructions.md`
 /// variants are read-only compatibility fallbacks.
 pub const DOC_FILENAMES: &[&str] = &[
     "AGENTS.md",
-    "WHALE.md", // deprecated: legacy mimofan-native, read-only fallback
     ".claude/instructions.md",
     "CLAUDE.md",
     ".mimofan/instructions.md",
-    ".mimofan/instructions.md",
-    ".deepseek/instructions.md",
 ];
 
 /// Maximum bytes to read from project docs (default: 32KB)

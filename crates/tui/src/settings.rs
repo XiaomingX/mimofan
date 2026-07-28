@@ -1,11 +1,11 @@
 //! Settings system - Persistent user preferences
 //!
-//! Settings are stored at ~/.mimofanfan/settings.toml, with legacy fallbacks.
+//! Settings are stored at ~/.mimofanfan/settings.json.
 //!
 //! TUI-specific preferences (theme, keybinds, font_size) that survive project
-//! switches are stored separately in tui.toml. See [`TuiPrefs`].
+//! switches are stored separately in tui.json. See [`TuiPrefs`].
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -14,8 +14,8 @@ use crate::config::{ApiProvider, expand_path, normalize_model_name};
 use crate::localization::normalize_configured_locale;
 use crate::palette::{normalize_hex_rgb_color, normalize_theme_name};
 
-const SETTINGS_FILE_NAME: &str = "settings.toml";
-const TUI_PREFS_FILE_NAME: &str = "tui.toml";
+const SETTINGS_FILE_NAME: &str = "settings.json";
+const TUI_PREFS_FILE_NAME: &str = "tui.json";
 
 // ============================================================================
 // TuiPrefs — ~/.mimofanfan/tui.toml
@@ -24,20 +24,20 @@ const TUI_PREFS_FILE_NAME: &str = "tui.toml";
 /// TUI-specific preferences that are decoupled from agent/project config so
 /// they survive project switches (issue #437).
 ///
-/// Stored at `~/.mimofanfan/tui.toml`. When the file is
-/// absent the values fall back to the `[tui]` section of the normal
-/// `config.toml` (via [`TuiPrefs::load`]), and then to the struct's own
-/// defaults.
+/// Stored at `~/.mimofanfan/tui.json`. When the file is
+/// absent the values fall back to the struct's own defaults.
 ///
-/// # Example `~/.mimofanfan/tui.toml`
+/// # Example `~/.mimofanfan/tui.json`
 ///
-/// ```toml
-/// theme    = "dark"        # "system" | "dark" | "light" | "grayscale" | "catppuccin-mocha" | ...
-/// font_size = 14
-///
-/// [keybinds]
-/// submit   = "ctrl+enter"
-/// new_line = "enter"
+/// ```json
+/// {
+///   "theme": "dark",
+///   "font_size": 14,
+///   "keybinds": {
+///     "submit": "ctrl+enter",
+///     "new_line": "enter"
+///   }
+/// }
 /// ```
 //
 // NOTE: the loader is defined but not yet called from startup — wiring is
@@ -93,7 +93,7 @@ pub struct KeybindPrefs {
 #[allow(dead_code)] // see TuiPrefs note above; deferred to a later settings pass (#657).
 impl TuiPrefs {
     /// Return the canonical path of the TUI preferences file:
-    /// `~/.mimofanfan/tui.toml`, or legacy `~/.mimofanfan/tui.toml` when present.
+    /// `~/.mimofanfan/tui.json`.
     ///
     /// Tests may override the home directory through the
     /// `MIMOFAN_CONFIG_PATH` environment variable (the parent directory of
@@ -106,19 +106,18 @@ impl TuiPrefs {
             if !config_path.is_empty() {
                 let p = expand_path(config_path);
                 if let Some(parent) = p.parent() {
-                    return Ok(parent.join("tui.toml"));
+                    return Ok(parent.join(TUI_PREFS_FILE_NAME));
                 }
             }
         }
 
-        let primary = mimofan_config::mimofan_home()
+        mimofan_config::mimofan_home()
             .ok()
-            .map(|home| home.join(TUI_PREFS_FILE_NAME));
-
-        resolve_tui_prefs_path_from_candidates(primary, None)
+            .map(|home| home.join(TUI_PREFS_FILE_NAME))
+            .ok_or_else(|| anyhow::anyhow!("Failed to resolve tui preferences path: no home directory found."))
     }
 
-    /// Load TUI preferences from `~/.mimofanfan/tui.toml` or a legacy fallback.
+    /// Load TUI preferences from `~/.mimofanfan/tui.json`.
     ///
     /// If the file does not exist the struct defaults are returned — no error
     /// is produced. Parse errors surface as `Err` so the caller can warn the
@@ -129,8 +128,8 @@ impl TuiPrefs {
             return Ok(Self::default());
         }
         let content = std::fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read tui.toml from {}", path.display()))?;
-        let prefs: TuiPrefs = match toml::from_str(&content) {
+            .with_context(|| format!("Failed to read tui.json from {}", path.display()))?;
+        let prefs: TuiPrefs = match serde_json::from_str(&content) {
             Ok(p) => p,
             Err(e) => {
                 tracing::warn!("Failed to parse {} (using defaults): {e:#}", path.display());
@@ -140,8 +139,8 @@ impl TuiPrefs {
         Ok(prefs)
     }
 
-    /// Save TUI preferences to `~/.mimofanfan/tui.toml` (or a legacy file when
-    /// it already exists), creating the target directory if needed.
+    /// Save TUI preferences to `~/.mimofanfan/tui.json`, creating the target
+    /// directory if needed.
     pub fn save(&self) -> Result<()> {
         let path = Self::path()?;
         if let Some(parent) = path.parent() {
@@ -149,19 +148,9 @@ impl TuiPrefs {
                 format!("Failed to create config directory {}", parent.display())
             })?;
         }
-        let serialized = toml::to_string_pretty(self).context("Failed to serialize TuiPrefs")?;
-        let body = if path.exists() {
-            let raw = std::fs::read_to_string(&path)
-                .with_context(|| format!("Failed to read tui.toml at {}", path.display()))?;
-            mimofan_config::merge_and_preserve_comments(&serialized, &raw).unwrap_or_else(|e| {
-                tracing::warn!("failed to merge tui.toml comments, saving without them: {e:#}");
-                serialized
-            })
-        } else {
-            serialized
-        };
+        let body = serde_json::to_string_pretty(self).context("Failed to serialize TuiPrefs")?;
         std::fs::write(&path, body)
-            .with_context(|| format!("Failed to write tui.toml to {}", path.display()))?;
+            .with_context(|| format!("Failed to write tui.json to {}", path.display()))?;
         Ok(())
     }
 
@@ -173,34 +162,13 @@ impl TuiPrefs {
         let theme = self.theme.trim().to_ascii_lowercase();
         let Some(theme) = normalize_theme_name(&theme) else {
             anyhow::bail!(
-                "Invalid tui.toml theme '{}': expected system, dark, light, grayscale, catppuccin-mocha, tokyo-night, dracula, gruvbox-dark, or solarized-light.",
+                "Invalid tui.json theme '{}': expected system, dark, light, grayscale, catppuccin-mocha, tokyo-night, dracula, gruvbox-dark, or solarized-light.",
                 self.theme
             );
         };
         self.theme = theme.to_string();
         Ok(())
     }
-}
-
-fn resolve_tui_prefs_path_from_candidates(
-    primary: Option<PathBuf>,
-    legacy_home: Option<PathBuf>,
-) -> Result<PathBuf> {
-    if let Some(path) = primary.as_ref()
-        && path.exists()
-    {
-        return Ok(path.clone());
-    }
-
-    if let Some(path) = legacy_home.as_ref()
-        && path.exists()
-    {
-        return Ok(path.clone());
-    }
-
-    primary.or(legacy_home).ok_or_else(|| {
-        anyhow::anyhow!("Failed to resolve tui preferences path: no home directory found.")
-    })
 }
 
 /// User settings with defaults
@@ -423,96 +391,77 @@ pub fn preset_fields(name: &str) -> Option<&'static [(&'static str, &'static str
 impl Settings {
     /// Get the canonical settings file path.
     ///
-    /// New writes should target `~/.mimofanfan/settings.toml`. Legacy
-    /// DeepSeek-branded paths remain readable as fallbacks during load, but we
-    /// no longer surface them as the primary path in `/config`.
+    /// Settings are stored at `~/.mimofanfan/settings.json`.
     pub fn path() -> Result<PathBuf> {
-        let (primary, _legacy_home, legacy_config_dir) = settings_path_candidates();
-        primary.or(legacy_config_dir).ok_or_else(|| {
+        settings_path().ok_or_else(|| {
             anyhow::anyhow!("Failed to resolve settings path: no config directory found.")
         })
     }
 
     /// Load settings from disk, or return defaults if not found
     pub fn load() -> Result<Self> {
-        let (primary, legacy_home, legacy_config_dir) = settings_path_candidates();
-        let write_path = primary
-            .as_ref()
-            .cloned()
-            .or_else(|| legacy_config_dir.clone())
-            .ok_or_else(|| {
-                anyhow::anyhow!("Failed to resolve settings path: no config directory found.")
-            })?;
-        let read_path =
-            resolve_settings_path_from_candidates(primary, legacy_home, legacy_config_dir)
-                .unwrap_or_else(|_| write_path.clone());
+        let path = Self::path()?;
+        if !path.exists() {
+            let mut settings = Self::default();
+            settings.apply_env_overrides();
+            return Ok(settings);
+        }
 
-        let mut settings = if !read_path.exists() {
-            Self::default()
-        } else {
-            let content = std::fs::read_to_string(&read_path)
-                .with_context(|| format!("Failed to read settings from {}", read_path.display()))?;
-            let mut s: Settings = match toml::from_str(&content) {
-                Ok(s) => s,
-                Err(e) => {
-                    tracing::warn!(
-                        "Failed to parse {} (using defaults): {e:#}",
-                        read_path.display()
-                    );
-                    return Ok(Self::default());
-                }
-            };
-            s.default_mode = normalize_mode(&s.default_mode).to_string();
-            s.composer_density = normalize_composer_density(&s.composer_density).to_string();
-            s.transcript_spacing = normalize_transcript_spacing(&s.transcript_spacing).to_string();
-            s.tool_collapse_mode = normalize_tool_collapse_mode(&s.tool_collapse_mode).to_string();
-            s.sidebar_focus = normalize_sidebar_focus(&s.sidebar_focus).to_string();
-            if s.sidebar_focus == "auto" && !s.sidebar_auto_collapse_opt_in {
-                // v0.8.62 wrote the surprising auto-collapse default into many
-                // full settings files. Treat unmarked saved "auto" as that
-                // legacy default so upgraded users get the sidebar back, while
-                // `/sidebar auto --save` and `/set sidebar_focus auto` below
-                // preserve an explicit opt-in from this release onward (#3328).
-                s.sidebar_focus = "pinned".to_string();
+        let content = std::fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read settings from {}", path.display()))?;
+        let mut s: Settings = match serde_json::from_str(&content) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("Failed to parse {} (using defaults): {e:#}", path.display());
+                return Ok(Self::default());
             }
-            s.status_indicator = normalize_status_indicator(&s.status_indicator).to_string();
-            s.synchronized_output =
-                normalize_synchronized_output(&s.synchronized_output).to_string();
-            s.locale = normalize_configured_locale(&s.locale)
-                .unwrap_or("en")
-                .to_string();
-            s.background_color = normalize_optional_background_color(s.background_color.as_deref());
-            s.theme = normalize_settings_theme(&s.theme).to_string();
-            s.default_model = s.default_model.as_deref().and_then(normalize_default_model);
-            s.reasoning_effort = s
-                .reasoning_effort
-                .as_deref()
-                .and_then(|value| normalize_reasoning_effort_setting(value).ok().flatten());
-            s
         };
-        migrate_settings_file_to_primary_if_needed(&write_path, &read_path);
-        settings.apply_env_overrides();
-        Ok(settings)
+        s.default_mode = normalize_mode(&s.default_mode).to_string();
+        s.composer_density = normalize_composer_density(&s.composer_density).to_string();
+        s.transcript_spacing = normalize_transcript_spacing(&s.transcript_spacing).to_string();
+        s.tool_collapse_mode = normalize_tool_collapse_mode(&s.tool_collapse_mode).to_string();
+        s.sidebar_focus = normalize_sidebar_focus(&s.sidebar_focus).to_string();
+        if s.sidebar_focus == "auto" && !s.sidebar_auto_collapse_opt_in {
+            // v0.8.62 wrote the surprising auto-collapse default into many
+            // full settings files. Treat unmarked saved "auto" as that
+            // legacy default so upgraded users get the sidebar back, while
+            // `/sidebar auto --save` and `/set sidebar_focus auto` below
+            // preserve an explicit opt-in from this release onward (#3328).
+            s.sidebar_focus = "pinned".to_string();
+        }
+        s.status_indicator = normalize_status_indicator(&s.status_indicator).to_string();
+        s.synchronized_output =
+            normalize_synchronized_output(&s.synchronized_output).to_string();
+        s.locale = normalize_configured_locale(&s.locale)
+            .unwrap_or("en")
+            .to_string();
+        s.background_color = normalize_optional_background_color(s.background_color.as_deref());
+        s.theme = normalize_settings_theme(&s.theme).to_string();
+        s.default_model = s.default_model.as_deref().and_then(normalize_default_model);
+        s.reasoning_effort = s
+            .reasoning_effort
+            .as_deref()
+            .and_then(|value| normalize_reasoning_effort_setting(value).ok().flatten());
+        s.apply_env_overrides();
+        Ok(s)
     }
 
     /// Whether the user explicitly persisted an `auto_compact` preference.
     /// When absent, callers may choose a model-aware default.
     pub fn auto_compact_explicitly_configured() -> bool {
-        let (primary, legacy_home, legacy_config_dir) = settings_path_candidates();
-        let Ok(path) =
-            resolve_settings_path_from_candidates(primary, legacy_home, legacy_config_dir)
-        else {
+        let path = Self::path().ok();
+        let Some(path) = path else {
             return false;
         };
         let Ok(content) = std::fs::read_to_string(path) else {
             return false;
         };
-        let Ok(value) = toml::from_str::<toml::Value>(&content) else {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&content) else {
             return false;
         };
         value
-            .as_table()
-            .is_some_and(|table| table.contains_key("auto_compact"))
+            .as_object()
+            .is_some_and(|obj| obj.contains_key("auto_compact"))
     }
 
     /// Apply environment-driven overlays after disk load. Used for
@@ -618,17 +567,7 @@ impl Settings {
             })?;
         }
 
-        let serialized = toml::to_string_pretty(self).context("Failed to serialize settings")?;
-        let body = if path.exists() {
-            let raw = std::fs::read_to_string(&path)
-                .with_context(|| format!("Failed to read settings at {}", path.display()))?;
-            mimofan_config::merge_and_preserve_comments(&serialized, &raw).unwrap_or_else(|e| {
-                tracing::warn!("failed to merge settings comments, saving without them: {e:#}");
-                serialized
-            })
-        } else {
-            serialized
-        };
+        let body = serde_json::to_string_pretty(self).context("Failed to serialize settings")?;
         std::fs::write(&path, body)
             .with_context(|| format!("Failed to write settings to {}", path.display()))?;
         Ok(())
@@ -1165,35 +1104,7 @@ impl Settings {
     }
 }
 
-fn resolve_settings_path_from_candidates(
-    primary: Option<PathBuf>,
-    legacy_home: Option<PathBuf>,
-    legacy_config_dir: Option<PathBuf>,
-) -> Result<PathBuf> {
-    if let Some(path) = primary.as_ref()
-        && path.exists()
-    {
-        return Ok(path.clone());
-    }
-
-    if let Some(path) = legacy_home
-        && path.exists()
-    {
-        return Ok(path);
-    }
-
-    if let Some(path) = legacy_config_dir.as_ref()
-        && path.exists()
-    {
-        return Ok(path.clone());
-    }
-
-    primary.or(legacy_config_dir).ok_or_else(|| {
-        anyhow::anyhow!("Failed to resolve settings path: no config directory found.")
-    })
-}
-
-fn settings_path_candidates() -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
+fn settings_path() -> Option<PathBuf> {
     // Allow tests to override the settings directory via the same env var
     // used for config (MIMOFAN_CONFIG_PATH points at config.toml; the
     // settings file lives as a sibling in the same directory).
@@ -1202,42 +1113,14 @@ fn settings_path_candidates() -> (Option<PathBuf>, Option<PathBuf>, Option<PathB
         if !config_path.is_empty() {
             let p = expand_path(config_path);
             if let Some(parent) = p.parent() {
-                return (Some(parent.join(SETTINGS_FILE_NAME)), None, None);
+                return Some(parent.join(SETTINGS_FILE_NAME));
             }
         }
     }
 
-    let primary = mimofan_config::mimofan_home()
+    mimofan_config::mimofan_home()
         .ok()
-        .map(|home| home.join(SETTINGS_FILE_NAME));
-
-    (primary, None, None)
-}
-
-fn migrate_settings_file_to_primary_if_needed(primary: &Path, active_read_path: &Path) {
-    if primary == active_read_path || primary.exists() || !active_read_path.exists() {
-        return;
-    }
-
-    let Some(parent) = primary.parent() else {
-        return;
-    };
-
-    if let Err(err) = std::fs::create_dir_all(parent) {
-        tracing::warn!(
-            "failed to create settings migration directory {}: {err}",
-            parent.display()
-        );
-        return;
-    }
-
-    if let Err(err) = std::fs::copy(active_read_path, primary) {
-        tracing::warn!(
-            "failed to migrate settings from {} to {}: {err}",
-            active_read_path.display(),
-            primary.display()
-        );
-    }
+        .map(|home| home.join(SETTINGS_FILE_NAME))
 }
 
 fn normalize_default_model(value: &str) -> Option<String> {

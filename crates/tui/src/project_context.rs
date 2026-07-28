@@ -4,7 +4,6 @@
 //! instructions and context to the AI agent. These include:
 //!
 //! - `AGENTS.md` - Cross-agent project instructions (canonical, highest priority)
-//! - `WHALE.md` - **Deprecated** legacy mimofan-native instructions (read-only fallback)
 //! - `.claude/instructions.md` - Claude-style hidden instructions (compat)
 //! - `CLAUDE.md` - Claude-style instructions (compat)
 //! - `.mimofan/instructions.md` - Hidden instructions file
@@ -25,24 +24,14 @@ use thiserror::Error;
 /// Names of project context files to look for, in priority order.
 ///
 /// `AGENTS.md` is the canonical cross-agent project-instructions file.
-/// `WHALE.md` is **deprecated** (kept only as a read-only legacy fallback, now
-/// below `AGENTS.md`) — mimofan-specific repo authority now lives in
-/// `.mimofan/constitution.json`, not a bespoke markdown file. `CLAUDE.md` and
-/// the `*/instructions.md` variants are read-only compatibility fallbacks;
-/// mimofan never creates or recommends them.
+/// `CLAUDE.md` and the `*/instructions.md` variants are read-only compatibility
+/// fallbacks; mimofan never creates or recommends them.
 const PROJECT_CONTEXT_FILES: &[&str] = &[
     "AGENTS.md",
-    "WHALE.md", // deprecated: legacy mimofan-native, read-only fallback (#WHALE.md deprecation)
     ".claude/instructions.md",
     "CLAUDE.md",
     ".mimofan/instructions.md",
 ];
-
-/// File name of the deprecated mimofan-native instructions file.
-const DEPRECATED_WHALE_FILENAME: &str = "WHALE.md";
-
-/// Warning surfaced when a `WHALE.md` is still the active instruction source.
-const WHALE_DEPRECATION_WARNING: &str = "WHALE.md is deprecated; move project instructions to AGENTS.md, or mimofan-specific authority policy to .mimofan/constitution.json. WHALE.md is still read for now but will be dropped from default discovery in a future release.";
 
 /// Relative path (within a workspace or one of its parents) to the
 /// mimofan-specific repo authority/prioritization policy.
@@ -53,17 +42,13 @@ const SUPPORTED_CONSTITUTION_SCHEMA: u32 = 1;
 
 /// User-level project instructions loaded as a fallback when the workspace and
 /// its parents do not define project context. Any global AGENTS.md takes
-/// priority over a global instructions.md (#3012), which takes priority over
-/// any deprecated global WHALE.md; within each file name,
-/// `.mimofan/` takes priority over vendor-neutral `.agents/`, which takes
+/// priority over a global instructions.md (#3012); within each file name,
 /// `.mimofan/` takes priority over vendor-neutral `.agents/`.
 const GLOBAL_AGENTS_RELATIVE_PATH: &[&str] = &[".mimofan", "AGENTS.md"];
 const GLOBAL_AGENTS_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "AGENTS.md"];
-const GLOBAL_WHALE_RELATIVE_PATH: &[&str] = &[".mimofan", "WHALE.md"];
-const GLOBAL_WHALE_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "WHALE.md"];
 /// Global `instructions.md` (#3012): auto-loaded as a fallback context layer,
-/// ranked between AGENTS.md (higher priority) and the deprecated WHALE.md
-/// (lower), mirroring the project-level precedence.
+/// ranked below AGENTS.md (higher priority), mirroring the project-level
+/// precedence.
 const GLOBAL_INSTRUCTIONS_RELATIVE_PATH: &[&str] = &[".mimofan", "instructions.md"];
 const GLOBAL_INSTRUCTIONS_VENDOR_NEUTRAL_PATH: &[&str] = &[".agents", "instructions.md"];
 
@@ -280,7 +265,7 @@ impl RepoConstitution {
             }
         }
         format!(
-            "<mimofan_repo_constitution source=\"{}\">\nmimofan-specific repo authority policy (local law: subordinate to the global Constitution and the current user request, but above memory and old handoffs; takes precedence over a legacy WHALE.md).\n\n{}</mimofan_repo_constitution>",
+            "<mimofan_repo_constitution source=\"{}\">\nmimofan-specific repo authority policy (local law: subordinate to the global Constitution and the current user request, but above memory and old handoffs).\n\n{}</mimofan_repo_constitution>",
             source.display(),
             body.trim_end()
         )
@@ -642,10 +627,6 @@ pub fn load_project_context(workspace: &Path) -> ProjectContext {
                         file_path.display(),
                         content.len()
                     );
-                    if *filename == DEPRECATED_WHALE_FILENAME {
-                        tracing::warn!("{WHALE_DEPRECATION_WARNING}");
-                        ctx.warnings.push(WHALE_DEPRECATION_WARNING.to_string());
-                    }
                     ctx.instructions = Some(content);
                     ctx.source_path = Some(file_path);
                     break;
@@ -760,7 +741,7 @@ fn load_project_context_with_parents_and_home(
     // Load the mimofan-specific repo authority policy
     // (.mimofan/constitution.json) independently of the prose instructions —
     // it is a distinct, higher-authority artifact and may exist with or without
-    // an AGENTS.md. When present it takes precedence over a legacy WHALE.md.
+    // an AGENTS.md.
     // Loaded last so the auto-generate fallback above (which rebuilds `ctx`)
     // cannot clobber it.
     let (constitution_block, constitution_warnings) = load_repo_constitution_block(workspace);
@@ -827,14 +808,12 @@ fn repo_constitution_candidate_paths(workspace: &Path) -> Vec<PathBuf> {
     paths
 }
 
-fn global_context_relative_paths() -> [&'static [&'static str]; 6] {
+fn global_context_relative_paths() -> [&'static [&'static str]; 4] {
     [
         GLOBAL_AGENTS_RELATIVE_PATH,
         GLOBAL_AGENTS_VENDOR_NEUTRAL_PATH,
         GLOBAL_INSTRUCTIONS_RELATIVE_PATH,
         GLOBAL_INSTRUCTIONS_VENDOR_NEUTRAL_PATH,
-        GLOBAL_WHALE_RELATIVE_PATH,
-        GLOBAL_WHALE_VENDOR_NEUTRAL_PATH,
     ]
 }
 
@@ -877,14 +856,11 @@ fn merge_global_and_project_instructions(
 fn load_global_agents_context(workspace: &Path, home_dir: Option<&Path>) -> Option<ProjectContext> {
     let home = home_dir?;
 
-    // Priority order (AGENTS.md preferred; instructions.md next, #3012;
-    // WHALE.md deprecated and last):
+    // Priority order (AGENTS.md preferred; instructions.md next, #3012):
     // 1. ~/.mimofanfan/AGENTS.md       (canonical)
     // 2. ~/.agents/AGENTS.md          (vendor-neutral fallback)
     // 3. ~/.mimofanfan/instructions.md (canonical)
     // 4. ~/.agents/instructions.md    (vendor-neutral fallback)
-    // 5. ~/.mimofanfan/WHALE.md        (deprecated)
-    // 6. ~/.agents/WHALE.md           (deprecated, vendor-neutral)
     let mut warnings = Vec::new();
 
     for candidate in global_context_relative_paths() {
@@ -893,11 +869,6 @@ fn load_global_agents_context(workspace: &Path, home_dir: Option<&Path>) -> Opti
         if context_candidate_exists(&path) {
             match load_context_file(&path) {
                 Ok(content) => {
-                    if path.file_name().and_then(|n| n.to_str()) == Some(DEPRECATED_WHALE_FILENAME)
-                    {
-                        tracing::warn!("{WHALE_DEPRECATION_WARNING}");
-                        warnings.push(WHALE_DEPRECATION_WARNING.to_string());
-                    }
                     let mut ctx = ProjectContext::empty(workspace.to_path_buf());
                     ctx.instructions = Some(content);
                     ctx.source_path = Some(path);
