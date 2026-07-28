@@ -20,8 +20,8 @@ use super::CommandResult;
 pub fn init(app: &mut App) -> CommandResult {
     let workspace = &app.workspace;
 
-    // Ensure .deepseek/ is gitignored if we're inside a git repo.
-    ensure_deepseek_gitignored(workspace);
+    // Ensure .mimofan/ is gitignored if we're inside a git repo.
+    ensure_mimofan_gitignored(workspace);
 
     // Check if AGENTS.md already exists — update it in place rather than refusing.
     let agents_path = workspace.join("AGENTS.md");
@@ -60,17 +60,13 @@ pub fn init(app: &mut App) -> CommandResult {
 /// keeping the authored `.mimofan/constitution.json` repo authority policy
 /// committable (a directory exclude cannot be overridden, so `.mimofan/*` plus
 /// a negation is required).
-fn ensure_deepseek_gitignored(workspace: &Path) {
+fn ensure_mimofan_gitignored(workspace: &Path) {
     let Some(git_root) = git_root(workspace) else {
         return;
     };
 
     let gitignore = git_root.join(".gitignore");
-    let entries = [
-        "**/.mimofan/*",
-        "!**/.mimofan/constitution.json",
-        ".deepseek/",
-    ];
+    let entries = ["**/.mimofan/*", "!**/.mimofan/constitution.json"];
 
     // Read existing contents once.
     let existing = std::fs::read_to_string(&gitignore).unwrap_or_default();

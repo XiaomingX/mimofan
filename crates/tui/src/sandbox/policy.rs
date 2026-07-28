@@ -199,14 +199,10 @@ impl SandboxPolicy {
                     .map(|root| {
                         let mut read_only_subpaths = Vec::new();
 
-                        // Protect .mimofan/ and .deepseek/ directories from modification
+                        // Protect .mimofan/ directory from modification
                         let mimofan_dir = root.join(".mimofan");
                         if mimofan_dir.is_dir() {
                             read_only_subpaths.push(mimofan_dir);
-                        }
-                        let deepseek_dir = root.join(".mimofan");
-                        if deepseek_dir.is_dir() {
-                            read_only_subpaths.push(deepseek_dir);
                         }
 
                         WritableRoot {
@@ -320,7 +316,7 @@ fn resolve_gitdir_back_pointer(git_dir: &Path) -> Option<PathBuf> {
 
 /// A directory tree where writes are allowed, with optional read-only subpaths.
 ///
-/// This allows fine-grained control like "allow writes to /project but not /project/.deepseek".
+/// This allows fine-grained control like "allow writes to /project but not /project/.mimofan".
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WritableRoot {
     /// The root directory where writes are allowed.

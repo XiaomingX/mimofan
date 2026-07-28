@@ -451,7 +451,7 @@ fn collect_candidates(root: &Path, max_depth: Option<usize>) -> Vec<String> {
             .ignore(false)
             .max_depth(max_depth.map(|d| d.saturating_sub(1)));
         for entry in dot_builder.build().flatten() {
-            // Exclude machine-generated bulk (e.g. .deepseek/snapshots/).
+            // Exclude machine-generated bulk (e.g. .mimofan/snapshots/).
             if path_is_excluded_from_discovery(root, entry.path()) {
                 continue;
             }

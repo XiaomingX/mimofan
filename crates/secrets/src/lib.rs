@@ -373,48 +373,9 @@ impl FileKeyringStore {
 
     /// Default path: `<home>/.mimofan/secrets/secrets.json`. Honours
     /// `MIMOFAN_HOME`, then `HOME`, `USERPROFILE`, and finally the platform
-    /// home directory from the `dirs` crate. On first use, non-conflicting
-    /// entries from the legacy `<home>/.deepseek/secrets/secrets.json` file are
-    /// copied into the mimofan store.
+    /// home directory from the `dirs` crate.
     pub fn default_path() -> Result<PathBuf, SecretsError> {
-        let primary = default_mimofan_secrets_path()?;
-        let legacy = legacy_deepseek_secrets_path()?;
-        if let Err(err) = Self::migrate_legacy_file_if_needed(&primary, &legacy) {
-            tracing::warn!(
-                "could not migrate legacy secret store from {} to {}: {err}",
-                legacy.display(),
-                primary.display()
-            );
-        }
-        Ok(primary)
-    }
-
-    fn migrate_legacy_file_if_needed(primary: &Path, legacy: &Path) -> Result<(), SecretsError> {
-        if !legacy.exists() {
-            return Ok(());
-        }
-
-        let legacy_store = Self::new(legacy.to_path_buf());
-        let legacy_blob = legacy_store.load_unlocked()?;
-        if legacy_blob.entries.is_empty() {
-            return Ok(());
-        }
-
-        let primary_store = Self::new(primary.to_path_buf());
-        let mut primary_blob = primary_store.load_unlocked()?;
-        let mut changed = false;
-        for (key, value) in legacy_blob.entries {
-            if let std::collections::hash_map::Entry::Vacant(entry) =
-                primary_blob.entries.entry(key)
-            {
-                entry.insert(value);
-                changed = true;
-            }
-        }
-        if changed {
-            primary_store.store_unlocked(&primary_blob)?;
-        }
-        Ok(())
+        default_mimofan_secrets_path()
     }
 
     fn home_dir() -> Result<PathBuf, SecretsError> {
@@ -559,13 +520,6 @@ fn default_mimofan_secrets_path() -> Result<PathBuf, SecretsError> {
             return Ok(PathBuf::from(trimmed).join("secrets").join("secrets.json"));
         }
     }
-    Ok(FileKeyringStore::home_dir()?
-        .join(".mimofan")
-        .join("secrets")
-        .join("secrets.json"))
-}
-
-fn legacy_deepseek_secrets_path() -> Result<PathBuf, SecretsError> {
     Ok(FileKeyringStore::home_dir()?
         .join(".mimofan")
         .join("secrets")

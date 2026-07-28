@@ -1433,7 +1433,7 @@ impl GenericToolCell {
 /// spilled to disk (#422 + #423). Produces a one-line muted hint:
 ///
 /// ```text
-///   full output: /Users/you/.deepseek/tool_outputs/call-abc12.txt
+///   full output: /Users/you/.mimofan/tool_outputs/call-abc12.txt
 /// ```
 ///
 /// Path is plain text on this branch; the OSC 8 hyperlink-wrap that

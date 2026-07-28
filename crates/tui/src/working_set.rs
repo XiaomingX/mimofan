@@ -216,7 +216,7 @@ impl Workspace {
         // Beyond the curated dot-dir whitelist above, also index any explicit
         // hidden/ignored path the user might `@`-mention (e.g. a project's
         // own `.generated/specs/`). `local_reference_paths` walks with
-        // gitignore disabled but still honors `.deepseekignore`.
+        // gitignore disabled but still honors `.mimoignore`.
         for path in local_reference_paths(
             &self.root,
             LOCAL_REFERENCE_SCAN_LIMIT,
@@ -251,7 +251,7 @@ impl Workspace {
     /// Tab-completes matches what their shell would have shown them.
     ///
     /// Honors `.gitignore`, `.git/info/exclude`, `.ignore`, and
-    /// `.deepseekignore`. Capped at `limit` results.
+    /// `.mimoignore`. Capped at `limit` results.
     #[must_use]
     pub fn completions(&self, partial: &str, limit: usize) -> Vec<String> {
         if limit == 0 {
@@ -358,7 +358,7 @@ impl Workspace {
             .hidden(!show_hidden)
             .follow_links(self.follow_links)
             .max_depth(Some(1));
-        let _ = builder.add_custom_ignore_filename(".deepseekignore");
+        let _ = builder.add_custom_ignore_filename(".mimoignore");
 
         for entry in builder.build().flatten() {
             let path = entry.path();
@@ -429,7 +429,7 @@ fn child_completion_walk_depth(depth: Option<usize>) -> Option<usize> {
 const FILE_INDEX_MAX_ENTRIES: usize = 50_000;
 
 /// Configure a `WalkBuilder` for workspace discovery: hidden files,
-/// depth-limited, custom `.deepseekignore` honored, and gitignore overrides
+/// depth-limited, custom `.mimoignore` honored, and gitignore overrides
 /// for AI-tool dot-directories so `@`-completion finds them even when
 /// they're gitignored. Symlink following is controlled by `follow_links`.
 fn discovery_walk_builder(
@@ -442,7 +442,7 @@ fn discovery_walk_builder(
     if let Some(depth) = max_depth {
         builder.max_depth(Some(depth));
     }
-    let _ = builder.add_custom_ignore_filename(".deepseekignore");
+    let _ = builder.add_custom_ignore_filename(".mimoignore");
     builder
 }
 
@@ -603,7 +603,7 @@ fn local_reference_paths(
     if let Some(depth) = max_depth {
         builder.max_depth(Some(depth));
     }
-    let _ = builder.add_custom_ignore_filename(".deepseekignore");
+    let _ = builder.add_custom_ignore_filename(".mimoignore");
     let root_for_filter = root.to_path_buf();
     builder.filter_entry(move |entry| {
         !should_skip_unignored_discovery_entry(&root_for_filter, entry.path())

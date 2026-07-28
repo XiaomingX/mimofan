@@ -355,7 +355,7 @@ fn build_state(config_path: Option<PathBuf>, auth_token: Option<String>) -> Resu
     let hook_log_path = config_path
         .as_ref()
         .and_then(|p| p.parent().map(|parent| parent.join("events.jsonl")))
-        .unwrap_or_else(|| PathBuf::from(".deepseek/events.jsonl"));
+        .unwrap_or_else(|| PathBuf::from(".mimofan/events.jsonl"));
     hooks.add_sink(Arc::new(JsonlHookSink::new(hook_log_path)));
 
     if let Some(socket_path) = config

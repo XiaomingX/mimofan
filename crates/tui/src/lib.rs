@@ -3215,7 +3215,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
                     "✓".truecolor(aqua_r, aqua_g, aqua_b),
                 );
                 println!(
-                    "    Set `prefer_external_pdftotext = true` in settings.toml for column-heavy PDFs."
+                    "    Set `prefer_external_pdftotext = true` in settings.json for column-heavy PDFs."
                 );
             }
         }
@@ -5656,7 +5656,7 @@ fn merge_project_config(config: &mut Config, workspace: &Path) {
     };
 
     // #417: dangerous keys are denied at project scope. A malicious
-    // `<workspace>/.deepseek/config.toml` could otherwise:
+    // `<workspace>/.mimofan/config.toml` could otherwise:
     // * `api_key` / `base_url` / `provider` — exfiltrate prompts to a
     //   look-alike endpoint by swapping the user's credentials and
     //   target host with project-controlled values.
@@ -5888,7 +5888,6 @@ async fn run_interactive(
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
     // Merge project-level config from $WORKSPACE/.mimofan/config.toml
-    // or legacy $WORKSPACE/.deepseek/config.toml
     // unless --no-project-config was passed (#485).
     let mut merged_config = config.clone();
     merge_user_workspace_config(&mut merged_config, cli.config.clone(), &workspace);

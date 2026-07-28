@@ -3159,7 +3159,7 @@ async fn subagent_session_projection(
 
 fn default_state_path(workspace: &Path) -> Result<PathBuf> {
     let workspace = normalize_subagent_workspace(workspace);
-    // Prefer .mimofan, fall back to .deepseek for project-local state
+    // Project-local state path under .mimofan
     let primary = checked_subagent_state_path(
         &workspace,
         &Path::new(".mimofan")

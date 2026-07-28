@@ -14,8 +14,7 @@
 //! Workspace-local directories shadow user-global by name:
 //!
 //! 1. `<workspace>/.mimofan/commands/` (project-local, highest)
-//! 2. `<workspace>/.deepseek/commands/`  (legacy project-local)
-//! 3. `<workspace>/.claude/commands/`    (Claude Code interop)
+//! 2. `<workspace>/.claude/commands/`    (Claude Code interop)
 //! 4. `<workspace>/.cursor/commands/`    (Cursor interop)
 //! 5. `~/.mimofanfan/commands/`           (user-global)
 //! 6. `~/.mimofanfan/commands/`            (legacy user-global)
