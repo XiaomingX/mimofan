@@ -279,7 +279,7 @@ cargo clippy --workspace --all-features --locked -- \
 
 ## 当前发布工作
 
-- 从最新交接和 `git branch --show-current` 确认当前发布通道的活动分支；最近的工作通过小 PR 在 `main` 上登陆，而非长期存在的 `codex/...` 集成分支。此仓库存在于多设备，因此不要硬编码检出路径；在你拥有的本地检出中工作，并在编辑前确认分支。永远不要直接提交到 `main`。
+- 从最新交接和 `git branch --show-current` 确认当前发布通道的活动分支；最近的工作通过小 PR 在 `main` 上登陆，而非长期存在的 `codex/...` 集成分支。此仓库存在于多设备，因此不要硬编码检出路径；在你拥有的本地检出中工作，并在编辑前确认分支。
 - 从 `Cargo.toml` 读取工作区版本；它随发布通道推进。没有 Hunter 的明确批准，不要打标签、发布、创建 GitHub Release、推送发布工件或合并到 `main`。
 - 基于活动交接中命名的当前 GitHub 发布里程碑进行发布分类（`gh issue list --repo XiaomingX/mimofan --milestone "<current>" --state open`），除非 Hunter 给出更新的分支/里程碑。
 - 按此顺序处理队列：发布阻塞项、最近批准的 PR、小范围的干净 PR、有明显修复的阻塞 PR、可安全收割的脏 PR，然后是更大的架构问题。
