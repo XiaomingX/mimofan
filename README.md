@@ -26,7 +26,7 @@ pnpm add -g mimofan
 bun add -g mimofan   # bun 默认跳过安装期下载，首次运行时自动获取二进制
 ```
 
-*(如果你是 Rust 开发者，也可以直接使用 `cargo install mimofan-cli --locked` 源码安装)*
+*(如果你是 Rust 开发者，也可以直接使用 `cargo install --path crates/tui --locked` 源码安装)*
 
 ---
 
