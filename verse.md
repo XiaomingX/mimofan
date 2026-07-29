@@ -324,3 +324,561 @@
 | claude-code-best | 9 | push/pop 上下文栈、按模型配置窗口、reasoning_effort |
 | loop-engineering | 9 | 并发 worktree 管理、maker/checker 分离、断路器、沙箱执行 |
 | **合计** | **187** | |
+
+---
+
+## 六、新增仓库筛选结果（v3）
+
+> 范围：仅保留 **TUI（终端 UI）+ macOS** 相关、且属于「提升用户体验（更快响应 / 常用能力）/ 降低用户成本（节省 token）」的候选需求。
+> 严格过滤：GUI-only 仓库（stepfun-ai/gelab-zero）与浏览器自动化（browser-use/browser-harness）无终端/TUI 场景，已整体排除；conductor / deer-flow / pydantic-harness 的 Web UI 与非终端 issue 已剔除，仅保留 terminal/macOS 相关或可直接迁移到 TUI Agent 的 token/能力项。
+> 源仓库（15 个，#5=#4 charmbracelet/crush、#7=#6 conductor-oss/conductor 为重复）：CodeWhale, gelab-zero, plandex, crush, conductor, DeepSeek-Reasonix, superpowers, deer-flow, warp, trae-agent, qwen-code, cline, browser-harness, aider, pydantic-ai-harness。
+
+### Hmbown/CodeWhale (CW)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CW1 | Hmbown/CodeWhale | #549 | Interactive TUI hangs on 'working.' at 100% CPU (macOS ARM64, v0.8.7) | macOS ARM64 上 TUI 卡在 'working.' 且 CPU 占满，交互完全无响应 | macOS/perf | P1 |
+| CW2 | Hmbown/CodeWhale | #2968 | remote-workbench: self-hosted Mac target — workbench in apple/container Linux VM (zero cloud cost) | 支持自托管 Mac 工作节点（Apple/容器 Linux VM），零云端成本 | macOS/cost | P2 |
+| CW3 | Hmbown/CodeWhale | #3143 | Add prompt source map and context-usage report for rules/tools/memory/skills | 提供 prompt 来源映射与上下文用量分项报告（rules/tools/memory/skills） | token/UX | P1 |
+| CW4 | Hmbown/CodeWhale | #3906 | perf(tui): render() re-estimates context tokens over ALL api_messages every frame | 每帧 render 对全部 api_messages 重新序列化估算 tokens，热路径浪费 CPU | token/perf | P1 |
+| CW5 | Hmbown/CodeWhale | #3190 | feat(tui): surface token throughput during streaming | 流式输出时显示 token 吞吐速度 | token/UX | P1 |
+| CW6 | Hmbown/CodeWhale | #166 | UI: real-time cost counter during sub-agent work | 子代理工作期间实时显示成本计数 | token/UX | P1 |
+| CW7 | Hmbown/CodeWhale | #1120 | 缓存命中方面似乎还是有些问题 (cache hits still problematic) | prompt cache 命中率异常，未稳定命中，每轮重发前缀 | token | P1 |
+| CW8 | Hmbown/CodeWhale | #3474 | /model /sessions TUI selector extremely low text contrast on macOS terminal | macOS 终端下选择器文字对比度过低难以辨认 | macOS/TUI | P2 |
+| CW9 | Hmbown/CodeWhale | #1670 | theme='system' detects dark on macOS Light mode with Ghostty | macOS Light 模式下 theme=system 误检测为深色 | macOS/TUI | P2 |
+| CW10 | Hmbown/CodeWhale | #1556 | deepseek 在 macOS 下的 ghostty 会一直闪屏 (flickering on Ghostty) | macOS Ghostty 终端下 TUI 持续闪烁，iTerm2 正常 | macOS/TUI | P2 |
+
+### plandex-ai/plandex (PL)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| PL1 | plandex-ai/plandex | #324 | Suggestion: HADS format for context files — reduces token waste for loaded docs | 用 HADS 格式组织上下文文件，减少加载文档的 token 浪费 | token | P1 |
+| PL2 | plandex-ai/plandex | #89 | Token limit exceeded before adding conversation | 加入对话前即触发 token 上限 | token | P1 |
+| PL3 | plandex-ai/plandex | #34 | Stream buffer tokens too high for file 'go.mod' | 单文件流缓冲 token 过高（go.mod） | token/perf | P2 |
+| PL4 | plandex-ai/plandex | #349 | nil pointer dereference crash during build of large files | 构建大文件时 nil pointer 崩溃 | perf/stability | P2 |
+| PL5 | plandex-ai/plandex | #251 | Average cost to use this? | 用户关心使用成本，需要成本可见与优化指引 | token | P2 |
+| PL6 | plandex-ai/plandex | #297 | Add CLI flags --local and --host for non-interactive local mode | 非交互本地模式与自定义 host 的 CLI 参数（常用能力） | UX/common | P2 |
+
+### charmbracelet/crush (CR)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CR1 | charmbracelet/crush | #1055 | Missing auto-compaction of context; freezes when starting a new session after context exhausted | 缺少自动 compaction，上下文耗尽后开新会话冻结 | token/stability | P0 |
+| CR2 | charmbracelet/crush | #337 | macOS panic: runtime error: invalid memory address or nil pointer dereference | macOS 下 nil 指针 panic 崩溃 | macOS/stability | P1 |
+| CR3 | charmbracelet/crush | #2918 | High CPU/RAM usage while streaming long thinking traces in assistant message | 流式长思考链路时 CPU/内存占用高 | perf/token | P1 |
+| CR4 | charmbracelet/crush | #3167 | Feature: Display real-time token generation speed in status bar | 状态栏显示实时 token 生成速度 | token/UX | P1 |
+| CR5 | charmbracelet/crush | #3373 | URLs in Crush output are not clickable (no OSC 8) — Ghostty & Kitty on macOS | macOS Ghostty/Kitty 下输出 URL 不可点击（缺 OSC 8 超链） | macOS/TUI | P1 |
+| CR6 | charmbracelet/crush | #993 | Token & Cost count does not function with a custom provider | 自定义 provider 下 token/成本统计失效 | token | P1 |
+| CR7 | charmbracelet/crush | #555 | Unnecessary Input Token Spend - Full Project Context Sent on Every Request | 每轮请求发送完整项目上下文，输入 token 浪费 | token | P0 |
+| CR8 | charmbracelet/crush | #447 | Local LM Studio/Ollama Custom Providers Support | 支持本地 LM Studio/Ollama 自定义 provider（常用能力） | UX/common | P2 |
+| CR9 | charmbracelet/crush | #3136 | Pasting images from WeChat screenshot clipboard fails on macOS | macOS 下从微信截图剪贴板粘贴图片失败 | macOS/TUI | P2 |
+| CR10 | charmbracelet/crush | #3429 | No mouse text selection, click-to-position cursor, or copy support (macOS, Warp) | macOS/Warp 下无鼠标文本选择与点击定位光标 | macOS/TUI | P2 |
+
+### conductor-oss/conductor (CO)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CO1 | conductor-oss/conductor | #1226 | OpenCode providers hang indefinitely in Conductor while native OpenCode UI completes | Conductor 中 OpenCode provider 永久挂起，而原生 OpenCode TUI 正常完成（跨工具 TUI 代理挂起） | perf/TUI | P2 |
+| CO2 | conductor-oss/conductor | #1143 | git not found on macOS when launched from GUI (Tauri empty env issue) | macOS 从 GUI(Tauri) 启动时光 git 找不到（空环境变量） | macOS | P2 |
+
+### esengine/DeepSeek-Reasonix (DR)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| DR1 | esengine/DeepSeek-Reasonix | #3999 | Mac command+c 双击两次退出终端会话 | macOS 下 Cmd+C 双击误退出终端会话 | macOS/TUI | P1 |
+| DR2 | esengine/DeepSeek-Reasonix | #3734 | macOS: codegraph 进程在 Reasonix 退出后残留，导致系统卡顿 | 退出后 codegraph 进程残留导致 macOS 卡顿 | macOS/perf | P1 |
+| DR3 | esengine/DeepSeek-Reasonix | #3655 | TUI can be suspended by tty input and leave terminal modes dirty | TTY 输入可挂起 TUI 并残留终端模式（需清理） | macOS/TUI | P1 |
+| DR4 | esengine/DeepSeek-Reasonix | #5627 | docs say mouse reporting disabled but TUI enables MouseMode, blocking native copy | TUI 实际启用 MouseMode 阻止终端原生文本复制 | macOS/TUI | P1 |
+| DR5 | esengine/DeepSeek-Reasonix | #4626 | When waiting for confirmation of input, it will hang up and exit | 等待确认输入时挂起退出 | macOS/stability | P1 |
+| DR6 | esengine/DeepSeek-Reasonix | #4211 | cli 1.4.0 之后跑一会儿就自动退出 | CLI 运行一段时间后自动退出 | macOS/stability | P1 |
+| DR7 | esengine/DeepSeek-Reasonix | #6387 | v1.17.11 输入框只能显示一行 | 输入框仅显示一行，不可多行 | macOS/TUI | P1 |
+| DR8 | esengine/DeepSeek-Reasonix | #6603 | Mac 使用 reasonix CLI 无法复制粘贴 | macOS 下无法复制粘贴 | macOS/TUI | P1 |
+| DR9 | esengine/DeepSeek-Reasonix | #3511 | 多行输入支持 | 需要多行输入支持 | macOS/TUI | P1 |
+| DR10 | esengine/DeepSeek-Reasonix | #5324 | Scrolling up to view past messages does not work anymore (CLI) | CLI 下向上滚动查看历史失效 | macOS/TUI | P1 |
+| DR11 | esengine/DeepSeek-Reasonix | #1122 | macOS M4 stuck on startup | macOS M4 启动卡死 | macOS | P1 |
+
+### obra/superpowers (SP)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| SP1 | obra/superpowers | #87 | Optimize plan generation: Modular task files + orchestrator for 90%+ token reduction | 模块化任务文件+编排器，子代理开发 token 减少 90%+ | token | P0 |
+| SP2 | obra/superpowers | #190 | All Skills Preloaded at Startup Consuming 22k+ Tokens (11% of Context) | 启动时预加载全部 skill 消耗 22k+ tokens（占上下文 11%） | token | P1 |
+| SP3 | obra/superpowers | #832 | Token optimization: 69% line reduction across all 14 skills | 14 个 skill 减少 69% 行数无行为回退 | token | P1 |
+| SP4 | obra/superpowers | #1988 | Codex SDD has no circuit breaker: one task ran ~4h, 120.7M telemetry tokens | 无断路器，单任务跑 4h 累积 120.7M tokens | token/stability | P0 |
+| SP5 | obra/superpowers | #750 | Superpowers consume a lot of tokens in Opencode with Codex | Opencode+Codex 下 token 消耗大 | token | P1 |
+| SP6 | obra/superpowers | #1940 | Is Superpowers still suitable for the token plan era? cost control difficult | token 计费时代成本控制困难 | token | P1 |
+| SP7 | obra/superpowers | #551 | Add a core project memory system for cross-session retrieval | 跨会话项目记忆系统（常用能力） | UX/common | P2 |
+| SP8 | obra/superpowers | #351 | Change text search from grep to ripgrep | 文本搜索从 grep 换 ripgrep 提速 | perf | P2 |
+| SP9 | obra/superpowers | #100 | Make it more explicit the skill is waiting for user input | 明确提示 skill 正在等待用户输入 | UX | P2 |
+
+### bytedance/deer-flow (DF)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| DF1 | bytedance/deer-flow | #3173 | Raise default summarization trigger to avoid frequent compaction in research runs | 提高默认摘要触发阈值，避免研究任务频繁 compaction | token | P1 |
+| DF2 | bytedance/deer-flow | #3125 | display real-time context window usage percentage in chat UI | 实时显示上下文窗口使用百分比 | token/UX | P1 |
+| DF3 | bytedance/deer-flow | #3103 | LLM 400 上下文超限 — summary 不触发、无 input_token 限制入口 | 上下文超限 400，摘要不触发且无 input token 上限入口 | token | P1 |
+| DF4 | bytedance/deer-flow | #1400 | lsof -nP -iTCP hangs indefinitely on macOS, blocking server startup | macOS 下 lsof 挂起阻塞服务启动 | macOS/perf | P1 |
+| DF5 | bytedance/deer-flow | #1602 | SummarizationMiddleware fails in streaming (stream_usage off) -> context overflow | 流式下摘要中间件不触发导致上下文溢出 | token | P1 |
+| DF6 | bytedance/deer-flow | #1850 | Unified Persistence Layer: Message History, Event Tracing, Token Tracking & Feedback | 统一持久层：消息历史/事件追踪/token 统计/反馈 | token/UX | P2 |
+
+### warpdotdev/warp (WP)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| WP1 | warpdotdev/warp | #13295 | Agent runs failing to complete with high credit usage and crash/restart loop | Agent 崩溃重启循环，信用消耗高（计费影响） | macOS/token | P0 |
+| WP2 | warpdotdev/warp | #7248 | git operations crashes arm macs | ARM Mac 上 git 操作崩溃 | macOS/stability | P1 |
+| WP3 | warpdotdev/warp | #9037 | High CPU Usage (>100%) and command hangs on macOS Tahoe and Remote SSH | macOS Tahoe + 远程 SSH 下 CPU>100% 且命令挂起 | macOS/perf | P1 |
+| WP4 | warpdotdev/warp | #8205 | Huge memory leak on macOS Tahoe 26.1/26.2 (78GB of memory consumed) | macOS Tahoe 下巨大内存泄漏（78GB） | macOS/perf | P0 |
+| WP5 | warpdotdev/warp | #6590 | lag and high CPU usage on macOS 26 when scrolling big scrollback | macOS 26 滚动大 scrollback 卡顿且 CPU 高 | macOS/perf | P1 |
+| WP6 | warpdotdev/warp | #9830 | Idle Warp tabs drain GitHub GraphQL API rate limit (~2.4 calls/sec) | 空闲 tab 持续消耗 GitHub GraphQL API 限额 | macOS/token | P1 |
+| WP7 | warpdotdev/warp | #5950 | Warp hangs indefinitely on macOS after Feb 27 update | macOS 更新后 Warp 永久挂起 | macOS/stability | P1 |
+| WP8 | warpdotdev/warp | #7965 | Terrible performance on M3 Mac | M3 Mac 上性能极差 | macOS/perf | P1 |
+| WP9 | warpdotdev/warp | #13040 | Crash on terminal resize with CJK (wide) characters in the prompt | 提示符含 CJK 宽字符时终端 resize 崩溃 | macOS/TUI | P1 |
+| WP10 | warpdotdev/warp | #7804 | Process stuck in repetitive 'summarization loop' failing to make progress | 陷入重复摘要循环无进展 | token/stability | P0 |
+| WP11 | warpdotdev/warp | #8405 | Feature request: CLI/API to query Warp AI credit usage programmatically | 提供 CLI/API 程序化查询 AI 信用用量 | macOS/token/UX | P1 |
+| WP12 | warpdotdev/warp | #8542 | Enhance 'Changes' panel with full Git staging/unstaging/commit (VS Code-like) | 增强 Changes 面板支持完整 Git 暂存/提交 | macOS/UX | P2 |
+
+### bytedance/trae-agent (TA)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| TA1 | bytedance/trae-agent | #228 | Trae-cli always hang and never terminate | CLI 永久挂起不终止 | perf/stability | P1 |
+| TA2 | bytedance/trae-agent | #351 | 为什么这个 cli 这么费 token？ | 用户反馈 CLI token 消耗过大 | token | P1 |
+| TA3 | bytedance/trae-agent | #233 | 进程吃满 cpu 100%（疑似挖矿） | 进程 CPU 占满 100% | perf | P1 |
+| TA4 | bytedance/trae-agent | #364 | AI agent is operating very slowly | 代理运行极慢 | perf | P1 |
+| TA5 | bytedance/trae-agent | #195 | trae 目前有做 memory 压缩么（类似 mem0） | 询问是否做 memory 压缩以省 token | token | P1 |
+| TA6 | bytedance/trae-agent | #94 | Steps streaming print | 步骤流式打印（实时反馈） | UX | P2 |
+| TA7 | bytedance/trae-agent | #14 | Qwen and Deepseek support | 支持更多模型 provider（常用能力） | UX/common | P2 |
+
+### QwenLM/qwen-code (QW)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| QW1 | QwenLM/qwen-code | #6004 | 安装 MCP 过程中任务异常直接闪退 | macOS 下安装 MCP 时异常闪退 | macOS/stability | P1 |
+| QW2 | QwenLM/qwen-code | #3264 | ui.statusLine crashes CLI with spawn EBADF on macOS | macOS 下 statusLine 崩溃（spawn EBADF） | macOS/stability | P1 |
+| QW3 | QwenLM/qwen-code | #4815 | Severe OOM with --resume and Escape key broken | --resume 严重 OOM 且 Escape 失效 | perf/token | P1 |
+| QW4 | QwenLM/qwen-code | #6265 | tool_search invalidates LLM server KV-cache on every deferred-tool load | 每次延迟加载 tool_search 使 KV-cache 失效 | token/perf | P1 |
+| QW5 | QwenLM/qwen-code | #6806 | Status line context usage % does not refresh after /compress | /compress 后状态栏上下文百分比不刷新 | token/UX | P1 |
+| QW6 | QwenLM/qwen-code | #7831 | Repeated ECONNRESET on streaming when context exceeds ~150k tokens | 上下文超 150k token 时流式重复 ECONNRESET | perf/token | P1 |
+| QW7 | QwenLM/qwen-code | #6097 | System prompt fixed overhead reaches ~22k tokens (0.2% signal) | 系统提示固定开销达 22k tokens，信噪比低 | token | P0 |
+| QW8 | QwenLM/qwen-code | #5861 | Context compression request should use stream=true to avoid gateway timeout | 上下文压缩应用 stream=true 避免网关超时 | token/perf | P1 |
+| QW9 | QwenLM/qwen-code | #5722 | Token speed display bugs: tok/s disappears during thinking | token 速度显示错误（思考/工具调用时 tok/s 消失） | token/UX | P1 |
+| QW10 | QwenLM/qwen-code | #5101 | Qwen Code carries repeated large tool results through provider history | 重复大工具结果穿过 provider 历史，膨胀上下文 | token | P1 |
+| QW11 | QwenLM/qwen-code | #4695 | Tool-call loop: no client-side circuit breaker | 工具调用循环无客户端断路器，模型陷入重复 tool_call | token/stability | P1 |
+
+### cline/cline (CL)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CL1 | cline/cline | #484 | MacOS 15 Shell Integration: Unable to Retrieve Terminal Output | macOS Shell Integration 无法获取终端输出 | macOS/TUI | P1 |
+| CL2 | cline/cline | #3445 | Terminal output capture failure in Cline v3.15.0/v3.15.1 | 终端输出捕获失败 | macOS/TUI | P1 |
+| CL3 | cline/cline | #4356 | Improve Terminal Integration Reliability Across Platforms and Shell Configs | 跨平台/Shell 终端集成可靠性改进（常用能力） | TUI | P1 |
+| CL4 | cline/cline | #1404 | Cline hanging after command execution from any tasks | 命令执行后挂起 | perf/stability | P1 |
+| CL5 | cline/cline | #1146 | Executing terminal commands hangs cline | 执行终端命令时挂起 | perf/stability | P1 |
+| CL6 | cline/cline | #3501 | MCP server data under iCloud-synced Documents -> system-wide slowdowns on macOS | macOS 下 MCP 数据存 iCloud 文档目录导致系统变慢 | macOS/perf | P1 |
+| CL7 | cline/cline | #6878 | Intermittent crash leads to loss of visible task history on Apple M3 | Apple M3 上间歇崩溃丢失任务历史 | macOS/stability | P1 |
+| CL8 | cline/cline | #4031 | Very high idle CPU on Code Helper (Plugin) MacOS Sequoia (Apple Silicon) | macOS Sequoia 下插件空闲 CPU 极高 | macOS/perf | P1 |
+| CL9 | cline/cline | #9660 | prompt is too long: 228307 tokens > 200000 maximum | 提示过长 228k tokens 超 200k 上限 | token | P0 |
+| CL10 | cline/cline | #1452 | Excessive Token Consumption loading config files like node_modules on initial load | 初始加载误载 node_modules 等配置文件致 token 浪费 | token | P1 |
+| CL11 | cline/cline | #11181 | memorybank sub-agents cause significant token waste | memorybank 子代理造成显著 token 浪费 | token | P1 |
+| CL12 | cline/cline | #9323 | Cline CLI hangs when context window is full - no accessible retry button | 上下文满时 CLI 挂起且无重试入口 | token/stability | P1 |
+
+### Aider-AI/aider (AI)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| AI1 | Aider-AI/aider | #276 | Is it possible to set custom timeout? | 支持自定义超时 | perf/UX | P1 |
+| AI2 | Aider-AI/aider | #3021 | Either 'Loading' or infinite wait for any request on Mac | macOS 下无限等待/Loading | macOS/perf | P1 |
+| AI3 | Aider-AI/aider | #705 | Sonnet 3.5 is using a lot of output tokens, hitting 4k output token limit | 输出 token 过多触及 4k 上限 | token | P1 |
+| AI4 | Aider-AI/aider | #863 | Tokens leak? | token 疑似泄漏 | token | P1 |
+| AI5 | Aider-AI/aider | #437 | how to optimize costs ? | 成本优化指导需求 | token | P1 |
+| AI6 | Aider-AI/aider | #3196 | 100% cpu freezing does not respond to ctrl c | 100% CPU 冻结，ctrl-c 无响应 | perf/stability | P1 |
+| AI7 | Aider-AI/aider | #995 | Tab filename completion causes aider to hang | 文件名 Tab 补全导致 aider 挂起 | TUI/perf | P1 |
+| AI8 | Aider-AI/aider | #2010 | local file updated but /read cache not refreshed | 本地文件更新后 /read 缓存未刷新 | token/cache | P1 |
+| AI9 | Aider-AI/aider | #5447 | Cache unchanged tracked-file results during startup | 启动时缓存未变文件结果 | token/cache | P1 |
+| AI10 | Aider-AI/aider | #3104 | Add busy indicator / spinner / progress bar | 增加忙碌指示/进度条 | UX | P2 |
+| AI11 | Aider-AI/aider | #4542 | Is Aider suitable for complex and large-scale projects? (models only 4k tokens by default) | 大模型默认仅 4k token，不适合大型项目 | token | P2 |
+
+### pydantic/pydantic-ai-harness (PH)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| PH1 | pydantic/pydantic-ai-harness | #40 | Deferred Tool Loading / Tool Search capability | 延迟工具加载/工具搜索，减少每次全量注入 token | token/common | P1 |
+| PH2 | pydantic/pydantic-ai-harness | #84 | Adaptive Reasoning Effort (per-step thinking budget selection) | 逐步自适应推理强度，控制 thinking token | token/common | P1 |
+| PH3 | pydantic/pydantic-ai-harness | #93 | Git History as Compressed Context | 用 Git 历史作为压缩上下文，降低 token | token/common | P1 |
+| PH4 | pydantic/pydantic-ai-harness | #357 | SubAgents: no per-delegation model selection (cheaper/stronger routing) | 子代理无法按任务选更便宜/更强模型路由 | token/common | P1 |
+| PH5 | pydantic/pydantic-ai-harness | #18 | CLI agent loading from spec files | 从 spec 文件加载 CLI agent（命令行能力） | TUI/common | P2 |
+
+### 按优先级汇总（P0/P1 推荐实施）
+
+| 优先级 | 编号 | 来源 | Issue | 标题 | 分类 |
+|--------|------|------|-------|------|------|
+| P0 | CL9 | cline/cline | #9660 | prompt is too long: 228307 tokens > 200000 maximum | token |
+| P0 | CR1 | charmbracelet/crush | #1055 | Missing auto-compaction of context; freezes when starting a new session after context exhausted | token/stability |
+| P0 | CR7 | charmbracelet/crush | #555 | Unnecessary Input Token Spend - Full Project Context Sent on Every Request | token |
+| P0 | QW7 | QwenLM/qwen-code | #6097 | System prompt fixed overhead reaches ~22k tokens (0.2% signal) | token |
+| P0 | SP1 | obra/superpowers | #87 | Optimize plan generation: Modular task files + orchestrator for 90%+ token reduction | token |
+| P0 | SP4 | obra/superpowers | #1988 | Codex SDD has no circuit breaker: one task ran ~4h, 120.7M telemetry tokens | token/stability |
+| P0 | WP1 | warpdotdev/warp | #13295 | Agent runs failing to complete with high credit usage and crash/restart loop | macOS/token |
+| P0 | WP10 | warpdotdev/warp | #7804 | Process stuck in repetitive 'summarization loop' failing to make progress | token/stability |
+| P0 | WP4 | warpdotdev/warp | #8205 | Huge memory leak on macOS Tahoe 26.1/26.2 (78GB of memory consumed) | macOS/perf |
+| P1 | AI1 | Aider-AI/aider | #276 | Is it possible to set custom timeout? | perf/UX |
+| P1 | AI2 | Aider-AI/aider | #3021 | Either 'Loading' or infinite wait for any request on Mac | macOS/perf |
+| P1 | AI3 | Aider-AI/aider | #705 | Sonnet 3.5 is using a lot of output tokens, hitting 4k output token limit | token |
+| P1 | AI4 | Aider-AI/aider | #863 | Tokens leak? | token |
+| P1 | AI5 | Aider-AI/aider | #437 | how to optimize costs ? | token |
+| P1 | AI6 | Aider-AI/aider | #3196 | 100% cpu freezing does not respond to ctrl c | perf/stability |
+| P1 | AI7 | Aider-AI/aider | #995 | Tab filename completion causes aider to hang | TUI/perf |
+| P1 | AI8 | Aider-AI/aider | #2010 | local file updated but /read cache not refreshed | token/cache |
+| P1 | AI9 | Aider-AI/aider | #5447 | Cache unchanged tracked-file results during startup | token/cache |
+| P1 | CL1 | cline/cline | #484 | MacOS 15 Shell Integration: Unable to Retrieve Terminal Output | macOS/TUI |
+| P1 | CL10 | cline/cline | #1452 | Excessive Token Consumption loading config files like node_modules on initial load | token |
+| P1 | CL11 | cline/cline | #11181 | memorybank sub-agents cause significant token waste | token |
+| P1 | CL12 | cline/cline | #9323 | Cline CLI hangs when context window is full - no accessible retry button | token/stability |
+| P1 | CL2 | cline/cline | #3445 | Terminal output capture failure in Cline v3.15.0/v3.15.1 | macOS/TUI |
+| P1 | CL3 | cline/cline | #4356 | Improve Terminal Integration Reliability Across Platforms and Shell Configs | TUI |
+| P1 | CL4 | cline/cline | #1404 | Cline hanging after command execution from any tasks | perf/stability |
+| P1 | CL5 | cline/cline | #1146 | Executing terminal commands hangs cline | perf/stability |
+| P1 | CL6 | cline/cline | #3501 | MCP server data under iCloud-synced Documents -> system-wide slowdowns on macOS | macOS/perf |
+| P1 | CL7 | cline/cline | #6878 | Intermittent crash leads to loss of visible task history on Apple M3 | macOS/stability |
+| P1 | CL8 | cline/cline | #4031 | Very high idle CPU on Code Helper (Plugin) MacOS Sequoia (Apple Silicon) | macOS/perf |
+| P1 | CR2 | charmbracelet/crush | #337 | macOS panic: runtime error: invalid memory address or nil pointer dereference | macOS/stability |
+| P1 | CR3 | charmbracelet/crush | #2918 | High CPU/RAM usage while streaming long thinking traces in assistant message | perf/token |
+| P1 | CR4 | charmbracelet/crush | #3167 | Feature: Display real-time token generation speed in status bar | token/UX |
+| P1 | CR5 | charmbracelet/crush | #3373 | URLs in Crush output are not clickable (no OSC 8) — Ghostty & Kitty on macOS | macOS/TUI |
+| P1 | CR6 | charmbracelet/crush | #993 | Token & Cost count does not function with a custom provider | token |
+| P1 | CW1 | Hmbown/CodeWhale | #549 | Interactive TUI hangs on 'working.' at 100% CPU (macOS ARM64, v0.8.7) | macOS/perf |
+| P1 | CW3 | Hmbown/CodeWhale | #3143 | Add prompt source map and context-usage report for rules/tools/memory/skills | token/UX |
+| P1 | CW4 | Hmbown/CodeWhale | #3906 | perf(tui): render() re-estimates context tokens over ALL api_messages every frame | token/perf |
+| P1 | CW5 | Hmbown/CodeWhale | #3190 | feat(tui): surface token throughput during streaming | token/UX |
+| P1 | CW6 | Hmbown/CodeWhale | #166 | UI: real-time cost counter during sub-agent work | token/UX |
+| P1 | CW7 | Hmbown/CodeWhale | #1120 | 缓存命中方面似乎还是有些问题 (cache hits still problematic) | token |
+| P1 | DF1 | bytedance/deer-flow | #3173 | Raise default summarization trigger to avoid frequent compaction in research runs | token |
+| P1 | DF2 | bytedance/deer-flow | #3125 | display real-time context window usage percentage in chat UI | token/UX |
+| P1 | DF3 | bytedance/deer-flow | #3103 | LLM 400 上下文超限 — summary 不触发、无 input_token 限制入口 | token |
+| P1 | DF4 | bytedance/deer-flow | #1400 | lsof -nP -iTCP hangs indefinitely on macOS, blocking server startup | macOS/perf |
+| P1 | DF5 | bytedance/deer-flow | #1602 | SummarizationMiddleware fails in streaming (stream_usage off) -> context overflow | token |
+| P1 | DR1 | esengine/DeepSeek-Reasonix | #3999 | Mac command+c 双击两次退出终端会话 | macOS/TUI |
+| P1 | DR10 | esengine/DeepSeek-Reasonix | #5324 | Scrolling up to view past messages does not work anymore (CLI) | macOS/TUI |
+| P1 | DR11 | esengine/DeepSeek-Reasonix | #1122 | macOS M4 stuck on startup | macOS |
+| P1 | DR2 | esengine/DeepSeek-Reasonix | #3734 | macOS: codegraph 进程在 Reasonix 退出后残留，导致系统卡顿 | macOS/perf |
+| P1 | DR3 | esengine/DeepSeek-Reasonix | #3655 | TUI can be suspended by tty input and leave terminal modes dirty | macOS/TUI |
+| P1 | DR4 | esengine/DeepSeek-Reasonix | #5627 | docs say mouse reporting disabled but TUI enables MouseMode, blocking native copy | macOS/TUI |
+| P1 | DR5 | esengine/DeepSeek-Reasonix | #4626 | When waiting for confirmation of input, it will hang up and exit | macOS/stability |
+| P1 | DR6 | esengine/DeepSeek-Reasonix | #4211 | cli 1.4.0 之后跑一会儿就自动退出 | macOS/stability |
+| P1 | DR7 | esengine/DeepSeek-Reasonix | #6387 | v1.17.11 输入框只能显示一行 | macOS/TUI |
+| P1 | DR8 | esengine/DeepSeek-Reasonix | #6603 | Mac 使用 reasonix CLI 无法复制粘贴 | macOS/TUI |
+| P1 | DR9 | esengine/DeepSeek-Reasonix | #3511 | 多行输入支持 | macOS/TUI |
+| P1 | PH1 | pydantic/pydantic-ai-harness | #40 | Deferred Tool Loading / Tool Search capability | token/common |
+| P1 | PH2 | pydantic/pydantic-ai-harness | #84 | Adaptive Reasoning Effort (per-step thinking budget selection) | token/common |
+| P1 | PH3 | pydantic/pydantic-ai-harness | #93 | Git History as Compressed Context | token/common |
+| P1 | PH4 | pydantic/pydantic-ai-harness | #357 | SubAgents: no per-delegation model selection (cheaper/stronger routing) | token/common |
+| P1 | PL1 | plandex-ai/plandex | #324 | Suggestion: HADS format for context files — reduces token waste for loaded docs | token |
+| P1 | PL2 | plandex-ai/plandex | #89 | Token limit exceeded before adding conversation | token |
+| P1 | QW1 | QwenLM/qwen-code | #6004 | 安装 MCP 过程中任务异常直接闪退 | macOS/stability |
+| P1 | QW10 | QwenLM/qwen-code | #5101 | Qwen Code carries repeated large tool results through provider history | token |
+| P1 | QW11 | QwenLM/qwen-code | #4695 | Tool-call loop: no client-side circuit breaker | token/stability |
+| P1 | QW2 | QwenLM/qwen-code | #3264 | ui.statusLine crashes CLI with spawn EBADF on macOS | macOS/stability |
+| P1 | QW3 | QwenLM/qwen-code | #4815 | Severe OOM with --resume and Escape key broken | perf/token |
+| P1 | QW4 | QwenLM/qwen-code | #6265 | tool_search invalidates LLM server KV-cache on every deferred-tool load | token/perf |
+| P1 | QW5 | QwenLM/qwen-code | #6806 | Status line context usage % does not refresh after /compress | token/UX |
+| P1 | QW6 | QwenLM/qwen-code | #7831 | Repeated ECONNRESET on streaming when context exceeds ~150k tokens | perf/token |
+| P1 | QW8 | QwenLM/qwen-code | #5861 | Context compression request should use stream=true to avoid gateway timeout | token/perf |
+| P1 | QW9 | QwenLM/qwen-code | #5722 | Token speed display bugs: tok/s disappears during thinking | token/UX |
+| P1 | SP2 | obra/superpowers | #190 | All Skills Preloaded at Startup Consuming 22k+ Tokens (11% of Context) | token |
+| P1 | SP3 | obra/superpowers | #832 | Token optimization: 69% line reduction across all 14 skills | token |
+| P1 | SP5 | obra/superpowers | #750 | Superpowers consume a lot of tokens in Opencode with Codex | token |
+| P1 | SP6 | obra/superpowers | #1940 | Is Superpowers still suitable for the token plan era? cost control difficult | token |
+| P1 | TA1 | bytedance/trae-agent | #228 | Trae-cli always hang and never terminate | perf/stability |
+| P1 | TA2 | bytedance/trae-agent | #351 | 为什么这个 cli 这么费 token？ | token |
+| P1 | TA3 | bytedance/trae-agent | #233 | 进程吃满 cpu 100%（疑似挖矿） | perf |
+| P1 | TA4 | bytedance/trae-agent | #364 | AI agent is operating very slowly | perf |
+| P1 | TA5 | bytedance/trae-agent | #195 | trae 目前有做 memory 压缩么（类似 mem0） | token |
+| P1 | WP11 | warpdotdev/warp | #8405 | Feature request: CLI/API to query Warp AI credit usage programmatically | macOS/token/UX |
+| P1 | WP2 | warpdotdev/warp | #7248 | git operations crashes arm macs | macOS/stability |
+| P1 | WP3 | warpdotdev/warp | #9037 | High CPU Usage (>100%) and command hangs on macOS Tahoe and Remote SSH | macOS/perf |
+| P1 | WP5 | warpdotdev/warp | #6590 | lag and high CPU usage on macOS 26 when scrolling big scrollback | macOS/perf |
+| P1 | WP6 | warpdotdev/warp | #9830 | Idle Warp tabs drain GitHub GraphQL API rate limit (~2.4 calls/sec) | macOS/token |
+| P1 | WP7 | warpdotdev/warp | #5950 | Warp hangs indefinitely on macOS after Feb 27 update | macOS/stability |
+| P1 | WP8 | warpdotdev/warp | #7965 | Terrible performance on M3 Mac | macOS/perf |
+| P1 | WP9 | warpdotdev/warp | #13040 | Crash on terminal resize with CJK (wide) characters in the prompt | macOS/TUI |
+
+---
+
+## 六、新增仓库筛选结果（v3）
+
+> 范围：仅保留 **TUI（终端 UI）+ macOS** 相关、且属于「提升用户体验（更快响应 / 常用能力）/ 降低用户成本（节省 token）」的候选需求。
+> 严格过滤：GUI-only 仓库（stepfun-ai/gelab-zero）与浏览器自动化（browser-use/browser-harness）无终端/TUI 场景，已整体排除；conductor / deer-flow / pydantic-harness 的 Web UI 与非终端 issue 已剔除，仅保留 terminal/macOS 相关或可直接迁移到 TUI Agent 的 token/能力项。
+> 源仓库（15 个，#5=#4 charmbracelet/crush、#7=#6 conductor-oss/conductor 为重复）：CodeWhale, gelab-zero, plandex, crush, conductor, DeepSeek-Reasonix, superpowers, deer-flow, warp, trae-agent, qwen-code, cline, browser-harness, aider, pydantic-ai-harness。
+
+### Hmbown/CodeWhale (CW)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CW1 | Hmbown/CodeWhale | #549 | Interactive TUI hangs on 'working.' at 100% CPU (macOS ARM64, v0.8.7) | macOS ARM64 上 TUI 卡在 'working.' 且 CPU 占满，交互完全无响应 | macOS/perf | P1 |
+| CW2 | Hmbown/CodeWhale | #2968 | remote-workbench: self-hosted Mac target — workbench in apple/container Linux VM (zero cloud cost) | 支持自托管 Mac 工作节点（Apple/容器 Linux VM），零云端成本 | macOS/cost | P2 |
+| CW3 | Hmbown/CodeWhale | #3143 | Add prompt source map and context-usage report for rules/tools/memory/skills | 提供 prompt 来源映射与上下文用量分项报告（rules/tools/memory/skills） | token/UX | P1 |
+| CW4 | Hmbown/CodeWhale | #3906 | perf(tui): render() re-estimates context tokens over ALL api_messages every frame | 每帧 render 对全部 api_messages 重新序列化估算 tokens，热路径浪费 CPU | token/perf | P1 |
+| CW5 | Hmbown/CodeWhale | #3190 | feat(tui): surface token throughput during streaming | 流式输出时显示 token 吞吐速度 | token/UX | P1 |
+| CW6 | Hmbown/CodeWhale | #166 | UI: real-time cost counter during sub-agent work | 子代理工作期间实时显示成本计数 | token/UX | P1 |
+| CW7 | Hmbown/CodeWhale | #1120 | 缓存命中方面似乎还是有些问题 (cache hits still problematic) | prompt cache 命中率异常，未稳定命中，每轮重发前缀 | token | P1 |
+| CW8 | Hmbown/CodeWhale | #3474 | /model /sessions TUI selector extremely low text contrast on macOS terminal | macOS 终端下选择器文字对比度过低难以辨认 | macOS/TUI | P2 |
+| CW9 | Hmbown/CodeWhale | #1670 | theme='system' detects dark on macOS Light mode with Ghostty | macOS Light 模式下 theme=system 误检测为深色 | macOS/TUI | P2 |
+| CW10 | Hmbown/CodeWhale | #1556 | deepseek 在 macOS 下的 ghostty 会一直闪屏 (flickering on Ghostty) | macOS Ghostty 终端下 TUI 持续闪烁，iTerm2 正常 | macOS/TUI | P2 |
+
+### plandex-ai/plandex (PL)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| PL1 | plandex-ai/plandex | #324 | Suggestion: HADS format for context files — reduces token waste for loaded docs | 用 HADS 格式组织上下文文件，减少加载文档的 token 浪费 | token | P1 |
+| PL2 | plandex-ai/plandex | #89 | Token limit exceeded before adding conversation | 加入对话前即触发 token 上限 | token | P1 |
+| PL3 | plandex-ai/plandex | #34 | Stream buffer tokens too high for file 'go.mod' | 单文件流缓冲 token 过高（go.mod） | token/perf | P2 |
+| PL4 | plandex-ai/plandex | #349 | nil pointer dereference crash during build of large files | 构建大文件时 nil pointer 崩溃 | perf/stability | P2 |
+| PL5 | plandex-ai/plandex | #251 | Average cost to use this? | 用户关心使用成本，需要成本可见与优化指引 | token | P2 |
+| PL6 | plandex-ai/plandex | #297 | Add CLI flags --local and --host for non-interactive local mode | 非交互本地模式与自定义 host 的 CLI 参数（常用能力） | UX/common | P2 |
+
+### charmbracelet/crush (CR)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CR1 | charmbracelet/crush | #1055 | Missing auto-compaction of context; freezes when starting a new session after context exhausted | 缺少自动 compaction，上下文耗尽后开新会话冻结 | token/stability | P0 |
+| CR2 | charmbracelet/crush | #337 | macOS panic: runtime error: invalid memory address or nil pointer dereference | macOS 下 nil 指针 panic 崩溃 | macOS/stability | P1 |
+| CR3 | charmbracelet/crush | #2918 | High CPU/RAM usage while streaming long thinking traces in assistant message | 流式长思考链路时 CPU/内存占用高 | perf/token | P1 |
+| CR4 | charmbracelet/crush | #3167 | Feature: Display real-time token generation speed in status bar | 状态栏显示实时 token 生成速度 | token/UX | P1 |
+| CR5 | charmbracelet/crush | #3373 | URLs in Crush output are not clickable (no OSC 8) — Ghostty & Kitty on macOS | macOS Ghostty/Kitty 下输出 URL 不可点击（缺 OSC 8 超链） | macOS/TUI | P1 |
+| CR6 | charmbracelet/crush | #993 | Token & Cost count does not function with a custom provider | 自定义 provider 下 token/成本统计失效 | token | P1 |
+| CR7 | charmbracelet/crush | #555 | Unnecessary Input Token Spend - Full Project Context Sent on Every Request | 每轮请求发送完整项目上下文，输入 token 浪费 | token | P0 |
+| CR8 | charmbracelet/crush | #447 | Local LM Studio/Ollama Custom Providers Support | 支持本地 LM Studio/Ollama 自定义 provider（常用能力） | UX/common | P2 |
+| CR9 | charmbracelet/crush | #3136 | Pasting images from WeChat screenshot clipboard fails on macOS | macOS 下从微信截图剪贴板粘贴图片失败 | macOS/TUI | P2 |
+| CR10 | charmbracelet/crush | #3429 | No mouse text selection, click-to-position cursor, or copy support (macOS, Warp) | macOS/Warp 下无鼠标文本选择与点击定位光标 | macOS/TUI | P2 |
+
+### conductor-oss/conductor (CO)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CO1 | conductor-oss/conductor | #1226 | OpenCode providers hang indefinitely in Conductor while native OpenCode UI completes | Conductor 中 OpenCode provider 永久挂起，而原生 OpenCode TUI 正常完成（跨工具 TUI 代理挂起） | perf/TUI | P2 |
+| CO2 | conductor-oss/conductor | #1143 | git not found on macOS when launched from GUI (Tauri empty env issue) | macOS 从 GUI(Tauri) 启动时光 git 找不到（空环境变量） | macOS | P2 |
+
+### esengine/DeepSeek-Reasonix (DR)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| DR1 | esengine/DeepSeek-Reasonix | #3999 | Mac command+c 双击两次退出终端会话 | macOS 下 Cmd+C 双击误退出终端会话 | macOS/TUI | P1 |
+| DR2 | esengine/DeepSeek-Reasonix | #3734 | macOS: codegraph 进程在 Reasonix 退出后残留，导致系统卡顿 | 退出后 codegraph 进程残留导致 macOS 卡顿 | macOS/perf | P1 |
+| DR3 | esengine/DeepSeek-Reasonix | #3655 | TUI can be suspended by tty input and leave terminal modes dirty | TTY 输入可挂起 TUI 并残留终端模式（需清理） | macOS/TUI | P1 |
+| DR4 | esengine/DeepSeek-Reasonix | #5627 | docs say mouse reporting disabled but TUI enables MouseMode, blocking native copy | TUI 实际启用 MouseMode 阻止终端原生文本复制 | macOS/TUI | P1 |
+| DR5 | esengine/DeepSeek-Reasonix | #4626 | When waiting for confirmation of input, it will hang up and exit | 等待确认输入时挂起退出 | macOS/stability | P1 |
+| DR6 | esengine/DeepSeek-Reasonix | #4211 | cli 1.4.0 之后跑一会儿就自动退出 | CLI 运行一段时间后自动退出 | macOS/stability | P1 |
+| DR7 | esengine/DeepSeek-Reasonix | #6387 | v1.17.11 输入框只能显示一行 | 输入框仅显示一行，不可多行 | macOS/TUI | P1 |
+| DR8 | esengine/DeepSeek-Reasonix | #6603 | Mac 使用 reasonix CLI 无法复制粘贴 | macOS 下无法复制粘贴 | macOS/TUI | P1 |
+| DR9 | esengine/DeepSeek-Reasonix | #3511 | 多行输入支持 | 需要多行输入支持 | macOS/TUI | P1 |
+| DR10 | esengine/DeepSeek-Reasonix | #5324 | Scrolling up to view past messages does not work anymore (CLI) | CLI 下向上滚动查看历史失效 | macOS/TUI | P1 |
+| DR11 | esengine/DeepSeek-Reasonix | #1122 | macOS M4 stuck on startup | macOS M4 启动卡死 | macOS | P1 |
+
+### obra/superpowers (SP)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| SP1 | obra/superpowers | #87 | Optimize plan generation: Modular task files + orchestrator for 90%+ token reduction | 模块化任务文件+编排器，子代理开发 token 减少 90%+ | token | P0 |
+| SP2 | obra/superpowers | #190 | All Skills Preloaded at Startup Consuming 22k+ Tokens (11% of Context) | 启动时预加载全部 skill 消耗 22k+ tokens（占上下文 11%） | token | P1 |
+| SP3 | obra/superpowers | #832 | Token optimization: 69% line reduction across all 14 skills | 14 个 skill 减少 69% 行数无行为回退 | token | P1 |
+| SP4 | obra/superpowers | #1988 | Codex SDD has no circuit breaker: one task ran ~4h, 120.7M telemetry tokens | 无断路器，单任务跑 4h 累积 120.7M tokens | token/stability | P0 |
+| SP5 | obra/superpowers | #750 | Superpowers consume a lot of tokens in Opencode with Codex | Opencode+Codex 下 token 消耗大 | token | P1 |
+| SP6 | obra/superpowers | #1940 | Is Superpowers still suitable for the token plan era? cost control difficult | token 计费时代成本控制困难 | token | P1 |
+| SP7 | obra/superpowers | #551 | Add a core project memory system for cross-session retrieval | 跨会话项目记忆系统（常用能力） | UX/common | P2 |
+| SP8 | obra/superpowers | #351 | Change text search from grep to ripgrep | 文本搜索从 grep 换 ripgrep 提速 | perf | P2 |
+| SP9 | obra/superpowers | #100 | Make it more explicit the skill is waiting for user input | 明确提示 skill 正在等待用户输入 | UX | P2 |
+
+### bytedance/deer-flow (DF)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| DF1 | bytedance/deer-flow | #3173 | Raise default summarization trigger to avoid frequent compaction in research runs | 提高默认摘要触发阈值，避免研究任务频繁 compaction | token | P1 |
+| DF2 | bytedance/deer-flow | #3125 | display real-time context window usage percentage in chat UI | 实时显示上下文窗口使用百分比 | token/UX | P1 |
+| DF3 | bytedance/deer-flow | #3103 | LLM 400 上下文超限 — summary 不触发、无 input_token 限制入口 | 上下文超限 400，摘要不触发且无 input token 上限入口 | token | P1 |
+| DF4 | bytedance/deer-flow | #1400 | lsof -nP -iTCP hangs indefinitely on macOS, blocking server startup | macOS 下 lsof 挂起阻塞服务启动 | macOS/perf | P1 |
+| DF5 | bytedance/deer-flow | #1602 | SummarizationMiddleware fails in streaming (stream_usage off) -> context overflow | 流式下摘要中间件不触发导致上下文溢出 | token | P1 |
+| DF6 | bytedance/deer-flow | #1850 | Unified Persistence Layer: Message History, Event Tracing, Token Tracking & Feedback | 统一持久层：消息历史/事件追踪/token 统计/反馈 | token/UX | P2 |
+
+### warpdotdev/warp (WP)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| WP1 | warpdotdev/warp | #13295 | Agent runs failing to complete with high credit usage and crash/restart loop | Agent 崩溃重启循环，信用消耗高（计费影响） | macOS/token | P0 |
+| WP2 | warpdotdev/warp | #7248 | git operations crashes arm macs | ARM Mac 上 git 操作崩溃 | macOS/stability | P1 |
+| WP3 | warpdotdev/warp | #9037 | High CPU Usage (>100%) and command hangs on macOS Tahoe and Remote SSH | macOS Tahoe + 远程 SSH 下 CPU>100% 且命令挂起 | macOS/perf | P1 |
+| WP4 | warpdotdev/warp | #8205 | Huge memory leak on macOS Tahoe 26.1/26.2 (78GB of memory consumed) | macOS Tahoe 下巨大内存泄漏（78GB） | macOS/perf | P0 |
+| WP5 | warpdotdev/warp | #6590 | lag and high CPU usage on macOS 26 when scrolling big scrollback | macOS 26 滚动大 scrollback 卡顿且 CPU 高 | macOS/perf | P1 |
+| WP6 | warpdotdev/warp | #9830 | Idle Warp tabs drain GitHub GraphQL API rate limit (~2.4 calls/sec) | 空闲 tab 持续消耗 GitHub GraphQL API 限额 | macOS/token | P1 |
+| WP7 | warpdotdev/warp | #5950 | Warp hangs indefinitely on macOS after Feb 27 update | macOS 更新后 Warp 永久挂起 | macOS/stability | P1 |
+| WP8 | warpdotdev/warp | #7965 | Terrible performance on M3 Mac | M3 Mac 上性能极差 | macOS/perf | P1 |
+| WP9 | warpdotdev/warp | #13040 | Crash on terminal resize with CJK (wide) characters in the prompt | 提示符含 CJK 宽字符时终端 resize 崩溃 | macOS/TUI | P1 |
+| WP10 | warpdotdev/warp | #7804 | Process stuck in repetitive 'summarization loop' failing to make progress | 陷入重复摘要循环无进展 | token/stability | P0 |
+| WP11 | warpdotdev/warp | #8405 | Feature request: CLI/API to query Warp AI credit usage programmatically | 提供 CLI/API 程序化查询 AI 信用用量 | macOS/token/UX | P1 |
+| WP12 | warpdotdev/warp | #8542 | Enhance 'Changes' panel with full Git staging/unstaging/commit (VS Code-like) | 增强 Changes 面板支持完整 Git 暂存/提交 | macOS/UX | P2 |
+
+### bytedance/trae-agent (TA)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| TA1 | bytedance/trae-agent | #228 | Trae-cli always hang and never terminate | CLI 永久挂起不终止 | perf/stability | P1 |
+| TA2 | bytedance/trae-agent | #351 | 为什么这个 cli 这么费 token？ | 用户反馈 CLI token 消耗过大 | token | P1 |
+| TA3 | bytedance/trae-agent | #233 | 进程吃满 cpu 100%（疑似挖矿） | 进程 CPU 占满 100% | perf | P1 |
+| TA4 | bytedance/trae-agent | #364 | AI agent is operating very slowly | 代理运行极慢 | perf | P1 |
+| TA5 | bytedance/trae-agent | #195 | trae 目前有做 memory 压缩么（类似 mem0） | 询问是否做 memory 压缩以省 token | token | P1 |
+| TA6 | bytedance/trae-agent | #94 | Steps streaming print | 步骤流式打印（实时反馈） | UX | P2 |
+| TA7 | bytedance/trae-agent | #14 | Qwen and Deepseek support | 支持更多模型 provider（常用能力） | UX/common | P2 |
+
+### QwenLM/qwen-code (QW)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| QW1 | QwenLM/qwen-code | #6004 | 安装 MCP 过程中任务异常直接闪退 | macOS 下安装 MCP 时异常闪退 | macOS/stability | P1 |
+| QW2 | QwenLM/qwen-code | #3264 | ui.statusLine crashes CLI with spawn EBADF on macOS | macOS 下 statusLine 崩溃（spawn EBADF） | macOS/stability | P1 |
+| QW3 | QwenLM/qwen-code | #4815 | Severe OOM with --resume and Escape key broken | --resume 严重 OOM 且 Escape 失效 | perf/token | P1 |
+| QW4 | QwenLM/qwen-code | #6265 | tool_search invalidates LLM server KV-cache on every deferred-tool load | 每次延迟加载 tool_search 使 KV-cache 失效 | token/perf | P1 |
+| QW5 | QwenLM/qwen-code | #6806 | Status line context usage % does not refresh after /compress | /compress 后状态栏上下文百分比不刷新 | token/UX | P1 |
+| QW6 | QwenLM/qwen-code | #7831 | Repeated ECONNRESET on streaming when context exceeds ~150k tokens | 上下文超 150k token 时流式重复 ECONNRESET | perf/token | P1 |
+| QW7 | QwenLM/qwen-code | #6097 | System prompt fixed overhead reaches ~22k tokens (0.2% signal) | 系统提示固定开销达 22k tokens，信噪比低 | token | P0 |
+| QW8 | QwenLM/qwen-code | #5861 | Context compression request should use stream=true to avoid gateway timeout | 上下文压缩应用 stream=true 避免网关超时 | token/perf | P1 |
+| QW9 | QwenLM/qwen-code | #5722 | Token speed display bugs: tok/s disappears during thinking | token 速度显示错误（思考/工具调用时 tok/s 消失） | token/UX | P1 |
+| QW10 | QwenLM/qwen-code | #5101 | Qwen Code carries repeated large tool results through provider history | 重复大工具结果穿过 provider 历史，膨胀上下文 | token | P1 |
+| QW11 | QwenLM/qwen-code | #4695 | Tool-call loop: no client-side circuit breaker | 工具调用循环无客户端断路器，模型陷入重复 tool_call | token/stability | P1 |
+
+### cline/cline (CL)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| CL1 | cline/cline | #484 | MacOS 15 Shell Integration: Unable to Retrieve Terminal Output | macOS Shell Integration 无法获取终端输出 | macOS/TUI | P1 |
+| CL2 | cline/cline | #3445 | Terminal output capture failure in Cline v3.15.0/v3.15.1 | 终端输出捕获失败 | macOS/TUI | P1 |
+| CL3 | cline/cline | #4356 | Improve Terminal Integration Reliability Across Platforms and Shell Configs | 跨平台/Shell 终端集成可靠性改进（常用能力） | TUI | P1 |
+| CL4 | cline/cline | #1404 | Cline hanging after command execution from any tasks | 命令执行后挂起 | perf/stability | P1 |
+| CL5 | cline/cline | #1146 | Executing terminal commands hangs cline | 执行终端命令时挂起 | perf/stability | P1 |
+| CL6 | cline/cline | #3501 | MCP server data under iCloud-synced Documents -> system-wide slowdowns on macOS | macOS 下 MCP 数据存 iCloud 文档目录导致系统变慢 | macOS/perf | P1 |
+| CL7 | cline/cline | #6878 | Intermittent crash leads to loss of visible task history on Apple M3 | Apple M3 上间歇崩溃丢失任务历史 | macOS/stability | P1 |
+| CL8 | cline/cline | #4031 | Very high idle CPU on Code Helper (Plugin) MacOS Sequoia (Apple Silicon) | macOS Sequoia 下插件空闲 CPU 极高 | macOS/perf | P1 |
+| CL9 | cline/cline | #9660 | prompt is too long: 228307 tokens > 200000 maximum | 提示过长 228k tokens 超 200k 上限 | token | P0 |
+| CL10 | cline/cline | #1452 | Excessive Token Consumption loading config files like node_modules on initial load | 初始加载误载 node_modules 等配置文件致 token 浪费 | token | P1 |
+| CL11 | cline/cline | #11181 | memorybank sub-agents cause significant token waste | memorybank 子代理造成显著 token 浪费 | token | P1 |
+| CL12 | cline/cline | #9323 | Cline CLI hangs when context window is full - no accessible retry button | 上下文满时 CLI 挂起且无重试入口 | token/stability | P1 |
+
+### Aider-AI/aider (AI)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| AI1 | Aider-AI/aider | #276 | Is it possible to set custom timeout? | 支持自定义超时 | perf/UX | P1 |
+| AI2 | Aider-AI/aider | #3021 | Either 'Loading' or infinite wait for any request on Mac | macOS 下无限等待/Loading | macOS/perf | P1 |
+| AI3 | Aider-AI/aider | #705 | Sonnet 3.5 is using a lot of output tokens, hitting 4k output token limit | 输出 token 过多触及 4k 上限 | token | P1 |
+| AI4 | Aider-AI/aider | #863 | Tokens leak? | token 疑似泄漏 | token | P1 |
+| AI5 | Aider-AI/aider | #437 | how to optimize costs ? | 成本优化指导需求 | token | P1 |
+| AI6 | Aider-AI/aider | #3196 | 100% cpu freezing does not respond to ctrl c | 100% CPU 冻结，ctrl-c 无响应 | perf/stability | P1 |
+| AI7 | Aider-AI/aider | #995 | Tab filename completion causes aider to hang | 文件名 Tab 补全导致 aider 挂起 | TUI/perf | P1 |
+| AI8 | Aider-AI/aider | #2010 | local file updated but /read cache not refreshed | 本地文件更新后 /read 缓存未刷新 | token/cache | P1 |
+| AI9 | Aider-AI/aider | #5447 | Cache unchanged tracked-file results during startup | 启动时缓存未变文件结果 | token/cache | P1 |
+| AI10 | Aider-AI/aider | #3104 | Add busy indicator / spinner / progress bar | 增加忙碌指示/进度条 | UX | P2 |
+| AI11 | Aider-AI/aider | #4542 | Is Aider suitable for complex and large-scale projects? (models only 4k tokens by default) | 大模型默认仅 4k token，不适合大型项目 | token | P2 |
+
+### pydantic/pydantic-ai-harness (PH)
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| PH1 | pydantic/pydantic-ai-harness | #40 | Deferred Tool Loading / Tool Search capability | 延迟工具加载/工具搜索，减少每次全量注入 token | token/common | P1 |
+| PH2 | pydantic/pydantic-ai-harness | #84 | Adaptive Reasoning Effort (per-step thinking budget selection) | 逐步自适应推理强度，控制 thinking token | token/common | P1 |
+| PH3 | pydantic/pydantic-ai-harness | #93 | Git History as Compressed Context | 用 Git 历史作为压缩上下文，降低 token | token/common | P1 |
+| PH4 | pydantic/pydantic-ai-harness | #357 | SubAgents: no per-delegation model selection (cheaper/stronger routing) | 子代理无法按任务选更便宜/更强模型路由 | token/common | P1 |
+| PH5 | pydantic/pydantic-ai-harness | #18 | CLI agent loading from spec files | 从 spec 文件加载 CLI agent（命令行能力） | TUI/common | P2 |
+
+### 按优先级汇总（P0/P1 推荐实施）
+
+| 优先级 | 编号 | 来源 | Issue | 标题 | 分类 |
+|--------|------|------|-------|------|------|
+| P0 | CL9 | cline/cline | #9660 | prompt is too long: 228307 tokens > 200000 maximum | token |
+| P0 | CR1 | charmbracelet/crush | #1055 | Missing auto-compaction of context; freezes when starting a new session after context exhausted | token/stability |
+| P0 | CR7 | charmbracelet/crush | #555 | Unnecessary Input Token Spend - Full Project Context Sent on Every Request | token |
+| P0 | QW7 | QwenLM/qwen-code | #6097 | System prompt fixed overhead reaches ~22k tokens (0.2% signal) | token |
+| P0 | SP1 | obra/superpowers | #87 | Optimize plan generation: Modular task files + orchestrator for 90%+ token reduction | token |
+| P0 | SP4 | obra/superpowers | #1988 | Codex SDD has no circuit breaker: one task ran ~4h, 120.7M telemetry tokens | token/stability |
+| P0 | WP1 | warpdotdev/warp | #13295 | Agent runs failing to complete with high credit usage and crash/restart loop | macOS/token |
+| P0 | WP10 | warpdotdev/warp | #7804 | Process stuck in repetitive 'summarization loop' failing to make progress | token/stability |
+| P0 | WP4 | warpdotdev/warp | #8205 | Huge memory leak on macOS Tahoe 26.1/26.2 (78GB of memory consumed) | macOS/perf |
+| P1 | AI1 | Aider-AI/aider | #276 | Is it possible to set custom timeout? | perf/UX |
+| P1 | AI2 | Aider-AI/aider | #3021 | Either 'Loading' or infinite wait for any request on Mac | macOS/perf |
+| P1 | AI3 | Aider-AI/aider | #705 | Sonnet 3.5 is using a lot of output tokens, hitting 4k output token limit | token |
+| P1 | AI4 | Aider-AI/aider | #863 | Tokens leak? | token |
+| P1 | AI5 | Aider-AI/aider | #437 | how to optimize costs ? | token |
+| P1 | AI6 | Aider-AI/aider | #3196 | 100% cpu freezing does not respond to ctrl c | perf/stability |
+| P1 | AI7 | Aider-AI/aider | #995 | Tab filename completion causes aider to hang | TUI/perf |
+| P1 | AI8 | Aider-AI/aider | #2010 | local file updated but /read cache not refreshed | token/cache |
+| P1 | AI9 | Aider-AI/aider | #5447 | Cache unchanged tracked-file results during startup | token/cache |
+| P1 | CL1 | cline/cline | #484 | MacOS 15 Shell Integration: Unable to Retrieve Terminal Output | macOS/TUI |
+| P1 | CL10 | cline/cline | #1452 | Excessive Token Consumption loading config files like node_modules on initial load | token |
+| P1 | CL11 | cline/cline | #11181 | memorybank sub-agents cause significant token waste | token |
+| P1 | CL12 | cline/cline | #9323 | Cline CLI hangs when context window is full - no accessible retry button | token/stability |
+| P1 | CL2 | cline/cline | #3445 | Terminal output capture failure in Cline v3.15.0/v3.15.1 | macOS/TUI |
+| P1 | CL3 | cline/cline | #4356 | Improve Terminal Integration Reliability Across Platforms and Shell Configs | TUI |
+| P1 | CL4 | cline/cline | #1404 | Cline hanging after command execution from any tasks | perf/stability |
+| P1 | CL5 | cline/cline | #1146 | Executing terminal commands hangs cline | perf/stability |
+| P1 | CL6 | cline/cline | #3501 | MCP server data under iCloud-synced Documents -> system-wide slowdowns on macOS | macOS/perf |
+| P1 | CL7 | cline/cline | #6878 | Intermittent crash leads to loss of visible task history on Apple M3 | macOS/stability |
+| P1 | CL8 | cline/cline | #4031 | Very high idle CPU on Code Helper (Plugin) MacOS Sequoia (Apple Silicon) | macOS/perf |
+| P1 | CR2 | charmbracelet/crush | #337 | macOS panic: runtime error: invalid memory address or nil pointer dereference | macOS/stability |
+| P1 | CR3 | charmbracelet/crush | #2918 | High CPU/RAM usage while streaming long thinking traces in assistant message | perf/token |
+| P1 | CR4 | charmbracelet/crush | #3167 | Feature: Display real-time token generation speed in status bar | token/UX |
+| P1 | CR5 | charmbracelet/crush | #3373 | URLs in Crush output are not clickable (no OSC 8) — Ghostty & Kitty on macOS | macOS/TUI |
+| P1 | CR6 | charmbracelet/crush | #993 | Token & Cost count does not function with a custom provider | token |
+| P1 | CW1 | Hmbown/CodeWhale | #549 | Interactive TUI hangs on 'working.' at 100% CPU (macOS ARM64, v0.8.7) | macOS/perf |
+| P1 | CW3 | Hmbown/CodeWhale | #3143 | Add prompt source map and context-usage report for rules/tools/memory/skills | token/UX |
+| P1 | CW4 | Hmbown/CodeWhale | #3906 | perf(tui): render() re-estimates context tokens over ALL api_messages every frame | token/perf |
+| P1 | CW5 | Hmbown/CodeWhale | #3190 | feat(tui): surface token throughput during streaming | token/UX |
+| P1 | CW6 | Hmbown/CodeWhale | #166 | UI: real-time cost counter during sub-agent work | token/UX |
+| P1 | CW7 | Hmbown/CodeWhale | #1120 | 缓存命中方面似乎还是有些问题 (cache hits still problematic) | token |
+| P1 | DF1 | bytedance/deer-flow | #3173 | Raise default summarization trigger to avoid frequent compaction in research runs | token |
+| P1 | DF2 | bytedance/deer-flow | #3125 | display real-time context window usage percentage in chat UI | token/UX |
+| P1 | DF3 | bytedance/deer-flow | #3103 | LLM 400 上下文超限 — summary 不触发、无 input_token 限制入口 | token |
+| P1 | DF4 | bytedance/deer-flow | #1400 | lsof -nP -iTCP hangs indefinitely on macOS, blocking server startup | macOS/perf |
+| P1 | DF5 | bytedance/deer-flow | #1602 | SummarizationMiddleware fails in streaming (stream_usage off) -> context overflow | token |
+| P1 | DR1 | esengine/DeepSeek-Reasonix | #3999 | Mac command+c 双击两次退出终端会话 | macOS/TUI |
+| P1 | DR10 | esengine/DeepSeek-Reasonix | #5324 | Scrolling up to view past messages does not work anymore (CLI) | macOS/TUI |
+| P1 | DR11 | esengine/DeepSeek-Reasonix | #1122 | macOS M4 stuck on startup | macOS |
+| P1 | DR2 | esengine/DeepSeek-Reasonix | #3734 | macOS: codegraph 进程在 Reasonix 退出后残留，导致系统卡顿 | macOS/perf |
+| P1 | DR3 | esengine/DeepSeek-Reasonix | #3655 | TUI can be suspended by tty input and leave terminal modes dirty | macOS/TUI |
+| P1 | DR4 | esengine/DeepSeek-Reasonix | #5627 | docs say mouse reporting disabled but TUI enables MouseMode, blocking native copy | macOS/TUI |
+| P1 | DR5 | esengine/DeepSeek-Reasonix | #4626 | When waiting for confirmation of input, it will hang up and exit | macOS/stability |
+| P1 | DR6 | esengine/DeepSeek-Reasonix | #4211 | cli 1.4.0 之后跑一会儿就自动退出 | macOS/stability |
+| P1 | DR7 | esengine/DeepSeek-Reasonix | #6387 | v1.17.11 输入框只能显示一行 | macOS/TUI |
+| P1 | DR8 | esengine/DeepSeek-Reasonix | #6603 | Mac 使用 reasonix CLI 无法复制粘贴 | macOS/TUI |
+| P1 | DR9 | esengine/DeepSeek-Reasonix | #3511 | 多行输入支持 | macOS/TUI |
+| P1 | PH1 | pydantic/pydantic-ai-harness | #40 | Deferred Tool Loading / Tool Search capability | token/common |
+| P1 | PH2 | pydantic/pydantic-ai-harness | #84 | Adaptive Reasoning Effort (per-step thinking budget selection) | token/common |
+| P1 | PH3 | pydantic/pydantic-ai-harness | #93 | Git History as Compressed Context | token/common |
+| P1 | PH4 | pydantic/pydantic-ai-harness | #357 | SubAgents: no per-delegation model selection (cheaper/stronger routing) | token/common |
+| P1 | PL1 | plandex-ai/plandex | #324 | Suggestion: HADS format for context files — reduces token waste for loaded docs | token |
+| P1 | PL2 | plandex-ai/plandex | #89 | Token limit exceeded before adding conversation | token |
+| P1 | QW1 | QwenLM/qwen-code | #6004 | 安装 MCP 过程中任务异常直接闪退 | macOS/stability |
+| P1 | QW10 | QwenLM/qwen-code | #5101 | Qwen Code carries repeated large tool results through provider history | token |
+| P1 | QW11 | QwenLM/qwen-code | #4695 | Tool-call loop: no client-side circuit breaker | token/stability |
+| P1 | QW2 | QwenLM/qwen-code | #3264 | ui.statusLine crashes CLI with spawn EBADF on macOS | macOS/stability |
+| P1 | QW3 | QwenLM/qwen-code | #4815 | Severe OOM with --resume and Escape key broken | perf/token |
+| P1 | QW4 | QwenLM/qwen-code | #6265 | tool_search invalidates LLM server KV-cache on every deferred-tool load | token/perf |
+| P1 | QW5 | QwenLM/qwen-code | #6806 | Status line context usage % does not refresh after /compress | token/UX |
+| P1 | QW6 | QwenLM/qwen-code | #7831 | Repeated ECONNRESET on streaming when context exceeds ~150k tokens | perf/token |
+| P1 | QW8 | QwenLM/qwen-code | #5861 | Context compression request should use stream=true to avoid gateway timeout | token/perf |
+| P1 | QW9 | QwenLM/qwen-code | #5722 | Token speed display bugs: tok/s disappears during thinking | token/UX |
+| P1 | SP2 | obra/superpowers | #190 | All Skills Preloaded at Startup Consuming 22k+ Tokens (11% of Context) | token |
+| P1 | SP3 | obra/superpowers | #832 | Token optimization: 69% line reduction across all 14 skills | token |
+| P1 | SP5 | obra/superpowers | #750 | Superpowers consume a lot of tokens in Opencode with Codex | token |
+| P1 | SP6 | obra/superpowers | #1940 | Is Superpowers still suitable for the token plan era? cost control difficult | token |
+| P1 | TA1 | bytedance/trae-agent | #228 | Trae-cli always hang and never terminate | perf/stability |
+| P1 | TA2 | bytedance/trae-agent | #351 | 为什么这个 cli 这么费 token？ | token |
+| P1 | TA3 | bytedance/trae-agent | #233 | 进程吃满 cpu 100%（疑似挖矿） | perf |
+| P1 | TA4 | bytedance/trae-agent | #364 | AI agent is operating very slowly | perf |
+| P1 | TA5 | bytedance/trae-agent | #195 | trae 目前有做 memory 压缩么（类似 mem0） | token |
+| P1 | WP11 | warpdotdev/warp | #8405 | Feature request: CLI/API to query Warp AI credit usage programmatically | macOS/token/UX |
+| P1 | WP2 | warpdotdev/warp | #7248 | git operations crashes arm macs | macOS/stability |
+| P1 | WP3 | warpdotdev/warp | #9037 | High CPU Usage (>100%) and command hangs on macOS Tahoe and Remote SSH | macOS/perf |
+| P1 | WP5 | warpdotdev/warp | #6590 | lag and high CPU usage on macOS 26 when scrolling big scrollback | macOS/perf |
+| P1 | WP6 | warpdotdev/warp | #9830 | Idle Warp tabs drain GitHub GraphQL API rate limit (~2.4 calls/sec) | macOS/token |
+| P1 | WP7 | warpdotdev/warp | #5950 | Warp hangs indefinitely on macOS after Feb 27 update | macOS/stability |
+| P1 | WP8 | warpdotdev/warp | #7965 | Terrible performance on M3 Mac | macOS/perf |
+| P1 | WP9 | warpdotdev/warp | #13040 | Crash on terminal resize with CJK (wide) characters in the prompt | macOS/TUI |
