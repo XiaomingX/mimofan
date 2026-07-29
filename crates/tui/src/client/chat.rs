@@ -199,6 +199,7 @@ impl DeepSeekClient {
             &mut body,
             request.reasoning_effort.as_deref(),
             self.api_provider,
+            &model,
         );
         apply_openai_reasoning_effort(
             &mut body,
@@ -336,6 +337,7 @@ impl DeepSeekClient {
             &mut body,
             request.reasoning_effort.as_deref(),
             self.api_provider,
+            &model,
         );
         apply_openai_reasoning_effort(
             &mut body,
@@ -2020,7 +2022,7 @@ fn log_thinking_mode_violations(body: &Value) {
     }
 }
 
-fn requires_reasoning_content(model: &str) -> bool {
+pub(super) fn requires_reasoning_content(model: &str) -> bool {
     let lower = model.to_lowercase();
     // V4-family direct model IDs.
     lower.contains("deepseek-v4")

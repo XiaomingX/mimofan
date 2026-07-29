@@ -998,7 +998,7 @@ impl DeepSeekClient {
             "temperature": 0.1,
             "stream": false
         });
-        apply_reasoning_effort(&mut body, Some("off"), self.api_provider);
+        apply_reasoning_effort(&mut body, Some("off"), self.api_provider, &model);
 
         let response = self
             .send_with_retry(|| self.http_client.post(&url).json(&body))
@@ -1527,6 +1527,7 @@ pub(super) fn apply_reasoning_effort(
     body: &mut Value,
     effort: Option<&str>,
     provider: ApiProvider,
+    model: &str,
 ) {
     if matches!(provider, ApiProvider::XiaomiMimo) {
         // MiniMax's OpenAI-compatible API keeps thinking inside `content`
@@ -1539,10 +1540,16 @@ pub(super) fn apply_reasoning_effort(
         return;
     };
     let normalized = effort.trim().to_ascii_lowercase();
+    // DeepSeek models (detected by name) support reasoning_effort on any
+    // OpenAI-compatible endpoint, including the official DeepSeek API via Custom.
+    let is_deepseek_reasoning = chat::requires_reasoning_content(model);
     match normalized.as_str() {
         "off" | "disabled" | "none" | "false" => match provider {
             ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "disabled" });
+            }
+            ApiProvider::Custom if is_deepseek_reasoning => {
+                body["reasoning_effort"] = json!("none");
             }
             ApiProvider::Custom => {}
         },
@@ -1556,12 +1563,23 @@ pub(super) fn apply_reasoning_effort(
                 body["reasoning_effort"] = json!(value);
                 body["thinking"] = json!({ "type": "enabled" });
             }
+            ApiProvider::Custom if is_deepseek_reasoning => {
+                let value = match normalized.as_str() {
+                    "low" | "minimal" => "low",
+                    "medium" | "mid" => "medium",
+                    _ => "high",
+                };
+                body["reasoning_effort"] = json!(value);
+            }
             ApiProvider::Custom => {}
         },
         "xhigh" | "max" | "highest" | "ultracode" => match provider {
             ApiProvider::XiaomiMimo => {
                 body["reasoning_effort"] = json!("max");
                 body["thinking"] = json!({ "type": "enabled" });
+            }
+            ApiProvider::Custom if is_deepseek_reasoning => {
+                body["reasoning_effort"] = json!("high");
             }
             ApiProvider::Custom => {}
         },
