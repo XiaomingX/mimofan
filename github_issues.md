@@ -533,7 +533,7 @@ Agent: [正常执行任务]
 
 ---
 
-## [ ] Issue #27: 确认并实现 /simplify 命令：保持功能不变前提下提取公共函数、消除重复代码
+## [x] Issue #27: 确认并实现 /simplify 命令：保持功能不变前提下提取公共函数、消除重复代码
 - **State**: `open`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/27](https://github.com/XiaomingX/mimofan/issues/27)
 

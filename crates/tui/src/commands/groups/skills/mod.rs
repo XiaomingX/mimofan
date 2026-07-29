@@ -2,6 +2,7 @@
 
 mod restore;
 mod review;
+mod simplify;
 // This group dir intentionally has a `skills.rs` child module with the same
 // name. The module_inception allow is a permanent structure rationale, not
 // migration scaffolding; see docs/architecture/command-dispatch.md.
@@ -25,6 +26,8 @@ impl CommandGroup for SkillsCommands {
             Box::new(FunctionCommand::new(&REVIEW_INFO, run_review)),
             Box::new(FunctionCommand::new(&RESTORE_INFO, run_restore)),
             Box::new(FunctionCommand::new(&REWIND_INFO, run_rewind)),
+            Box::new(FunctionCommand::new(&SIMPLIFY_INFO, run_simplify)),
+            Box::new(FunctionCommand::new(&SKILL_RUN_INFO, run_skill_run)),
         ]
     }
 }
@@ -59,6 +62,18 @@ static REWIND_INFO: CommandInfo = CommandInfo {
     usage: "/rewind [N|list [N]|chat]",
     description_id: MessageId::CmdRewindDescription,
 };
+static SIMPLIFY_INFO: CommandInfo = CommandInfo {
+    name: "simplify",
+    aliases: &[],
+    usage: "/simplify <target>",
+    description_id: MessageId::CmdSimplifyDescription,
+};
+static SKILL_RUN_INFO: CommandInfo = CommandInfo {
+    name: "skill-run",
+    aliases: &["run-skill"],
+    usage: "/skill-run <file_path> <arguments>",
+    description_id: MessageId::CmdSkillRunDescription,
+};
 
 fn run_registered(app: &mut App, name: &str, arg: Option<&str>) -> CommandResult {
     dispatch(app, name, arg).expect("registered skills command should dispatch")
@@ -79,6 +94,12 @@ fn run_restore(app: &mut App, arg: Option<&str>) -> CommandResult {
 fn run_rewind(app: &mut App, arg: Option<&str>) -> CommandResult {
     run_registered(app, "rewind", arg)
 }
+fn run_simplify(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "simplify", arg)
+}
+fn run_skill_run(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "skill-run", arg)
+}
 
 pub(in crate::commands) fn dispatch(
     app: &mut App,
@@ -91,6 +112,8 @@ pub(in crate::commands) fn dispatch(
         "review" | "shencha" => review::review(app, arg),
         "restore" => restore::restore(app, arg),
         "rewind" => restore::rewind(app, arg),
+        "simplify" => simplify::simplify(app, arg),
+        "skill-run" | "run-skill" => skills::run_local_skill_file(app, arg),
         _ => return None,
     };
     Some(result)

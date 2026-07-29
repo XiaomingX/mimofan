@@ -23,6 +23,7 @@ impl CommandGroup for UtilityCommands {
             Box::new(FunctionCommand::new(&MCP_INFO, run_mcp)),
             Box::new(FunctionCommand::new(&NETWORK_INFO, run_network)),
             Box::new(FunctionCommand::new(&PLUGINS_INFO, run_plugins)),
+            Box::new(FunctionCommand::new(&PLUGIN_TEST_INFO, run_plugin_test)),
         ]
     }
 }
@@ -63,6 +64,12 @@ static PLUGINS_INFO: CommandInfo = CommandInfo {
     usage: "/plugins [name]",
     description_id: MessageId::CmdPluginDescription,
 };
+static PLUGIN_TEST_INFO: CommandInfo = CommandInfo {
+    name: "plugin-test",
+    aliases: &["test-plugin"],
+    usage: "/plugin-test <script_path> [json_input]",
+    description_id: MessageId::CmdPluginTestDescription,
+};
 
 fn run_registered(app: &mut App, name: &str, arg: Option<&str>) -> CommandResult {
     dispatch(app, name, arg).expect("registered utility command should dispatch")
@@ -86,6 +93,9 @@ fn run_network(app: &mut App, arg: Option<&str>) -> CommandResult {
 fn run_plugins(app: &mut App, arg: Option<&str>) -> CommandResult {
     run_registered(app, "plugins", arg)
 }
+fn run_plugin_test(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "plugin-test", arg)
+}
 
 pub(in crate::commands) fn dispatch(
     app: &mut App,
@@ -99,6 +109,7 @@ pub(in crate::commands) fn dispatch(
         "mcp" => mcp::mcp(app, arg),
         "network" => network::network(app, arg),
         "plugins" | "plugin" => crate::commands::plugins::plugins(app, arg),
+        "plugin-test" | "test-plugin" => crate::commands::plugins::plugin_test(app, arg),
         _ => return None,
     };
     Some(result)

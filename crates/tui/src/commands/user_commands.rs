@@ -302,4 +302,148 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn test_simplify_command() {
+        let tmp = TempDir::new().unwrap();
+        let options = TuiOptions {
+            model: "deepseek-v4-pro".to_string(),
+            workspace: tmp.path().to_path_buf(),
+            config_path: None,
+            config_profile: None,
+            allow_shell: false,
+            use_alt_screen: true,
+            use_mouse_capture: false,
+            use_bracketed_paste: true,
+            max_subagents: 1,
+            skills_dir: tmp.path().join("skills"),
+            memory_path: tmp.path().join("memory.md"),
+            notes_path: tmp.path().join("notes.txt"),
+            mcp_config_path: tmp.path().join("mcp.json"),
+            use_memory: false,
+            start_in_agent_mode: false,
+            skip_onboarding: true,
+            yolo: false,
+            resume_session_id: None,
+            initial_input: None,
+        };
+        let mut app = App::new(options, &Config::default());
+
+        // /simplify without arg returns error
+        let res = crate::commands::execute("/simplify", &mut app);
+        assert!(res.is_error);
+
+        // /simplify with arg starts simplification
+        let res = crate::commands::execute("/simplify crates/tui/src/tui/ui.rs", &mut app);
+        assert!(!res.is_error);
+        assert!(app.active_skill.is_some());
+        assert_eq!(
+            res.action,
+            Some(crate::tui::app::AppAction::SendMessage(
+                "crates/tui/src/tui/ui.rs".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_skill_run_command() {
+        let tmp = TempDir::new().unwrap();
+        let options = TuiOptions {
+            model: "deepseek-v4-pro".to_string(),
+            workspace: tmp.path().to_path_buf(),
+            config_path: None,
+            config_profile: None,
+            allow_shell: false,
+            use_alt_screen: true,
+            use_mouse_capture: false,
+            use_bracketed_paste: true,
+            max_subagents: 1,
+            skills_dir: tmp.path().join("skills"),
+            memory_path: tmp.path().join("memory.md"),
+            notes_path: tmp.path().join("notes.txt"),
+            mcp_config_path: tmp.path().join("mcp.json"),
+            use_memory: false,
+            start_in_agent_mode: false,
+            skip_onboarding: true,
+            yolo: false,
+            resume_session_id: None,
+            initial_input: None,
+        };
+        let mut app = App::new(options, &Config::default());
+
+        // /skill-run without args returns error
+        let res = crate::commands::execute("/skill-run", &mut app);
+        assert!(res.is_error);
+
+        // create a dummy markdown file
+        let dummy_path = tmp.path().join("test_skill.md");
+        std::fs::write(&dummy_path, "# Test Skill\nDescription").unwrap();
+
+        // /skill-run with valid file path starts skill activation
+        let cmd = format!("/skill-run {} arg1 arg2", dummy_path.display());
+        let res = crate::commands::execute(&cmd, &mut app);
+        assert!(!res.is_error);
+        assert!(app.active_skill.is_some());
+        assert_eq!(
+            res.action,
+            Some(crate::tui::app::AppAction::SendMessage(
+                "arg1 arg2".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_plugin_test_command() {
+        let tmp = TempDir::new().unwrap();
+        let options = TuiOptions {
+            model: "deepseek-v4-pro".to_string(),
+            workspace: tmp.path().to_path_buf(),
+            config_path: None,
+            config_profile: None,
+            allow_shell: false,
+            use_alt_screen: true,
+            use_mouse_capture: false,
+            use_bracketed_paste: true,
+            max_subagents: 1,
+            skills_dir: tmp.path().join("skills"),
+            memory_path: tmp.path().join("memory.md"),
+            notes_path: tmp.path().join("notes.txt"),
+            mcp_config_path: tmp.path().join("mcp.json"),
+            use_memory: false,
+            start_in_agent_mode: false,
+            skip_onboarding: true,
+            yolo: false,
+            resume_session_id: None,
+            initial_input: None,
+        };
+        let mut app = App::new(options, &Config::default());
+
+        // /plugin-test without args returns error
+        let res = crate::commands::execute("/plugin-test", &mut app);
+        assert!(res.is_error);
+
+        // create a dummy plugin script
+        let dummy_script = tmp.path().join("test_plugin.sh");
+        std::fs::write(
+            &dummy_script,
+            "#!/bin/sh\n# name: test-tool\n# description: test\n# schema: {}\n\necho '{\"content\":\"success\",\"success\":true}'",
+        )
+        .unwrap();
+
+        // Make executable on unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&dummy_script).unwrap().permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&dummy_script, perms).unwrap();
+        }
+
+        let cmd = format!("/plugin-test {} {}", dummy_script.display(), "{}");
+        let res = crate::commands::execute(&cmd, &mut app);
+        assert!(!res.is_error);
+        let msg = res.message.unwrap();
+        assert!(msg.contains("test-tool"));
+        assert!(msg.contains("success"));
+    }
 }

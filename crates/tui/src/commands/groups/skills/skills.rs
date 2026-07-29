@@ -600,5 +600,57 @@ fn format_registry_error(prefix: &str, err: &anyhow::Error) -> String {
     out
 }
 
+/// Load a local Markdown file and run it as an active skill.
+pub fn run_local_skill_file(app: &mut App, args: Option<&str>) -> CommandResult {
+    let raw = args.unwrap_or("").trim();
+    if raw.is_empty() {
+        return CommandResult::error("Usage: /skill-run <file_path> <arguments>");
+    }
+
+    let mut parts = raw.splitn(2, char::is_whitespace);
+    let file_path_str = parts.next().unwrap_or("").trim();
+    let arguments = parts.next().unwrap_or("").trim();
+
+    if file_path_str.is_empty() {
+        return CommandResult::error("Usage: /skill-run <file_path> <arguments>");
+    }
+
+    let path = std::path::Path::new(file_path_str);
+    if !path.exists() {
+        return CommandResult::error(format!("Local skill file not found at: {}", file_path_str));
+    }
+
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => return CommandResult::error(format!("Failed to read local skill file: {e}")),
+    };
+
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("local-skill");
+
+    let instruction = format!(
+        include_str!("../../../prompts/skill_loader.md"),
+        skill_name = filename,
+        skill_body = content
+    );
+
+    app.add_message(HistoryCell::System {
+        content: format!("Loaded temporary skill from local file: {}", file_path_str),
+    });
+
+    app.active_skill = Some(instruction);
+
+    if arguments.is_empty() {
+        CommandResult::message(format!(
+            "Local skill from '{}' activated successfully (no arguments passed; type a message to start).",
+            file_path_str
+        ))
+    } else {
+        CommandResult::action(AppAction::SendMessage(arguments.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {}
