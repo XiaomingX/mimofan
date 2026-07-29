@@ -1,11 +1,15 @@
 //! Project command area: workspace bootstrap, LSP wiring, sharing, and goals.
 
+mod do_cmd;
 mod goal;
 mod init;
+mod make_plan;
 pub mod share;
 
 use crate::commands::CommandResult;
-use crate::commands::traits::{Command, CommandGroup, CommandInfo, FunctionCommand};
+use crate::commands::traits::{
+    Command, CommandGroup, CommandInfo, FunctionCommand, RegisterCommand,
+};
 use crate::localization::MessageId;
 use crate::tui::app::App;
 
@@ -18,6 +22,8 @@ impl CommandGroup for ProjectCommands {
             Box::new(FunctionCommand::new(&LSP_INFO, run_lsp)),
             Box::new(FunctionCommand::new(&SHARE_INFO, run_share)),
             Box::new(FunctionCommand::new(&GOAL_INFO, run_goal)),
+            Box::new(FunctionCommand::new(&MAKE_PLAN_INFO, run_make_plan)),
+            Box::new(FunctionCommand::new(&DO_INFO, run_do)),
         ]
     }
 }
@@ -46,6 +52,18 @@ static GOAL_INFO: CommandInfo = CommandInfo {
     usage: "/goal [objective|clear|pause|resume|complete|blocked] [budget: N]",
     description_id: MessageId::CmdGoalDescription,
 };
+static MAKE_PLAN_INFO: CommandInfo = CommandInfo {
+    name: "make-plan",
+    aliases: &["makeplan", "mp"],
+    usage: "/make-plan <task_description>",
+    description_id: MessageId::CmdMakePlanDescription,
+};
+static DO_INFO: CommandInfo = CommandInfo {
+    name: "do",
+    aliases: &[],
+    usage: "/do [step_id|all|next]",
+    description_id: MessageId::CmdDoDescription,
+};
 
 fn run_registered(app: &mut App, name: &str, arg: Option<&str>) -> CommandResult {
     dispatch(app, name, arg).expect("registered project command should dispatch")
@@ -63,6 +81,12 @@ fn run_share(app: &mut App, arg: Option<&str>) -> CommandResult {
 fn run_goal(app: &mut App, arg: Option<&str>) -> CommandResult {
     run_registered(app, "goal", arg)
 }
+fn run_make_plan(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "make-plan", arg)
+}
+fn run_do(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "do", arg)
+}
 
 pub(in crate::commands) fn dispatch(
     app: &mut App,
@@ -74,6 +98,8 @@ pub(in crate::commands) fn dispatch(
         "lsp" => super::config::config::lsp_command(app, arg),
         "share" => share::share(app, arg),
         "goal" | "hunt" | "mubiao" | "狩猎" => goal::hunt(app, arg),
+        "make-plan" | "makeplan" | "mp" => make_plan::MakePlanCmd::execute(app, arg),
+        "do" => do_cmd::DoCmd::execute(app, arg),
         _ => return None,
     };
     Some(result)

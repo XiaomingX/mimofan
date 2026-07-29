@@ -558,4 +558,85 @@ mod tests {
         );
         assert_eq!(output.security_issues[0].line, Some(42));
     }
+
+    #[test]
+    fn test_make_plan_and_do_commands() {
+        use crate::tools::todo::TodoStatus;
+        let tmp = TempDir::new().unwrap();
+        let options = TuiOptions {
+            model: "deepseek-v4-pro".to_string(),
+            workspace: tmp.path().to_path_buf(),
+            config_path: None,
+            config_profile: None,
+            allow_shell: false,
+            use_alt_screen: true,
+            use_mouse_capture: false,
+            use_bracketed_paste: true,
+            max_subagents: 1,
+            skills_dir: tmp.path().join("skills"),
+            memory_path: tmp.path().join("memory.md"),
+            notes_path: tmp.path().join("notes.txt"),
+            mcp_config_path: tmp.path().join("mcp.json"),
+            use_memory: false,
+            start_in_agent_mode: false,
+            skip_onboarding: true,
+            yolo: false,
+            resume_session_id: None,
+            initial_input: None,
+        };
+        let mut app = App::new(options, &Config::default());
+
+        // 1. /make-plan generates a message to Plan mode
+        let res = crate::commands::execute("/make-plan Migrate configuration", &mut app);
+        assert!(!res.is_error);
+        assert_eq!(app.mode, AppMode::Plan);
+        let msg = res.message.unwrap();
+        assert!(msg.contains("Switched to Plan mode"));
+        let action = res.action.unwrap();
+        match action {
+            crate::tui::app::AppAction::SendMessage(prompt) => {
+                assert!(prompt.contains("Task: Migrate configuration"));
+            }
+            _ => panic!("Expected SendMessage action"),
+        }
+
+        // 2. /do fails if no checklist steps found
+        let res = crate::commands::execute("/do", &mut app);
+        assert!(res.is_error);
+
+        // 3. Add dummy todo items
+        if let Ok(mut todos) = app.todos.try_lock() {
+            todos.add("Step one".to_string(), TodoStatus::Pending);
+            todos.add("Step two".to_string(), TodoStatus::Pending);
+        }
+
+        // 4. /do next switches to Agent mode and starts first step
+        let res = crate::commands::execute("/do", &mut app);
+        assert!(!res.is_error);
+        assert_eq!(app.mode, AppMode::Agent);
+        let action = res.action.unwrap();
+        match action {
+            crate::tui::app::AppAction::SendMessage(prompt) => {
+                assert!(prompt.contains("Step 1: Step one"));
+            }
+            _ => panic!("Expected SendMessage action"),
+        }
+
+        // Check first step was marked InProgress
+        if let Ok(todos) = app.todos.try_lock() {
+            let snap = todos.snapshot();
+            assert_eq!(snap.items[0].status, TodoStatus::InProgress);
+        }
+
+        // 5. /do all executes all pending steps
+        let res = crate::commands::execute("/do all", &mut app);
+        assert!(!res.is_error);
+        let action = res.action.unwrap();
+        match action {
+            crate::tui::app::AppAction::SendMessage(prompt) => {
+                assert!(prompt.contains("execute all remaining pending checklist steps"));
+            }
+            _ => panic!("Expected SendMessage action"),
+        }
+    }
 }
