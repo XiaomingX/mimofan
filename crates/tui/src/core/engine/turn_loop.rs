@@ -991,7 +991,11 @@ impl Engine {
             // nothing actionable — if any tool call landed or text was
             // streamed, ship the partial state to the rest of the turn
             // pipeline so we don't double-bill the user by re-running it.
-            let stream_died_with_nothing = stream_errors > 0
+            // Also retry when the stream ended cleanly but produced no
+            // content (empty response) — this avoids requiring the user
+            // to manually resend (#169).
+            let stream_died_with_nothing = (stream_errors > 0
+                || (stream_errors == 0 && !pending_message_complete))
                 && tool_uses.is_empty()
                 && current_text_visible.trim().is_empty()
                 && current_thinking.trim().is_empty()
