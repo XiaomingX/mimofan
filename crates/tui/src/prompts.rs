@@ -902,16 +902,20 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
         None
     };
 
-    // 1–2. Mode prompt + project context + local timestamp context.
-    let now_local = chrono::Local::now().format("%Y-%m-%d %H:%M:%S %:z");
-    let time_context = format!("Current Local Time: {now_local}");
+    // 1–2. Mode prompt + project context.
+    //
+    // NOTE: The local timestamp is intentionally placed BELOW the
+    // volatile-content boundary (see marker at ── Volatile ──) because
+    // it changes every turn.  Keeping it in the static prefix would
+    // invalidate DeepSeek's KV prefix cache at the timestamp position,
+    // forcing re-processing of all subsequent bytes.
     let mut full_prompt = if let Some(project_block) = project_context.as_system_block() {
-        format!("{mode_prompt}\n\n{time_context}\n\n{project_block}")
+        format!("{mode_prompt}\n\n{project_block}")
     } else {
         // Extremely unlikely: context generation failed (e.g. filesystem error).
         // Use mode prompt alone rather than panic.
         tracing::warn!("No project context available and auto-generation failed");
-        format!("{mode_prompt}\n\n{time_context}")
+        mode_prompt.clone()
     };
 
     if let Some(preamble) = preamble {
@@ -1020,7 +1024,17 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
         render_environment_block(workspace, session_context.locale_tag),
     );
 
-    // 6a. Configured `instructions = [...]` files (#454). Loaded
+    // 6b. Local timestamp — per-turn volatile content.
+    //
+    // Placed below the volatile-content boundary because it changes every
+    // turn.  Keeping it above would bust the prefix cache at the timestamp
+    // position, negating the cache benefit of the static layers above.
+    let now_local = chrono::Local::now().format("%Y-%m-%d %H:%M:%S %:z");
+    full_prompt = format!(
+        "{full_prompt}\n\nCurrent Local Time: {now_local}",
+    );
+
+    // 6c. Configured `instructions = [...]` files (#454). Loaded
     // and concatenated in declared order. Placed below the volatile boundary
     // because these files are workspace-scoped and may differ between
     // sessions; any edit to them would otherwise bust the prefix cache for
@@ -1031,7 +1045,7 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
         full_prompt = format!("{full_prompt}\n\n{block}");
     }
 
-    // 6b. User memory block (#489). Placed below the volatile boundary
+    // 6d. User memory block (#489). Placed below the volatile boundary
     // because memory entries are editable mid-session via `/memory` or
     // `# foo` quick-add. When they change, they only invalidate the
     // trailing relay block — the static prefix above stays cached.
@@ -1041,7 +1055,7 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
         full_prompt = format!("{full_prompt}\n\n{memory_block}\n\n{MEMORY_GUIDANCE}");
     }
 
-    // 6c. Current session goal. Also volatile: users set / change goals
+    // 6e. Current session goal. Also volatile: users set / change goals
     // during a session via `/goal`. Placed below the boundary for the
     // same reason as memory.
     if let Some(goal_objective) = session_context.goal_objective
