@@ -24,7 +24,7 @@ pub const CNB_REPO_URL: &str = "https://cnb.cool/XiaomingX/mimofan";
 pub const RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
 
 /// Legacy environment variable (alias for [`RELEASE_BASE_URL_ENV`]).
-pub const LEGACY_RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
+pub const LEGACY_RELEASE_BASE_URL_ENV: &str = "CODEWHALE_RELEASE_BASE_URL";
 
 /// Legacy environment variable (alias for [`RELEASE_BASE_URL_ENV`]).
 pub const DEEPSEEK_RELEASE_BASE_URL_ENV: &str = "DEEPSEEK_RELEASE_BASE_URL";
@@ -36,7 +36,7 @@ pub const CNB_MIRROR_ENV: &str = "MIMOFAN_USE_CNB_MIRROR";
 pub const UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
 
 /// Legacy environment variable (alias for [`UPDATE_VERSION_ENV`]).
-pub const LEGACY_UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
+pub const LEGACY_UPDATE_VERSION_ENV: &str = "CODEWHALE_VERSION";
 
 /// Legacy environment variable (alias for [`UPDATE_VERSION_ENV`]).
 pub const DEEPSEEK_UPDATE_VERSION_ENV: &str = "DEEPSEEK_VERSION";

@@ -7250,6 +7250,9 @@ async fn apply_command_result(
                         ));
                 }
             }
+            AppAction::OpenBacktrackOverlay => {
+                open_backtrack_overlay(app);
+            }
             AppAction::OpenStatusPicker => {
                 if app.view_stack.top_kind() != Some(ModalKind::StatusPicker) {
                     app.view_stack

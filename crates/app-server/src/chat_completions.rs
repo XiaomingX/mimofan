@@ -414,12 +414,12 @@ mod tests {
         let config_path = tmp.path().join("config.toml");
         let config_content = format!(
             r#"
-provider = "arcee"
+provider = "custom"
 api_key = "sk-deepseek-secret"
 
-[providers.arcee]
+[providers.custom]
 base_url = "{mock_base_url}"
-model = "trinity-large-thinking"
+model = "my-custom-model"
 api_key = "arcee-configured-key"
 {provider_extra}
 "#
@@ -447,7 +447,7 @@ api_key = "arcee-configured-key"
         let (app, _tmp) = app_with_mock_upstream(None, &mock_url);
 
         let body = serde_json::json!({
-            "model": "trinity-large-thinking",
+            "model": "my-custom-model",
             "messages": [
                 {"role": "user", "content": "hello"}
             ],
@@ -476,7 +476,7 @@ api_key = "arcee-configured-key"
 
         assert_eq!(response.status(), StatusCode::OK);
         let resp_body = response_body_json(response).await;
-        assert_eq!(resp_body["model"], "trinity-large-thinking");
+        assert_eq!(resp_body["model"], "my-custom-model");
         assert!(
             resp_body["choices"][0]["message"]["content"]
                 .as_str()
@@ -512,7 +512,7 @@ api_key = "arcee-configured-key"
         assert_eq!(response.status(), StatusCode::OK);
         let resp_body = response_body_json(response).await;
         // The mock echoes the model it received; should be the configured default.
-        assert_eq!(resp_body["model"], "trinity-large-thinking");
+        assert_eq!(resp_body["model"], "my-custom-model");
     }
 
     #[tokio::test]
@@ -552,7 +552,7 @@ api_key = "arcee-configured-key"
         let (app, _tmp) = app_with_mock_upstream(None, &mock_url);
 
         let body = serde_json::json!({
-            "model": "trinity-large-thinking",
+            "model": "my-custom-model",
             "messages": [
                 {"role": "user", "content": "hello"}
             ]
@@ -591,7 +591,7 @@ api_key = "arcee-configured-key"
         let (app, _tmp) = app_with_mock_upstream(None, &mock_url);
 
         let body = serde_json::json!({
-            "model": "trinity-large-thinking",
+            "model": "my-custom-model",
             "messages": [
                 {"role": "user", "content": "hello"}
             ]
@@ -632,7 +632,7 @@ api_key = "arcee-configured-key"
         );
 
         let body = serde_json::json!({
-            "model": "trinity-large-thinking",
+            "model": "my-custom-model",
             "messages": [
                 {"role": "user", "content": "hello"}
             ]
@@ -668,7 +668,7 @@ api_key = "arcee-configured-key"
         let (app, _tmp) = app_with_mock_upstream(None, &mock_url);
 
         let body = serde_json::json!({
-            "model": "trinity-large-thinking",
+            "model": "my-custom-model",
             "messages": [
                 {"role": "user", "content": "hello"}
             ],

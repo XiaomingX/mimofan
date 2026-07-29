@@ -301,11 +301,7 @@ impl Default for ModelRegistry {
             ModelInfo {
                 id: "minimax/minimax-m3".to_string(),
                 provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "minimax-m3".to_string(),
-                    "minimax-m-3".to_string(),
-                    "openrouter-minimax-m3".to_string(),
-                ],
+                aliases: vec!["openrouter-minimax-m3".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },

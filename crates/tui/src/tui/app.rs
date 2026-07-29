@@ -5739,6 +5739,8 @@ pub enum AppAction {
     OpenProviderPicker,
     /// Open the `/mode` picker modal for Agent / Plan / YOLO.
     OpenModePicker,
+    /// Open the backtrack overlay (equivalent to Esc Esc keyboard combination).
+    OpenBacktrackOverlay,
     /// Refresh the engine prompt after the UI operating mode changes.
     ModeChanged(AppMode),
     /// Open the `/statusline` multi-select picker for footer items.
