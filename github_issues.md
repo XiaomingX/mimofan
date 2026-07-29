@@ -452,7 +452,7 @@ Claude Code 和 Gemini 均提供 `/rewind` 作为「回到上一个操作点」�
 
 ---
 
-## [ ] Issue #26: 确认并实现 /grill-me 命令，对齐 Antigravity 交互式需求澄清模式，降低用户迁移成本
+## [x] Issue #26: 确认并实现 /grill-me 命令，对齐 Antigravity 交互式需求澄清模式，降低用户迁移成本
 - **State**: `open`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/26](https://github.com/XiaomingX/mimofan/issues/26)
 
