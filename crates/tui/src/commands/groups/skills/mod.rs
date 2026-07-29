@@ -46,7 +46,7 @@ static SKILL_INFO: CommandInfo = CommandInfo {
 };
 static REVIEW_INFO: CommandInfo = CommandInfo {
     name: "review",
-    aliases: &["shencha"],
+    aliases: &["shencha", "code-review", "code_review"],
     usage: "/review <target>",
     description_id: MessageId::CmdReviewDescription,
 };
@@ -109,7 +109,7 @@ pub(in crate::commands) fn dispatch(
     let result = match command {
         "skills" | "jinengliebiao" => skills::list_skills(app, arg),
         "skill" | "jineng" => skills::run_skill(app, arg),
-        "review" | "shencha" => review::review(app, arg),
+        "review" | "shencha" | "code-review" | "code_review" => review::review(app, arg),
         "restore" => restore::restore(app, arg),
         "rewind" => restore::rewind(app, arg),
         "simplify" => simplify::simplify(app, arg),

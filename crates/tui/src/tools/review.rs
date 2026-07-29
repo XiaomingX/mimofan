@@ -58,6 +58,8 @@ pub struct ReviewOutput {
     #[serde(default)]
     pub issues: Vec<ReviewIssue>,
     #[serde(default)]
+    pub security_issues: Vec<ReviewIssue>,
+    #[serde(default)]
     pub suggestions: Vec<ReviewSuggestion>,
     #[serde(default)]
     pub overall_assessment: String,
@@ -87,6 +89,7 @@ impl ReviewOutput {
         Self {
             summary,
             issues: Vec::new(),
+            security_issues: Vec::new(),
             suggestions: Vec::new(),
             overall_assessment: String::new(),
         }
@@ -96,6 +99,12 @@ impl ReviewOutput {
         self.summary = self.summary.trim().to_string();
         self.overall_assessment = self.overall_assessment.trim().to_string();
         for issue in &mut self.issues {
+            issue.severity = normalize_severity(&issue.severity);
+            issue.title = issue.title.trim().to_string();
+            issue.description = issue.description.trim().to_string();
+            issue.path = normalize_optional(issue.path.take());
+        }
+        for issue in &mut self.security_issues {
             issue.severity = normalize_severity(&issue.severity);
             issue.title = issue.title.trim().to_string();
             issue.description = issue.description.trim().to_string();

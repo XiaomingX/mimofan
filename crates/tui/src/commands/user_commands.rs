@@ -487,4 +487,75 @@ mod tests {
         assert!(msg.contains("Tool: read_file"));
         assert!(msg.contains("Input Schema"));
     }
+
+    #[test]
+    fn test_code_review_alias_and_schema() {
+        let tmp = TempDir::new().unwrap();
+        let options = TuiOptions {
+            model: "deepseek-v4-pro".to_string(),
+            workspace: tmp.path().to_path_buf(),
+            config_path: None,
+            config_profile: None,
+            allow_shell: false,
+            use_alt_screen: true,
+            use_mouse_capture: false,
+            use_bracketed_paste: true,
+            max_subagents: 1,
+            skills_dir: tmp.path().join("skills"),
+            memory_path: tmp.path().join("memory.md"),
+            notes_path: tmp.path().join("notes.txt"),
+            mcp_config_path: tmp.path().join("mcp.json"),
+            use_memory: false,
+            start_in_agent_mode: false,
+            skip_onboarding: true,
+            yolo: false,
+            resume_session_id: None,
+            initial_input: None,
+        };
+        let mut app = App::new(options, &Config::default());
+
+        // Test /code-review without arg returns error (behaves like /review target)
+        let res = crate::commands::execute("/code-review", &mut app);
+        assert!(res.is_error);
+
+        // Test /code-review with arg activates review skill
+        let res = crate::commands::execute("/code-review crates/tui/src/tui/app.rs", &mut app);
+        assert!(!res.is_error);
+        assert!(app.active_skill.is_some());
+        assert_eq!(
+            res.action,
+            Some(crate::tui::app::AppAction::SendMessage(
+                "crates/tui/src/tui/app.rs".to_string()
+            ))
+        );
+
+        // Test parsing code reviewer output with security_issues
+        let raw_json = r#"{
+            "summary": "overall secure",
+            "issues": [],
+            "security_issues": [
+                {
+                    "severity": "error",
+                    "category": "Secret Leakage",
+                    "title": "Hardcoded secret",
+                    "description": "access_token hardcoded in source",
+                    "path": "src/oauth.rs",
+                    "line": 42
+                }
+            ],
+            "suggestions": [],
+            "overall_assessment": "approved with warning"
+        }"#;
+
+        let output = crate::tools::review::ReviewOutput::from_str(raw_json);
+        assert_eq!(output.summary, "overall secure");
+        assert_eq!(output.security_issues.len(), 1);
+        assert_eq!(output.security_issues[0].severity, "error");
+        assert_eq!(output.security_issues[0].title, "Hardcoded secret");
+        assert_eq!(
+            output.security_issues[0].path,
+            Some("src/oauth.rs".to_string())
+        );
+        assert_eq!(output.security_issues[0].line, Some(42));
+    }
 }

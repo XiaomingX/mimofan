@@ -621,7 +621,7 @@ Agent: ✅ 重构完成，运行测试验证行为一致性...
 
 ---
 
-## [ ] Issue #28: 补全 /code-review 安全审计能力：识别安全漏洞并生成修复计划，对齐 Claude Code / Gemini 入口
+## [x] Issue #28: 补全 /code-review 安全审计能力：识别安全漏洞并生成修复计划，对齐 Claude Code / Gemini 入口
 - **State**: `open`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/28](https://github.com/XiaomingX/mimofan/issues/28)
 
