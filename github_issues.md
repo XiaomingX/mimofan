@@ -737,7 +737,7 @@ Agent: ✅ 修复完成，运行测试验证...测试全绿。
 
 ---
 
-## [ ] Issue #29: 确认并实现 /make-plan 与 /do 命令，对齐 Claude-mem 的「规划-执行」分离工作流
+## [x] Issue #29: 确认并实现 /make-plan 与 /do 命令，对齐 Claude-mem 的「规划-执行」分离工作流
 - **State**: `open`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/29](https://github.com/XiaomingX/mimofan/issues/29)
 
@@ -3192,7 +3192,7 @@ cargo clippy -p mimofan --lib
 
 ---
 
-## [ ] Issue #56: 【Mock/Placeholder/未实现功能】排查与清理
+## [x] Issue #56: 【Mock/Placeholder/未实现功能】排查与清理
 - **State**: `open`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/56](https://github.com/XiaomingX/mimofan/issues/56)
 
