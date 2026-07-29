@@ -39,7 +39,6 @@ pub(crate) fn effective_home_dir() -> Option<PathBuf> {
         }
     }
 
-
     dirs::home_dir()
 }
 

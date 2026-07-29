@@ -331,29 +331,6 @@ pub fn requested_model_for_provider(_provider: ApiProvider, model: &str) -> Opti
     normalize_custom_model_id(model)
 }
 
-/// Reject a provider/model tuple that we can be confident is invalid *before*
-/// it reaches the network (#3227).
-///
-/// The route-isolation bug paired a model picked under one provider with a
-/// different provider's route (model chip `deepseek-v4-pro`, provider badge
-/// `Z.ai`), producing a `400 Unknown Model` from the upstream. This guard
-/// catches that locally and names the incompatible pair instead.
-///
-/// We only reject tuples that are *known* to be wrong so legitimate custom
-/// routing (self-hosted endpoints, OpenAI-compatible aggregators that proxy
-/// DeepSeek weights, etc.) keeps working:
-///
-/// 1. A DeepSeek-native provider (`deepseek` / `deepseek-cn`) accepts only
-///    DeepSeek model IDs or `auto` — same gate as [`normalize_model_name`].
-/// 2. A non-DeepSeek *native* provider (e.g. Z.ai, which serves GLM) must not
-///    be handed a DeepSeek-only model ID. This reuses the same
-///    "foreign to a direct provider" classification the model resolver uses,
-///    so DeepSeek aggregators (NVIDIA NIM, OpenRouter, Fireworks, …) stay
-///    permissive.
-///
-/// Returns `Ok(())` for any tuple we cannot confidently reject (the provider
-/// API remains the final authority for those).
-
 fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
     let normalized = model.trim().to_ascii_lowercase();
     let normalized = normalized.replace(['_', ' '], "-");
@@ -436,12 +413,7 @@ pub fn canonical_model_id_for_provider(provider: ApiProvider, model: &str) -> Op
 /// are the stored form. `/provider` deliberately uses the canonical half instead.
 #[must_use]
 pub fn normalize_model_name_for_provider(provider: ApiProvider, model: &str) -> Option<String> {
-    let canonical = canonical_model_id_for_provider(provider, model)?;
-    // Translate the canonical family id to the provider's wire slug when the
-    // provider's API uses vendor-prefixed ids (Together, Siliconflow, NIM, …).
-    // `model_for_provider` is a no-op for providers without a wire-slug map, so
-    // this is one uniform layer over the equal-treatment canonical resolver.
-    Some(model_for_provider(provider, canonical))
+    canonical_model_id_for_provider(provider, model)
 }
 
 #[must_use]
@@ -1960,7 +1932,6 @@ impl Config {
         apply_env_overrides(&mut config);
         apply_managed_overrides(&mut config)?;
         apply_requirements(&mut config)?;
-        normalize_model_config(&mut config);
         config.exec_policy_engine = load_sibling_exec_policy_engine(path.as_deref())?;
         config.validate()?;
         config.warn_on_misplaced_root_base_url();
@@ -2880,10 +2851,7 @@ pub(crate) fn workspace_trust_config_candidate_paths() -> Vec<PathBuf> {
     let Some(home) = effective_home_dir() else {
         return Vec::new();
     };
-    vec![
-        home.join(".mimofan").join("config.toml"),
-        home.join(".mimofan").join("config.toml"),
-    ]
+    vec![home.join(".mimofan").join("config.toml")]
 }
 
 #[must_use]
@@ -3139,10 +3107,8 @@ fn apply_env_overrides(config: &mut Config) {
             .base_url = Some(value);
     }
     let active_provider = config.api_provider();
-    if matches!(
-        active_provider,
-        ApiProvider::XiaomiMimo
-    ) && let Ok(value) = std::env::var("SILICONFLOW_BASE_URL")
+    if matches!(active_provider, ApiProvider::XiaomiMimo)
+        && let Ok(value) = std::env::var("SILICONFLOW_BASE_URL")
         && !value.trim().is_empty()
     {
         config.provider_config_for_mut(active_provider).base_url = Some(value);
@@ -3247,10 +3213,8 @@ fn apply_env_overrides(config: &mut Config) {
             .model = Some(value);
     }
     let active_provider = config.api_provider();
-    if matches!(
-        active_provider,
-        ApiProvider::XiaomiMimo
-    ) && let Ok(value) = std::env::var("SILICONFLOW_MODEL")
+    if matches!(active_provider, ApiProvider::XiaomiMimo)
+        && let Ok(value) = std::env::var("SILICONFLOW_MODEL")
         && !value.trim().is_empty()
     {
         config.provider_config_for_mut(active_provider).model = Some(value);
@@ -3373,10 +3337,6 @@ fn apply_env_overrides(config: &mut Config) {
     {
         config.max_subagents = Some(parsed.clamp(1, MAX_SUBAGENTS));
     }
-}
-
-fn normalize_model_config(_config: &mut Config) {
-    // No normalization needed — both providers pass model ids through.
 }
 
 fn normalize_model_for_provider(provider: ApiProvider, model: &str) -> Option<String> {
@@ -3565,10 +3525,6 @@ fn base_url_host(base_url: &str) -> Option<&str> {
         return rest.split_once(']').map(|(host, _)| host);
     }
     authority.split(':').next().filter(|host| !host.is_empty())
-}
-
-fn model_for_provider(_provider: ApiProvider, normalized: String) -> String {
-    normalized
 }
 
 fn normalize_base_url(base: &str) -> String {

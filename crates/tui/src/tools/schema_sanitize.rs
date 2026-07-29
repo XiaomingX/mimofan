@@ -72,40 +72,6 @@ pub fn sanitize_for_strict(schema: &mut Value) {
 /// Sanitize a schema for OpenAI Responses function tools.
 ///
 /// The Responses API requires the top-level `parameters` schema to be an object
-/// and rejects top-level `oneOf` / `anyOf` / `allOf` / `enum` / `not`. Keep the
-/// schema permissive rather than changing tool semantics: merge any root
-/// alternative properties we can see, then remove the root-only composition
-/// keywords while preserving nested schemas.
-///
-/// Returns a short description note when root composition constraints with
-/// meaningful `required` groups are dropped.
-pub fn sanitize_for_responses(schema: &mut Value) -> Option<String> {
-    let constraint_note = schema
-        .as_object()
-        .and_then(root_composition_constraint_note);
-
-    sanitize(schema);
-
-    if !schema.is_object() {
-        *schema = Value::Object(Map::new());
-    }
-
-    let Some(obj) = schema.as_object_mut() else {
-        return constraint_note;
-    };
-
-    merge_root_composition_properties(obj);
-    obj.insert("type".into(), Value::String("object".to_string()));
-    obj.remove("oneOf");
-    obj.remove("anyOf");
-    obj.remove("allOf");
-    obj.remove("enum");
-    obj.remove("not");
-    ensure_properties_object(obj);
-    prune_dangling_required(schema);
-    constraint_note
-}
-
 fn strict_schema_supported(schema: &Value) -> bool {
     let mut normalized = schema.clone();
     sanitize(&mut normalized);
@@ -307,71 +273,6 @@ fn required_names(obj: &Map<String, Value>) -> Vec<String> {
 fn mark_nullable(schema: &mut Value) {
     if let Some(obj) = schema.as_object_mut() {
         obj.insert("nullable".into(), Value::Bool(true));
-    }
-}
-
-fn merge_root_composition_properties(obj: &mut Map<String, Value>) {
-    let mut merged = Map::new();
-    for key in ["oneOf", "anyOf", "allOf"] {
-        let Some(items) = obj.get(key).and_then(Value::as_array) else {
-            continue;
-        };
-        for item in items {
-            let Some(properties) = item.get("properties").and_then(Value::as_object) else {
-                continue;
-            };
-            for (name, schema) in properties {
-                merged.entry(name.clone()).or_insert_with(|| schema.clone());
-            }
-        }
-    }
-
-    if merged.is_empty() {
-        return;
-    }
-
-    let properties = ensure_properties_object(obj);
-    for (name, schema) in merged {
-        properties.entry(name).or_insert(schema);
-    }
-}
-
-fn root_composition_constraint_note(obj: &Map<String, Value>) -> Option<String> {
-    for (key, prefix) in [
-        ("oneOf", "Exactly one"),
-        ("anyOf", "At least one"),
-        ("allOf", "All"),
-    ] {
-        let Some(items) = obj.get(key).and_then(Value::as_array) else {
-            continue;
-        };
-        let mut groups: Vec<String> = items.iter().filter_map(required_group_label).collect();
-        groups.sort();
-        groups.dedup();
-        if groups.len() >= 2 {
-            return Some(format!(
-                "{prefix} of these parameter groups must be provided: {}.",
-                groups.join(" | ")
-            ));
-        }
-    }
-    None
-}
-
-fn required_group_label(item: &Value) -> Option<String> {
-    let mut names: Vec<String> = item
-        .get("required")?
-        .as_array()?
-        .iter()
-        .filter_map(Value::as_str)
-        .map(|name| format!("`{name}`"))
-        .collect();
-    if names.is_empty() {
-        None
-    } else {
-        names.sort();
-        names.dedup();
-        Some(names.join(" + "))
     }
 }
 

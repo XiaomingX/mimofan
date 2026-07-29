@@ -27,7 +27,7 @@ pub mod oauth;
 use self::headers::{apply_safe_custom_headers, with_default_mcp_http_headers};
 use crate::child_env;
 use crate::network_policy::{Decision, NetworkPolicyDecider, host_from_url};
-use crate::utils::write_atomic;
+use crate::utils::{normalize_path_components, write_atomic};
 
 // === Error diagnostics helpers (#71) ===
 
@@ -2025,8 +2025,6 @@ impl McpPool {
         }
     }
 
-    /// Create a pool from a configuration file path.
-
     /// Create a pool from global MCP config plus workspace-local
     /// `.mimofan/mcp.json`. Project servers override same-name global
     /// servers and default stdio `cwd` to the workspace root.
@@ -2880,27 +2878,6 @@ fn resolve_project_mcp_cwd(workspace: &Path, cwd: Option<&Path>) -> Result<PathB
     Ok(resolved)
 }
 
-fn normalize_path_components(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::Prefix(_) | Component::RootDir => {
-                normalized.push(component.as_os_str());
-            }
-            Component::CurDir => {}
-            Component::ParentDir => {
-                normalized.pop();
-            }
-            Component::Normal(part) => normalized.push(part),
-        }
-    }
-    if normalized.as_os_str().is_empty() {
-        PathBuf::from(".")
-    } else {
-        normalized
-    }
-}
-
 fn paths_refer_to_same_config(left: &Path, right: &Path) -> bool {
     match (left.canonicalize(), right.canonicalize()) {
         (Ok(left), Ok(right)) => left == right,
@@ -3214,37 +3191,5 @@ fn snapshot_from_config(
         config_exists,
         restart_required,
         servers,
-    }
-}
-
-// === Helper Functions ===
-
-/// Format MCP tool result for display
-pub fn format_tool_result(result: &serde_json::Value) -> String {
-    let is_error = result
-        .get("isError")
-        .and_then(serde_json::Value::as_bool)
-        .unwrap_or(false);
-
-    let content = result
-        .get("content")
-        .and_then(|v| v.as_array())
-        .map_or_else(
-            || serde_json::to_string_pretty(result).unwrap_or_default(),
-            |arr| {
-                arr.iter()
-                    .filter_map(|item| match item.get("type")?.as_str()? {
-                        "text" => item.get("text")?.as_str().map(String::from),
-                        other => Some(format!("[{other} content]")),
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            },
-        );
-
-    if is_error {
-        format!("Error: {content}")
-    } else {
-        content
     }
 }

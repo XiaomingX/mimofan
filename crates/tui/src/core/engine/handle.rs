@@ -41,15 +41,6 @@ impl EngineHandle {
         crate::retry_status::clear();
     }
 
-    /// Check if a request is currently cancelled
-    #[must_use]
-    pub fn is_cancelled(&self) -> bool {
-        match self.cancel_token.lock() {
-            Ok(token) => token.is_cancelled(),
-            Err(poisoned) => poisoned.into_inner().is_cancelled(),
-        }
-    }
-
     /// Pause or resume the current pausable command.
     pub fn set_paused(&self, paused: bool) {
         match self.shared_paused.lock() {

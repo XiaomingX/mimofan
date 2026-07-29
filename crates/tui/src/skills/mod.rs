@@ -477,11 +477,6 @@ impl SkillRegistry {
 /// need to filter further. Returns an empty vec when nothing is
 /// installed (the system-prompt skills block is then suppressed).
 #[must_use]
-pub fn skills_directories(workspace: &Path) -> Vec<PathBuf> {
-    skills_directories_for_mode(workspace, SkillDiscoveryMode::Compatible)
-}
-
-#[must_use]
 pub fn skills_directories_for_mode(workspace: &Path, mode: SkillDiscoveryMode) -> Vec<PathBuf> {
     let home = dirs::home_dir();
     skills_directories_with_home_and_mode(workspace, home.as_deref(), mode)
@@ -548,7 +543,7 @@ fn existing_skill_dirs(candidates: impl IntoIterator<Item = PathBuf>) -> Vec<Pat
 /// Walk every candidate skills directory for a workspace and merge
 /// the discovered skills into a single registry. Name conflicts are
 /// resolved with first-match-wins precedence per
-/// [`skills_directories`].
+/// [`skills_directories_for_mode`].
 ///
 /// Warnings from each scanned directory accumulate so the model
 /// (and the user via `/skill list`) can see why a skill didn't
@@ -576,16 +571,6 @@ pub fn discover_in_workspace_with_mode(
         }
     }
     merged
-}
-
-/// Discover skills from the workspace search set plus the configured install
-/// directory. Workspace-local directories keep their normal precedence; a
-/// custom configured directory is inserted before global defaults when it is
-/// outside that set so explicit configuration cannot be buried by large global
-/// libraries.
-#[must_use]
-pub fn discover_for_workspace_and_dir(workspace: &Path, skills_dir: &Path) -> SkillRegistry {
-    discover_for_workspace_and_dir_with_mode(workspace, skills_dir, SkillDiscoveryMode::Compatible)
 }
 
 #[must_use]

@@ -662,13 +662,21 @@ mod tests {
         // wrapper invocations, not just the bare command.
         let engine = ExecPolicyEngine::new(vec![], vec!["rm".to_string()]);
 
-        for cmd in ["rm -rf /", "/bin/rm -rf /", "sudo rm -rf /", "command rm -rf /"] {
+        for cmd in [
+            "rm -rf /",
+            "/bin/rm -rf /",
+            "sudo rm -rf /",
+            "command rm -rf /",
+        ] {
             let decision = engine.check(ctx(cmd, AskForApproval::Never)).unwrap();
             assert!(!decision.allow, "expected block for {cmd}");
-            assert!(matches!(
-                decision.requirement,
-                ExecApprovalRequirement::Forbidden { .. }
-            ), "expected forbidden for {cmd}");
+            assert!(
+                matches!(
+                    decision.requirement,
+                    ExecApprovalRequirement::Forbidden { .. }
+                ),
+                "expected forbidden for {cmd}"
+            );
         }
 
         // Non-matching commands must NOT be caught by the `rm` rule.

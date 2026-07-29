@@ -17,26 +17,6 @@ use anyhow::{Context, Result};
 // On Windows the push/pop helpers write the escapes directly; crossterm's
 // PushKeyboardEnhancementFlags / PopKeyboardEnhancementFlags commands are
 // never referenced, so the imports are gated to avoid -D warnings failures.
-#[cfg(not(windows))]
-use crossterm::event::{
-    KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
-};
-use crossterm::{
-    event::{
-        self, DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableBracketedPaste,
-        EnableFocusChange, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
-    },
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
-use ratatui::{
-    Frame, Terminal,
-    layout::{Constraint, Direction, Layout, Rect, Size},
-    prelude::Widget,
-    style::Style,
-    widgets::Block,
-};
-use tracing;
 use crate::audit::log_sensitive_event;
 use crate::automation_manager::{AutomationManager, AutomationSchedulerConfig, spawn_scheduler};
 use crate::client::{
@@ -96,6 +76,26 @@ use crate::tui::pager::PagerView;
 use crate::tui::persistence_actor::{self, PersistRequest};
 use crate::tui::plan_prompt::PlanPromptView;
 use crate::tui::scrolling::TranscriptScroll;
+#[cfg(not(windows))]
+use crossterm::event::{
+    KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+};
+use crossterm::{
+    event::{
+        self, DisableBracketedPaste, DisableFocusChange, DisableMouseCapture, EnableBracketedPaste,
+        EnableFocusChange, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
+    },
+    execute,
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+};
+use ratatui::{
+    Frame, Terminal,
+    layout::{Constraint, Direction, Layout, Rect, Size},
+    prelude::Widget,
+    style::Style,
+    widgets::Block,
+};
+use tracing;
 // SelectionAutoscroll unused
 use crate::tui::session_picker::SessionPickerView;
 use crate::tui::shell_job_routing::{
@@ -191,8 +191,6 @@ const REQUIRED_RELEASE_ASSETS: &[&str] = &[
     "mimofan-macos-arm64.tar.gz",
     "mimofan-macos-x64",
     "mimofan-macos-x64.tar.gz",
-    "mimofan-linux-arm64",
-    "mimofan-linux-x64",
     "mimofan-windows-x64.exe",
     "mimofan-windows-x64-portable.zip",
     "mimofan-windows-x64.zip",
@@ -269,7 +267,7 @@ fn sidebar_width_for_chat_area(app: &App, chat_width: u16) -> Option<u16> {
     }
 
     let preferred_sidebar =
-        (u32::from(chat_width) * u32::from(app.sidebar_width_percent.clamp(10, 50)) / 100) as u16;
+        (u32::from(chat_width) * u32::from(app.sidebar_width.clamp(10, 50)) / 100) as u16;
     let sidebar_width = preferred_sidebar.max(24).min(chat_width.saturating_sub(40));
 
     (sidebar_width >= 20).then_some(sidebar_width)
@@ -453,7 +451,6 @@ impl TerminalInputPump {
     fn stalled_for(&self, now: Instant) -> Duration {
         now.saturating_duration_since(self.last_alive_at.get())
     }
-
 }
 
 impl Drop for TerminalInputPump {
@@ -547,7 +544,6 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
             ));
         }
     }
-
 
     let mut stdout = io::stdout();
     // Initialize the file-backed TUI log and redirect raw stderr away from
@@ -1493,10 +1489,7 @@ async fn fetch_deepseek_balance(
 
 fn should_fetch_deepseek_balance(app: &App) -> bool {
     app.status_items.contains(&StatusItem::Balance)
-        && matches!(
-            app.api_provider,
-            ApiProvider::XiaomiMimo
-        )
+        && matches!(app.api_provider, ApiProvider::XiaomiMimo)
 }
 
 #[allow(clippy::too_many_lines)]
@@ -3867,7 +3860,7 @@ async fn run_event_loop(
             if slash_menu_open && app.slash_menu_selected >= slash_menu_entries.len() {
                 app.slash_menu_selected = slash_menu_entries.len().saturating_sub(1);
             }
-            let mention_menu_limit = app.mention_menu_limit;
+            let mention_menu_limit = app.mention_limit;
             let mention_menu_entries =
                 crate::tui::file_mention::visible_mention_menu_entries(app, mention_menu_limit);
             let mention_menu_open = !mention_menu_entries.is_empty();
@@ -4971,7 +4964,7 @@ fn persist_sidebar_settings_if_dirty(app: &mut App) {
 
     if let Ok(mut settings) = Settings::load() {
         if width_dirty {
-            settings.update_sidebar_width(app.sidebar_width_percent);
+            settings.update_sidebar_width(app.sidebar_width);
         }
         if focus_dirty {
             let _ = settings.set("sidebar_focus", app.sidebar_focus.as_setting());
@@ -5492,10 +5485,7 @@ fn rollback_provider_after_auth_failure(app: &mut App, config: &mut Config) -> O
             previous_provider.as_str(),
             &app.model_selection_for_persistence(),
         );
-        if matches!(
-            previous_provider,
-            ApiProvider::XiaomiMimo
-        ) {
+        if matches!(previous_provider, ApiProvider::XiaomiMimo) {
             settings.set("default_model", &app.model_selection_for_persistence())?;
         }
         settings.save()?;
@@ -6529,10 +6519,7 @@ async fn apply_model_picker_choice(
     let persist_result = (|| -> anyhow::Result<()> {
         let mut settings = crate::settings::Settings::load()?;
         if model_changed {
-            if matches!(
-                app.api_provider,
-                ApiProvider::XiaomiMimo
-            ) {
+            if matches!(app.api_provider, ApiProvider::XiaomiMimo) {
                 settings.set("default_model", &resolved_model)?;
             }
             settings.set_model_for_provider(app.api_provider.as_str(), &resolved_model);
@@ -8189,7 +8176,7 @@ fn render(f: &mut Frame, app: &mut App) {
     let header_height = 1;
     let footer_height = 1;
     let slash_menu_entries = visible_slash_menu_entries(app, SLASH_MENU_LIMIT);
-    let mention_menu_limit = app.mention_menu_limit;
+    let mention_menu_limit = app.mention_limit;
     let mention_menu_entries =
         crate::tui::file_mention::visible_mention_menu_entries(app, mention_menu_limit);
     if !mention_menu_entries.is_empty() && app.mention_menu_selected >= mention_menu_entries.len() {
@@ -9820,7 +9807,6 @@ pub fn emergency_restore_terminal() {
     let _ = execute!(stdout, LeaveAlternateScreen);
 }
 
-
 /// Re-establish terminal mode flags. Idempotent and best-effort: each
 /// underlying flag is silently discarded by terminals that don't support
 /// it, and a single flag's failure doesn't prevent later flags from being
@@ -9839,7 +9825,6 @@ fn recover_terminal_modes<W: Write>(
     use_mouse_capture: bool,
     use_bracketed_paste: bool,
 ) {
-
     pop_keyboard_enhancement_flags(writer);
     push_keyboard_enhancement_flags(writer);
     enable_alternate_scroll_mode(writer);
@@ -10023,21 +10008,6 @@ pub(crate) fn terminal_pause_has_live_owner(app: &App) -> bool {
     })
 }
 
-fn transcript_scroll_percent(top: usize, visible: usize, total: usize) -> Option<u16> {
-    if total <= visible {
-        return None;
-    }
-
-    let max_top = total.saturating_sub(visible);
-    if max_top == 0 {
-        return None;
-    }
-
-    let clamped_top = top.min(max_top);
-    let percent = ((clamped_top as f64 / max_top as f64) * 100.0).round() as u16;
-    Some(percent.min(100))
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SearchDirection {
     Forward,
@@ -10137,26 +10107,12 @@ pub(crate) fn context_usage_snapshot(app: &App) -> Option<(i64, u32, f64)> {
     Some((used, max, percent))
 }
 
-/// Retained as a callable utility — `context_usage_snapshot` no longer uses
-/// it directly (#115 makes the estimate the primary signal), but tests in
-/// `ui/tests.rs` still exercise it and a future heuristic may want to
-/// distinguish "obviously inflated reported tokens" from healthy reports.
-fn is_reported_context_inflated(reported: i64, estimated: i64) -> bool {
-    const MIN_ABSOLUTE_GAP: i64 = 4_096;
-    if estimated <= 0 || reported <= estimated {
-        return false;
-    }
-
-    reported.saturating_sub(estimated) >= MIN_ABSOLUTE_GAP
-        && reported >= estimated.saturating_mul(4)
-}
-
 fn maybe_warn_context_pressure(app: &mut App) {
     let Some((used, max, percent)) = context_usage_snapshot(app) else {
         return;
     };
 
-    let configured_threshold = app.auto_compact_threshold_percent.clamp(10.0, 100.0);
+    let configured_threshold = app.compact_threshold_percent.clamp(10.0, 100.0);
     let warning_threshold = CONTEXT_SUGGEST_COMPACT_THRESHOLD_PERCENT.min(configured_threshold);
     if percent < warning_threshold {
         return;
@@ -10283,9 +10239,6 @@ fn open_pager_for_last_message(app: &mut App) -> bool {
     app.view_stack.push(pager);
     true
 }
-
-/// Compatibility wrapper for the old test name. The user-facing Ctrl+O
-/// surface is now Activity Detail, not a thinking-only pager.
 
 /// Open a pager for the activity the user is most likely asking about.
 ///

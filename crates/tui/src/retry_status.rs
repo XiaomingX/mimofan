@@ -41,10 +41,7 @@ pub enum RetryState {
     /// starts. `since` records when the row was set so a future polish
     /// pass can age it out automatically; today the engine clears it on
     /// `TurnStarted`.
-    Failed {
-        reason: String,
-        since: Instant,
-    },
+    Failed { reason: String, since: Instant },
 }
 
 impl RetryState {
@@ -158,11 +155,3 @@ pub fn clear() {
         *s = RetryState::Idle;
     }
 }
-
-/// Test helper: serialize tests that touch the global state so cargo's
-/// parallel runner can't observe a torn read. The guard is exported so
-/// tests in *other* modules (e.g. footer rendering tests) can hold the
-/// same lock as the ones in `retry_status::tests`.
-
-#[cfg(test)]
-mod tests {}

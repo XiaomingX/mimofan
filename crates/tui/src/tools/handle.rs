@@ -11,12 +11,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 
 use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
 };
+use crate::utils::sha256_hex;
 
 const DEFAULT_MAX_CHARS: usize = 12_000;
 const HARD_MAX_CHARS: usize = 50_000;
@@ -755,12 +755,6 @@ fn truncate_chars(text: &str, max_chars: usize) -> String {
         out.push(ch);
     }
     out
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
 }
 
 fn json_type(value: &Value) -> &'static str {

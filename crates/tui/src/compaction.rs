@@ -137,12 +137,6 @@ impl Default for HardCompactionConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HardCompactionPlan {
-    pub summarize_indices: Vec<usize>,
-    pub preserved_indices: Vec<usize>,
-}
-
 fn path_regex() -> &'static Regex {
     static PATH_RE: OnceLock<Regex> = OnceLock::new();
     PATH_RE.get_or_init(|| {
@@ -470,31 +464,6 @@ pub fn plan_compaction(
         pinned_indices,
         summarize_indices,
     }
-}
-
-pub fn plan_hard_compaction(
-    messages: &[Message],
-    workspace: Option<&Path>,
-    keep_recent: usize,
-) -> Option<HardCompactionPlan> {
-    if keep_recent == 0 || messages.len() < keep_recent.saturating_add(MIN_SUMMARIZE_MESSAGES) {
-        return None;
-    }
-
-    let soft_plan = plan_compaction(messages, workspace, keep_recent, None, None);
-    if soft_plan.summarize_indices.len() < MIN_SUMMARIZE_MESSAGES {
-        return None;
-    }
-
-    let summarized: BTreeSet<_> = soft_plan.summarize_indices.iter().copied().collect();
-    let preserved_indices = (0..messages.len())
-        .filter(|idx| !summarized.contains(idx))
-        .collect();
-
-    Some(HardCompactionPlan {
-        summarize_indices: soft_plan.summarize_indices,
-        preserved_indices,
-    })
 }
 
 fn enforce_tool_call_pairs(messages: &[Message], pinned_indices: &mut BTreeSet<usize>) {

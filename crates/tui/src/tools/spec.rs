@@ -878,11 +878,6 @@ pub trait ToolSpec: Send + Sync {
         self.approval_requirement()
     }
 
-    /// Returns whether this tool is sandboxable.
-    fn is_sandboxable(&self) -> bool {
-        self.capabilities().contains(&ToolCapability::Sandboxable)
-    }
-
     /// Returns whether this tool is read-only.
     fn is_read_only(&self) -> bool {
         let caps = self.capabilities();

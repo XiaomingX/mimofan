@@ -35,9 +35,9 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::models::{SystemPrompt, Tool};
+use crate::utils::sha256_hex;
 
 /// A snapshot of the immutable prefix's fingerprint.
 ///
@@ -54,22 +54,6 @@ pub struct PrefixFingerprint {
 }
 
 impl PrefixFingerprint {
-    /// Compute a fingerprint from system prompt text and tool list.
-    ///
-    /// Tools are serialized to the same JSON shape the chat API receives
-    /// (`type`, `name`, `description`, `parameters`, `strict`), sorted
-    /// lexicographically by JSON text, then SHA-256 hashed. This catches
-    /// schema/description drift that actually affects the API prefix,
-    /// while ignoring internal-only fields like `allowed_callers` (#2264).
-    ///
-    /// This entry point shares a process-local [`ToolCatalogCache`] with
-    /// every other call, so a stable tool set (the common case after the
-    /// first turn of a session) avoids the per-tool JSON serialization
-    /// and sort/join entirely. Callers that hold their own cache — e.g.
-    /// [`PrefixStabilityManager`] — should use
-    /// [`Self::compute_with_tool_cache`] to share *that* cache instead
-    /// and avoid the thread-local lookup.
-
     /// Compute a fingerprint while reusing a [`ToolCatalogCache`] for the
     /// tool-side work. The cache holds the joined+sorted+SHA-256'd catalog
     /// under a content-derived identity so the per-tool JSON serialization
@@ -130,19 +114,6 @@ impl PrefixChange {
             return "unknown (fingerprint mismatch but no component detected)".to_string();
         }
         format!("prefix cache invalidated: {} changed", parts.join(" and "))
-    }
-
-    /// Returns a short label for TUI chip display.
-    pub fn label(&self) -> &'static str {
-        if self.system_changed && self.tools_changed {
-            "sys+tools"
-        } else if self.system_changed {
-            "sys"
-        } else if self.tools_changed {
-            "tools"
-        } else {
-            "prefix"
-        }
     }
 }
 
@@ -563,13 +534,6 @@ fn tool_to_api_json(tool: &Tool) -> Option<String> {
         function["strict"] = serde_json::json!(strict);
     }
     serde_json::to_string(&value).ok()
-}
-
-/// Compute the SHA-256 hex digest of a byte slice.
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
 }
 
 /// Extract the system prompt text from an optional SystemPrompt,

@@ -11,7 +11,6 @@
 //! current terminal; Windows falls back to `Bel`, which is routed through
 //! `MessageBeep(MB_OK)` for an audible default notification sound.
 
-
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU8;
@@ -41,7 +40,6 @@ pub enum Method {
     /// Suppress all notifications.
     Off,
 }
-
 
 /// Resolve `Auto` to a concrete method by inspecting `$TERM_PROGRAM`,
 /// `$LC_TERMINAL`, and `$TERM`.
@@ -378,7 +376,6 @@ pub fn play_completion_sound() {
     }
 }
 
-
 /// Non-Windows: write BEL to stdout for the terminal bell.
 #[cfg(not(target_os = "windows"))]
 fn beep_sound() {
@@ -396,7 +393,6 @@ fn configured_sound_file() -> Option<PathBuf> {
         .ok()
         .and_then(|slot| slot.clone())
 }
-
 
 #[cfg(not(target_os = "windows"))]
 fn play_sound_file(_path: &Path) {
@@ -779,4 +775,3 @@ pub fn text_summary(text: &str) -> Option<String> {
         Some(trimmed.to_string())
     }
 }
-

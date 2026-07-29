@@ -3,6 +3,7 @@
 //! This library contains the core TUI functionality.
 
 #![allow(clippy::uninlined_format_args)]
+#![allow(dead_code)]
 
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
@@ -114,7 +115,6 @@ use crate::mcp::{McpConfig, McpPool, McpServerConfig, McpServerOAuthConfig};
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
 use crate::session_manager::{SessionManager, create_saved_session, truncate_id};
 use crate::tui::history::{summarize_tool_args, summarize_tool_output};
-
 
 #[cfg(not(windows))]
 fn configure_windows_console_utf8() {}
@@ -1070,22 +1070,50 @@ pub async fn run() -> Result<()> {
     spawn_signal_cleanup_task();
 
     dotenv().ok();
-    
+
     // Intercept `mimofan .` or `mimofan <dir>` and convert it to `mimofan -C <dir>`
     // This allows users to use `mimofan .` similar to `code .` or `cursor .`
     let mut env_args: Vec<String> = std::env::args().collect();
     if env_args.len() == 2 && !env_args[1].starts_with('-') {
         let known_subcommands = [
-            "run", "doctor", "models", "speech", "tts", "sessions", "resume", "fork", "init", 
-            "setup", "remote-setup", "exec", "fleet", "review", "apply", "eval", "mcp", 
-            "features", "serve", "completions", "login", "logout", "auth", "mcp-server", 
-            "config", "model", "thread", "sandbox", "app-server", "completion", "metrics", 
-            "update", "help"
+            "run",
+            "doctor",
+            "models",
+            "speech",
+            "tts",
+            "sessions",
+            "resume",
+            "fork",
+            "init",
+            "setup",
+            "remote-setup",
+            "exec",
+            "fleet",
+            "review",
+            "apply",
+            "eval",
+            "mcp",
+            "features",
+            "serve",
+            "completions",
+            "login",
+            "logout",
+            "auth",
+            "mcp-server",
+            "config",
+            "model",
+            "thread",
+            "sandbox",
+            "app-server",
+            "completion",
+            "metrics",
+            "update",
+            "help",
         ];
-        if !known_subcommands.contains(&env_args[1].as_str()) {
-            if std::path::Path::new(&env_args[1]).is_dir() {
-                env_args.insert(1, "-C".to_string());
-            }
+        if !known_subcommands.contains(&env_args[1].as_str())
+            && std::path::Path::new(&env_args[1]).is_dir()
+        {
+            env_args.insert(1, "-C".to_string());
         }
     }
     let cli = Cli::parse_from(env_args);
@@ -2218,13 +2246,11 @@ fn resolve_api_key_source(config: &Config) -> ApiKeySource {
         .provider_config()
         .and_then(|entry| entry.api_key.as_ref())
         .is_some_and(|k| !k.trim().is_empty());
-    let root_deepseek_key = matches!(
-        provider,
-        crate::config::ApiProvider::XiaomiMimo
-    ) && config
-        .api_key
-        .as_ref()
-        .is_some_and(|k| !k.trim().is_empty());
+    let root_deepseek_key = matches!(provider, crate::config::ApiProvider::XiaomiMimo)
+        && config
+            .api_key
+            .as_ref()
+            .is_some_and(|k| !k.trim().is_empty());
 
     if provider_config_key || root_deepseek_key {
         ApiKeySource::Config
@@ -3668,15 +3694,16 @@ fn doctor_base_url_class(provider: crate::config::ApiProvider, base_url: &str) -
 fn doctor_auth_scheme(config: &Config) -> &'static str {
     let provider = config.api_provider();
     if provider == crate::config::ApiProvider::XiaomiMimo {
-        "x-api-key"
-    } else if provider == crate::config::ApiProvider::XiaomiMimo
-        && (doctor_xiaomi_mimo_base_url_uses_token_plan(&config.deepseek_base_url())
+        if doctor_xiaomi_mimo_base_url_uses_token_plan(&config.deepseek_base_url())
             || config
                 .deepseek_api_key()
                 .ok()
-                .is_some_and(|key| key.trim_start().starts_with("tp-")))
-    {
-        "api-key"
+                .is_some_and(|key| key.trim_start().starts_with("tp-"))
+        {
+            "api-key"
+        } else {
+            "x-api-key"
+        }
     } else {
         "bearer"
     }
@@ -4066,9 +4093,6 @@ async fn run_speech(config: &Config, args: SpeechArgs) -> Result<()> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod speech_cli_tests {}
 
 /// Test API connectivity by making a minimal request
 async fn test_api_connectivity(config: &Config) -> Result<()> {
@@ -5825,12 +5849,10 @@ fn workspace_config_path_matches(raw_path: &str, workspace: &Path) -> bool {
     paths_equal_for_config(&configured, &workspace)
 }
 
-
 #[cfg(not(windows))]
 fn paths_equal_for_config(left: &Path, right: &Path) -> bool {
     left == right
 }
-
 
 #[cfg(any(windows, test))]
 fn normalize_windows_config_path_str(path: &str) -> String {
@@ -5982,10 +6004,7 @@ fn config_for_cli_route(config: &Config, route: &CliAutoRoute) -> Config {
     execution_config
         .provider_config_for_mut(route.provider)
         .model = Some(route.model.clone());
-    if matches!(
-        route.provider,
-        crate::config::ApiProvider::XiaomiMimo
-    ) {
+    if matches!(route.provider, crate::config::ApiProvider::XiaomiMimo) {
         execution_config.default_text_model = Some(route.model.clone());
     }
     execution_config

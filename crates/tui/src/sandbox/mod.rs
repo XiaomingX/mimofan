@@ -35,10 +35,6 @@ pub mod process_hardening;
 #[cfg(target_os = "macos")]
 pub mod seatbelt;
 
-
-
-
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -195,8 +191,6 @@ pub enum SandboxType {
     /// macOS Seatbelt (sandbox-exec) sandboxing.
     #[cfg(target_os = "macos")]
     MacosSeatbelt,
-
-
 }
 
 impl std::fmt::Display for SandboxType {
@@ -265,8 +259,6 @@ pub fn get_platform_sandbox() -> Option<SandboxType> {
             return Some(SandboxType::MacosSeatbelt);
         }
     }
-
-
 
     None
 }
@@ -357,8 +349,6 @@ impl SandboxManager {
 
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => Self::prepare_seatbelt(spec),
-
-
         }
     }
 
@@ -406,8 +396,6 @@ impl SandboxManager {
         }
     }
 
-
-
     /// Check if a command failure was due to sandbox denial.
     ///
     /// This helps distinguish between legitimate command failures and
@@ -421,8 +409,6 @@ impl SandboxManager {
 
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => seatbelt::detect_denial(exit_code, stderr),
-
-
         }
     }
 
@@ -447,8 +433,6 @@ impl SandboxManager {
                     )
                 }
             }
-
-
         }
     }
 }

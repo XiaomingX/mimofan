@@ -4,7 +4,7 @@
 
 use crate::models::{Message, SystemPrompt, Usage};
 use crate::prefix_cache::PrefixStabilityManager;
-use crate::project_context::{load_project_context_with_parents, ProjectContext};
+use crate::project_context::{ProjectContext, load_project_context_with_parents};
 use crate::prompt_zones::{AppendLog, FrozenPrefix};
 use crate::tui::approval::ApprovalMode;
 use crate::working_set::WorkingSet;
@@ -180,20 +180,10 @@ impl Session {
         self.messages_revision = self.messages_revision.saturating_add(1);
     }
 
-    /// Replace the entire message history. Used by session resume and
-    /// compaction. Bumps `messages_revision` exactly once even when the new
-    /// history has a different length, so downstream caches invalidate
-    /// atomically.
-    pub fn replace_messages(&mut self, messages: Vec<Message>) {
-        self.messages = messages.into();
-        self.messages_revision = self.messages_revision.saturating_add(1);
-    }
-
     /// Bump `messages_revision` without otherwise mutating the message list.
     /// Reserved for sites that mutate the message list in place (e.g. an
     /// in-place rewrite of a content block). Most call sites do not need
-    /// this — prefer [`add_message`](Self::add_message) and
-    /// [`replace_messages`](Self::replace_messages).
+    /// this — prefer [`add_message`](Self::add_message).
     pub fn bump_messages_revision(&mut self) {
         self.messages_revision = self.messages_revision.saturating_add(1);
     }

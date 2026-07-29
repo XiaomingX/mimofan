@@ -176,8 +176,6 @@ thread_local! {
         RefCell::new(OutputRowsCacheInner::new());
 }
 
-/// Reset the global cache. Used by tests and `/clear`.
-
 /// Look up (or compute) the wrapped output rows for `output` at `width`.
 /// On a hit the cached `Vec<OutputRow>` is cloned without re-running
 /// the per-line ANSI strip or the wrap pass.

@@ -200,10 +200,6 @@ impl ShellDispatcher {
         (program, args)
     }
 
-    /// Build a `Command` from separate program + args (bypasses the shell).
-    /// Used when the caller already has a resolved executable and argument
-    /// vector — e.g. `ExecEnv` from the sandbox.
-
     /// Execute a foreground command with raw-mode save/restore.
     ///
     /// A scope guard ensures raw mode is restored even if the command fails
@@ -267,7 +263,6 @@ impl ShellDispatcher {
     // -- Detection --------------------------------------------------------
 
     fn detect_shell() -> ShellKind {
-
         #[cfg(not(windows))]
         {
             // 1. $SHELL environment variable (Unix)
@@ -291,8 +286,6 @@ impl ShellDispatcher {
             ShellKind::Sh
         }
     }
-
-
 }
 
 // -- Helpers ---------------------------------------------------------------

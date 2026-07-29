@@ -2439,9 +2439,6 @@ fn sidebar_progress_status_text(progress: &str) -> &'static str {
     }
 }
 
-/// Build sub-agent sidebar lines from summary + per-agent rows. Public
-/// for the snapshot tests in this module.
-
 /// Build the Agents panel lines together with a parallel per-line
 /// click-action vector (#3028). Agent label rows open the Fleet worker status
 /// view via `/fleet status`; header, role-mix, detail, and RLM lines are not

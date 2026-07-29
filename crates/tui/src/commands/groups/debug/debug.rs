@@ -5,11 +5,11 @@
 use std::time::Instant;
 
 use super::CommandResult;
-use crate::client::{inspect_prompt_for_request, CacheWarmupKey, PromptInspection};
+use crate::client::{CacheWarmupKey, PromptInspection, inspect_prompt_for_request};
 use crate::compaction::estimate_input_tokens_conservative;
 use crate::dependencies::{ExternalTool, Git};
-use crate::localization::{tr, Locale, MessageId};
-use crate::models::{context_window_for_model, ContentBlock, MessageRequest, SystemPrompt};
+use crate::localization::{Locale, MessageId, tr};
+use crate::models::{ContentBlock, MessageRequest, SystemPrompt, context_window_for_model};
 use crate::tui::app::{App, AppAction, TurnCacheRecord};
 use crate::tui::history::HistoryCell;
 
@@ -1013,11 +1013,7 @@ pub fn patch_undo(app: &mut App) -> CommandResult {
                 .ok()
                 .and_then(|o| {
                     let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                    if s.is_empty() {
-                        None
-                    } else {
-                        Some(s)
-                    }
+                    if s.is_empty() { None } else { Some(s) }
                 })
         })
         .unwrap_or(None);

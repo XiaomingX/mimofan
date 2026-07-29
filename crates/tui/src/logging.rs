@@ -12,8 +12,6 @@ pub fn set_verbose(enabled: bool) {
     VERBOSE.store(enabled, Ordering::SeqCst);
 }
 
-
-
 /// Return true when `DEEPSEEK_LOG_LEVEL` requests verbose output.
 ///
 /// Note: `RUST_LOG` is intentionally NOT checked here — it controls the
@@ -61,5 +59,3 @@ pub fn warn(message: impl AsRef<str>) {
         eprintln!("{} {}", "warn".truecolor(r, g, b).bold(), message.as_ref());
     }
 }
-
-#[cfg(test)]

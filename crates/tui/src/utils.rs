@@ -1,14 +1,12 @@
 //! Utility helpers shared across the `DeepSeek` CLI.
 
-use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
 use crate::models::{ContentBlock, Message};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use ignore::WalkBuilder;
-use serde_json::Value;
 
 const LOG_FINGERPRINT_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 const LOG_FINGERPRINT_PRIME: u64 = 0x0000_0100_0000_01b3;
@@ -266,8 +264,22 @@ fn browser_open_command(url: &str) -> Result<Command> {
         Ok(command)
     }
 
+    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
+    {
+        let mut command = Command::new("xdg-open");
+        command.arg(url);
+        Ok(command)
+    }
 
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = Command::new("cmd");
+        cmd.args(["/C", "start", "", url]);
+        Ok(cmd)
+    }
 
+    #[cfg(not(any(
+        target_os = "macos",
         all(target_os = "linux", not(target_env = "ohos")),
         target_os = "windows"
     )))]
@@ -397,17 +409,6 @@ where
     })
 }
 
-pub fn ensure_dir(path: &Path) -> Result<()> {
-    fs::create_dir_all(path)
-        .with_context(|| format!("Failed to create directory: {}", path.display()))
-}
-
-/// Render JSON with pretty formatting, falling back to a compact string on error.
-#[must_use]
-pub fn pretty_json(value: &Value) -> String {
-    serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
-}
-
 /// Truncate a string to a maximum length, adding an ellipsis if truncated.
 ///
 /// Uses char boundaries to avoid panicking on multi-byte UTF-8 characters.
@@ -521,6 +522,40 @@ mod tests {}
 
 #[cfg(test)]
 mod atomic_write_tests {}
+
+/// Normalize a path by resolving `.` and `..` components without touching the
+/// filesystem. Returns `"."` for an empty result.
+pub fn normalize_path_components(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(_) | Component::RootDir => {
+                normalized.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::Normal(part) => normalized.push(part),
+        }
+    }
+    if normalized.as_os_str().is_empty() {
+        PathBuf::from(".")
+    } else {
+        normalized
+    }
+}
+
+/// Compute the SHA-256 hex digest of a byte slice. Single canonical
+/// implementation shared across the crate; previously duplicated in
+/// `tools/review`, `tools/handle`, `tool_output_receipts`, `rlm/session`,
+/// `prefix_cache`, `prompt_zones`, and `client/chat`.
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::Digest;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
+}
 
 #[cfg(test)]
 mod spawn_supervised_tests {}

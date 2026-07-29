@@ -12,10 +12,10 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use tokio::time::timeout as tokio_timeout;
 
 use crate::config::wire_model_for_provider;
+use crate::utils::sha256_hex;
 
 /// Default timeout for the initial streaming response headers.
 ///
@@ -1187,12 +1187,6 @@ fn prompt_layer(
     }
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
-}
-
 /// Persist a SHA-addressed copy of `content` to
 /// `~/.mimofan/tool_outputs/sha_<sha>.txt` so the model can retrieve
 /// the original bytes after the wire-dedup compactor has replaced
@@ -1967,10 +1961,6 @@ pub(super) fn sanitize_thinking_mode_messages(
     Some(approx_tokens)
 }
 
-/// Sums the byte length of `reasoning_content` across all assistant messages in
-/// an outgoing chat-completions body. Used by tests; the production sanitizer
-/// computes the same number inline and logs it.
-
 /// Render the transport-shape headers we care about for #103 diagnostics.
 /// Always returns SOMETHING printable so the decode-error log line is parseable
 /// even when the server stripped a header we expected.
@@ -2324,96 +2314,6 @@ pub(super) fn parse_chat_message(payload: &Value) -> Result<MessageResponse> {
     })
 }
 
-// === Streaming Helpers ===
-
-/// Build synthetic stream events from a non-streaming response (used as fallback).
-fn build_stream_events(response: &MessageResponse) -> Vec<StreamEvent> {
-    let mut events = Vec::new();
-    let mut index = 0u32;
-
-    events.push(StreamEvent::MessageStart {
-        message: response.clone(),
-    });
-
-    for block in &response.content {
-        match block {
-            ContentBlock::Text { text, .. } => {
-                events.push(StreamEvent::ContentBlockStart {
-                    index,
-                    content_block: ContentBlockStart::Text {
-                        text: String::new(),
-                    },
-                });
-                if !text.is_empty() {
-                    events.push(StreamEvent::ContentBlockDelta {
-                        index,
-                        delta: Delta::TextDelta { text: text.clone() },
-                    });
-                }
-                events.push(StreamEvent::ContentBlockStop { index });
-            }
-            ContentBlock::Thinking { thinking, .. } => {
-                events.push(StreamEvent::ContentBlockStart {
-                    index,
-                    content_block: ContentBlockStart::Thinking {
-                        thinking: String::new(),
-                    },
-                });
-                if !thinking.is_empty() {
-                    events.push(StreamEvent::ContentBlockDelta {
-                        index,
-                        delta: Delta::ThinkingDelta {
-                            thinking: thinking.clone(),
-                        },
-                    });
-                }
-                events.push(StreamEvent::ContentBlockStop { index });
-            }
-            ContentBlock::ToolUse {
-                id, name, input, ..
-            } => {
-                events.push(StreamEvent::ContentBlockStart {
-                    index,
-                    content_block: ContentBlockStart::ToolUse {
-                        id: id.clone(),
-                        name: name.clone(),
-                        input: input.clone(),
-                        caller: None,
-                    },
-                });
-                events.push(StreamEvent::ContentBlockStop { index });
-            }
-            ContentBlock::ToolResult { .. } => {}
-            ContentBlock::ImageUrl { .. } => {}
-            ContentBlock::ServerToolUse { id, name, input } => {
-                events.push(StreamEvent::ContentBlockStart {
-                    index,
-                    content_block: ContentBlockStart::ServerToolUse {
-                        id: id.clone(),
-                        name: name.clone(),
-                        input: input.clone(),
-                    },
-                });
-                events.push(StreamEvent::ContentBlockStop { index });
-            }
-            ContentBlock::ToolSearchToolResult { .. }
-            | ContentBlock::CodeExecutionToolResult { .. } => {}
-        }
-        index = index.saturating_add(1);
-    }
-
-    events.push(StreamEvent::MessageDelta {
-        delta: MessageDelta {
-            stop_reason: response.stop_reason.clone(),
-            stop_sequence: response.stop_sequence.clone(),
-        },
-        usage: Some(response.usage.clone()),
-    });
-    events.push(StreamEvent::MessageStop);
-
-    events
-}
-
 #[derive(Debug, Default)]
 struct InlineReasoningTagState {
     inside_think: bool,
@@ -2615,7 +2515,6 @@ fn parse_sse_data_frame(
 
 /// Parse a single SSE chunk from the Chat Completions streaming API into
 /// our internal `StreamEvent` representation.
-
 // Same deliberate shared parser-state set as `parse_sse_data_frame`.
 #[allow(clippy::too_many_arguments)]
 fn parse_sse_chunk_with_reasoning_style(

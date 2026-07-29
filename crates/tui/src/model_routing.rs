@@ -242,78 +242,10 @@ pub(crate) struct AutoRouteSelection {
     pub(crate) source: AutoRouteSource,
 }
 
-/// Render the auto-router system prompt with the actual candidate ids
-/// (#3018): the classifier must answer with ids the active provider can
-/// serve, not hardcoded DeepSeek spellings.
-pub(crate) fn auto_router_system_prompt(
-    candidates: &RouterCandidates,
-    cost_saving: bool,
-) -> String {
-    let cheap = candidates.cheap_or_big();
-    let big = &candidates.big;
-    let mut prompt = format!(
-        include_str!("prompts/router_classifier.md"),
-        cheap = cheap,
-        big = big,
-    );
-    if cost_saving {
-        prompt.push_str(&format!(
-            "\n\nCost-saving mode is ON. Prefer {cheap} for any request that is \
-not unmistakably agentic, multi-step, architecture/design, security review, \
-debugging, or otherwise clearly out of the cheap tier's capability. Resolve \
-ambiguous cases in favour of {cheap}, not {big}."
-        ));
-    }
-    prompt
-}
-
-/// DeepSeek-candidate wrapper kept for the legacy parser tests; the
-/// network router parses with [`parse_auto_route_recommendation_for_candidates`].
-
-pub(crate) fn parse_auto_route_recommendation_for_candidates(
-    raw: &str,
-    candidates: &RouterCandidates,
-) -> Option<AutoRouteRecommendation> {
-    let json = extract_first_json_object(raw)?;
-    let value: serde_json::Value = serde_json::from_str(json).ok()?;
-    let model = value.get("model").and_then(serde_json::Value::as_str)?;
-    let model = normalize_auto_route_model(model, candidates)?;
-    let reasoning_effort = value
-        .get("thinking")
-        .or_else(|| value.get("reasoning_effort"))
-        .or_else(|| value.get("effort"))
-        .and_then(serde_json::Value::as_str)
-        .and_then(parse_auto_route_reasoning_effort);
-
-    Some(AutoRouteRecommendation {
-        model,
-        reasoning_effort,
-    })
-}
-
 fn extract_first_json_object(raw: &str) -> Option<&str> {
     let start = raw.find('{')?;
     let end = raw.rfind('}')?;
     (end >= start).then_some(&raw[start..=end])
-}
-
-fn normalize_auto_route_model(model: &str, candidates: &RouterCandidates) -> Option<String> {
-    let normalized = model.trim().to_ascii_lowercase();
-    // Exact candidate ids, case-insensitively (#3018).
-    if normalized == candidates.big.to_ascii_lowercase() {
-        return Some(candidates.big.clone());
-    }
-    if let Some(cheap) = candidates.cheap.as_deref()
-        && normalized == cheap.to_ascii_lowercase()
-    {
-        return Some(cheap.to_string());
-    }
-    // Legacy pro/flash shorthand maps onto the big/cheap tiers.
-    match normalized.as_str() {
-        "deepseek-v4-pro" | "v4-pro" | "pro" => Some(candidates.big.clone()),
-        "deepseek-v4-flash" | "v4-flash" | "flash" => Some(candidates.cheap_or_big().to_string()),
-        _ => None,
-    }
 }
 
 fn parse_auto_route_reasoning_effort(effort: &str) -> Option<ReasoningEffort> {
@@ -342,72 +274,6 @@ pub(crate) fn normalize_auto_route_effort_for_provider(
     match effort {
         ReasoningEffort::Low | ReasoningEffort::Medium => ReasoningEffort::High,
         other => other,
-    }
-}
-
-pub(crate) async fn resolve_auto_route_with_flash(
-    config: &Config,
-    latest_request: &str,
-    recent_context: &str,
-    selected_model_mode: &str,
-    selected_thinking_mode: &str,
-) -> AutoRouteSelection {
-    let cost_saving = config.auto_cost_saving();
-    // #3018: derive the candidate pair from the active provider. The
-    // config-resolved default model stands in for the session model — with
-    // auto mode on, that is the canonical id the provider serves.
-    let candidates = provider_router_candidates(config.api_provider(), &config.default_model());
-    let heuristic = auto_model_heuristic_selection_with_bias(
-        latest_request,
-        selected_model_mode,
-        cost_saving,
-        &candidates,
-    );
-    if heuristic.confidence == AutoModelHeuristicConfidence::Decisive {
-        return auto_route_from_heuristic(config.api_provider(), latest_request, heuristic);
-    }
-
-    // #1549/#3018: no cheap tier → no network round-trip. The heuristic is
-    // the only signal and the routed model stays on the session model.
-    if candidates.cheap.is_none() {
-        return auto_route_from_heuristic(config.api_provider(), latest_request, heuristic);
-    }
-
-    match auto_route_flash_recommendation(
-        config,
-        &candidates,
-        latest_request,
-        recent_context,
-        selected_model_mode,
-        selected_thinking_mode,
-    )
-    .await
-    {
-        Ok(Some(recommendation)) => AutoRouteSelection {
-            provider: config.api_provider(),
-            model: recommendation.model,
-            reasoning_effort: recommendation.reasoning_effort,
-            source: AutoRouteSource::FlashRouter,
-        },
-        Ok(None) | Err(_) => {
-            auto_route_from_heuristic(config.api_provider(), latest_request, heuristic)
-        }
-    }
-}
-
-fn auto_route_from_heuristic(
-    provider: ApiProvider,
-    latest_request: &str,
-    heuristic: AutoModelHeuristicSelection,
-) -> AutoRouteSelection {
-    AutoRouteSelection {
-        provider,
-        model: heuristic.model,
-        reasoning_effort: Some(normalize_auto_route_effort_for_provider(
-            provider,
-            crate::auto_reasoning::select(false, latest_request),
-        )),
-        source: AutoRouteSource::Heuristic,
     }
 }
 
@@ -653,60 +519,6 @@ fn parse_inventory_auto_route_recommendation(
         model: candidate.model.clone(),
         reasoning_effort,
     })
-}
-
-async fn auto_route_flash_recommendation(
-    config: &Config,
-    candidates: &RouterCandidates,
-    latest_request: &str,
-    recent_context: &str,
-    selected_model_mode: &str,
-    selected_thinking_mode: &str,
-) -> Result<Option<AutoRouteRecommendation>> {
-    if cfg!(test) {
-        return Ok(None);
-    }
-    let Some(cheap_model) = candidates.cheap.clone() else {
-        // Callers skip the router when there is no cheap tier; this is a
-        // defensive second gate so a future caller cannot 400 the provider.
-        return Ok(None);
-    };
-
-    let client = DeepSeekClient::new(config)?;
-    let router_system = auto_router_system_prompt(candidates, config.auto_cost_saving());
-    let request = MessageRequest {
-        model: cheap_model,
-        messages: vec![Message {
-            role: "user".to_string(),
-            content: vec![ContentBlock::Text {
-                text: auto_route_prompt(
-                    latest_request,
-                    recent_context,
-                    selected_model_mode,
-                    selected_thinking_mode,
-                ),
-                cache_control: None,
-            }],
-        }],
-        max_tokens: 96,
-        system: Some(SystemPrompt::Text(router_system)),
-        tools: None,
-        tool_choice: None,
-        metadata: None,
-        thinking: None,
-        reasoning_effort: Some("off".to_string()),
-        stream: Some(false),
-        temperature: Some(0.0),
-        top_p: None,
-        response_format: None,
-    };
-
-    let response =
-        tokio::time::timeout(Duration::from_secs(4), client.create_message(request)).await??;
-    Ok(parse_auto_route_recommendation_for_candidates(
-        &message_response_text(&response),
-        candidates,
-    ))
 }
 
 fn auto_route_prompt(

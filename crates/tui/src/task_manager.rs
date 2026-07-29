@@ -1690,8 +1690,3 @@ fn default_tasks_dir_for_home(home: &Path) -> PathBuf {
     }
     primary
 }
-
-/// Wait for a task to reach a terminal status (tests and API helpers).
-
-#[cfg(test)]
-mod tests {}

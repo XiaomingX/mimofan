@@ -21,7 +21,7 @@
 //!
 //! ## Live callers
 //!
-//! * [`apply_spillover`] — invoked from the engine's tool-execution
+//! * [`apply_spillover_with_artifact`] — invoked from the engine's tool-execution
 //!   path (`turn_loop.rs`) so any successful tool result over
 //!   [`SPILLOVER_THRESHOLD_BYTES`] spills to disk and the model
 //!   receives a [`SPILLOVER_HEAD_BYTES`] head plus a pointer footer.
@@ -87,8 +87,6 @@ pub fn spillover_root() -> Option<PathBuf> {
     }
     Some(legacy)
 }
-
-/// Override the spillover root for tests without mutating `$HOME`.
 
 /// Resolve the spillover-file path for a tool call id. Sanitises the
 /// id so that a hostile value can't escape the storage directory.
@@ -243,35 +241,13 @@ pub fn maybe_spillover(
     Ok(Some((content[..cut].to_string(), path)))
 }
 
-/// Inline head retained when [`apply_spillover`] truncates a tool
+/// Inline head retained when `apply_spillover_inner` truncates a tool
 /// result. 32 KiB is large enough for the model to keep meaningful
 /// context (a long stack trace, a `git diff` head, a directory
 /// listing of typical depth) without consuming the lion's share of
 /// the per-turn context budget. The full output is preserved on
 /// disk; the model can `read_file` it back if it needs the tail.
 pub const SPILLOVER_HEAD_BYTES: usize = 32 * 1024;
-
-/// Apply spillover to a tool result in place. If the result's
-/// content exceeds [`SPILLOVER_THRESHOLD_BYTES`], writes the full
-/// content to a sibling file under `~/.mimofan/tool_outputs/`,
-/// replaces `result.content` with a [`SPILLOVER_HEAD_BYTES`] head
-/// plus a footer pointing the model at the spillover file, and
-/// stamps `metadata.spillover_path` so the UI can render its
-/// "full output: …" annotation.
-///
-/// Returns the spillover path on success, `None` if no spillover
-/// happened (content small enough, error result, write failure).
-/// Failures are logged but never bubble up — a tool that produced a
-/// result shouldn't be marked failed because the spillover writer
-/// couldn't reach disk; we degrade to no-op and the model gets the
-/// original (large) content.
-///
-/// Error results (`success == false`) are skipped: error messages
-/// are typically short, and turning them into a "see file" pointer
-/// would just hide the error from the model's reasoning.
-pub fn apply_spillover(result: &mut ToolResult, tool_id: &str) -> Option<PathBuf> {
-    apply_spillover_inner(result, tool_id, None)
-}
 
 /// Apply spillover and emit a session-scoped artifact reference.
 ///

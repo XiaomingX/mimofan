@@ -142,7 +142,11 @@ impl DeepSeekClient {
         body
     }
 
-    async fn send_anthropic_request(&self, body: &Value, stream: bool) -> Result<reqwest::Response> {
+    async fn send_anthropic_request(
+        &self,
+        body: &Value,
+        stream: bool,
+    ) -> Result<reqwest::Response> {
         let url = anthropic_messages_url(&self.base_url);
         self.wait_for_rate_limit().await;
         // Pin the Accept header to the wire format we're asking for. The
@@ -422,40 +426,99 @@ fn apply_anthropic_cache_breakpoints(body: &mut Value) {
 
     // Cap at MAX_CACHE_BREAKPOINTS in render order (tools → system →
     // messages), dropping the earliest extras.
-    let mut marked: Vec<*mut Value> = Vec::new();
-    let collect = |value: Option<&mut Value>| {
-        let Some(array) = value.and_then(Value::as_array_mut) else {
-            return Vec::new();
-        };
-        array
-            .iter_mut()
-            .filter(|item| item.get("cache_control").is_some())
-            .map(|item| item as *mut Value)
-            .collect::<Vec<_>>()
-    };
-    marked.extend(collect(body.get_mut("tools")));
-    marked.extend(collect(body.get_mut("system")));
-    if let Some(messages) = body.get_mut("messages").and_then(Value::as_array_mut) {
-        for message in messages.iter_mut() {
-            if let Some(blocks) = message.get_mut("content").and_then(Value::as_array_mut) {
-                marked.extend(
-                    blocks
-                        .iter_mut()
-                        .filter(|block| block.get("cache_control").is_some())
-                        .map(|block| block as *mut Value),
-                );
+    // Two-pass approach: first count marked items, then remove excess by index.
+    let tools_count = body
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter(|item| item.get("cache_control").is_some())
+                .count()
+        })
+        .unwrap_or(0);
+    let system_count = body
+        .get("system")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter(|item| item.get("cache_control").is_some())
+                .count()
+        })
+        .unwrap_or(0);
+    let mut message_marked: Vec<(usize, usize)> = Vec::new(); // (msg_idx, block_idx)
+    if let Some(messages) = body.get("messages").and_then(Value::as_array) {
+        for (mi, message) in messages.iter().enumerate() {
+            if let Some(blocks) = message.get("content").and_then(Value::as_array) {
+                for (bi, block) in blocks.iter().enumerate() {
+                    if block.get("cache_control").is_some() {
+                        message_marked.push((mi, bi));
+                    }
+                }
             }
         }
     }
-    if marked.len() > MAX_CACHE_BREAKPOINTS {
-        let excess = marked.len() - MAX_CACHE_BREAKPOINTS;
-        for pointer in marked.into_iter().take(excess) {
-            // SAFETY: the pointers were collected from `body`, which is
-            // exclusively borrowed for the duration of this function, and
-            // each pointer targets a distinct JSON node.
-            unsafe {
-                if let Some(map) = (*pointer).as_object_mut() {
-                    map.remove("cache_control");
+    let total = tools_count + system_count + message_marked.len();
+    if total <= MAX_CACHE_BREAKPOINTS {
+        return;
+    }
+    let excess = total - MAX_CACHE_BREAKPOINTS;
+    // Remove from the earliest items first: tools → system → messages.
+    let mut to_remove = excess;
+    // Remove from tools array (first `to_remove` marked items).
+    if to_remove > 0 {
+        if let Some(tools) = body.get_mut("tools").and_then(Value::as_array_mut) {
+            let mut removed = 0;
+            for item in tools.iter_mut() {
+                if removed >= to_remove {
+                    break;
+                }
+                if item.get("cache_control").is_some() {
+                    if let Some(map) = item.as_object_mut() {
+                        map.remove("cache_control");
+                    }
+                    removed += 1;
+                }
+            }
+            to_remove -= removed;
+        }
+    }
+    // Remove from system array.
+    if to_remove > 0 {
+        if let Some(system) = body.get_mut("system").and_then(Value::as_array_mut) {
+            let mut removed = 0;
+            for item in system.iter_mut() {
+                if removed >= to_remove {
+                    break;
+                }
+                if item.get("cache_control").is_some() {
+                    if let Some(map) = item.as_object_mut() {
+                        map.remove("cache_control");
+                    }
+                    removed += 1;
+                }
+            }
+            to_remove -= removed;
+        }
+    }
+    // Remove from message content blocks.
+    if to_remove > 0 {
+        let mut removed = 0;
+        if let Some(messages) = body.get_mut("messages").and_then(Value::as_array_mut) {
+            for (mi, bi) in &message_marked {
+                if removed >= to_remove {
+                    break;
+                }
+                if let Some(blocks) = messages
+                    .get_mut(*mi)
+                    .and_then(|m| m.get_mut("content"))
+                    .and_then(Value::as_array_mut)
+                {
+                    if let Some(block) = blocks.get_mut(*bi) {
+                        if let Some(map) = block.as_object_mut() {
+                            map.remove("cache_control");
+                            removed += 1;
+                        }
+                    }
                 }
             }
         }
@@ -732,7 +795,8 @@ mod tests {
 
     #[test]
     fn error_envelope_standard() {
-        let raw = r#"{"type":"error","error":{"type":"invalid_request_error","message":"bad request"}}"#;
+        let raw =
+            r#"{"type":"error","error":{"type":"invalid_request_error","message":"bad request"}}"#;
         let (typ, msg) = parse_anthropic_error_envelope(raw);
         assert_eq!(typ, "invalid_request_error");
         assert_eq!(msg, "bad request");
@@ -1211,5 +1275,4 @@ mod tests {
         assert!(system[1].get("cache_control").is_some());
         assert!(system[0].get("cache_control").is_none());
     }
-
 }

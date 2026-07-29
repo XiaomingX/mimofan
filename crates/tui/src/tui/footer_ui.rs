@@ -775,7 +775,6 @@ pub(crate) fn footer_session_tokens_spans(app: &App) -> Vec<Span<'static>> {
 /// auxiliary-span composition. Production rendering is performed by the
 /// widget itself; the existing footer parity tests still exercise this
 /// function directly to guard against drift.
-
 pub(crate) fn footer_cache_spans(app: &App) -> Vec<Span<'static>> {
     if app.session.last_prompt_tokens.is_none() && app.session.last_completion_tokens.is_none() {
         return Vec::new();

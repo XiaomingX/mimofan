@@ -2032,10 +2032,10 @@ mod tests {
 
     static MIMOFAN_HOME_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    struct mimofanHomeGuard {
+    struct MimofanHomeGuard {
         prior: Option<std::ffi::OsString>,
     }
-    impl mimofanHomeGuard {
+    impl MimofanHomeGuard {
         fn set(value: &str) -> Self {
             let prior = std::env::var_os("MIMOFAN_HOME");
             // SAFETY: serialised by MIMOFAN_HOME_TEST_LOCK.
@@ -2049,7 +2049,7 @@ mod tests {
             Self { prior }
         }
     }
-    impl Drop for mimofanHomeGuard {
+    impl Drop for MimofanHomeGuard {
         fn drop(&mut self) {
             // SAFETY: serialised by MIMOFAN_HOME_TEST_LOCK.
             unsafe {
@@ -2064,7 +2064,7 @@ mod tests {
     #[test]
     fn mimofan_home_override_returns_the_env_value_verbatim() {
         let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
-        let _g = mimofanHomeGuard::set("/tmp/cw-isolated-state");
+        let _g = MimofanHomeGuard::set("/tmp/cw-isolated-state");
         // The env var IS the home dir — no ".mimofan" appended. This matches
         // mimofan_home() in config ($MIMOFAN_HOME=/x means home is /x).
         assert_eq!(
@@ -2076,14 +2076,14 @@ mod tests {
     #[test]
     fn mimofan_home_override_none_when_unset() {
         let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
-        let _g = mimofanHomeGuard::remove();
+        let _g = MimofanHomeGuard::remove();
         assert!(mimofan_home_override().is_none());
     }
 
     #[test]
     fn mimofan_home_override_none_when_empty() {
         let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
-        let _g = mimofanHomeGuard::set("   ");
+        let _g = MimofanHomeGuard::set("   ");
         // The helper filters empty values (after the OsString check). Note:
         // var_os returns the raw "   ", and our filter only catches truly-empty,
         // so this documents that whitespace-only is NOT treated as unset at the
@@ -2106,7 +2106,7 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let _g = mimofanHomeGuard::set(dir.to_str().unwrap());
+        let _g = MimofanHomeGuard::set(dir.to_str().unwrap());
         // Hard override: the DB is <MIMOFAN_HOME>/state.db, NOT
         // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.mimofan
         // fallback is bypassed entirely.

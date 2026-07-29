@@ -10,8 +10,8 @@
 //!
 //! * [`InstallSource`] — `github:owner/repo`, raw URL, or curated registry
 //!   name. Parsed from a single string with [`InstallSource::parse`].
-//! * [`install`] / [`update`] / [`uninstall`] — async install, atomic update,
-//!   and clean uninstall. All three preserve a `.installed-from` marker so the
+//! * [`install_with_registry`] / [`update_with_registry`] — async install, atomic update.
+//!   Both preserve a `.installed-from` marker so the
 //!   bundled `skill-creator` (which lacks the marker) is never touched.
 //! * [`InstallOutcome`] — `Installed` / `NeedsApproval(host)` /
 //!   `NetworkDenied(host)`. The `NeedsApproval` variant is returned without
@@ -76,7 +76,7 @@ pub const DEFAULT_REGISTRY_URL: &str =
 pub const DEFAULT_MAX_SIZE_BYTES: u64 = 5 * 1024 * 1024;
 const SYNC_REGISTRY_CONCURRENCY: usize = 8;
 
-/// File written under each installed skill so [`update`] / [`uninstall`] can
+/// File written under each installed skill so [`update_with_registry`] can
 /// recover the original [`InstallSource`] without re-parsing user input.
 pub const INSTALLED_FROM_MARKER: &str = ".installed-from";
 
@@ -196,13 +196,13 @@ pub struct InstalledSkill {
     pub name: String,
     /// Final on-disk path: `<skills_dir>/<name>/`.
     pub path: PathBuf,
-    /// SHA-256 over the downloaded tarball bytes. Used by [`update`] to detect
+    /// SHA-256 over the downloaded tarball bytes. Used by [`update_with_registry`] to detect
     /// upstream changes without re-extracting; also surfaced for telemetry /
     /// future signature-verification work.
     pub source_checksum: String,
 }
 
-/// Result of an [`update`] call.
+/// Result of an `update_with_registry` call.
 #[derive(Debug)]
 pub enum UpdateResult {
     /// Upstream tarball is byte-identical to the on-disk checksum; no action.
@@ -245,49 +245,9 @@ pub enum InstallError {
 // Public API
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Install a community skill into `skills_dir`.
-///
-/// Steps:
-///
-/// 1. Resolve `source` to one or more candidate URLs (GitHub adds a
-///    `master` fallback after `main`).
-/// 2. Consult `network` for the host. `Allow` proceeds; `Deny` returns
-///    [`InstallOutcome::NetworkDenied`]; `Prompt` returns
-///    [`InstallOutcome::NeedsApproval`] without touching disk.
-/// 3. Stream the tarball into a tempfile (capped at `max_size`).
-/// 4. Validate the archive (path-traversal, size, no symlinks in the selected
-///    skill subtree, SKILL.md present with required frontmatter fields) into a
-///    sibling `<name>.tmp/` directory.
-/// 5. Atomic-rename `<name>.tmp/` → `<name>/`.
-/// 6. Write `.installed-from` and return [`InstalledSkill`].
-///
-/// `update = false` rejects an existing destination. Pass `update = true`
-/// from [`update`] to allow replacement.
-///
-/// Convenience wrapper over [`install_with_registry`] that uses the bundled
-/// [`DEFAULT_REGISTRY_URL`]. Public for downstream consumers (tests, runtime
-/// API) even though the slash-command path always goes through
-/// [`install_with_registry`] so the user's configured registry wins.
-pub async fn install(
-    source: InstallSource,
-    skills_dir: &Path,
-    max_size: u64,
-    network: &NetworkPolicy,
-    update: bool,
-) -> Result<InstallOutcome> {
-    install_with_registry(
-        source,
-        skills_dir,
-        max_size,
-        network,
-        update,
-        DEFAULT_REGISTRY_URL,
-    )
-    .await
-}
-
-/// Same as [`install`] but lets the caller override the registry URL. Useful
-/// for tests; the slash-command path always uses the configured registry.
+/// Install a community skill into `skills_dir`. Lets the caller override the
+/// registry URL. Useful for tests; the slash-command path always uses the
+/// configured registry.
 pub async fn install_with_registry(
     source: InstallSource,
     skills_dir: &Path,
@@ -384,18 +344,6 @@ pub async fn install_with_registry(
 /// Reads `.installed-from` to recover the original [`InstallSource`], so
 /// a skill installed via `/skill install github:foo/bar` can be updated via
 /// `/skill update bar` without the user re-typing the spec.
-///
-/// Convenience wrapper over [`update_with_registry`].
-pub async fn update(
-    name: &str,
-    skills_dir: &Path,
-    max_size: u64,
-    network: &NetworkPolicy,
-) -> Result<UpdateResult> {
-    update_with_registry(name, skills_dir, max_size, network, DEFAULT_REGISTRY_URL).await
-}
-
-/// Same as [`update`] but lets the caller override the registry URL.
 pub async fn update_with_registry(
     name: &str,
     skills_dir: &Path,
@@ -571,7 +519,7 @@ struct CacheMeta {
 ///
 /// For every skill listed in `index.json` this function:
 ///
-/// 1. Resolves the download URL (same logic as `install`).
+/// 1. Resolves the download URL (same logic as `install_with_registry`).
 /// 2. Checks the cached [`CacheMeta`] (etag + sha256) for freshness; skips
 ///    the download if unchanged.
 /// 3. Downloads SKILL.md (and any companion files if the source is a tarball)

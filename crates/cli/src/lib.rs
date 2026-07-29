@@ -911,13 +911,6 @@ fn provider_slot(provider: ProviderKind) -> &'static str {
     }
 }
 
-#[cfg(test)]
-fn no_keyring_secrets() -> Secrets {
-    Secrets::new(std::sync::Arc::new(
-        mimofan_secrets::InMemoryKeyringStore::new(),
-    ))
-}
-
 fn write_provider_api_key_to_config(
     store: &mut ConfigStore,
     provider: ProviderKind,
@@ -1793,7 +1786,6 @@ fn delegate_server_to_tui(
     })
 }
 
-
 #[cfg(not(all(target_os = "linux", not(target_env = "ohos"))))]
 fn install_server_parent_death_signal(_cmd: &mut Command) {}
 
@@ -1865,12 +1857,8 @@ async fn server_shutdown_signal() -> i32 {
     130
 }
 
-
-
 // SAFETY: the wrapped value is a process-wide kernel handle; moving it across
 // threads does not invalidate it, and it is only ever closed once, on drop.
-
-
 
 #[cfg(all(test, unix))]
 mod server_teardown_tests {
@@ -1919,7 +1907,6 @@ mod server_teardown_tests {
             "delegated child must be reaped after dispatcher teardown"
         );
     }
-
 }
 
 fn run_resume_command(
@@ -2125,8 +2112,7 @@ to execute it. Common fixes:\n\
 /// locates the same binary (or a legacy `mimofan-tui` companion) for
 /// backward compatibility.
 fn locate_sibling_tui_binary() -> Result<PathBuf> {
-    let bin_override =
-        std::env::var("MIMOFAN_TUI_BIN").or_else(|_| std::env::var("MIMOFAN_BIN"));
+    let bin_override = std::env::var("MIMOFAN_TUI_BIN").or_else(|_| std::env::var("MIMOFAN_BIN"));
     if let Ok(override_path) = bin_override {
         let candidate = PathBuf::from(override_path);
         if candidate.is_file() {
@@ -2207,6 +2193,3 @@ fn read_api_key_from_stdin() -> Result<String> {
     }
     Ok(key)
 }
-
-#[cfg(test)]
-mod tests {}

@@ -158,7 +158,6 @@ impl ClipboardHandler {
     /// `workspace` is used as a fallback location when `~/.mimofan/` cannot
     /// be resolved (e.g. running with a stripped HOME in CI sandboxes).
     pub fn read(&mut self, workspace: &Path) -> Option<ClipboardContent> {
-
         #[cfg(any(
             test,
             target_os = "macos",
@@ -193,7 +192,6 @@ impl ClipboardHandler {
 
         #[cfg(not(test))]
         {
-
             #[cfg(any(
                 target_os = "macos",
                 target_os = "windows",
@@ -212,7 +210,6 @@ impl ClipboardHandler {
             if write_text_with_pbcopy(text).is_ok() {
                 return Ok(());
             }
-
 
             write_text_with_osc52(text)
                 .map_err(|err| anyhow::anyhow!("Clipboard unavailable: {err}"))
@@ -262,8 +259,6 @@ fn write_text_with_stdin_command(
     Ok(())
 }
 
-
-
 #[cfg(any(all(test, unix), all(target_os = "linux", not(target_env = "ohos"))))]
 fn read_text_with_wlpaste_using_argv(program: &str) -> Result<String> {
     let output = Command::new(program)
@@ -279,7 +274,6 @@ fn read_text_with_wlpaste_using_argv(program: &str) -> Result<String> {
     }
     String::from_utf8(output.stdout).context("wl-paste returned non-UTF-8 text")
 }
-
 
 #[cfg(not(test))]
 fn write_text_with_osc52(text: &str) -> Result<()> {

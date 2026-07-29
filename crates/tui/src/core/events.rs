@@ -27,36 +27,22 @@ pub enum TurnOutcomeStatus {
 pub enum Event {
     // === Streaming Events ===
     /// A new message block has started
-    MessageStarted {
-        index: usize,
-    },
+    MessageStarted { index: usize },
 
     /// Incremental text content delta
-    MessageDelta {
-        index: usize,
-        content: String,
-    },
+    MessageDelta { index: usize, content: String },
 
     /// Message block completed
-    MessageComplete {
-        index: usize,
-    },
+    MessageComplete { index: usize },
 
     /// Thinking block started
-    ThinkingStarted {
-        index: usize,
-    },
+    ThinkingStarted { index: usize },
 
     /// Incremental thinking content delta
-    ThinkingDelta {
-        index: usize,
-        content: String,
-    },
+    ThinkingDelta { index: usize, content: String },
 
     /// Thinking block completed
-    ThinkingComplete {
-        index: usize,
-    },
+    ThinkingComplete { index: usize },
 
     // === Tool Events ===
     /// Tool call initiated

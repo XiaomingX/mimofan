@@ -910,20 +910,6 @@ impl ToolRegistryBuilder {
         self
     }
 
-    /// Include all agent tools (file tools + shell + note + search).
-    ///
-    /// Web and patch tools are NOT registered here — callers must add them
-    /// via `.with_web_tools()` and `.with_patch_tools()` after checking
-    /// feature flags (see `tool_setup.rs`). This prevents double-registration
-    /// when `tool_setup.rs` conditionally registers them on top of
-    /// `with_agent_tools`.
-    #[must_use]
-    pub fn with_agent_tools(self, allow_shell: bool) -> Self {
-        self.with_agent_tools_policy(crate::worker_profile::ShellPolicy::from_legacy_allow_shell(
-            allow_shell,
-        ))
-    }
-
     /// Include all agent tools under a typed shell policy.
     #[must_use]
     pub fn with_agent_tools_policy(self, shell_policy: crate::worker_profile::ShellPolicy) -> Self {

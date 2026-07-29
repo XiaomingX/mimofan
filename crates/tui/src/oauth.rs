@@ -219,7 +219,7 @@ fn save_credentials(creds: &CodexCredentials, id_token: Option<&str>) -> Result<
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map(|d| format!("{} seconds since epoch", d.as_secs()))
-                .unwrap_or_else(|_| "unknown".to_string())
+                .unwrap_or_else(|_| "unknown".to_string()),
         ),
     };
     let json = serde_json::to_string_pretty(&auth).context("serializing credentials")?;

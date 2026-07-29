@@ -145,7 +145,6 @@ pub(super) fn apply_mcp_tool_deferral(catalog: &mut [Tool], mode: AppMode) {
 /// head. This invariant is critical for DeepSeek's KV prefix cache:
 /// the tools array is part of the immutable prefix, and any byte-level
 /// change in the head forces a full re-prefill on the next turn.
-
 pub(super) fn build_model_tool_catalog_with_surface(
     mut native_tools: Vec<Tool>,
     mut mcp_tools: Vec<Tool>,

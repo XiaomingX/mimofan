@@ -38,6 +38,7 @@ use crate::tools::plan::new_shared_plan_state;
 use crate::tools::subagent::SubAgentStatus;
 use crate::tools::todo::new_shared_todo_list;
 use crate::tui::app::AppMode;
+use crate::utils::normalize_path_components;
 use mimofan_protocol::runtime::{
     DynamicToolCallContent, DynamicToolCallParams, DynamicToolCallResult, DynamicToolSpec,
     TurnEnvironmentParams,
@@ -542,8 +543,9 @@ impl RuntimeThreadStore {
         writeln!(file, "{line}").with_context(|| format!("Failed to append {}", path.display()))?;
         file.flush()
             .with_context(|| format!("Failed to flush {}", path.display()))?;
-        file.sync_all()
-            .with_context(|| format!("Failed to fsync {}", path.display()))?;
+        // Note: sync_all() intentionally omitted — flush() pushes to OS buffer
+        // which is sufficient for event logs. sync_all() would force a physical
+        // disk write on every event, creating a severe I/O bottleneck.
         Ok(record)
     }
 
@@ -1415,22 +1417,6 @@ impl RuntimeThreadManager {
         let thread = self.get_thread(id).await?;
         self.ensure_engine_loaded(&thread).await?;
         Ok(thread)
-    }
-
-    /// Resume a thread and recover the sub-agent rebind hints needed to
-    /// reconstruct in-transcript cards (issue #128). Drains the persisted
-    /// `agent.*` event stream and collapses it into the latest known
-    /// status per `agent_id` — the UI consumes this to seed empty
-    /// `DelegateCard` / `FanoutCard` placeholders so subsequent live
-    /// mailbox envelopes mutate them in place.
-    pub async fn resume_thread_with_agent_rebind(
-        &self,
-        id: &str,
-    ) -> Result<(ThreadRecord, Vec<AgentRebindHint>)> {
-        let thread = self.resume_thread(id).await?;
-        let events = self.store.events_since(&thread.id, None)?;
-        let hints = collect_agent_rebind_hints(&events);
-        Ok((thread, hints))
     }
 
     pub async fn fork_thread(&self, id: &str) -> Result<ThreadRecord> {
@@ -3742,63 +3728,6 @@ fn tool_kind_for_name(name: &str) -> TurnItemKind {
     TurnItemKind::ToolCall
 }
 
-/// One sub-agent rebind hint extracted from a thread's persisted event
-/// timeline (issue #128). When the TUI resumes a session that was
-/// mid-fanout, the in-transcript card stack is empty — these hints let the
-/// UI know which agent_ids were live (or recently terminal) so it can
-/// reconstruct the matching `DelegateCard` / `FanoutCard` placeholders
-/// before fresh mailbox envelopes arrive on a re-attached engine.
-///
-/// The helper is the testable contract here — actual TUI wire-up to the
-/// resume flow is a follow-up; the runtime API consumer (`runtime_api.rs`)
-/// can already call `resume_thread_with_agent_rebind` to drive it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AgentRebindHint {
-    pub agent_id: String,
-    pub status: AgentRebindStatus,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AgentRebindStatus {
-    Spawned,
-    InProgress,
-    Completed,
-}
-
-/// Collapse a chronologically ordered slice of `RuntimeEventRecord` into
-/// the latest known status per `agent_id`. Drops entries that aren't in
-/// the `agent.*` family. Cards built from these hints are immediately
-/// open to mutation by subsequent live mailbox envelopes (each envelope's
-/// `agent_id` matches one already in the rebind map).
-#[must_use]
-pub fn collect_agent_rebind_hints(events: &[RuntimeEventRecord]) -> Vec<AgentRebindHint> {
-    use std::collections::BTreeMap;
-    let mut latest: BTreeMap<String, AgentRebindStatus> = BTreeMap::new();
-    for event in events {
-        let id = match event.payload.get("agent_id").and_then(|v| v.as_str()) {
-            Some(id) => id.to_string(),
-            None => continue,
-        };
-        let next_status = match event.event.as_str() {
-            "agent.spawned" => Some(AgentRebindStatus::Spawned),
-            "agent.progress" => Some(AgentRebindStatus::InProgress),
-            "agent.completed" => Some(AgentRebindStatus::Completed),
-            _ => None,
-        };
-        if let Some(status) = next_status {
-            // Don't downgrade Completed → InProgress on out-of-order events.
-            let entry = latest.entry(id).or_insert(status);
-            if !matches!(*entry, AgentRebindStatus::Completed) {
-                *entry = status;
-            }
-        }
-    }
-    latest
-        .into_iter()
-        .map(|(agent_id, status)| AgentRebindHint { agent_id, status })
-        .collect()
-}
-
 pub fn summarize_text(text: &str, limit: usize) -> String {
     let take = limit.saturating_sub(3);
     let mut count = 0;
@@ -3861,25 +3790,6 @@ fn checked_existing_runtime_store_dir(path: &Path) -> Result<PathBuf> {
     reject_symlinked_store_dir(path)?;
     path.canonicalize()
         .with_context(|| format!("Failed to resolve {}", path.display()))
-}
-
-fn normalize_path_components(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::Prefix(_) | Component::RootDir => normalized.push(component.as_os_str()),
-            Component::CurDir => {}
-            Component::ParentDir => {
-                normalized.pop();
-            }
-            Component::Normal(part) => normalized.push(part),
-        }
-    }
-    if normalized.as_os_str().is_empty() {
-        PathBuf::from(".")
-    } else {
-        normalized
-    }
 }
 
 fn reject_symlinked_store_file(path: &Path) -> Result<()> {

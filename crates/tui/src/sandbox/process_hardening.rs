@@ -51,6 +51,5 @@ pub fn apply_process_hardening() {
     }
 }
 
-
 #[cfg(test)]
 mod tests {}

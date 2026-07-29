@@ -36,6 +36,29 @@ use crate::sandbox::{
 };
 use crate::worker_profile::ShellPolicy;
 
+/// RAII guard that restores terminal raw mode on drop if it was enabled before.
+struct RawModeGuard {
+    restore: bool,
+}
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        if self.restore {
+            let _ = crossterm::terminal::enable_raw_mode();
+        }
+    }
+}
+
+/// Disable raw mode if enabled, returning a guard that restores it on drop.
+fn disable_raw_mode_for_spawn() -> RawModeGuard {
+    let raw_mode_was_enabled = crossterm::terminal::is_raw_mode_enabled().unwrap_or(false);
+    if raw_mode_was_enabled {
+        let _ = crossterm::terminal::disable_raw_mode();
+    }
+    RawModeGuard {
+        restore: raw_mode_was_enabled,
+    }
+}
+
 /// Status of a shell process
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ShellStatus {
@@ -174,8 +197,6 @@ fn kill_child_process_group(child: &mut Child) -> std::io::Result<()> {
     }
 }
 
-
-
 #[cfg(not(windows))]
 fn push_shell_args(cmd: &mut Command, _program: &str, args: &[String]) {
     // Unix delegates tokenization entirely to `sh -c <command>`; the command
@@ -190,24 +211,6 @@ fn install_parent_death_signal(_cmd: &mut Command) {
     // abnormal exit (panic without unwind, SIGKILL of the TUI) can still
     // leak children on those platforms — tracked as a follow-up.
 }
-
-
-// externally synchronized by ShellManager's mutex.
-unsafe impl Send for WindowsJob {}
-unsafe impl Sync for WindowsJob {}
-
-
-
-
-
-
-    child: &mut Child,
-) -> std::io::Result<()> {
-    let result = terminate_windows_job(windows_job.as_ref(), child);
-    drop(windows_job);
-    result
-}
-
 
 #[derive(Clone, Copy, Debug)]
 struct ShellExitStatus {
@@ -533,14 +536,14 @@ impl BackgroundShell {
         )
     }
 
-    /// Kill the process
+    /// Kill the process (and its entire process group on Unix).
     fn kill(&mut self) -> Result<()> {
         if let Some(ref mut child) = self.child {
             match child {
                 ShellChild::Process(proc) => {
                     #[cfg(not(windows))]
                     {
-                        proc.kill().context("Failed to kill process")?;
+                        kill_child_process_group(proc).context("Failed to kill process group")?;
                         let _ = proc.wait();
                     }
                 }
@@ -982,23 +985,7 @@ impl ShellManager {
 
         // Disable raw mode before spawn; restore only if raw mode was active
         // on entry (issue #1690).
-        let raw_mode_was_enabled = crossterm::terminal::is_raw_mode_enabled().unwrap_or(false);
-        if raw_mode_was_enabled {
-            let _ = crossterm::terminal::disable_raw_mode();
-        }
-        struct SyncRawModeGuard {
-            restore: bool,
-        }
-        impl Drop for SyncRawModeGuard {
-            fn drop(&mut self) {
-                if self.restore {
-                    let _ = crossterm::terminal::enable_raw_mode();
-                }
-            }
-        }
-        let _guard = SyncRawModeGuard {
-            restore: raw_mode_was_enabled,
-        };
+        let _guard = disable_raw_mode_for_spawn();
 
         let mut child = cmd
             .spawn()
@@ -1129,23 +1116,7 @@ impl ShellManager {
 
         // Disable raw mode before spawn; restore only if raw mode was active
         // on entry (issue #1690).
-        let raw_mode_was_enabled = crossterm::terminal::is_raw_mode_enabled().unwrap_or(false);
-        if raw_mode_was_enabled {
-            let _ = crossterm::terminal::disable_raw_mode();
-        }
-        struct InteractiveRawModeGuard {
-            restore: bool,
-        }
-        impl Drop for InteractiveRawModeGuard {
-            fn drop(&mut self) {
-                if self.restore {
-                    let _ = crossterm::terminal::enable_raw_mode();
-                }
-            }
-        }
-        let _guard = InteractiveRawModeGuard {
-            restore: raw_mode_was_enabled,
-        };
+        let _guard = disable_raw_mode_for_spawn();
 
         child_env::apply_to_command(&mut cmd, child_env::string_map_env(&exec_env.env));
 
@@ -1242,7 +1213,6 @@ impl ShellManager {
         } else {
             Some(Arc::new(Mutex::new(Vec::new())))
         };
-
 
         let (child, stdin, stdout_thread, stderr_thread) = if tty {
             #[cfg(target_env = "ohos")]

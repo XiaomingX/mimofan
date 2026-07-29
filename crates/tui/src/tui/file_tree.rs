@@ -175,16 +175,6 @@ impl FileTreeState {
             self.scroll_offset = self.cursor.saturating_add(1).saturating_sub(visible_height);
         }
     }
-
-    /// Adjust scroll for a given visible height.
-    pub fn adjust_scroll(&mut self, visible: usize) {
-        if self.cursor < self.scroll_offset {
-            self.scroll_offset = self.cursor;
-        }
-        if visible > 0 && self.cursor >= self.scroll_offset + visible {
-            self.scroll_offset = self.cursor.saturating_add(1).saturating_sub(visible);
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------

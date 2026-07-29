@@ -28,18 +28,6 @@ enum ThinkingVisualState {
     Idle,
 }
 
-#[must_use]
-pub fn extract_reasoning_summary(text: &str) -> Option<String> {
-    extract_explicit_reasoning_summary(text).or_else(|| {
-        let fallback = text.trim();
-        if fallback.is_empty() {
-            None
-        } else {
-            Some(fallback.to_string())
-        }
-    })
-}
-
 fn extract_explicit_reasoning_summary(text: &str) -> Option<String> {
     let mut lines = text.lines().peekable();
     while let Some(line) = lines.next() {

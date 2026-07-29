@@ -169,11 +169,8 @@ pub fn model(app: &mut App, model_name: Option<&str>) -> CommandResult {
             };
             model_id
         };
-        let strict_direct_custom_endpoint = app.accepts_custom_model_ids()
-            && matches!(
-                app.api_provider,
-                ApiProvider::XiaomiMimo
-            );
+        let strict_direct_custom_endpoint =
+            app.accepts_custom_model_ids() && matches!(app.api_provider, ApiProvider::XiaomiMimo);
         let route_limits = if strict_direct_custom_endpoint {
             None
         } else {
@@ -228,7 +225,8 @@ pub fn models(app: &mut App, arg: Option<&str>) -> CommandResult {
         return model(app, Some(target));
     }
     if app.view_stack.top_kind() != Some(ModalKind::ModelPicker) {
-        app.view_stack.push(crate::tui::model_picker::ModelPickerView::new(app));
+        app.view_stack
+            .push(crate::tui::model_picker::ModelPickerView::new(app));
     }
     CommandResult::action(AppAction::FetchModels)
 }

@@ -11,7 +11,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::io::Read;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::{Mutex, RwLock, Semaphore};
@@ -40,6 +40,7 @@ use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
 };
 use crate::tools::todo::SharedTodoList;
+use crate::utils::normalize_path_components;
 
 use crate::tui::app::ReasoningEffort;
 use crate::utils::spawn_supervised;
@@ -61,10 +62,23 @@ static RESIDENT_LEASES: std::sync::OnceLock<
 /// Release all resident file leases held by `agent_id`. Called when an
 /// agent transitions to a terminal state (completed, failed, cancelled).
 fn release_resident_leases_for(agent_id: &str) {
-    if let Some(lock) = RESIDENT_LEASES.get()
-        && let Ok(mut guard) = lock.lock()
-    {
-        guard.retain(|_, owner| owner != agent_id);
+    if let Some(lock) = RESIDENT_LEASES.get() {
+        match lock.lock() {
+            Ok(mut guard) => {
+                guard.retain(|_, owner| owner != agent_id);
+            }
+            Err(poisoned) => {
+                tracing::warn!(
+                    target: "subagent",
+                    agent_id,
+                    ?poisoned,
+                    "RESIDENT_LEASES mutex poisoned; lease cleanup skipped"
+                );
+                // Recover from poison to avoid permanent lock.
+                let mut guard = poisoned.into_inner();
+                guard.retain(|_, owner| owner != agent_id);
+            }
+        }
     }
 }
 
@@ -1854,9 +1868,6 @@ impl SubAgentManager {
         self
     }
 
-    /// Return the boot id this manager stamps on agents it spawns.
-    /// Exposed for tests; internal callers use the field directly.
-
     /// Classify an agent by its `session_boot_id`: `true` when the
     /// agent was either (a) loaded from disk with no id, or (b) carries
     /// a different id than the manager's current boot. Filters
@@ -3213,25 +3224,6 @@ fn normalize_subagent_workspace(workspace: &Path) -> PathBuf {
             .join(workspace)
     };
     normalize_path_components(&absolute)
-}
-
-fn normalize_path_components(path: &Path) -> PathBuf {
-    let mut normalized = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::Prefix(_) | Component::RootDir => normalized.push(component.as_os_str()),
-            Component::CurDir => {}
-            Component::ParentDir => {
-                normalized.pop();
-            }
-            Component::Normal(part) => normalized.push(part),
-        }
-    }
-    if normalized.as_os_str().is_empty() {
-        PathBuf::from(".")
-    } else {
-        normalized
-    }
 }
 
 fn reject_workspace_relative_symlinks(workspace: &Path, path: &Path) -> Result<()> {

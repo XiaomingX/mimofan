@@ -134,12 +134,5 @@ pub fn decide_continuation(
     ContinuationDecision::Continue
 }
 
-/// Whether a stop reason represents success (Completed) vs. an early/forced exit.
-/// Useful for the UI/status projection (#2666 token/time visibility).
-#[must_use]
-pub fn is_success(reason: StopReason) -> bool {
-    matches!(reason, StopReason::Completed)
-}
-
 #[cfg(test)]
 mod tests {}

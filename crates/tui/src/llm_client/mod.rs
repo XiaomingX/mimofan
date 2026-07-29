@@ -75,12 +75,6 @@ pub trait LlmClient: Send + Sync {
     }
 }
 
-/// Trait for clients that support configurable retry behavior
-pub trait RetryConfigurable {
-    fn retry_config(&self) -> &RetryConfig;
-    fn set_retry_config(&mut self, config: RetryConfig);
-}
-
 // === Authentication diagnostics ===
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -1084,15 +1078,6 @@ where
         attempts: config.max_retries + 1,
         total_time: start_time.elapsed(),
     })
-}
-
-/// Simplified version of `with_retry` without callback
-pub async fn with_retry_simple<F, Fut, T>(config: &RetryConfig, operation: F) -> RetryResult<T>
-where
-    F: FnMut() -> Fut,
-    Fut: Future<Output = Result<T, LlmError>>,
-{
-    with_retry(config, operation, None).await
 }
 
 // === Utility Functions ===

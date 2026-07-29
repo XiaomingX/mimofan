@@ -2128,17 +2128,6 @@ impl QueuedMessage {
             skill_instruction,
         }
     }
-
-    pub fn content(&self) -> String {
-        if let Some(skill_instruction) = self.skill_instruction.as_ref() {
-            format!(
-                "{skill_instruction}\n\n---\n\nUser request: {}",
-                self.display
-            )
-        } else {
-            self.display.clone()
-        }
-    }
 }
 
 // === Errors ===
@@ -2325,10 +2314,7 @@ impl App {
         };
         let composer_density = ComposerDensity::from_setting(&settings.composer_density);
         let composer_border = settings.composer_border;
-        let composer_vim_enabled = settings
-            .vim_mode
-            .trim()
-            .eq_ignore_ascii_case("vim");
+        let composer_vim_enabled = settings.vim_mode.trim().eq_ignore_ascii_case("vim");
         let transcript_spacing = TranscriptSpacing::from_setting(&settings.transcript_spacing);
         let sidebar_width = settings.sidebar_width;
         let sidebar_focus = SidebarFocus::from_setting(&settings.sidebar_focus);
@@ -2371,10 +2357,8 @@ impl App {
         } else {
             model.as_str()
         };
-        let compact_threshold = compaction_threshold_for_model_at_percent(
-            threshold_model,
-            compact_threshold_percent,
-        );
+        let compact_threshold =
+            compaction_threshold_for_model_at_percent(threshold_model, compact_threshold_percent);
         let auto_compact = if auto_compact_user_configured {
             settings_auto_compact
         } else {

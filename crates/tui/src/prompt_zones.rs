@@ -22,15 +22,9 @@
 //! for future phases — not yet wired into the request path.
 
 use crate::models::{Message, SystemPrompt, Tool};
-use sha2::{Digest, Sha256};
+use crate::utils::sha256_hex;
 
 // ── helpers ────────────────────────────────────────────────────────────
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
-}
 
 fn system_text(system: Option<&SystemPrompt>) -> String {
     match system {

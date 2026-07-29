@@ -101,10 +101,14 @@ fn strip_heredoc_bodies(command: &str) -> String {
 
 /// Return true if the pattern matches the command.
 ///
-/// Patterns support `*` wildcards that match any substring.
+/// Patterns support `*` wildcards that match any substring. The command is
+/// first reduced to its canonical executable form (stripping wrappers like
+/// `sudo` / `command` / `env FOO=`, and replacing the executable with its
+/// basename) so a `deny = ["rm *"]` rule also blocks `/bin/rm -rf /` or
+/// `sudo rm -rf /` without the caller having to canonicalise first.
 pub fn pattern_matches(pattern: &str, command: &str) -> bool {
     let pattern = normalize_command(pattern);
-    let command = normalize_command(command);
+    let command = canonical_executable_form(&normalize_command(command));
 
     if pattern == "*" {
         return true;

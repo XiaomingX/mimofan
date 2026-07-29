@@ -80,21 +80,6 @@ impl SlopBucket {
             _ => None,
         }
     }
-
-    pub fn all_buckets() -> &'static [SlopBucket] {
-        &[
-            Self::RetainedCompatibility,
-            Self::UnmigratedCallers,
-            Self::DuplicateConcepts,
-            Self::NamingDrift,
-            Self::StaleDocs,
-            Self::StaleTests,
-            Self::SuspectedDeadCode,
-            Self::UnverifiedPublicBehavior,
-            Self::ToolGaps,
-            Self::AcceptedDebt,
-        ]
-    }
 }
 
 /// Severity of the residue.
@@ -308,12 +293,6 @@ impl SlopLedger {
         let ids: Vec<String> = entries.iter().map(|e| short_id(&e.id)).collect();
         self.entries.extend(entries);
         (self.entries.len(), ids)
-    }
-
-    /// Return the total number of entries.
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.entries.len()
     }
 
     /// Whether the ledger is empty.
@@ -964,11 +943,10 @@ fn redact_exported_text(text: &mut String) {
 
     // Normalise secrets directory paths.
     if let Some(home) = dirs::home_dir() {
-        for leaf in [".mimofan/secrets"] {
-            let dir = home.join(leaf);
-            let prefix = dir.to_string_lossy().to_string();
-            result = result.replace(&prefix, "~/.mimofan/secrets");
-        }
+        let leaf = ".mimofan/secrets";
+        let dir = home.join(leaf);
+        let prefix = dir.to_string_lossy().to_string();
+        result = result.replace(&prefix, "~/.mimofan/secrets");
     }
     *text = result;
 }

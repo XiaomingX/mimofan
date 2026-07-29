@@ -8,9 +8,6 @@
 //!    values mapped to UI roles (surface, text, accent, status, mode).
 //! 3. **Backward-compatible aliases** (`DEEPSEEK_*`) — legacy names that
 //!    delegate to the current Whale palette constants.
-//!
-//! Some constants defined here are not yet referenced in production code
-//! but are kept for design-system completeness and future UI work.
 
 use ratatui::style::Color;
 #[cfg(target_os = "macos")]
@@ -25,7 +22,6 @@ pub const WHALE_TEXT_BODY_RGB: (u8, u8, u8) = (246, 242, 232); // #F6F2E8 Whale 
 pub const WHALE_TEXT_SOFT_RGB: (u8, u8, u8) = (217, 224, 234); // #D9E0EA
 pub const WHALE_TEXT_MUTED_RGB: (u8, u8, u8) = (169, 180, 199); // #A9B4C7 Mist Gray
 pub const WHALE_TEXT_HINT_RGB: (u8, u8, u8) = (138, 150, 174); // #8A96AE
-pub const WHALE_TEXT_DIM_RGB: (u8, u8, u8) = (118, 130, 156); // #76829C
 pub const WHALE_ACCENT_PRIMARY_RGB: (u8, u8, u8) = (246, 196, 83); // #F6C453 Signal Gold
 pub const WHALE_ACCENT_SECONDARY_RGB: (u8, u8, u8) = (79, 209, 197); // #4FD1C5 Seafoam
 pub const WHALE_ACCENT_ACTION_RGB: (u8, u8, u8) = (255, 122, 89); // #FF7A59 Coral Spark
@@ -49,7 +45,6 @@ pub const SOLARIZED_BASE01_RGB: (u8, u8, u8) = (0x58, 0x6E, 0x75);
 pub const SOLARIZED_BASE00_RGB: (u8, u8, u8) = (0x65, 0x7B, 0x83);
 pub const SOLARIZED_BASE0_RGB: (u8, u8, u8) = (0x83, 0x94, 0x96);
 pub const SOLARIZED_BASE1_RGB: (u8, u8, u8) = (0x93, 0xA1, 0xA1);
-pub const SOLARIZED_BASE2_RGB: (u8, u8, u8) = (0xEE, 0xE8, 0xD5);
 pub const SOLARIZED_BASE3_RGB: (u8, u8, u8) = (0xFD, 0xF6, 0xE3);
 pub const SOLARIZED_YELLOW_RGB: (u8, u8, u8) = (0xB5, 0x89, 0x00);
 pub const SOLARIZED_ORANGE_RGB: (u8, u8, u8) = (0xCB, 0x4B, 0x16);
@@ -62,7 +57,6 @@ pub const SOLARIZED_ELEVATED_RGB: (u8, u8, u8) = (0xE4, 0xDF, 0xCF);
 pub const SOLARIZED_SELECT_RGB: (u8, u8, u8) = (0xD6, 0xD2, 0xC9);
 
 pub const WHALE_DIFF_ADDED_RGB: (u8, u8, u8) = (87, 199, 133); // #57C785
-pub const WHALE_DIFF_DELETED_RGB: (u8, u8, u8) = (255, 92, 122); // #FF5C7A Rose Red
 pub const WHALE_DIFF_ADDED_BG_RGB: (u8, u8, u8) = (18, 42, 34); // #122A22
 pub const WHALE_DIFF_DELETED_BG_RGB: (u8, u8, u8) = (42, 18, 26); // #2A121A
 pub const WHALE_MODE_AGENT_RGB: (u8, u8, u8) = (80, 150, 255); // #5096FF
@@ -76,11 +70,6 @@ pub const WHALE_TOOL_SURFACE_RGB: (u8, u8, u8) = (28, 40, 62); // #1C283E
 pub const WHALE_TOOL_ACTIVE_RGB: (u8, u8, u8) = (38, 54, 80); // #263650
 
 // Backward-compatible aliases for existing downstream users.
-#[deprecated(
-    since = "0.8.61",
-    note = "use WHALE_ACCENT_PRIMARY_RGB instead; this alias will be removed after the rename window"
-)]
-pub const DEEPSEEK_BLUE_RGB: (u8, u8, u8) = WHALE_ACCENT_PRIMARY_RGB;
 pub const DEEPSEEK_SKY_RGB: (u8, u8, u8) = WHALE_INFO_RGB;
 pub const DEEPSEEK_INK_RGB: (u8, u8, u8) = WHALE_BG_RGB;
 pub const DEEPSEEK_SLATE_RGB: (u8, u8, u8) = WHALE_PANEL_RGB;
@@ -223,11 +212,6 @@ pub const WHALE_ACCENT_PRIMARY: Color = Color::Rgb(
     WHALE_ACCENT_PRIMARY_RGB.1,
     WHALE_ACCENT_PRIMARY_RGB.2,
 );
-#[deprecated(
-    since = "0.8.61",
-    note = "use WHALE_ACCENT_PRIMARY instead; this alias will be removed after the rename window"
-)]
-pub const DEEPSEEK_BLUE: Color = WHALE_ACCENT_PRIMARY;
 /// Now maps to the secondary accent (Seafoam) for backward compat.
 pub const DEEPSEEK_SKY: Color =
     Color::Rgb(DEEPSEEK_SKY_RGB.0, DEEPSEEK_SKY_RGB.1, DEEPSEEK_SKY_RGB.2);
@@ -397,18 +381,7 @@ pub const LIGHT_USER_BODY: Color = Color::Rgb(21, 128, 61); // #15803D green
 // New semantic colors for UI theming
 pub const BORDER_COLOR: Color =
     Color::Rgb(BORDER_COLOR_RGB.0, BORDER_COLOR_RGB.1, BORDER_COLOR_RGB.2);
-pub const ACCENT_PRIMARY: Color = Color::Rgb(
-    WHALE_ACCENT_PRIMARY_RGB.0,
-    WHALE_ACCENT_PRIMARY_RGB.1,
-    WHALE_ACCENT_PRIMARY_RGB.2,
-);
-pub const ACCENT_SECONDARY: Color = Color::Rgb(
-    WHALE_ACCENT_SECONDARY_RGB.0,
-    WHALE_ACCENT_SECONDARY_RGB.1,
-    WHALE_ACCENT_SECONDARY_RGB.2,
-);
 pub const BACKGROUND_DARK: Color = Color::Rgb(WHALE_BG_RGB.0, WHALE_BG_RGB.1, WHALE_BG_RGB.2);
-pub const STATUS_NEUTRAL: Color = TEXT_MUTED;
 pub const SURFACE_PANEL: Color =
     Color::Rgb(WHALE_PANEL_RGB.0, WHALE_PANEL_RGB.1, WHALE_PANEL_RGB.2);
 pub const SURFACE_ELEVATED: Color = Color::Rgb(
@@ -578,7 +551,6 @@ fn detect_macos_palette_mode() -> Option<PaletteMode> {
         Some(PaletteMode::Light)
     }
 }
-
 
 #[cfg(target_os = "macos")]
 fn palette_mode_from_apple_interface_style(value: &str) -> PaletteMode {
@@ -1619,12 +1591,6 @@ const fn theme_green(ui: &UiTheme) -> Color {
     ui.diff_added_fg
 }
 
-/// Per-preset red accent, used for diff "−" line foreground when present.
-#[must_use]
-const fn theme_red(ui: &UiTheme) -> Color {
-    ui.diff_deleted_fg
-}
-
 /// Per-preset dark-green diff-added background tint.
 #[must_use]
 const fn theme_diff_added_bg(ui: &UiTheme) -> Color {
@@ -1970,25 +1936,6 @@ pub fn adapt_bg(color: Color, depth: ColorDepth) -> Color {
         (Color::Rgb(r, g, b), ColorDepth::Ansi256) => Color::Indexed(rgb_to_ansi256(r, g, b)),
         (_, ColorDepth::Ansi256) => color,
         (_, ColorDepth::Ansi16) => Color::Reset,
-    }
-}
-
-/// Mix two RGB colors at `alpha` (0.0 = `bg`, 1.0 = `fg`). Anything that's not
-/// RGB falls back to `fg` — there's no meaningful alpha blend on a named
-/// palette entry.
-#[must_use]
-pub fn blend(fg: Color, bg: Color, alpha: f32) -> Color {
-    let alpha = alpha.clamp(0.0, 1.0);
-    match (fg, bg) {
-        (Color::Rgb(fr, fg_, fb), Color::Rgb(br, bg_, bb)) => {
-            let mix = |a: u8, b: u8| -> u8 {
-                let a = f32::from(a);
-                let b = f32::from(b);
-                (b + (a - b) * alpha).round().clamp(0.0, 255.0) as u8
-            };
-            Color::Rgb(mix(fr, br), mix(fg_, bg_), mix(fb, bb))
-        }
-        _ => fg,
     }
 }
 

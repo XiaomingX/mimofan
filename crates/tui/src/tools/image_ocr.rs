@@ -119,8 +119,6 @@ fn native_ocr_available() -> bool {
     true
 }
 
-
-
 #[cfg(target_os = "macos")]
 #[link(name = "Vision", kind = "framework")]
 unsafe extern "C" {}

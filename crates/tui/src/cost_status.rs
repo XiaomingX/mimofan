@@ -58,10 +58,3 @@ pub fn drain() -> CostEstimate {
     let mut pending = cell().lock().unwrap_or_else(|e| e.into_inner());
     std::mem::take(&mut *pending)
 }
-
-/// Reset the pool to zero without consuming. Test-only helper for
-/// suites that share the static and need to start from a known
-/// state. Production code should always use [`drain`].
-
-#[cfg(test)]
-mod tests {}

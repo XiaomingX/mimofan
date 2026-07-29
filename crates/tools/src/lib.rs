@@ -366,11 +366,13 @@ impl Default for ToolCallRuntime {
     }
 }
 
+/// RAII guard for tool execution. The lock guards are held solely for their
+/// `Drop` side effect (releasing the execution lock) and are never read.
 #[derive(Debug)]
 enum ToolExecutionGuard {
     Reentrant,
-    Parallel(OwnedRwLockReadGuard<()>),
-    Serial(OwnedRwLockWriteGuard<()>),
+    Parallel(#[allow(dead_code)] OwnedRwLockReadGuard<()>),
+    Serial(#[allow(dead_code)] OwnedRwLockWriteGuard<()>),
 }
 
 impl ToolCallRuntime {

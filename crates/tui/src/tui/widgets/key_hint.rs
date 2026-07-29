@@ -43,8 +43,7 @@ const SHIFT_PREFIX: &str = "shift+";
 
 /// A typed representation of a single chord (key + modifiers).
 ///
-/// Construct via [`plain`], [`alt`], [`shift`], [`ctrl`], or [`ctrl_alt`] for
-/// the common cases, or [`KeyBinding::new`] for arbitrary modifier sets.
+/// Construct via [`KeyBinding::new`] for arbitrary modifier sets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct KeyBinding {
     key: KeyCode,
@@ -66,31 +65,6 @@ impl KeyBinding {
             && self.modifiers == event.modifiers
             && (event.kind == KeyEventKind::Press || event.kind == KeyEventKind::Repeat)
     }
-}
-
-/// A binding with no modifiers.
-pub const fn plain(key: KeyCode) -> KeyBinding {
-    KeyBinding::new(key, KeyModifiers::NONE)
-}
-
-/// `Alt`-modified binding (renders as `⌥` on macOS, `alt+` elsewhere).
-pub const fn alt(key: KeyCode) -> KeyBinding {
-    KeyBinding::new(key, KeyModifiers::ALT)
-}
-
-/// `Shift`-modified binding.
-pub const fn shift(key: KeyCode) -> KeyBinding {
-    KeyBinding::new(key, KeyModifiers::SHIFT)
-}
-
-/// `Ctrl`-modified binding.
-pub const fn ctrl(key: KeyCode) -> KeyBinding {
-    KeyBinding::new(key, KeyModifiers::CONTROL)
-}
-
-/// `Ctrl+Alt`-modified binding.
-pub const fn ctrl_alt(key: KeyCode) -> KeyBinding {
-    KeyBinding::new(key, KeyModifiers::CONTROL.union(KeyModifiers::ALT))
 }
 
 fn modifiers_to_string(modifiers: KeyModifiers) -> String {
@@ -165,7 +139,6 @@ fn key_hint_style() -> Style {
 pub fn has_ctrl_or_alt(mods: KeyModifiers) -> bool {
     (mods.contains(KeyModifiers::CONTROL) || mods.contains(KeyModifiers::ALT)) && !is_altgr(mods)
 }
-
 
 #[cfg(not(windows))]
 #[inline]

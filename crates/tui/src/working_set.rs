@@ -67,14 +67,6 @@ impl SearchContext<'_> {
 }
 
 impl Workspace {
-    /// Construct a workspace anchored at `root`, capturing the process CWD as
-    /// the secondary resolution pass. Convenience entry point intended for
-    /// callers that don't already have a CWD on hand; the App routes through
-    /// [`Workspace::with_cwd`] with its own captured launch directory.
-    pub fn new(root: PathBuf) -> Self {
-        Self::with_cwd(root, std::env::current_dir().ok())
-    }
-
     /// Construct with an explicit cwd. Used by tests that need deterministic
     /// resolution against a known directory without depending on (and
     /// mutating) the process's real working directory.

@@ -2389,11 +2389,6 @@ fn checked_config_sibling_path(config_path: &Path, file_name: &OsStr) -> Result<
     Ok(path)
 }
 
-#[cfg(test)]
-fn config_backup_path(path: &Path) -> PathBuf {
-    config_sibling_path_unchecked(path, &config_backup_file_name(path))
-}
-
 fn checked_config_backup_path(path: &Path) -> Result<PathBuf> {
     checked_config_sibling_path(path, &config_backup_file_name(path))
 }

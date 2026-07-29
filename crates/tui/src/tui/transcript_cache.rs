@@ -108,13 +108,6 @@ impl TranscriptCache {
         }
         self.insertion_order.push_back(key);
     }
-
-    /// Drop every cached entry. Used when the underlying transcript shape
-    /// changes drastically (e.g. session reset).
-    pub fn clear(&mut self) {
-        self.entries.clear();
-        self.insertion_order.clear();
-    }
 }
 
 #[cfg(test)]

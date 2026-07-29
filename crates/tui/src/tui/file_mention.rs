@@ -188,7 +188,7 @@ fn workspace_for_app(app: &App) -> Workspace {
     Workspace::with_cwd_depth_and_follow_links(
         app.workspace.clone(),
         std::env::current_dir().ok(),
-        app.mention_walk_depth,
+        app.mention_depth,
         app.workspace_follow_symlinks,
     )
 }
@@ -309,10 +309,7 @@ pub fn try_autocomplete_file_mention(app: &mut App) -> bool {
         find_file_mention_completions(&ws, &partial, FILE_MENTION_COMPLETION_LIMIT)
     };
     if candidates.is_empty() {
-        app.status_message = Some(no_file_mention_matches_status(
-            &partial,
-            app.mention_depth,
-        ));
+        app.status_message = Some(no_file_mention_matches_status(&partial, app.mention_depth));
         return true;
     }
     if candidates.len() == 1 {

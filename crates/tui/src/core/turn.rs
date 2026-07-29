@@ -82,11 +82,6 @@ impl TurnContext {
         self.tool_call_count > 0
     }
 
-    /// Cancel the turn
-    pub fn cancel(&mut self) {
-        self.cancelled = true;
-    }
-
     /// Get the elapsed time
     pub fn elapsed(&self) -> Duration {
         self.started_at.elapsed()

@@ -172,9 +172,7 @@ fn provider_default_model(config: &Config, provider: ApiProvider) -> String {
     model_completion_names_for_provider(provider)
         .first()
         .copied()
-        .unwrap_or(match provider {
-            _ => crate::config::DEFAULT_TEXT_MODEL,
-        })
+        .unwrap_or(crate::config::DEFAULT_TEXT_MODEL)
         .to_string()
 }
 

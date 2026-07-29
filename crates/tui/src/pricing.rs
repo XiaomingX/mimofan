@@ -234,43 +234,6 @@ pub fn input_cost_note(model: &str) -> Option<String> {
     ))
 }
 
-/// Calculate cost for a turn given token usage and model.
-#[must_use]
-pub fn calculate_turn_cost(model: &str, input_tokens: u32, output_tokens: u32) -> Option<f64> {
-    calculate_turn_cost_estimate(model, input_tokens, output_tokens).map(|estimate| estimate.usd)
-}
-
-/// Calculate cost for a turn in both official currencies.
-///
-/// This legacy helper has no cache telemetry, so it prices all input tokens as
-/// cache misses. Prefer [`calculate_turn_cost_estimate_from_usage`] when the
-/// provider returned usage details.
-#[must_use]
-pub fn calculate_turn_cost_estimate(
-    model: &str,
-    input_tokens: u32,
-    output_tokens: u32,
-) -> Option<CostEstimate> {
-    let pricing = pricing_for_model(model)?;
-    Some(CostEstimate {
-        usd: calculate_turn_cost_with_pricing(pricing.usd, input_tokens, output_tokens),
-        cny: pricing
-            .cny
-            .map(|pricing| calculate_turn_cost_with_pricing(pricing, input_tokens, output_tokens))
-            .unwrap_or(0.0),
-    })
-}
-
-fn calculate_turn_cost_with_pricing(
-    pricing: CurrencyPricing,
-    input_tokens: u32,
-    output_tokens: u32,
-) -> f64 {
-    let input_cost = (input_tokens as f64 / 1_000_000.0) * pricing.input_cache_miss_per_million;
-    let output_cost = (output_tokens as f64 / 1_000_000.0) * pricing.output_per_million;
-    input_cost + output_cost
-}
-
 /// Calculate cost from provider usage, honoring DeepSeek context-cache fields.
 #[must_use]
 pub fn calculate_turn_cost_from_usage(model: &str, usage: &Usage) -> Option<f64> {
@@ -348,12 +311,6 @@ pub fn calculate_cache_savings(model: &str, cache_hit_tokens: u32) -> Option<Cos
             })
             .unwrap_or(0.0),
     })
-}
-
-/// Format a USD cost for compact display.
-#[must_use]
-pub fn format_cost(cost: f64) -> String {
-    format_cost_amount(cost, CostCurrency::Usd)
 }
 
 /// Format a cost amount for compact display in the chosen currency.

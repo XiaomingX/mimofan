@@ -923,14 +923,10 @@ impl ApprovalView {
         ApprovalOption::from_index(self.selected)
     }
 
-    /// Test-only accessor for the selected option's decision.
-
     /// Selected option for the renderer (used by the widget tests too).
     pub fn selected(&self) -> usize {
         self.selected
     }
-
-    /// Risk level for the renderer's accent picking.
 
     pub(crate) fn locale(&self) -> Locale {
         self.locale
@@ -1096,10 +1092,6 @@ pub enum ElevationOption {
 }
 
 impl ElevationOption {
-    /// Get the display label for this option.
-
-    /// Get a short description.
-
     /// Convert to a sandbox policy.
     pub fn to_policy(&self, base_cwd: &Path) -> SandboxPolicy {
         match self {
@@ -1156,21 +1148,6 @@ impl ElevationRequest {
             command: Some(command.to_string()),
             denial_reason: denial_reason.to_string(),
             options,
-        }
-    }
-
-    /// Create a generic elevation request.
-    pub fn generic(tool_id: &str, tool_name: &str, denial_reason: &str) -> Self {
-        Self {
-            tool_id: tool_id.to_string(),
-            tool_name: tool_name.to_string(),
-            command: None,
-            denial_reason: denial_reason.to_string(),
-            options: vec![
-                ElevationOption::WithNetwork,
-                ElevationOption::FullAccess,
-                ElevationOption::Abort,
-            ],
         }
     }
 }

@@ -353,11 +353,6 @@ impl HookContext {
         self
     }
 
-    pub fn with_cost(mut self, cost: f64) -> Self {
-        self.session_cost = Some(cost);
-        self
-    }
-
     /// Convert to environment variables
     pub fn to_env_vars(&self) -> HashMap<String, String> {
         let mut env = HashMap::new();

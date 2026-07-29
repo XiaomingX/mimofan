@@ -110,7 +110,9 @@ impl TuiPrefs {
         mimofan_config::mimofan_home()
             .ok()
             .map(|home| home.join(TUI_PREFS_FILE_NAME))
-            .ok_or_else(|| anyhow::anyhow!("Failed to resolve tui preferences path: no home directory found."))
+            .ok_or_else(|| {
+                anyhow::anyhow!("Failed to resolve tui preferences path: no home directory found.")
+            })
     }
 
     /// Load TUI preferences from `~/.mimofan/tui.json`.
@@ -354,8 +356,7 @@ impl Settings {
             s.sidebar_focus = "pinned".to_string();
         }
         s.status_indicator = normalize_status_indicator(&s.status_indicator).to_string();
-        s.synchronized_output =
-            normalize_synchronized_output(&s.synchronized_output).to_string();
+        s.synchronized_output = normalize_synchronized_output(&s.synchronized_output).to_string();
         s.locale = normalize_configured_locale(&s.locale)
             .unwrap_or("en")
             .to_string();
@@ -748,7 +749,10 @@ impl Settings {
         lines.push(tr(locale, MessageId::SettingsTitle).to_string());
         lines.push("─────────────────────────────".to_string());
         lines.push(format!("  auto_compact:       {}", self.auto_compact));
-        lines.push(format!("  compact_threshold:  {:.0}", self.compact_threshold));
+        lines.push(format!(
+            "  compact_threshold:  {:.0}",
+            self.compact_threshold
+        ));
         lines.push(format!("  calm_mode:          {}", self.calm_mode));
         lines.push(format!("  tool_collapse:      {}", self.tool_collapse));
         lines.push(format!("  low_motion:         {}", self.low_motion));
@@ -971,17 +975,6 @@ impl Settings {
     pub fn persist_provider_model_selection(provider: ApiProvider, model: &str) -> Result<()> {
         let mut settings = Self::load()?;
         settings.set_provider_model_selection(provider, model, false)?;
-        settings.save()
-    }
-
-    /// Load, update, and save a provider/model tuple as the global default
-    /// (the explicit "save as default" path).
-    pub fn persist_provider_model_selection_as_default(
-        provider: ApiProvider,
-        model: &str,
-    ) -> Result<()> {
-        let mut settings = Self::load()?;
-        settings.set_provider_model_selection(provider, model, true)?;
         settings.save()
     }
 

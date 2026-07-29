@@ -57,19 +57,7 @@ pub struct TuiLogGuard {
     #[cfg(unix)]
     saved_stderr_fd: Option<libc::c_int>,
     _file: File,
-    // Exposed via `log_path()` for diagnostics (e.g. `/doctor`,
-    // `--print-log-path`). Currently no caller — keep the accessor
-    // wired up so adding one later doesn't require revisiting the
-    // guard struct.
     log_path: PathBuf,
-}
-
-impl TuiLogGuard {
-    /// Path the subscriber is writing to.
-    #[must_use]
-    pub fn log_path(&self) -> &std::path::Path {
-        &self.log_path
-    }
 }
 
 #[cfg(unix)]
@@ -87,8 +75,6 @@ impl Drop for TuiLogGuard {
         }
     }
 }
-
-
 
 /// Initialize the TUI logging subsystem. Idempotent across re-entry by way
 /// of `set_default` — if a global subscriber is already set we still install
@@ -173,9 +159,7 @@ pub(crate) fn log_directory() -> Option<PathBuf> {
     if let Some(home) = std::env::var_os("MIMOFAN_HOME").filter(|value| !value.is_empty()) {
         return Some(PathBuf::from(home).join("logs"));
     }
-    let resolve = |base: PathBuf| -> Option<PathBuf> {
-        Some(base.join(".mimofan").join("logs"))
-    };
+    let resolve = |base: PathBuf| -> Option<PathBuf> { Some(base.join(".mimofan").join("logs")) };
     if let Some(home) = std::env::var_os("HOME").map(PathBuf::from)
         && !home.as_os_str().is_empty()
     {
@@ -257,7 +241,6 @@ fn redirect_stderr_to(file: &File) -> Result<libc::c_int> {
         Ok(saved)
     }
 }
-
 
 #[cfg(test)]
 mod tests {}

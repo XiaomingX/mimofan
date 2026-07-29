@@ -86,13 +86,6 @@ pub(crate) fn load_commands_from_dir(dir: &Path) -> Vec<(String, String)> {
     commands
 }
 
-/// Scan every candidate commands directory and return merged
-/// `(name, content)` pairs. Workspace-local directories shadow
-/// user-global by name — the first occurrence of a name wins.
-///
-/// Pass `None` for the workspace to scan only the global directory
-/// (backward-compatible with callers that don't have workspace context).
-
 pub(crate) fn parse_frontmatter(content: &str) -> (Vec<(String, String)>, &str) {
     let Some(first_line_end) = content.find('\n') else {
         return (Vec::new(), content);

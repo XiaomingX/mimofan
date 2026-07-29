@@ -56,9 +56,6 @@ pub trait LspTransport: Send + Sync {
         text: &str,
         wait: Duration,
     ) -> Result<Vec<Diagnostic>>;
-
-    /// Best-effort shutdown. Called via `LspManager::shutdown_all`.
-    async fn shutdown(&self);
 }
 
 /// Stdio-backed transport. Spawns the LSP server as a child process and
@@ -66,7 +63,7 @@ pub trait LspTransport: Send + Sync {
 /// callers can include it in error messages without polluting our own stderr.
 pub struct StdioLspTransport {
     /// JoinHandle for the running server. Held so the child stays alive for
-    /// the transport's lifetime; consumed during `shutdown`.
+    /// the transport's lifetime.
     child: AsyncMutex<Option<Child>>,
     /// Outgoing message sender to the writer task.
     tx_outbound: mpsc::Sender<Vec<u8>>,
@@ -265,14 +262,6 @@ impl LspTransport for StdioLspTransport {
             // opened. Discard and continue waiting.
         }
         Ok(latest.unwrap_or_default())
-    }
-
-    async fn shutdown(&self) {
-        let mut child = self.child.lock().await;
-        if let Some(mut c) = child.take() {
-            let _ = c.start_kill();
-            let _ = c.wait().await;
-        }
     }
 }
 

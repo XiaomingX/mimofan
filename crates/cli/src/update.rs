@@ -823,14 +823,9 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 fn glibc_check_disabled() -> bool {
-    [
-        "MIMOFAN_SKIP_GLIBC_CHECK",
-        "MIMOFAN_SKIP_GLIBC_CHECK",
-        "MIMOFAN_SKIP_GLIBC_CHECK",
-        "DEEPSEEK_SKIP_GLIBC_CHECK",
-    ]
-    .into_iter()
-    .any(|name| std::env::var_os(name).is_some_and(|value| value == std::ffi::OsStr::new("1")))
+    ["MIMOFAN_SKIP_GLIBC_CHECK", "DEEPSEEK_SKIP_GLIBC_CHECK"]
+        .into_iter()
+        .any(|name| std::env::var_os(name).is_some_and(|value| value == std::ffi::OsStr::new("1")))
 }
 
 fn preflight_downloaded_binary(asset_name: &str, bytes: &[u8]) -> Result<()> {
@@ -940,7 +935,6 @@ fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
         }
     }
 
-
     #[cfg(not(windows))]
     {
         tmp.persist(target)
@@ -950,7 +944,6 @@ fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
 
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1014,10 +1007,7 @@ mod tests {
             binary_prefix_for_exe(Path::new("/usr/local/bin/mimofan")),
             "mimofan"
         );
-        assert_eq!(
-            binary_prefix_for_exe(Path::new("Mimofan.exe")),
-            "mimofan"
-        );
+        assert_eq!(binary_prefix_for_exe(Path::new("Mimofan.exe")), "mimofan");
         assert_eq!(binary_prefix_for_exe(Path::new("deepseek")), "mimofan");
     }
 
@@ -1325,8 +1315,7 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
     #[test]
     fn mocked_release_selects_mimofan_asset() {
         let release = mocked_release();
-        let stem =
-            release_asset_stem_for(Path::new("/usr/local/bin/mimofan"), "macos", "aarch64");
+        let stem = release_asset_stem_for(Path::new("/usr/local/bin/mimofan"), "macos", "aarch64");
         let asset = select_platform_asset(&release, &stem).expect("mimofan platform asset");
         assert_eq!(asset.name, "mimofan-macos-arm64");
     }

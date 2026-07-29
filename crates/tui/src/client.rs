@@ -26,10 +26,10 @@ use crate::llm_client::{
     sanitize_http_error_body, with_retry,
 };
 use crate::logging;
+use crate::model_catalog::resolved_supports_image;
 use crate::models::{
     ContentBlock, Message, MessageRequest, MessageResponse, ServerToolUsage, SystemPrompt, Usage,
 };
-use crate::model_catalog::resolved_supports_image;
 
 pub(super) fn to_api_tool_name(name: &str) -> String {
     let mut out = String::new();
@@ -1747,15 +1747,11 @@ mod tests {
     #[test]
     fn non_xiaomi_providers_never_use_anthropic_messages() {
         // No other provider exposes the Anthropic Messages dialect yet.
-        for provider in [ApiProvider::Custom] {
-            assert!(
-                !api_provider_uses_anthropic_messages(
-                    provider,
-                    "https://api.xiaomimimo.com/anthropic"
-                ),
-                "{provider:?} should not dispatch through Anthropic Messages"
-            );
-        }
+        let provider = ApiProvider::Custom;
+        assert!(
+            !api_provider_uses_anthropic_messages(provider, "https://api.xiaomimimo.com/anthropic"),
+            "{provider:?} should not dispatch through Anthropic Messages"
+        );
     }
 
     // ── MessageRequest::response_format round-trip (#0.0.3-rc.3) ──────────

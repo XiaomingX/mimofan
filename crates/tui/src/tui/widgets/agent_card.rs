@@ -200,19 +200,6 @@ impl FanoutCard {
         }
     }
 
-    /// Pre-seed worker slots when the fanout size is known up front.
-    pub fn with_workers<I, S>(mut self, ids: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        for id in ids {
-            self.workers
-                .push(WorkerSlot::new(id.into(), AgentLifecycle::Pending));
-        }
-        self
-    }
-
     /// Update or insert a worker by id. Returns whether the visible state
     /// changed and the card should be redrawn.
     pub fn upsert_worker(&mut self, agent_id: &str, status: AgentLifecycle) -> bool {

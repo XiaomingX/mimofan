@@ -74,6 +74,8 @@ pub(super) struct ParallelToolResult {
 // Hold the lock guard for the duration of a tool execution.
 // The inner guards are held for RAII purposes (dropped when the guard is dropped).
 pub(super) enum ToolExecGuard<'a> {
+    Read(#[allow(dead_code)] tokio::sync::RwLockReadGuard<'a, ()>),
+    Write(#[allow(dead_code)] tokio::sync::RwLockWriteGuard<'a, ()>),
 }
 
 // === Caller policy and errors ========================================
@@ -405,14 +407,8 @@ pub(super) fn should_force_update_plan_first(mode: AppMode, content: &str) -> bo
 }
 
 pub(super) fn mcp_tool_is_parallel_safe(name: &str) -> bool {
-    matches!(
-        name,
-        "list_mcp_resources"
-            | "list_mcp_resource_templates"
-            | "mcp_read_resource"
-            | "read_mcp_resource"
-            | "mcp_get_prompt"
-    )
+    // All read-only MCP tools are also parallel-safe.
+    mcp_tool_is_read_only(name)
 }
 
 pub(super) fn mcp_tool_is_read_only(name: &str) -> bool {

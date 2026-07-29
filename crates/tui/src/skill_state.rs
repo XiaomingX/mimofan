@@ -86,10 +86,6 @@ impl SkillStateStore {
         self.persist()
     }
 
-    pub fn disabled(&self) -> Vec<String> {
-        self.disabled.iter().cloned().collect()
-    }
-
     fn persist(&self) -> Result<()> {
         let Some(path) = self.path.as_ref() else {
             return Ok(());

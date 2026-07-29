@@ -311,14 +311,6 @@ impl HistoryCell {
         }
     }
 
-    pub(crate) fn lines_with_copy_metadata(
-        &self,
-        width: u16,
-        options: TranscriptRenderOptions,
-    ) -> Vec<RenderedTranscriptLine> {
-        self.lines_with_copy_metadata_folded(width, options, false)
-    }
-
     pub(crate) fn lines_with_copy_metadata_folded(
         &self,
         width: u16,
@@ -639,7 +631,6 @@ pub struct ExecCell {
 
 impl ExecCell {
     /// Render the execution cell into lines (live view, capped output).
-
     pub(super) fn render(
         &self,
         width: u16,

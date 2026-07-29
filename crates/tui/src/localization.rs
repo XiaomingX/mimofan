@@ -18,10 +18,6 @@ impl Locale {
             Self::ZhHans => "简体中文",
         }
     }
-
-    pub fn shipped() -> &'static [Self] {
-        &[Self::ZhHans]
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

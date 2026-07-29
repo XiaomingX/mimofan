@@ -32,11 +32,6 @@ use crate::workspace_discovery::{DISCOVERY_ALWAYS_DIRS, path_is_excluded_from_di
 /// equivalent overlay.
 const MAX_CANDIDATES: usize = 20_000;
 
-/// Default walk depth used by the picker's own tests. Production callers pass
-/// the configured `mention_walk_depth` (default 10, `0` = unlimited) through
-/// [`FilePickerView::new_with_relevance_and_depth`], mirroring the `Workspace`
-/// fuzzy index default (`DEFAULT_COMPLETIONS_WALK_DEPTH`).
-
 /// Visible candidate rows in the overlay.
 const VISIBLE_ROWS: usize = 14;
 
@@ -124,11 +119,6 @@ pub struct FilePickerView {
 }
 
 impl FilePickerView {
-    /// Build a picker with working-set relevance hints, using the default
-    /// walk depth ([`WALK_DEPTH`]). Test-only convenience; production code uses
-    /// [`FilePickerView::new_with_relevance_and_depth`] with the configured
-    /// `mention_walk_depth`.
-
     /// Build a picker with working-set relevance hints and an explicit walk
     /// depth. A depth of `0` disables the depth limit so files in deeply
     /// nested workspaces (>= 6 levels) remain discoverable (#2488).

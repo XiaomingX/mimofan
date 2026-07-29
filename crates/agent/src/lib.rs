@@ -847,35 +847,31 @@ impl ModelRegistry {
                     fallback_chain,
                 };
             }
-            if provider_hint == Some(ProviderKind::XiaomiMimo)
-                && let Some(model) = atlascloud_passthrough_model(name)
-            {
-                return ModelResolution {
-                    requested: Some(name.to_string()),
-                    resolved: model,
-                    used_fallback: false,
-                    fallback_chain,
-                };
-            }
-            if provider_hint == Some(ProviderKind::XiaomiMimo)
-                && let Some(model) = arcee_passthrough_model(name)
-            {
-                return ModelResolution {
-                    requested: Some(name.to_string()),
-                    resolved: model,
-                    used_fallback: false,
-                    fallback_chain,
-                };
-            }
-            if provider_hint == Some(ProviderKind::XiaomiMimo)
-                && let Some(model) = xiaomi_mimo_passthrough_model(name)
-            {
-                return ModelResolution {
-                    requested: Some(name.to_string()),
-                    resolved: model,
-                    used_fallback: false,
-                    fallback_chain,
-                };
+            if provider_hint == Some(ProviderKind::XiaomiMimo) {
+                if let Some(model) = atlascloud_passthrough_model(name) {
+                    return ModelResolution {
+                        requested: Some(name.to_string()),
+                        resolved: model,
+                        used_fallback: false,
+                        fallback_chain,
+                    };
+                }
+                if let Some(model) = arcee_passthrough_model(name) {
+                    return ModelResolution {
+                        requested: Some(name.to_string()),
+                        resolved: model,
+                        used_fallback: false,
+                        fallback_chain,
+                    };
+                }
+                if let Some(model) = xiaomi_mimo_passthrough_model(name) {
+                    return ModelResolution {
+                        requested: Some(name.to_string()),
+                        resolved: model,
+                        used_fallback: false,
+                        fallback_chain,
+                    };
+                }
             }
             if let Some(idx) = self.alias_map.get(&normalize(name)) {
                 return ModelResolution {
@@ -1104,7 +1100,8 @@ mod tests {
     #[test]
     fn unknown_model_is_passed_through_with_provider_hint() {
         let registry = ModelRegistry::default();
-        let resolved = registry.resolve(Some("not-registered-model"), Some(ProviderKind::XiaomiMimo));
+        let resolved =
+            registry.resolve(Some("not-registered-model"), Some(ProviderKind::XiaomiMimo));
 
         assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
         assert_eq!(resolved.resolved.id, "not-registered-model");
@@ -1114,8 +1111,10 @@ mod tests {
     #[test]
     fn explicit_slash_model_id_is_passed_through() {
         let registry = ModelRegistry::default();
-        let resolved =
-            registry.resolve(Some("custom-org/custom-model"), Some(ProviderKind::XiaomiMimo));
+        let resolved = registry.resolve(
+            Some("custom-org/custom-model"),
+            Some(ProviderKind::XiaomiMimo),
+        );
 
         assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
         assert_eq!(resolved.resolved.id, "custom-org/custom-model");

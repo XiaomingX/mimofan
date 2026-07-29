@@ -2253,10 +2253,7 @@ fn composer_top_padding(content_lines: usize, rows_budget: usize) -> usize {
     rows_budget.saturating_sub(content_lines.clamp(1, rows_budget))
 }
 
-/// Placeholder text shown when the composer input is empty.
-
 /// How many visual rows the empty-input placeholder occupies after wrapping.
-
 fn placeholder_visual_lines_for(placeholder: &str, content_width: usize) -> usize {
     wrap_text(placeholder, content_width).len().max(1)
 }

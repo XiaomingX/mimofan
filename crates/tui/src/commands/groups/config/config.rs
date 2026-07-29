@@ -1328,10 +1328,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
                 Ok(value) => value,
                 Err(err) => return CommandResult::error(err),
             };
-            if matches!(
-                app.api_provider,
-                ApiProvider::XiaomiMimo
-            ) {
+            if matches!(app.api_provider, ApiProvider::XiaomiMimo) {
                 if persist {
                     match persist_root_string_key(app.config_path.as_deref(), "base_url", &value) {
                         Ok(path) => {

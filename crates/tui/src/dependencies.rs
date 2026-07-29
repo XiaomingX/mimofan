@@ -97,7 +97,6 @@ fn executable_path_candidates(program: &str) -> Vec<PathBuf> {
     for dir in std::env::split_paths(&path) {
         let bare = dir.join(program);
         candidates.push(bare.clone());
-
     }
 
     candidates

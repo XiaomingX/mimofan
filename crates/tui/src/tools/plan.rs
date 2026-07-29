@@ -33,15 +33,6 @@ impl StepStatus {
             _ => None,
         }
     }
-
-    #[must_use]
-    pub fn symbol(&self) -> &'static str {
-        match self {
-            StepStatus::Pending => "○",
-            StepStatus::InProgress => "◎",
-            StepStatus::Completed => "●",
-        }
-    }
 }
 
 /// Input representation for a plan item.
@@ -396,46 +387,6 @@ fn clean_list(values: Vec<String>) -> Vec<String> {
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
         .collect()
-}
-
-/// Validation result for plan transitions
-#[derive(Debug)]
-pub enum PlanValidation {
-    Ok,
-    Warning(String),
-    Error(String),
-}
-
-/// Validate a plan update
-pub fn validate_plan_update(current: &PlanState, update: &UpdatePlanArgs) -> PlanValidation {
-    let current_steps: std::collections::HashMap<_, _> = current
-        .steps()
-        .iter()
-        .map(|s| (s.text.clone(), &s.status))
-        .collect();
-
-    for item in &update.plan {
-        if let Some(old_status) = current_steps.get(&item.step) {
-            // Check for invalid transitions
-            match (old_status, &item.status) {
-                (StepStatus::Completed, StepStatus::Pending) => {
-                    return PlanValidation::Warning(format!(
-                        "Step '{}' was completed but is now pending",
-                        item.step
-                    ));
-                }
-                (StepStatus::Completed, StepStatus::InProgress) => {
-                    return PlanValidation::Warning(format!(
-                        "Step '{}' was completed but is now in progress",
-                        item.step
-                    ));
-                }
-                _ => {}
-            }
-        }
-    }
-
-    PlanValidation::Ok
 }
 
 // === UpdatePlanTool - ToolSpec implementation ===

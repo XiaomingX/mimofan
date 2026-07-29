@@ -7,13 +7,12 @@ use async_trait::async_trait;
 use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 
 use crate::client::DeepSeekClient;
 use crate::dependencies::ExternalTool;
 use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt, Usage};
-use crate::utils::truncate_with_ellipsis;
+use crate::utils::{sha256_hex, truncate_with_ellipsis};
 
 use super::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
@@ -382,12 +381,6 @@ fn review_receipt_check_status_passes(status: &str) -> bool {
         status.trim().to_ascii_lowercase().as_str(),
         "passed" | "pass" | "success" | "ok"
     )
-}
-
-fn sha256_hex(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
 }
 
 pub struct ReviewTool {

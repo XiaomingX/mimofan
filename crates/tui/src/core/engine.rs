@@ -727,17 +727,13 @@ impl Engine {
             .await
             {
                 Ok(Ok(_)) => {
-                    crate::logging::info("Post-compaction cache warmup succeeded".to_string());
+                    crate::logging::info("Post-compaction cache warmup succeeded");
                 }
                 Ok(Err(err)) => {
-                    crate::logging::info(format!(
-                        "Post-compaction cache warmup failed: {err}"
-                    ));
+                    crate::logging::info(format!("Post-compaction cache warmup failed: {err}"));
                 }
                 Err(_) => {
-                    crate::logging::info(
-                        "Post-compaction cache warmup timed out".to_string(),
-                    );
+                    crate::logging::info("Post-compaction cache warmup timed out");
                 }
             }
         });
@@ -1323,13 +1319,13 @@ impl Engine {
     #[allow(clippy::too_many_lines)]
     pub async fn run(mut self) {
         enum EngineRunInput {
-            Operation(Op),
+            Operation(Box<Op>),
             SubAgentCompletion(SubAgentCompletion),
         }
 
         loop {
             let input = tokio::select! {
-                op = self.rx_op.recv() => op.map(EngineRunInput::Operation),
+                op = self.rx_op.recv() => op.map(|o| EngineRunInput::Operation(Box::new(o))),
                 completion = self.rx_subagent_completion.recv() => {
                     completion.map(EngineRunInput::SubAgentCompletion)
                 }
@@ -1342,7 +1338,7 @@ impl Engine {
                 EngineRunInput::SubAgentCompletion(completion) => {
                     self.handle_idle_subagent_completion(completion).await;
                 }
-                EngineRunInput::Operation(op) => match op {
+                EngineRunInput::Operation(op) => match *op {
                     Op::SendMessage {
                         content,
                         mode,

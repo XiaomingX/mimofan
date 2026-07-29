@@ -1064,18 +1064,4 @@ Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore
     Ok(agents_path)
 }
 
-/// Merge multiple project contexts (e.g., from nested directories)
-pub fn merge_contexts(contexts: &[ProjectContext]) -> Option<String> {
-    let non_empty: Vec<_> = contexts
-        .iter()
-        .filter_map(ProjectContext::as_system_block)
-        .collect();
-
-    if non_empty.is_empty() {
-        None
-    } else {
-        Some(non_empty.join("\n\n"))
-    }
-}
-
 // === Unit Tests ===

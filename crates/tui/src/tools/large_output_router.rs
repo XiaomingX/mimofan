@@ -128,25 +128,6 @@ impl LargeOutputRouter {
         }
     }
 
-    /// Build the synthesis prompt sent to the V4-Flash workshop sub-agent.
-    ///
-    /// The prompt is intentionally terse — Flash is a fast model and we just
-    /// want a faithful summary, not deep reasoning.
-    ///
-    /// This is the building block for the live LLM synthesis call wired in
-    /// the follow-up (once the async Flash client is safe to call from the
-    /// registry layer). The method is public so callers outside this crate
-    /// can unit-test the prompt shape.
-    #[must_use]
-    pub fn synthesis_prompt(tool_name: &str, raw_output: &str, estimated_tokens: usize) -> String {
-        format!(
-            include_str!("../prompts/synthesis_assistant.md"),
-            tool_name = tool_name,
-            estimated_tokens = estimated_tokens,
-            raw_output = raw_output
-        )
-    }
-
     /// Wrap a synthesis result with a workshop provenance header and a hint
     /// about the stored raw output.
     #[must_use]
@@ -185,20 +166,6 @@ impl WorkshopVariables {
     pub fn store_raw(&mut self, tool_name: &str, raw: &str) {
         self.last_tool_result = raw.to_string();
         self.last_tool_name = tool_name.to_string();
-    }
-
-    /// Retrieve and clear the stored raw output (consume semantics so the
-    /// variable is not accidentally promoted twice).
-    ///
-    /// Called by the `promote_to_context` tool (not yet wired in this PR).
-    #[must_use]
-    pub fn take_raw(&mut self) -> Option<(String, String)> {
-        if self.last_tool_result.is_empty() {
-            return None;
-        }
-        let content = std::mem::take(&mut self.last_tool_result);
-        let name = std::mem::take(&mut self.last_tool_name);
-        Some((name, content))
     }
 }
 

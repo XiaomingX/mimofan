@@ -74,19 +74,6 @@ impl WorkspaceTrust {
     pub fn paths(&self) -> &[PathBuf] {
         &self.paths
     }
-
-    /// Whether the candidate is trusted: the candidate (after canonical
-    /// normalization) starts with one of the trusted prefixes. Directory
-    /// trust grants access to anything under the directory.
-    #[must_use]
-    pub fn permits(&self, candidate: &Path) -> bool {
-        let canonical = candidate
-            .canonicalize()
-            .unwrap_or_else(|_| candidate.to_path_buf());
-        self.paths
-            .iter()
-            .any(|trusted| canonical.starts_with(trusted))
-    }
 }
 
 /// Add `path` to `workspace`'s trust list and persist. Returns the canonical

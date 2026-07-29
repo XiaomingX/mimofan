@@ -136,9 +136,6 @@ impl LspManager {
         &self.config
     }
 
-    /// Inject a fake transport for a language. Used by tests so we never
-    /// fork a real LSP server in CI.
-
     /// Poll the LSP server for diagnostics on `file`. Returns the rendered
     /// [`DiagnosticBlock`] (already truncated to the configured per-file
     /// max) or `None` when the manager is disabled / has no server / the
@@ -245,16 +242,6 @@ impl LspManager {
                 error = %err,
                 "lsp: server unavailable; diagnostics disabled for this language"
             );
-        }
-    }
-
-    /// Best-effort shutdown of every spawned transport. Called when the
-    /// session ends.
-    pub async fn shutdown_all(&self) {
-        let transports: Vec<Arc<dyn LspTransport>> =
-            self.transports.lock().await.values().cloned().collect();
-        for transport in transports {
-            transport.shutdown().await;
         }
     }
 }
