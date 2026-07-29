@@ -353,10 +353,22 @@ fn apply_spillover_inner(
             total_kib = total / 1024,
         );
         result.content = format!("{head}{footer}");
-    }
+    use sha2::{Digest, Sha256};
+    let sha_digest = format!("{:x}", Sha256::digest(original_content.as_bytes()));
+    let sha_path = write_sha_spillover(&sha_digest, &original_content).ok();
 
     let metadata = result.metadata.get_or_insert_with(|| serde_json::json!({}));
     if let Some(obj) = metadata.as_object_mut() {
+        if let Some(sha_p) = sha_path {
+            obj.insert(
+                "sha256".into(),
+                serde_json::Value::String(sha_digest),
+            );
+            obj.insert(
+                "sha_spillover_path".into(),
+                serde_json::Value::String(sha_p.display().to_string()),
+            );
+        }
         if let Some((absolute_path, relative_path, record)) = artifact_path.as_ref() {
             obj.insert(
                 "spillover_path".into(),
