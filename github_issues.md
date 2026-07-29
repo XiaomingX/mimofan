@@ -291,7 +291,7 @@ MiMo v2.5 Pro 等推理模型在多轮对话中，要求所有 assistant 历史�
 ---
 
 ## [x] Issue #24: 确认并补全 /auto 与 /plan 模式，切换方式对齐 Claude Code / Gemini，降低用户迁移成本
-- **State**: `open`
+- **State**: `closed`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/24](https://github.com/XiaomingX/mimofan/issues/24)
 
 ### Description / Action Plan
@@ -379,7 +379,7 @@ MiMo v2.5 Pro 等推理模型在多轮对话中，要求所有 assistant 历史�
 ---
 
 ## [x] Issue #25: 确认并补全 /rewind 命令，对齐 Claude Code / Gemini 的回滚入口，降低用户迁移成本
-- **State**: `open`
+- **State**: `closed`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/25](https://github.com/XiaomingX/mimofan/issues/25)
 
 ### Description / Action Plan
@@ -453,7 +453,7 @@ Claude Code 和 Gemini 均提供 `/rewind` 作为「回到上一个操作点」�
 ---
 
 ## [x] Issue #26: 确认并实现 /grill-me 命令，对齐 Antigravity 交互式需求澄清模式，降低用户迁移成本
-- **State**: `open`
+- **State**: `closed`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/26](https://github.com/XiaomingX/mimofan/issues/26)
 
 ### Description / Action Plan
@@ -534,7 +534,7 @@ Agent: [正常执行任务]
 ---
 
 ## [x] Issue #27: 确认并实现 /simplify 命令：保持功能不变前提下提取公共函数、消除重复代码
-- **State**: `open`
+- **State**: `closed`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/27](https://github.com/XiaomingX/mimofan/issues/27)
 
 ### Description / Action Plan
@@ -622,7 +622,7 @@ Agent: ✅ 重构完成，运行测试验证行为一致性...
 ---
 
 ## [x] Issue #28: 补全 /code-review 安全审计能力：识别安全漏洞并生成修复计划，对齐 Claude Code / Gemini 入口
-- **State**: `open`
+- **State**: `closed`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/28](https://github.com/XiaomingX/mimofan/issues/28)
 
 ### Description / Action Plan
@@ -738,7 +738,7 @@ Agent: ✅ 修复完成，运行测试验证...测试全绿。
 ---
 
 ## [x] Issue #29: 确认并实现 /make-plan 与 /do 命令，对齐 Claude-mem 的「规划-执行」分离工作流
-- **State**: `open`
+- **State**: `closed`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/29](https://github.com/XiaomingX/mimofan/issues/29)
 
 ### Description / Action Plan
@@ -3193,7 +3193,7 @@ cargo clippy -p mimofan --lib
 ---
 
 ## [x] Issue #56: 【Mock/Placeholder/未实现功能】排查与清理
-- **State**: `open`
+- **State**: `closed`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/56](https://github.com/XiaomingX/mimofan/issues/56)
 
 ### Description / Action Plan
