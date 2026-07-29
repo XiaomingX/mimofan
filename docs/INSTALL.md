@@ -54,8 +54,7 @@ bun add -g mimofan
 
 ```bash
 # 需要 Rust 1.88+
-cargo install mimofan-cli --locked
-cargo install mimofan --locked
+cargo install --path crates/tui --locked
 ```
 
 > **Linux 需先安装依赖：**
@@ -107,7 +106,6 @@ chmod +x ~/.local/bin/mimofan
 ```bash
 git clone https://github.com/XiaomingX/mimofan.git
 cd mimofan
-cargo install --path crates/cli --locked
 cargo install --path crates/tui --locked
 ```
 
