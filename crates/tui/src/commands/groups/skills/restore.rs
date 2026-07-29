@@ -107,6 +107,27 @@ pub fn restore(app: &mut App, arg: Option<&str>) -> CommandResult {
     ))
 }
 
+/// Entry point for `/rewind [N|list [N]|chat]`.
+pub fn rewind(app: &mut App, arg: Option<&str>) -> CommandResult {
+    let arg = arg.map(str::trim).filter(|s| !s.is_empty());
+
+    if let Some("chat") = arg {
+        return CommandResult::action(crate::tui::app::AppAction::OpenBacktrackOverlay);
+    }
+
+    if arg.is_none() {
+        let res = restore(app, None);
+        if res.is_error {
+            return res;
+        }
+        let message = res.message.unwrap_or_default();
+        let tip = "\n\n💡 Tip: Type `/rewind chat` or press `Esc Esc` in TUI to backtrack conversation history without reverting workspace files.";
+        return CommandResult::message(format!("{message}{tip}"));
+    }
+
+    restore(app, arg)
+}
+
 fn parse_list_arg(arg: &str) -> Result<Option<usize>, String> {
     let mut parts = arg.split_whitespace();
     let action = match parts.next() {

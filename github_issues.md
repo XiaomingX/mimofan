@@ -378,7 +378,7 @@ MiMo v2.5 Pro 等推理模型在多轮对话中，要求所有 assistant 历史�
 
 ---
 
-## [ ] Issue #25: 确认并补全 /rewind 命令，对齐 Claude Code / Gemini 的回滚入口，降低用户迁移成本
+## [x] Issue #25: 确认并补全 /rewind 命令，对齐 Claude Code / Gemini 的回滚入口，降低用户迁移成本
 - **State**: `open`
 - **Link**: [https://github.com/XiaomingX/mimofan/issues/25](https://github.com/XiaomingX/mimofan/issues/25)
 

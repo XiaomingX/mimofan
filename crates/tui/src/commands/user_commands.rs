@@ -218,4 +218,46 @@ mod tests {
         assert!(!res.is_error);
         assert_eq!(app.mode, AppMode::Yolo);
     }
+
+    #[test]
+    fn test_rewind_command() {
+        let tmp = TempDir::new().unwrap();
+        let options = TuiOptions {
+            model: "deepseek-v4-pro".to_string(),
+            workspace: tmp.path().to_path_buf(),
+            config_path: None,
+            config_profile: None,
+            allow_shell: false,
+            use_alt_screen: true,
+            use_mouse_capture: false,
+            use_bracketed_paste: true,
+            max_subagents: 1,
+            skills_dir: tmp.path().join("skills"),
+            memory_path: tmp.path().join("memory.md"),
+            notes_path: tmp.path().join("notes.txt"),
+            mcp_config_path: tmp.path().join("mcp.json"),
+            use_memory: false,
+            start_in_agent_mode: false,
+            skip_onboarding: true,
+            yolo: false,
+            resume_session_id: None,
+            initial_input: None,
+        };
+        let mut app = App::new(options, &Config::default());
+
+        // Test /rewind chat action
+        let res = crate::commands::execute("/rewind chat", &mut app);
+        assert!(!res.is_error);
+        assert_eq!(
+            res.action,
+            Some(crate::tui::app::AppAction::OpenBacktrackOverlay)
+        );
+
+        // Test /rewind (no snapshots) should return the "No snapshots yet" message with tip
+        let res = crate::commands::execute("/rewind", &mut app);
+        assert!(!res.is_error);
+        let msg = res.message.unwrap();
+        assert!(msg.contains("No snapshots yet"));
+        assert!(msg.contains("💡 Tip"));
+    }
 }

@@ -24,6 +24,7 @@ impl CommandGroup for SkillsCommands {
             Box::new(FunctionCommand::new(&SKILL_INFO, run_skill)),
             Box::new(FunctionCommand::new(&REVIEW_INFO, run_review)),
             Box::new(FunctionCommand::new(&RESTORE_INFO, run_restore)),
+            Box::new(FunctionCommand::new(&REWIND_INFO, run_rewind)),
         ]
     }
 }
@@ -52,6 +53,12 @@ static RESTORE_INFO: CommandInfo = CommandInfo {
     usage: "/restore [N|list [N]]",
     description_id: MessageId::CmdRestoreDescription,
 };
+static REWIND_INFO: CommandInfo = CommandInfo {
+    name: "rewind",
+    aliases: &[],
+    usage: "/rewind [N|list [N]|chat]",
+    description_id: MessageId::CmdRewindDescription,
+};
 
 fn run_registered(app: &mut App, name: &str, arg: Option<&str>) -> CommandResult {
     dispatch(app, name, arg).expect("registered skills command should dispatch")
@@ -69,6 +76,9 @@ fn run_review(app: &mut App, arg: Option<&str>) -> CommandResult {
 fn run_restore(app: &mut App, arg: Option<&str>) -> CommandResult {
     run_registered(app, "restore", arg)
 }
+fn run_rewind(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "rewind", arg)
+}
 
 pub(in crate::commands) fn dispatch(
     app: &mut App,
@@ -80,6 +90,7 @@ pub(in crate::commands) fn dispatch(
         "skill" | "jineng" => skills::run_skill(app, arg),
         "review" | "shencha" => review::review(app, arg),
         "restore" => restore::restore(app, arg),
+        "rewind" => restore::rewind(app, arg),
         _ => return None,
     };
     Some(result)
