@@ -74,24 +74,21 @@ pub struct GoalBudget {
 }
 
 impl GoalBudget {
-    /// Fully unbounded — no token, time, or continuation cap. The only stops
-    /// are a terminal model status (complete/blocked) or an explicit user
-    /// pause/clear.
+    /// Fully unbounded — no token or time budget, with DEFAULT_MAX_CONTINUATIONS safety cap.
     pub const fn unbounded() -> Self {
         Self {
             token_budget: None,
             time_budget_seconds: None,
-            max_continuations: None,
+            max_continuations: Some(DEFAULT_MAX_CONTINUATIONS),
         }
     }
 
-    /// A token budget only — the loop runs until the model is done or the
-    /// token budget is exhausted.
+    /// A token budget with DEFAULT_MAX_CONTINUATIONS safety cap — the loop runs until the model is done or budget is exhausted.
     pub const fn with_token_budget(token_budget: u64) -> Self {
         Self {
             token_budget: Some(token_budget),
             time_budget_seconds: None,
-            max_continuations: None,
+            max_continuations: Some(DEFAULT_MAX_CONTINUATIONS),
         }
     }
 }
