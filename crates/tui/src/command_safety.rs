@@ -703,6 +703,16 @@ pub fn analyze_command(command: &str) -> SafetyAnalysis {
         );
     }
 
+    // Detect shell variable expansion ($VAR or ${VAR}) which may leak
+    // sensitive values (API keys, credentials, paths) or cause unexpected
+    // behavior when the variable is unset.
+    if shell_variable_expansion_detected(command) {
+        return SafetyAnalysis::requires_approval(
+            command,
+            vec!["Shell variable expansion detected".to_string()],
+        );
+    }
+
     // Check for dangerous patterns first. The token-aware pass above handles
     // spacing and quoting variants; these literal patterns remain as a compact
     // fallback for legacy shapes.
@@ -798,6 +808,34 @@ pub fn analyze_command(command: &str) -> SafetyAnalysis {
         command,
         vec!["Unknown command - review before execution".to_string()],
     )
+}
+
+/// Detect shell variable expansion patterns: `$VAR`, `${VAR}`, `$1`, `$@`, etc.
+/// Excludes `$()` (command substitution, already handled) and `$$` (PID).
+fn shell_variable_expansion_detected(command: &str) -> bool {
+    let bytes = command.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+    while i < len {
+        if bytes[i] == b'$' && i + 1 < len {
+            let next = bytes[i + 1];
+            match next {
+                // ${VAR} — brace-enclosed variable
+                b'{' => {
+                    if command[i + 2..].find('}').is_some() {
+                        return true;
+                    }
+                }
+                // $VAR or $1, $@, $?, etc. — skip $$ (PID) and $( (command sub)
+                b'A'..=b'Z' | b'a'..=b'z' | b'_' | b'0'..=b'9' | b'@' | b'?' | b'!' | b'#' => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    false
 }
 
 fn analyze_destructive_patterns(command: &str) -> Option<SafetyAnalysis> {

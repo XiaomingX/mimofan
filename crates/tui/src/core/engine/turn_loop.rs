@@ -2414,6 +2414,7 @@ impl Engine {
             crate::goal_loop::GoalBudget {
                 token_budget: snapshot.token_budget.map(u64::from),
                 time_budget_seconds: None,
+                max_continuations: Some(crate::goal_loop::DEFAULT_MAX_CONTINUATIONS),
             },
         );
         if let crate::goal_loop::ContinuationDecision::Stop(reason) = decision {
@@ -2422,6 +2423,10 @@ impl Engine {
                     "Goal token budget reached ({} / {} tokens); ending continuation.",
                     snapshot.tokens_used,
                     snapshot.token_budget.unwrap_or_default()
+                ),
+                crate::goal_loop::StopReason::ContinuationLimit => format!(
+                    "Goal continuation limit reached ({} continuations); ending to prevent unbounded loop.",
+                    snapshot.continuation_count,
                 ),
                 other => format!("Goal continuation stopped: {other:?}."),
             };

@@ -1030,9 +1030,7 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
     // turn.  Keeping it above would bust the prefix cache at the timestamp
     // position, negating the cache benefit of the static layers above.
     let now_local = chrono::Local::now().format("%Y-%m-%d %H:%M:%S %:z");
-    full_prompt = format!(
-        "{full_prompt}\n\nCurrent Local Time: {now_local}",
-    );
+    full_prompt = format!("{full_prompt}\n\nCurrent Local Time: {now_local}",);
 
     // 6c. Configured `instructions = [...]` files (#454). Loaded
     // and concatenated in declared order. Placed below the volatile boundary

@@ -4388,22 +4388,46 @@ fn drain_child_completion_events(
 }
 
 fn child_completion_runtime_message(completions: &[SubAgentCompletion]) -> Message {
-    let mut text = String::from(
-        "<mimo:runtime_event kind=\"child_subagent_completion\" visibility=\"internal\">\n\
+    let header = "<mimo:runtime_event kind=\"child_subagent_completion\" visibility=\"internal\">\n\
 This is an internal runtime event, not user input. One or more child sub-agents \
 you spawned have finished. Treat each child summary as an unverified self-report: \
 if you rely on it, cite the child agent_id and the EVIDENCE lines it provided, \
-and distinguish that from evidence you personally verified.\n",
-    );
-    for completion in completions {
-        text.push_str("\n--- child sub-agent completion ---\n");
-        text.push_str("agent_id: ");
-        text.push_str(&completion.agent_id);
-        text.push('\n');
-        text.push_str(&completion.payload);
-        text.push('\n');
+and distinguish that from evidence you personally verified.\n";
+
+    // Enforce MAX_SUBAGENT_INJECTION_CHARS: keep the most-recent events that fit.
+    let entries: Vec<String> = completions
+        .iter()
+        .map(|c| {
+            format!(
+                "\n--- child sub-agent completion ---\nagent_id: {}\n{}\n",
+                c.agent_id, c.payload,
+            )
+        })
+        .collect();
+
+    let closing = "</mimo:runtime_event>";
+    let note_overhead = 60; // "[Note: N older completion(s) dropped ...]"
+    let budget =
+        MAX_SUBAGENT_INJECTION_CHARS.saturating_sub(header.len() + closing.len() + note_overhead);
+
+    let mut text = String::from(header);
+    let mut used = 0usize;
+    let mut included = 0usize;
+    for entry in &entries {
+        if used + entry.len() > budget && included > 0 {
+            break;
+        }
+        text.push_str(entry);
+        used += entry.len();
+        included += 1;
     }
-    text.push_str("</mimo:runtime_event>");
+    let dropped = entries.len() - included;
+    if dropped > 0 {
+        text.push_str(&format!(
+            "\n[Note: {dropped} older completion(s) dropped to stay within injection budget.]",
+        ));
+    }
+    text.push_str(closing);
 
     Message {
         role: "user".to_string(),
@@ -6446,6 +6470,11 @@ const SUBAGENT_SUMMARY_CHAR_BUDGET: usize = 12_000;
 /// (`TOOL_RESULT_HEAD_CHARS`/`TOOL_RESULT_TAIL_CHARS`, chat.rs:703-704).
 const SUBAGENT_SUMMARY_HEAD_CHARS: usize = 4_000;
 const SUBAGENT_SUMMARY_TAIL_CHARS: usize = 4_000;
+
+/// Maximum total characters for all child sub-agent completion events injected
+/// into a single turn.  When exceeded, oldest events are dropped with a note.
+/// Set to 4× the per-event budget so at most 4 full-size events fit.
+const MAX_SUBAGENT_INJECTION_CHARS: usize = 48_000;
 
 /// One-line provenance suffix reinforcing that a sub-agent summary is a
 /// self-report (issue #2652). Appended only when the summary was NOT

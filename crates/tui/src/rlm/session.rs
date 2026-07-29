@@ -111,7 +111,7 @@ impl Default for RlmSessionConfig {
 }
 
 pub fn write_context_file(body: &str) -> std::io::Result<PathBuf> {
-    let dir = std::env::temp_dir().join("deepseek_rlm_ctx");
+    let dir = std::env::temp_dir().join(format!("deepseek_rlm_ctx_{}", Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir)?;
     let path = dir.join(format!(
         "session_{}_{}.txt",
