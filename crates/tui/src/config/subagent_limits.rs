@@ -7,7 +7,7 @@
 //! `config.rs` with a private `use`, so no new external surface is created
 //! (#3311).
 
-pub const DEFAULT_MAX_SUBAGENTS: usize = 20;
+pub const DEFAULT_MAX_SUBAGENTS: usize = 8;
 pub const MAX_SUBAGENTS: usize = 20;
 /// Upper bound for queued + running sub-agent admissions. This is deliberately
 /// higher than the instantaneous concurrency cap so Workflow-style fanout can

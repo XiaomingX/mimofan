@@ -17,6 +17,11 @@
 //! clears, or an optional token/time budget is exhausted. This matches how a
 //! persistent objective should feel: "until done," not "until N turns."
 
+/// Default safety cap on continuations per goal run.  Prevents unbounded loops
+/// when the model fails to self-report completion.  Can be overridden via
+/// `GoalBudget::max_continuations`.
+pub const DEFAULT_MAX_CONTINUATIONS: u32 = 50;
+
 /// Terminal or active state of a persistent goal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GoalRunStatus {
@@ -57,23 +62,26 @@ pub struct GoalProgress {
     pub continuations: u32,
 }
 
-/// The bound on a goal run. `None` fields mean unbounded. There is **no
-/// continuation cap** — the loop runs until the model self-reports
-/// complete/blocked, the user pauses/clears, or an optional budget is
-/// exhausted. This is deliberate: a goal is "until done," not "until N turns."
+/// The bound on a goal run. `None` fields mean unbounded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GoalBudget {
     pub token_budget: Option<u64>,
     pub time_budget_seconds: Option<u64>,
+    /// Maximum number of continuations before the loop stops.  `None` means
+    /// unbounded — the loop runs until the model self-reports complete/blocked,
+    /// the user pauses/clears, or an optional budget is exhausted.
+    pub max_continuations: Option<u32>,
 }
 
 impl GoalBudget {
-    /// Fully unbounded — no token or time cap. The only stops are a terminal
-    /// model status (complete/blocked) or an explicit user pause/clear.
+    /// Fully unbounded — no token, time, or continuation cap. The only stops
+    /// are a terminal model status (complete/blocked) or an explicit user
+    /// pause/clear.
     pub const fn unbounded() -> Self {
         Self {
             token_budget: None,
             time_budget_seconds: None,
+            max_continuations: None,
         }
     }
 
@@ -83,6 +91,7 @@ impl GoalBudget {
         Self {
             token_budget: Some(token_budget),
             time_budget_seconds: None,
+            max_continuations: None,
         }
     }
 }
@@ -100,11 +109,9 @@ pub enum ContinuationDecision {
 ///
 /// Precedence (most authoritative first):
 /// 1. A terminal model status (Completed / Blocked) ends the run.
-/// 2. An optional token or time budget, if exhausted, ends the run.
-/// 3. Otherwise continue.
-///
-/// There is **no continuation cap**. A goal runs until the model reports
-/// done/blocked, the user pauses or clears, or an optional budget is spent.
+/// 2. An optional continuation cap, if exhausted, ends the run.
+/// 3. An optional token or time budget, if exhausted, ends the run.
+/// 4. Otherwise continue.
 #[must_use]
 pub fn decide_continuation(
     status: GoalRunStatus,
@@ -118,7 +125,14 @@ pub fn decide_continuation(
         GoalRunStatus::Active => {}
     }
 
-    // 2. Optional budget. No continuation cap — "until done."
+    // 2. Continuation cap.
+    if let Some(max) = budget.max_continuations
+        && progress.continuations >= max
+    {
+        return ContinuationDecision::Stop(StopReason::ContinuationLimit);
+    }
+
+    // 3. Optional budget.
     if let Some(tokens) = budget.token_budget
         && progress.tokens_used >= tokens
     {
@@ -130,7 +144,7 @@ pub fn decide_continuation(
         return ContinuationDecision::Stop(StopReason::TimeBudget);
     }
 
-    // 3. Keep going.
+    // 4. Keep going.
     ContinuationDecision::Continue
 }
 

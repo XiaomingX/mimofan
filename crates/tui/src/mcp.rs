@@ -799,7 +799,9 @@ impl SseTransport {
                     "message" if !data.trim().is_empty() => {
                         let _ = tx.send(SseInbound::Message(data.into_bytes()));
                     }
-                    _ => {}
+                    other => {
+                        tracing::trace!(target: "mcp", event_type = other, "SSE event dropped (heartbeat or unknown)");
+                    }
                 }
             }
         }
