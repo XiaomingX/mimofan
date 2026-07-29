@@ -8,7 +8,7 @@ use crate::skills::install::{
     self, DEFAULT_MAX_SIZE_BYTES, DEFAULT_REGISTRY_URL, InstallOutcome, InstallSource,
     RegistryFetchResult, SkillSyncOutcome, SyncResult, UpdateResult,
 };
-use crate::tui::app::App;
+use crate::tui::app::{App, AppAction};
 use crate::tui::history::HistoryCell;
 
 use super::CommandResult;
