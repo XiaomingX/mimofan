@@ -78,6 +78,7 @@ pub mod repl;
 mod request_tuning;
 mod resource_telemetry;
 mod retry_status;
+pub mod symbol_index;
 pub mod rlm;
 mod route_budget;
 mod route_runtime;
