@@ -353,6 +353,8 @@ fn apply_spillover_inner(
             total_kib = total / 1024,
         );
         result.content = format!("{head}{footer}");
+    }
+
     use sha2::{Digest, Sha256};
     let sha_digest = format!("{:x}", Sha256::digest(original_content.as_bytes()));
     let sha_path = write_sha_spillover(&sha_digest, &original_content).ok();
