@@ -255,8 +255,8 @@ pub static COMMAND_ARITY: &[(&str, u8)] = &[
 ///
 /// # Examples
 ///
-/// ```
-/// # use mimofan_tui::command_safety::classify_command;
+/// ```rust,ignore
+/// # use mimofan::command_safety::classify_command;
 /// assert_eq!(classify_command(&["git", "status", "-s"]),            "git status");
 /// assert_eq!(classify_command(&["git", "push", "origin"]),          "git push");
 /// assert_eq!(classify_command(&["cargo", "check", "--workspace"]),  "cargo check");
@@ -316,8 +316,8 @@ pub fn classify_command(tokens: &[&str]) -> String {
 ///
 /// # Examples
 ///
-/// ```
-/// # use mimofan_tui::command_safety::prefix_allow_matches;
+/// ```rust,ignore
+/// # use mimofan::command_safety::prefix_allow_matches;
 /// assert!( prefix_allow_matches("git status",    "git status --porcelain"));
 /// assert!(!prefix_allow_matches("git status",    "git push origin main"));
 /// assert!( prefix_allow_matches("cargo check",   "cargo check --workspace"));

@@ -169,4 +169,53 @@ pub(crate) fn apply_template(template: &str, args: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use crate::config::Config;
+    use crate::tui::app::{App, AppMode, TuiOptions};
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_mode_shortcut_commands() {
+        let tmp = TempDir::new().unwrap();
+        let options = TuiOptions {
+            model: "deepseek-v4-pro".to_string(),
+            workspace: tmp.path().to_path_buf(),
+            config_path: None,
+            config_profile: None,
+            allow_shell: false,
+            use_alt_screen: true,
+            use_mouse_capture: false,
+            use_bracketed_paste: true,
+            max_subagents: 1,
+            skills_dir: tmp.path().join("skills"),
+            memory_path: tmp.path().join("memory.md"),
+            notes_path: tmp.path().join("notes.txt"),
+            mcp_config_path: tmp.path().join("mcp.json"),
+            use_memory: false,
+            start_in_agent_mode: false,
+            skip_onboarding: true,
+            yolo: false,
+            resume_session_id: None,
+            initial_input: None,
+        };
+        let mut app = App::new(options, &Config::default());
+
+        // Default mode
+        assert_eq!(app.mode, AppMode::Agent);
+
+        // Test /plan command
+        let res = crate::commands::execute("/plan", &mut app);
+        assert!(!res.is_error);
+        assert_eq!(app.mode, AppMode::Plan);
+
+        // Test /auto command
+        let res = crate::commands::execute("/auto", &mut app);
+        assert!(!res.is_error);
+        assert_eq!(app.mode, AppMode::Agent);
+
+        // Test /yolo command
+        let res = crate::commands::execute("/yolo", &mut app);
+        assert!(!res.is_error);
+        assert_eq!(app.mode, AppMode::Yolo);
+    }
+}

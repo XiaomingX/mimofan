@@ -10,8 +10,8 @@
 //! - `@tab2` - case-insensitive
 //!
 //! Examples:
-//! ```
-//! use crate::tui::tab::mention::extract_tab_mention;
+//! ```rust,ignore
+//! use mimofan::tui::tab::mention::extract_tab_mention;
 //! assert_eq!(extract_tab_mention("Hello @Tab2!"), Some(2));
 //! assert_eq!(extract_tab_mention("see @3"), Some(3));
 //! assert_eq!(extract_tab_mention("no mention here"), None);

@@ -3,6 +3,7 @@
 
 mod agent;
 mod anchor;
+mod auto;
 mod clear;
 // This group dir intentionally has a `core.rs` child module with the same
 // name. The module_inception allow is a permanent structure rationale, not
@@ -19,6 +20,7 @@ mod hooks;
 mod links;
 mod model;
 mod models;
+mod plan;
 mod profile;
 mod provider;
 mod queue;
@@ -31,6 +33,7 @@ mod translate;
 pub mod util;
 pub mod voice;
 mod workspace;
+mod yolo;
 
 pub(in crate::commands) use self::core::reset_conversation_state;
 
@@ -93,6 +96,18 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 agent::AgentCmd::info(),
                 agent::AgentCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                auto::AutoCmd::info(),
+                auto::AutoCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                plan::PlanCmd::info(),
+                plan::PlanCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                yolo::YoloCmd::info(),
+                yolo::YoloCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 swarm::SwarmCmd::info(),
