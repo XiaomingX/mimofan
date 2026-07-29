@@ -208,6 +208,20 @@ impl LspManager {
         }
     }
 
+    /// Close `file` in the corresponding LSP server transport and send `didClose`.
+    pub async fn close_file(&self, file: &Path) {
+        if !self.config.enabled {
+            return;
+        }
+        let lang = registry::detect_language(file);
+        if lang == Language::Other {
+            return;
+        }
+        if let Some(transport) = self.transports.lock().await.get(&lang) {
+            let _ = transport.close_file(file).await;
+        }
+    }
+
     /// Resolve (and lazily spawn) the transport for `lang`. Tests can
     /// short-circuit this via `install_test_transport` (cfg-test only).
     async fn transport_for(&self, lang: Language) -> Option<Arc<dyn LspTransport>> {

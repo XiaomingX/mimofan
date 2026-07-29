@@ -905,12 +905,16 @@ impl StatusItem {
         )
     }
 
-    /// Whether this item is relevant for `provider`.  Provider-specific
+    /// Whether this item is relevant for `provider`. Provider-specific
     /// items return `false` for unsupported providers so the picker doesn't
     /// offer toggles that can never show useful data.
     #[must_use]
-    pub fn is_available_for(self, _provider: ApiProvider) -> bool {
-        true
+    pub fn is_available_for(self, provider: ApiProvider) -> bool {
+        match self {
+            StatusItem::Balance => matches!(provider, ApiProvider::XiaomiMimo),
+            StatusItem::RateLimit => matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::Custom),
+            _ => true,
+        }
     }
 }
 

@@ -436,21 +436,42 @@ fn file_sound() {
 /// session) the error is logged via `tracing::warn!` instead of silently
 /// swallowed.
 #[cfg(target_os = "macos")]
+fn is_terminal_focused() -> bool {
+    let output = match std::process::Command::new("osascript")
+        .args(&["-e", "tell application \"System Events\" to get name of first process whose frontmost is true"])
+        .output()
+    {
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).trim().to_string(),
+        _ => return false,
+    };
+
+    let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+    if !term_program.is_empty() && output.to_ascii_lowercase().contains(&term_program.to_ascii_lowercase()) {
+        return true;
+    }
+
+    let known_terms = ["iterm", "terminal", "ghostty", "wezterm", "kitty", "alacritty", "vscode"];
+    let output_lower = output.to_ascii_lowercase();
+    known_terms.iter().any(|t| output_lower.contains(t))
+}
+
+/// Show a macOS Notification Center alert via `osascript` with Focus-Aware Interception.
+///
+/// Runs on a dedicated background thread so the caller is not blocked.
+/// If the terminal application is currently frontmost (focused), desktop notifications are suppressed.
+#[cfg(target_os = "macos")]
 fn macos_display_notification(msg: &str) {
     let message = msg.to_string();
 
-    // Spawn on a background thread so we don't block the caller.
-    // osascript itself is fast (~50 ms), but spawning a subprocess
-    // synchronously from an async context steals a tokio thread.
     let _ = std::thread::Builder::new()
         .name("osascript-notif".into())
         .spawn(move || {
-            // Build AppleScript that receives the message via ARGV
-            // instead of inline string interpolation. AppleScript does
-            // not treat backslash as an escape inside double-quoted
-            // string literals, so `\"` would terminate the string at
-            // the `"` and leave a dangling `\`. Passing the message as
-            // a command-line argument avoids any injection risk.
+            if is_terminal_focused() {
+                // Terminal is in foreground focus; suppress desktop toast to avoid disturbing the user.
+                tracing::debug!("Terminal is focused; suppressed macOS notification toast");
+                return;
+            }
+
             let (subtitle, body) = macos_notification_parts(&message);
             let args = [
                 "-e".to_string(),

@@ -882,3 +882,42 @@
 | P1 | WP7 | warpdotdev/warp | #5950 | Warp hangs indefinitely on macOS after Feb 27 update | macOS/stability |
 | P1 | WP8 | warpdotdev/warp | #7965 | Terrible performance on M3 Mac | macOS/perf |
 | P1 | WP9 | warpdotdev/warp | #13040 | Crash on terminal resize with CJK (wide) characters in the prompt | macOS/TUI |
+
+---
+
+## 六、竞品 GitHub Issues 候选需求补充 (Roo-Code / Continue / Goose)
+
+> 筛选标准：仅限 macOS + TUI 终端环境，专注于 Token 节省、响应速度提升与常用能力增强
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| RC1 | RooCodeInc/Roo-Code | #12111 | [ ] TOON token-efficient context serialization — plugin/CLI token reduction | TOON 格式压缩上下文序列化，有效减少上下文 Token 占用 | Token | P1 |
+| RC2 | RooCodeInc/Roo-Code | #12087 | [ ] Context loss on Provider Error causes agent prompt hallucination | Provider 报错后上下文丢失，导致智能体忘掉上一条提示并幻觉之前任务 | Token/稳定性 | P1 |
+| RC3 | RooCodeInc/Roo-Code | #12249 | [ ] Too much contextual content occupying too much memory | 长会话超大上下文导致内存膨胀和 TUI 响应卡顿/白屏 | 性能/TUI | P1 |
+| RC4 | RooCodeInc/Roo-Code | #12330 | [ ] Support parallel execution of specialized subagents and context handoff | 支持专业子智能体并行执行与跨 Mode 上下文平滑交接 | 常用能力/子智能体 | P1 |
+| RC5 | RooCodeInc/Roo-Code | #12268 | [ ] Auto-approve command execution cannot be stopped / interrupted | TUI 中自动审批模式运行命令时无法及时 Esc 打断或停止 | TUI/交互 | P1 |
+| CT1 | continuedev/continue | #12980 | [ ] perf: avoid tokenizing lines that pruning discards | 剪枝丢弃的行避免无效分词与上下文构建，降低 CPU 开销与 Token 浪费 | Token/性能 | P1 |
+| CT2 | continuedev/continue | #13038 | [ ] Autocomplete / prompt pruneLength negative budget bug | 当设置的上下文与模型  相等时计算负 budget 导致前缀/后缀被清空 | Token/稳定性 | P1 |
+| CT3 | continuedev/continue | #13026 | [ ] /model switch notices stored as system messages replayed mid-conversation | 模型切换通知和错误 Banner 被存为 system 消息并在对话中重放，破坏严格 Chat 模板 | Token/上下文 | P1 |
+| CT4 | continuedev/continue | #12925 | [ ] userRules / system prompt displayed twice in context | 系统规则在 CLI 上下文中重复注入两次，造成冗余 Token 浪费 | Token | P1 |
+| CT5 | continuedev/continue | #13057 | [ ] Local models return tool calls as plain text instead of executing | 局部模型/Ollama 返回明文 tool call 时未容错解析直接暴露给用户 | TUI/工具调用 | P1 |
+| GS1 | aaif-goose/goose | #10706 | [x] <turn-context> refreshes every LLM call breaking prompt-prefix caching | <turn-context> 中的时间戳每轮刷新导致 LLM API 服务端 Prompt Cache 命中率跌零 | Token/缓存 | P0 |
+| GS2 | aaif-goose/goose | #10764 | [ ] Uncapped conversation replay on session restore makes long sessions unresumable | 会话恢复时无界重放全量历史，导致长会话 Token 爆炸且无法恢复 | Token/性能 | P1 |
+| GS3 | aaif-goose/goose | #10763 | [ ] /clear and /compact context only cleared client-side while token counter lies | /clear 和 /compact 只在客户端清理上下文，未同步至智能体且 Token 计数器不准 | Token/一致性 | P1 |
+| GS4 | aaif-goose/goose | #10732 | [x] TUI input editing limited by ink-multiline-input: in-tree editing layer | TUI 多行输入框缺乏多行光标移动与粘贴折叠支持 | TUI/输入 | P1 |
+| GS5 | aaif-goose/goose | #10642 | [x] Tool-call input/output folded with no verbosity control in TUI (macOS) | TUI 中工具调用的输入输出折叠缺乏详细程度 (verbosity) 控制 | TUI/交互 | P1 |
+
+---
+
+## 七、竞品 GitHub Issues 候选需求补充 (Open Interpreter / Agent Zero)
+
+> 筛选标准：仅限 macOS + TUI 终端环境，专注于 Token 节省、响应速度提升与常用能力增强
+
+| # | 来源 | Issue | 标题 | 描述 | 分类 | 优先级 |
+|---|------|-------|------|------|------|--------|
+| OI1 | openinterpreter/openinterpreter | #1851 | [x] System confirmation message serialized between tool call and tool result breaking strict API templates | TUI 自动审批/确认消息在 tool_call 与 tool result 之间被序列化，导致严格 Provider 返回 400 重试卡死并浪费 Token | Token/稳定性 | P0 |
+| OI2 | openinterpreter/openinterpreter | #1839 | [x] Harness function-style tools emit no TurnItem — invisible in TUI transcript | TUI 界面中函数工具执行缺失 TurnItem 动态反馈，导致用户感知卡顿 | TUI/状态反馈 | P1 |
+| OI3 | openinterpreter/openinterpreter | #1812 | [x] Switching providers reuses previous provider model cache | 在 TUI 中切换 Provider 时误复用上个 Provider 的模型缓存，引发请求报错与 Token 浪费 | Token/缓存 | P1 |
+| AZ1 | agent0ai/agent-zero | #1762 | [x] Regression: Severe Context Loss makes long-running tasks nearly unusable | 上下文裁剪过猛导致严重上下文丢失，使长程任务智能体丧失前序状态记忆 | Token/一致性 | P0 |
+| AZ2 | agent0ai/agent-zero | #1778 | [x] ChatCompletionsTransport drops tool_calls when non-empty content present | 模型同时输出 reasoning content 与 tool_calls 时工具调用被静默丢弃导致零产出 Token 消耗 | Token/工具调用 | P1 |
+| AZ3 | agent0ai/agent-zero | #1750 | [x] history.output_text() serializes AI messages as raw JSON, polluting utility context | 历史记录序列化为原始 JSON 污染辅助模型上下文，增加无用 Token 开销 | Token/上下文 | P1 |

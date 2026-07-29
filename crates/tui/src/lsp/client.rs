@@ -56,6 +56,9 @@ pub trait LspTransport: Send + Sync {
         text: &str,
         wait: Duration,
     ) -> Result<Vec<Diagnostic>>;
+
+    /// Send `textDocument/didClose` notification for `path` and remove it from opened map.
+    async fn close_file(&self, path: &Path) -> Result<()>;
 }
 
 /// Stdio-backed transport. Spawns the LSP server as a child process and
@@ -262,6 +265,25 @@ impl LspTransport for StdioLspTransport {
             // opened. Discard and continue waiting.
         }
         Ok(latest.unwrap_or_default())
+    }
+
+    async fn close_file(&self, path: &Path) -> Result<()> {
+        let path_buf = path.to_path_buf();
+        let mut opened = self.opened.lock().await;
+        if opened.remove(&path_buf).is_some() {
+            let uri = uri_from_path(&path_buf);
+            let payload = json!({
+                "jsonrpc": "2.0",
+                "method": "textDocument/didClose",
+                "params": {
+                    "textDocument": {
+                        "uri": uri
+                    }
+                }
+            });
+            send_message(&self.tx_outbound, &payload).await?;
+        }
+        Ok(())
     }
 }
 

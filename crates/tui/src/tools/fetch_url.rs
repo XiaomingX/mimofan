@@ -205,6 +205,12 @@ impl ToolSpec for FetchUrlTool {
             redirects_followed += 1;
         };
 
+        let response_status = resp.status();
+
+        // Tier-2 Escalation: If HTTP 403 Forbidden / Cloudflare / SPA JS rendering detected, attempt macOS Headless Browser Relay
+        let is_forbidden_or_js_spa = response_status == reqwest::StatusCode::FORBIDDEN 
+            || response_status == reqwest::StatusCode::SERVICE_UNAVAILABLE;
+
         let final_url = resp.url().to_string();
         let status = resp.status();
         let content_type = resp
@@ -227,7 +233,14 @@ impl ToolSpec for FetchUrlTool {
             &bytes[..]
         };
 
-        let body_text = String::from_utf8_lossy(usable).to_string();
+        let mut body_text = String::from_utf8_lossy(usable).to_string();
+
+        if is_forbidden_or_js_spa || body_text.contains("<noscript>") || body_text.contains("Just a moment...") {
+            if let Ok(headless_res) = try_headless_browser_fetch(&final_url) {
+                tracing::info!("Successfully performed Headless Browser fallback for {}", final_url);
+                body_text = headless_res;
+            }
+        }
         let fields = project_json_fields(&body_text, &content_type, &requested_fields)?;
         let processed = match format {
             Format::Raw => body_text,
@@ -500,6 +513,38 @@ fn decode_entities(s: &str) -> String {
         .replace("&#39;", "'")
         .replace("&apos;", "'")
         .replace("&nbsp;", " ")
+}
+
+/// Headless browser fallback helper for macOS.
+/// Attempts to execute headless Chrome or Safari curl relay to retrieve SPA JS rendered DOM.
+fn try_headless_browser_fetch(url: &str) -> Result<String, ToolError> {
+    #[cfg(target_os = "macos")]
+    {
+        // Check if Chrome headless is executable on macOS
+        let chrome_paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            "/Applications/Arc.app/Contents/MacOS/Arc",
+        ];
+
+        for path in chrome_paths {
+            if std::path::Path::new(path).exists() {
+                let output = std::process::Command::new(path)
+                    .args(&["--headless", "--disable-gpu", "--dump-dom", url])
+                    .output();
+                if let Ok(out) = output {
+                    if out.status.success() {
+                        let dom = String::from_utf8_lossy(&out.stdout).to_string();
+                        if !dom.is_empty() {
+                            return Ok(dom);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Err(ToolError::execution_failed("Headless browser unavailable"))
 }
 
 #[cfg(test)]
