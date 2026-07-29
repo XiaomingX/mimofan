@@ -28,7 +28,7 @@ impl SymbolIndex {
         }
     }
 
-    pub fn index_file(&self, root: &Path, rel_path: &Path, content: &str) {
+    pub fn index_file(&self, _root: &Path, rel_path: &Path, content: &str) {
         let path_str = rel_path.to_string_lossy().to_string();
         let mut file_symbols = Vec::new();
 
