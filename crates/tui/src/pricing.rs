@@ -269,9 +269,13 @@ pub fn token_usage_for_pricing(usage: &Usage) -> TokenUsage {
     let accounted_input = cache_read.saturating_add(non_cached_reported);
     let uncategorized_input = usage.input_tokens.saturating_sub(accounted_input);
     let input = non_cached_reported.saturating_add(uncategorized_input);
+
+    // output_tokens already includes reasoning_tokens for most providers (OpenAI
+    // subtracts reasoning from output in final Usage). We add reasoning_replay_tokens
+    // separately as they represent additional output cost for extended thinking.
     let output = usage
         .output_tokens
-        .saturating_add(usage.reasoning_tokens.unwrap_or(0));
+        .saturating_add(usage.reasoning_replay_tokens.unwrap_or(0));
 
     TokenUsage {
         input: u64::from(input),

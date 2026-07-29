@@ -245,7 +245,13 @@ fn render_instructions_block(sources: &[InstructionSource]) -> Option<String> {
     for source in sources {
         let (raw_source_name, raw_content): (String, String) = match source {
             InstructionSource::File(path) => match std::fs::read_to_string(path) {
-                Ok(raw) => (path.display().to_string(), raw),
+                // Use filename only to avoid leaking absolute paths in system prompt
+                Ok(raw) => (
+                    path.file_name()
+                        .map(|f| f.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    raw,
+                ),
                 Err(err) => {
                     tracing::warn!(
                         target: "instructions",

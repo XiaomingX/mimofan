@@ -154,10 +154,15 @@ impl ProjectContext {
     /// cross-agent `<project_instructions>` prose. Either may be absent.
     pub fn as_system_block(&self) -> Option<String> {
         let instructions_block = self.instructions.as_ref().map(|content| {
-            let source = self
-                .source_path
-                .as_ref()
-                .map_or_else(|| "project".to_string(), |p| p.display().to_string());
+            // Use filename only to avoid leaking absolute paths in system prompt
+            let source = self.source_path.as_ref().map_or_else(
+                || "project".to_string(),
+                |p| {
+                    p.file_name()
+                        .map(|f| f.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "project".to_string())
+                },
+            );
 
             format!(
                 "<project_instructions source=\"{source}\">\n{content}\n</project_instructions>"

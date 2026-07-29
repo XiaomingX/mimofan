@@ -715,14 +715,18 @@ instructions when using a specific skill.\n\n",
         // installs, in which case `<dir>/<name>/SKILL.md` would not exist
         // and the model would fail to open it.
         let description = truncate_for_prompt(&skill.description, MAX_SKILL_DESCRIPTION_CHARS);
+        // Use relative path from skill directory to avoid leaking absolute paths in system prompt
+        let relative_path = skill
+            .path
+            .file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or_default();
         let line = if description.is_empty() {
-            format!("- {}: (file: {})\n", skill.name, skill.path.display())
+            format!("- {}: (file: {relative_path})\n", skill.name)
         } else {
             format!(
-                "- {}: {} (file: {})\n",
-                skill.name,
-                description,
-                skill.path.display()
+                "- {}: {} (file: {relative_path})\n",
+                skill.name, description,
             )
         };
 

@@ -15,7 +15,8 @@ pub const DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS: u32 = 1_000_000;
 /// [`compaction_threshold_for_model`] (#664).
 pub const DEFAULT_COMPACTION_TOKEN_THRESHOLD: usize = 102_400;
 const COMPACTION_THRESHOLD_PERCENT: u32 = 80;
-pub const DEFAULT_AUTO_COMPACT_MAX_CONTEXT_WINDOW_TOKENS: u32 = DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS;
+// 1.1M to include GPT-5.5 (1.05M window) and similar large-window models
+pub const DEFAULT_AUTO_COMPACT_MAX_CONTEXT_WINDOW_TOKENS: u32 = 1_100_000;
 
 // === Core Message Types ===
 
