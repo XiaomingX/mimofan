@@ -10,7 +10,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, CommandFactory, Subcommand, ValueEnum};
-use clap_complete::Shell;
+use clap_complete::{Shell, generate};
 use mimofan_agent::ModelRegistry;
 use mimofan_app_server::{
     AppServerOptions, run as run_app_server, run_stdio as run_app_server_stdio,
@@ -18,7 +18,6 @@ use mimofan_app_server::{
 use mimofan_config::{
     CliRuntimeOverrides, ConfigStore, ProviderKind, ResolvedRuntimeOptions, RuntimeApiKeySource,
 };
-use mimofan_execpolicy::{AskForApproval, ExecPolicyContext, ExecPolicyEngine};
 use mimofan_mcp::{McpServerDefinition, run_stdio_server};
 use mimofan_secrets::Secrets;
 use mimofan_state::{StateStore, ThreadListFilters};
@@ -89,13 +88,13 @@ impl From<ProviderArg> for ProviderKind {
 
 // ── Auth command types ──────────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub(crate) struct AuthArgs {
     #[command(subcommand)]
     pub(crate) command: AuthCommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum AuthCommand {
     /// Show current provider and credential source state.
     Status {
@@ -133,13 +132,13 @@ pub(crate) enum AuthCommand {
 
 // ── Config command types ────────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub(crate) struct ConfigArgs {
     #[command(subcommand)]
     pub(crate) command: ConfigCommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum ConfigCommand {
     Get { key: String },
     Set { key: String, value: String },
@@ -150,13 +149,13 @@ pub(crate) enum ConfigCommand {
 
 // ── Model command types ─────────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub(crate) struct ModelArgs {
     #[command(subcommand)]
     pub(crate) command: ModelCommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum ModelCommand {
     List {
         #[arg(long, value_enum)]
@@ -172,13 +171,13 @@ pub(crate) enum ModelCommand {
 
 // ── Thread command types ────────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub(crate) struct ThreadArgs {
     #[command(subcommand)]
     pub(crate) command: ThreadCommand,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Subcommand)]
 pub(crate) enum ThreadCommand {
     List {
         #[arg(long, default_value_t = false)]
@@ -210,45 +209,19 @@ pub(crate) enum ThreadCommand {
     },
 }
 
-// ── Sandbox command types ───────────────────────────────────────────────────
+// ── Login command types ─────────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
-pub(crate) struct SandboxArgs {
-    #[command(subcommand)]
-    pub(crate) command: SandboxCommand,
-}
-
-#[derive(Debug, Subcommand)]
-pub(crate) enum SandboxCommand {
-    Check {
-        command: String,
-        #[arg(long, value_enum, default_value_t = ApprovalModeArg::OnRequest)]
-        ask: ApprovalModeArg,
-    },
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub(crate) enum ApprovalModeArg {
-    UnlessTrusted,
-    OnFailure,
-    OnRequest,
-    Never,
-}
-
-impl From<ApprovalModeArg> for AskForApproval {
-    fn from(value: ApprovalModeArg) -> Self {
-        match value {
-            ApprovalModeArg::UnlessTrusted => AskForApproval::UnlessTrusted,
-            ApprovalModeArg::OnFailure => AskForApproval::OnFailure,
-            ApprovalModeArg::OnRequest => AskForApproval::OnRequest,
-            ApprovalModeArg::Never => AskForApproval::Never,
-        }
-    }
+#[derive(Debug, Clone, Args)]
+pub(crate) struct LoginArgs {
+    #[arg(long, value_enum, hide = true)]
+    pub(crate) provider: Option<ProviderArg>,
+    #[arg(long)]
+    pub(crate) api_key: Option<String>,
 }
 
 // ── AppServer command types ─────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub(crate) struct AppServerArgs {
     #[arg(long, conflicts_with_all = ["stdio", "mobile"])]
     pub(crate) http: bool,
@@ -276,7 +249,7 @@ pub(crate) struct AppServerArgs {
 
 // ── Metrics command types ───────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub(crate) struct MetricsArgs {
     #[arg(long)]
     pub(crate) json: bool,
@@ -286,7 +259,7 @@ pub(crate) struct MetricsArgs {
 
 // ── Update command types ────────────────────────────────────────────────────
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub(crate) struct UpdateArgs {
     #[arg(long)]
     pub(crate) beta: bool,
@@ -294,16 +267,6 @@ pub(crate) struct UpdateArgs {
     pub(crate) check: bool,
     #[arg(long, value_name = "URL")]
     pub(crate) proxy: Option<String>,
-}
-
-// ── Login command types ─────────────────────────────────────────────────────
-
-#[derive(Debug, Args)]
-pub(crate) struct LoginArgs {
-    #[arg(long, value_enum, hide = true)]
-    pub(crate) provider: Option<ProviderArg>,
-    #[arg(long)]
-    pub(crate) api_key: Option<String>,
 }
 
 // ── Helper functions ────────────────────────────────────────────────────────
@@ -741,27 +704,6 @@ pub(crate) fn run_thread_command(command: ThreadCommand) -> Result<()> {
             thread.updated_at = chrono::Utc::now().timestamp();
             state.upsert_thread(&thread)?;
             println!("cleared name for {thread_id}");
-            Ok(())
-        }
-    }
-}
-
-// ── Sandbox command implementation ──────────────────────────────────────────
-
-pub(crate) fn run_sandbox_command(command: SandboxCommand) -> Result<()> {
-    match command {
-        SandboxCommand::Check { command, ask } => {
-            let engine = ExecPolicyEngine::new(Vec::new(), vec!["rm -rf".to_string()]);
-            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            let decision = engine.check(ExecPolicyContext {
-                command: &command,
-                cwd: &cwd.display().to_string(),
-                tool: Some("exec_shell"),
-                path: None,
-                ask_for_approval: ask.into(),
-                sandbox_mode: Some("workspace-write"),
-            })?;
-            println!("{}", serde_json::to_string_pretty(&decision)?);
             Ok(())
         }
     }

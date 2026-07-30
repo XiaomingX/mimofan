@@ -4,8 +4,8 @@
 //! tool call to perform multiple web actions and cite sources with ref_ids.
 
 use super::spec::{
-    ApprovalRequirement, DEFAULT_NETWORK_TIMEOUT_MS, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
-    optional_u64, required_str,
+    ApprovalRequirement, DEFAULT_NETWORK_TIMEOUT_MS, ToolCapability, ToolContext, ToolError,
+    ToolResult, ToolSpec, optional_u64, required_str,
 };
 use crate::network_policy::{Decision, host_from_url};
 use async_trait::async_trait;

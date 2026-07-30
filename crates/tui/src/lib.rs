@@ -234,6 +234,9 @@ enum Commands {
     Init,
     /// Save an API key to the shared user config
     Login {
+        /// Provider to authenticate with
+        #[arg(long, value_enum, hide = true)]
+        provider: Option<cli_commands::ProviderArg>,
         /// API key to store (otherwise read from stdin)
         #[arg(long)]
         api_key: Option<String>,
@@ -301,15 +304,6 @@ enum Commands {
         #[arg(long = "last", default_value_t = false, conflicts_with = "session_id")]
         last: bool,
     },
-    /// Configure provider credentials.
-    Login {
-        #[arg(long, value_enum, hide = true)]
-        provider: Option<cli_commands::ProviderArg>,
-        #[arg(long)]
-        api_key: Option<String>,
-    },
-    /// Remove saved authentication state.
-    Logout,
     /// Manage authentication credentials and provider mode.
     Auth(cli_commands::AuthArgs),
     /// Run MCP server mode over stdio.
@@ -320,8 +314,6 @@ enum Commands {
     Model(cli_commands::ModelArgs),
     /// Manage thread/session metadata and resume/fork flows.
     Thread(cli_commands::ThreadArgs),
-    /// Evaluate sandbox/approval policy decisions.
-    Sandbox(cli_commands::SandboxArgs),
     /// Run the canonical runtime API / control plane (HTTP/SSE, mobile, stdio).
     AppServer(cli_commands::AppServerArgs),
     /// Generate shell completions.

@@ -21,11 +21,15 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
+mimofan-agent = { path = "../agent" }
+mimofan-app-server = { path = "../app-server" }
 mimofan-config = { path = "../config" }
 mimofan-execpolicy = { path = "../execpolicy" }
+mimofan-mcp = { path = "../mcp" }
 mimofan-protocol = { path = "../protocol" }
 mimofan-release = { path = "../release" }
 mimofan-secrets = { path = "../secrets" }
+mimofan-state = { path = "../state" }
 mimofan-tools = { path = "../tools" }
 schemaui = { version = "0.12.0", default-features = false, optional = true }
 async-stream = "0.3.6"
