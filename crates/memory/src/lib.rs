@@ -7,13 +7,13 @@
 //! - Cross-session memory injection
 //! - Knowledge agent and corpus functionality
 
-mod compressor;
-mod embedding;
-mod error;
-mod injector;
-mod knowledge;
-mod optimization;
-mod vector;
+pub mod compressor;
+pub mod embedding;
+pub mod error;
+pub mod injector;
+pub mod knowledge;
+pub mod optimization;
+pub mod vector;
 
 pub use compressor::{CompressionStrategy, ObservationCompressor, SessionSummary};
 pub use embedding::{EmbeddingConfig, EmbeddingService};
