@@ -5,6 +5,7 @@ pub mod executor;
 pub mod host;
 pub mod ledger;
 pub mod manager;
+pub mod observability;
 pub mod profile;
 pub mod scheduler;
 pub mod task_spec;
