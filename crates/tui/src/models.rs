@@ -274,21 +274,11 @@ pub fn context_window_for_model(model: &str) -> Option<u32> {
 
 fn known_context_window_for_model(model_lower: &str) -> Option<u32> {
     match model_lower {
-        // OpenAI API model docs, verified 2026-06-12:
-        // https://developers.openai.com/api/docs/models/gpt-5.5
-        // Family aliases and snapshots are handled by
-        // `is_openai_gpt_55_api_model` before this table.
-        // OpenAI Codex model docs, verified 2026-06-12:
-        // https://developers.openai.com/api/docs/models/gpt-5-codex
-        // https://developers.openai.com/api/docs/models/gpt-5.3-codex
-        "gpt-5-codex" | "gpt-5.3-codex" => Some(400_000),
-        // Anthropic 4.6+ models carry a 1M window; Haiku stays at 200K (#3014).
-        "claude-opus-4-8" | "claude-sonnet-4-6" => Some(1_000_000),
-        "claude-haiku-4-5" => Some(200_000),
-        "trinity-mini" => Some(128_000),
-        "arcee-ai/trinity-large-thinking" | "trinity-large-thinking" | "trinity-large-preview" => {
-            Some(262_144)
-        }
+        // gpt-5-codex resolves from the unified catalog; the codex heuristic
+        // still covers gpt-5.3-codex before this fallback.
+        "gpt-5.3-codex" => Some(400_000),
+        // arcee-ai/... prefix variants not yet in the unified catalog.
+        "arcee-ai/trinity-large-thinking" | "trinity-large-preview" => Some(262_144),
         "google/gemma-4-31b-it"
         | "google/gemma-4-31b-it:free"
         | "google/gemma-4-26b-a4b-it"
@@ -298,41 +288,27 @@ fn known_context_window_for_model(model_lower: &str) -> Option<u32> {
         | "qwen/qwen3.6-max-preview"
         | "qwen/qwen3.6-27b"
         | "tencent/hy3-preview"
-        | "moonshotai/kimi-k2.7-code"
         | "moonshotai/kimi-k2.6"
         | "moonshotai/kimi-k2.6:free"
-        | "kimi-k2.7-code"
-        | "kimi-k2.6"
         | "kimi-for-coding" => Some(262_144),
-        "minimax-m2.7"
-        | "minimax/minimax-m2.7"
+        "minimax/minimax-m2.7"
         | "minimax-m2.7-highspeed"
         | "minimax-m2.5"
         | "minimax-m2.5-highspeed"
         | "minimax-m2.1"
         | "minimax-m2.1-highspeed"
         | "minimax-m2" => Some(204_800),
-        "z-ai/glm-5.1" | "z-ai/glm-5v-turbo" | "glm-5.1" | "glm-5v-turbo" => Some(202_752),
+        "z-ai/glm-5.1" | "z-ai/glm-5v-turbo" | "glm-5v-turbo" => Some(202_752),
         "z-ai/glm-5-turbo" | "glm-5-turbo" => Some(202_752),
-        "z-ai/glm-5.2" | "glm-5.2" => Some(1_000_000),
-        "minimax/minimax-m3" | "minimax-m3" | "qwen/qwen3.6-flash" | "qwen/qwen3.6-plus" => {
-            Some(1_000_000)
-        }
-        "nvidia/nemotron-3-ultra-550b-a55b" | "nvidia/nemotron-3-ultra-550b-a55b:free" => {
-            Some(1_000_000)
-        }
-        "xiaomi/mimo-v2.5-pro"
-        | "xiaomi/mimo-v2.5"
-        | "mimo-v2.5-pro"
-        | "mimo-v2.5-pro-ultraspeed"
-        | "mimo-v2.5" => Some(1_000_000),
+        "nvidia/nemotron-3-ultra-550b-a55b" | "nvidia/nemotron-3-ultra" => Some(1_000_000),
+        "xiaomi/mimo-v2.5-pro" | "xiaomi/mimo-v2.5" => Some(1_000_000),
         "mimo-v2.5-asr"
         | "mimo-v2.5-tts"
         | "mimo-v2.5-tts-voicedesign"
         | "mimo-v2.5-tts-voiceclone"
         | "mimo-v2-tts" => Some(8_000),
         _ => None,
-    }
+}
 }
 
 #[must_use]
@@ -348,26 +324,12 @@ pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
         return Some(128_000);
     }
     match lower.as_str() {
-        "gpt-5-codex" | "gpt-5.3-codex" => Some(128_000),
-        "claude-opus-4-8" => Some(128_000),
-        "claude-sonnet-4-6" | "claude-haiku-4-5" => Some(64_000),
-        "arcee-ai/trinity-large-thinking"
-        | "trinity-large-thinking"
-        | "moonshotai/kimi-k2.7-code"
-        | "moonshotai/kimi-k2.6"
-        | "kimi-k2.7-code"
-        | "kimi-k2.6"
-        | "kimi-for-coding" => Some(262_144),
-        "minimax/minimax-m3" | "minimax-m3" => Some(524_288),
-        "qwen/qwen3.6-35b-a3b" | "qwen/qwen3.6-27b" => Some(262_140),
-        "qwen/qwen3.6-flash" | "qwen/qwen3.6-max-preview" | "qwen/qwen3.6-plus" => Some(65_536),
-        "z-ai/glm-5.1" | "z-ai/glm-5.2" | "z-ai/glm-5-turbo" | "glm-5.1" | "glm-5.2"
-        | "glm-5-turbo" => Some(131_072),
-        "xiaomi/mimo-v2.5-pro"
-        | "xiaomi/mimo-v2.5"
-        | "mimo-v2.5-pro"
-        | "mimo-v2.5-pro-ultraspeed"
-        | "mimo-v2.5" => Some(131_072),
+        "gpt-5.3-codex" => Some(128_000),
+        "arcee-ai/trinity-large-thinking" | "moonshotai/kimi-k2.6" | "kimi-for-coding" => Some(262_144),
+        "qwen/qwen3.6-27b" => Some(262_140),
+        "qwen/qwen3.6-max-preview" => Some(65_536),
+        "z-ai/glm-5.1" | "z-ai/glm-5-turbo" | "glm-5-turbo" => Some(131_072),
+        "xiaomi/mimo-v2.5-pro" | "xiaomi/mimo-v2.5" => Some(131_072),
         "mimo-v2.5-asr" => Some(2_048),
         "mimo-v2.5-tts"
         | "mimo-v2.5-tts-voicedesign"
@@ -379,7 +341,7 @@ pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
         "google/gemma-4-31b-it" => Some(16_384),
         "google/gemma-4-31b-it:free" | "google/gemma-4-26b-a4b-it:free" => Some(32_768),
         _ => None,
-    }
+}
 }
 
 #[must_use]
@@ -397,28 +359,17 @@ pub fn model_supports_reasoning(model: &str) -> bool {
     if lower.starts_with("kimi-") {
         return true;
     }
-    matches!(
-        lower.as_str(),
-        "claude-opus-4-8"
-            | "claude-sonnet-4-6"
-            | "gpt-5-codex"
-            | "gpt-5.3-codex"
+    matches!(lower.as_str(),
+        "gpt-5.3-codex"
             | "arcee-ai/trinity-large-thinking"
-            | "trinity-large-thinking"
             | "google/gemma-4-31b-it"
             | "google/gemma-4-31b-it:free"
             | "google/gemma-4-26b-a4b-it"
             | "google/gemma-4-26b-a4b-it:free"
-            | "moonshotai/kimi-k2.7-code"
             | "moonshotai/kimi-k2.6"
             | "moonshotai/kimi-k2.6:free"
-            | "kimi-k2.7-code"
-            | "kimi-k2.6"
             | "kimi-for-coding"
-            | "minimax/minimax-m3"
             | "minimax/minimax-m2.7"
-            | "minimax-m3"
-            | "minimax-m2.7"
             | "minimax-m2.7-highspeed"
             | "minimax-m2.5"
             | "minimax-m2.5-highspeed"
@@ -428,22 +379,11 @@ pub fn model_supports_reasoning(model: &str) -> bool {
             | "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
             | "nvidia/nemotron-3-ultra-550b-a55b"
             | "nvidia/nemotron-3-ultra-550b-a55b:free"
-            | "qwen/qwen3.6-flash"
-            | "qwen/qwen3.6-35b-a3b"
             | "qwen/qwen3.6-max-preview"
             | "qwen/qwen3.6-27b"
-            | "qwen/qwen3.6-plus"
             | "tencent/hy3-preview"
-            | "xiaomi/mimo-v2.5-pro"
-            | "xiaomi/mimo-v2.5"
-            | "mimo-v2.5-pro"
-            | "mimo-v2.5-pro-ultraspeed"
-            | "mimo-v2.5"
             | "z-ai/glm-5.1"
-            | "z-ai/glm-5.2"
             | "z-ai/glm-5-turbo"
-            | "glm-5.1"
-            | "glm-5.2"
             | "glm-5-turbo"
     ) || is_openai_gpt_55_api_model(&lower)
         || is_openai_codex_model(&lower)

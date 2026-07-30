@@ -155,22 +155,14 @@ fn known_pricing_for_model(model_lower: &str) -> Option<ModelPricing> {
         ));
     }
     match model_lower {
-        "moonshotai/kimi-k2.6" | "kimi-k2.6" => Some(usd_only_pricing(0.34, 0.68, 3.41)),
-        "z-ai/glm-5.1" | "glm-5.1" => Some(usd_only_pricing(0.182, 0.98, 3.08)),
-        "minimax/minimax-m3" | "minimax-m3" => Some(usd_only_pricing(0.06, 0.30, 1.20)),
-        "arcee-ai/trinity-large-thinking" | "trinity-large-thinking" => {
-            Some(usd_only_pricing(0.06, 0.22, 0.85))
-        }
-        "openai/gpt-5.5" | "gpt-5.5" => Some(usd_only_pricing(0.50, 5.00, 30.00)),
-        "openai/gpt-5.5-pro" | "gpt-5.5-pro" => Some(usd_only_pricing(30.00, 30.00, 180.00)),
-
-        "qwen/qwen3.6-flash" => Some(usd_only_pricing(0.1875, 0.1875, 1.125)),
-        "qwen/qwen3.6-35b-a3b" => Some(usd_only_pricing(0.05, 0.15, 1.00)),
+        "moonshotai/kimi-k2.6" => Some(usd_only_pricing(0.34, 0.68, 3.41)),
+        "z-ai/glm-5.1" => Some(usd_only_pricing(0.182, 0.98, 3.08)),
+        "arcee-ai/trinity-large-thinking" => Some(usd_only_pricing(0.06, 0.22, 0.85)),
+        "openai/gpt-5.5" => Some(usd_only_pricing(0.50, 5.00, 30.00)),
+        "openai/gpt-5.5-pro" => Some(usd_only_pricing(30.00, 30.00, 180.00)),
         "qwen/qwen3.6-max-preview" => Some(usd_only_pricing(1.04, 1.04, 6.24)),
         "qwen/qwen3.6-27b" => Some(usd_only_pricing(0.2885, 0.2885, 3.17)),
-        "qwen/qwen3.6-plus" => Some(usd_only_pricing(0.325, 0.325, 1.95)),
         "qwen/qwen3.7-max" => Some(usd_only_pricing(0.25, 1.25, 3.75)),
-
         "google/gemma-4-31b-it" => Some(usd_only_pricing(0.09, 0.12, 0.35)),
         "google/gemma-4-26b-a4b-it" => Some(usd_only_pricing(0.06, 0.06, 0.33)),
         "tencent/hy3-preview" => Some(usd_only_pricing(0.021, 0.063, 0.21)),
@@ -178,7 +170,7 @@ fn known_pricing_for_model(model_lower: &str) -> Option<ModelPricing> {
             Some(usd_only_pricing(0.15, 0.50, 2.50))
         }
         _ => None,
-    }
+}
 }
 
 fn usd_only_pricing(
