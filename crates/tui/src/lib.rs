@@ -21,11 +21,11 @@ use crate::dependencies::ExternalTool;
 
 mod acp_server;
 mod artifacts;
-mod cli_commands;
 mod audit;
 mod auto_reasoning;
 mod automation_manager;
 mod child_env;
+mod cli_commands;
 mod client;
 mod command_safety;
 mod commands;
@@ -1193,7 +1193,10 @@ pub async fn run() -> Result<()> {
             Commands::Init => init_project(),
             Commands::Login { provider, api_key } => {
                 let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
-                cli_commands::run_login_command(&mut store, cli_commands::LoginArgs { provider, api_key })
+                cli_commands::run_login_command(
+                    &mut store,
+                    cli_commands::LoginArgs { provider, api_key },
+                )
             }
             Commands::Logout => {
                 let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
@@ -1227,7 +1230,11 @@ pub async fn run() -> Result<()> {
                     yolo: None,
                     verbosity: None,
                 };
-                cli_commands::run_model_command(&mut store, args.command, runtime_overrides.provider)
+                cli_commands::run_model_command(
+                    &mut store,
+                    args.command,
+                    runtime_overrides.provider,
+                )
             }
             Commands::Thread(args) => cli_commands::run_thread_command(args.command),
             Commands::AppServer(args) => {
@@ -1246,7 +1253,8 @@ pub async fn run() -> Result<()> {
                     yolo: None,
                     verbosity: None,
                 };
-                let resolved_runtime = cli_commands::resolve_runtime_for_dispatch(&mut store, &runtime_overrides);
+                let resolved_runtime =
+                    cli_commands::resolve_runtime_for_dispatch(&mut store, &runtime_overrides);
                 cli_commands::run_app_server_command(
                     cli.config.clone(),
                     cli.profile.clone(),

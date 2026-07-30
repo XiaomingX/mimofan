@@ -309,10 +309,7 @@ impl StateStore {
             .with_context(|| format!("failed to open state db {}", self.db_path.display()))?;
         conn.busy_timeout(std::time::Duration::from_secs(5))
             .with_context(|| {
-                format!(
-                    "failed to set busy timeout for {}",
-                    self.db_path.display()
-                )
+                format!("failed to set busy timeout for {}", self.db_path.display())
             })?;
         let _ = conn.pragma_update(None, "journal_mode", "WAL");
         conn.pragma_update(None, "foreign_keys", "ON")

@@ -166,7 +166,9 @@ pub(crate) enum ModelCommand {
         #[arg(long, value_enum)]
         provider: Option<ProviderArg>,
     },
-    Set { model: String },
+    Set {
+        model: String,
+    },
 }
 
 // ── Thread command types ────────────────────────────────────────────────────
@@ -878,7 +880,10 @@ pub(crate) fn run_logout_command(store: &mut ConfigStore) -> Result<()> {
     run_logout_command_with_secrets(store, &Secrets::auto_detect())
 }
 
-pub(crate) fn run_logout_command_with_secrets(store: &mut ConfigStore, secrets: &Secrets) -> Result<()> {
+pub(crate) fn run_logout_command_with_secrets(
+    store: &mut ConfigStore,
+    secrets: &Secrets,
+) -> Result<()> {
     let active_provider = store.config.provider;
     store.config.api_key = None;
     for provider in ProviderKind::ALL {
@@ -1009,7 +1014,10 @@ pub(crate) fn provider_config_set(store: &ConfigStore, provider: ProviderKind) -
     provider_config_api_key(store, provider).is_some()
 }
 
-pub(crate) fn provider_keyring_api_key(secrets: &Secrets, provider: ProviderKind) -> Option<String> {
+pub(crate) fn provider_keyring_api_key(
+    secrets: &Secrets,
+    provider: ProviderKind,
+) -> Option<String> {
     secrets
         .get(provider_slot(provider))
         .ok()
@@ -1075,7 +1083,11 @@ pub(crate) fn read_api_key_from_stdin() -> Result<String> {
     Ok(key)
 }
 
-pub(crate) fn run_auth_migrate(store: &mut ConfigStore, secrets: &Secrets, dry_run: bool) -> Result<()> {
+pub(crate) fn run_auth_migrate(
+    store: &mut ConfigStore,
+    secrets: &Secrets,
+    dry_run: bool,
+) -> Result<()> {
     let mut migrated: Vec<(ProviderKind, &'static str)> = Vec::new();
     let mut warnings: Vec<String> = Vec::new();
 
