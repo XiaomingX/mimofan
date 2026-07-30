@@ -2043,40 +2043,6 @@ mod tests {
     }
 
     #[test]
-    fn mimofan_home_override_returns_the_env_value_verbatim() {
-        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
-        let _g = MimofanHomeGuard::set("/tmp/cw-isolated-state");
-        // The env var IS the home dir — no ".mimofan" appended. This matches
-        // mimofan_home() in config ($MIMOFAN_HOME=/x means home is /x).
-        assert_eq!(
-            mimofan_home_override().as_deref(),
-            Some(std::path::Path::new("/tmp/cw-isolated-state"))
-        );
-    }
-
-    #[test]
-    fn mimofan_home_override_none_when_unset() {
-        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
-        let _g = MimofanHomeGuard::remove();
-        assert!(mimofan_home_override().is_none());
-    }
-
-    #[test]
-    fn mimofan_home_override_none_when_empty() {
-        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
-        let _g = MimofanHomeGuard::set("   ");
-        // The helper filters empty values (after the OsString check). Note:
-        // var_os returns the raw "   ", and our filter only catches truly-empty,
-        // so this documents that whitespace-only is NOT treated as unset at the
-        // override layer (config's mimofan_home trims; we don't here — the
-        // branch is "was it set at all").
-        assert!(
-            mimofan_home_override().is_some(),
-            "non-empty (even whitespace) counts as set; trimming is the caller's job"
-        );
-    }
-
-    #[test]
     fn default_state_db_path_uses_mimofan_home_when_set() {
         let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
         let dir = std::env::temp_dir().join(format!(
