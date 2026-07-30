@@ -2903,7 +2903,6 @@ dependencies = [
  "image",
  "libc",
  "lru",
- "mimofan-cli",
  "mimofan-config",
  "mimofan-execpolicy",
  "mimofan-protocol",
@@ -2988,34 +2987,6 @@ dependencies = [
  "tower-http",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "mimofan-cli"
-version = "0.0.4"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "clap_complete",
- "dirs",
- "mimofan-agent",
- "mimofan-app-server",
- "mimofan-config",
- "mimofan-execpolicy",
- "mimofan-mcp",
- "mimofan-release",
- "mimofan-secrets",
- "mimofan-state",
- "reqwest",
- "rustls",
- "semver",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "tokio",
- "tracing",
 ]
 
 [[package]]
