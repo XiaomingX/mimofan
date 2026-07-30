@@ -272,9 +272,15 @@ main() {
     # 初始化结果文件
     echo "[" > "$RESULTS_FILE"
 
-    # 设置测试环境
-    mkdir -p "$TEST_HOME"
+    # 设置动态隔离的测试环境（对标 Claude Code / Antigravity 最佳实践）
+    TEST_HOME="$(mktemp -d 2>/dev/null || mktemp -d -t 'mimofan-benchmark-XXXXXX')"
     export MIMOFAN_HOME="$TEST_HOME"
+
+    # 注册 EXIT 自动清理钩子
+    cleanup() {
+        rm -rf "$TEST_HOME"
+    }
+    trap cleanup EXIT
 
     # 如果提供了 API 配置，创建配置文件
     if [ -n "$TEST_API_KEY" ]; then
@@ -339,9 +345,6 @@ EOF
     echo -e "${YELLOW}  Benchmark Complete${NC}"
     echo -e "${YELLOW}===================================${NC}"
     cat "$SUMMARY_FILE"
-
-    # 清理测试环境
-    rm -rf "$TEST_HOME"
 
     # 返回失败测试数作为退出码
     exit $FAILED_TESTS
