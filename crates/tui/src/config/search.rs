@@ -98,7 +98,11 @@ impl SearchProvider {
         match self {
             Self::Metaso => &["METASO_API_KEY"],
             Self::Baidu => &["BAIDU_SEARCH_API_KEY"],
-            Self::Volcengine => &["VOLCENGINE_API_KEY", "VOLCENGINE_ARK_API_KEY", "ARK_API_KEY"],
+            Self::Volcengine => &[
+                "VOLCENGINE_API_KEY",
+                "VOLCENGINE_ARK_API_KEY",
+                "ARK_API_KEY",
+            ],
             Self::Sofya => &["SOFYA_API_KEY"],
             _ => &[],
         }

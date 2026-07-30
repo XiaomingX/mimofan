@@ -264,8 +264,12 @@ fn insert_bundled_entry(
     cost: Option<&ModelsDevCost>,
 ) {
     let key = id.to_lowercase();
-    let context_window = limit.and_then(|l| l.context).and_then(|c| u32::try_from(c).ok());
-    let max_output = limit.and_then(|l| l.output).and_then(|o| u32::try_from(o).ok());
+    let context_window = limit
+        .and_then(|l| l.context)
+        .and_then(|c| u32::try_from(c).ok());
+    let max_output = limit
+        .and_then(|l| l.output)
+        .and_then(|o| u32::try_from(o).ok());
     let mut mods: Vec<String> = Vec::new();
     if let Some(m) = modalities {
         mods.extend(m.input.iter().cloned());

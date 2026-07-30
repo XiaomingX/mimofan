@@ -170,7 +170,7 @@ fn known_pricing_for_model(model_lower: &str) -> Option<ModelPricing> {
             Some(usd_only_pricing(0.15, 0.50, 2.50))
         }
         _ => None,
-}
+    }
 }
 
 fn usd_only_pricing(

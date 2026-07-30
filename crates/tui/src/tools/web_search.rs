@@ -12,7 +12,8 @@
 //!   api_key = "tvly-..."
 
 use super::spec::{
-    ApprovalRequirement, DEFAULT_NETWORK_TIMEOUT_MS, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, optional_u64,
+    ApprovalRequirement, DEFAULT_NETWORK_TIMEOUT_MS, ToolCapability, ToolContext, ToolError,
+    ToolResult, ToolSpec, optional_u64,
 };
 use crate::config::SearchProvider;
 use crate::network_policy::{Decision, NetworkPolicyDecider};
@@ -580,10 +581,10 @@ impl WebSearchTool {
         timeout_ms: u64,
         context: &ToolContext,
     ) -> Result<ToolResult, ToolError> {
-        let env_key =
-            SearchProvider::Sofya.api_key_env_vars()
-                .iter()
-                .find_map(|v| std::env::var(v).ok());
+        let env_key = SearchProvider::Sofya
+            .api_key_env_vars()
+            .iter()
+            .find_map(|v| std::env::var(v).ok());
         let api_key = context
             .search_api_key
             .as_deref()
@@ -1004,10 +1005,16 @@ impl WebSearchTool {
                                 "Volcengine API key rejected — check `[search] api_key` in config.toml or {}",
                                 SearchProvider::Volcengine.api_key_env_vars().join(" / ")
                             ),
-                            429 => "Volcengine API rate-limited — wait and retry, or check your quota".to_string(),
+                            429 => {
+                                "Volcengine API rate-limited — wait and retry, or check your quota"
+                                    .to_string()
+                            }
                             _ => {
                                 let truncated = truncate_error_body(&body);
-                                format!("Volcengine search failed: HTTP {} — {truncated}", status.as_u16())
+                                format!(
+                                    "Volcengine search failed: HTTP {} — {truncated}",
+                                    status.as_u16()
+                                )
                             }
                         };
                         return Err(ToolError::execution_failed(msg));

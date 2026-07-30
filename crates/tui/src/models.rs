@@ -308,7 +308,7 @@ fn known_context_window_for_model(model_lower: &str) -> Option<u32> {
         | "mimo-v2.5-tts-voiceclone"
         | "mimo-v2-tts" => Some(8_000),
         _ => None,
-}
+    }
 }
 
 #[must_use]
@@ -325,7 +325,9 @@ pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
     }
     match lower.as_str() {
         "gpt-5.3-codex" => Some(128_000),
-        "arcee-ai/trinity-large-thinking" | "moonshotai/kimi-k2.6" | "kimi-for-coding" => Some(262_144),
+        "arcee-ai/trinity-large-thinking" | "moonshotai/kimi-k2.6" | "kimi-for-coding" => {
+            Some(262_144)
+        }
         "qwen/qwen3.6-27b" => Some(262_140),
         "qwen/qwen3.6-max-preview" => Some(65_536),
         "z-ai/glm-5.1" | "z-ai/glm-5-turbo" | "glm-5-turbo" => Some(131_072),
@@ -341,7 +343,7 @@ pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
         "google/gemma-4-31b-it" => Some(16_384),
         "google/gemma-4-31b-it:free" | "google/gemma-4-26b-a4b-it:free" => Some(32_768),
         _ => None,
-}
+    }
 }
 
 #[must_use]
@@ -359,7 +361,8 @@ pub fn model_supports_reasoning(model: &str) -> bool {
     if lower.starts_with("kimi-") {
         return true;
     }
-    matches!(lower.as_str(),
+    matches!(
+        lower.as_str(),
         "gpt-5.3-codex"
             | "arcee-ai/trinity-large-thinking"
             | "google/gemma-4-31b-it"
