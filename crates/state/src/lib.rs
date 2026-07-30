@@ -1589,29 +1589,10 @@ fn default_state_db_path() -> PathBuf {
     // (docs/CONFIGURATION.md): when set, the state DB lives under it and we do
     // NOT fall back to the legacy ~/.mimofan path — silent fallback would
     // defeat the isolation the override promises (CI, containers, multi-project,
-    // test harnesses). Legacy ~/.mimofan migration only applies to the default
-    // home location.
-    if let Some(overridden) = mimofan_home_override() {
-        return overridden.join("state.db");
-    }
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    // Prefer the mimofan directory under the user's home.
-    home.join(".mimofan").join("state.db")
-}
-
-/// Resolve `$MIMOFAN_HOME` as a hard override of the data directory root.
-///
-/// Returns the path verbatim (the env var IS the home dir, matching
-/// `mimofan_home()` in config — `$MIMOFAN_HOME=/data/cw` means the home is
-/// `/data/cw`, not `/data/cw/.mimofan`). Returns `None` when unset/empty so
-/// callers can branch on "explicit override" vs "default home + legacy
-/// fallback." Mirrors config's helper without taking a dependency on it (state
-/// is a low-level leaf crate; config cannot be a dependency here without
-/// inverting the layering).
-fn mimofan_home_override() -> Option<PathBuf> {
-    std::env::var_os("MIMOFAN_HOME")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
+    // test harnesses). `mimofan_config::resolve_state_dir` honors this override
+    // as the single source of truth.
+    mimofan_config::resolve_state_dir("state.db")
+        .unwrap_or_else(|_| PathBuf::from(".").join(".mimofan").join("state.db"))
 }
 
 fn bool_to_i64(value: bool) -> i64 {

@@ -137,8 +137,14 @@ const SEED_MODEL_IDS: &[(&str, ModelProvider)] = &[
     // --- DeepSeek (first-class; config DEFAULT_DEEPSEEK_MODEL / NIM / OpenAI
     // / Atlascloud / Novita / Fireworks / Siliconflow / SGLang / vLLM /
     // Huggingface / Together / Volcengine / WanjieArk / Ollama defaults) ---
-    ("deepseek-v4-pro", ModelProvider::DeepSeek),
-    ("deepseek-v4-flash", ModelProvider::DeepSeek),
+    (
+        mimofan_config::DEFAULT_DEEPSEEK_MODEL,
+        ModelProvider::DeepSeek,
+    ),
+    (
+        mimofan_config::DEFAULT_DEEPSEEK_FLASH_MODEL,
+        ModelProvider::DeepSeek,
+    ),
     ("deepseek-ai/deepseek-v4-pro", ModelProvider::DeepSeek),
     ("deepseek-ai/deepseek-v4-flash", ModelProvider::DeepSeek),
     ("deepseek/deepseek-v4-pro", ModelProvider::DeepSeek),

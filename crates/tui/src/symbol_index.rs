@@ -3,10 +3,10 @@
 //! Provides a lightweight regex-based AST symbol extractor and cache
 //! for fast identifier lookups (functions, structs, classes, enums).
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CodeSymbol {

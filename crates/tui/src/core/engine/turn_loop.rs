@@ -1094,6 +1094,22 @@ impl Engine {
                 }
             }
 
+            // Deduplicate exact-match tool calls within a single LLM response.
+            // When the model emits identical (name, input) pairs, keep only the
+            // first occurrence to avoid redundant execution.
+            {
+                let mut seen = std::collections::HashSet::new();
+                tool_uses.retain(|t| {
+                    // Serialize input to string for hashing since serde_json::Value
+                    // does not implement Hash/Eq.
+                    let key = match serde_json::to_string(&t.input) {
+                        Ok(s) => format!("{}:{}", t.name, s),
+                        Err(_) => format!("{}:{:?}", t.name, t.input),
+                    };
+                    seen.insert(key)
+                });
+            }
+
             if !final_text.is_empty() {
                 content_blocks.push(ContentBlock::Text {
                     text: final_text,
@@ -2355,6 +2371,19 @@ impl Engine {
             if step_error_count > 0 {
                 consecutive_tool_error_steps = consecutive_tool_error_steps.saturating_add(1);
             } else {
+                consecutive_tool_error_steps = 0;
+            }
+
+            // After 3+ consecutive tool errors, inject a system hint to help
+            // the model break out of a potential error loop.
+            if consecutive_tool_error_steps >= 3 {
+                let hint = format!(
+                    "[System hint] The last {consecutive_tool_error_steps} tool calls all failed. \
+                     Consider taking a different approach, checking your assumptions, \
+                     or asking the user for guidance rather than retrying the same strategy."
+                );
+                self.add_session_message(self.user_text_message_with_turn_metadata(hint))
+                    .await;
                 consecutive_tool_error_steps = 0;
             }
 

@@ -581,6 +581,7 @@ pub(crate) fn render_footer_from(
             S::GitBranch => footer_git_branch_spans(app),
             S::LastToolElapsed | S::RateLimit => Vec::new(),
             S::Tokens => footer_session_tokens_spans(app),
+            S::Throughput => footer_throughput_spans(app),
             _ => continue,
         };
         if chip.is_empty() {
@@ -907,4 +908,57 @@ pub(crate) fn format_token_count_compact(tokens: u64) -> String {
     } else {
         tokens.to_string()
     }
+}
+
+/// Build the throughput / TTFT footer chip. Shows the most recently
+/// completed turn's output tokens-per-second and (when available)
+/// time-to-first-token. During a live streaming turn the estimate is
+/// based on `streaming_output_token_estimate` and elapsed wall-clock.
+pub(crate) fn footer_throughput_spans(app: &App) -> Vec<Span<'static>> {
+    use crate::resource_telemetry::TokenThroughput;
+
+    // During a live turn, compute a live TPS estimate from the streaming
+    // token count and wall-clock elapsed since turn start.
+    let live_tps = if app.turn_started_at.is_some() && app.streaming_output_token_estimate > 0 {
+        let elapsed = app.turn_started_at.map(|t| t.elapsed()).unwrap_or_default();
+        if elapsed.as_secs_f64() > 0.5 {
+            // Only show after half a second to avoid noise.
+            TokenThroughput::new(app.streaming_output_token_estimate, elapsed)
+                .map(|tp| tp.tokens_per_second())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    // Prefer live TPS during streaming; fall back to the completed-turn value.
+    let tps = live_tps.or_else(|| {
+        app.session
+            .last_output_throughput
+            .map(|tp| tp.tokens_per_second())
+    });
+
+    // TTFT is only meaningful after the first token has arrived.
+    let ttft = app.session.last_ttft;
+
+    if tps.is_none() && ttft.is_none() {
+        return Vec::new();
+    }
+
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(rate) = tps {
+        let formatted = if rate < 10.0 {
+            format!("{rate:.1}")
+        } else {
+            format!("{rate:.0}")
+        };
+        parts.push(format!("{formatted} tok/s"));
+    }
+    if let Some(d) = ttft {
+        let ms = d.as_millis();
+        parts.push(format!("TTFT {ms}ms"));
+    }
+    let text = parts.join(" ");
+    vec![Span::styled(text, Style::default().fg(palette::TEXT_MUTED))]
 }

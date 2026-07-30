@@ -273,6 +273,7 @@ pub enum StatusItemValue {
     RateLimit,
     Tokens,
     Balance,
+    Throughput,
 }
 
 pub fn parse_mode(arg: Option<&str>) -> Result<ConfigUiMode, String> {
@@ -1000,6 +1001,7 @@ impl From<StatusItem> for StatusItemValue {
             StatusItem::RateLimit => Self::RateLimit,
             StatusItem::Tokens => Self::Tokens,
             StatusItem::Balance => Self::Balance,
+            StatusItem::Throughput => Self::Throughput,
         }
     }
 }
@@ -1021,6 +1023,7 @@ impl From<StatusItemValue> for StatusItem {
             StatusItemValue::RateLimit => Self::RateLimit,
             StatusItemValue::Tokens => Self::Tokens,
             StatusItemValue::Balance => Self::Balance,
+            StatusItemValue::Throughput => Self::Throughput,
         }
     }
 }

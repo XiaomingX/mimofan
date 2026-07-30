@@ -18,10 +18,7 @@ pub(crate) fn default_config_path() -> Option<PathBuf> {
 }
 
 pub(crate) fn mimofan_home_dir() -> Option<PathBuf> {
-    std::env::var_os("MIMOFAN_HOME").and_then(|path| {
-        let path = PathBuf::from(path);
-        (!path.as_os_str().is_empty()).then_some(path)
-    })
+    mimofan_config::mimofan_home().ok()
 }
 
 pub(crate) fn effective_home_dir() -> Option<PathBuf> {
@@ -43,21 +40,7 @@ pub(crate) fn effective_home_dir() -> Option<PathBuf> {
 }
 
 pub(crate) fn home_config_path() -> Option<PathBuf> {
-    if let Some(home) = mimofan_home_dir() {
-        return Some(home.join("config.toml"));
-    }
-
-    effective_home_dir().map(|home| {
-        let primary = home.join(".mimofan").join("config.toml");
-        if primary.exists() {
-            return primary;
-        }
-        let legacy = home.join(".mimofan").join("config.toml");
-        if legacy.exists() {
-            return legacy;
-        }
-        primary
-    })
+    mimofan_config::resolve_config_path(None).ok()
 }
 
 pub(crate) fn workspace_config_key(workspace: &Path) -> String {
@@ -71,12 +54,6 @@ pub(crate) fn canonicalize_or_keep(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn env_config_path() -> Option<PathBuf> {
-    if let Ok(path) = std::env::var("MIMOFAN_CONFIG_PATH") {
-        let trimmed = path.trim();
-        if !trimmed.is_empty() {
-            return Some(expand_path(trimmed));
-        }
-    }
     if let Ok(path) = std::env::var("MIMOFAN_CONFIG_PATH") {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
@@ -100,13 +77,7 @@ pub(crate) fn default_managed_config_path() -> Option<PathBuf> {
     }
     #[cfg(not(unix))]
     {
-        effective_home_dir().map(|home| {
-            let primary = home.join(".mimofan").join("managed_config.toml");
-            if primary.exists() {
-                return primary;
-            }
-            home.join(".mimofan").join("managed_config.toml")
-        })
+        mimofan_config::resolve_state_dir("managed_config.toml").ok()
     }
 }
 
@@ -117,13 +88,7 @@ pub(crate) fn default_requirements_path() -> Option<PathBuf> {
     }
     #[cfg(not(unix))]
     {
-        effective_home_dir().map(|home| {
-            let primary = home.join(".mimofan").join("requirements.toml");
-            if primary.exists() {
-                return primary;
-            }
-            home.join(".mimofan").join("requirements.toml")
-        })
+        mimofan_config::resolve_state_dir("requirements.toml").ok()
     }
 }
 
@@ -144,47 +109,24 @@ pub(crate) fn expand_path(path: &str) -> PathBuf {
 }
 
 pub(crate) fn default_skills_dir() -> Option<PathBuf> {
-    effective_home_dir().map(|home| home.join(".mimofan").join("skills"))
+    mimofan_config::resolve_state_dir("skills").ok()
 }
 
 pub(crate) fn default_mcp_config_path() -> Option<PathBuf> {
-    effective_home_dir().map(|home| {
-        let primary = home.join(".mimofan").join("mcp.json");
-        if primary.exists() {
-            return primary;
-        }
-        let legacy = home.join(".mimofan").join("mcp.json");
-        if legacy.exists() {
-            return legacy;
-        }
-        primary
-    })
+    #[cfg(unix)]
+    {
+        Some(PathBuf::from("/etc/mimofan/mcp.json"))
+    }
+    #[cfg(not(unix))]
+    {
+        mimofan_config::resolve_state_dir("mcp.json").ok()
+    }
 }
 
 pub(crate) fn default_notes_path() -> Option<PathBuf> {
-    effective_home_dir().map(|home| {
-        let primary = home.join(".mimofan").join("notes.txt");
-        if primary.exists() {
-            return primary;
-        }
-        let legacy = home.join(".mimofan").join("notes.txt");
-        if legacy.exists() {
-            return legacy;
-        }
-        primary
-    })
+    mimofan_config::resolve_state_dir("notes.txt").ok()
 }
 
 pub(crate) fn default_memory_path() -> Option<PathBuf> {
-    effective_home_dir().map(|home| {
-        let primary = home.join(".mimofan").join("memory.md");
-        if primary.exists() {
-            return primary;
-        }
-        let legacy = home.join(".mimofan").join("memory.md");
-        if legacy.exists() {
-            return legacy;
-        }
-        primary
-    })
+    mimofan_config::resolve_state_dir("memory.md").ok()
 }

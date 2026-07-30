@@ -823,15 +823,9 @@ fn print_human(rollup: &Rollup) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 fn deepseek_home() -> PathBuf {
-    // Respect MIMOFAN_HOME env override; fall back to ~/.mimofan.
-    if let Ok(v) = std::env::var("MIMOFAN_HOME")
-        && !v.is_empty()
-    {
-        return PathBuf::from(v);
-    }
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".mimofan")
+    // Single source of truth for the mimofan home directory (honors
+    // $MIMOFAN_HOME, $MIMO_HOME, and falls back to ~/.mimofan).
+    mimofan_config::mimofan_home().unwrap_or_else(|_| PathBuf::from(".").join(".mimofan"))
 }
 
 /// Parse a timestamp from a JSON value field (tries RFC3339).

@@ -29,8 +29,8 @@ pub(crate) struct RouterCandidates {
 impl RouterCandidates {
     pub(crate) fn deepseek() -> Self {
         Self {
-            big: "deepseek-v4-pro".to_string(),
-            cheap: Some("deepseek-v4-flash".to_string()),
+            big: mimofan_config::DEFAULT_DEEPSEEK_MODEL.to_string(),
+            cheap: Some(mimofan_config::DEFAULT_DEEPSEEK_FLASH_MODEL.to_string()),
         }
     }
 

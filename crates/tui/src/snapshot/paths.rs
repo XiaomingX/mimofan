@@ -22,36 +22,27 @@ use std::path::{Path, PathBuf};
 /// snapshots cross-worktree if they want, but the `worktree_hash` keeps
 /// commits isolated by default.
 pub fn snapshot_dir_for(workspace: &Path) -> PathBuf {
-    snapshot_dir_with_home(workspace, dirs::home_dir())
+    snapshot_dir_with_home(workspace, None)
 }
 
 /// Same as [`snapshot_dir_for`] but with an injectable home directory.
 /// Used by tests so they never touch the user's real state directory.
 pub fn snapshot_dir_with_home(workspace: &Path, home: Option<PathBuf>) -> PathBuf {
-    let home = home.unwrap_or_else(|| PathBuf::from("."));
+    let base = match home {
+        Some(h) => h.join(mimofan_config::MIMOFAN_APP_DIR).join("snapshots"),
+        None => mimofan_config::resolve_state_dir("snapshots").unwrap_or_else(|_| {
+            PathBuf::from(".")
+                .join(mimofan_config::MIMOFAN_APP_DIR)
+                .join("snapshots")
+        }),
+    };
     let canonical = workspace
         .canonicalize()
         .unwrap_or_else(|_| workspace.to_path_buf());
     let project_root = strip_worktree_suffix(&canonical);
     let project_hash = stable_hex(&project_root);
     let worktree_hash = stable_hex(&canonical);
-    snapshot_base_with_home(Some(home))
-        .join(project_hash)
-        .join(worktree_hash)
-}
-
-fn snapshot_base_with_home(home: Option<PathBuf>) -> PathBuf {
-    let home = home.unwrap_or_else(|| PathBuf::from("."));
-    // Prefer .mimofan, fall back to legacy paths
-    let primary = home.join(".mimofan").join("snapshots");
-    if primary.exists() {
-        return primary;
-    }
-    let previous = home.join(".mimofan").join("snapshots");
-    if previous.exists() {
-        return previous;
-    }
-    home.join(".mimofan").join("snapshots")
+    base.join(project_hash).join(worktree_hash)
 }
 
 /// Resolve the `.git` directory inside the snapshot dir.

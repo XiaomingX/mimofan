@@ -1766,6 +1766,10 @@ async fn run_event_loop(
                         if sanitized.is_empty() {
                             continue;
                         }
+                        // Record TTFT on the first non-empty content delta.
+                        if app.turn_first_token_at.is_none() {
+                            app.turn_first_token_at = Some(Instant::now());
+                        }
                         // First delta of a fresh stream has no streaming
                         // cell yet; flush active so the tool group settles
                         // before the assistant prose appears below it.
@@ -2068,6 +2072,8 @@ async fn run_event_loop(
                         app.turn_started_at = Some(now);
                         app.turn_last_activity_at = Some(now);
                         app.session.last_output_throughput = None;
+                        app.session.last_ttft = None;
+                        app.turn_first_token_at = None;
                         app.streaming_output_token_estimate = 0;
                         app.provider_wait_incident_logged = false;
                         // Discoverability hint for users who don't know how
@@ -2141,6 +2147,17 @@ async fn run_event_loop(
                         // notifications can use the real wall-clock duration.
                         let turn_elapsed =
                             app.turn_started_at.map(|t| t.elapsed()).unwrap_or_default();
+                        // Compute TTFT from the instant the turn started to the
+                        // first content delta. Only store when we have both anchors
+                        // and the result is positive.
+                        if let Some(first_token_at) = app.turn_first_token_at.take() {
+                            if let Some(started) = app.turn_started_at {
+                                let ttft = first_token_at.duration_since(started);
+                                if ttft.as_secs_f64() > 0.0 && ttft.as_secs_f64().is_finite() {
+                                    app.session.last_ttft = Some(ttft);
+                                }
+                            }
+                        }
                         app.turn_started_at = None;
                         app.turn_last_activity_at = None;
                         app.streaming_output_token_estimate = 0;

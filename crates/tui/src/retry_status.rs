@@ -13,6 +13,7 @@
 //! retry surfaces, swap this for an `Arc<RwLock<...>>` carried on the
 //! `EngineHandle`; the public API stays the same.
 
+use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -78,9 +79,9 @@ fn cell() -> &'static Mutex<RetryState> {
     STATE.get_or_init(|| Mutex::new(RetryState::Idle))
 }
 
-fn rate_limit_cell() -> &'static Mutex<Option<Instant>> {
-    static STATE: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
-    STATE.get_or_init(|| Mutex::new(None))
+fn rate_limit_cell() -> &'static Mutex<HashMap<String, Option<Instant>>> {
+    static STATE: OnceLock<Mutex<HashMap<String, Option<Instant>>>> = OnceLock::new();
+    STATE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 /// Public read snapshot for renderers.
@@ -92,24 +93,26 @@ pub fn snapshot() -> RetryState {
 /// Extend the provider-wide rate-limit pause window. This is separate from
 /// the footer banner so one successful concurrent request cannot clear another
 /// request's active `Retry-After` window.
-pub fn note_rate_limit(delay: Duration) {
+pub fn note_rate_limit(provider: &str, delay: Duration) {
     let deadline = Instant::now() + delay;
-    if let Ok(mut current) = rate_limit_cell().lock()
-        && current.is_none_or(|existing| existing < deadline)
-    {
-        *current = Some(deadline);
+    if let Ok(mut map) = rate_limit_cell().lock() {
+        let entry = map.entry(provider.to_string()).or_insert(None);
+        if entry.is_none_or(|existing| existing < deadline) {
+            *entry = Some(deadline);
+        }
     }
 }
 
 /// Remaining provider-wide rate-limit pause, if any.
 #[must_use]
-pub fn rate_limit_remaining() -> Option<Duration> {
+pub fn rate_limit_remaining(provider: &str) -> Option<Duration> {
     let now = Instant::now();
-    let mut current = rate_limit_cell().lock().ok()?;
-    match *current {
+    let mut map = rate_limit_cell().lock().ok()?;
+    let entry = map.get_mut(provider)?;
+    match *entry {
         Some(deadline) if deadline > now => Some(deadline.duration_since(now)),
         Some(_) => {
-            *current = None;
+            *entry = None;
             None
         }
         None => None,

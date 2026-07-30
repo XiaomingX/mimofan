@@ -446,11 +446,23 @@ fn is_terminal_focused() -> bool {
     };
 
     let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
-    if !term_program.is_empty() && output.to_ascii_lowercase().contains(&term_program.to_ascii_lowercase()) {
+    if !term_program.is_empty()
+        && output
+            .to_ascii_lowercase()
+            .contains(&term_program.to_ascii_lowercase())
+    {
         return true;
     }
 
-    let known_terms = ["iterm", "terminal", "ghostty", "wezterm", "kitty", "alacritty", "vscode"];
+    let known_terms = [
+        "iterm",
+        "terminal",
+        "ghostty",
+        "wezterm",
+        "kitty",
+        "alacritty",
+        "vscode",
+    ];
     let output_lower = output.to_ascii_lowercase();
     known_terms.iter().any(|t| output_lower.contains(t))
 }

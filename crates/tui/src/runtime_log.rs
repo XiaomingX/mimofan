@@ -44,6 +44,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result};
+use tracing_appender::non_blocking::NonBlocking;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 const DEFAULT_LOG_RETENTION_DAYS: u64 = 7;
@@ -56,6 +57,8 @@ const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 pub struct TuiLogGuard {
     #[cfg(unix)]
     saved_stderr_fd: Option<libc::c_int>,
+    /// Keeps the NonBlocking background thread alive for the lifetime of the guard.
+    _non_blocking_guard: tracing_appender::non_blocking::WorkerGuard,
     _file: File,
     log_path: PathBuf,
 }
@@ -109,27 +112,14 @@ pub fn init() -> Result<TuiLogGuard> {
         .or_else(|_| EnvFilter::try_new("info"))
         .unwrap_or_else(|_| EnvFilter::new("info"));
 
-    let log_path_clone = log_path.clone();
+    // Use tracing-appender's NonBlocking writer to avoid blocking the async
+    // runtime on log I/O. The background thread handles disk writes, keeping
+    // the hot path non-blocking.
+    let (non_blocking, _guard) = NonBlocking::new(subscriber_file);
+
     let subscriber = tracing_subscriber::registry().with(env_filter).with(
         fmt::layer()
-            .with_writer(move || -> Box<dyn std::io::Write + Send> {
-                // Clone the file handle for each write. If clone fails (fd exhaustion),
-                // fall back to reopening the same path, or ultimately stderr.
-                match subscriber_file.try_clone() {
-                    Ok(f) => Box::new(f),
-                    Err(e) => {
-                        tracing::warn!("Failed to clone log file handle: {e}, reopening");
-                        match std::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open(&log_path_clone)
-                        {
-                            Ok(f) => Box::new(f),
-                            Err(_) => Box::new(std::io::stderr()),
-                        }
-                    }
-                }
-            })
+            .with_writer(non_blocking)
             .with_ansi(false)
             .with_target(true)
             .with_thread_ids(false),
@@ -146,6 +136,7 @@ pub fn init() -> Result<TuiLogGuard> {
     Ok(TuiLogGuard {
         #[cfg(unix)]
         saved_stderr_fd,
+        _non_blocking_guard: _guard,
         _file: file,
         log_path,
     })
@@ -154,23 +145,10 @@ pub fn init() -> Result<TuiLogGuard> {
 pub(crate) fn log_directory() -> Option<PathBuf> {
     // $MIMOFAN_HOME 是基础数据目录的硬覆盖
     // (docs/CONFIGURATION.md)：当设置了它时，日志将保存在其下。
-    // 我们直接检查环境变量，而不是使用 mimofan_home() 的 Ok/Err，
-    // 以保证覆盖逻辑的严格优先级。
-    if let Some(home) = std::env::var_os("MIMOFAN_HOME").filter(|value| !value.is_empty()) {
-        return Some(PathBuf::from(home).join("logs"));
-    }
-    let resolve = |base: PathBuf| -> Option<PathBuf> { Some(base.join(".mimofan").join("logs")) };
-    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from)
-        && !home.as_os_str().is_empty()
-    {
-        return resolve(home);
-    }
-    if let Some(userprofile) = std::env::var_os("USERPROFILE").map(PathBuf::from)
-        && !userprofile.as_os_str().is_empty()
-    {
-        return resolve(userprofile);
-    }
-    dirs::home_dir().and_then(resolve)
+    // 使用 mimofan_config::mimofan_home() 作为唯一来源，保证覆盖逻辑优先级一致。
+    mimofan_config::mimofan_home()
+        .ok()
+        .map(|home| home.join("logs"))
 }
 
 fn log_file_name(date: &str, pid: u32) -> String {

@@ -56,10 +56,9 @@ impl ApiProvider {
 
     #[must_use]
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::XiaomiMimo => "xiaomi_mimo",
-            Self::Custom => "custom",
-        }
+        self.kind()
+            .expect("ApiProvider always maps to a ProviderKind")
+            .as_str()
     }
 
     /// Human-friendly label for picker UIs / status chips.
@@ -274,11 +273,7 @@ pub fn provider_capability(provider: ApiProvider, resolved_model: &str) -> Provi
 /// `v4pro`/`v4flash` spellings are rewritten to their hyphenated forms.
 #[must_use]
 pub fn canonical_model_name(model: &str) -> Option<&'static str> {
-    match model.trim().to_ascii_lowercase().as_str() {
-        "pro" | "deepseek-v4pro" => Some("deepseek-v4-pro"),
-        "flash" | "deepseek-v4flash" => Some("deepseek-v4-flash"),
-        _ => None,
-    }
+    mimofan_config::canonical_deepseek_model_name(model)
 }
 
 /// Normalize a configured/runtime model name.
@@ -331,58 +326,6 @@ pub fn requested_model_for_provider(_provider: ApiProvider, model: &str) -> Opti
     normalize_custom_model_id(model)
 }
 
-fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "mimo"
-        | DEFAULT_XIAOMI_MIMO_MODEL
-        | "mimo-v2-5-pro"
-        | "xiaomi-mimo-v2.5-pro"
-        | "xiaomi-mimo-v2-5-pro" => Some(DEFAULT_XIAOMI_MIMO_MODEL),
-        XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL
-        | "mimo-v2-5-pro-ultraspeed"
-        | "xiaomi-mimo-v2.5-pro-ultraspeed"
-        | "xiaomi-mimo-v2-5-pro-ultraspeed"
-        | "ultraspeed"
-        | "pro-ultraspeed" => Some(XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL),
-        "omni"
-        | "mimo-omni"
-        | "v2.5-omni"
-        | "v25-omni"
-        | "mimo-v2.5"
-        | "mimo-v25"
-        | "mimo-v2-5"
-        | "mimo-v2.5-omni"
-        | "mimo-v25-omni"
-        | "mimo-v2-5-omni"
-        | "xiaomi-mimo-v2.5"
-        | "xiaomi-mimo-v2-5"
-        | "xiaomi-mimo-v2.5-omni"
-        | "xiaomi-mimo-v2-5-omni" => Some(XIAOMI_MIMO_V2_5_OMNI_MODEL),
-        "asr" | "mimo-asr" | "mimo-v2.5-asr" | "speech-to-text" | "transcribe" => {
-            Some(XIAOMI_MIMO_ASR_MODEL)
-        }
-        "mimo-tts" | "mimo-v25-tts" | "mimo-v2.5-tts" | "tts" | "speech" => {
-            Some(XIAOMI_MIMO_TTS_MODEL)
-        }
-        "mimo-tts-voicedesign"
-        | "mimo-voice-design"
-        | "mimo-v25-tts-voicedesign"
-        | "mimo-v2.5-tts-voicedesign"
-        | "voicedesign"
-        | "voice-design" => Some(XIAOMI_MIMO_TTS_VOICE_DESIGN_MODEL),
-        "mimo-tts-voiceclone"
-        | "mimo-voice-clone"
-        | "mimo-v25-tts-voiceclone"
-        | "mimo-v2.5-tts-voiceclone"
-        | "voiceclone"
-        | "voice-clone" => Some(XIAOMI_MIMO_TTS_VOICE_CLONE_MODEL),
-        "mimo-v2-tts" => Some(XIAOMI_MIMO_V2_TTS_MODEL),
-        _ => None,
-    }
-}
-
 /// Resolve a user-entered model id to the canonical family id a provider
 /// understands, without any wire-id translation.
 ///
@@ -396,7 +339,7 @@ pub fn canonical_model_id_for_provider(provider: ApiProvider, model: &str) -> Op
     }
 
     if let ApiProvider::XiaomiMimo = provider {
-        if let Some(canonical) = canonical_xiaomi_mimo_model_id(trimmed) {
+        if let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(trimmed) {
             return Some(canonical.to_string());
         }
     }
@@ -761,6 +704,8 @@ pub enum StatusItem {
     Tokens,
     /// DeepSeek account balance, refreshed once per turn completion.
     Balance,
+    /// Output token throughput (TPS) and time-to-first-token (TTFT).
+    Throughput,
 }
 
 impl StatusItem {
@@ -780,6 +725,7 @@ impl StatusItem {
             StatusItem::Cache,
             StatusItem::GitBranch,
             StatusItem::Tokens,
+            StatusItem::Throughput,
         ]
     }
 
@@ -801,6 +747,7 @@ impl StatusItem {
             StatusItem::RateLimit => "rate_limit",
             StatusItem::Tokens => "tokens",
             StatusItem::Balance => "balance",
+            StatusItem::Throughput => "throughput",
         }
     }
 
@@ -824,6 +771,7 @@ impl StatusItem {
             "rate_limit" => Some(Self::RateLimit),
             "tokens" => Some(Self::Tokens),
             "balance" => Some(Self::Balance),
+            "throughput" => Some(Self::Throughput),
             _ => None,
         }
     }
@@ -846,6 +794,7 @@ impl StatusItem {
             StatusItem::RateLimit => "Rate-limit remaining",
             StatusItem::Tokens => "Session tokens",
             StatusItem::Balance => "Account balance",
+            StatusItem::Throughput => "Token throughput & TTFT",
         }
     }
 
@@ -868,6 +817,7 @@ impl StatusItem {
             StatusItem::RateLimit => "remaining requests in the budget (reserved)",
             StatusItem::Tokens => "input / cache-hit / output token totals",
             StatusItem::Balance => "topped-up + granted balance from DeepSeek",
+            StatusItem::Throughput => "output tokens/sec and time-to-first-token",
         }
     }
 
@@ -889,6 +839,7 @@ impl StatusItem {
             StatusItem::LastToolElapsed,
             StatusItem::RateLimit,
             StatusItem::Tokens,
+            StatusItem::Throughput,
         ]
     }
 
@@ -912,7 +863,9 @@ impl StatusItem {
     pub fn is_available_for(self, provider: ApiProvider) -> bool {
         match self {
             StatusItem::Balance => matches!(provider, ApiProvider::XiaomiMimo),
-            StatusItem::RateLimit => matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::Custom),
+            StatusItem::RateLimit => {
+                matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::Custom)
+            }
             _ => true,
         }
     }
@@ -2173,7 +2126,7 @@ impl Config {
         }
         if provider == ApiProvider::XiaomiMimo
             && let Some(model) = self.default_text_model.as_deref()
-            && let Some(canonical) = canonical_xiaomi_mimo_model_id(model)
+            && let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(model)
         {
             return canonical.to_string();
         }
@@ -2855,7 +2808,10 @@ pub(crate) fn workspace_trust_config_candidate_paths() -> Vec<PathBuf> {
     let Some(home) = effective_home_dir() else {
         return Vec::new();
     };
-    vec![home.join(".mimofan").join("config.toml")]
+    vec![
+        home.join(mimofan_config::MIMOFAN_APP_DIR)
+            .join("config.toml"),
+    ]
 }
 
 #[must_use]
@@ -3345,7 +3301,7 @@ fn apply_env_overrides(config: &mut Config) {
 
 fn normalize_model_for_provider(provider: ApiProvider, model: &str) -> Option<String> {
     if matches!(provider, ApiProvider::XiaomiMimo)
-        && let Some(canonical) = canonical_xiaomi_mimo_model_id(model)
+        && let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(model)
     {
         return Some(canonical.to_string());
     }
@@ -3360,47 +3316,19 @@ pub(crate) fn provider_passes_model_through(provider: ApiProvider) -> bool {
 }
 
 fn default_base_url_for_provider(provider: ApiProvider) -> &'static str {
-    provider.default_base_url()
+    mimofan_config::default_base_url_for_provider(
+        provider
+            .kind()
+            .expect("ApiProvider always maps to a ProviderKind"),
+    )
 }
 
 fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
-    let normalized = mode.trim().to_ascii_lowercase().replace(['_', ' '], "-");
-    if normalized.is_empty() || xiaomi_mimo_mode_uses_standard_endpoint(&normalized) {
-        return None;
-    }
-    Some(match normalized.as_str() {
-        "token-plan" | "tokenplan" | "subscription" | "subscribed" | "plan" => {
-            DEFAULT_XIAOMI_MIMO_BASE_URL
-        }
-        "token-plan-cn"
-        | "token-plan-china"
-        | "token-plan-mainland"
-        | "token-plan-mainland-china"
-        | "cn"
-        | "china" => XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL,
-        "token-plan-sgp"
-        | "token-plan-sg"
-        | "token-plan-singapore"
-        | "sgp"
-        | "sg"
-        | "singapore" => XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL,
-        "token-plan-ams"
-        | "token-plan-eu"
-        | "token-plan-europe"
-        | "token-plan-amsterdam"
-        | "ams"
-        | "eu"
-        | "europe"
-        | "amsterdam" => XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL,
-        _ => DEFAULT_XIAOMI_MIMO_BASE_URL,
-    })
+    mimofan_config::xiaomi_mimo_base_url_for_mode(mode)
 }
 
 fn xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode: &str) -> bool {
-    matches!(
-        normalized_mode,
-        "standard" | "default" | "payg" | "paygo" | "pay-as-you-go" | "pay-as-go"
-    )
+    mimofan_config::xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode)
 }
 
 fn xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {

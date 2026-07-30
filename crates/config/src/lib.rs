@@ -55,7 +55,7 @@ pub struct ProviderConfigToml {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProvidersToml {
-    #[serde(default, alias = "xiaomi", alias = "mimo", alias = "xiaomimimo")]
+    #[serde(default)]
     pub xiaomi_mimo: ProviderConfigToml,
     /// Catch-all table for the dynamic OpenAI-compatible custom provider
     /// identity (#1519). Arbitrary `[providers.<name>]` tables are handled by
@@ -819,7 +819,7 @@ pub struct FleetExecConfig {
     /// `"text"` (default) or `"stream-json"` for newline-delimited JSON events.
     #[serde(default = "default_fleet_output_format")]
     pub output_format: String,
-    /// Maximum number of concurrent fleet tasks. Defaults to 4 to match
+    /// Maximum number of concurrent fleet tasks. Defaults to 8 to match
     /// `max_subagents`. Set to 1 to disable parallel execution.
     #[serde(default = "default_fleet_max_concurrent_tasks")]
     pub max_concurrent_tasks: u32,
@@ -1849,7 +1849,7 @@ fn normalize_model_for_provider(provider: ProviderKind, model: &str) -> String {
     model.to_string()
 }
 
-fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
+pub fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
     let normalized = model.trim().to_ascii_lowercase();
     let normalized = normalized.replace(['_', ' '], "-");
     match normalized.as_str() {
@@ -1901,6 +1901,21 @@ fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
     }
 }
 
+/// Canonicalize compact DeepSeek model aliases to stable IDs.
+///
+/// Single source of truth shared by the tui and cli crates. Already-valid
+/// model IDs pass through unchanged; only the compact `v4pro`/`v4flash`
+/// spellings are rewritten to their hyphenated forms. Returns `None` when the
+/// input is not a recognised DeepSeek alias (callers decide fallthrough).
+#[must_use]
+pub fn canonical_deepseek_model_name(model: &str) -> Option<&'static str> {
+    match model.trim().to_ascii_lowercase().as_str() {
+        "pro" | "deepseek-v4pro" => Some("deepseek-v4-pro"),
+        "flash" | "deepseek-v4flash" => Some("deepseek-v4-flash"),
+        _ => None,
+    }
+}
+
 fn default_model_for_provider(provider: ProviderKind) -> &'static str {
     match provider {
         ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_MODEL,
@@ -1909,7 +1924,7 @@ fn default_model_for_provider(provider: ProviderKind) -> &'static str {
     }
 }
 
-fn default_base_url_for_provider(provider: ProviderKind) -> &'static str {
+pub fn default_base_url_for_provider(provider: ProviderKind) -> &'static str {
     match provider {
         ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL,
         // No built-in default base URL; the registry placeholder keeps this total.
@@ -1917,7 +1932,7 @@ fn default_base_url_for_provider(provider: ProviderKind) -> &'static str {
     }
 }
 
-fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
+pub fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
     let normalized = mode.trim().to_ascii_lowercase().replace(['_', ' '], "-");
     if normalized.is_empty() || xiaomi_mimo_mode_uses_standard_endpoint(&normalized) {
         return None;
@@ -1950,7 +1965,7 @@ fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
     })
 }
 
-fn xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode: &str) -> bool {
+pub fn xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode: &str) -> bool {
     matches!(
         normalized_mode,
         "standard" | "default" | "payg" | "paygo" | "pay-as-you-go" | "pay-as-go"

@@ -1493,11 +1493,9 @@ fn run_model_command(
             if trimmed.is_empty() {
                 bail!("Model name cannot be empty");
             }
-            let canonical = match trimmed.to_ascii_lowercase().as_str() {
-                "pro" | "deepseek-v4pro" => "deepseek-v4-pro",
-                "flash" | "deepseek-v4flash" => "deepseek-v4-flash",
-                _ => trimmed,
-            };
+            let canonical = mimofan_config::canonical_deepseek_model_name(trimmed)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| trimmed.to_string());
             store.config.default_text_model = Some(canonical.to_string());
             store.save()?;
             println!("Default model set to '{canonical}'");

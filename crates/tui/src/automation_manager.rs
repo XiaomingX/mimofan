@@ -884,19 +884,10 @@ pub fn default_automations_dir() -> PathBuf {
     // NOT fall back to the legacy ~/.mimofan path — silent fallback would
     // defeat the isolation the override promises. Check the env var directly
     // (not mimofan_home()'s Ok/Err, which succeeds for the default home too).
-    if let Some(home) = std::env::var_os("MIMOFAN_HOME").filter(|value| !value.is_empty()) {
-        return PathBuf::from(home).join("automations");
-    }
-    dirs::home_dir()
-        .map(|home| {
-            let primary = home.join(".mimofan").join("automations");
-            let legacy = home.join(".mimofan").join("automations");
-            if primary.exists() || !legacy.exists() {
-                return primary;
-            }
-            legacy
-        })
-        .unwrap_or_else(|| PathBuf::from(".mimofan").join("automations"))
+    // Single source of truth for the mimofan home directory (honors
+    // $MIMOFAN_HOME / $MIMO_HOME, falls back to ~/.mimofan/automations).
+    mimofan_config::resolve_state_dir("automations")
+        .unwrap_or_else(|_| PathBuf::from(".mimofan").join("automations"))
 }
 
 pub type SharedAutomationManager = Arc<Mutex<AutomationManager>>;

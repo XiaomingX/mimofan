@@ -23,7 +23,8 @@ use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
 };
 
-const DEFAULT_CHILD_MODEL: &str = "deepseek-v4-flash";
+// Re-use the seam manager's cheap-fast model constant to avoid drift.
+use crate::seam_manager::DEFAULT_SEAM_MODEL as DEFAULT_CHILD_MODEL;
 const MAX_INLINE_CONTENT_CHARS: usize = 200_000;
 const FULL_STDOUT_HEAD_CHARS: usize = 4_096;
 const FULL_STDOUT_TAIL_CHARS: usize = 1_024;

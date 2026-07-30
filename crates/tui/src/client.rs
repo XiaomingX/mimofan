@@ -1312,12 +1312,15 @@ impl DeepSeekClient {
         F: FnMut() -> reqwest::RequestBuilder,
     {
         let retry_cfg: LlmRetryConfig = self.retry.clone().into();
+        let provider_str = self.api_provider.as_str().to_owned();
         let request_result = with_retry(
             &retry_cfg,
             || {
                 let request = build();
                 async move {
-                    while let Some(delay) = crate::retry_status::rate_limit_remaining() {
+                    while let Some(delay) =
+                        crate::retry_status::rate_limit_remaining(self.api_provider.as_str())
+                    {
                         tokio::time::sleep(delay).await;
                     }
                     self.wait_for_rate_limit().await;
@@ -1343,7 +1346,7 @@ impl DeepSeekClient {
                     ))
                 }
             },
-            Some(Box::new(|err, attempt, delay| {
+            Some(Box::new(move |err, attempt, delay| {
                 let (reason_label, human_reason) = retry_reason_label_and_human(err);
                 logging::warn(format!(
                     "HTTP retry reason={} attempt={} delay={:.2}s",
@@ -1352,7 +1355,7 @@ impl DeepSeekClient {
                     delay.as_secs_f64(),
                 ));
                 if matches!(err, LlmError::RateLimited { .. }) {
-                    crate::retry_status::note_rate_limit(delay);
+                    crate::retry_status::note_rate_limit(&provider_str, delay);
                 }
                 crate::retry_status::start(attempt + 1, delay, human_reason);
             })),
@@ -1368,6 +1371,7 @@ impl DeepSeekClient {
             Err(err) => {
                 if let LlmError::RateLimited { retry_after, .. } = &err.last_error {
                     crate::retry_status::note_rate_limit(
+                        self.api_provider.as_str(),
                         retry_after
                             .unwrap_or_else(|| retry_cfg.delay_for_attempt(retry_cfg.max_retries)),
                     );

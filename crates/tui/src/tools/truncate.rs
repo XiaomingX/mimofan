@@ -362,10 +362,7 @@ fn apply_spillover_inner(
     let metadata = result.metadata.get_or_insert_with(|| serde_json::json!({}));
     if let Some(obj) = metadata.as_object_mut() {
         if let Some(sha_p) = sha_path {
-            obj.insert(
-                "sha256".into(),
-                serde_json::Value::String(sha_digest),
-            );
+            obj.insert("sha256".into(), serde_json::Value::String(sha_digest));
             obj.insert(
                 "sha_spillover_path".into(),
                 serde_json::Value::String(sha_p.display().to_string()),

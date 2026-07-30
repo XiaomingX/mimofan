@@ -39,8 +39,11 @@ impl ProviderKind {
     }
 
     #[must_use]
-    pub fn as_str(self) -> &'static str {
-        self.provider().id()
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            ProviderKind::XiaomiMimo => "xiaomi-mimo",
+            ProviderKind::Custom => "custom",
+        }
     }
 
     #[must_use]
