@@ -93,7 +93,7 @@ resolve_bin() {
         BIN="$(command -v mimofan)"
     else
         echo "could not find a mimofan binary." >&2
-        echo "  build one: cargo build -p mimofan-cli --release" >&2
+        echo "  build one: cargo build --release" >&2
         echo "  or pass:   --bin <path> / MIMOFAN_BIN=<path>" >&2
         exit 2
     fi

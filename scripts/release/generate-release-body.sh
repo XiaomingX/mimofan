@@ -59,10 +59,8 @@ The image ships the \`mimofan\` dispatcher and \`mimofan-tui\` runtime. The \`la
 ### Cargo (Linux / macOS)
 
 \`\`\`bash
-cargo install mimofan-cli mimofan-tui --locked
+cargo install mimofan --locked
 \`\`\`
-
-Both crates are required — \`mimofan-cli\` produces the \`mimofan\` dispatcher and \`mimofan-tui\` produces the interactive runtime that the dispatcher delegates to. Installing only one binary will fail at runtime with a \`MISSING_COMPANION_BINARY\` error.
 
 ### Manual download — platform archives (recommended)
 

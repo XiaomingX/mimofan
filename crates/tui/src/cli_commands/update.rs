@@ -227,7 +227,6 @@ original install method:
     npm install -g mimofan
 
   Cargo:
-    cargo uninstall mimofan-cli 2>/dev/null || true
     cargo uninstall mimofan 2>/dev/null || true
     cargo install mimofan --locked
 
@@ -1034,7 +1033,6 @@ mod tests {
         assert!(message.contains("is unchanged"));
         assert!(message.contains("npm uninstall -g mimofan"));
         assert!(message.contains("npm install -g mimofan"));
-        assert!(message.contains("cargo uninstall mimofan-cli 2>/dev/null || true"));
         assert!(message.contains("cargo uninstall mimofan 2>/dev/null || true"));
         assert!(message.contains("cargo install mimofan --locked"));
         assert!(message.contains("brew upgrade mimofan"));

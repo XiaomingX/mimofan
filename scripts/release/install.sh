@@ -66,7 +66,7 @@ preflight_glibc() {
     local host
     if ! host="$(detect_host_glibc)" || [[ -z "$host" ]]; then
         echo "ERROR: $(basename "$bin") requires GLIBC_$required, but no GNU libc was detected." >&2
-        echo "Build from source instead: cargo install mimofan-cli --locked && cargo install mimofan-tui --locked" >&2
+        echo "Build from source instead: cargo install mimofan --locked" >&2
         echo "Set MIMOFAN_SKIP_GLIBC_CHECK=1 to bypass this check at your own risk." >&2
         return 1
     fi
@@ -74,7 +74,7 @@ preflight_glibc() {
     if [[ "$(version_code "$host")" -lt "$(version_code "$required")" ]]; then
         echo "ERROR: $(basename "$bin") requires GLIBC_$required, but this system has glibc $host." >&2
         echo "Ubuntu 22.04 ships glibc 2.35 and cannot run assets built against Ubuntu 24.04/glibc 2.39." >&2
-        echo "Build from source instead: cargo install mimofan-cli --locked && cargo install mimofan-tui --locked" >&2
+        echo "Build from source instead: cargo install mimofan --locked" >&2
         echo "Release follow-up: build Linux GNU assets against an older glibc baseline or add a musl/static asset." >&2
         echo "Set MIMOFAN_SKIP_GLIBC_CHECK=1 to bypass this check at your own risk." >&2
         return 1
