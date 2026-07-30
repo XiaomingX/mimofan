@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "App-server transport for mimofan runtime integrations"
-# `mimofan app-server` is owned by mimofan-cli; this crate is library-only.
+# `mimofan app-server` is owned by the mimofan binary; this crate is library-only.
 autobins = false
 
 [dependencies]

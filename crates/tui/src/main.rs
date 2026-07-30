@@ -1,4 +1,7 @@
 //! Binary entry point for mimofan.
+//!
+//! The mimofan binary has its own full argument parser and handles all
+//! subcommands directly (exec, doctor, models, auth, config, etc.).
 
 fn main() -> std::process::ExitCode {
     let rt = tokio::runtime::Builder::new_multi_thread()

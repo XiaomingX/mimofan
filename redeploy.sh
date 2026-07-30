@@ -83,11 +83,11 @@ fi
 # 5. 构建
 echo -e "${YELLOW}--- 构建 ---${NC}"
 if [ "$RELEASE" = true ]; then
-    cargo build --release -p mimofan-cli -p mimofan --locked
+    cargo build --release -p mimofan --locked
     BUILD_DIR="target/release"
     echo -e "${GREEN}✅ Release 构建完成${NC}"
 else
-    cargo build -p mimofan-cli -p mimofan --locked
+    cargo build -p mimofan --locked
     BUILD_DIR="target/debug"
     echo -e "${GREEN}✅ Debug 构建完成${NC}"
 fi

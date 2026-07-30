@@ -11,7 +11,6 @@ TUI 界面、子智能体系统和 MCP 工具集成。
 ## 工作区 Crate（14 个成员）
 
 ```
-mimofan-cli          CLI 库：参数解析，子命令分发（库 crate）
 mimofan-app-server   HTTP 应用服务器（axum）
 mimofan              TUI 界面 + CLI 入口（ratatui），运行时 API，任务管理，
                        工具执行循环，模型/服务商选择器
@@ -28,12 +27,12 @@ mimofan-state        状态持久化（通过 rusqlite 的 SQLite）
 mimofan-release      发布工具
 ```
 
-默认成员：`cli`、`app-server`、`tui`
+默认成员：`app-server`、`tui`
 
 ### Crate 依赖流（简化版）
 
 ```
-cli / app-server       （二进制 crate，顶层入口点）
+app-server             （二进制 crate，HTTP 入口点）
   └─ core               （引擎、轮次循环、会话）
 
 tui                     （二进制 crate，自己实现运行时，不依赖 core）
@@ -69,8 +68,7 @@ cargo test -p mimofan --locked                  # TUI 测试
 cargo test -p mimofan-config                    # 配置测试
 cargo test -p mimofan-protocol                  # 协议测试
 cargo test --workspace                            # 完整工作区测试
-cargo build --release -p mimofan-cli \
-                        -p mimofan              # Release 构建
+cargo build --release -p mimofan          # Release 构建
 ```
 
 ### 已知测试问题（预先存在，非回归）
