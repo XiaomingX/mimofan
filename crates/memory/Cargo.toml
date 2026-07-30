@@ -25,3 +25,15 @@ uuid.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util", "macros"] }
+
+[[example]]
+name = "memory_functional_test"
+path = "../../benchmark/memory/memory_functional_test.rs"
+
+[[example]]
+name = "memory_integration_test"
+path = "../../benchmark/memory/memory_integration_test.rs"
+
+[[example]]
+name = "memory_benchmark"
+path = "../../benchmark/memory/memory_benchmark.rs"
