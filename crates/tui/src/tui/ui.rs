@@ -1502,6 +1502,8 @@ async fn run_event_loop(
     event_broker: &EventBroker,
     translation_client: Option<Arc<DeepSeekClient>>,
 ) -> Result<()> {
+    // Subscribe to task completion events for proactive notification.
+    let mut task_completion_rx = task_manager.subscribe_completions();
     // Track streaming state
     let mut current_streaming_text = String::new();
     let (translation_tx, mut translation_rx) =
@@ -1678,6 +1680,30 @@ async fn run_event_loop(
             }
             last_task_refresh = Instant::now();
             app.needs_redraw = true;
+        }
+
+        // Poll for task completion events and inject steer messages when idle.
+        // This enables proactive notification: the model is informed when a
+        // background task finishes, rather than having to poll manually.
+        while let Ok(completion) = task_completion_rx.try_recv() {
+            // Only inject if the engine is idle (not currently processing a turn).
+            if !app.is_loading {
+                let notification = format!(
+                    "[Task Completed] Background task `{task_id}` finished with status: {status}. \
+                     Duration: {duration}. Summary: {summary}",
+                    task_id = completion.task_id,
+                    status = completion.status,
+                    duration = completion
+                        .duration_ms
+                        .map(|ms| format!("{}ms", ms))
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    summary = completion.summary,
+                );
+                if let Err(err) = engine_handle.steer(notification).await {
+                    tracing::warn!("Failed to steer task completion notification: {err}");
+                }
+                app.needs_redraw = true;
+            }
         }
 
         // Clear suggestion when the user modifies the input.
