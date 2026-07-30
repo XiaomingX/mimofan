@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::sync::{Mutex, Notify, mpsc};
+use tokio::sync::{Mutex, Notify, broadcast, mpsc};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -53,6 +53,18 @@ impl TaskStatus {
     #[must_use]
     pub fn is_terminal(self) -> bool {
         matches!(self, Self::Completed | Self::Failed | Self::Canceled)
+    }
+}
+
+impl std::fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Queued => write!(f, "queued"),
+            Self::Running => write!(f, "running"),
+            Self::Completed => write!(f, "completed"),
+            Self::Failed => write!(f, "failed"),
+            Self::Canceled => write!(f, "canceled"),
+        }
     }
 }
 
@@ -705,6 +717,17 @@ pub struct TaskManager {
     state: Mutex<ManagerState>,
     notify: Notify,
     cancel_token: CancellationToken,
+    /// Broadcast channel to notify listeners when a task completes (for UI injection).
+    completion_tx: broadcast::Sender<TaskCompletionEvent>,
+}
+
+/// Event emitted when a task reaches a terminal state (completed/failed/canceled).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskCompletionEvent {
+    pub task_id: String,
+    pub status: TaskStatus,
+    pub summary: String,
+    pub duration_ms: Option<u64>,
 }
 
 struct ManagerState {
@@ -764,6 +787,7 @@ impl TaskManager {
 
         let cancel_token = CancellationToken::new();
         let default_workspace = cfg.default_workspace.clone();
+        let (completion_tx, _) = broadcast::channel(64);
         let manager = Arc::new(Self {
             cfg,
             default_workspace: Mutex::new(default_workspace),
@@ -778,6 +802,7 @@ impl TaskManager {
             }),
             notify: Notify::new(),
             cancel_token: cancel_token.clone(),
+            completion_tx,
         });
 
         {
@@ -805,6 +830,12 @@ impl TaskManager {
 
     pub fn is_shutdown(&self) -> bool {
         self.cancel_token.is_cancelled()
+    }
+
+    /// Subscribe to task completion events. Returns a receiver that receives
+    /// events when any task reaches a terminal state (completed/failed/canceled).
+    pub fn subscribe_completions(&self) -> broadcast::Receiver<TaskCompletionEvent> {
+        self.completion_tx.subscribe()
     }
 
     pub async fn set_default_workspace(&self, workspace: PathBuf) {
@@ -1334,7 +1365,24 @@ impl TaskManager {
             task.result_summary = Some("(no textual output)".to_string());
         }
 
+        // Capture values for completion event before persisting (avoids borrow conflict).
+        let completion_summary = task
+            .result_summary
+            .clone()
+            .unwrap_or_else(|| format!("Task {task_id} finished"));
+        let completion_duration_ms = task.duration_ms;
+        let completion_status = result.status;
+
         self.persist_all_locked(&state)?;
+
+        // Emit completion event for UI notification (best-effort, ignore if no subscribers).
+        let _ = self.completion_tx.send(TaskCompletionEvent {
+            task_id: task_id.to_string(),
+            status: completion_status,
+            summary: completion_summary,
+            duration_ms: completion_duration_ms,
+        });
+
         Ok(())
     }
 
