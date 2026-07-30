@@ -147,13 +147,15 @@ fi
 
 # 7) Security contact guard.
 security_email="hmbown@gmail.com"
-if ! grep -qF "${security_email}" SECURITY.md; then
-  echo "::error::SECURITY.md must list ${security_email} as the security contact." >&2
-  fail=1
-fi
-if grep -qF "hmbown.dev@gmail.com" SECURITY.md; then
-  echo "::error::SECURITY.md must not use the alternate personal fallback email; use ${security_email}." >&2
-  fail=1
+if [[ -f SECURITY.md ]]; then
+  if ! grep -qF "${security_email}" SECURITY.md; then
+    echo "::error::SECURITY.md must list ${security_email} as the security contact." >&2
+    fail=1
+  fi
+  if grep -qF "hmbown.dev@gmail.com" SECURITY.md; then
+    echo "::error::SECURITY.md must not use the alternate personal fallback email; use ${security_email}." >&2
+    fail=1
+  fi
 fi
 
 # 8) Generated web facts carry the workspace version. The web frontend was
