@@ -20,6 +20,7 @@ use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use futures::stream::{FuturesUnordered, StreamExt};
 use tokio::{sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -4471,7 +4472,7 @@ async fn run_subagent(
             structured_state_block: None,
         },
     );
-    let tool_registry = SubAgentToolRegistry::new_with_owner(
+    let tool_registry = Arc::new(SubAgentToolRegistry::new_with_owner(
         runtime_for_tools,
         agent_type.clone(),
         agent_id.clone(),
@@ -4487,7 +4488,7 @@ async fn run_subagent(
         // TodoList — parent never saw child progress until completion.
         runtime.todos.clone(),
         Arc::new(Mutex::new(PlanState::default())),
-    );
+    ));
     let unavailable_tools = tool_registry.unavailable_allowed_tools();
     if !unavailable_tools.is_empty() {
         return Err(anyhow!(
@@ -4988,59 +4989,272 @@ async fn run_subagent(
                 tool_uses.len()
             ),
         );
-        let mut tool_results: Vec<ContentBlock> = Vec::new();
-        for (tool_id, tool_name, tool_input) in tool_uses {
-            let tool_display_name = subagent_progress_tool_display_name(&tool_name);
-            record_agent_progress(
-                runtime,
-                &agent_id,
-                format!(
-                    "{}: running tool '{tool_display_name}'",
-                    format_step_counter(steps, max_steps)
-                ),
-            );
-            if let Some(mb) = runtime.mailbox.as_ref() {
-                let _ = mb.send(MailboxMessage::ToolCallStarted {
-                    agent_id: agent_id.clone(),
-                    tool_name: tool_name.clone(),
-                    step: steps,
-                });
-            }
-            let result = match tokio::time::timeout(runtime.tool_timeout, async {
-                tool_registry
-                    .execute(&agent_id, &tool_name, tool_input)
-                    .await
+
+        // Determine which tools can run in parallel (read-only, parallel-safe,
+        // auto-approved) vs which must run sequentially. This mirrors the main
+        // engine's `tool_plan_is_parallel_safe` logic.
+        let parallel_safe: Vec<bool> = tool_uses
+            .iter()
+            .map(|(_, name, input)| {
+                // Only parallelize when there are multiple tools
+                if tool_uses.len() < 2 {
+                    return false;
+                }
+                // Check tool spec flags
+                let Some(spec) = tool_registry.registry.get(name) else {
+                    return false;
+                };
+                spec.is_read_only_for(input)
+                    && spec.supports_parallel_for(input)
+                    && spec.approval_requirement_for(input) == ApprovalRequirement::Auto
             })
-            .await
-            {
-                Ok(Ok(output)) => output,
-                Ok(Err(e)) => format!("Error: {e}"),
-                Err(_) => format!("Error: Tool {tool_name} timed out"),
-            };
-            let tool_ok = !result.starts_with("Error:");
-            record_agent_progress(
-                runtime,
-                &agent_id,
-                format!(
-                    "{}: finished tool '{tool_display_name}'",
-                    format_step_counter(steps, max_steps)
-                ),
-            );
-            if let Some(mb) = runtime.mailbox.as_ref() {
-                let _ = mb.send(MailboxMessage::ToolCallCompleted {
-                    agent_id: agent_id.clone(),
-                    tool_name: tool_name.clone(),
-                    step: steps,
-                    ok: tool_ok,
+            .collect();
+
+        let has_any_parallel = parallel_safe.iter().any(|&p| p);
+
+        let mut tool_results: Vec<ContentBlock> = Vec::new();
+
+        if has_any_parallel {
+            // Execute parallel-eligible tools concurrently using FuturesUnordered.
+            // Serial-only tools are executed inline between parallel batches.
+            let mut parallel_tasks = FuturesUnordered::new();
+            let mut serial_batch: Vec<(usize, String, String, Value)> = Vec::new();
+
+            for (idx, (tool_id, tool_name, tool_input)) in tool_uses.into_iter().enumerate() {
+                if parallel_safe[idx] {
+                    // Flush any pending serial batch before starting a parallel batch
+                    for (sid, sname, sinput) in serial_batch.drain(..) {
+                        let tool_display_name = subagent_progress_tool_display_name(&sname);
+                        record_agent_progress(
+                            runtime,
+                            &agent_id,
+                            format!(
+                                "{}: running tool '{tool_display_name}' (serial)",
+                                format_step_counter(steps, max_steps)
+                            ),
+                        );
+                        if let Some(mb) = runtime.mailbox.as_ref() {
+                            let _ = mb.send(MailboxMessage::ToolCallStarted {
+                                agent_id: agent_id.clone(),
+                                tool_name: sname.clone(),
+                                step: steps,
+                            });
+                        }
+                        let result = match tokio::time::timeout(runtime.tool_timeout, async {
+                            tool_registry
+                                .execute(&agent_id, &sname, sinput)
+                                .await
+                        })
+                        .await
+                        {
+                            Ok(Ok(output)) => output,
+                            Ok(Err(e)) => format!("Error: {e}"),
+                            Err(_) => format!("Error: Tool {sname} timed out"),
+                        };
+                        let tool_ok = !result.starts_with("Error:");
+                        record_agent_progress(
+                            runtime,
+                            &agent_id,
+                            format!(
+                                "{}: finished tool '{tool_display_name}' (serial)",
+                                format_step_counter(steps, max_steps)
+                            ),
+                        );
+                        if let Some(mb) = runtime.mailbox.as_ref() {
+                            let _ = mb.send(MailboxMessage::ToolCallCompleted {
+                                agent_id: agent_id.clone(),
+                                tool_name: sname.clone(),
+                                step: steps,
+                                ok: tool_ok,
+                            });
+                        }
+                        tool_results.push(ContentBlock::ToolResult {
+                            tool_use_id: sid,
+                            content: result,
+                            is_error: None,
+                            content_blocks: None,
+                        });
+                    }
+
+                    // Launch parallel task
+                    let tool_display_name = subagent_progress_tool_display_name(&tool_name);
+                    record_agent_progress(
+                        runtime,
+                        &agent_id,
+                        format!(
+                            "{}: running tool '{tool_display_name}' (parallel)",
+                            format_step_counter(steps, max_steps)
+                        ),
+                    );
+                    if let Some(mb) = runtime.mailbox.as_ref() {
+                        let _ = mb.send(MailboxMessage::ToolCallStarted {
+                            agent_id: agent_id.clone(),
+                            tool_name: tool_name.clone(),
+                            step: steps,
+                        });
+                    }
+                    let agent_id_clone = agent_id.clone();
+                    let mb_clone = runtime.mailbox.clone();
+                    let tool_timeout = runtime.tool_timeout;
+                    let registry_clone = tool_registry.clone();
+                    let steps_clone = steps;
+                    parallel_tasks.push(async move {
+                        let result =
+                            match tokio::time::timeout(tool_timeout, async {
+                                registry_clone
+                                    .execute(&agent_id_clone, &tool_name, tool_input)
+                                    .await
+                            })
+                            .await
+                            {
+                                Ok(Ok(output)) => output,
+                                Ok(Err(e)) => format!("Error: {e}"),
+                                Err(_) => format!("Error: Tool {tool_name} timed out"),
+                            };
+                        let tool_ok = !result.starts_with("Error:");
+                        record_agent_progress(
+                            runtime,
+                            &agent_id_clone,
+                            format!(
+                                "{}: finished tool '{}' (parallel)",
+                                format_step_counter(steps_clone, max_steps),
+                                subagent_progress_tool_display_name(&tool_name)
+                            ),
+                        );
+                        if let Some(mb) = mb_clone.as_ref() {
+                            let _ = mb.send(MailboxMessage::ToolCallCompleted {
+                                agent_id: agent_id_clone,
+                                tool_name: tool_name.clone(),
+                                step: steps_clone,
+                                ok: tool_ok,
+                            });
+                        }
+                        (tool_id, tool_name, result)
+                    });
+                } else {
+                    // Queue for serial execution
+                    serial_batch.push((tool_id, tool_name, tool_input));
+                }
+            }
+
+            // Drain remaining serial batch
+            for (sid, sname, sinput) in serial_batch.drain(..) {
+                let tool_display_name = subagent_progress_tool_display_name(&sname);
+                record_agent_progress(
+                    runtime,
+                    &agent_id,
+                    format!(
+                        "{}: running tool '{tool_display_name}' (serial)",
+                        format_step_counter(steps, max_steps)
+                    ),
+                );
+                if let Some(mb) = runtime.mailbox.as_ref() {
+                    let _ = mb.send(MailboxMessage::ToolCallStarted {
+                        agent_id: agent_id.clone(),
+                        tool_name: sname.clone(),
+                        step: steps,
+                    });
+                }
+                let result = match tokio::time::timeout(runtime.tool_timeout, async {
+                    tool_registry
+                        .execute(&agent_id, &sname, sinput)
+                        .await
+                })
+                .await
+                {
+                    Ok(Ok(output)) => output,
+                    Ok(Err(e)) => format!("Error: {e}"),
+                    Err(_) => format!("Error: Tool {sname} timed out"),
+                };
+                let tool_ok = !result.starts_with("Error:");
+                record_agent_progress(
+                    runtime,
+                    &agent_id,
+                    format!(
+                        "{}: finished tool '{tool_display_name}' (serial)",
+                        format_step_counter(steps, max_steps)
+                    ),
+                );
+                if let Some(mb) = runtime.mailbox.as_ref() {
+                    let _ = mb.send(MailboxMessage::ToolCallCompleted {
+                        agent_id: agent_id.clone(),
+                        tool_name: sname.clone(),
+                        step: steps,
+                        ok: tool_ok,
+                    });
+                }
+                tool_results.push(ContentBlock::ToolResult {
+                    tool_use_id: sid,
+                    content: result,
+                    is_error: None,
+                    content_blocks: None,
                 });
             }
 
-            tool_results.push(ContentBlock::ToolResult {
-                tool_use_id: tool_id,
-                content: result,
-                is_error: None,
-                content_blocks: None,
-            });
+            // Collect parallel results (order may differ from insertion order)
+            while let Some((tool_id, tool_name, result)) = parallel_tasks.next().await {
+                tool_results.push(ContentBlock::ToolResult {
+                    tool_use_id: tool_id,
+                    content: result,
+                    is_error: None,
+                    content_blocks: None,
+                });
+            }
+        } else {
+            // All tools must run sequentially
+            for (tool_id, tool_name, tool_input) in tool_uses {
+                let tool_display_name = subagent_progress_tool_display_name(&tool_name);
+                record_agent_progress(
+                    runtime,
+                    &agent_id,
+                    format!(
+                        "{}: running tool '{tool_display_name}'",
+                        format_step_counter(steps, max_steps)
+                    ),
+                );
+                if let Some(mb) = runtime.mailbox.as_ref() {
+                    let _ = mb.send(MailboxMessage::ToolCallStarted {
+                        agent_id: agent_id.clone(),
+                        tool_name: tool_name.clone(),
+                        step: steps,
+                    });
+                }
+                let result = match tokio::time::timeout(runtime.tool_timeout, async {
+                    tool_registry
+                        .execute(&agent_id, &tool_name, tool_input)
+                        .await
+                })
+                .await
+                {
+                    Ok(Ok(output)) => output,
+                    Ok(Err(e)) => format!("Error: {e}"),
+                    Err(_) => format!("Error: Tool {tool_name} timed out"),
+                };
+                let tool_ok = !result.starts_with("Error:");
+                record_agent_progress(
+                    runtime,
+                    &agent_id,
+                    format!(
+                        "{}: finished tool '{tool_display_name}'",
+                        format_step_counter(steps, max_steps)
+                    ),
+                );
+                if let Some(mb) = runtime.mailbox.as_ref() {
+                    let _ = mb.send(MailboxMessage::ToolCallCompleted {
+                        agent_id: agent_id.clone(),
+                        tool_name: tool_name.clone(),
+                        step: steps,
+                        ok: tool_ok,
+                    });
+                }
+
+                tool_results.push(ContentBlock::ToolResult {
+                    tool_use_id: tool_id,
+                    content: result,
+                    is_error: None,
+                    content_blocks: None,
+                });
+            }
         }
 
         if !tool_results.is_empty() {
