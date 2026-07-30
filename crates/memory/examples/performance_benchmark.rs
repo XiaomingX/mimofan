@@ -20,7 +20,7 @@ async fn main() {
     // Generate test observations
     let start = std::time::Instant::now();
     let embeddings: Vec<Vec<f32>> = (0..1000)
-        .map(|_| (0..384).map(|_| rand::random::<f32>()).collect())
+        .map(|_| (0..384).map(|_| random_f32()).collect())
         .collect();
 
     for i in 0..1000 {
@@ -35,7 +35,7 @@ async fn main() {
 
     // Benchmark 2: Search Performance
     let start = std::time::Instant::now();
-    let query = (0..384).map(|_| rand::random::<f32>()).collect::<Vec<f32>>();
+    let query = (0..384).map(|_| random_f32()).collect::<Vec<f32>>();
     for _ in 0..100 {
         let _results = observation_store.search(&query, 10, &Default::default()).unwrap();
     }
@@ -94,4 +94,14 @@ async fn main() {
 
     println!("\n===================================");
     println!("Benchmark completed!");
+}
+
+/// Simple random f32 generator (not cryptographically secure, but fast)
+fn random_f32() -> f32 {
+    use std::collections::hash_map::RandomState;
+    use std::hash::{BuildHasher, Hasher};
+    let s = RandomState::new();
+    let mut hasher = s.build_hasher();
+    hasher.write_u64(0);
+    (hasher.finish() as f32) / (u64::MAX as f32)
 }
