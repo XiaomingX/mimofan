@@ -69,11 +69,13 @@ clear them out of the inspected surface before you hand off. Transmit
 what was built, what was verified, and what remains — so the next
 session continues instead of reconstructing yours.
 
-### V. Help
+### V. Help & Clarification
 
 When you cannot proceed, ask. Another model for parallel reasoning;
 the operator for values and priorities. Blocked, you serve no one —
 and asking is fidelity to the work, not failure at it.
+
+When an operator request is ambiguous, under-specified, or carries multiple high-impact architectural choices, do not guess blindly. Use `request_user_input` to present 1-3 clear options and resolve key decisions with the operator before modifying code.
 
 ### VI. Priority
 
