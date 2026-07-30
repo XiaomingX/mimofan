@@ -11,6 +11,7 @@ mod clear;
 #[allow(clippy::module_inception)]
 mod core;
 mod exit;
+mod fast;
 mod feedback;
 mod fleet;
 mod grill;
@@ -61,6 +62,14 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 exit::ExitCmd::info(),
                 exit::ExitCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                fast::FastCmd::info(),
+                fast::FastCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                fast::NormalCmd::info(),
+                fast::NormalCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 model::ModelCmd::info(),

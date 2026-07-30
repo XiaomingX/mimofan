@@ -1386,6 +1386,9 @@ pub struct SessionState {
     pub last_prompt_tokens: Option<u32>,
     pub last_completion_tokens: Option<u32>,
     pub last_output_throughput: Option<TokenThroughput>,
+    /// Time-to-first-token: wall-clock from `TurnStarted` to the first
+    /// content `MessageDelta`. Stored here for the footer chip.
+    pub last_ttft: Option<std::time::Duration>,
     pub last_prompt_cache_hit_tokens: Option<u32>,
     pub last_prompt_cache_miss_tokens: Option<u32>,
     pub last_reasoning_replay_tokens: Option<u32>,
@@ -1463,6 +1466,7 @@ impl Default for SessionState {
             last_prompt_tokens: None,
             last_completion_tokens: None,
             last_output_throughput: None,
+            last_ttft: None,
             last_prompt_cache_hit_tokens: None,
             last_prompt_cache_miss_tokens: None,
             last_reasoning_replay_tokens: None,
@@ -1489,6 +1493,7 @@ impl SessionState {
         self.total_cache_miss_tokens = 0;
         self.total_output_tokens = 0;
         self.last_output_throughput = None;
+        self.last_ttft = None;
     }
 }
 
@@ -1608,6 +1613,12 @@ pub struct App {
     pub reasoning_effort: ReasoningEffort,
     /// Last concrete thinking tier chosen while `reasoning_effort` is auto.
     pub last_effective_reasoning_effort: Option<ReasoningEffort>,
+    /// Whether `/fast` mode is currently active.
+    pub fast_mode_active: bool,
+    /// Model saved before entering fast mode (for `/normal` restore).
+    pub fast_saved_model: Option<String>,
+    /// Reasoning effort saved before entering fast mode (for `/normal` restore).
+    pub fast_saved_effort: Option<ReasoningEffort>,
     pub workspace: PathBuf,
     pub config_path: Option<PathBuf>,
     pub config_profile: Option<String>,
@@ -1945,6 +1956,9 @@ pub struct App {
     pub submit_pending_steers_after_interrupt: bool,
     /// Start time for current turn
     pub turn_started_at: Option<Instant>,
+    /// Wall-clock instant when the first content `MessageDelta` arrived.
+    /// Used to compute TTFT (time-to-first-token) for the footer chip.
+    pub turn_first_token_at: Option<Instant>,
     /// Most recent engine event observed for the current turn. This is
     /// separate from `turn_started_at` because the latter drives elapsed-time
     /// UI and must not be reset during long but healthy turns.
@@ -2186,6 +2200,7 @@ impl App {
         self.session.last_prompt_tokens = None;
         self.session.last_completion_tokens = None;
         self.session.last_output_throughput = None;
+        self.session.last_ttft = None;
         self.session.last_prompt_cache_hit_tokens = None;
         self.session.last_prompt_cache_miss_tokens = None;
         self.session.last_reasoning_replay_tokens = None;
@@ -2520,6 +2535,9 @@ impl App {
             pending_provider_switch: None,
             reasoning_effort,
             last_effective_reasoning_effort: None,
+            fast_mode_active: false,
+            fast_saved_model: None,
+            fast_saved_effort: None,
             workspace,
             config_path,
             config_profile,
@@ -2673,6 +2691,7 @@ impl App {
             rejected_steers: VecDeque::new(),
             submit_pending_steers_after_interrupt: false,
             turn_started_at: None,
+            turn_first_token_at: None,
             turn_last_activity_at: None,
             cumulative_turn_duration: std::time::Duration::ZERO,
             balance_cell: std::sync::Arc::new(std::sync::Mutex::new(None)),
