@@ -133,7 +133,7 @@ project_overhaul_prompt.md
 .deepseek/
 **/session_*.json
 *.db
-npm/*/bin/downloads/
+bun/*/bin/downloads/
 
 # Companion app (tracked separately)
 apps/

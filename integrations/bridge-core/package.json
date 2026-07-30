@@ -6,10 +6,10 @@
   "description": "Shared pure helpers for Mimofan chat bridges.",
   "main": "src/lib.mjs",
   "scripts": {
-    "check": "node --check src/lib.mjs",
-    "test": "node --test test/*.test.mjs"
+    "check": "bun --check src/lib.mjs",
+    "test": "bun test test/*.test.mjs"
   },
   "engines": {
-    "node": ">=18"
+    "bun": ">=1.0"
   }
 }

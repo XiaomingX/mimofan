@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Fails CI if version state is inconsistent across the workspace, npm
+# Fails CI if version state is inconsistent across the workspace, bun
 # wrapper, and Cargo.lock. Run on every push/PR so silent drift can't ship.
 #
 # Checks performed:
 #   1. No `crates/*/Cargo.toml` carries a literal `version = "x.y.z"`; every
 #      crate must inherit `version.workspace = true`.
-#   2. `npm/mimofan/package.json` `version` (and `mimofanBinaryVersion`)
+#   2. `bun/mimofan/package.json` `version` (and `mimofanBinaryVersion`)
 #      matches the workspace version in the root `Cargo.toml`.
-#   2b. `npm/runtime-sdk/package.json` `version` matches the workspace version.
+#   2b. `bun/runtime-sdk/package.json` `version` matches the workspace version.
 #   3. Internal `mimofan-*` path dependency pins match the workspace version.
 #   4. The TUI crate's packaged changelog copy matches root `CHANGELOG.md`.
 #   5. The current release has a dated Keep a Changelog entry and compare link.
@@ -34,26 +34,26 @@ if [[ -n "${literals}" ]]; then
   fail=1
 fi
 
-# 2) Workspace ↔ npm package.json.
+# 2) Workspace ↔ bun package.json.
 workspace_version="$(grep -E '^version = "' Cargo.toml | head -n1 | sed -E 's/^version = "([^"]+)".*/\1/')"
-npm_version="$(node -p "require('./npm/mimofan/package.json').version")"
-if [[ "${workspace_version}" != "${npm_version}" ]]; then
-  echo "::error::npm/mimofan/package.json version (${npm_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
+bun_version="$(node -p "require('./bun/mimofan/package.json').version")"
+if [[ "${workspace_version}" != "${bun_version}" ]]; then
+  echo "::error::bun/mimofan/package.json version (${bun_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
   fail=1
 fi
-# The canonical `mimofan` package publishes from npm/mimofan; keep the
+# The canonical `mimofan` package publishes from bun/mimofan; keep the
 # binary-version pin aligned with the package version unless a
 # packaging-only release intentionally decouples them.
-wrapper_binary_version="$(node -p "require('./npm/mimofan/package.json').mimofanBinaryVersion || ''")"
-if [[ -n "${wrapper_binary_version}" && "${wrapper_binary_version}" != "${npm_version}" ]]; then
-  echo "::warning::npm/mimofan mimofanBinaryVersion (${wrapper_binary_version}) differs from package version (${npm_version}); expected only for npm packaging-only releases." >&2
+wrapper_binary_version="$(node -p "require('./bun/mimofan/package.json').mimofanBinaryVersion || ''")"
+if [[ -n "${wrapper_binary_version}" && "${wrapper_binary_version}" != "${bun_version}" ]]; then
+  echo "::warning::bun/mimofan mimofanBinaryVersion (${wrapper_binary_version}) differs from package version (${bun_version}); expected only for bun packaging-only releases." >&2
 fi
 
-# 2b) Workspace ↔ npm runtime-sdk package.json. The runtime SDK publishes
+# 2b) Workspace ↔ bun runtime-sdk package.json. The runtime SDK publishes
 # independently but must stay on the same version line as the workspace.
-runtime_sdk_version="$(node -p "require('./npm/runtime-sdk/package.json').version")"
+runtime_sdk_version="$(node -p "require('./bun/runtime-sdk/package.json').version")"
 if [[ "${workspace_version}" != "${runtime_sdk_version}" ]]; then
-  echo "::error::npm/runtime-sdk/package.json version (${runtime_sdk_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
+  echo "::error::bun/runtime-sdk/package.json version (${runtime_sdk_version}) does not match workspace Cargo.toml (${workspace_version})." >&2
   fail=1
 fi
 
@@ -216,7 +216,7 @@ if ! cargo metadata --locked --format-version 1 --no-deps >/dev/null 2>&1; then
 fi
 
 if [[ "${fail}" -eq 0 ]]; then
-  echo "Version state OK: workspace=${workspace_version}, npm=${npm_version}, lockfile in sync."
+  echo "Version state OK: workspace=${workspace_version}, bun=${bun_version}, lockfile in sync."
 fi
 
 exit "${fail}"

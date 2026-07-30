@@ -6,11 +6,11 @@
   "description": "Weixin iLink Bot bridge for a local mimofan serve --http runtime. Scan QR to login.",
   "main": "src/index.mjs",
   "scripts": {
-    "start": "node src/index.mjs",
-    "check": "node --check src/index.mjs && node --check src/lib.mjs",
-    "test": "node --test test/*.test.mjs"
+    "start": "bun src/index.mjs",
+    "check": "bun --check src/index.mjs && bun --check src/lib.mjs",
+    "test": "bun test test/*.test.mjs"
   },
   "engines": {
-    "node": ">=18"
+    "bun": ">=1.0"
   }
 }

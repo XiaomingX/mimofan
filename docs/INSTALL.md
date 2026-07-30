@@ -10,7 +10,7 @@ curl -fsSL https://mimofan.net/install.sh | sh
 
 ## 1. 支持的平台
 
-| 平台 | 架构 | npm/pnpm | cargo install | GitHub Release |
+| 平台 | 架构 | bun | cargo install | GitHub Release |
 |------|------|:--------:|:-------------:|---------------|
 | Linux | x64 | ✅ | ✅ | 静态构建 (musl)，无 glibc 依赖 |
 | Linux | arm64 | ✅ | ✅ | glibc 构建，需 GLIBC_2.39+ |
@@ -22,15 +22,9 @@ curl -fsSL https://mimofan.net/install.sh | sh
 
 ---
 
-## 2. npm / pnpm / bun 安装（推荐）
+## 2. bun 安装（推荐）
 
 ```bash
-# npm
-npm install -g mimofan
-
-# pnpm
-pnpm add -g mimofan
-
 # bun（默认不执行依赖 postinstall，安装期跳过下载，首次运行时自动获取二进制；
 # 如需安装期立即下载，先执行 bun pm trust mimofan）
 bun add -g mimofan
@@ -45,8 +39,6 @@ bun add -g mimofan
 | `MIMOFAN_FORCE_DOWNLOAD=1` | 强制重新下载 |
 | `MIMOFAN_DISABLE_INSTALL=1` | 跳过 postinstall 下载 |
 | `MIMOFAN_OPTIONAL_INSTALL=1` | 下载失败时不报错（CI 用） |
-
-> **国内 npm 慢？** 使用镜像：`npm config set registry https://registry.npmmirror.com`
 
 ---
 
@@ -113,7 +105,7 @@ cargo install --path crates/tui --locked
 
 ## 7. 国内常见问题
 
-### npm 下载超时
+### bun 下载超时
 
 设置镜像源或使用 cargo 安装。也可设置 `MIMOFAN_RELEASE_BASE_URL` 指向内部镜像。
 

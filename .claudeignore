@@ -21,7 +21,7 @@ node_modules/
 
 # ── 非 Rust 代码（与 Rust 核心无关）──
 web/
-npm/
+bun/
 extensions/
 integrations/
 apps/
@@ -196,7 +196,7 @@ backup/
 .deepseek/
 **/session_*.json
 *.db
-npm/*/bin/downloads/
+bun/*/bin/downloads/
 
 # ── 私有文件 ──
 .private/

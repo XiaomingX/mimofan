@@ -16,13 +16,7 @@
 ### 安装
 
 ```bash
-# npm
-npm install -g mimofan
-
-# pnpm
-pnpm add -g mimofan
-
-# bun
+# bun（推荐）
 bun add -g mimofan
 
 # 或源码安装

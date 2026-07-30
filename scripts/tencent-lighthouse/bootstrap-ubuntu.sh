@@ -27,17 +27,15 @@ apt-get install -y \
   pkg-config \
   libdbus-1-dev \
   libssl-dev \
-  nodejs \
-  npm \
   rsync \
   tmux \
   fail2ban \
   ufw
 
-node_major="$(node -p "Number(process.versions.node.split('.')[0])")"
-if (( node_major < 18 )); then
-  echo "Node.js 18+ is required for the phone bridges; install a newer Node.js before running install-services.sh." >&2
-fi
+# Install bun
+curl -fsSL https://bun.sh/install | bash
+export BUN_INSTALL="/root/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
 
 if ! id -u "${MIMOFAN_USER}" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "${MIMOFAN_USER}"
@@ -123,7 +121,7 @@ Next:
    cd ${WHALEBRO_ROOT}/mimofan
    cargo install --path crates/cli --locked --force
    cargo install --path crates/tui --locked --force
-3. Copy integrations/feishu-bridge or integrations/telegram-bridge to ${MIMOFAN_ROOT} and run bun install.
+3. Copy integrations/feishu-bridge or integrations/telegram-bridge to ${MIMOFAN_ROOT} and run `bun install`.
 4. Edit /etc/mimofan/runtime.env and the selected bridge env file.
 5. Install systemd units with scripts/tencent-lighthouse/install-services.sh.
 6. After the env files are edited and services are started, run:

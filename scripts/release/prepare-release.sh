@@ -4,8 +4,8 @@
 # Usage: ./scripts/release/prepare-release.sh <new-version>
 #
 # Touches: Cargo.toml (workspace version), crates/*/Cargo.toml (internal
-# mimofan-* dependency pins), npm/mimofan/package.json (version +
-# mimofanBinaryVersion), npm/runtime-sdk/package.json (version),
+# mimofan-* dependency pins), bun/mimofan/package.json (version +
+# mimofanBinaryVersion), bun/runtime-sdk/package.json (version),
 # README*.md install-tag examples, Cargo.lock,
 # crates/tui/CHANGELOG.md (via sync-changelog.sh) and
 # web/lib/facts.generated.ts (via derive-facts.mjs).
@@ -69,17 +69,17 @@ for manifest in sorted(pathlib.Path("crates").glob("*/Cargo.toml")):
 if total == 0:
     print("  (no internal version pins found — using path-only dependencies)")
 
-# 3) npm wrapper.
+# 3) bun wrapper.
 bump(
-    "npm/mimofan/package.json",
+    "bun/mimofan/package.json",
     rf'("(?:version|mimofanBinaryVersion)": "){old_re}(")',
     rf"\g<1>{new}\g<2>",
     2,
 )
 
-# 3b) npm runtime-sdk (kept on the same version line as the workspace).
+# 3b) bun runtime-sdk (kept on the same version line as the workspace).
 bump(
-    "npm/runtime-sdk/package.json",
+    "bun/runtime-sdk/package.json",
     rf'("version": "){old_re}(")',
     rf"\g<1>{new}\g<2>",
     1,

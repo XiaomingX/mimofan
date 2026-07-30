@@ -57,10 +57,10 @@ rsync -a --delete \
   "${BRIDGE_DST}/"
 chown -R "${MIMOFAN_USER}:${MIMOFAN_USER}" "${BRIDGE_DST}"
 
-if [[ -f "${BRIDGE_DST}/package-lock.json" ]]; then
-  sudo -u "${MIMOFAN_USER}" npm --prefix "${BRIDGE_DST}" ci --omit=dev
+if [[ -f "${BRIDGE_DST}/bun.lockb" ]]; then
+  sudo -u "${MIMOFAN_USER}" bun install --cwd "${BRIDGE_DST}" --production
 else
-  sudo -u "${MIMOFAN_USER}" npm --prefix "${BRIDGE_DST}" install --omit=dev
+  sudo -u "${MIMOFAN_USER}" bun install --cwd "${BRIDGE_DST}" --production
 fi
 
 install -m 0644 "${REPO_ROOT}/deploy/tencent-lighthouse/systemd/mimofan-runtime.service" /etc/systemd/system/mimofan-runtime.service
@@ -77,7 +77,7 @@ Before starting, verify:
 EOF
 cat <<EOF
   ${BRIDGE_ENV}
-  sudo -u ${MIMOFAN_USER} node ${REPO_ROOT}/${VALIDATOR} --env ${BRIDGE_ENV} --runtime-env /etc/mimofan/runtime.env --workspace-root /opt/whalebro --check-filesystem
+  sudo -u ${MIMOFAN_USER} bun ${REPO_ROOT}/${VALIDATOR} --env ${BRIDGE_ENV} --runtime-env /etc/mimofan/runtime.env --workspace-root /opt/whalebro --check-filesystem
 Then run:
   sudo systemctl start mimofan-runtime
   sudo systemctl start ${BRIDGE_UNIT}

@@ -6,15 +6,15 @@
   "description": "Feishu/Lark mobile bridge for a local mimofan serve --http runtime.",
   "main": "src/index.mjs",
   "scripts": {
-    "start": "node src/index.mjs",
-    "check": "node --check src/index.mjs && node --check src/lib.mjs && node --check scripts/validate-config.mjs",
-    "test": "node --test test/*.test.mjs",
-    "validate:config": "node scripts/validate-config.mjs"
+    "start": "bun src/index.mjs",
+    "check": "bun --check src/index.mjs && bun --check src/lib.mjs && bun --check scripts/validate-config.mjs",
+    "test": "bun test test/*.test.mjs",
+    "validate:config": "bun scripts/validate-config.mjs"
   },
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.52.0"
   },
   "engines": {
-    "node": ">=18"
+    "bun": ">=1.0"
   }
 }

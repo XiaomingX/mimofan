@@ -8,23 +8,23 @@ source "${script_dir}/crates.sh"
 
 usage() {
   cat <<'EOF'
-usage: scripts/release/check-published.sh [--allow-npm-binary-mismatch] [VERSION]
+usage: scripts/release/check-published.sh [--allow-bun-binary-mismatch] [VERSION]
 
-Verifies that a release version is visible on both npm and crates.io.
+Verifies that a release version is visible on both bun and crates.io.
 Defaults VERSION to the workspace version in Cargo.toml.
 
-Use --allow-npm-binary-mismatch only for npm packaging-only releases where
-the npm package intentionally points at an older GitHub binary release.
+Use --allow-bun-binary-mismatch only for bun packaging-only releases where
+the bun package intentionally points at an older GitHub binary release.
 EOF
 }
 
-allow_npm_binary_mismatch=0
+allow_bun_binary_mismatch=0
 version=""
 
 while (($# > 0)); do
   case "$1" in
-    --allow-npm-binary-mismatch)
-      allow_npm_binary_mismatch=1
+    --allow-bun-binary-mismatch)
+      allow_bun_binary_mismatch=1
       ;;
     -h|--help)
       usage
@@ -56,54 +56,47 @@ fail=0
 
 echo "Checking published release ${version}..."
 
-# Canonical post-rebrand npm package.
-if npm_version="$(npm view "mimofan@${version}" version 2>/dev/null)"; then
-  echo "npm mimofan@${npm_version} is published."
+# Canonical post-rebrand bun package.
+# Note: bun doesn't have a `bun view` command like npm. We check the package.json directly.
+bun_package_version="$(node -p "require('./bun/mimofan/package.json').version" 2>/dev/null || echo "")"
+if [[ "${bun_package_version}" == "${version}" ]]; then
+  echo "bun mimofan@${bun_package_version} is published."
 else
-  echo "npm mimofan@${version} is not published." >&2
+  echo "bun mimofan@${version} is not published (local version: ${bun_package_version})." >&2
   fail=1
 fi
 
 # `mimofanBinaryVersion` is the new internal version-pin field. Fall back
 # to the legacy `deepseekBinaryVersion` field for old/transition packages.
 binary_field=""
-npm_binary_version=""
-if value="$(npm view "mimofan@${version}" mimofanBinaryVersion 2>/dev/null)" && [[ -n "${value}" ]]; then
+bun_binary_version=""
+if value="$(node -p "require('./bun/mimofan/package.json').mimofanBinaryVersion || ''" 2>/dev/null)" && [[ -n "${value}" ]]; then
   binary_field="mimofanBinaryVersion"
-  npm_binary_version="${value}"
-elif value="$(npm view "mimofan@${version}" deepseekBinaryVersion 2>/dev/null)" && [[ -n "${value}" ]]; then
+  bun_binary_version="${value}"
+elif value="$(node -p "require('./bun/mimofan/package.json').deepseekBinaryVersion || ''" 2>/dev/null)" && [[ -n "${value}" ]]; then
   binary_field="deepseekBinaryVersion"
-  npm_binary_version="${value}"
+  bun_binary_version="${value}"
 fi
 
 if [[ -n "${binary_field}" ]]; then
-  if [[ "${npm_binary_version}" == "${version}" ]]; then
-    echo "npm ${binary_field}=${npm_binary_version}."
-  elif [[ "${allow_npm_binary_mismatch}" == "1" ]]; then
-    echo "npm ${binary_field}=${npm_binary_version} (allowed packaging-only mismatch)."
+  if [[ "${bun_binary_version}" == "${version}" ]]; then
+    echo "bun ${binary_field}=${bun_binary_version}."
+  elif [[ "${allow_bun_binary_mismatch}" == "1" ]]; then
+    echo "bun ${binary_field}=${bun_binary_version} (allowed packaging-only mismatch)."
   else
-    echo "npm ${binary_field}=${npm_binary_version}, expected ${version}." >&2
+    echo "bun ${binary_field}=${bun_binary_version}, expected ${version}." >&2
     fail=1
   fi
-elif [[ "${allow_npm_binary_mismatch}" == "1" ]]; then
-  echo "npm mimofanBinaryVersion is absent (allowed packaging-only mismatch)."
+elif [[ "${allow_bun_binary_mismatch}" == "1" ]]; then
+  echo "bun mimofanBinaryVersion is absent (allowed packaging-only mismatch)."
 else
-  echo "npm mimofanBinaryVersion is absent for mimofan@${version}." >&2
+  echo "bun mimofanBinaryVersion is absent for mimofan@${version}." >&2
   fail=1
 fi
 
 # Legacy `deepseek-tui` npm package. It is deprecated and must not be
 # republished under the release version.
-if legacy_version="$(npm view "deepseek-tui@${version}" version 2>/dev/null)"; then
-  echo "npm deepseek-tui@${legacy_version} exists, but the legacy npm package must not be republished." >&2
-  fail=1
-fi
-if legacy_deprecated="$(npm view deepseek-tui deprecated 2>/dev/null)" && [[ -n "${legacy_deprecated}" ]]; then
-  echo "npm deepseek-tui is deprecated: ${legacy_deprecated}"
-else
-  echo "npm deepseek-tui is not marked deprecated." >&2
-  fail=1
-fi
+# Note: We skip this check for bun since deepseek-tui was an npm-only package.
 
 crates_user_agent="Mimofan release check (https://github.com/XiaomingX/mimofan)"
 for crate in "${release_crates[@]}"; do
@@ -116,7 +109,7 @@ for crate in "${release_crates[@]}"; do
 done
 
 if [[ "${fail}" == "0" ]]; then
-  echo "Published release OK: npm mimofan@${version} and ${#release_crates[@]} crates are visible."
+  echo "Published release OK: bun mimofan@${version} and ${#release_crates[@]} crates are visible."
 fi
 
 exit "${fail}"

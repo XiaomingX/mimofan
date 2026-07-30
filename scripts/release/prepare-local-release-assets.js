@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 const crypto = require("crypto");
 const fs = require("fs/promises");
@@ -8,7 +8,7 @@ const {
   allAssetNames,
   CHECKSUM_MANIFEST,
   detectBinaryNames,
-} = require("../../npm/mimofan/scripts/artifacts");
+} = require("../../bun/mimofan/scripts/artifacts");
 
 const WINDOWS_LAUNCHER = "mimofan.bat";
 const WINDOWS_CLI_ASSET = "mimofan-windows-x64.exe";
@@ -25,7 +25,7 @@ async function main() {
     process.env.MIMOFAN_PREPARE_ALL_ASSETS === "1" ||
     process.env.DEEPSEEK_PREPARE_ALL_ASSETS === "1";
   const outputDir = path.resolve(
-    process.argv[2] || path.join("target", "npm-release-assets"),
+    process.argv[2] || path.join("target", "bun-release-assets"),
   );
   const buildDir = path.resolve(
     process.argv[3] || path.join("target", "release"),

@@ -1,0 +1,30 @@
+{
+  "name": "@mimofan/runtime-sdk",
+  "version": "0.0.4",
+  "description": "Typed JavaScript helpers for Mimofan Runtime API fleet endpoints.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "test": "bun test test/*.test.mjs && bun --check index.js"
+  },
+  "engines": {
+    "bun": ">=1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

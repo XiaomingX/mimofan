@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 const fs = require("fs");
 const fsp = require("fs/promises");
@@ -8,7 +8,7 @@ const path = require("path");
 const { spawn } = require("child_process");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
-const packageDir = path.join(repoRoot, "npm", "mimofan");
+const packageDir = path.join(repoRoot, "bun", "mimofan");
 const prepareAssetsScript = path.join(
   repoRoot,
   "scripts",
@@ -21,7 +21,7 @@ function shellQuote(value) {
 }
 
 function usesWindowsCommandShim(command) {
-  return process.platform === "win32" && (command === "npm" || command === "npx");
+  return process.platform === "win32" && command === "bun";
 }
 
 function runCommand(command, args, options = {}) {
@@ -122,18 +122,18 @@ function serveDirectory(root) {
 function parsePackJson(stdout) {
   const trimmed = stdout.trim();
   if (!trimmed) {
-    throw new Error("npm pack did not return package metadata");
+    throw new Error("bun pack did not return package metadata");
   }
   const parsed = JSON.parse(trimmed);
   const first = Array.isArray(parsed) ? parsed[0] : parsed;
   if (!first || !first.filename) {
-    throw new Error(`npm pack metadata did not include a filename: ${trimmed}`);
+    throw new Error(`bun pack metadata did not include a filename: ${trimmed}`);
   }
   return first.filename;
 }
 
 async function main() {
-  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "mimofan-npm-smoke-"));
+  const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), "mimofan-bun-smoke-"));
   const releaseAssetsDir = path.join(tempRoot, "release-assets");
   const packDir = path.join(tempRoot, "pack");
   const installDir = path.join(tempRoot, "install");
@@ -153,8 +153,8 @@ async function main() {
       MIMOFAN_RELEASE_BASE_URL: served.baseUrl,
     };
     const pack = await runCommand(
-      "npm",
-      ["pack", "--json", "--pack-destination", packDir],
+      "bun",
+      ["pack", "--pack-destination", packDir],
       {
         capture: true,
         cwd: packageDir,
@@ -163,21 +163,21 @@ async function main() {
     );
     const tarball = path.join(packDir, parsePackJson(pack.stdout));
 
-    await runCommand("npm", ["init", "-y"], { cwd: installDir });
-    await runCommand("npm", ["install", tarball], { cwd: installDir, env });
-    await runCommand("npx", ["--no-install", "mimofan", "doctor", "--help"], {
+    await runCommand("bun", ["init", "-y"], { cwd: installDir });
+    await runCommand("bun", ["install", tarball], { cwd: installDir, env });
+    await runCommand("bun", ["mimofan", "doctor", "--help"], {
       cwd: installDir,
       env,
     });
-    await runCommand("npx", ["--no-install", "mimofan-tui", "--help"], {
+    await runCommand("bun", ["mimofan-tui", "--help"], {
       cwd: installDir,
       env,
     });
 
-    console.log(`npm wrapper smoke passed with local assets from ${served.baseUrl}`);
+    console.log(`bun wrapper smoke passed with local assets from ${served.baseUrl}`);
   } catch (error) {
     keepTemp = true;
-    console.error(`npm wrapper smoke failed: ${error.message}`);
+    console.error(`bun wrapper smoke failed: ${error.message}`);
     console.error(`Smoke workspace retained at ${tempRoot}`);
     process.exitCode = 1;
   } finally {

@@ -19,7 +19,7 @@ section="$(awk -v version="${version}" '
 ' "${changelog}")"
 
 cat <<EOF
-> **Mimofan** is the canonical project, command, npm package, and
+> **Mimofan** is the canonical project, command, bun package, and
 > release-asset name. The legacy npm package \`deepseek-tui\` is
 > deprecated and receives no further releases. Users coming from
 > v0.8.x legacy \`deepseek\` / \`deepseek-tui\` names should migrate
@@ -27,23 +27,13 @@ cat <<EOF
 
 ## Install
 
-### Recommended — npm (one command, both binaries)
+### Recommended — bun (one command, both binaries)
 
 \`\`\`bash
-npm install -g mimofan
-\`\`\`
-
-The wrapper downloads both binaries from this Release and places them in the same directory.
-
-### Alternative — pnpm / bun (one command, both binaries)
-
-\`\`\`bash
-pnpm add -g mimofan
-# or
 bun add -g mimofan
 \`\`\`
 
-The wrapper downloads both binaries from this Release and places them in the same directory. pnpm and bun defer the download to the first run (their installers skip install-time scripts by default).
+The wrapper downloads both binaries from this Release and places them in the same directory.
 
 ### Docker / GHCR
 
@@ -92,7 +82,7 @@ cd mimofan-<platform>
 
 The **portable** Windows archive skips the install script — extract and run from any directory. The NSIS installer is currently unsigned and may trigger Windows SmartScreen until a signing certificate is wired into the release pipeline.
 
-Each platform also has **bare, unarchived** binaries attached below (\`mimofan-<platform>\` and \`mimofan-tui-<platform>\`) — these are what the npm wrapper and the in-app \`mimofan update\` download, whereas the \`.tar.gz\` / \`.zip\` archives above are the recommended manual download and additionally bundle an install script. The legacy npm package \`deepseek-tui\` is deprecated and is not republished. For migration from v0.8.x legacy binary names, see \`docs/REBRAND.md\`.
+Each platform also has **bare, unarchived** binaries attached below (\`mimofan-<platform>\` and \`mimofan-tui-<platform>\`) — these are what the bun wrapper and the in-app \`mimofan update\` download, whereas the \`.tar.gz\` / \`.zip\` archives above are the recommended manual download and additionally bundle an install script. The legacy npm package \`deepseek-tui\` is deprecated and is not republished. For migration from v0.8.x legacy binary names, see \`docs/REBRAND.md\`.
 
 ### Verify (recommended)
 
