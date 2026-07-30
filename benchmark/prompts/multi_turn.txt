@@ -1,0 +1,56 @@
+# Multi-turn Conversation Test Prompts
+
+## Context Retention
+
+### Memory Test
+Remember the number 42. Now answer: What is the meaning of life, the universe, and everything?
+
+### Name Recall
+My name is Alice. What is my name?
+
+### Preference Tracking
+I prefer Python over JavaScript. What programming language should I use for a web project?
+
+## Instruction Following
+
+### Format Constraint
+Return your answer in JSON format with a single key "answer".
+
+### Length Constraint
+Answer in exactly 3 words.
+
+### Language Switch
+Translate to French: Hello, how are you?
+
+## Reasoning Chains
+
+### Step by Step
+If I have 5 apples and you give me 3 more, then I eat 2, how many do I have? Show your work.
+
+### Conditional Logic
+I want to build a web app. If I need real-time features, what should I use? If I don't?
+
+### Multi-hop
+What is the capital of the country where the Great Wall is located?
+
+## Role Playing
+
+### Expert Mode
+Act as a senior software architect. Review this design: a monolithic Python app that needs to scale to 10 million users.
+
+### Teacher Mode
+Explain recursion like I'm a 10-year-old.
+
+### Debugging Mode
+I'm getting a "stack overflow" error in my recursive function. Help me debug it.
+
+## Complex Tasks
+
+### Summarization
+Summarize the key differences between REST and GraphQL in 3 bullet points.
+
+### Comparison
+Compare Python and Rust for systems programming. Give pros and cons of each.
+
+### Planning
+Create a 3-step plan for learning a new programming language.

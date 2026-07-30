@@ -1,0 +1,56 @@
+# Creative Writing Test Prompts
+
+## Poetry
+
+### Haiku
+Write a haiku about programming (5-7-5 syllables).
+
+### Limerick
+Write a limerick about a programmer.
+
+### Sonnet
+Write the first quatrain of a Shakespearean sonnet about technology.
+
+## Fiction
+
+### Flash Fiction
+Write the opening sentence of a sci-fi story set in 2050.
+
+### Dialogue
+Write a 3-line dialogue between a programmer and their bug.
+
+### Description
+Describe a futuristic city in 2-3 sentences.
+
+## Non-Fiction
+
+### Product Description
+Write a 2-sentence product description for a smart coffee mug.
+
+### Tutorial Intro
+Write the first paragraph of a tutorial on learning Rust.
+
+### Blog Post Hook
+Write an engaging hook for a blog post about AI in software development.
+
+## Business
+
+### Email Subject
+Write 3 email subject lines for a product launch announcement.
+
+### Tagline
+Write 3 taglines for a new code editor.
+
+### Elevator Pitch
+Write a 30-second elevator pitch for a developer tool.
+
+## Humor
+
+### Tech Joke
+Write a programming joke in 2 sentences.
+
+### Meme Caption
+Write a caption for a meme about debugging at 3am.
+
+### Satire
+Write a satirical headline about the latest JavaScript framework.
