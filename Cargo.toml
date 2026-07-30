@@ -64,10 +64,19 @@ uuid = { version = "1.11", features = ["v4"] }
 [profile.dev]
 # Only emit line tables, not full DWARF debug info. Saves massive disk space.
 debug = "line-tables-only"
-# Fewer codegen-units = fewer .o / .dwo files in target/
+# Higher codegen-units = more parallelism = faster compile (at a small
+# code-size/runtime cost, acceptable for dev). This produces MORE .o files,
+# not fewer — the previous comment was backwards.
 codegen-units = 16
 # macOS build optimization: use unpacked debuginfo to speed up links significantly
 split-debuginfo = "unpacked"
+# IMPORTANT: disable incremental compilation so `sccache` (configured in
+# ~/.cargo/config.toml) can cache dependency builds. sccache refuses to cache
+# any rustc invocation made with `-C incremental`, so leaving this on meant
+# the 20 GB incremental/ cache grew unbounded AND no dependency was ever cached
+# across builds/projects. With this off, large third-party crates compile once
+# and are reused everywhere via sccache.
+incremental = false
 
 [profile.dev.package."*"]
 # Optimize dependencies in dev mode for faster runtime performance
@@ -79,6 +88,8 @@ debug = "line-tables-only"
 codegen-units = 16
 # macOS build optimization: use unpacked debuginfo to speed up links significantly
 split-debuginfo = "unpacked"
+# Same rationale as [profile.dev]: let sccache cache test builds.
+incremental = false
 
 [profile.test.package."*"]
 # Optimize dependencies in test mode for faster runtime performance

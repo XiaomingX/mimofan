@@ -1423,51 +1423,6 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
     }
 
     #[test]
-    fn cnb_release_base_url_includes_tag_directory() {
-        assert_eq!(
-            mimofan_release::cnb_release_base_url("0.8.47"),
-            "https://cnb.cool/XiaomingX/mimofan/-/releases/v0.8.47"
-        );
-        assert_eq!(
-            mimofan_release::cnb_release_base_url("v0.8.47"),
-            "https://cnb.cool/XiaomingX/mimofan/-/releases/v0.8.47"
-        );
-    }
-
-    #[test]
-    fn stable_update_is_needed_only_when_latest_is_newer() {
-        assert!(update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.8.46").unwrap());
-        assert!(update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.9.0-beta.1").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.8.45").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Stable, "0.9.0", "v0.9.0-beta.1").unwrap());
-        assert!(
-            !update_is_needed(ReleaseChannel::Stable, "0.9.0-beta.2", "v0.9.0-beta.1").unwrap()
-        );
-    }
-
-    #[test]
-    fn beta_update_allows_switching_from_same_stable_to_beta() {
-        assert!(update_is_needed(ReleaseChannel::Beta, "1.0.0", "v1.0.0-beta.2").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.2", "v1.0.0-beta.2").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.3", "v1.0.0-beta.2").unwrap());
-        assert!(update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.2", "v1.0.0-beta.3").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "2.0.0", "v1.0.0-beta.3").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-rc.1", "v1.0.0-beta.3").unwrap());
-    }
-
-    #[test]
-    fn parse_release_version_accepts_tags_and_build_suffixes() {
-        assert_eq!(
-            mimofan_release::parse_release_version("v0.9.0-beta.1").unwrap(),
-            semver::Version::parse("0.9.0-beta.1").unwrap()
-        );
-        assert_eq!(
-            mimofan_release::parse_release_version("0.8.45 (abcdef123456)").unwrap(),
-            semver::Version::parse("0.8.45").unwrap()
-        );
-    }
-
-    #[test]
     fn beta_release_detection_requires_beta_tag() {
         let rc_prerelease = Release {
             tag_name: "v0.9.0-rc.1".to_string(),

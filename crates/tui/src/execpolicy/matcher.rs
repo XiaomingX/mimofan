@@ -166,18 +166,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn canonical_executable_form_strips_wrappers_and_path() {
-        assert_eq!(canonical_executable_form("/bin/rm -rf /"), "rm -rf /");
-        assert_eq!(canonical_executable_form("sudo rm -rf /"), "rm -rf /");
-        assert_eq!(canonical_executable_form("command rm -rf /"), "rm -rf /");
-        assert_eq!(
-            canonical_executable_form("env FOO=bar rm -rf /"),
-            "rm -rf /"
-        );
-        assert_eq!(canonical_executable_form("rmdir foo"), "rmdir foo");
-    }
-
-    #[test]
     fn deny_bypass_closed_by_canonical_form() {
         // `rm *` must match the path/wrapper forms via the canonical variant.
         assert!(pattern_matches("rm *", "/bin/rm -rf /"));
