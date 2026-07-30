@@ -80,6 +80,22 @@ pub struct Observation {
     pub created_at: i64,
 }
 
+impl Observation {
+    /// Create a new observation
+    pub fn new(project: String, kind: ObservationKind, content: String) -> Self {
+        Self {
+            id: 0, // Will be set by the storage layer
+            content,
+            kind,
+            project: Some(project),
+            files_read: Vec::new(),
+            files_modified: Vec::new(),
+            concepts: Vec::new(),
+            created_at: chrono::Utc::now().timestamp(),
+        }
+    }
+}
+
 /// Metadata for searching observations
 #[derive(Debug, Clone, Default)]
 pub struct SearchFilters {
