@@ -18,9 +18,9 @@ use tokio::sync::{Mutex, RwLock, Semaphore};
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
+use futures_util::stream::{FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use futures::stream::{FuturesUnordered, StreamExt};
 use tokio::{sync::mpsc, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -5018,7 +5018,7 @@ async fn run_subagent(
             // Execute parallel-eligible tools concurrently using FuturesUnordered.
             // Serial-only tools are executed inline between parallel batches.
             let mut parallel_tasks = FuturesUnordered::new();
-            let mut serial_batch: Vec<(usize, String, String, Value)> = Vec::new();
+            let mut serial_batch: Vec<(String, String, Value)> = Vec::new();
 
             for (idx, (tool_id, tool_name, tool_input)) in tool_uses.into_iter().enumerate() {
                 if parallel_safe[idx] {
@@ -5041,9 +5041,7 @@ async fn run_subagent(
                             });
                         }
                         let result = match tokio::time::timeout(runtime.tool_timeout, async {
-                            tool_registry
-                                .execute(&agent_id, &sname, sinput)
-                                .await
+                            tool_registry.execute(&agent_id, &sname, sinput).await
                         })
                         .await
                         {
@@ -5099,18 +5097,17 @@ async fn run_subagent(
                     let registry_clone = tool_registry.clone();
                     let steps_clone = steps;
                     parallel_tasks.push(async move {
-                        let result =
-                            match tokio::time::timeout(tool_timeout, async {
-                                registry_clone
-                                    .execute(&agent_id_clone, &tool_name, tool_input)
-                                    .await
-                            })
-                            .await
-                            {
-                                Ok(Ok(output)) => output,
-                                Ok(Err(e)) => format!("Error: {e}"),
-                                Err(_) => format!("Error: Tool {tool_name} timed out"),
-                            };
+                        let result = match tokio::time::timeout(tool_timeout, async {
+                            registry_clone
+                                .execute(&agent_id_clone, &tool_name, tool_input)
+                                .await
+                        })
+                        .await
+                        {
+                            Ok(Ok(output)) => output,
+                            Ok(Err(e)) => format!("Error: {e}"),
+                            Err(_) => format!("Error: Tool {tool_name} timed out"),
+                        };
                         let tool_ok = !result.starts_with("Error:");
                         record_agent_progress(
                             runtime,
@@ -5156,9 +5153,7 @@ async fn run_subagent(
                     });
                 }
                 let result = match tokio::time::timeout(runtime.tool_timeout, async {
-                    tool_registry
-                        .execute(&agent_id, &sname, sinput)
-                        .await
+                    tool_registry.execute(&agent_id, &sname, sinput).await
                 })
                 .await
                 {
