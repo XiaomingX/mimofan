@@ -39,6 +39,8 @@ use crate::models::{
     context_window_for_model, max_output_tokens_for_model, model_supports_reasoning,
 };
 
+use mimofan_config::catalog::bundled_models_dev_catalog;
+
 /// Coarse provider grouping for a model entry.
 ///
 /// This is deliberately a small, stable enum rather than a re-export of
@@ -133,69 +135,83 @@ impl ModelMetadata {
 /// it is the set of models we make first-class promises about. Unknown ids are
 /// still answered by [`lookup`] via the `models.rs` heuristics, they just are
 /// not pre-seeded here.
-const SEED_MODEL_IDS: &[(&str, ModelProvider)] = &[
-    // --- DeepSeek (first-class; config DEFAULT_DEEPSEEK_MODEL / NIM / OpenAI
-    // / Atlascloud / Novita / Fireworks / Siliconflow / SGLang / vLLM /
-    // Huggingface / Together / Volcengine / WanjieArk / Ollama defaults) ---
-    (
-        mimofan_config::DEFAULT_DEEPSEEK_MODEL,
-        ModelProvider::DeepSeek,
-    ),
-    (
-        mimofan_config::DEFAULT_DEEPSEEK_FLASH_MODEL,
-        ModelProvider::DeepSeek,
-    ),
-    ("deepseek-ai/deepseek-v4-pro", ModelProvider::DeepSeek),
+/// Map a catalog provider id (or a model id with no owning provider) to the
+/// registry's coarse [`ModelProvider`] grouping. This is a *cosmetic* hint only
+/// — facts always come from the catalog via `crate::models`; the grouping just
+/// lets the picker colour models by family.
+fn classify_model_provider(model_id: &str, catalog_provider: Option<&str>) -> ModelProvider {
+    let key = catalog_provider
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_else(|| {
+            model_id
+                .split('/')
+                .next()
+                .unwrap_or(model_id)
+                .to_ascii_lowercase()
+        });
+    match key.as_str() {
+        "deepseek" => ModelProvider::DeepSeek,
+        "anthropic" => ModelProvider::Anthropic,
+        "openai" => ModelProvider::OpenAi,
+        "zai" => ModelProvider::Zai,
+        "moonshotai" | "moonshot" => ModelProvider::Moonshot,
+        "minimax" => ModelProvider::Minimax,
+        "alibaba" | "qwen" => ModelProvider::Qwen,
+        "arcee" => ModelProvider::Arcee,
+        "xiaomi" => ModelProvider::XiaomiMimo,
+        _ => ModelProvider::Other,
+    }
+}
+
+/// Models the unified `models_dev.bundled.json` catalog does NOT describe
+/// (Codex / Kimi / MiniMax-2.7 / Arcee-Trinity / legacy DeepSeek aliases). They
+/// stay first-class promises, so they are seeded explicitly; every id the
+/// catalog *does* cover is projected in below instead of hardcoded.
+const SEED_MODEL_IDS_REMAINDER: &[(&str, ModelProvider)] = &[
     ("deepseek-ai/deepseek-v4-flash", ModelProvider::DeepSeek),
-    ("deepseek/deepseek-v4-pro", ModelProvider::DeepSeek),
     ("deepseek/deepseek-v4-flash", ModelProvider::DeepSeek),
     ("deepseek-reasoner", ModelProvider::DeepSeek),
     ("deepseek-coder:1.3b", ModelProvider::DeepSeek),
-    // --- Anthropic (config DEFAULT_ANTHROPIC_MODEL + models.rs rows) ---
-    ("claude-opus-4-8", ModelProvider::Anthropic),
-    ("claude-sonnet-4-6", ModelProvider::Anthropic),
-    ("claude-haiku-4-5", ModelProvider::Anthropic),
-    // --- OpenAI public API + Codex (config DEFAULT_OPENAI_CODEX_MODEL) ---
-    ("gpt-5.5", ModelProvider::OpenAi),
-    ("gpt-5.5-pro", ModelProvider::OpenAi),
-    ("gpt-5-codex", ModelProvider::OpenAiCodex),
     ("gpt-5.3-codex", ModelProvider::OpenAiCodex),
-    // --- Moonshot / Kimi (config DEFAULT_MOONSHOT_MODEL / KIMI_CODE) ---
-    ("kimi-k2.7-code", ModelProvider::Moonshot),
-    ("kimi-k2.6", ModelProvider::Moonshot),
     ("kimi-for-coding", ModelProvider::Moonshot),
-    ("moonshotai/kimi-k2.7-code", ModelProvider::Moonshot),
     ("moonshotai/kimi-k2.6", ModelProvider::Moonshot),
-    // --- Z.ai GLM (config DEFAULT_ZAI_MODEL) ---
     ("z-ai/glm-5.1", ModelProvider::Zai),
-    ("z-ai/glm-5.2", ModelProvider::Zai),
-    ("glm-5.1", ModelProvider::Zai),
-    ("glm-5.2", ModelProvider::Zai),
-    // --- MiniMax (config DEFAULT_MINIMAX_MODEL) ---
-    ("minimax/minimax-m3", ModelProvider::Minimax),
-    ("minimax-m3", ModelProvider::Minimax),
     ("minimax/minimax-m2.7", ModelProvider::Minimax),
-    ("minimax-m2.7", ModelProvider::Minimax),
-    // --- Qwen (OpenRouter routing defaults) ---
-    ("qwen/qwen3.6-flash", ModelProvider::Qwen),
-    ("qwen/qwen3.6-plus", ModelProvider::Qwen),
-    ("qwen/qwen3.6-35b-a3b", ModelProvider::Qwen),
-    // --- Arcee Trinity (config DEFAULT_ARCEE_MODEL) ---
-    ("trinity-large-thinking", ModelProvider::Arcee),
     ("arcee-ai/trinity-large-thinking", ModelProvider::Arcee),
-    ("trinity-mini", ModelProvider::Arcee),
-    // --- Xiaomi MiMo (config DEFAULT_XIAOMI_MIMO_MODEL) ---
-    ("mimo-v2.5-pro", ModelProvider::XiaomiMimo),
-    ("mimo-v2.5-pro-ultraspeed", ModelProvider::XiaomiMimo),
-    ("mimo-v2.5", ModelProvider::XiaomiMimo),
 ];
+
+/// Build the `(model id, provider)` seed list.
+///
+/// Every model the unified catalog describes is projected in here directly from
+/// [`bundled_models_dev_catalog`] — no duplicated hard-coded id list — so the
+/// registry can never drift from the single source of truth. Ids the catalog
+/// does not cover are contributed by [`SEED_MODEL_IDS_REMAINDER`].
+fn seed_sources() -> Vec<(&'static str, ModelProvider)> {
+    let mut sources: Vec<(&'static str, ModelProvider)> = Vec::new();
+    let catalog = bundled_models_dev_catalog();
+    // Provider-scoped models carry their owning provider id.
+    for (pid, provider) in &catalog.providers {
+        for model in provider.models.values() {
+            let id: &'static str = Box::leak(model.id.clone().into_boxed_str());
+            sources.push((id, classify_model_provider(&model.id, Some(pid))));
+        }
+    }
+    // Top-level, provider-agnostic models are grouped by id prefix.
+    for model in catalog.models.values() {
+        let id: &'static str = Box::leak(model.id.clone().into_boxed_str());
+        sources.push((id, classify_model_provider(&model.id, None)));
+    }
+    // Non-catalog first-class ids, seeded explicitly.
+    sources.extend(SEED_MODEL_IDS_REMAINDER.iter().copied());
+    sources
+}
 
 fn registry() -> &'static BTreeMap<&'static str, ModelMetadata> {
     static REGISTRY: OnceLock<BTreeMap<&'static str, ModelMetadata>> = OnceLock::new();
     REGISTRY.get_or_init(|| {
-        SEED_MODEL_IDS
-            .iter()
-            .map(|&(id, provider)| (id, ModelMetadata::seed(id, provider)))
+        seed_sources()
+            .into_iter()
+            .map(|(id, provider)| (id, ModelMetadata::seed(id, provider)))
             .collect()
     })
 }
