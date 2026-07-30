@@ -12,6 +12,8 @@ out/
 *.dylib
 *.rlib
 *.o
+*.d
+*.dwo
 *.tar.gz
 
 # Development
@@ -44,6 +46,7 @@ dist/
 
 # Logs
 *.log
+cron.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -67,6 +70,7 @@ docs/evidence/
 
 # Benchmark results
 benchmark_results/
+results/
 
 # Historical RFCs and design docs (not needed for code understanding)
 docs/rfcs/

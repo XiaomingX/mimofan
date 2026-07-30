@@ -1,17 +1,30 @@
 # ============================================
 # mimofan .claudeignore
 # 策略：仅保留核心 Rust crates 源码，减少 token 消耗
+# 更新：2026-07-30 - 优化 token 消耗，避免扫描编译文件
 # ============================================
 
-# ── 构建产物 ──
+# ── 构建产物（核心：避免扫描 25GB 编译文件）──
 target/
+build/
+out/
 node_modules/
+*.rlib
+*.o
+*.d
+*.dwo
+*.pdb
+*.exe
+*.dll
+*.so
+*.dylib
 
 # ── 非 Rust 代码（与 Rust 核心无关）──
 web/
 npm/
 extensions/
 integrations/
+apps/
 
 # ── Lock 文件（零信息密度）──
 Cargo.lock
@@ -19,11 +32,15 @@ pnpm-lock.yaml
 pnpm-workspace.yaml
 package-lock.json
 flake.lock
+bun.lock
 
 # ── 大型生成/数据文件 ──
 crates/tui/assets/model_catalog.bundled.json
 crates/config/assets/models_dev.bundled.json
 config.example.toml
+*.json
+!crates/*/Cargo.toml
+!Cargo.toml
 
 # ── 超大稳定模块（摘要见 CLAUDE.md "大文件摘要" 章节）──
 crates/tui/src/localization.rs          # 4,698 行 - TUI 字符串翻译
@@ -47,6 +64,8 @@ crates/*/tests/
 **/conformance_tests.rs
 **/test_support.rs
 **/test_runner.rs
+*_test.rs
+test_*.rs
 
 # ── 文档（核心信息已在根目录文档）──
 docs/examples/
@@ -59,10 +78,18 @@ docs/*_PLAN.md
 !docs/archive/**
 CHANGELOG.md
 crates/tui/CHANGELOG.md
+*.md
+!README.md
+!ARCHITECTURE.md
+!AGENTS.md
+!CLAUDE.md
+!USER_GUIDE.md
 
 # ── AI 记忆文件与本地设置 ──
 **/CLAUDE.local.md
 settings.example.json
+.claude/
+.claude/**
 
 # ── AI 工具本地配置目录 ──
 .kilo/
@@ -70,6 +97,11 @@ settings.example.json
 .mimofan/
 .cursor/
 .windsurf/
+.gemini/
+.antigravity/
+.aiderignore
+.codeiumignore
+.clineignore
 
 # ── Nix 配置 ──
 flake.nix
@@ -87,13 +119,27 @@ Dockerfile
 
 # ── 资源文件（图片等）──
 assets/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
 
 # ── 脚本与工作流 ──
 scripts/
 workflows/
+*.sh
+*.cmd
+!scripts/**
+!.github/scripts/**
+!benchmark/*.sh
+!web/public/install.sh
+!redeploy.sh
 
 # ── Benchmark 结果 ──
 benchmark_results/
+results/
 
 # ── 非核心根文件 ──
 package.json
@@ -101,11 +147,61 @@ package.json
 .gitattributes
 rust-toolchain.toml
 .env.example
+.env
+.env.*
+!.env.example
 
 # ── 根目录本地脚本与临时草稿 ──
 doctor.sh
 verify.sh
 IMPROVEMENT_PLAN.md
 ARCHITECTURE_PLAN.md
-.gemini/
-.antigravity/
+ARCHITECTURE_REFORM.md
+TODO*.md
+todo*.md
+AGENTS.md
+NEXT_SESSION.md
+AI_HANDOFF.md
+result.json
+count_deps.py
+project_overhaul_prompt.md
+test.txt
+
+# ── 日志文件 ──
+*.log
+cron.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── 缓存目录 ──
+.cache/
+.tmp/
+temp/
+tmp/
+outputs/
+coverage/
+backup/
+.uv-bin/
+.uv-cache/
+.uv-tools/
+
+# ── Cargo 本地配置 ──
+.cargo/
+
+# ── 运行时状态 ──
+**/.mimofan/*
+!**/.mimofan/constitution.json
+.deepseek/
+**/session_*.json
+*.db
+npm/*/bin/downloads/
+
+# ── 私有文件 ──
+.private/
+.codex/
+.context/
+.wrangler/
+.worktrees/
+.ace-tool/

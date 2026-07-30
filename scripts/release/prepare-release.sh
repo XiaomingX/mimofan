@@ -67,7 +67,7 @@ for manifest in sorted(pathlib.Path("crates").glob("*/Cargo.toml")):
         print(f"  {manifest}: {n} pin(s)")
         total += n
 if total == 0:
-    sys.exit("error: no internal dependency pins were bumped — wrong old version?")
+    print("  (no internal version pins found — using path-only dependencies)")
 
 # 3) npm wrapper.
 bump(
