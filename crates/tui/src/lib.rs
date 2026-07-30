@@ -21,6 +21,7 @@ use crate::dependencies::ExternalTool;
 
 mod acp_server;
 mod artifacts;
+mod cli_commands;
 mod audit;
 mod auto_reasoning;
 mod automation_manager;
@@ -300,6 +301,57 @@ enum Commands {
         #[arg(long = "last", default_value_t = false, conflicts_with = "session_id")]
         last: bool,
     },
+    /// Configure provider credentials.
+    Login {
+        #[arg(long, value_enum, hide = true)]
+        provider: Option<cli_commands::ProviderArg>,
+        #[arg(long)]
+        api_key: Option<String>,
+    },
+    /// Remove saved authentication state.
+    Logout,
+    /// Manage authentication credentials and provider mode.
+    Auth(cli_commands::AuthArgs),
+    /// Run MCP server mode over stdio.
+    McpServer,
+    /// Read/write/list config values.
+    Config(cli_commands::ConfigArgs),
+    /// Resolve or list available models across providers.
+    Model(cli_commands::ModelArgs),
+    /// Manage thread/session metadata and resume/fork flows.
+    Thread(cli_commands::ThreadArgs),
+    /// Evaluate sandbox/approval policy decisions.
+    Sandbox(cli_commands::SandboxArgs),
+    /// Run the canonical runtime API / control plane (HTTP/SSE, mobile, stdio).
+    AppServer(cli_commands::AppServerArgs),
+    /// Generate shell completions.
+    #[command(after_help = r#"Examples:
+  Bash (current shell only):
+    source <(mimofan completion bash)
+
+  Zsh:
+    mkdir -p ~/.zfunc
+    mimofan completion zsh > ~/.zfunc/_mimofan
+    # Add to ~/.zshrc if needed:
+    #   fpath=(~/.zfunc $fpath)
+    #   autoload -Uz compinit && compinit
+
+  Fish:
+    mkdir -p ~/.config/fish/completions
+    mimofan completion fish > ~/.config/fish/completions/mimofan.fish
+
+  PowerShell (current shell only):
+    mimofan completion powershell | Out-String | Invoke-Expression
+
+The command prints the completion script to stdout; redirect it to a path your shell loads automatically."#)]
+    Completion {
+        #[arg(value_enum)]
+        shell: Shell,
+    },
+    /// Print a usage rollup from the audit log and session store.
+    Metrics(cli_commands::MetricsArgs),
+    /// Check for and apply updates to the `mimofan` binary.
+    Update(cli_commands::UpdateArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -1147,8 +1199,78 @@ pub async fn run() -> Result<()> {
             }
             Commands::Sessions { limit, search } => list_sessions(limit, search),
             Commands::Init => init_project(),
-            Commands::Login { api_key } => run_login(api_key),
-            Commands::Logout => run_logout(),
+            Commands::Login { provider, api_key } => {
+                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
+                cli_commands::run_login_command(&mut store, cli_commands::LoginArgs { provider, api_key })
+            }
+            Commands::Logout => {
+                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
+                cli_commands::run_logout_command(&mut store)
+            }
+            Commands::Auth(args) => {
+                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
+                cli_commands::run_auth_command(&mut store, args.command)
+            }
+            Commands::McpServer => {
+                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
+                cli_commands::run_mcp_server_command(&mut store)
+            }
+            Commands::Config(args) => {
+                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
+                cli_commands::run_config_command(&mut store, args.command)
+            }
+            Commands::Model(args) => {
+                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
+                let runtime_overrides = mimofan_config::CliRuntimeOverrides {
+                    provider: None,
+                    model: None,
+                    api_key: None,
+                    base_url: None,
+                    auth_mode: None,
+                    output_mode: None,
+                    log_level: None,
+                    telemetry: None,
+                    approval_policy: None,
+                    sandbox_mode: None,
+                    yolo: None,
+                    verbosity: None,
+                };
+                cli_commands::run_model_command(&mut store, args.command, runtime_overrides.provider)
+            }
+            Commands::Thread(args) => cli_commands::run_thread_command(args.command),
+            Commands::AppServer(args) => {
+                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
+                let runtime_overrides = mimofan_config::CliRuntimeOverrides {
+                    provider: None,
+                    model: None,
+                    api_key: None,
+                    base_url: None,
+                    auth_mode: None,
+                    output_mode: None,
+                    log_level: None,
+                    telemetry: None,
+                    approval_policy: None,
+                    sandbox_mode: None,
+                    yolo: None,
+                    verbosity: None,
+                };
+                let resolved_runtime = cli_commands::resolve_runtime_for_dispatch(&mut store, &runtime_overrides);
+                cli_commands::run_app_server_command(
+                    cli.config.clone(),
+                    cli.profile.clone(),
+                    cli.workspace.clone(),
+                    &resolved_runtime,
+                    args,
+                )
+            }
+            Commands::Completion { shell } => {
+                cli_commands::generate_completions_from_cli(shell);
+                Ok(())
+            }
+            Commands::Metrics(args) => cli_commands::run_metrics_command(args),
+            Commands::Update(args) => {
+                cli_commands::update::run_update(args.beta, args.check, args.proxy)
+            }
             Commands::Models(args) => {
                 let config = load_config_from_cli(&cli)?;
                 run_models(&config, args).await

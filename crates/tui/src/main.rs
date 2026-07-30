@@ -1,8 +1,4 @@
 //! Binary entry point for mimofan.
-//!
-//! The TUI binary has its own full argument parser and handles all subcommands
-//! (exec, doctor, models, serve, etc.) directly. CLI-native commands (login,
-//! logout, config, etc.) are handled by the CLI binary (`mimofan-cli`).
 
 fn main() -> std::process::ExitCode {
     let rt = tokio::runtime::Builder::new_multi_thread()
