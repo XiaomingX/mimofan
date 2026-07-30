@@ -47,10 +47,18 @@ use crate::tui::app::ReasoningEffort;
 use crate::utils::spawn_supervised;
 use crate::worker_profile::{ModelRoute, ToolScope, WorkerRuntimeProfile};
 
+pub mod aggregator;
+pub mod bus;
 pub mod custom_agents;
+pub mod decomposer;
 pub mod mailbox;
 #[allow(unused_imports)]
+pub use aggregator::{AggregatedResult, AggregationStrategy, Conflict, ResultAggregator};
+#[allow(unused_imports)]
+pub use bus::AgentBus;
 pub use custom_agents::CustomAgentRegistry;
+#[allow(unused_imports)]
+pub use decomposer::{TaskDecomposer, TaskGraph, TaskNode, TaskNodeStatus};
 pub use mailbox::{Mailbox, MailboxMessage};
 
 // === Constants ===
@@ -1468,6 +1476,9 @@ pub struct SubAgentRuntime {
     /// Work sidebar live. Without this, each child gets a fresh isolated
     /// list and the parent never sees child progress until completion.
     pub todos: SharedTodoList,
+    /// Shared agent bus for inter-agent pub/sub communication and shared
+    /// state. All agents spawned by the same manager share this instance.
+    pub bus: Option<Arc<AgentBus>>,
 }
 
 impl SubAgentRuntime {
@@ -1508,6 +1519,7 @@ impl SubAgentRuntime {
             tool_timeout: DEFAULT_TOOL_TIMEOUT,
             speech_output_dir: None,
             todos: crate::tools::todo::new_shared_todo_list(),
+            bus: None,
         }
     }
 
@@ -1517,6 +1529,13 @@ impl SubAgentRuntime {
     #[must_use]
     pub fn with_todos(mut self, todos: SharedTodoList) -> Self {
         self.todos = todos;
+        self
+    }
+
+    /// Attach the shared agent bus for inter-agent pub/sub communication.
+    #[must_use]
+    pub fn with_bus(mut self, bus: Arc<AgentBus>) -> Self {
+        self.bus = Some(bus);
         self
     }
 
@@ -1670,6 +1689,7 @@ impl SubAgentRuntime {
             tool_timeout: self.tool_timeout,
             speech_output_dir: self.speech_output_dir.clone(),
             todos: self.todos.clone(),
+            bus: self.bus.clone(),
         }
     }
 
@@ -1818,6 +1838,8 @@ pub struct SubAgentManager {
     /// capture the most recent checkpoint.
     last_persist_at: Option<Instant>,
     persist_pending: bool,
+    /// Shared agent bus for inter-agent communication.
+    bus: Arc<AgentBus>,
 }
 
 impl SubAgentManager {
@@ -1845,6 +1867,7 @@ impl SubAgentManager {
             launch_gate: Arc::new(Semaphore::new(max_agents.max(1))),
             last_persist_at: None,
             persist_pending: false,
+            bus: Arc::new(AgentBus::new()),
         }
     }
 
@@ -1863,6 +1886,11 @@ impl SubAgentManager {
         self.max_admitted_agents =
             max_admitted.clamp(self.max_agents, crate::config::MAX_SUBAGENT_ADMISSION);
         self
+    }
+
+    /// Return a reference to the shared agent bus.
+    pub fn bus(&self) -> &Arc<AgentBus> {
+        &self.bus
     }
 
     /// Set the default aggregate token budget for root sub-agent runs.
