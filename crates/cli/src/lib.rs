@@ -8,6 +8,9 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[cfg(unix)]
+use std::os::unix::process::CommandExt as _;
+
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate};
@@ -1728,6 +1731,22 @@ fn delegate_to_tui(
 ) -> Result<()> {
     let mut cmd = build_tui_command(cli, resolved_runtime, passthrough)?;
     let tui = PathBuf::from(cmd.get_program());
+
+    // On Unix, if the target binary is the same as the current executable,
+    // use exec() to replace the current process instead of spawning a child.
+    // This avoids EBUSY (os error 35) on macOS which refuses to spawn a
+    // process from the same binary file. (#371)
+    #[cfg(unix)]
+    {
+        if let Ok(current) = std::env::current_exe() {
+            if tui == current {
+                let err = cmd.exec();
+                // exec() only returns on failure
+                bail!("failed to exec TUI binary {}: {}", tui.display(), err);
+            }
+        }
+    }
+
     let status = cmd
         .status()
         .map_err(|err| anyhow!("{}", tui_spawn_error(&tui, &err)))?;
@@ -1761,6 +1780,20 @@ fn delegate_server_to_tui(
     let mut std_cmd = build_tui_command(cli, resolved_runtime, passthrough)?;
     install_server_parent_death_signal(&mut std_cmd);
     let tui = PathBuf::from(std_cmd.get_program());
+
+    // On Unix, if the target binary is the same as the current executable,
+    // use exec() to replace the current process instead of spawning a child.
+    // This avoids EBUSY (os error 35) on macOS which refuses to spawn a
+    // process from the same binary file. (#371)
+    #[cfg(unix)]
+    {
+        if let Ok(current) = std::env::current_exe() {
+            if tui == current {
+                let err = std_cmd.exec();
+                bail!("failed to exec TUI binary {}: {}", tui.display(), err);
+            }
+        }
+    }
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
