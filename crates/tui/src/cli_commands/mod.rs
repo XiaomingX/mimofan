@@ -5,7 +5,7 @@ pub(crate) mod update;
 
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -1193,7 +1193,7 @@ pub(crate) fn delegate_server_to_tui(
         passthrough,
     )?;
     install_server_parent_death_signal(&mut cmd);
-    let tui = PathBuf::from(cmd.get_program());
+    let _tui = PathBuf::from(cmd.get_program());
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

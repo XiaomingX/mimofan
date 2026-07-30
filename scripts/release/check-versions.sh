@@ -16,8 +16,8 @@
 #   8. Generated web facts carry the workspace version (skipped when the
 #      `web/` frontend is absent after its removal from this repo).
 #   9. README install-tag examples point at the current release tag.
-#   10. `mimofan-app-server` stays library-only; the shipped app-server
-#       entrypoint belongs to `mimofan-cli`.
+#  10. `mimofan-app-server` stays library-only; the shipped app-server
+#      entrypoint belongs to `mimofan`.
 #   11. `Cargo.lock` is in sync with the manifests (`cargo metadata --locked`
 #       fails if not).
 set -euo pipefail
@@ -184,7 +184,8 @@ for readme in README.md; do
   fi
 done
 
-# 10) App-server is not a standalone binary.
+# 10) `mimofan-app-server` stays library-only; the shipped app-server
+#     entrypoint belongs to `mimofan`.
 app_server_bins="$(
   cargo metadata --locked --format-version 1 --no-deps \
     | node -e '
@@ -201,7 +202,7 @@ process.stdout.write(bins.join("\n"));
 '
 )"
 if [[ -n "${app_server_bins}" ]]; then
-  echo "::error::mimofan-app-server must stay library-only; use the mimofan-cli-owned 'mimofan app-server' entrypoint instead. Unexpected binary target(s):" >&2
+  echo "::error::mimofan-app-server must stay library-only; use the 'mimofan app-server' entrypoint instead. Unexpected binary target(s):" >&2
   echo "${app_server_bins}" >&2
   fail=1
 fi

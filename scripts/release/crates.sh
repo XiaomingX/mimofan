@@ -16,5 +16,4 @@ release_crates=(
   mimofan-tui
   mimofan-core
   mimofan-app-server
-  mimofan-cli
 )
