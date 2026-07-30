@@ -107,7 +107,7 @@ mimofan 是一个**跑在本地的 AI 编码助手**。用户用自然语言下�
 | **工具执行上下文** | 工具注册、MCP 桥接、执行策略 | `mimofan-tools` + `mimofan-mcp` + `mimofan-execpolicy` |
 | **密钥上下文** | API key 存储（keyring + 文件） | `mimofan-secrets` |
 | **协议上下文** | 客户端↔服务端 JSON DTO | `mimofan-protocol` |
-| **接口适配上下文** | TUI / CLI / HTTP / IM 桥 | `mimofan` + `mimofan-cli`（库） + `mimofan-app-server` + `integrations/*` |
+| **接口适配上下文** | TUI / CLI / HTTP / IM 桥 | `mimofan` + `mimofan-app-server` + `integrations/*` |
 
 ---
 

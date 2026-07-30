@@ -122,7 +122,7 @@ cargo install --path crates/tui --locked
 通过 CNB 镜像安装：
 
 ```bash
-cargo install --git https://cnb.cool/mimofan.net/mimofan --tag vX.Y.Z mimofan-cli --locked --force
+cargo install --git https://cnb.cool/mimofan.net/mimofan --tag vX.Y.Z mimofan --locked --force
 cargo install --git https://cnb.cool/mimofan.net/mimofan --tag vX.Y.Z mimofan --locked --force
 ```
 

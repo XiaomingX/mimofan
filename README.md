@@ -132,14 +132,14 @@ mimofan
 
 ### 场景二：单次命令行快捷调用 (无需进入 TUI)
 
-如果你只是想在 Bash 脚本里使用，或者快速问一个问题，可以使用 `mimofan-cli`：
+如果你只是想在 Bash 脚本里使用，或者快速问一个问题，可以使用 `mimofan exec`：
 
 ```bash
 # 让 AI 一句话回答问题
-mimofan-cli "帮我写一个匹配电子邮件地址的正则表达式"
+mimofan exec "帮我写一个匹配电子邮件地址的正则表达式"
 
 # 让 AI 在当前目录下生成文件
-mimofan-cli "帮我用 Python 写一个简单的爬虫脚本，保存到 spider.py"
+mimofan exec "帮我用 Python 写一个简单的爬虫脚本，保存到 spider.py"
 ```
 
 ---

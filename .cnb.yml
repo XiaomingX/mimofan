@@ -59,11 +59,11 @@
     - name: linux npm wrapper smoke
       script: |
         set -eu
-        cargo build --release --locked -p mimofan-cli -p mimofan
+        cargo build --release --locked -p mimofan
         export PATH="$PWD/target/release:$PATH"
         node scripts/release/npm-wrapper-smoke.js
         ./target/release/mimofan --version
-        ./target/release/mimofan-tui --version
+        ./target/release/mimofan --version
 
 .linux_release_preflight: &linux_release_preflight
   name: linux release preflight
@@ -94,11 +94,11 @@
     - name: release binary smoke
       script: |
         set -eu
-        cargo build --release --locked -p mimofan-cli -p mimofan
+        cargo build --release --locked -p mimofan
         export PATH="$PWD/target/release:$PATH"
         node scripts/release/npm-wrapper-smoke.js
         ./target/release/mimofan --version
-        ./target/release/mimofan-tui --version
+        ./target/release/mimofan --version
 
 main:
   push:
@@ -131,15 +131,13 @@ $:
             ./scripts/release/check-ohos-deps.sh
             cargo build --release --locked \
               --target x86_64-unknown-linux-musl \
-              -p mimofan-cli -p mimofan
+              -p mimofan
 
             mkdir -p target/cnb-release
             BIN_DIR="target/x86_64-unknown-linux-musl/release"
             cp "$BIN_DIR/mimofan" target/cnb-release/mimofan-linux-x64
-            cp "$BIN_DIR/mimofan-tui" target/cnb-release/mimofan-tui-linux-x64
             strip \
               target/cnb-release/mimofan-linux-x64 \
-              target/cnb-release/mimofan-tui-linux-x64 \
               || true
 
             (
@@ -187,5 +185,5 @@ $:
           settings:
             attachments:
               - target/cnb-release/mimofan-linux-x64
-              - target/cnb-release/mimofan-tui-linux-x64
+              - target/cnb-release/mimofan-linux-x64
               - target/cnb-release/mimofan-artifacts-sha256.txt
