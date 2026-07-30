@@ -12,7 +12,7 @@
 //!   api_key = "tvly-..."
 
 use super::spec::{
-    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, optional_u64,
+    ApprovalRequirement, DEFAULT_NETWORK_TIMEOUT_MS, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, optional_u64,
 };
 use crate::config::SearchProvider;
 use crate::network_policy::{Decision, NetworkPolicyDecider};
@@ -114,7 +114,7 @@ fn get_bearer_token_re() -> &'static Regex {
 
 const DEFAULT_MAX_RESULTS: usize = 5;
 const MAX_RESULTS: usize = 10;
-const DEFAULT_TIMEOUT_MS: u64 = 15_000;
+const DEFAULT_TIMEOUT_MS: u64 = DEFAULT_NETWORK_TIMEOUT_MS;
 const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 
 #[derive(Debug, Clone, Serialize)]

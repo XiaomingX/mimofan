@@ -9,7 +9,8 @@
 
 use super::handle::query_jsonpath;
 use super::spec::{
-    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, optional_u64,
+    ApprovalRequirement, DEFAULT_NETWORK_TIMEOUT_MS, ToolCapability, ToolContext, ToolError,
+    ToolResult, ToolSpec, optional_u64,
 };
 use crate::network_policy::{Decision, NetworkPolicyDecider};
 use async_trait::async_trait;
@@ -22,7 +23,7 @@ use std::time::Duration;
 
 const DEFAULT_MAX_BYTES: u64 = 1_000_000;
 const HARD_MAX_BYTES: u64 = 10 * 1024 * 1024;
-const DEFAULT_TIMEOUT_MS: u64 = 15_000;
+const DEFAULT_TIMEOUT_MS: u64 = DEFAULT_NETWORK_TIMEOUT_MS;
 const HARD_MAX_TIMEOUT_MS: u64 = 60_000;
 const MAX_REDIRECTS: usize = 5;
 const USER_AGENT: &str =

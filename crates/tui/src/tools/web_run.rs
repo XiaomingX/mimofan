@@ -4,7 +4,7 @@
 //! tool call to perform multiple web actions and cite sources with ref_ids.
 
 use super::spec::{
-    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
+    ApprovalRequirement, DEFAULT_NETWORK_TIMEOUT_MS, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
     optional_u64, required_str,
 };
 use crate::network_policy::{Decision, host_from_url};
@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use parking_lot::{RwLock, RwLockWriteGuard};
 
 const MAX_RESULTS: usize = 10;
-const DEFAULT_TIMEOUT_MS: u64 = 15_000;
+const DEFAULT_TIMEOUT_MS: u64 = DEFAULT_NETWORK_TIMEOUT_MS;
 const DEFAULT_OPEN_TIMEOUT_MS: u64 = 20_000;
 const MAX_WEB_RUN_SESSIONS: usize = 64;
 const MAX_PAGES_PER_SESSION: usize = 256;

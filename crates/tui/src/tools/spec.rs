@@ -31,6 +31,9 @@ pub use mimofan_tools::{
     optional_u64, required_str, required_u64,
 };
 
+/// Universal default timeout (in ms) for network tools (fetch_url, web_run, web_search).
+pub const DEFAULT_NETWORK_TIMEOUT_MS: u64 = 15_000;
+
 #[async_trait]
 pub trait DynamicToolExecutor: Send + Sync {
     async fn execute_dynamic_tool(
