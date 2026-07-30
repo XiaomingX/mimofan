@@ -47,6 +47,10 @@ mod eval;
 mod execpolicy;
 mod features;
 mod fleet;
+/// Re-export observability types for integration tests and external consumers.
+pub use fleet::observability::{
+    AgentMetrics, AgentTopology, FleetStatusSummary, ObservabilityCollector,
+};
 mod goal_loop;
 mod hooks;
 mod llm_client;

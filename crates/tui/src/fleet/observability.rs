@@ -126,8 +126,8 @@ impl ObservabilityCollector {
     }
 
     /// Record a parent-child agent relationship.
-    pub fn record_parent_child(&mut self, parent: AgentId, child: AgentId) {
-        self.topology.register(parent, child);
+    pub fn record_parent_child(&mut self, parent: impl Into<String>, child: impl Into<String>) {
+        self.topology.register(parent.into(), child.into());
     }
 
     /// Record task start time for duration tracking.

@@ -9,24 +9,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-BENCH_DIR=$(mktemp -d)
-trap 'rm -rf "$BENCH_DIR"' EXIT
-
-TEST_FILE="$BENCH_DIR/test.rs"
-cp crates/tui/tests/fleet_observability.rs "$TEST_FILE"
-
 echo "════════════════════════════════════════════════════════════════"
-echo "  fleet::observability 能力验收 benchmark（独立模式）"
+echo "  fleet::observability 能力验收 benchmark"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
-
-cd "$BENCH_DIR"
-cargo init --name observability_bench .
-cp "$TEST_FILE" src/lib.rs
 
 echo "编译并运行测试..."
 echo ""
-cargo test -- --nocapture 2>&1
+cargo test -p mimofan bench_ -- --nocapture 2>&1
 STATUS=$?
 
 echo ""

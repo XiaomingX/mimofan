@@ -110,7 +110,9 @@ impl AgentBus {
         // sufficient because BusSubscription::drop fires on agent teardown.
         let mut subs = self.inner.subscribers.write().await;
         if let Some(senders) = subs.get_mut(topic) {
-            senders.retain(|s| s.capacity() > 0 || !s.is_closed());
+            // UnboundedSender has no capacity() — unlimited buffer.
+            // Only check whether the receiver is still alive.
+            senders.retain(|s| !s.is_closed());
             if senders.is_empty() {
                 subs.remove(topic);
             }

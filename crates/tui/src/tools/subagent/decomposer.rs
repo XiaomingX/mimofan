@@ -214,14 +214,14 @@ impl TaskGraph {
         }
 
         for (from, to) in &self.edges {
-            *adjacency.entry(from.as_str()).or_default().push(to.as_str());
+            adjacency.entry(from.as_str()).or_default().push(to.as_str());
             *in_degree.entry(to.as_str()).or_insert(0) += 1;
         }
 
         let mut queue: VecDeque<&str> = in_degree
             .iter()
-            .filter(|(_, &deg)| deg == 0)
-            .map(|(&id, _)| id)
+            .filter(|(_, deg)| **deg == 0)
+            .map(|(id, _)| *id)
             .collect();
 
         let mut sorted = Vec::with_capacity(self.nodes.len());
@@ -270,7 +270,7 @@ impl TaskGraph {
         }
 
         for (from, to) in &self.edges {
-            *adjacency.entry(from.as_str()).or_default().push(to.as_str());
+            adjacency.entry(from.as_str()).or_default().push(to.as_str());
             *in_degree.entry(to.as_str()).or_insert(0) += 1;
         }
 
