@@ -813,8 +813,14 @@ impl WebSearchTool {
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown error");
             return Err(ToolError::execution_failed(match code {
-                3003 => "Metaso: daily search limit reached — set METASO_API_KEY or get one at https://metaso.cn/search-api/playground".to_string(),
-                2005 => "Metaso API key rejected — check METASO_API_KEY or set `[search] api_key` in config.toml".to_string(),
+                3003 => format!(
+                    "Metaso: daily search limit reached — set {} or get one at https://metaso.cn/search-api/playground",
+                    SearchProvider::Metaso.api_key_env_vars().join(" / ")
+                ),
+                2005 => format!(
+                    "Metaso API key rejected — check {} or set `[search] api_key` in config.toml",
+                    SearchProvider::Metaso.api_key_env_vars().join(" / ")
+                ),
                 _ => format!("Metaso API error (code {code}: {msg})"),
             }));
         }
@@ -852,15 +858,19 @@ impl WebSearchTool {
         timeout_ms: u64,
         context: &ToolContext,
     ) -> Result<ToolResult, ToolError> {
-        let env_key = std::env::var("BAIDU_SEARCH_API_KEY").ok();
+        let env_key = SearchProvider::Baidu
+            .api_key_env_vars()
+            .iter()
+            .find_map(|v| std::env::var(v).ok());
         let api_key = context
             .search_api_key
             .as_deref()
             .or(env_key.as_deref())
             .ok_or_else(|| {
-                ToolError::execution_failed(
-                    "Baidu search requires an API key. Set `BAIDU_SEARCH_API_KEY` or `[search] api_key` in config.toml.",
-                )
+                ToolError::execution_failed(format!(
+                    "Baidu search requires an API key. Set `{}` or `[search] api_key` in config.toml.",
+                    SearchProvider::Baidu.api_key_env_vars().join(" / ")
+                ))
             })?;
 
         let client = crate::tls::reqwest_client_builder()
@@ -889,7 +899,10 @@ impl WebSearchTool {
 
         if !status.is_success() {
             let msg = match status.as_u16() {
-                401 | 403 => "Baidu search API key rejected — check BAIDU_SEARCH_API_KEY or `[search] api_key` in config.toml".to_string(),
+                401 | 403 => format!(
+                    "Baidu search API key rejected — check {} or `[search] api_key` in config.toml",
+                    SearchProvider::Baidu.api_key_env_vars().join(" / ")
+                ),
                 429 => "Baidu search rate-limited — wait and retry, or check your Baidu AI Search quota".to_string(),
                 _ => {
                     let truncated = truncate_error_body(&body);
@@ -927,20 +940,20 @@ impl WebSearchTool {
         timeout_ms: u64,
         context: &ToolContext,
     ) -> Result<ToolResult, ToolError> {
-        let volc_key = std::env::var("VOLCENGINE_API_KEY").ok();
-        let volc_ark_key = std::env::var("VOLCENGINE_ARK_API_KEY").ok();
-        let ark_key = std::env::var("ARK_API_KEY").ok();
+        let env_key = SearchProvider::Volcengine
+            .api_key_env_vars()
+            .iter()
+            .find_map(|v| std::env::var(v).ok());
         let api_key = context
             .search_api_key
             .as_deref()
-            .or(volc_key.as_deref())
-            .or(volc_ark_key.as_deref())
-            .or(ark_key.as_deref())
+            .or(env_key.as_deref())
             .ok_or_else(|| {
-                ToolError::execution_failed(
+                ToolError::execution_failed(format!(
                     "Volcengine search requires an API key. Set `[search] api_key`, \
-                     or VOLCENGINE_API_KEY / VOLCENGINE_ARK_API_KEY / ARK_API_KEY env var.",
-                )
+                     or {} env var.",
+                    SearchProvider::Volcengine.api_key_env_vars().join(" / ")
+                ))
             })?;
 
         // Volcengine Responses API pipeline (search + model inference) is
@@ -987,7 +1000,10 @@ impl WebSearchTool {
 
                     if !status.is_success() {
                         let msg = match status.as_u16() {
-                            401 | 403 => "Volcengine API key rejected — check `[search] api_key` in config.toml or VOLCENGINE_API_KEY / VOLCENGINE_ARK_API_KEY / ARK_API_KEY".to_string(),
+                            401 | 403 => format!(
+                                "Volcengine API key rejected — check `[search] api_key` in config.toml or {}",
+                                SearchProvider::Volcengine.api_key_env_vars().join(" / ")
+                            ),
                             429 => "Volcengine API rate-limited — wait and retry, or check your quota".to_string(),
                             _ => {
                                 let truncated = truncate_error_body(&body);
