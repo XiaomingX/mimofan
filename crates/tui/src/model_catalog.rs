@@ -26,7 +26,7 @@ use mimofan_config::models_dev::{ModelsDevCost, ModelsDevLimit, ModelsDevModalit
 /// The single source of truth for model facts is the unified
 /// `models_dev.bundled.json` catalog shipped by the config crate. The legacy
 /// `model_catalog.bundled.json` second catalog has been merged into it.
-const BUNDLED_CATALOG_JSON: &str = mimofan_config::BUNDLED_MODELS_DEV_JSON;
+const BUNDLED_CATALOG_JSON: &str = mimofan_config::catalog::BUNDLED_MODELS_DEV_JSON;
 const OPENROUTER_CACHE_FILE: &str = "openrouter.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -216,7 +216,7 @@ pub fn provenance_for_model(model: &str) -> Option<MetadataProvenance> {
 }
 
 pub fn bundled_catalog() -> CatalogCache {
-    let catalog = mimofan_config::bundled_models_dev_catalog();
+    let catalog = mimofan_config::catalog::bundled_models_dev_catalog();
     let mut entries: BTreeMap<String, CatalogEntry> = BTreeMap::new();
     for model in catalog.models.values() {
         insert_bundled_entry(
