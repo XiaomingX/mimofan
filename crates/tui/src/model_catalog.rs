@@ -4,6 +4,12 @@
 //! tables. It is intentionally conservative: startup reads a local cache plus a
 //! bundled snapshot, never performs a network refresh, and only overrides a
 //! legacy fact when the active catalog entry actually carries that field.
+//!
+//! The single source of truth for model facts (context window, max output,
+//! reasoning support, modalities, pricing) is the unified
+//! `models_dev.bundled.json` catalog shipped by the config crate. This module
+//! projects that into the offline metadata layer that the legacy match tables
+//! in `models.rs` / `pricing.rs` now delegate to.
 
 #![allow(dead_code)]
 
@@ -15,7 +21,12 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
-const BUNDLED_CATALOG_JSON: &str = include_str!("../assets/model_catalog.bundled.json");
+use mimofan_config::models_dev::{ModelsDevCost, ModelsDevLimit, ModelsDevModalities};
+
+/// The single source of truth for model facts is the unified
+/// `models_dev.bundled.json` catalog shipped by the config crate. The legacy
+/// `model_catalog.bundled.json` second catalog has been merged into it.
+const BUNDLED_CATALOG_JSON: &str = mimofan_config::catalog::BUNDLED_MODELS_DEV_JSON;
 const OPENROUTER_CACHE_FILE: &str = "openrouter.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -53,6 +64,11 @@ pub struct CatalogEntry {
     pub input_usd_per_million: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_usd_per_million: Option<f64>,
+    /// Per-million-token cache-read price, when the source catalog publishes
+    /// one. Surfaced via [`resolved_usd_pricing`] so callers can honour the
+    /// cache-hit tier instead of billing cache reads at the cache-miss rate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_usd_per_million: Option<f64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modalities: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -180,10 +196,18 @@ pub fn resolved_supports_image(model: &str) -> bool {
         .unwrap_or(true)
 }
 
+/// Returns `(input_usd_per_million, output_usd_per_million, cache_read_usd_per_million)`
+/// for `model`, sourced from the unified catalog. The third element is `None`
+/// when the catalog publishes no separate cache-read tier (cache reads are then
+/// billed at the cache-miss rate by the caller).
 #[must_use]
-pub fn resolved_usd_pricing(model: &str) -> Option<(f64, f64)> {
+pub fn resolved_usd_pricing(model: &str) -> Option<(f64, f64, Option<f64>)> {
     let entry = resolved_entry(model)?;
-    Some((entry.input_usd_per_million?, entry.output_usd_per_million?))
+    Some((
+        entry.input_usd_per_million?,
+        entry.output_usd_per_million?,
+        entry.cache_read_usd_per_million,
+    ))
 }
 
 #[must_use]
@@ -192,7 +216,107 @@ pub fn provenance_for_model(model: &str) -> Option<MetadataProvenance> {
 }
 
 pub fn bundled_catalog() -> CatalogCache {
-    serde_json::from_str(BUNDLED_CATALOG_JSON).expect("bundled model catalog must parse")
+    let catalog = mimofan_config::catalog::bundled_models_dev_catalog();
+    let mut entries: BTreeMap<String, CatalogEntry> = BTreeMap::new();
+    // Top-level provider-agnostic models carry facts but no per-provider cost.
+    for model in catalog.models.values() {
+        insert_bundled_entry(
+            &mut entries,
+            &model.id,
+            model.limit.as_ref(),
+            model.reasoning,
+            model.modalities.as_ref(),
+            None,
+        );
+    }
+    for provider in catalog.providers.values() {
+        for model in provider.models.values() {
+            insert_bundled_entry(
+                &mut entries,
+                &model.id,
+                model.limit.as_ref(),
+                model.reasoning,
+                model.modalities.as_ref(),
+                model.cost.as_ref(),
+            );
+        }
+    }
+    CatalogCache {
+        schema_version: 1,
+        source: "bundled".to_string(),
+        fetched_at: Utc::now(),
+        ttl_secs: 315360000,
+        entries,
+    }
+}
+
+/// Project one Models.dev model row into the offline [`CatalogEntry`] map,
+/// keyed by lowercased id so resolution is case-insensitive. Rows that share an
+/// id (a top-level model plus provider-scoped copies) carry identical facts,
+/// so the first writer wins and later rows only backfill missing fields,
+/// keeping the result deterministic and free of cross-source drift.
+fn insert_bundled_entry(
+    entries: &mut BTreeMap<String, CatalogEntry>,
+    id: &str,
+    limit: Option<&ModelsDevLimit>,
+    reasoning: Option<bool>,
+    modalities: Option<&ModelsDevModalities>,
+    cost: Option<&ModelsDevCost>,
+) {
+    let key = id.to_lowercase();
+    let context_window = limit.and_then(|l| l.context).and_then(|c| u32::try_from(c).ok());
+    let max_output = limit.and_then(|l| l.output).and_then(|o| u32::try_from(o).ok());
+    let mut mods: Vec<String> = Vec::new();
+    if let Some(m) = modalities {
+        mods.extend(m.input.iter().cloned());
+        mods.extend(m.output.iter().cloned());
+    }
+    let (input_usd, output_usd, cache_read_usd) = cost
+        .map(|c| (c.input, c.output, c.cache_read))
+        .unwrap_or((None, None, None));
+
+    if let Some(existing) = entries.get_mut(&key) {
+        if existing.context_window.is_none() {
+            existing.context_window = context_window;
+        }
+        if existing.max_output.is_none() {
+            existing.max_output = max_output;
+        }
+        if existing.input_usd_per_million.is_none() {
+            existing.input_usd_per_million = input_usd;
+        }
+        if existing.output_usd_per_million.is_none() {
+            existing.output_usd_per_million = output_usd;
+        }
+        if existing.cache_read_usd_per_million.is_none() {
+            existing.cache_read_usd_per_million = cache_read_usd;
+        }
+        if existing.modalities.is_empty() {
+            existing.modalities = mods;
+        }
+        return;
+    }
+
+    entries.insert(
+        key,
+        CatalogEntry {
+            id: id.to_string(),
+            context_window,
+            max_output,
+            supports_reasoning: reasoning,
+            input_usd_per_million: input_usd,
+            output_usd_per_million: output_usd,
+            cache_read_usd_per_million: cache_read_usd,
+            modalities: mods,
+            supported_parameters: if reasoning.unwrap_or(false) {
+                vec!["reasoning".to_string()]
+            } else {
+                Vec::new()
+            },
+            provider_model_id: None,
+            provenance: MetadataProvenance::Bundled,
+        },
+    );
 }
 
 fn catalog_cache_read_path() -> Result<PathBuf> {
@@ -298,6 +422,7 @@ fn normalize_openrouter_response_for_ids(
                 supports_reasoning: Some(supports_reasoning),
                 input_usd_per_million,
                 output_usd_per_million,
+                cache_read_usd_per_million: None,
                 modalities,
                 supported_parameters: model.supported_parameters,
                 provider_model_id: Some(model.id),
