@@ -51,7 +51,7 @@ pub mod custom_agents;
 pub mod mailbox;
 #[allow(unused_imports)]
 pub use custom_agents::CustomAgentRegistry;
-pub use mailbox::{Mailbox, MailboxEnvelope, MailboxMessage, MailboxReceiver};
+pub use mailbox::{Mailbox, MailboxMessage};
 
 // === Constants ===
 
@@ -1246,6 +1246,8 @@ struct SpawnRequest {
     model: Option<String>,
     model_strength: SubAgentModelStrength,
     thinking: SubAgentThinking,
+    /// Custom agent definition loaded from Markdown file (if applicable).
+    custom_agent_def: Option<custom_agents::CustomAgentDef>,
     /// Optional working directory for the child. Must canonicalize to a path
     /// inside the parent's workspace. For first-class git worktree isolation,
     /// use `worktree` instead of pre-creating a cwd by hand.
@@ -2536,6 +2538,7 @@ impl SubAgentManager {
             assignment,
             allowed_tools,
             SubAgentSpawnOptions::default(),
+            None, // No custom agent definition
         )
     }
 
@@ -2551,6 +2554,7 @@ impl SubAgentManager {
         assignment: SubAgentAssignment,
         allowed_tools: Option<Vec<String>>,
         options: SubAgentSpawnOptions,
+        custom_agent_def: Option<custom_agents::CustomAgentDef>,
     ) -> Result<SubAgentResult> {
         self.cleanup(COMPLETED_AGENT_RETENTION);
 
@@ -2687,6 +2691,7 @@ impl SubAgentManager {
             max_steps,
             token_budget: options.token_budget,
             input_rx,
+            custom_agent_def,
             launch_gate,
         };
         let handle = spawn_supervised(
@@ -3756,6 +3761,7 @@ async fn spawn_subagent_from_input(
                 fork_context: spawn_request.fork_context,
                 token_budget: spawn_request.token_budget,
             },
+            spawn_request.custom_agent_def,
         )
         .map_err(|e| ToolError::execution_failed(format!("Failed to spawn sub-agent: {e}")))?;
 
@@ -3782,11 +3788,21 @@ async fn spawn_subagent_from_input(
 /// For 0.6.6 we just don't drop the role on the floor: the model sees
 /// "You are operating in the role of `{name}`." as a final line so its
 /// behavior reflects the user's choice.
+///
+/// If a custom agent definition is provided, its prompt is used instead
+/// of the built-in type prompt.
 fn build_subagent_system_prompt(
     agent_type: &SubAgentType,
     assignment: &SubAgentAssignment,
+    custom_agent_def: Option<&custom_agents::CustomAgentDef>,
 ) -> String {
-    let base = agent_type.system_prompt();
+    // Use custom agent's prompt if available, otherwise use built-in type prompt
+    let base = if let Some(def) = custom_agent_def {
+        def.prompt.clone()
+    } else {
+        agent_type.system_prompt()
+    };
+
     let mut prompt = match assignment.role.as_deref() {
         Some(role) if !role.trim().is_empty() => {
             format!(
@@ -3818,6 +3834,7 @@ fn build_initial_subagent_messages(
     assignment: &SubAgentAssignment,
     agent_type: &SubAgentType,
     fork_context: Option<&SubAgentForkContext>,
+    custom_agent_def: Option<&custom_agents::CustomAgentDef>,
 ) -> Vec<Message> {
     let mut messages = fork_context
         .map(|context| context.messages.clone())
@@ -3837,7 +3854,7 @@ fn build_initial_subagent_messages(
 
         messages.push(system_text_message(format!(
             "<mimo:subagent_context>\n{}\n</mimo:subagent_context>",
-            build_subagent_system_prompt(agent_type, assignment)
+            build_subagent_system_prompt(agent_type, assignment, custom_agent_def)
         )));
     }
 
@@ -3882,6 +3899,8 @@ struct SubAgentTask {
     /// model tokens exceed this value. Independent of the scope budget (#3319).
     token_budget: Option<u64>,
     input_rx: mpsc::UnboundedReceiver<SubAgentInput>,
+    /// Custom agent definition loaded from Markdown file (if applicable).
+    custom_agent_def: Option<custom_agents::CustomAgentDef>,
     /// Interactive launch gate (#3095). `Some` only for direct (depth-1)
     /// children: the task acquires a permit before its first model step and
     /// holds it until completion, so a fanout burst beyond the limit queues
@@ -3924,6 +3943,7 @@ async fn run_subagent_task(task: SubAgentTask) {
         task.max_steps,
         task.token_budget,
         task.input_rx,
+        task.custom_agent_def,
     )
     .await;
 
@@ -4456,15 +4476,22 @@ async fn run_subagent(
     max_steps: u32,
     token_budget: Option<u64>,
     mut input_rx: mpsc::UnboundedReceiver<SubAgentInput>,
+    custom_agent_def: Option<custom_agents::CustomAgentDef>,
 ) -> Result<SubAgentResult> {
-    let system_prompt = build_subagent_system_prompt(&agent_type, &assignment);
+    let system_prompt =
+        build_subagent_system_prompt(&agent_type, &assignment, custom_agent_def.as_ref());
     let fork_context_enabled = fork_context;
     let fork_context = fork_context_enabled
         .then_some(runtime.fork_context.as_ref())
         .flatten();
     let request_system = subagent_request_system_prompt(&system_prompt, fork_context);
-    let mut messages =
-        build_initial_subagent_messages(&prompt, &assignment, &agent_type, fork_context);
+    let mut messages = build_initial_subagent_messages(
+        &prompt,
+        &assignment,
+        &agent_type,
+        fork_context,
+        custom_agent_def.as_ref(),
+    );
     let (runtime_for_tools, mut child_completion_rx) = runtime_for_nested_agent_tools(
         runtime,
         &agent_id,
@@ -5457,13 +5484,25 @@ fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolError> {
     let type_input = optional_input_str(input, &["type", "agent_type", "agent_name"]);
     let role_input = optional_input_str(input, &["role", "agent_role"]);
 
+    // Load custom agent registry once for lookup
+    let custom_registry = custom_agents::CustomAgentRegistry::load();
+
+    // Try to parse as built-in type, then check custom agents
+    let mut custom_agent_def = None;
     let parsed_type = type_input
         .map(|kind| {
-            SubAgentType::from_str(kind).ok_or_else(|| {
-                ToolError::invalid_input(format!(
-                    "Invalid sub-agent type '{kind}'. Use: {VALID_SUBAGENT_TYPES}"
-                ))
-            })
+            // First try built-in types
+            if let Some(t) = SubAgentType::from_str(kind) {
+                return Ok(t);
+            }
+            // Then check custom agent definitions
+            if let Some(def) = custom_registry.get(kind) {
+                custom_agent_def = Some(def.clone());
+                return Ok(SubAgentType::Custom);
+            }
+            Err(ToolError::invalid_input(format!(
+                "Invalid sub-agent type '{kind}'. Use: {VALID_SUBAGENT_TYPES} or a custom agent name"
+            )))
         })
         .transpose()?;
 
@@ -5502,21 +5541,31 @@ fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolError> {
         .or_else(|| type_input.and_then(normalize_role_alias))
         .map(str::to_string);
 
-    let allowed_tools = input
-        .get("allowed_tools")
-        .and_then(|v| v.as_array())
-        .map(|items| {
-            let mut tools = Vec::new();
-            for item in items {
-                if let Some(tool) = item.as_str() {
-                    let trimmed = tool.trim();
-                    if !trimmed.is_empty() && !tools.iter().any(|existing| existing == trimmed) {
-                        tools.push(trimmed.to_string());
+    // Use custom agent's tools if defined, otherwise use explicitly provided tools
+    let allowed_tools = if let Some(ref def) = custom_agent_def {
+        if def.tools.is_empty() {
+            None // Empty = inherit all
+        } else {
+            Some(def.tools.clone())
+        }
+    } else {
+        input
+            .get("allowed_tools")
+            .and_then(|v| v.as_array())
+            .map(|items| {
+                let mut tools = Vec::new();
+                for item in items {
+                    if let Some(tool) = item.as_str() {
+                        let trimmed = tool.trim();
+                        if !trimmed.is_empty() && !tools.iter().any(|existing| existing == trimmed)
+                        {
+                            tools.push(trimmed.to_string());
+                        }
                     }
                 }
-            }
-            tools
-        });
+                tools
+            })
+    };
 
     let cwd = parse_optional_cwd(input)?;
     let worktree = parse_optional_worktree_request(input)?;
@@ -5586,7 +5635,12 @@ fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolError> {
         agent_type,
         assignment: SubAgentAssignment::new(prompt, role),
         allowed_tools,
-        model,
+        model: model.or_else(|| {
+            custom_agent_def
+                .as_ref()
+                .filter(|d| d.model != "inherit")
+                .map(|d| d.model.clone())
+        }),
         model_strength,
         thinking,
         cwd,
@@ -5595,6 +5649,7 @@ fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolError> {
         fork_context,
         max_depth,
         token_budget,
+        custom_agent_def,
     })
 }
 
