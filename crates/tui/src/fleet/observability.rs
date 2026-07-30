@@ -214,8 +214,20 @@ impl ObservabilityCollector {
             .max()
             .unwrap_or(0);
 
+        // total_agents: 拓扑 + 指标中的去重 agent 数
+        let mut all_ids: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for (child, parent) in &self.topology.parent_of {
+            all_ids.insert(child);
+            all_ids.insert(parent);
+        }
+        for parent in self.topology.children_of.keys() {
+            all_ids.insert(parent);
+        }
+        for id in self.metrics.keys() {
+            all_ids.insert(id);
+        }
         FleetStatusSummary {
-            total_agents: self.topology.total_agents(),
+            total_agents: all_ids.len(),
             running_agents: running,
             completed_agents: completed,
             failed_agents: failed,
