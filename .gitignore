@@ -105,6 +105,7 @@ web/pnpm-lock.yaml
 *.cmd
 !scripts/**
 !.github/scripts/**
+!benchmark/*.sh
 !web/public/install.sh
 !redeploy.sh
 test.txt
