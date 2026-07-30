@@ -27,6 +27,42 @@
       "modalities": { "input": ["text"], "output": ["text"] },
       "limit": { "context": 1000000, "output": 384000 },
       "open_weights": true
+    },
+    "gpt-5-codex": {
+      "id": "gpt-5-codex",
+      "name": "GPT-5 Codex",
+      "family": "gpt",
+      "reasoning": true,
+      "tool_call": true,
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "limit": { "context": 400000, "output": 128000 }
+    },
+    "z-ai/glm-5.2": {
+      "id": "z-ai/glm-5.2",
+      "name": "GLM-5.2",
+      "family": "glm",
+      "reasoning": true,
+      "tool_call": true,
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "limit": { "context": 1000000, "output": 131072 }
+    },
+    "moonshotai/kimi-k2.7-code": {
+      "id": "moonshotai/kimi-k2.7-code",
+      "name": "Kimi K2.7 Code",
+      "family": "kimi",
+      "reasoning": true,
+      "tool_call": true,
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "limit": { "context": 262144, "output": 262144 }
+    },
+    "mimo-v2.5-pro-ultraspeed": {
+      "id": "mimo-v2.5-pro-ultraspeed",
+      "name": "MiMo v2.5 Pro UltraSpeed",
+      "family": "mimo",
+      "reasoning": true,
+      "tool_call": true,
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "limit": { "context": 1000000, "output": 131072 }
     }
   },
   "providers": {
@@ -133,7 +169,7 @@
           "default": true,
           "reasoning": true,
           "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
+          "modalities": { "input": ["text", "image"], "output": ["text"] },
           "limit": { "context": 1000000, "output": 524288 },
           "cost": { "input": 0.30, "output": 1.20, "cache_read": 0.06 }
         },
@@ -278,7 +314,7 @@
           "family": "minimax",
           "reasoning": true,
           "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
+          "modalities": { "input": ["text", "image"], "output": ["text"] },
           "limit": { "context": 1000000, "output": 524288 },
           "cost": { "input": 0.30, "output": 1.20, "cache_read": 0.06 }
         }
@@ -407,7 +443,7 @@
           "default": true,
           "reasoning": true,
           "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
+          "modalities": { "input": ["text", "image", "audio"], "output": ["text"] },
           "limit": { "context": 1000000, "output": 131072 }
         },
         "mimo-v2.5": {
@@ -416,7 +452,7 @@
           "family": "mimo",
           "reasoning": true,
           "tool_call": true,
-          "modalities": { "input": ["text"], "output": ["text"] },
+          "modalities": { "input": ["text", "image"], "output": ["text"] },
           "limit": { "context": 1000000, "output": 131072 }
         }
       }
