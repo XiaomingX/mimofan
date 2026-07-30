@@ -709,6 +709,16 @@ pub(crate) fn footer_cost_spans(app: &App) -> Vec<Span<'static>> {
         app.format_cost_amount(displayed_cost),
         Style::default().fg(palette::TEXT_MUTED),
     )];
+    // Append single-turn token delta when available (#332)
+    if let (Some(p), Some(c)) = (app.session.last_prompt_tokens, app.session.last_completion_tokens) {
+        let delta = p + c;
+        if delta > 0 {
+            spans.push(Span::styled(
+                format!(" (+{delta})"),
+                Style::default().fg(palette::TEXT_MUTED),
+            ));
+        }
+    }
     // Append cache-savings hint when the last turn had cache hits that
     // saved money (#2038).
     if let Some(saved) = app.last_turn_cache_savings()
