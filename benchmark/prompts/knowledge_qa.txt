@@ -1,0 +1,45 @@
+# Knowledge QA Test Prompts
+
+## Computer Science
+
+### Concepts
+Explain what is a hash table and how it works in 3 sentences.
+
+### Algorithms
+What is the difference between BFS and BFS? Give a one-sentence answer for each.
+
+### Systems
+Explain the concept of virtual memory in 2-3 sentences.
+
+## Programming
+
+### Rust
+What are Rust's ownership rules? List the 3 main rules.
+
+### Python
+What is the difference between a list and a tuple in Python? Answer in 2 sentences.
+
+### JavaScript
+Explain the event loop in JavaScript in 3 bullet points.
+
+## General Knowledge
+
+### Science
+What is photosynthesis? Answer in 2 sentences.
+
+### Math
+What is the difference between correlation and causation? Answer in 2 sentences.
+
+### History
+What was the significance of the invention of the printing press? Answer in 2-3 sentences.
+
+## Domain Specific
+
+### DevOps
+What is the difference between Docker containers and virtual machines? List 3 key differences.
+
+### Database
+What is database indexing and when should you use it? Answer in 3 sentences.
+
+### Security
+What is the difference between authentication and authorization? Answer in 2 sentences.
