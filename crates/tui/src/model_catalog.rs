@@ -218,6 +218,7 @@ pub fn provenance_for_model(model: &str) -> Option<MetadataProvenance> {
 pub fn bundled_catalog() -> CatalogCache {
     let catalog = mimofan_config::catalog::bundled_models_dev_catalog();
     let mut entries: BTreeMap<String, CatalogEntry> = BTreeMap::new();
+    // Top-level provider-agnostic models carry facts but no per-provider cost.
     for model in catalog.models.values() {
         insert_bundled_entry(
             &mut entries,
@@ -225,7 +226,7 @@ pub fn bundled_catalog() -> CatalogCache {
             model.limit.as_ref(),
             model.reasoning,
             model.modalities.as_ref(),
-            model.cost.as_ref(),
+            None,
         );
     }
     for provider in catalog.providers.values() {

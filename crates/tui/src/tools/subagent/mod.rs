@@ -47,8 +47,10 @@ use crate::tui::app::ReasoningEffort;
 use crate::utils::spawn_supervised;
 use crate::worker_profile::{ModelRoute, ToolScope, WorkerRuntimeProfile};
 
+pub mod custom_agents;
 pub mod mailbox;
 #[allow(unused_imports)]
+pub use custom_agents::CustomAgentRegistry;
 pub use mailbox::{Mailbox, MailboxEnvelope, MailboxMessage, MailboxReceiver};
 
 // === Constants ===
