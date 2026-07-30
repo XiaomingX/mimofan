@@ -5187,7 +5187,7 @@ async fn run_subagent(
             }
 
             // Collect parallel results (order may differ from insertion order)
-            while let Some((tool_id, tool_name, result)) = parallel_tasks.next().await {
+            while let Some((tool_id, _tool_name, result)) = parallel_tasks.next().await {
                 tool_results.push(ContentBlock::ToolResult {
                     tool_use_id: tool_id,
                     content: result,

@@ -710,7 +710,10 @@ pub(crate) fn footer_cost_spans(app: &App) -> Vec<Span<'static>> {
         Style::default().fg(palette::TEXT_MUTED),
     )];
     // Append single-turn token delta when available (#332)
-    if let (Some(p), Some(c)) = (app.session.last_prompt_tokens, app.session.last_completion_tokens) {
+    if let (Some(p), Some(c)) = (
+        app.session.last_prompt_tokens,
+        app.session.last_completion_tokens,
+    ) {
         let delta = p + c;
         if delta > 0 {
             spans.push(Span::styled(

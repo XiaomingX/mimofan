@@ -89,6 +89,20 @@ impl SearchProvider {
             Self::Sofya => "sofya",
         }
     }
+
+    /// Env var names (in priority order) that supply this provider's API key
+    /// when `[search] api_key` is not set. Empty for key-less providers
+    /// (Bing, DuckDuckGo, SearXNG, Tavily, Bocha).
+    #[must_use]
+    pub fn api_key_env_vars(self) -> &'static [&'static str] {
+        match self {
+            Self::Metaso => &["METASO_API_KEY"],
+            Self::Baidu => &["BAIDU_SEARCH_API_KEY"],
+            Self::Volcengine => &["VOLCENGINE_API_KEY", "VOLCENGINE_ARK_API_KEY", "ARK_API_KEY"],
+            Self::Sofya => &["SOFYA_API_KEY"],
+            _ => &[],
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

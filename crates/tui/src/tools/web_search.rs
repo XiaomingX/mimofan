@@ -580,15 +580,19 @@ impl WebSearchTool {
         timeout_ms: u64,
         context: &ToolContext,
     ) -> Result<ToolResult, ToolError> {
-        let env_key = std::env::var("SOFYA_API_KEY").ok();
+        let env_key =
+            SearchProvider::Sofya.api_key_env_vars()
+                .iter()
+                .find_map(|v| std::env::var(v).ok());
         let api_key = context
             .search_api_key
             .as_deref()
             .or(env_key.as_deref())
             .ok_or_else(|| {
-                ToolError::execution_failed(
-                    "Sofya search requires an API key. Set `[search] api_key = \"ay_live_...\"` in config.toml or the SOFYA_API_KEY env var.",
-                )
+                ToolError::execution_failed(format!(
+                    "Sofya search requires an API key. Set `[search] api_key = \"ay_live_...\"` in config.toml or the {} env var.",
+                    SearchProvider::Sofya.api_key_env_vars().join(" / ")
+                ))
             })?;
 
         let client = crate::tls::reqwest_client_builder()
@@ -741,7 +745,10 @@ impl WebSearchTool {
         timeout_ms: u64,
         context: &ToolContext,
     ) -> Result<ToolResult, ToolError> {
-        let env_key = std::env::var("METASO_API_KEY").ok();
+        let env_key = SearchProvider::Metaso
+            .api_key_env_vars()
+            .iter()
+            .find_map(|v| std::env::var(v).ok());
         let api_key = context
             .search_api_key
             .as_deref()
@@ -780,7 +787,10 @@ impl WebSearchTool {
 
         if !status.is_success() {
             let msg = match status.as_u16() {
-                401 | 403 => "Metaso API key rejected — check METASO_API_KEY or set `[search] api_key` in config.toml, or get one at https://metaso.cn/search-api/playground".to_string(),
+                401 | 403 => format!(
+                    "Metaso API key rejected — check {} or set `[search] api_key` in config.toml, or get one at https://metaso.cn/search-api/playground",
+                    SearchProvider::Metaso.api_key_env_vars().join(" / ")
+                ),
                 429 => "Metaso rate-limited — wait and retry, or get your own API key at https://metaso.cn/search-api/playground".to_string(),
                 _ => {
                     let truncated = truncate_error_body(&body);
