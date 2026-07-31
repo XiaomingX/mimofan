@@ -1621,11 +1621,13 @@ impl ConfigToml {
         } else {
             None
         };
+        let env_api_key = env_api_key_for_provider(provider);
         let explicit_api_key_for_endpoint = cli
             .api_key
             .as_deref()
-            .or(from_file.as_deref())
-            .or(xiaomi_mimo_env_api_key.as_deref());
+            .or(xiaomi_mimo_env_api_key.as_deref())
+            .or(env_api_key.as_deref())
+            .or(from_file.as_deref());
         let base_url = if provider == ProviderKind::XiaomiMimo {
             resolve_xiaomi_mimo_base_url(
                 configured_base_url,
@@ -1641,15 +1643,15 @@ impl ConfigToml {
                 ProviderKind::Custom => provider.provider().default_base_url().to_string(),
             })
         };
-        // CLI flag wins outright. Otherwise: config-file → injected secrets/env.
-        // When the file is empty, the injected secrets façade recovers
-        // configured secret-store credentials before falling back to ambient env.
+        // API-key precedence is **CLI flag → environment → config-file → secret store**.
         let (api_key, api_key_source) = if let Some(value) = cli.api_key.clone() {
             (Some(value), Some(RuntimeApiKeySource::Cli))
-        } else if let Some(value) = from_file.clone().filter(|v| !v.trim().is_empty()) {
-            (Some(value), Some(RuntimeApiKeySource::ConfigFile))
         } else if let Some(value) = xiaomi_mimo_env_api_key.filter(|v| !v.trim().is_empty()) {
             (Some(value), Some(RuntimeApiKeySource::Env))
+        } else if let Some(value) = env_api_key.clone().filter(|v| !v.trim().is_empty()) {
+            (Some(value), Some(RuntimeApiKeySource::Env))
+        } else if let Some(value) = from_file.clone().filter(|v| !v.trim().is_empty()) {
+            (Some(value), Some(RuntimeApiKeySource::ConfigFile))
         } else if should_skip_secret_store_for_provider(provider, &base_url, auth_mode.as_deref()) {
             match env_api_key_for_provider(provider) {
                 Some(value) => (Some(value), Some(RuntimeApiKeySource::Env)),
@@ -3162,6 +3164,7 @@ impl EnvRuntimeOverrides {
                 .filter(|headers| !headers.is_empty()),
             xiaomi_mimo_base_url: std::env::var("XIAOMI_MIMO_BASE_URL")
                 .or_else(|_| std::env::var("MIMO_BASE_URL"))
+                .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
         }

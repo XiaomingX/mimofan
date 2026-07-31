@@ -120,6 +120,7 @@ provider!(
         "XIAOMI_MIMO_API_KEY",
         "XIAOMI_API_KEY",
         "MIMO_API_KEY",
+        "ANTHROPIC_API_KEY",
     ],
     "xiaomi_mimo",
     aliases: ["xiaomi_mimo", "xiaomimimo", "mimo", "xiaomi"]
