@@ -45,8 +45,10 @@ impl PolicyParser {
     /// Parses a policy, tagging parser errors with `policy_identifier` so failures include the
     /// identifier alongside line numbers.
     pub fn parse(&mut self, policy_identifier: &str, policy_file_contents: &str) -> Result<()> {
-        let mut dialect = Dialect::Extended.clone();
-        dialect.enable_f_strings = true;
+        let dialect = Dialect {
+            enable_f_strings: true,
+            ..Dialect::Standard
+        };
         let ast = AstModule::parse(
             policy_identifier,
             policy_file_contents.to_string(),
@@ -54,13 +56,12 @@ impl PolicyParser {
         )
         .map_err(Error::Starlark)?;
         let globals = GlobalsBuilder::standard().with(policy_builtins).build();
-        let module = Module::new();
-        {
+        Module::with_temp_heap(|module| -> Result<()> {
             let mut eval = Evaluator::new(&module);
             eval.extra = Some(&self.builder);
             eval.eval_module(ast, &globals).map_err(Error::Starlark)?;
-        }
-        Ok(())
+            Ok(())
+        })
     }
 
     pub fn build(self) -> super::policy::Policy {

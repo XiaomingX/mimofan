@@ -104,7 +104,7 @@ arboard = "3.4"
 
 [target.'cfg(not(target_env = "ohos"))'.dependencies]
 portable-pty = "0.9"
-starlark = "0.13.0"
+starlark = "0.14.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.3"
