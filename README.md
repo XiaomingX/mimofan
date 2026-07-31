@@ -11,41 +11,47 @@
 
 ---
 
-## 快速开始
+## ⚡ 30 秒极速上手 (零配置开箱即用)
 
-### 安装
+### 1. 安装
 
 ```bash
-# bun（推荐）
+# 使用 bun 全局安装（推荐）
 bun add -g mimofan
 
-# 或源码安装
+# 或使用 cargo 编译安装
 cargo install --path crates/tui --locked
 ```
 
-### 配置 API Key
+### 2. 零配置直接启动
+
+无需手动创建配置文件！直接设置环境变量即可一键启动：
 
 ```bash
-mkdir -p ~/.mimofan
-cat << 'EOF' > ~/.mimofan/config.toml
-provider = "xiaomi-mimo"
-api_key = "替换为你的_MIMO_API_KEY"
-base_url = "https://api.xiaomimimo.com/v1"
-default_text_model = "mimo-v2.5-pro"
-EOF
-```
-
-### 启动
-
-```bash
-# 检查配置
-mimofan doctor
-
-# 启动 TUI
+# 使用 小米 MiMo (默认)
+export MIMO_API_KEY="你的_MIMO_API_KEY"
 mimofan
 
-# 单次调用
+# 或使用 DeepSeek / OpenAI / 通义千问
+export DEEPSEEK_API_KEY="你的_DEEPSEEK_API_KEY"
+mimofan
+```
+
+> 💡 **提示**：若未设置环境变量，首次运行 `mimofan` 会自动启动交互式配置向导帮你完成配置。
+
+---
+
+## 💡 常用调用方式
+
+```bash
+# 启动全屏 TUI 交互界面
+mimofan
+
+# 单次指令模式（不进入 TUI）
 mimofan exec "帮我写一个正则表达式匹配邮箱"
+
+# 自动运行系统诊断
+mimofan doctor
 ```
 
 ---
