@@ -1650,15 +1650,12 @@ impl ConfigToml {
             (Some(value), Some(RuntimeApiKeySource::Cli))
         } else if let Some(value) = xiaomi_mimo_env_api_key.filter(|v| !v.trim().is_empty()) {
             (Some(value), Some(RuntimeApiKeySource::Env))
-        } else if let Some(value) = env_api_key.clone().filter(|v| !v.trim().is_empty()) {
+        } else if let Some(value) = env_api_key.filter(|v| !v.trim().is_empty()) {
             (Some(value), Some(RuntimeApiKeySource::Env))
-        } else if let Some(value) = from_file.clone().filter(|v| !v.trim().is_empty()) {
+        } else if let Some(value) = from_file.filter(|v| !v.trim().is_empty()) {
             (Some(value), Some(RuntimeApiKeySource::ConfigFile))
         } else if should_skip_secret_store_for_provider(provider, &base_url, auth_mode.as_deref()) {
-            match env_api_key_for_provider(provider) {
-                Some(value) => (Some(value), Some(RuntimeApiKeySource::Env)),
-                None => (None, None),
-            }
+            (None, None)
         } else {
             match secrets.resolve_with_source(provider.as_str()) {
                 Some((value, source)) => {
@@ -1668,10 +1665,7 @@ impl ConfigToml {
                     };
                     (Some(value), Some(source))
                 }
-                None => match env_api_key_for_provider(provider) {
-                    Some(value) => (Some(value), Some(RuntimeApiKeySource::Env)),
-                    None => (None, None),
-                },
+                None => (None, None),
             }
         };
 
