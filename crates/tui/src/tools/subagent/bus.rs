@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 /// A message exchanged between agents through the bus.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,9 +90,7 @@ impl AgentBus {
     ) -> (mpsc::UnboundedReceiver<BusMessage>, BusSubscription) {
         let (tx, rx) = mpsc::unbounded_channel();
         let mut subs = self.inner.subscribers.write().await;
-        subs.entry(topic.to_string())
-            .or_default()
-            .push(tx);
+        subs.entry(topic.to_string()).or_default().push(tx);
 
         let sub = BusSubscription {
             topic: topic.to_string(),

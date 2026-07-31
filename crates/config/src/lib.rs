@@ -3198,7 +3198,10 @@ impl EnvRuntimeOverrides {
         // values (`providers.<name>.base_url`) still win when env is unset.
         match provider {
             ProviderKind::XiaomiMimo => self.xiaomi_mimo_base_url.clone(),
-            ProviderKind::Custom => self.custom_base_url.clone().or_else(|| self.xiaomi_mimo_base_url.clone()),
+            ProviderKind::Custom => self
+                .custom_base_url
+                .clone()
+                .or_else(|| self.xiaomi_mimo_base_url.clone()),
         }
     }
 

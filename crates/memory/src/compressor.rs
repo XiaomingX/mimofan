@@ -4,9 +4,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
+use crate::Result;
 use crate::error::MemoryError;
 use crate::vector::{Observation, ObservationKind};
-use crate::Result;
 
 /// Compression strategy for observations
 #[derive(Debug, Clone)]
@@ -79,7 +79,10 @@ impl ObservationCompressor {
     /// Analyze observations and decide compression strategies
     pub fn analyze_observations(&self, observations: &[Observation]) -> Vec<CompressionStrategy> {
         if observations.len() < self.min_observations {
-            return observations.iter().map(|_| CompressionStrategy::Keep).collect();
+            return observations
+                .iter()
+                .map(|_| CompressionStrategy::Keep)
+                .collect();
         }
 
         let now = Utc::now().timestamp();
@@ -263,10 +266,7 @@ impl ObservationCompressor {
             .filter(|o| o.kind == ObservationKind::Change)
             .count();
 
-        let mut summary = format!(
-            "Session with {} observations: ",
-            observations.len()
-        );
+        let mut summary = format!("Session with {} observations: ", observations.len());
 
         let mut parts = Vec::new();
         if bugfix_count > 0 {

@@ -7,9 +7,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info};
 
+use crate::Result;
 use crate::error::MemoryError;
 use crate::vector::{Observation, SearchFilters, VectorMatch, VectorStore};
-use crate::Result;
 
 /// Batch processor for efficient bulk operations
 pub struct BatchProcessor {
@@ -180,7 +180,9 @@ impl LongTaskManager {
     pub async fn start_task(&self, id: String, name: String) -> Result<()> {
         let mut tasks = self.active_tasks.write().await;
         if tasks.len() >= self.max_active_tasks {
-            return Err(MemoryError::InvalidConfig("Too many active tasks".to_string()));
+            return Err(MemoryError::InvalidConfig(
+                "Too many active tasks".to_string(),
+            ));
         }
 
         tasks.push(LongTask {
@@ -257,9 +259,15 @@ impl ObservationStore {
     }
 
     /// Store observation with rate limiting
-    pub fn store_observation(&mut self, observation: &Observation, embedding: &[f32]) -> Result<i64> {
+    pub fn store_observation(
+        &mut self,
+        observation: &Observation,
+        embedding: &[f32],
+    ) -> Result<i64> {
         if !self.rate_limiter.is_allowed() {
-            return Err(MemoryError::InvalidConfig("Rate limit exceeded".to_string()));
+            return Err(MemoryError::InvalidConfig(
+                "Rate limit exceeded".to_string(),
+            ));
         }
 
         self.store.store_observation(observation, embedding)
@@ -273,12 +281,7 @@ impl ObservationStore {
         filters: &SearchFilters,
     ) -> Result<Vec<VectorMatch>> {
         // Generate cache key
-        let cache_key = format!(
-            "{:?}:{:?}:{:?}",
-            query_embedding.len(),
-            limit,
-            filters
-        );
+        let cache_key = format!("{:?}:{:?}:{:?}", query_embedding.len(), limit, filters);
 
         // Check cache
         if let Some(cached) = self.search_cache.get(&cache_key) {
@@ -296,10 +299,7 @@ impl ObservationStore {
     }
 
     /// Process batch of observations
-    pub async fn process_batch<F, Fut>(
-        &mut self,
-        processor: F,
-    ) -> Result<usize>
+    pub async fn process_batch<F, Fut>(&mut self, processor: F) -> Result<usize>
     where
         F: Fn(Observation) -> Fut,
         Fut: std::future::Future<Output = Result<()>>,

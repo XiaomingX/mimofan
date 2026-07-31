@@ -121,9 +121,7 @@ impl ResultAggregator {
             AggregationStrategy::Merge => Self::merge(results),
             AggregationStrategy::First => Self::first(results),
             AggregationStrategy::Vote { quorum } => Self::vote(results, *quorum),
-            AggregationStrategy::Concatenate { separator } => {
-                Self::concatenate(results, separator)
-            }
+            AggregationStrategy::Concatenate { separator } => Self::concatenate(results, separator),
             AggregationStrategy::LlmAggregate { .. } => {
                 // LLM aggregation requires an external LLM call; the caller
                 // is responsible for invoking it and passing the prompt here
@@ -312,10 +310,7 @@ mod tests {
             ("b".into(), "approve".into()),
             ("c".into(), "reject".into()),
         ];
-        let agg = ResultAggregator::aggregate(
-            &AggregationStrategy::Vote { quorum: 2 },
-            &results,
-        );
+        let agg = ResultAggregator::aggregate(&AggregationStrategy::Vote { quorum: 2 }, &results);
         assert_eq!(agg.output, "approve");
     }
 
@@ -325,10 +320,7 @@ mod tests {
             ("a".into(), "approve".into()),
             ("b".into(), "reject".into()),
         ];
-        let agg = ResultAggregator::aggregate(
-            &AggregationStrategy::Vote { quorum: 2 },
-            &results,
-        );
+        let agg = ResultAggregator::aggregate(&AggregationStrategy::Vote { quorum: 2 }, &results);
         assert!(agg.output.contains("No consensus"));
     }
 

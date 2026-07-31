@@ -56,6 +56,7 @@ pub mod mailbox;
 pub use aggregator::{AggregatedResult, AggregationStrategy, Conflict, ResultAggregator};
 #[allow(unused_imports)]
 pub use bus::AgentBus;
+#[allow(unused_imports)]
 pub use custom_agents::CustomAgentRegistry;
 #[allow(unused_imports)]
 pub use decomposer::{TaskDecomposer, TaskGraph, TaskNode, TaskNodeStatus};

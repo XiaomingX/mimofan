@@ -3,10 +3,10 @@
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
+use crate::Result;
 use crate::embedding::EmbeddingService;
 use crate::error::MemoryError;
 use crate::vector::{Observation, SearchFilters, VectorMatch, VectorStore};
-use crate::Result;
 
 /// Memory injection configuration
 #[derive(Debug, Clone)]
@@ -69,10 +69,7 @@ impl MemoryInjector {
     }
 
     /// Create a new memory injector with default configuration
-    pub fn with_defaults(
-        vector_store: VectorStore,
-        embedding_service: EmbeddingService,
-    ) -> Self {
+    pub fn with_defaults(vector_store: VectorStore, embedding_service: EmbeddingService) -> Self {
         Self::new(vector_store, embedding_service, InjectionConfig::default())
     }
 
@@ -93,11 +90,9 @@ impl MemoryInjector {
             ..Default::default()
         };
 
-        let matches = self.vector_store.search(
-            &query_embedding,
-            self.config.max_observations,
-            &filters,
-        )?;
+        let matches =
+            self.vector_store
+                .search(&query_embedding, self.config.max_observations, &filters)?;
 
         // Generate injection from matches
         let injection = self.matches_to_injection(&matches)?;
@@ -198,11 +193,7 @@ impl MemoryInjector {
             parts.push(format!(
                 "Made {} key decision{}",
                 key_decisions.len(),
-                if key_decisions.len() == 1 {
-                    ""
-                } else {
-                    "s"
-                }
+                if key_decisions.len() == 1 { "" } else { "s" }
             ));
         }
 
@@ -210,11 +201,7 @@ impl MemoryInjector {
             parts.push(format!(
                 "Made {} change{}",
                 recent_changes.len(),
-                if recent_changes.len() == 1 {
-                    ""
-                } else {
-                    "s"
-                }
+                if recent_changes.len() == 1 { "" } else { "s" }
             ));
         }
 

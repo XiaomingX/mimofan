@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use sled::Db;
 use tracing::{debug, info};
 
-use crate::error::MemoryError;
 use crate::Result;
+use crate::error::MemoryError;
 
 /// Types of observations that can be stored
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -212,10 +212,10 @@ impl VectorStore {
     fn load_or_create_index(vectors: &Db, _dimension: usize) -> Result<Hnsw<f32, DistL2>> {
         // Create a new index
         let index = Hnsw::<f32, DistL2>::new(
-            16, // max_nb_connection
+            16,    // max_nb_connection
             20000, // max_elements
-            100, // max_layer
-            100, // ef_construction
+            100,   // max_layer
+            100,   // ef_construction
             DistL2,
         );
 
@@ -231,11 +231,7 @@ impl VectorStore {
     }
 
     /// Store an observation with its embedding
-    pub fn store_observation(
-        &self,
-        observation: &Observation,
-        embedding: &[f32],
-    ) -> Result<i64> {
+    pub fn store_observation(&self, observation: &Observation, embedding: &[f32]) -> Result<i64> {
         if embedding.len() != self.dimension {
             return Err(MemoryError::DimensionMismatch {
                 expected: self.dimension,
@@ -329,10 +325,7 @@ impl VectorStore {
             if let Some(observation) = self.load_observation(id)? {
                 // Apply filters
                 if self.matches_filters(&observation, filters) {
-                    matches.push(VectorMatch {
-                        observation,
-                        score,
-                    });
+                    matches.push(VectorMatch { observation, score });
 
                     if matches.len() >= limit {
                         break;
@@ -409,7 +402,10 @@ impl VectorStore {
 
         // Filter by concepts
         if !filters.concepts.is_empty() {
-            let has_match = filters.concepts.iter().any(|c| observation.concepts.contains(c));
+            let has_match = filters
+                .concepts
+                .iter()
+                .any(|c| observation.concepts.contains(c));
             if !has_match {
                 return false;
             }
@@ -432,9 +428,9 @@ impl VectorStore {
 
     /// Get the number of observations
     pub fn count(&self) -> Result<usize> {
-        let count: i64 = self.sqlite.query_row("SELECT COUNT(*) FROM observations", [], |row| {
-            row.get(0)
-        })?;
+        let count: i64 = self
+            .sqlite
+            .query_row("SELECT COUNT(*) FROM observations", [], |row| row.get(0))?;
         Ok(count as usize)
     }
 
@@ -443,8 +439,10 @@ impl VectorStore {
         debug!("Deleting observation: {}", id);
 
         // Delete from SQLite (cascades to files and concepts)
-        self.sqlite
-            .execute("DELETE FROM observations WHERE id = ?1", rusqlite::params![id])?;
+        self.sqlite.execute(
+            "DELETE FROM observations WHERE id = ?1",
+            rusqlite::params![id],
+        )?;
 
         // Delete from sled
         let key = bincode::serialize(&id)?;

@@ -14,8 +14,12 @@ pub const DEFAULT_PROVIDER_ID: &str = ProviderKind::XiaomiMimo.as_str();
 
 // ── Environment variable names ──────────────────────────────────────
 /// Standard API key environment variables for Xiaomi MiMo (pay-as-you-go).
-pub const XIAOMI_MIMO_STANDARD_ENV_VARS: &[&str] =
-    &["XIAOMI_MIMO_API_KEY", "XIAOMI_API_KEY", "MIMO_API_KEY", "ANTHROPIC_API_KEY"];
+pub const XIAOMI_MIMO_STANDARD_ENV_VARS: &[&str] = &[
+    "XIAOMI_MIMO_API_KEY",
+    "XIAOMI_API_KEY",
+    "MIMO_API_KEY",
+    "ANTHROPIC_API_KEY",
+];
 
 /// Token plan API key environment variables for Xiaomi MiMo.
 pub const XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS: &[&str] =

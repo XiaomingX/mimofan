@@ -1,8 +1,10 @@
 //! Performance benchmark for memory system
 
-use mimofan_memory::vector::{Observation, ObservationKind, VectorStore};
-use mimofan_memory::optimization::{BatchProcessor, LongTaskManager, ObservationStore, RateLimiter};
 use mimofan_memory::compressor::ObservationCompressor;
+use mimofan_memory::optimization::{
+    BatchProcessor, LongTaskManager, ObservationStore, RateLimiter,
+};
+use mimofan_memory::vector::{Observation, ObservationKind, VectorStore};
 use std::time::Duration;
 
 #[tokio::main]
@@ -29,7 +31,9 @@ async fn main() {
             ObservationKind::Discovery,
             format!("Benchmark observation {}", i),
         );
-        observation_store.store_observation(&obs, &embeddings[i]).unwrap();
+        observation_store
+            .store_observation(&obs, &embeddings[i])
+            .unwrap();
     }
     println!("   Store 1000 observations: {:?}", start.elapsed());
 
@@ -37,7 +41,9 @@ async fn main() {
     let start = std::time::Instant::now();
     let query = (0..384).map(|_| random_f32()).collect::<Vec<f32>>();
     for _ in 0..100 {
-        let _results = observation_store.search(&query, 10, &Default::default()).unwrap();
+        let _results = observation_store
+            .search(&query, 10, &Default::default())
+            .unwrap();
     }
     println!("   100 search queries: {:?}", start.elapsed());
 

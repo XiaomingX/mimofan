@@ -4,8 +4,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-use crate::error::MemoryError;
 use crate::Result;
+use crate::error::MemoryError;
 
 /// Configuration for the embedding service
 #[derive(Debug, Clone)]
@@ -67,7 +67,10 @@ pub struct EmbeddingService {
 impl EmbeddingService {
     /// Create a new embedding service with the given configuration
     pub fn new(config: EmbeddingConfig) -> Result<Self> {
-        info!("Initializing embedding service with model: {}", config.model);
+        info!(
+            "Initializing embedding service with model: {}",
+            config.model
+        );
 
         let client = Client::new();
 

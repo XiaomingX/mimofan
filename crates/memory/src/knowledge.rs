@@ -6,10 +6,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
+use crate::Result;
 use crate::embedding::EmbeddingService;
 use crate::error::MemoryError;
 use crate::vector::{Observation, SearchFilters, VectorMatch, VectorStore};
-use crate::Result;
 
 /// Knowledge corpus
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,24 +190,22 @@ impl KnowledgeAgent {
             updated_at: metadata.updated_at,
         };
 
-        info!("Built corpus with {} observations", corpus.observation_count);
+        info!(
+            "Built corpus with {} observations",
+            corpus.observation_count
+        );
 
         Ok(corpus)
     }
 
     /// Query a corpus with a question
-    pub async fn query_corpus(
-        &self,
-        corpus_name: &str,
-        question: &str,
-    ) -> Result<CorpusAnswer> {
+    pub async fn query_corpus(&self, corpus_name: &str, question: &str) -> Result<CorpusAnswer> {
         info!("Querying corpus: {}", corpus_name);
 
         // Get corpus metadata
-        let metadata = self
-            .corpora
-            .get(corpus_name)
-            .ok_or_else(|| MemoryError::InvalidConfig(format!("Corpus not found: {}", corpus_name)))?;
+        let metadata = self.corpora.get(corpus_name).ok_or_else(|| {
+            MemoryError::InvalidConfig(format!("Corpus not found: {}", corpus_name))
+        })?;
 
         // Generate embedding for question
         let question_embedding = self.embedding_service.embed_text(question).await?;
@@ -218,7 +216,9 @@ impl KnowledgeAgent {
             ..Default::default()
         };
 
-        let matches = self.vector_store.search(&question_embedding, 10, &filters)?;
+        let matches = self
+            .vector_store
+            .search(&question_embedding, 10, &filters)?;
 
         // Generate answer
         let answer = self.generate_answer(question, &matches);

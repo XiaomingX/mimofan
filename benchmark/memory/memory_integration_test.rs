@@ -12,7 +12,9 @@ use std::path::Path;
 fn generate_embedding(seed: u64) -> Vec<f32> {
     (0..384)
         .map(|i| {
-            let x = (seed.wrapping_mul(6364136223846793005).wrapping_add(i as u64)) as f32;
+            let x = (seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(i as u64)) as f32;
             (x / u64::MAX as f32) * 2.0 - 1.0
         })
         .collect()
@@ -67,18 +69,22 @@ async fn main() {
 
     println!("\n3. Compress observations");
     let observations: Vec<Observation> = (0..100)
-        .map(|i| Observation::new(
-            "integration-project".to_string(),
-            ObservationKind::Discovery,
-            format!("Observation {}", i),
-        ))
+        .map(|i| {
+            Observation::new(
+                "integration-project".to_string(),
+                ObservationKind::Discovery,
+                format!("Observation {}", i),
+            )
+        })
         .collect();
 
     let strategies = compressor.analyze_observations(&observations);
     assert_eq!(strategies.len(), 100);
     println!("   ✓ Analyzed {} observations", strategies.len());
 
-    let summary = compressor.summarize_session("integration-session", &observations).unwrap();
+    let summary = compressor
+        .summarize_session("integration-session", &observations)
+        .unwrap();
     assert!(!summary.session_id.is_empty());
     println!("   ✓ Generated session summary");
 

@@ -23,7 +23,9 @@ fn create_observation(project: &str, kind: ObservationKind, content: &str) -> Ob
 fn generate_embedding(seed: u64) -> Vec<f32> {
     (0..384)
         .map(|i| {
-            let x = (seed.wrapping_mul(6364136223846793005).wrapping_add(i as u64)) as f32;
+            let x = (seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(i as u64)) as f32;
             (x / u64::MAX as f32) * 2.0 - 1.0
         })
         .collect()
@@ -48,10 +50,15 @@ async fn main() {
     println!("   ✓ Store observation: ID = {}", id);
 
     // Search
-    let results = obs_store.search(&embedding, 10, &Default::default()).unwrap();
+    let results = obs_store
+        .search(&embedding, 10, &Default::default())
+        .unwrap();
     assert!(!results.is_empty(), "Search should find stored observation");
     assert_eq!(results[0].observation.id, id);
-    println!("   ✓ Search found observation: {}", results[0].observation.content);
+    println!(
+        "   ✓ Search found observation: {}",
+        results[0].observation.content
+    );
 
     // Search with filter
     let filters = SearchFilters {
@@ -59,7 +66,10 @@ async fn main() {
         ..Default::default()
     };
     let results = obs_store.search(&embedding, 10, &filters).unwrap();
-    assert!(!results.is_empty(), "Filtered search should find observation");
+    assert!(
+        !results.is_empty(),
+        "Filtered search should find observation"
+    );
     println!("   ✓ Filtered search works");
 
     // Test 2: Batch Processor
@@ -121,11 +131,13 @@ async fn main() {
     let compressor = ObservationCompressor::with_settings(5, 86400);
 
     let observations: Vec<Observation> = (0..10)
-        .map(|i| create_observation(
-            "compress",
-            ObservationKind::Discovery,
-            &format!("Discovery {}", i),
-        ))
+        .map(|i| {
+            create_observation(
+                "compress",
+                ObservationKind::Discovery,
+                &format!("Discovery {}", i),
+            )
+        })
         .collect();
 
     // Analyze
@@ -134,7 +146,9 @@ async fn main() {
     println!("   ✓ Analyzed {} observations", strategies.len());
 
     // Summarize
-    let summary = compressor.summarize_session("test-session", &observations).unwrap();
+    let summary = compressor
+        .summarize_session("test-session", &observations)
+        .unwrap();
     assert!(!summary.session_id.is_empty());
     println!("   ✓ Generated session summary: {}", summary.session_id);
 

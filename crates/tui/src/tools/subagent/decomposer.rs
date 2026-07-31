@@ -14,7 +14,9 @@ use super::SubAgentType;
 // ---------------------------------------------------------------------------
 
 /// Execution status of a single task node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Hash, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskNodeStatus {
     /// Waiting for dependencies to complete.
@@ -154,9 +156,11 @@ impl TaskGraph {
             .values()
             .filter(|n| {
                 n.status == TaskNodeStatus::Pending
-                    && n.dependencies
-                        .iter()
-                        .all(|dep| self.nodes.get(dep).is_some_and(|d| d.status == TaskNodeStatus::Completed))
+                    && n.dependencies.iter().all(|dep| {
+                        self.nodes
+                            .get(dep)
+                            .is_some_and(|d| d.status == TaskNodeStatus::Completed)
+                    })
             })
             .collect()
     }
@@ -214,7 +218,10 @@ impl TaskGraph {
         }
 
         for (from, to) in &self.edges {
-            adjacency.entry(from.as_str()).or_default().push(to.as_str());
+            adjacency
+                .entry(from.as_str())
+                .or_default()
+                .push(to.as_str());
             *in_degree.entry(to.as_str()).or_insert(0) += 1;
         }
 
@@ -270,7 +277,10 @@ impl TaskGraph {
         }
 
         for (from, to) in &self.edges {
-            adjacency.entry(from.as_str()).or_default().push(to.as_str());
+            adjacency
+                .entry(from.as_str())
+                .or_default()
+                .push(to.as_str());
             *in_degree.entry(to.as_str()).or_insert(0) += 1;
         }
 
@@ -408,7 +418,10 @@ mod tests {
 
         let result = graph.topological_sort();
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), DecomposerError::CycleDetected(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            DecomposerError::CycleDetected(_)
+        ));
     }
 
     #[test]
@@ -484,9 +497,24 @@ mod tests {
         let decomposer = TaskDecomposer::new();
         let graph = decomposer
             .decompose(vec![
-                ("step1".into(), "explore".into(), SubAgentType::Explore, vec![]),
-                ("step2".into(), "implement".into(), SubAgentType::Implementer, vec!["step1".into()]),
-                ("step3".into(), "verify".into(), SubAgentType::Verifier, vec!["step2".into()]),
+                (
+                    "step1".into(),
+                    "explore".into(),
+                    SubAgentType::Explore,
+                    vec![],
+                ),
+                (
+                    "step2".into(),
+                    "implement".into(),
+                    SubAgentType::Implementer,
+                    vec!["step1".into()],
+                ),
+                (
+                    "step3".into(),
+                    "verify".into(),
+                    SubAgentType::Verifier,
+                    vec!["step2".into()],
+                ),
             ])
             .unwrap();
 
@@ -499,8 +527,18 @@ mod tests {
     fn test_decomposer_cycle_rejected() {
         let decomposer = TaskDecomposer::new();
         let result = decomposer.decompose(vec![
-            ("a".into(), "a".into(), SubAgentType::General, vec!["b".into()]),
-            ("b".into(), "b".into(), SubAgentType::General, vec!["a".into()]),
+            (
+                "a".into(),
+                "a".into(),
+                SubAgentType::General,
+                vec!["b".into()],
+            ),
+            (
+                "b".into(),
+                "b".into(),
+                SubAgentType::General,
+                vec!["a".into()],
+            ),
         ]);
         assert!(result.is_err());
     }

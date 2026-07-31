@@ -53,7 +53,9 @@ impl BenchmarkResult {
 fn generate_embedding(seed: u64) -> Vec<f32> {
     (0..384)
         .map(|i| {
-            let x = (seed.wrapping_mul(6364136223846793005).wrapping_add(i as u64)) as f32;
+            let x = (seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(i as u64)) as f32;
             (x / u64::MAX as f32) * 2.0 - 1.0
         })
         .collect()
@@ -85,7 +87,9 @@ fn benchmark_vector_store() {
     let query_embedding = generate_embedding(0);
     let start = Instant::now();
     for _ in 0..iterations {
-        let _results = store.search(&query_embedding, 10, &Default::default()).unwrap();
+        let _results = store
+            .search(&query_embedding, 10, &Default::default())
+            .unwrap();
     }
     BenchmarkResult::new("Search (k=10)", iterations, start.elapsed()).print();
 
@@ -182,11 +186,13 @@ fn benchmark_compressor() {
 
     // Generate test observations
     let observations: Vec<Observation> = (0..1000)
-        .map(|i| Observation::new(
-            "compress-project".to_string(),
-            ObservationKind::Discovery,
-            format!("Compression test observation {}", i),
-        ))
+        .map(|i| {
+            Observation::new(
+                "compress-project".to_string(),
+                ObservationKind::Discovery,
+                format!("Compression test observation {}", i),
+            )
+        })
         .collect();
 
     // Benchmark: Analyze observations
