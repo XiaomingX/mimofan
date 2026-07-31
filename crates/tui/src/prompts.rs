@@ -563,13 +563,6 @@ pub const GOAL_CONTINUATION_PROMPT: &str = include_str!("prompts/continuation.md
 /// can override the user's current request (#725).
 pub const MEMORY_GUIDANCE: &str = include_str!("prompts/memory_guidance.md");
 
-// ── Legacy prompt constants (kept for backwards compatibility) ────────
-
-/// Legacy base prompt placeholder — replaced by constitution.md + overlays.
-/// The original file (prompts/agent.txt) has been removed; this constant
-/// exists only so that downstream callers still compile.
-pub const AGENT_PROMPT: &str = "REMOVED — use constitution.md";
-
 // ── Personality selection ─────────────────────────────────────────────
 
 /// Which personality overlay to apply.
