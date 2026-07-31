@@ -165,12 +165,10 @@ pub enum UiThemeValue {
     System,
     Dark,
     Light,
-    Grayscale,
-    CatppuccinMocha,
-    TokyoNight,
-    Dracula,
-    GruvboxDark,
-    Matrix,
+    Ember,
+    Cosmic,
+    Handwritten,
+    Crush,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
@@ -243,7 +241,7 @@ pub enum ReasoningEffortValue {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StatusIndicatorValue {
-    Whale,
+    Mimofan,
     Dots,
     Off,
 }
@@ -722,12 +720,10 @@ impl UiThemeValue {
             Self::System => "system",
             Self::Dark => "dark",
             Self::Light => "light",
-            Self::Grayscale => "grayscale",
-            Self::CatppuccinMocha => "catppuccin-mocha",
-            Self::TokyoNight => "tokyo-night",
-            Self::Dracula => "dracula",
-            Self::GruvboxDark => "gruvbox-dark",
-            Self::Matrix => "matrix",
+            Self::Ember => "claude",
+            Self::Cosmic => "antigravity",
+            Self::Handwritten => "handwritten",
+            Self::Crush => "crush",
         }
     }
 
@@ -736,12 +732,10 @@ impl UiThemeValue {
             Some("system") => Ok(Self::System),
             Some("dark") => Ok(Self::Dark),
             Some("light") => Ok(Self::Light),
-            Some("grayscale") => Ok(Self::Grayscale),
-            Some("catppuccin-mocha") => Ok(Self::CatppuccinMocha),
-            Some("tokyo-night") => Ok(Self::TokyoNight),
-            Some("dracula") => Ok(Self::Dracula),
-            Some("gruvbox-dark") => Ok(Self::GruvboxDark),
-            Some("matrix") => Ok(Self::Matrix),
+            Some("claude") => Ok(Self::Ember),
+            Some("antigravity") => Ok(Self::Cosmic),
+            Some("handwritten") => Ok(Self::Handwritten),
+            Some("crush") => Ok(Self::Crush),
             Some(other) => bail!("unsupported theme '{other}'"),
             None => bail!("invalid theme '{value}'"),
         }
@@ -928,7 +922,7 @@ impl From<&str> for DefaultModeValue {
 impl StatusIndicatorValue {
     fn as_setting(self) -> &'static str {
         match self {
-            Self::Whale => "whale",
+            Self::Mimofan => "whale",
             Self::Dots => "dots",
             Self::Off => "off",
         }
@@ -966,7 +960,7 @@ impl From<&str> for StatusIndicatorValue {
             // Default to whale for "whale", aliases, and anything unknown
             // (we'd rather restore the historic indicator than silently
             // hide it on a typo).
-            _ => Self::Whale,
+            _ => Self::Mimofan,
         }
     }
 }

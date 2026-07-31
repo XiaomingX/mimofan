@@ -26,11 +26,11 @@ const CONTEXT_SIGNAL_WIDTH: usize = 4;
 /// what long-time users remember.
 const STATUS_INDICATOR_FRAME_MS: u128 = 420;
 
-/// Whale-cycle frames: 🐳 builds up dots, then surfaces as 🐋. Restored from
+/// Mimofan-cycle frames: 🐳 builds up dots, then surfaces as 🐋. Restored from
 /// the original `deepseek_squiggle` in v0.8.30 (removed by commit
 /// `1a04659a9` "smoother TUI streaming"). The breaching whale is the
 /// punchline at the midpoint of each cycle.
-const STATUS_INDICATOR_WHALE_FRAMES: &[&str] = &[
+const STATUS_INDICATOR_MIMOFAN_FRAMES: &[&str] = &[
     "🐳", "🐳.", "🐳..", "🐳...", "🐳..", "🐳.", "🐋", "🐋.", "🐋..", "🐋...", "🐋..", "🐋.",
 ];
 
@@ -57,7 +57,7 @@ pub fn header_status_indicator_frame(
         "off" | "none" | "hidden" | "false" => return None,
         "dots" | "dot" => STATUS_INDICATOR_DOT_FRAMES,
         // "whale" + aliases + unknown → whale (intentional default).
-        _ => STATUS_INDICATOR_WHALE_FRAMES,
+        _ => STATUS_INDICATOR_MIMOFAN_FRAMES,
     };
     let elapsed_ms = turn_started_at
         .map(|t| t.elapsed().as_millis())

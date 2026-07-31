@@ -51,7 +51,7 @@ fn modal_block() -> Block<'static> {
     Block::default()
         .title(Line::from(vec![Span::styled(
             " Plan Confirmation ",
-            Style::default().fg(palette::WHALE_ACCENT_PRIMARY).bold(),
+            Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY).bold(),
         )]))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(palette::BORDER_COLOR))

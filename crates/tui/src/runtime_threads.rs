@@ -707,7 +707,7 @@ pub struct ThreadDetail {
     pub latest_seq: u64,
 }
 
-/// Aggregation key for `aggregate_usage`. Whalescale#261 / #564.
+/// Aggregation key for `aggregate_usage`. Mimofanscale#261 / #564.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UsageGroupBy {
     Day,
@@ -1134,7 +1134,7 @@ impl RuntimeThreadManager {
     /// Aggregate token + cost usage across all threads/turns inside the time
     /// range `[since, until]`. Each turn's cost is computed via
     /// `pricing::calculate_turn_cost_from_usage` using the *thread*'s model
-    /// (turns inherit it). Whalescale#261 / #564.
+    /// (turns inherit it). Mimofanscale#261 / #564.
     ///
     /// Buckets are sorted by ascending key for deterministic output. Empty
     /// ranges produce empty `buckets` (never an error).

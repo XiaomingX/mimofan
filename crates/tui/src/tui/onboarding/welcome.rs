@@ -10,7 +10,7 @@ pub fn lines() -> Vec<Line<'static>> {
         Line::from(Span::styled(
             "mimofan",
             Style::default()
-                .fg(palette::WHALE_ACCENT_PRIMARY)
+                .fg(palette::MIMOFAN_ACCENT_PRIMARY)
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(Span::styled(

@@ -533,7 +533,7 @@ fn file_line_style(text: &str) -> Option<Style> {
 fn diff_line_style(text: &str) -> Option<Style> {
     let trimmed = text.trim_start();
     if trimmed.starts_with("@@") {
-        Some(Style::default().fg(palette::WHALE_ACCENT_PRIMARY))
+        Some(Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY))
     } else if trimmed.starts_with('+') && !trimmed.starts_with("+++") {
         Some(Style::default().fg(palette::DIFF_ADDED))
     } else if trimmed.starts_with('-') && !trimmed.starts_with("---") {

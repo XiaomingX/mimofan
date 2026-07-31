@@ -26,7 +26,7 @@ impl RegisterCommand for SwarmCmd {
 }
 
 /// Gate the old prompt-only swarm fanout until it can route through durable
-/// WhaleFlow/Fleet workers (#3218).
+/// MimofanFlow/Fleet workers (#3218).
 pub fn swarm(_app: &mut App, arg: Option<&str>) -> CommandResult {
     let (_max_depth, task) = match super::util::parse_depth_prefixed_arg(arg, 1) {
         Ok(parsed) => parsed,

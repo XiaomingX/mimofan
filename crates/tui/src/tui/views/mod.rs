@@ -1537,7 +1537,7 @@ impl ModalView for ConfigView {
             let mut lines: Vec<Line> = vec![
                 Line::from(vec![Span::styled(
                     self.tr(MessageId::ConfigTitle),
-                    Style::default().fg(palette::WHALE_ACCENT_PRIMARY).bold(),
+                    Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY).bold(),
                 )]),
                 Line::from(vec![
                     Span::styled("  Search: ", Style::default().fg(palette::TEXT_MUTED)),
@@ -1659,7 +1659,7 @@ impl ModalView for ConfigView {
         let block = Block::default()
             .title(Line::from(vec![Span::styled(
                 self.tr(MessageId::ConfigModalTitle),
-                Style::default().fg(palette::WHALE_ACCENT_PRIMARY).bold(),
+                Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY).bold(),
             )]))
             .title_bottom(Line::from(Span::styled(
                 footer,
@@ -2013,7 +2013,7 @@ impl ModalView for SubAgentsView {
                 Block::default()
                     .title(Line::from(vec![Span::styled(
                         " Fleet workers ",
-                        Style::default().fg(palette::WHALE_ACCENT_PRIMARY).bold(),
+                        Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY).bold(),
                     )]))
                     .title_bottom(Line::from(vec![
                         Span::styled(" Esc to close ", Style::default().fg(palette::TEXT_MUTED)),
@@ -2169,7 +2169,7 @@ fn format_agent_status(
         SubAgentStatus::Running => ("running", Style::default().fg(palette::DEEPSEEK_SKY), None),
         SubAgentStatus::Completed => (
             "completed",
-            Style::default().fg(palette::WHALE_ACCENT_PRIMARY),
+            Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY),
             None,
         ),
         SubAgentStatus::Interrupted(reason) => (

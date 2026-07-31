@@ -26,7 +26,7 @@ pub(crate) struct ColorCompatBackend<W: Write> {
     inner: CrosstermBackend<W>,
     depth: ColorDepth,
     palette_mode: PaletteMode,
-    /// Currently active named theme. `System`/`Whale`/`WhaleLight` make the
+    /// Currently active named theme. `System`/`Mimofan`/`MimofanLight` make the
     /// theme remap a no-op (those rely on the dark/light pipeline); the
     /// community presets (Catppuccin, Tokyo Night, Dracula, Gruvbox) trigger
     /// a per-cell rewrite of dark-palette constants → preset slots.
@@ -315,7 +315,7 @@ fn adapt_cell_colors(
     ui_theme: &UiTheme,
 ) {
     // Stage 1: community-theme remap (dark palette → preset slots). No-op
-    // for System / Whale / WhaleLight so legacy dark/light flows are
+    // for System / Mimofan / MimofanLight so legacy dark/light flows are
     // untouched. Runs *before* the palette-mode remap so a light terminal
     // running e.g. Catppuccin still routes the preset colors through the
     // light adaptation below (rare combo, but the sequencing is the same).

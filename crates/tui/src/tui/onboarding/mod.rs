@@ -48,7 +48,7 @@ pub fn render(f: &mut Frame, area: Rect, app: &App) {
             .title(Line::from(Span::styled(
                 " mimofan ",
                 Style::default()
-                    .fg(palette::WHALE_ACCENT_PRIMARY)
+                    .fg(palette::MIMOFAN_ACCENT_PRIMARY)
                     .add_modifier(Modifier::BOLD),
             )))
             .borders(Borders::ALL)

@@ -186,7 +186,7 @@ const SUBAGENT_TYPE_DESCRIPTION: &str = "Sub-agent type. Accepted vocabulary: ge
      explore (aliases: exploration, explorer), plan (aliases: planning, planner, awaiter), \
      review (aliases: code-review, code_review, reviewer), implementer (aliases: implement, implementation, builder), \
      verifier (aliases: verify, verification, validator, tester), custom.";
-/// Whale species used as friendly names for sub-agents in the UI. The full
+/// Mimofan species used as friendly names for sub-agents in the UI. The full
 /// Cetacea infraorder — baleen whales (Mysticeti), toothed whales
 /// (Odontoceti), plus select dolphin species (family Delphinidae) that
 /// don't conflate with existing agent type labels. Porpoises (Phocoenidae)
@@ -197,7 +197,7 @@ const SUBAGENT_TYPE_DESCRIPTION: &str = "Sub-agent type. Accepted vocabulary: ge
 /// not a strict locale match.
 ///
 /// Taxonomy source: Society for Marine Mammalogy (2025).
-pub const WHALE_NICKNAMES: &[&str] = &[
+pub const MIMOFAN_NICKNAMES: &[&str] = &[
     "Blue",
     "蓝鲸",
     "Humpback",
@@ -310,8 +310,8 @@ pub fn whale_name_for_id(id: &str) -> String {
     use std::hash::{Hash, Hasher};
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     id.hash(&mut hasher);
-    let idx = (hasher.finish() as usize) % WHALE_NICKNAMES.len();
-    WHALE_NICKNAMES[idx].to_string()
+    let idx = (hasher.finish() as usize) % MIMOFAN_NICKNAMES.len();
+    MIMOFAN_NICKNAMES[idx].to_string()
 }
 
 /// Assign a unique whale name for an agent ID, avoiding collisions with
@@ -4150,7 +4150,7 @@ pub(crate) fn subagent_completion_from_result(result: &SubAgentResult) -> SubAge
 fn subagent_done_sentinel(agent_id: &str, res: &SubAgentResult, truncated: bool) -> String {
     let mut payload = json!({
         "agent_id": agent_id,
-        // Whale name — a stable, human-friendly handle the orchestrator can use
+        // Mimofan name — a stable, human-friendly handle the orchestrator can use
         // to refer to this child in its own reasoning/output.
         "name": res.nickname,
         "agent_type": res.agent_type.as_str(),

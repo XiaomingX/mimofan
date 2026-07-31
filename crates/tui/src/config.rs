@@ -1484,7 +1484,7 @@ pub struct RuntimeApiConfig {
     /// dev server port (e.g. Vite's default `:5173`).
     ///
     /// Resolution order (highest priority first): `--cors-origin` CLI flag,
-    /// `DEEPSEEK_CORS_ORIGINS` env var (comma-separated), this field. Whalescale#255 / #561.
+    /// `DEEPSEEK_CORS_ORIGINS` env var (comma-separated), this field. Mimofanscale#255 / #561.
     #[serde(default)]
     pub cors_origins: Option<Vec<String>>,
 }

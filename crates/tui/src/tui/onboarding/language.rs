@@ -48,7 +48,7 @@ pub fn lines(app: &App) -> Vec<Line<'static>> {
         let is_current = current == *tag;
         let bullet = if is_current { "●" } else { "○" };
         let bullet_color = if is_current {
-            palette::WHALE_ACCENT_PRIMARY
+            palette::MIMOFAN_ACCENT_PRIMARY
         } else {
             palette::TEXT_MUTED
         };

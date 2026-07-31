@@ -842,7 +842,7 @@ struct ServeArgs {
     /// built-in defaults (localhost:3000, localhost:1420, tauri://localhost).
     /// Also reads `MIMOFAN_CORS_ORIGINS` (comma-separated), then
     /// `DEEPSEEK_CORS_ORIGINS` as an alias, and `[runtime_api] cors_origins`
-    /// from `config.toml`. Whalescale#255.
+    /// from `config.toml`. Mimofanscale#255.
     #[arg(long = "cors-origin", value_name = "URL")]
     cors_origin: Vec<String>,
     /// Require this bearer token for `/v1/*` runtime API routes. Also reads
@@ -2141,7 +2141,7 @@ fn init_plugins_dir(
 /// The runtime API always allows the built-in dev defaults
 /// (localhost:3000, localhost:1420, tauri://localhost). User entries are
 /// appended on top — empty strings are skipped, and duplicates are deduped
-/// while preserving first-seen order. Whalescale#255 / #561.
+/// while preserving first-seen order. Mimofanscale#255 / #561.
 fn resolve_cors_origins(config: &Config, flag_origins: &[String]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut push = |raw: &str| {
@@ -2634,7 +2634,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
     use crate::palette;
     use colored::Colorize;
 
-    let (accent_r, accent_g, accent_b) = palette::WHALE_ACCENT_PRIMARY_RGB;
+    let (accent_r, accent_g, accent_b) = palette::MIMOFAN_ACCENT_PRIMARY_RGB;
     let (sky_r, sky_g, sky_b) = palette::DEEPSEEK_SKY_RGB;
     let (aqua_r, aqua_g, aqua_b) = palette::DEEPSEEK_SKY_RGB;
     let (red_r, red_g, red_b) = palette::DEEPSEEK_RED_RGB;
@@ -4283,7 +4283,7 @@ fn list_sessions(limit: usize, search: Option<String>) -> Result<()> {
     use colored::Colorize;
     use session_manager::{SessionManager, format_session_line};
 
-    let (accent_r, accent_g, accent_b) = palette::WHALE_ACCENT_PRIMARY_RGB;
+    let (accent_r, accent_g, accent_b) = palette::MIMOFAN_ACCENT_PRIMARY_RGB;
     let (sky_r, sky_g, sky_b) = palette::DEEPSEEK_SKY_RGB;
     let (aqua_r, aqua_g, aqua_b) = palette::DEEPSEEK_SKY_RGB;
 

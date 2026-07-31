@@ -1,4 +1,4 @@
-//! Whale/DeepSeek terminal theme tokens.
+//! Mimofan/DeepSeek terminal theme tokens.
 //!
 //! A small, deliberately flat module that names the color, border, and
 //! padding choices the TUI is already making. All values match the dark
@@ -23,7 +23,6 @@ use crate::tui::history::ToolStatus;
 pub enum Variant {
     Dark,
     Light,
-    Grayscale,
 }
 
 /// Centralized visual tokens for sidebar, plan, and tool rendering.
@@ -66,7 +65,7 @@ impl Theme {
             section_border_type: BorderType::Plain,
             section_border_color: palette::BORDER_COLOR,
             section_bg: palette::DEEPSEEK_INK,
-            section_title_color: palette::WHALE_ACCENT_PRIMARY,
+            section_title_color: palette::MIMOFAN_ACCENT_PRIMARY,
             // Horizontal padding only. `Padding::uniform(1)` ate two rows of
             // each sidebar panel — for compact terminals where Work/Tasks/Agents
             // get ~3 rows total via the 25% layout split, that left zero rows
@@ -97,72 +96,20 @@ impl Theme {
             section_border_type: BorderType::Plain,
             section_border_color: palette::LIGHT_BORDER,
             section_bg: palette::LIGHT_PANEL,
-            section_title_color: palette::WHALE_ACCENT_PRIMARY,
+            section_title_color: palette::MIMOFAN_ACCENT_PRIMARY,
             section_padding: Padding::horizontal(1),
             tool_title_color: palette::LIGHT_TEXT_SOFT,
             tool_value_color: palette::LIGHT_TEXT_MUTED,
             tool_label_color: palette::LIGHT_TEXT_HINT,
-            tool_running_accent: palette::WHALE_ACCENT_PRIMARY,
+            tool_running_accent: palette::MIMOFAN_ACCENT_PRIMARY,
             tool_success_accent: palette::LIGHT_TEXT_HINT,
             tool_failed_accent: palette::DEEPSEEK_RED,
-            plan_progress_color: palette::WHALE_ACCENT_PRIMARY,
+            plan_progress_color: palette::MIMOFAN_ACCENT_PRIMARY,
             plan_summary_color: palette::LIGHT_TEXT_MUTED,
             plan_explanation_color: palette::LIGHT_TEXT_HINT,
             plan_pending_color: palette::LIGHT_TEXT_MUTED,
             plan_in_progress_color: Color::Rgb(180, 83, 9),
-            plan_completed_color: palette::WHALE_ACCENT_PRIMARY,
-        }
-    }
-
-    /// Solarized Light theme tokens — warm ivory tones, high contrast.
-    #[must_use]
-    pub const fn solarized_light() -> Self {
-        Self {
-            variant: Variant::Light,
-            section_borders: Borders::ALL,
-            section_border_type: BorderType::Plain,
-            section_border_color: palette::SOLARIZED_BORDER,
-            section_bg: palette::SOLARIZED_PANEL,
-            section_title_color: palette::SOLARIZED_BLUE,
-            section_padding: Padding::horizontal(1),
-            tool_title_color: palette::SOLARIZED_TEXT_SOFT,
-            tool_value_color: palette::SOLARIZED_TEXT_MUTED,
-            tool_label_color: palette::SOLARIZED_TEXT_DIM,
-            tool_running_accent: palette::SOLARIZED_BLUE,
-            tool_success_accent: palette::SOLARIZED_CYAN,
-            tool_failed_accent: palette::SOLARIZED_RED,
-            plan_progress_color: palette::SOLARIZED_BLUE,
-            plan_summary_color: palette::SOLARIZED_TEXT_MUTED,
-            plan_explanation_color: palette::SOLARIZED_TEXT_DIM,
-            plan_pending_color: palette::SOLARIZED_TEXT_MUTED,
-            plan_in_progress_color: palette::SOLARIZED_ORANGE,
-            plan_completed_color: palette::SOLARIZED_BLUE,
-        }
-    }
-
-    /// Neutral black/white tokens for users who want minimal brand color.
-    #[must_use]
-    pub const fn grayscale() -> Self {
-        Self {
-            variant: Variant::Grayscale,
-            section_borders: Borders::ALL,
-            section_border_type: BorderType::Plain,
-            section_border_color: palette::GRAYSCALE_BORDER,
-            section_bg: palette::GRAYSCALE_PANEL,
-            section_title_color: palette::GRAYSCALE_TEXT_SOFT,
-            section_padding: Padding::horizontal(1),
-            tool_title_color: palette::GRAYSCALE_TEXT_SOFT,
-            tool_value_color: palette::GRAYSCALE_TEXT_MUTED,
-            tool_label_color: palette::GRAYSCALE_TEXT_HINT,
-            tool_running_accent: palette::GRAYSCALE_TEXT_SOFT,
-            tool_success_accent: palette::GRAYSCALE_TEXT_HINT,
-            tool_failed_accent: palette::GRAYSCALE_TEXT_BODY,
-            plan_progress_color: palette::GRAYSCALE_TEXT_SOFT,
-            plan_summary_color: palette::GRAYSCALE_TEXT_MUTED,
-            plan_explanation_color: palette::GRAYSCALE_TEXT_HINT,
-            plan_pending_color: palette::GRAYSCALE_TEXT_MUTED,
-            plan_in_progress_color: palette::GRAYSCALE_TEXT_BODY,
-            plan_completed_color: palette::GRAYSCALE_TEXT_SOFT,
+            plan_completed_color: palette::MIMOFAN_ACCENT_PRIMARY,
         }
     }
 
@@ -171,8 +118,6 @@ impl Theme {
         match mode {
             PaletteMode::Dark => Self::dark(),
             PaletteMode::Light => Self::light(),
-            PaletteMode::Grayscale => Self::grayscale(),
-            PaletteMode::SolarizedLight => Self::solarized_light(),
         }
     }
 

@@ -27,7 +27,7 @@ fn modal_block(title: &str) -> Block<'static> {
         .title(Line::from(vec![Span::styled(
             title.to_string(),
             Style::default()
-                .fg(palette::WHALE_ACCENT_PRIMARY)
+                .fg(palette::MIMOFAN_ACCENT_PRIMARY)
                 .add_modifier(Modifier::BOLD),
         )]))
         .borders(Borders::ALL)

@@ -404,7 +404,7 @@ pub trait McpTransport: Send + Sync {
     /// Graceful shutdown — stdio transports send SIGTERM to the child and
     /// give it a brief window to exit before tokio's `kill_on_drop` fires
     /// SIGKILL as the backstop. Default is a no-op for non-stdio transports
-    /// that have no child process. Whalescale#420.
+    /// that have no child process. Mimofanscale#420.
     async fn shutdown(&mut self) {}
 }
 
@@ -2662,7 +2662,7 @@ impl McpPool {
 
     /// Graceful shutdown of every connection in the pool: send SIGTERM to
     /// each stdio child and give them a short grace period before drop
-    /// fires SIGKILL. Whalescale#420.
+    /// fires SIGKILL. Mimofanscale#420.
     ///
     /// Call from the TUI exit path *before* dropping the pool to give
     /// MCP servers a chance to flush state. The fallback Drop on

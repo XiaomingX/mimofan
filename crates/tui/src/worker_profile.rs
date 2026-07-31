@@ -2,7 +2,7 @@
 //! worker (#3217, #3211, #3213, and the child-permission-intersection issues
 //! #414 / #426 / #1186).
 //!
-//! This is the **WhaleFlow substrate**: every detached worker — whether launched
+//! This is the **MimofanFlow substrate**: every detached worker — whether launched
 //! as an `agent` sub-agent or a Fleet worker — should run under a profile
 //! that bounds what it may do (permissions, shell access, tool scope, model
 //! route, recursion budget, foreground/background). A child profile is always

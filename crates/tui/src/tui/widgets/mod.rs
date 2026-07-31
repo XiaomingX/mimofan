@@ -2222,7 +2222,7 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
     let body = vec![
         Line::from(Span::styled(
             format!("{inset}{title}"),
-            Style::default().fg(palette::WHALE_ACCENT_PRIMARY).bold(),
+            Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY).bold(),
         )),
         Line::from(""),
         Line::from(Span::styled(

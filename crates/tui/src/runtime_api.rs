@@ -99,7 +99,7 @@ pub struct RuntimeApiOptions {
     /// `tauri://localhost`). Populated by `--cors-origin` (repeatable),
     /// `MIMOFAN_CORS_ORIGINS` (comma-separated, `DEEPSEEK_CORS_ORIGINS`
     /// as alias), and `[runtime_api] cors_origins` in `config.toml`.
-    /// Whalescale#255 / #561.
+    /// Mimofanscale#255 / #561.
     pub cors_origins: Vec<String>,
     /// Optional bearer token required for `/v1/*` routes. If omitted here,
     /// `run_http_server` checks `MIMOFAN_RUNTIME_TOKEN`, then
@@ -265,7 +265,7 @@ struct ThreadsQuery {
     limit: Option<usize>,
     include_archived: Option<bool>,
     /// When `true`, returns archived threads only (overrides `include_archived`).
-    /// Whalescale#260 / #563.
+    /// Mimofanscale#260 / #563.
     archived_only: Option<bool>,
 }
 
@@ -275,7 +275,7 @@ struct ThreadSummaryQuery {
     search: Option<String>,
     include_archived: Option<bool>,
     /// When `true`, returns archived threads only (overrides `include_archived`).
-    /// Whalescale#260 / #563.
+    /// Mimofanscale#260 / #563.
     archived_only: Option<bool>,
 }
 

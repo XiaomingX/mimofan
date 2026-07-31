@@ -1,6 +1,6 @@
 //! Decision-card widget for structured user input.
 //!
-//! When Brother Whale needs input, it surfaces a decision card: a labelled
+//! When Brother Mimofan needs input, it surfaces a decision card: a labelled
 //! question followed by numbered options, with the default option highlighted.
 //! The user navigates with 1-9 keys (or j/k / Up/Down) and confirms with
 //! Enter. Every decision is logged so the user can inspect the choice later.

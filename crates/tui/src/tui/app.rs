@@ -3880,7 +3880,7 @@ impl App {
     /// renderer iterating top-to-bottom shows the freshest message at the
     /// bottom, like a chat log). Drains expired toasts off the front as a
     /// side effect — same cleanup as `active_status_toast` so callers see a
-    /// consistent queue. Whalescale#439.
+    /// consistent queue. Mimofanscale#439.
     pub fn active_status_toasts(&mut self, limit: usize) -> Vec<StatusToast> {
         self.sync_status_message_to_toasts();
         let now = Instant::now();

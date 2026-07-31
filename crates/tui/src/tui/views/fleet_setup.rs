@@ -46,7 +46,7 @@ impl RowTone {
         }
 
         Style::default().fg(match self {
-            Self::Current => palette::WHALE_ACCENT_PRIMARY,
+            Self::Current => palette::MIMOFAN_ACCENT_PRIMARY,
             Self::Ready => palette::STATUS_SUCCESS,
             Self::Info => palette::TEXT_PRIMARY,
             Self::Warning => palette::STATUS_WARNING,
@@ -308,7 +308,7 @@ impl ModalView for FleetSetupView {
             .title(Line::from(Span::styled(
                 " Fleet Setup ",
                 Style::default()
-                    .fg(palette::WHALE_ACCENT_PRIMARY)
+                    .fg(palette::MIMOFAN_ACCENT_PRIMARY)
                     .add_modifier(Modifier::BOLD),
             )))
             .title_bottom(Line::from(vec![
@@ -558,7 +558,7 @@ fn render_lane(
     scroll: usize,
 ) {
     let border = if focused {
-        palette::WHALE_ACCENT_PRIMARY
+        palette::MIMOFAN_ACCENT_PRIMARY
     } else {
         palette::BORDER_COLOR
     };
@@ -567,7 +567,7 @@ fn render_lane(
             format!(" {} ", lane.title),
             Style::default()
                 .fg(if focused {
-                    palette::WHALE_ACCENT_PRIMARY
+                    palette::MIMOFAN_ACCENT_PRIMARY
                 } else {
                     palette::TEXT_MUTED
                 })

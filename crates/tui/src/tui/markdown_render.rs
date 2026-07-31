@@ -278,7 +278,7 @@ pub fn render_parsed_tagged(
             }
             Block::Paragraph { text } => {
                 let link_style = Style::default()
-                    .fg(palette::WHALE_ACCENT_PRIMARY)
+                    .fg(palette::MIMOFAN_ACCENT_PRIMARY)
                     .add_modifier(Modifier::UNDERLINED);
                 out.extend(render_line_with_links_tagged(
                     text, width, base_style, link_style,
@@ -1098,7 +1098,7 @@ fn render_table_group(blocks: &[Block], width: usize, base_style: Style) -> Vec<
 
 fn link_style() -> Style {
     Style::default()
-        .fg(palette::WHALE_ACCENT_PRIMARY)
+        .fg(palette::MIMOFAN_ACCENT_PRIMARY)
         .add_modifier(Modifier::UNDERLINED)
 }
 
