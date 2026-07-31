@@ -201,6 +201,65 @@ pub fn optional_bool(input: &Value, field: &str, default: bool) -> bool {
     input.get(field).and_then(Value::as_bool).unwrap_or(default)
 }
 
+/// Perform a targeted line-slice content replacement on file text.
+///
+/// `start_line` and `end_line` use 1-based indexing.
+/// If `target_content` occurs within the specified line range, it is replaced by `replacement_content`.
+pub fn replace_file_content_str(
+    content: &str,
+    start_line: usize,
+    end_line: usize,
+    target_content: &str,
+    replacement_content: &str,
+) -> std::result::Result<String, ToolError> {
+    if start_line == 0 || end_line < start_line {
+        return Err(ToolError::invalid_input(format!(
+            "invalid line range [{start_line}, {end_line}]"
+        )));
+    }
+    let lines: Vec<&str> = content.lines().collect();
+    let total_lines = lines.len();
+    if start_line > total_lines {
+        return Err(ToolError::invalid_input(format!(
+            "start_line {start_line} exceeds total lines in file ({total_lines})"
+        )));
+    }
+
+    let slice_end = end_line.min(total_lines);
+    let slice_str = lines[start_line - 1..slice_end].join("\n");
+
+    if !slice_str.contains(target_content) {
+        return Err(ToolError::invalid_input(format!(
+            "target content not found in line range [{start_line}, {slice_end}]"
+        )));
+    }
+
+    let replaced_slice = slice_str.replacen(target_content, replacement_content, 1);
+
+    let prefix = if start_line > 1 {
+        let mut p = lines[..start_line - 1].join("\n");
+        p.push('\n');
+        p
+    } else {
+        String::new()
+    };
+
+    let suffix = if slice_end < total_lines {
+        let mut s = String::from("\n");
+        s.push_str(&lines[slice_end..].join("\n"));
+        s
+    } else {
+        String::new()
+    };
+
+    let mut result = format!("{prefix}{replaced_slice}{suffix}");
+    if content.ends_with('\n') && !result.ends_with('\n') {
+        result.push('\n');
+    }
+
+    Ok(result)
+}
+
 /// Specification that describes a tool available in the registry.
 ///
 /// Contains the tool's name, its JSON input/output schemas, and
@@ -716,5 +775,19 @@ mod tests {
             call.execution_subject("/fallback/dir"),
             ("my_tool".to_string(), "/fallback/dir".to_string(), "tool")
         );
+    }
+
+    #[test]
+    fn replace_file_content_str_replaces_target_within_line_range() {
+        let text = "line 1\nline 2\nline 3\nline 4\n";
+        let res = replace_file_content_str(text, 2, 3, "line 2", "line TWO").unwrap();
+        assert_eq!(res, "line 1\nline TWO\nline 3\nline 4\n");
+    }
+
+    #[test]
+    fn replace_file_content_str_fails_when_target_not_in_range() {
+        let text = "line 1\nline 2\nline 3\nline 4\n";
+        let err = replace_file_content_str(text, 1, 2, "line 4", "line FOUR").unwrap_err();
+        assert!(err.to_string().contains("target content not found"));
     }
 }

@@ -164,9 +164,12 @@ impl Provider for Custom {
     }
 
     fn env_vars(&self) -> &'static [&'static str] {
-        // No built-in env var: the auth env var is named per-entry via
-        // `[providers.<name>] api_key_env = "..."`.
-        &[]
+        &[
+            "OPENAI_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DASHSCOPE_API_KEY",
+            "QWEN_API_KEY",
+        ]
     }
 
     fn provider_config_key(&self) -> &'static str {
