@@ -21,9 +21,6 @@ pub const XIAOMI_MIMO_STANDARD_ENV_VARS: &[&str] =
 pub const XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS: &[&str] =
     &["XIAOMI_MIMO_TOKEN_PLAN_API_KEY", "MIMO_TOKEN_PLAN_API_KEY"];
 
-/// Legacy DeepSeek API key environment variable (backward compatibility).
-pub const DEEPSEEK_API_KEY_ENV: &str = "DEEPSEEK_API_KEY";
-
 // ── DeepSeek defaults ────────────────────────────────────────────────
 pub const DEFAULT_DEEPSEEK_MODEL: &str = "deepseek-v4-pro";
 pub const DEFAULT_DEEPSEEK_FLASH_MODEL: &str = "deepseek-v4-flash";
