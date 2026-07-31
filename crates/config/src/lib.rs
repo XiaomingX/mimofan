@@ -1579,6 +1579,8 @@ impl ConfigToml {
                 provider,
                 ProviderSource::Env(env.provider_source.unwrap_or("MIMO_PROVIDER")),
             )
+        } else if env.custom_base_url.is_some() {
+            (ProviderKind::Custom, ProviderSource::Env("CUSTOM_BASE_URL"))
         } else {
             (self.provider, ProviderSource::Config)
         };
@@ -3105,6 +3107,7 @@ struct EnvRuntimeOverrides {
     verbosity: Option<String>,
     http_headers: Option<BTreeMap<String, String>>,
     xiaomi_mimo_base_url: Option<String>,
+    custom_base_url: Option<String>,
 }
 
 impl EnvRuntimeOverrides {
@@ -3167,6 +3170,11 @@ impl EnvRuntimeOverrides {
                 .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
+            custom_base_url: std::env::var("CUSTOM_BASE_URL")
+                .or_else(|_| std::env::var("OPENAI_BASE_URL"))
+                .or_else(|_| std::env::var("DEEPSEEK_BASE_URL"))
+                .ok()
+                .filter(|v| !v.trim().is_empty()),
         }
     }
 
@@ -3186,6 +3194,13 @@ impl EnvRuntimeOverrides {
             return (parsed, parsed.map(|_| "DEEPSEEK_PROVIDER"));
         }
 
+        if std::env::var("CUSTOM_BASE_URL").is_ok()
+            || std::env::var("OPENAI_BASE_URL").is_ok()
+            || std::env::var("DEEPSEEK_BASE_URL").is_ok()
+        {
+            return (Some(ProviderKind::Custom), Some("CUSTOM_BASE_URL"));
+        }
+
         (None, None)
     }
 
@@ -3194,9 +3209,7 @@ impl EnvRuntimeOverrides {
         // values (`providers.<name>.base_url`) still win when env is unset.
         match provider {
             ProviderKind::XiaomiMimo => self.xiaomi_mimo_base_url.clone(),
-            // No dedicated env override: a custom provider's base URL comes
-            // from its `[providers.<name>]` table.
-            ProviderKind::Custom => None,
+            ProviderKind::Custom => self.custom_base_url.clone().or_else(|| self.xiaomi_mimo_base_url.clone()),
         }
     }
 
