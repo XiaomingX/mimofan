@@ -94,7 +94,7 @@ sha2.workspace = true
 cucumber = "0.23.0"
 wiremock = "0.6"
 pretty_assertions = "1.4"
-vt100 = "0.15"
+vt100 = "0.16"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
