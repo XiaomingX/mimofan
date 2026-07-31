@@ -1637,13 +1637,8 @@ impl ConfigToml {
                 xiaomi_mimo_mode.as_deref(),
             )
         } else {
-            configured_base_url.unwrap_or_else(|| match provider {
-                ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL.to_string(),
-                // The custom provider has no built-in endpoint; fall back to its
-                // descriptor placeholder so the lookup is total. Real custom
-                // routes always supply a configured base_url before this point.
-                ProviderKind::Custom => provider.provider().default_base_url().to_string(),
-            })
+            configured_base_url
+                .unwrap_or_else(|| default_base_url_for_provider(provider).to_string())
         };
         // API-key precedence is **CLI flag → environment → config-file → secret store**.
         let (api_key, api_key_source) = if let Some(value) = cli.api_key.clone() {
