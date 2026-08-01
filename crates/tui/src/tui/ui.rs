@@ -9242,7 +9242,35 @@ fn mark_active_turn_cancelled_locally(app: &mut App) {
     // --continue reloads the previous save and the interrupted turn vanishes.
     app.streaming_state.reset();
     app.finalize_active_cell_as_interrupted();
+
+    // Extract the partial assistant text BEFORE finalize_streaming_assistant_as_interrupted
+    // calls .take() on streaming_message_index, so we can push it to api_messages
+    // for persistence.
+    let partial_assistant_text = app
+        .streaming_message_index
+        .and_then(|i| app.history.get(i))
+        .and_then(|cell| match cell {
+            HistoryCell::Assistant { content, .. } if !content.is_empty() => {
+                Some(content.clone())
+            }
+            _ => None,
+        });
+
     app.finalize_streaming_assistant_as_interrupted();
+
+    // Push the partial assistant text into api_messages so persist_recovery_snapshot
+    // saves it. Without this, the streamed-but-interrupted content would be lost
+    // because push_assistant_message only fires on MessageComplete (never on cancel).
+    if let Some(text) = partial_assistant_text {
+        app.api_messages.push(Message {
+            role: "assistant".to_string(),
+            content: vec![ContentBlock::Text {
+                text,
+                cache_control: None,
+            }],
+        });
+    }
+
     persist_recovery_snapshot(app);
     app.is_loading = false;
     app.dispatch_started_at = None;
