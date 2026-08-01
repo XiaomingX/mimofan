@@ -25,35 +25,26 @@ jobs:
       matrix:
         include:
           # --- mimofan (cli dispatcher, canonical) ---
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
             binary: mimofan
-            artifact_name: mimofan-linux-x64
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
+            artifact_name: mimofan-macos-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
             binary: mimofan
-            artifact_name: mimofan-linux-arm64
+            artifact_name: mimofan-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: '1.88'
+          toolchain: nightly
           targets: ${{ matrix.target }}
       - name: Install Rust target
-        run: rustup target add --toolchain 1.88 ${{ matrix.target }}
+        run: rustup target add --toolchain nightly ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           cache-bin: false
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          for i in 1 2 3 4 5; do
-            sudo apt-get update && break
-            echo "apt-get update failed (attempt $i); retrying in 15s"
-            sleep 15
-          done
-          sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Build
         shell: bash
         run: |

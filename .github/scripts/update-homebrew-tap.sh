@@ -36,13 +36,7 @@ sha() {
 
 # Canonical dispatcher and TUI
 readonly SHA_COD_MACOS_ARM="$(sha mimofan-macos-arm64)"
-readonly SHA_TUI_MACOS_ARM="$(sha mimofan-tui-macos-arm64)"
 readonly SHA_COD_MACOS_X64="$(sha mimofan-macos-x64)"
-readonly SHA_TUI_MACOS_X64="$(sha mimofan-tui-macos-x64)"
-readonly SHA_COD_LINUX_ARM="$(sha mimofan-linux-arm64)"
-readonly SHA_TUI_LINUX_ARM="$(sha mimofan-tui-linux-arm64)"
-readonly SHA_COD_LINUX_X64="$(sha mimofan-linux-x64)"
-readonly SHA_TUI_LINUX_X64="$(sha mimofan-tui-linux-x64)"
 
 # --- temp dirs --------------------------------------------------------
 
@@ -65,41 +59,14 @@ class DeepseekTui < Formula
     if Hardware::CPU.arm?
       url "${BASE_URL}/mimofan-macos-arm64", using: :nounzip
       sha256 "${SHA_COD_MACOS_ARM}"
-      resource "tui" do
-        url "${BASE_URL}/mimofan-tui-macos-arm64", using: :nounzip
-        sha256 "${SHA_TUI_MACOS_ARM}"
-      end
     else
       url "${BASE_URL}/mimofan-macos-x64", using: :nounzip
       sha256 "${SHA_COD_MACOS_X64}"
-      resource "tui" do
-        url "${BASE_URL}/mimofan-tui-macos-x64", using: :nounzip
-        sha256 "${SHA_TUI_MACOS_X64}"
-      end
-    end
-  end
-
-  on_linux do
-    if Hardware::CPU.arm?
-      url "${BASE_URL}/mimofan-linux-arm64", using: :nounzip
-      sha256 "${SHA_COD_LINUX_ARM}"
-      resource "tui" do
-        url "${BASE_URL}/mimofan-tui-linux-arm64", using: :nounzip
-        sha256 "${SHA_TUI_LINUX_ARM}"
-      end
-    else
-      url "${BASE_URL}/mimofan-linux-x64", using: :nounzip
-      sha256 "${SHA_COD_LINUX_X64}"
-      resource "tui" do
-        url "${BASE_URL}/mimofan-tui-linux-x64", using: :nounzip
-        sha256 "${SHA_TUI_LINUX_X64}"
-      end
     end
   end
 
   def install
     bin.install Dir["*"].first => "mimofan"
-    resource("tui").stage { bin.install Dir["*"].first => "mimofan-tui" }
   end
 
   test do
