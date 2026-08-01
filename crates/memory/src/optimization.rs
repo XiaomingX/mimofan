@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::sync::{Mutex, RwLock};
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::Result;
 use crate::error::MemoryError;

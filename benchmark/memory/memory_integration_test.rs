@@ -3,10 +3,7 @@
 //! Test complete workflow: store → compress → inject → knowledge
 
 use mimofan_memory::compressor::ObservationCompressor;
-use mimofan_memory::injector::{InjectionConfig, MemoryInjector};
-use mimofan_memory::knowledge::KnowledgeAgent;
 use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, VectorStore};
-use std::path::Path;
 
 /// Generate embedding
 fn generate_embedding(seed: u64) -> Vec<f32> {
@@ -28,7 +25,7 @@ async fn main() {
     // Setup
     let dir = tempfile::tempdir().unwrap();
     let db_path = dir.path().join("integration.db");
-    let corpora_path = dir.path().join("corpora");
+    let _corpora_path = dir.path().join("corpora");
 
     // Initialize components
     let vector_store = VectorStore::open(&db_path, 384).unwrap();

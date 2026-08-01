@@ -1,8 +1,7 @@
 //! Observation compression and summarization
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
 
 use crate::Result;
 use crate::error::MemoryError;
@@ -95,9 +94,7 @@ impl ObservationCompressor {
         for obs in observations {
             if obs.created_at < cutoff {
                 // Old observations: try to merge
-                if current_group.is_empty() {
-                    current_group.push(obs);
-                } else if self.should_merge(&current_group, obs) {
+                if current_group.is_empty() || self.should_merge(&current_group, obs) {
                     current_group.push(obs);
                 } else {
                     if current_group.len() > 1 {
