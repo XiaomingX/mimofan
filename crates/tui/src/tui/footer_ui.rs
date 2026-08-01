@@ -96,7 +96,7 @@ pub(crate) fn render_footer(f: &mut Frame, area: Rect, app: &mut App) {
         if active_subagent_label.is_some() {
             props.agents.clear();
         }
-        props.state_color = palette::DEEPSEEK_SKY;
+        props.state_color = palette::MIMOFAN_SKY;
 
         // Water-spout frame source: wall-clock milliseconds. The sine-wave
         // math in `footer_working_strip_glyph_at` was tuned for this cadence

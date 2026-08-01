@@ -317,7 +317,7 @@ impl ModalView for FilePickerView {
             )))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(palette::BORDER_COLOR))
-            .style(Style::default().bg(palette::DEEPSEEK_INK))
+            .style(Style::default().bg(palette::MIMOFAN_INK))
             .padding(Padding::uniform(1));
 
         let inner = block.inner(popup_area);
@@ -326,13 +326,13 @@ impl ModalView for FilePickerView {
         let mut lines: Vec<Line<'static>> = Vec::new();
         // Query line.
         lines.push(Line::from(vec![
-            Span::styled("> ", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+            Span::styled("> ", Style::default().fg(palette::MIMOFAN_SKY).bold()),
             Span::raw(self.query.clone()),
             Span::styled(
                 " ",
                 Style::default()
-                    .fg(palette::DEEPSEEK_INK)
-                    .bg(palette::DEEPSEEK_SKY),
+                    .fg(palette::MIMOFAN_INK)
+                    .bg(palette::MIMOFAN_SKY),
             ),
         ]));
         lines.push(Line::from(""));

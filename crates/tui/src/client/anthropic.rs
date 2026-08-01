@@ -30,12 +30,12 @@ use crate::llm_client::StreamEventBox;
 use crate::logging;
 use crate::models::{ContentBlock, MessageRequest, MessageResponse, StreamEvent, Usage};
 
-use super::{DeepSeekClient, ERROR_BODY_MAX_BYTES, bounded_error_text};
+use super::{ApiClient, ERROR_BODY_MAX_BYTES, bounded_error_text};
 
 /// Maximum `cache_control` breakpoints Anthropic accepts per request.
 const MAX_CACHE_BREAKPOINTS: usize = 4;
 
-impl DeepSeekClient {
+impl ApiClient {
     /// Build the native Messages API request body from a [`MessageRequest`].
     pub(super) fn build_anthropic_body(&self, request: &MessageRequest, stream: bool) -> Value {
         let mut body = json!({
@@ -1043,7 +1043,7 @@ mod tests {
 
     #[test]
     fn body_basic_mimo_request() {
-        // Need a DeepSeekClient to call build_anthropic_body; test via
+        // Need a ApiClient to call build_anthropic_body; test via
         // the standalone helpers instead. We verify the body shape by
         // checking the model field and max_tokens directly.
         let req = minimal_request("mimo-v2.5-pro");

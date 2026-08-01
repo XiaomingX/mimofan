@@ -1,6 +1,6 @@
-//! HTTP client for DeepSeek's OpenAI-compatible Chat Completions API.
+//! HTTP client for API's OpenAI-compatible Chat Completions API.
 //!
-//! DeepSeek documents `/chat/completions` as the primary endpoint, and this
+//! The API documents `/chat/completions` as the primary endpoint, and this
 //! client now routes all normal traffic through that surface.
 
 use std::collections::HashMap;
@@ -158,9 +158,9 @@ pub struct SpeechSynthesisResponse {
     pub voice: Option<String>,
 }
 
-/// Client for DeepSeek's OpenAI-compatible APIs.
+/// Client for API's OpenAI-compatible APIs.
 #[must_use]
-pub struct DeepSeekClient {
+pub struct ApiClient {
     pub(super) http_client: reqwest::Client,
     api_key: String,
     pub(super) base_url: String,
@@ -179,7 +179,7 @@ const RECOVERY_PROBE_COOLDOWN: Duration = Duration::from_secs(15);
 
 const DEFAULT_CLIENT_RATE_LIMIT_RPS: f64 = 8.0;
 const DEFAULT_CLIENT_RATE_LIMIT_BURST: f64 = 16.0;
-const ALLOW_INSECURE_HTTP_ENV: &str = "DEEPSEEK_ALLOW_INSECURE_HTTP";
+const ALLOW_INSECURE_HTTP_ENV: &str = "MIMOFAN_ALLOW_INSECURE_HTTP";
 
 pub(super) const SSE_BACKPRESSURE_HIGH_WATERMARK: usize = 8 * 1024 * 1024; // 8 MB
 pub(super) const SSE_BACKPRESSURE_SLEEP_MS: u64 = 10;
@@ -223,12 +223,12 @@ struct TokenBucket {
 
 impl TokenBucket {
     fn from_env() -> Self {
-        let rps = std::env::var("DEEPSEEK_RATE_LIMIT_RPS")
+        let rps = std::env::var("MIMOFAN_RATE_LIMIT_RPS")
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(DEFAULT_CLIENT_RATE_LIMIT_RPS)
             .max(0.0);
-        let burst = std::env::var("DEEPSEEK_RATE_LIMIT_BURST")
+        let burst = std::env::var("MIMOFAN_RATE_LIMIT_BURST")
             .ok()
             .and_then(|v| v.parse::<f64>().ok())
             .unwrap_or(DEFAULT_CLIENT_RATE_LIMIT_BURST)
@@ -327,7 +327,7 @@ fn release_stream_buffer(mut buf: Vec<u8>) {
     }
 }
 
-impl Clone for DeepSeekClient {
+impl Clone for ApiClient {
     fn clone(&self) -> Self {
         Self {
             http_client: self.http_client.clone(),
@@ -394,9 +394,9 @@ fn validate_base_url_security(base_url: &str) -> Result<()> {
              \n\
              Loopback hosts (localhost, 127.0.0.1, [::1]) are auto-allowed.\n\
              For other trusted local hosts (LAN, llama.cpp on a private IP, etc.)\n\
-             set the env var `{ALLOW_INSECURE_HTTP_ENV}=1` in the shell that runs deepseek and re-run.\n\
+             set the env var `{ALLOW_INSECURE_HTTP_ENV}=1` in the shell that runs the CLI and re-run.\n\
              \n\
-             Example: `{ALLOW_INSECURE_HTTP_ENV}=1 deepseek` (note the underscores).",
+             Example: `{ALLOW_INSECURE_HTTP_ENV}=1 mimofan` (note the underscores).",
         );
     }
 
@@ -587,14 +587,14 @@ fn build_speech_synthesis_body(
     })
 }
 
-// === DeepSeekClient ===
+// === ApiClient ===
 
-/// Returns true when DEEPSEEK_FORCE_HTTP1 is set to a truthy value
+/// Returns true when MIMOFAN_FORCE_HTTP1 is set to a truthy value
 /// (`1`, `true`, `yes`, `on`, case-insensitive). Used by `build_http_client`
-/// to opt out of HTTP/2 entirely when DeepSeek's edge mishandles long-lived H2
+/// to opt out of HTTP/2 entirely when the API's edge mishandles long-lived H2
 /// streams (#103). Anything else (unset, `0`, `false`, ...) leaves HTTP/2 on.
 fn force_http1_from_env() -> bool {
-    std::env::var("DEEPSEEK_FORCE_HTTP1")
+    std::env::var("MIMOFAN_FORCE_HTTP1")
         .ok()
         .map(|v| v.trim().to_ascii_lowercase())
         .is_some_and(|v| matches!(v.as_str(), "1" | "true" | "yes" | "on"))
@@ -644,7 +644,7 @@ fn add_extra_root_certs(
     builder
 }
 
-impl DeepSeekClient {
+impl ApiClient {
     /// Returns an error if the request contains image content blocks but the
     /// model does not support image input.
     fn check_image_support(&self, request: &MessageRequest) -> Result<()> {
@@ -663,12 +663,12 @@ impl DeepSeekClient {
         Ok(())
     }
 
-    /// Create a DeepSeek client from CLI configuration.
+    /// Create an API client from CLI configuration.
     pub fn new(config: &Config) -> Result<Self> {
-        Self::from_parts(config.deepseek_base_url(), config.default_model(), config)
+        Self::from_parts(config.api_base_url(), config.default_model(), config)
     }
 
-    /// Create a DeepSeek client whose transport is bound to a runtime-resolved
+    /// Create an API client whose transport is bound to a runtime-resolved
     /// route (#3384).
     ///
     /// The base URL and default model come from the executable `candidate`, so
@@ -691,7 +691,7 @@ impl DeepSeekClient {
     /// the two entry points; everything else (auth, provider, retry, headers,
     /// timeouts) is derived from `config` so the two paths cannot drift.
     fn from_parts(base_url: String, default_model: String, config: &Config) -> Result<Self> {
-        let api_key = config.deepseek_api_key()?;
+        let api_key = config.api_key()?;
         let api_provider = config.api_provider();
         validate_base_url_security(&base_url)?;
         let retry = config.retry_policy();
@@ -784,7 +784,7 @@ impl DeepSeekClient {
             .http2_keep_alive_timeout(Duration::from_secs(20))
             .min_tls_version(reqwest::tls::Version::TLS_1_2);
         if force_http1_from_env() {
-            logging::info("DEEPSEEK_FORCE_HTTP1=1 — pinning HTTP client to HTTP/1.1");
+            logging::info("MIMOFAN_FORCE_HTTP1=1 — pinning HTTP client to HTTP/1.1");
             builder = builder.http1_only();
         }
         if let Ok(cert_path) = std::env::var("SSL_CERT_FILE")
@@ -946,7 +946,7 @@ fn xiaomi_mimo_api_key_uses_token_plan(api_key: &str) -> bool {
     api_key.trim_start().starts_with("tp-")
 }
 
-impl DeepSeekClient {
+impl ApiClient {
     /// Returns the API base URL used by this client.
     pub fn base_url(&self) -> &str {
         &self.base_url
@@ -1411,7 +1411,7 @@ fn retry_reason_label_and_human(err: &LlmError) -> (&'static str, String) {
     }
 }
 
-impl LlmClient for DeepSeekClient {
+impl LlmClient for ApiClient {
     fn provider_name(&self) -> &'static str {
         self.api_provider.as_str()
     }
@@ -1544,15 +1544,15 @@ pub(super) fn apply_reasoning_effort(
         return;
     };
     let normalized = effort.trim().to_ascii_lowercase();
-    // DeepSeek models (detected by name) support reasoning_effort on any
-    // OpenAI-compatible endpoint, including the official DeepSeek API via Custom.
-    let is_deepseek_reasoning = chat::requires_reasoning_content(model);
+    // Models with reasoning (detected by name) support reasoning_effort on any
+    // OpenAI-compatible endpoint, including the official API via Custom.
+    let is_reasoning_model = chat::requires_reasoning_content(model);
     match normalized.as_str() {
         "off" | "disabled" | "none" | "false" => match provider {
             ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "disabled" });
             }
-            ApiProvider::Custom if is_deepseek_reasoning => {
+            ApiProvider::Custom if is_reasoning_model => {
                 body["reasoning_effort"] = json!("none");
             }
             ApiProvider::Custom => {}
@@ -1567,7 +1567,7 @@ pub(super) fn apply_reasoning_effort(
                 body["reasoning_effort"] = json!(value);
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Custom if is_deepseek_reasoning => {
+            ApiProvider::Custom if is_reasoning_model => {
                 let value = match normalized.as_str() {
                     "low" | "minimal" => "low",
                     "medium" | "mid" => "medium",
@@ -1582,7 +1582,7 @@ pub(super) fn apply_reasoning_effort(
                 body["reasoning_effort"] = json!("max");
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Custom if is_deepseek_reasoning => {
+            ApiProvider::Custom if is_reasoning_model => {
                 body["reasoning_effort"] = json!("high");
             }
             ApiProvider::Custom => {}
@@ -1661,8 +1661,8 @@ pub(super) fn parse_usage(usage: Option<&Value>) -> Usage {
     }
 }
 
-impl DeepSeekClient {
-    /// Call the DeepSeek `/beta/completions` FIM endpoint.
+impl ApiClient {
+    /// Call the `/beta/completions` FIM endpoint.
     pub async fn fim_completion(
         &self,
         model: &str,

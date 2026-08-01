@@ -16,18 +16,16 @@ pub const DEFAULT_PROVIDER_ID: &str = ProviderKind::XiaomiMimo.as_str();
 /// Standard API key environment variables for Xiaomi MiMo (pay-as-you-go).
 pub const XIAOMI_MIMO_STANDARD_ENV_VARS: &[&str] = &[
     "XIAOMI_MIMO_API_KEY",
-    "XIAOMI_API_KEY",
-    "MIMO_API_KEY",
     "ANTHROPIC_API_KEY",
 ];
 
 /// Token plan API key environment variables for Xiaomi MiMo.
 pub const XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS: &[&str] =
-    &["XIAOMI_MIMO_TOKEN_PLAN_API_KEY", "MIMO_TOKEN_PLAN_API_KEY"];
+    &["XIAOMI_MIMO_TOKEN_PLAN_API_KEY"];
 
 // ── DeepSeek defaults ────────────────────────────────────────────────
-pub const DEFAULT_DEEPSEEK_MODEL: &str = "deepseek-v4-pro";
-pub const DEFAULT_DEEPSEEK_FLASH_MODEL: &str = "deepseek-v4-flash";
+pub const DEFAULT_MIMOFAN_MODEL: &str = "deepseek-v4-pro";
+pub const DEFAULT_MIMOFAN_FLASH_MODEL: &str = "deepseek-v4-flash";
 
 // ── Xiaomi MiMo defaults ────────────────────────────────────────────
 pub const DEFAULT_XIAOMI_MIMO_MODEL: &str = "mimo-v2.5-pro";

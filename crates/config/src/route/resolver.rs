@@ -276,30 +276,6 @@ impl RouteResolver {
             .find(|offering| offering.provider == *provider_id && offering.default_for_provider)
     }
 
-    /// True when `raw` names an offering that lives on a *different* provider.
-    ///
-    /// The `wire_model_id` arm catches the common case (a bare id another
-    /// provider serves). The `canonical_model` arm covers catalog rows whose
-    /// canonical id is slash-free: Models.dev canonical ids normally contain a
-    /// namespace (`zhipuai/glm-5.2`) and are already caught by the
-    /// `namespace_hint()` guard at the call site, but a bare canonical id (or a
-    /// hand-authored offering) would slip through wire-id matching alone. It is
-    /// kept deliberately so a bare canonical selector cannot masquerade as a
-    /// pass-through model on the wrong provider.
-    fn selector_matches_other_provider_offering(
-        &self,
-        provider_id: &ProviderId,
-        raw: &str,
-    ) -> bool {
-        self.offerings.iter().any(|offering| {
-            offering.provider != *provider_id
-                && (offering.wire_model_id.as_str() == raw
-                    || offering
-                        .canonical_model
-                        .as_ref()
-                        .is_some_and(|model| model.as_str() == raw))
-        })
-    }
 }
 
 /// Build the default resolver offerings: the bundled Models.dev asset rows

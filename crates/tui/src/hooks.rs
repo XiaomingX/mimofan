@@ -358,10 +358,10 @@ impl HookContext {
         let mut env = HashMap::new();
 
         if let Some(ref name) = self.tool_name {
-            env.insert("DEEPSEEK_TOOL_NAME".to_string(), name.clone());
+            env.insert("MIMOFAN_TOOL_NAME".to_string(), name.clone());
         }
         if let Some(ref args) = self.tool_args {
-            env.insert("DEEPSEEK_TOOL_ARGS".to_string(), args.clone());
+            env.insert("MIMOFAN_TOOL_ARGS".to_string(), args.clone());
         }
         if let Some(ref result) = self.tool_result {
             // Truncate result to 10KB to avoid environment variable size limits
@@ -376,22 +376,22 @@ impl HookContext {
             } else {
                 result.clone()
             };
-            env.insert("DEEPSEEK_TOOL_RESULT".to_string(), truncated);
+            env.insert("MIMOFAN_TOOL_RESULT".to_string(), truncated);
         }
         if let Some(code) = self.tool_exit_code {
-            env.insert("DEEPSEEK_TOOL_EXIT_CODE".to_string(), code.to_string());
+            env.insert("MIMOFAN_TOOL_EXIT_CODE".to_string(), code.to_string());
         }
         if let Some(success) = self.tool_success {
-            env.insert("DEEPSEEK_TOOL_SUCCESS".to_string(), success.to_string());
+            env.insert("MIMOFAN_TOOL_SUCCESS".to_string(), success.to_string());
         }
         if let Some(ref mode) = self.mode {
-            env.insert("DEEPSEEK_MODE".to_string(), mode.clone());
+            env.insert("MIMOFAN_MODE".to_string(), mode.clone());
         }
         if let Some(ref prev) = self.previous_mode {
-            env.insert("DEEPSEEK_PREVIOUS_MODE".to_string(), prev.clone());
+            env.insert("MIMOFAN_PREVIOUS_MODE".to_string(), prev.clone());
         }
         if let Some(ref session_id) = self.session_id {
-            env.insert("DEEPSEEK_SESSION_ID".to_string(), session_id.clone());
+            env.insert("MIMOFAN_SESSION_ID".to_string(), session_id.clone());
         }
         if let Some(ref message) = self.message {
             // Truncate message to prevent env var issues
@@ -406,22 +406,22 @@ impl HookContext {
             } else {
                 message.clone()
             };
-            env.insert("DEEPSEEK_MESSAGE".to_string(), truncated);
+            env.insert("MIMOFAN_MESSAGE".to_string(), truncated);
         }
         if let Some(ref error) = self.error_message {
-            env.insert("DEEPSEEK_ERROR".to_string(), error.clone());
+            env.insert("MIMOFAN_ERROR".to_string(), error.clone());
         }
         if let Some(ref ws) = self.workspace {
-            env.insert("DEEPSEEK_WORKSPACE".to_string(), ws.display().to_string());
+            env.insert("MIMOFAN_WORKSPACE".to_string(), ws.display().to_string());
         }
         if let Some(ref model) = self.model {
-            env.insert("DEEPSEEK_MODEL".to_string(), model.clone());
+            env.insert("MIMOFAN_MODEL".to_string(), model.clone());
         }
         if let Some(tokens) = self.total_tokens {
-            env.insert("DEEPSEEK_TOTAL_TOKENS".to_string(), tokens.to_string());
+            env.insert("MIMOFAN_TOTAL_TOKENS".to_string(), tokens.to_string());
         }
         if let Some(cost) = self.session_cost {
-            env.insert("DEEPSEEK_SESSION_COST".to_string(), format!("{cost:.6}"));
+            env.insert("MIMOFAN_SESSION_COST".to_string(), format!("{cost:.6}"));
         }
 
         env

@@ -1460,8 +1460,6 @@ impl Engine {
                         "exec_shell"
                             | "exec_shell_wait"
                             | "exec_shell_interact"
-                            | "exec_wait"
-                            | "exec_interact"
                             | CODE_EXECUTION_TOOL_NAME
                             | JS_EXECUTION_TOOL_NAME
                     )

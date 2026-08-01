@@ -51,12 +51,10 @@ pub const MIMOFAN_TOOL_ISSUE_RGB: (u8, u8, u8) = (198, 150, 160); // #C696A0
 pub const MIMOFAN_TOOL_OUTPUT_RGB: (u8, u8, u8) = (194, 208, 224); // #C2D0E0
 pub const MIMOFAN_TOOL_SURFACE_RGB: (u8, u8, u8) = (28, 40, 62); // #1C283E
 pub const MIMOFAN_TOOL_ACTIVE_RGB: (u8, u8, u8) = (38, 54, 80); // #263650
-
-// Backward-compatible aliases
-pub const DEEPSEEK_SKY_RGB: (u8, u8, u8) = MIMOFAN_INFO_RGB;
-pub const DEEPSEEK_INK_RGB: (u8, u8, u8) = MIMOFAN_BG_RGB;
-pub const DEEPSEEK_SLATE_RGB: (u8, u8, u8) = MIMOFAN_PANEL_RGB;
-pub const DEEPSEEK_RED_RGB: (u8, u8, u8) = MIMOFAN_ERROR_RGB;
+pub const MIMOFAN_SKY_RGB: (u8, u8, u8) = (0x75, 0xb8, 0xff); // #75B8FF
+pub const MIMOFAN_INK_RGB: (u8, u8, u8) = (0x1e, 0x1e, 0x2e); // #1E1E2E
+pub const MIMOFAN_SLATE_RGB: (u8, u8, u8) = (0x28, 0x2c, 0x34); // #282C34
+pub const MIMOFAN_RED_RGB: (u8, u8, u8) = (0xff, 0x55, 0x55); // #FF5555
 
 // =============================================================================
 // Light palette
@@ -79,17 +77,10 @@ pub const MIMOFAN_ACCENT_PRIMARY: Color = Color::Rgb(
     MIMOFAN_ACCENT_PRIMARY_RGB.1,
     MIMOFAN_ACCENT_PRIMARY_RGB.2,
 );
-pub const DEEPSEEK_SKY: Color =
-    Color::Rgb(DEEPSEEK_SKY_RGB.0, DEEPSEEK_SKY_RGB.1, DEEPSEEK_SKY_RGB.2);
-pub const DEEPSEEK_INK: Color =
-    Color::Rgb(DEEPSEEK_INK_RGB.0, DEEPSEEK_INK_RGB.1, DEEPSEEK_INK_RGB.2);
-pub const DEEPSEEK_SLATE: Color = Color::Rgb(
-    DEEPSEEK_SLATE_RGB.0,
-    DEEPSEEK_SLATE_RGB.1,
-    DEEPSEEK_SLATE_RGB.2,
-);
-pub const DEEPSEEK_RED: Color =
-    Color::Rgb(DEEPSEEK_RED_RGB.0, DEEPSEEK_RED_RGB.1, DEEPSEEK_RED_RGB.2);
+pub const MIMOFAN_SKY: Color = Color::Rgb(0x75, 0xb8, 0xff);
+pub const MIMOFAN_INK: Color = Color::Rgb(0x1e, 0x1e, 0x2e);
+pub const MIMOFAN_SLATE: Color = Color::Rgb(0x28, 0x2c, 0x34);
+pub const MIMOFAN_RED: Color = Color::Rgb(0xff, 0x55, 0x55);
 
 pub const LIGHT_SURFACE: Color = Color::Rgb(
     LIGHT_SURFACE_RGB.0,
@@ -297,7 +288,7 @@ pub const SELECTION_BG: Color = Color::Rgb(
     MIMOFAN_SELECTION_RGB.1,
     MIMOFAN_SELECTION_RGB.2,
 );
-pub const COMPOSER_BG: Color = DEEPSEEK_SLATE;
+pub const COMPOSER_BG: Color = MIMOFAN_SLATE;
 
 // =============================================================================
 // PaletteMode enum
@@ -429,13 +420,13 @@ pub struct UiTheme {
 pub const UI_THEME: UiTheme = UiTheme {
     name: "whale",
     mode: PaletteMode::Dark,
-    surface_bg: DEEPSEEK_INK,
-    panel_bg: DEEPSEEK_SLATE,
+    surface_bg: MIMOFAN_INK,
+    panel_bg: MIMOFAN_SLATE,
     elevated_bg: SURFACE_ELEVATED,
-    composer_bg: DEEPSEEK_SLATE,
+    composer_bg: MIMOFAN_SLATE,
     selection_bg: SELECTION_BG,
-    header_bg: DEEPSEEK_INK,
-    footer_bg: DEEPSEEK_INK,
+    header_bg: MIMOFAN_INK,
+    footer_bg: MIMOFAN_INK,
     text_dim: TEXT_DIM,
     text_hint: TEXT_HINT,
     text_muted: TEXT_MUTED,
@@ -498,7 +489,7 @@ pub const UI_THEME: UiTheme = UiTheme {
     mode_plan: MODE_PLAN,
     mode_goal: MODE_GOAL,
     status_ready: TEXT_MUTED,
-    status_working: DEEPSEEK_SKY,
+    status_working: MIMOFAN_SKY,
     status_warning: STATUS_WARNING,
     diff_added_fg: DIFF_ADDED,
     diff_deleted_fg: Color::Rgb(
@@ -993,7 +984,7 @@ pub fn adapt_fg_for_theme(color: Color, theme_id: ThemeId, ui_theme: &UiTheme) -
                 ui_theme.border
             } else if color == MIMOFAN_ACCENT_PRIMARY || color == TEXT_ACCENT {
                 ui_theme.accent_primary
-            } else if color == DEEPSEEK_SKY || color == ACCENT_TOOL_LIVE {
+            } else if color == MIMOFAN_SKY || color == ACCENT_TOOL_LIVE {
                 ui_theme.accent_secondary
             } else if color == STATUS_ERROR || color == MIMOFAN_ERROR_RGB.into() {
                 ui_theme.error_fg
@@ -1027,9 +1018,9 @@ pub fn adapt_bg_for_theme(color: Color, theme_id: ThemeId, ui_theme: &UiTheme) -
         ThemeId::System | ThemeId::Terminal | ThemeId::Mimofan | ThemeId::MimofanLight => color,
         ThemeId::Ember | ThemeId::Cosmic | ThemeId::Handwritten | ThemeId::Crush => {
             // Map common dark palette colors to theme equivalents
-            if color == DEEPSEEK_INK || color == BACKGROUND_DARK || color == ui_theme.surface_bg {
+            if color == MIMOFAN_INK || color == BACKGROUND_DARK || color == ui_theme.surface_bg {
                 ui_theme.surface_bg
-            } else if color == DEEPSEEK_SLATE
+            } else if color == MIMOFAN_SLATE
                 || color == COMPOSER_BG
                 || color == SURFACE_PANEL
                 || color == SURFACE_TOOL
@@ -1062,7 +1053,7 @@ fn adapt_fg_for_light_palette(color: Color) -> Color {
         LIGHT_TEXT_SOFT
     } else if color == BORDER_COLOR {
         LIGHT_BORDER
-    } else if color == TEXT_ACCENT || color == DEEPSEEK_SKY || color == ACCENT_TOOL_LIVE {
+    } else if color == TEXT_ACCENT || color == MIMOFAN_SKY || color == ACCENT_TOOL_LIVE {
         MIMOFAN_ACCENT_PRIMARY
     } else if color == TEXT_REASONING || color == ACCENT_REASONING_LIVE {
         Color::Rgb(146, 64, 14)
@@ -1078,9 +1069,9 @@ fn adapt_fg_for_light_palette(color: Color) -> Color {
 }
 
 fn adapt_bg_for_light_palette(color: Color) -> Color {
-    if color == DEEPSEEK_INK || color == BACKGROUND_DARK {
+    if color == MIMOFAN_INK || color == BACKGROUND_DARK {
         LIGHT_SURFACE
-    } else if color == DEEPSEEK_SLATE
+    } else if color == MIMOFAN_SLATE
         || color == COMPOSER_BG
         || color == SURFACE_PANEL
         || color == SURFACE_TOOL

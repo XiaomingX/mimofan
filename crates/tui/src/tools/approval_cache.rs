@@ -144,9 +144,7 @@ pub fn build_approval_key(tool_name: &str, input: &serde_json::Value) -> Approva
         "exec_shell"
         | "task_shell_start"
         | "exec_shell_wait"
-        | "exec_shell_interact"
-        | "exec_wait"
-        | "exec_interact" => {
+        | "exec_shell_interact" => {
             format!("shell:{tool_name}:{}", hash_json_value(input))
         }
         "fetch_url" | "web.fetch" | "web_fetch" => {
@@ -174,9 +172,7 @@ pub fn build_approval_grouping_key(tool_name: &str, input: &serde_json::Value) -
         "exec_shell"
         | "task_shell_start"
         | "exec_shell_wait"
-        | "exec_shell_interact"
-        | "exec_wait"
-        | "exec_interact" => {
+        | "exec_shell_interact" => {
             let prefix = command_prefix(input);
             format!("shell:{prefix}")
         }

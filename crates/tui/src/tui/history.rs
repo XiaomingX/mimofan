@@ -7,7 +7,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
-use crate::deepseek_theme::active_theme;
+use crate::mimofan_theme::active_theme;
 use crate::models::{ContentBlock, Message};
 use crate::palette;
 use crate::tools::plan::PlanSnapshot;
@@ -196,7 +196,7 @@ impl HistoryCell {
             HistoryCell::Error { message, severity } => {
                 // Error messages are machine-generated and should not be run
                 // through markdown rendering, which would mangle env-var names
-                // containing underscores (e.g. DEEPSEEK_ALLOW_INSECURE_HTTP
+                // containing underscores (e.g. MIMOFAN_ALLOW_INSECURE_HTTP
                 // would lose its underscores as italic markers).
                 let label = error_label_text(*severity);
                 let label_style = error_label_style(*severity);
@@ -824,7 +824,7 @@ impl ExploringCell {
             );
             lines.push(Line::styled(
                 format!("  {dots}  {counts}"),
-                Style::default().fg(palette::DEEPSEEK_SKY),
+                Style::default().fg(palette::MIMOFAN_SKY),
             ));
         }
 

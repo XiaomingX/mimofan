@@ -34,14 +34,14 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use tokio::sync::Mutex;
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::compaction::KEEP_RECENT_MESSAGES;
 use crate::compaction::plan_compaction;
 use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
 
 /// Default seam model — Flash is cheap and fast, ideal for summarization.
-pub use mimofan_config::DEFAULT_DEEPSEEK_FLASH_MODEL as DEFAULT_SEAM_MODEL;
+pub use mimofan_config::DEFAULT_MIMOFAN_FLASH_MODEL as DEFAULT_SEAM_MODEL;
 
 /// Default thresholds based on the active request input estimate.
 pub const DEFAULT_L1_THRESHOLD: usize = 192_000;
@@ -104,7 +104,7 @@ pub struct SeamMetadata {
 /// The Flash seam manager — produces `<archived_context>` blocks.
 pub struct SeamManager {
     /// Flash client for summarization work.
-    flash_client: DeepSeekClient,
+    flash_client: ApiClient,
     /// Configuration.
     config: SeamConfig,
     /// Currently active seams in order (oldest first).
@@ -113,7 +113,7 @@ pub struct SeamManager {
 
 impl SeamManager {
     /// Create a new seam manager with a Flash client.
-    pub fn new(flash_client: DeepSeekClient, config: SeamConfig) -> Self {
+    pub fn new(flash_client: ApiClient, config: SeamConfig) -> Self {
         Self {
             flash_client,
             config,

@@ -914,7 +914,7 @@ fn is_exploring_tool(name: &str) -> bool {
 fn is_exec_tool(name: &str) -> bool {
     matches!(
         name,
-        "exec_shell" | "exec_shell_wait" | "exec_shell_interact" | "exec_wait" | "exec_interact"
+        "exec_shell" | "exec_shell_wait" | "exec_shell_interact"
     )
 }
 
@@ -924,8 +924,6 @@ pub(super) fn refreshes_workspace_context_on_completion(name: &str) -> bool {
         "exec_shell"
             | "exec_shell_wait"
             | "exec_shell_interact"
-            | "exec_wait"
-            | "exec_interact"
             | "task_shell_start"
             | "task_shell_wait"
     )
@@ -1200,8 +1198,8 @@ fn exec_interaction_summary(name: &str, input: &serde_json::Value) -> Option<(St
         .or_else(|| input.get("data"))
         .and_then(|v| v.as_str());
 
-    let is_wait_tool = matches!(name, "exec_shell_wait" | "exec_wait");
-    let is_interact_tool = matches!(name, "exec_shell_interact" | "exec_interact");
+    let is_wait_tool = matches!(name, "exec_shell_wait");
+    let is_interact_tool = matches!(name, "exec_shell_interact");
 
     if is_interact_tool || interaction_input.is_some() {
         let preview = interaction_input.map(summarize_interaction_input);

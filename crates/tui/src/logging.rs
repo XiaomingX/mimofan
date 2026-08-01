@@ -12,7 +12,7 @@ pub fn set_verbose(enabled: bool) {
     VERBOSE.store(enabled, Ordering::SeqCst);
 }
 
-/// Return true when `DEEPSEEK_LOG_LEVEL` requests verbose output.
+/// Return true when `MIMOFAN_LOG_LEVEL` requests verbose output.
 ///
 /// Note: `RUST_LOG` is intentionally NOT checked here — it controls the
 /// `tracing` subscriber filter in `runtime_log.rs` (file logging) and
@@ -21,7 +21,7 @@ pub fn set_verbose(enabled: bool) {
 /// messages to leak into the TUI alt-screen.
 #[must_use]
 pub fn env_requests_verbose_logging() -> bool {
-    std::env::var("DEEPSEEK_LOG_LEVEL")
+    std::env::var("MIMOFAN_LOG_LEVEL")
         .ok()
         .is_some_and(|value| log_value_enables_verbose(&value))
 }
@@ -47,7 +47,7 @@ pub fn is_verbose() -> bool {
 /// Emit a verbose info message (no-op when verbosity is disabled).
 pub fn info(message: impl AsRef<str>) {
     if is_verbose() {
-        let (r, g, b) = palette::DEEPSEEK_SKY_RGB;
+        let (r, g, b) = palette::MIMOFAN_SKY_RGB;
         eprintln!("{} {}", "info".truecolor(r, g, b).bold(), message.as_ref());
     }
 }
@@ -55,7 +55,7 @@ pub fn info(message: impl AsRef<str>) {
 /// Emit a verbose warning message (no-op when verbosity is disabled).
 pub fn warn(message: impl AsRef<str>) {
     if is_verbose() {
-        let (r, g, b) = palette::DEEPSEEK_SKY_RGB;
+        let (r, g, b) = palette::MIMOFAN_SKY_RGB;
         eprintln!("{} {}", "warn".truecolor(r, g, b).bold(), message.as_ref());
     }
 }

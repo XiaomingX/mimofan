@@ -20,7 +20,7 @@ use anyhow::{Context, Result};
 use crate::audit::log_sensitive_event;
 use crate::automation_manager::{AutomationManager, AutomationSchedulerConfig, spawn_scheduler};
 use crate::client::{
-    CacheWarmupKey, DeepSeekClient, PromptInspection, build_cache_warmup_request,
+    CacheWarmupKey, ApiClient, PromptInspection, build_cache_warmup_request,
     inspect_prompt_for_request,
 };
 use crate::commands;
@@ -763,7 +763,7 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
     // startup, even when the API key is missing, the base URL is malformed,
     // or the network is unavailable.
     // Translations are skipped with a logged warning until a key is saved.
-    let translation_client = match DeepSeekClient::new(config) {
+    let translation_client = match ApiClient::new(config) {
         Ok(client) => Some(Arc::new(client)),
         Err(err) => {
             if app.onboarding == OnboardingState::None {
@@ -1500,7 +1500,7 @@ async fn run_event_loop(
     mut engine_handle: EngineHandle,
     task_manager: SharedTaskManager,
     event_broker: &EventBroker,
-    translation_client: Option<Arc<DeepSeekClient>>,
+    translation_client: Option<Arc<ApiClient>>,
 ) -> Result<()> {
     // Subscribe to task completion events for proactive notification.
     let mut task_completion_rx = task_manager.subscribe_completions();
@@ -1553,8 +1553,8 @@ async fn run_event_loop(
     // waiting for a turn to complete.
     if !app.balance_initiated && should_fetch_deepseek_balance(app) {
         let cell = app.balance_cell.clone();
-        let api_key = config.deepseek_api_key().unwrap_or_default();
-        let base_url = config.deepseek_base_url();
+        let api_key = config.api_key().unwrap_or_default();
+        let base_url = config.api_base_url();
         if !api_key.is_empty() {
             app.last_balance_fetch = Some(Instant::now());
             tokio::spawn(async move {
@@ -2321,8 +2321,8 @@ async fn run_event_loop(
                             && app.api_messages.len() >= 2
                         {
                             let suggestion_cell = app.prompt_suggestion_cell.clone();
-                            let api_key = config.deepseek_api_key().unwrap_or_default();
-                            let base_url = config.deepseek_base_url();
+                            let api_key = config.api_key().unwrap_or_default();
+                            let base_url = config.api_base_url();
                             let model = config.default_model();
                             let messages: Vec<crate::models::Message> = app.api_messages.clone();
                             let gen_token = app
@@ -2413,8 +2413,8 @@ async fn run_event_loop(
                             .is_none_or(|t| t.elapsed() >= BALANCE_FETCH_COOLDOWN);
                         if balance_cooldown_expired && should_fetch_deepseek_balance(app) {
                             let cell = app.balance_cell.clone();
-                            let api_key = config.deepseek_api_key().unwrap_or_default();
-                            let base_url = config.deepseek_base_url();
+                            let api_key = config.api_key().unwrap_or_default();
+                            let base_url = config.api_base_url();
                             if !api_key.is_empty() {
                                 app.last_balance_fetch = Some(Instant::now());
                                 tokio::spawn(async move {
@@ -3554,7 +3554,7 @@ async fn run_event_loop(
                                     // `Config` reference so any future clone
                                     // (e.g. a subsequent /provider switch)
                                     // sees it; the explicit-override path
-                                    // in `deepseek_api_key` (#343) makes
+                                    // in `api_key` (#343) makes
                                     // this win immediately.
                                     config.api_key = Some(key.clone());
                                     let mut refreshed_config = config.clone();
@@ -5032,9 +5032,9 @@ fn apply_alt_0_shortcut(app: &mut App, modifiers: KeyModifiers) {
 }
 
 async fn fetch_available_models(config: &Config) -> Result<Vec<String>> {
-    use crate::client::DeepSeekClient;
+    use crate::client::ApiClient;
 
-    let client = DeepSeekClient::new(config)?;
+    let client = ApiClient::new(config)?;
     let models = tokio::time::timeout(Duration::from_secs(20), client.list_models()).await??;
     let mut ids = models.into_iter().map(|model| model.id).collect::<Vec<_>>();
     ids.sort();
@@ -5043,7 +5043,7 @@ async fn fetch_available_models(config: &Config) -> Result<Vec<String>> {
 }
 
 async fn run_cache_warmup(app: &App, config: &Config) -> Result<(Usage, String, PromptInspection)> {
-    let client = DeepSeekClient::new(config)?;
+    let client = ApiClient::new(config)?;
     let base_url = client.base_url().to_string();
     let reasoning_effort = if app.reasoning_effort == ReasoningEffort::Auto {
         app.last_effective_reasoning_effort
@@ -5459,7 +5459,7 @@ pub(crate) fn apply_engine_error_to_app(
         app.onboarding_needs_api_key = true;
         app.onboarding = OnboardingState::ApiKey;
         app.status_message = Some(
-            "The API key from DEEPSEEK_API_KEY was rejected. Paste a valid key to save it to ~/.mimofan/config.toml, or update the environment variable.".to_string(),
+            "The API key from MIMOFAN_API_KEY was rejected. Paste a valid key to save it to ~/.mimofan/config.toml, or update the environment variable.".to_string(),
         );
         return;
     }
@@ -6525,7 +6525,7 @@ async fn apply_model_picker_choice(
             app.api_provider,
             Some(&model),
             saved_provider_model,
-            Some(config.deepseek_base_url()),
+            Some(config.api_base_url()),
         ) {
             Ok(candidate) => {
                 resolved_model = candidate.wire_model_id.as_str().to_string();
@@ -6716,7 +6716,7 @@ async fn switch_provider(
     let next_config = resolved_route.config;
     let new_model = resolved_route.model;
 
-    if let Err(err) = DeepSeekClient::from_candidate(&next_config, &resolved_route.candidate) {
+    if let Err(err) = ApiClient::from_candidate(&next_config, &resolved_route.candidate) {
         app.pending_provider_switch = None;
         app.add_message(HistoryCell::System {
             content: format!(
@@ -6854,7 +6854,7 @@ async fn apply_provider_fallback_switch(
     let next_config = resolved_route.config;
     let new_model = resolved_route.model;
 
-    if let Err(err) = DeepSeekClient::from_candidate(&next_config, &resolved_route.candidate) {
+    if let Err(err) = ApiClient::from_candidate(&next_config, &resolved_route.candidate) {
         app.api_provider = previous_provider;
         app.last_fallback_reason = Some(format!(
             "Fallback provider {} was unavailable: {err}",
@@ -7145,8 +7145,8 @@ async fn apply_command_result(
                     .is_none_or(|t| t.elapsed() >= BALANCE_FETCH_COOLDOWN);
                 if balance_cooldown_expired && should_fetch_deepseek_balance(app) {
                     let cell = app.balance_cell.clone();
-                    let api_key = config.deepseek_api_key().unwrap_or_default();
-                    let base_url = config.deepseek_base_url();
+                    let api_key = config.api_key().unwrap_or_default();
+                    let base_url = config.api_base_url();
                     if !api_key.is_empty() {
                         app.last_balance_fetch = Some(Instant::now());
                         tokio::spawn(async move {
@@ -8432,7 +8432,7 @@ fn render(f: &mut Frame, app: &mut App) {
                     .fg(palette::TEXT_MUTED)
             } else {
                 Style::default()
-                    .bg(palette::DEEPSEEK_SLATE)
+                    .bg(palette::MIMOFAN_SLATE)
                     .fg(palette::TEXT_MUTED)
             };
 
@@ -9935,7 +9935,7 @@ fn terminal_event_needs_viewport_recapture(evt: &Event) -> bool {
 
 pub(crate) fn status_color(level: StatusToastLevel) -> ratatui::style::Color {
     match level {
-        StatusToastLevel::Info => palette::DEEPSEEK_SKY,
+        StatusToastLevel::Info => palette::MIMOFAN_SKY,
         StatusToastLevel::Success => palette::STATUS_SUCCESS,
         StatusToastLevel::Warning => palette::STATUS_WARNING,
         StatusToastLevel::Error => palette::STATUS_ERROR,

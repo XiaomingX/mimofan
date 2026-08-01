@@ -24,13 +24,13 @@ use crate::utils::sha256_hex;
 /// hang before any stream chunk exists, leaving the UI stuck at "Working...".
 const DEFAULT_STREAM_OPEN_TIMEOUT: Duration = Duration::from_secs(45);
 
-/// Reads `DEEPSEEK_STREAM_OPEN_TIMEOUT_SECS` as a bounded override for the
+/// Reads `MIMOFAN_STREAM_OPEN_TIMEOUT_SECS` as a bounded override for the
 /// response-header wait. This is intentionally shorter than the per-chunk idle
 /// timeout because it only covers connection setup and upstream header return,
 /// not model thinking time after streaming has started.
 fn stream_open_timeout() -> Duration {
     stream_open_timeout_from_env(
-        std::env::var("DEEPSEEK_STREAM_OPEN_TIMEOUT_SECS")
+        std::env::var("MIMOFAN_STREAM_OPEN_TIMEOUT_SECS")
             .ok()
             .as_deref(),
     )
@@ -55,7 +55,7 @@ use crate::models::{
 };
 
 use super::{
-    DeepSeekClient, ERROR_BODY_MAX_BYTES, SSE_BACKPRESSURE_HIGH_WATERMARK,
+    ApiClient, ERROR_BODY_MAX_BYTES, SSE_BACKPRESSURE_HIGH_WATERMARK,
     SSE_BACKPRESSURE_SLEEP_MS, SSE_MAX_LINES_PER_CHUNK, acquire_stream_buffer, api_url_with_suffix,
     apply_reasoning_effort, bounded_error_text, from_api_tool_name, parse_usage,
     release_stream_buffer, system_to_instructions, to_api_tool_name,
@@ -141,7 +141,7 @@ fn mirror_minimax_reasoning_details_for_body(body: &mut Value, provider: ApiProv
     mirror_minimax_reasoning_details_for_messages(messages);
 }
 
-impl DeepSeekClient {
+impl ApiClient {
     pub(super) async fn create_message_chat(
         &self,
         request: &MessageRequest,
@@ -244,7 +244,7 @@ impl DeepSeekClient {
                 anyhow::bail!(
                     "SSE stream request did not receive response headers after {}s. \
                      `mimofan doctor` can still pass when non-streaming requests work; \
-                     on Windows or proxy networks, try `DEEPSEEK_FORCE_HTTP1=1` and rerun `mimofan`.",
+                     on Windows or proxy networks, try `MIMOFAN_FORCE_HTTP1=1` and rerun `mimofan`.",
                     open_timeout.as_secs()
                 );
             }
@@ -275,7 +275,7 @@ impl DeepSeekClient {
     }
 }
 
-impl DeepSeekClient {
+impl ApiClient {
     pub(super) async fn handle_chat_completion_stream(
         &self,
         request: MessageRequest,
@@ -1841,7 +1841,7 @@ pub(super) fn tool_to_chat(tool: &Tool) -> Value {
 
 pub(super) fn tool_to_chat_for_base_url(tool: &Tool, base_url: &str) -> Value {
     let mut value = tool_to_chat(tool);
-    if !deepseek_base_url_supports_strict_tools(base_url)
+    if !api_base_url_supports_strict_tools(base_url)
         && let Some(function) = value.get_mut("function")
         && let Some(obj) = function.as_object_mut()
     {
@@ -1850,7 +1850,7 @@ pub(super) fn tool_to_chat_for_base_url(tool: &Tool, base_url: &str) -> Value {
     value
 }
 
-fn deepseek_base_url_supports_strict_tools(base_url: &str) -> bool {
+fn api_base_url_supports_strict_tools(base_url: &str) -> bool {
     let trimmed = base_url.trim_end_matches('/').to_ascii_lowercase();
     let is_deepseek = trimmed == "https://api.deepseek.com"
         || trimmed == "https://api.deepseek.com/v1"

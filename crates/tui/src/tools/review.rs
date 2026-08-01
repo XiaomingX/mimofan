@@ -8,7 +8,7 @@ use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::dependencies::ExternalTool;
 use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt, Usage};
@@ -393,13 +393,13 @@ fn review_receipt_check_status_passes(status: &str) -> bool {
 }
 
 pub struct ReviewTool {
-    client: Option<DeepSeekClient>,
+    client: Option<ApiClient>,
     model: String,
 }
 
 impl ReviewTool {
     #[must_use]
-    pub fn new(client: Option<DeepSeekClient>, model: String) -> Self {
+    pub fn new(client: Option<ApiClient>, model: String) -> Self {
         Self { client, model }
     }
 }

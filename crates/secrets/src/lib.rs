@@ -26,8 +26,6 @@ pub const DEFAULT_SERVICE: &str = "deepseek";
 /// Select the secret storage backend. Supported values are `file` (default)
 /// and `system`/`keyring` for the OS credential store.
 pub const SECRET_BACKEND_ENV: &str = "MIMOFAN_SECRET_BACKEND";
-/// Legacy alias for [`SECRET_BACKEND_ENV`].
-pub const LEGACY_SECRET_BACKEND_ENV: &str = "DEEPSEEK_SECRET_BACKEND";
 const FILE_BACKEND_LABEL: &str = "file-based (~/.mimofan/secrets/)";
 
 /// Errors that may arise from a [`KeyringStore`] backend.
@@ -462,7 +460,6 @@ fn configured_secret_backend() -> Option<String> {
     std::env::var(SECRET_BACKEND_ENV)
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .or_else(|| std::env::var(LEGACY_SECRET_BACKEND_ENV).ok())
 }
 
 /// High-level facade combining a [`KeyringStore`] with environment variable fallbacks.
@@ -540,7 +537,7 @@ impl Secrets {
             SecretBackendSelection::File => Self::file_backed_default(),
             SecretBackendSelection::Unknown => {
                 tracing::warn!(
-                    "{SECRET_BACKEND_ENV}/{LEGACY_SECRET_BACKEND_ENV} has an unsupported value; using file-backed secret store"
+                    "{SECRET_BACKEND_ENV} has an unsupported value; using file-backed secret store"
                 );
                 Self::file_backed_default()
             }
@@ -675,11 +672,11 @@ impl Secrets {
 ///
 /// | Provider | Env var(s) |
 /// |---|---|
-/// | `deepseek` | `DEEPSEEK_API_KEY` |
+/// | `deepseek` | `MIMOFAN_API_KEY` |
 /// | `openrouter` | `OPENROUTER_API_KEY` |
-/// | `xiaomi-mimo` / `mimo` | `XIAOMI_MIMO_API_KEY`, `XIAOMI_API_KEY`, `MIMO_API_KEY` |
+/// | `xiaomi-mimo` / `mimo` | `XIAOMI_MIMO_API_KEY` |
 /// | `novita` | `NOVITA_API_KEY` |
-/// | `nvidia` / `nvidia-nim` / `nim` | `NVIDIA_API_KEY`, `NVIDIA_NIM_API_KEY`, `DEEPSEEK_API_KEY` |
+/// | `nvidia` / `nvidia-nim` / `nim` | `NVIDIA_API_KEY`, `NVIDIA_NIM_API_KEY`, `MIMOFAN_API_KEY` |
 /// | `fireworks` | `FIREWORKS_API_KEY` |
 /// | `siliconflow` / `siliconflow-cn` | `SILICONFLOW_API_KEY` |
 /// | `arcee` / `arcee-ai` | `ARCEE_API_KEY` |
@@ -694,17 +691,17 @@ impl Secrets {
 #[must_use]
 pub fn env_for(name: &str) -> Option<String> {
     let candidates: &[&str] = match name.to_ascii_lowercase().as_str() {
-        "deepseek" => &["DEEPSEEK_API_KEY"],
+        "deepseek" => &["MIMOFAN_API_KEY"],
         "openrouter" => &["OPENROUTER_API_KEY"],
         "xiaomi-mimo" | "xiaomi_mimo" | "xiaomimimo" | "mimo" | "xiaomi" => {
-            &["XIAOMI_MIMO_API_KEY", "XIAOMI_API_KEY", "MIMO_API_KEY"]
+            &["XIAOMI_MIMO_API_KEY"]
         }
         "novita" => &["NOVITA_API_KEY"],
-        // NVIDIA NIM falls back to `DEEPSEEK_API_KEY` last because the
+        // NVIDIA NIM falls back to `MIMOFAN_API_KEY` last because the
         // catalog endpoint accepts the same DeepSeek-issued key when no
         // dedicated NVIDIA token is set. This mirrors pre-v0.7 behaviour.
         "nvidia" | "nvidia-nim" | "nvidia_nim" | "nim" => {
-            &["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY", "DEEPSEEK_API_KEY"]
+            &["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY", "MIMOFAN_API_KEY"]
         }
         "fireworks" | "fireworks-ai" => &["FIREWORKS_API_KEY"],
         "siliconflow" | "silicon-flow" | "silicon_flow" | "siliconflow-cn" | "siliconflow_cn"
@@ -744,7 +741,7 @@ mod tests {
     use std::sync::{Mutex, OnceLock};
 
     /// Serialise env-mutating tests: tests in this module poke
-    /// `DEEPSEEK_API_KEY` etc., which is process-global.
+    /// `MIMOFAN_API_KEY` etc., which is process-global.
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
@@ -755,7 +752,7 @@ mod tests {
     fn clear_known_envs() {
         for var in [
             "MIMOFAN_HOME",
-            "DEEPSEEK_API_KEY",
+            "MIMOFAN_API_KEY",
             "OPENROUTER_API_KEY",
             "NOVITA_API_KEY",
             "NVIDIA_API_KEY",
@@ -769,10 +766,7 @@ mod tests {
             "WANJIE_API_KEY",
             "WANJIE_MAAS_API_KEY",
             "XIAOMI_MIMO_API_KEY",
-            "XIAOMI_API_KEY",
-            "MIMO_API_KEY",
             SECRET_BACKEND_ENV,
-            LEGACY_SECRET_BACKEND_ENV,
         ] {
             // Safety: tests serialise on env_lock(); the broader
             // workspace has the same pattern in `crates/config`.
@@ -859,21 +853,6 @@ mod tests {
         assert_eq!(secrets.backend_name(), FILE_BACKEND_LABEL);
         // Safety: env mutation guarded by env_lock().
         unsafe { std::env::remove_var(SECRET_BACKEND_ENV) };
-    }
-
-    #[test]
-    fn auto_detect_honors_legacy_backend_env_alias() {
-        let _lock = env_lock();
-        clear_known_envs();
-        let tmp = tempfile::tempdir().unwrap();
-        let _home = EnvVarGuard::set("HOME", tmp.path());
-        let _userprofile = EnvVarGuard::set("USERPROFILE", tmp.path());
-        unsafe { std::env::set_var(LEGACY_SECRET_BACKEND_ENV, "local") };
-
-        let secrets = Secrets::auto_detect();
-
-        assert_eq!(secrets.backend_name(), FILE_BACKEND_LABEL);
-        clear_known_envs();
     }
 
     #[test]
@@ -1002,7 +981,7 @@ mod tests {
         let _lock = env_lock();
         clear_known_envs();
         // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::set_var("DEEPSEEK_API_KEY", "env-key") };
+        unsafe { std::env::set_var("MIMOFAN_API_KEY", "env-key") };
 
         let store = Arc::new(InMemoryKeyringStore::new());
         store.set("deepseek", "ring-key").unwrap();
@@ -1014,7 +993,7 @@ mod tests {
             Some(("ring-key".to_string(), SecretSource::Keyring))
         );
         // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::remove_var("DEEPSEEK_API_KEY") };
+        unsafe { std::env::remove_var("MIMOFAN_API_KEY") };
     }
 
     #[test]
@@ -1022,7 +1001,7 @@ mod tests {
         let _lock = env_lock();
         clear_known_envs();
         // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::set_var("DEEPSEEK_API_KEY", "env-fallback") };
+        unsafe { std::env::set_var("MIMOFAN_API_KEY", "env-fallback") };
 
         let secrets = Secrets::new(Arc::new(InMemoryKeyringStore::new()));
         assert_eq!(secrets.resolve("deepseek").as_deref(), Some("env-fallback"));
@@ -1031,7 +1010,7 @@ mod tests {
             Some(("env-fallback".to_string(), SecretSource::Env))
         );
         // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::remove_var("DEEPSEEK_API_KEY") };
+        unsafe { std::env::remove_var("MIMOFAN_API_KEY") };
     }
 
     #[test]
@@ -1047,14 +1026,14 @@ mod tests {
         let _lock = env_lock();
         clear_known_envs();
         // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::set_var("DEEPSEEK_API_KEY", "env-real") };
+        unsafe { std::env::set_var("MIMOFAN_API_KEY", "env-real") };
 
         let store = Arc::new(InMemoryKeyringStore::new());
         store.set("deepseek", "   ").unwrap();
         let secrets = Secrets::new(store);
         assert_eq!(secrets.resolve("deepseek").as_deref(), Some("env-real"));
         // Safety: env mutation guarded by env_lock().
-        unsafe { std::env::remove_var("DEEPSEEK_API_KEY") };
+        unsafe { std::env::remove_var("MIMOFAN_API_KEY") };
     }
 
     #[test]
@@ -1100,17 +1079,12 @@ mod tests {
     fn xiaomi_mimo_env_aliases_resolve() {
         let _guard = env_lock();
         clear_known_envs();
-        unsafe { std::env::set_var("MIMO_API_KEY", "mimo-key") };
 
         assert_eq!(env_for("xiaomi-mimo").as_deref(), Some("mimo-key"));
         assert_eq!(env_for("xiaomimimo").as_deref(), Some("mimo-key"));
         assert_eq!(env_for("mimo").as_deref(), Some("mimo-key"));
         assert_eq!(env_for("xiaomi").as_deref(), Some("mimo-key"));
 
-        clear_known_envs();
-
-        unsafe { std::env::set_var("XIAOMI_API_KEY", "xiaomi-key") };
-        assert_eq!(env_for("xiaomi-mimo").as_deref(), Some("xiaomi-key"));
         clear_known_envs();
     }
 

@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::config::{ApiProvider, Config, normalize_model_name_for_provider};
 use crate::llm_client::LlmClient;
 use crate::model_inventory::ModelInventory;
@@ -29,8 +29,8 @@ pub(crate) struct RouterCandidates {
 impl RouterCandidates {
     pub(crate) fn deepseek() -> Self {
         Self {
-            big: mimofan_config::DEFAULT_DEEPSEEK_MODEL.to_string(),
-            cheap: Some(mimofan_config::DEFAULT_DEEPSEEK_FLASH_MODEL.to_string()),
+            big: mimofan_config::DEFAULT_MIMOFAN_MODEL.to_string(),
+            cheap: Some(mimofan_config::DEFAULT_MIMOFAN_FLASH_MODEL.to_string()),
         }
     }
 
@@ -450,7 +450,7 @@ async fn auto_route_inventory_recommendation(
     router_config.provider = Some(ApiProvider::XiaomiMimo.as_str().to_string());
     router_config.default_text_model = Some(inventory.router_model.to_string());
 
-    let client = DeepSeekClient::new(&router_config)?;
+    let client = ApiClient::new(&router_config)?;
     let router_system = inventory_auto_router_system_prompt(inventory);
     let request = MessageRequest {
         model: inventory.router_model.to_string(),

@@ -203,7 +203,7 @@ impl ModalView for ContextMenuView {
         let block = Block::default()
             .title(self.title.as_str())
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(palette::DEEPSEEK_SKY))
+            .border_style(Style::default().fg(palette::MIMOFAN_SKY))
             .style(Style::default().bg(palette::SURFACE_ELEVATED))
             .padding(Padding::horizontal(0));
 

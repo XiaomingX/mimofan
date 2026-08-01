@@ -239,7 +239,7 @@ impl<'a> HeaderWidget<'a> {
         } else if percent >= CONTEXT_WARNING_THRESHOLD_PERCENT {
             palette::STATUS_WARNING
         } else {
-            palette::DEEPSEEK_SKY
+            palette::MIMOFAN_SKY
         }
     }
 
@@ -289,7 +289,7 @@ impl<'a> HeaderWidget<'a> {
         // the chip visually grouped with `● Live` and the effort label.
         vec![Span::styled(
             frame.to_string(),
-            Style::default().fg(palette::DEEPSEEK_SKY),
+            Style::default().fg(palette::MIMOFAN_SKY),
         )]
     }
 
@@ -304,7 +304,7 @@ impl<'a> HeaderWidget<'a> {
         vec![Span::styled(
             trimmed.to_string(),
             Style::default()
-                .fg(palette::DEEPSEEK_SKY)
+                .fg(palette::MIMOFAN_SKY)
                 .add_modifier(Modifier::BOLD),
         )]
     }
@@ -321,7 +321,7 @@ impl<'a> HeaderWidget<'a> {
         let color = if is_off {
             palette::TEXT_HINT
         } else {
-            palette::DEEPSEEK_SKY
+            palette::MIMOFAN_SKY
         };
         let body = if !include_prefix {
             trimmed.to_string()
@@ -379,7 +379,7 @@ impl<'a> HeaderWidget<'a> {
             spans.push(Span::styled(
                 "●",
                 Style::default()
-                    .fg(palette::DEEPSEEK_SKY)
+                    .fg(palette::MIMOFAN_SKY)
                     .add_modifier(Modifier::BOLD),
             ));
             if show_stream_label {

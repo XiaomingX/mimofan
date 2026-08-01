@@ -181,7 +181,7 @@ pub fn footer_agents_chip(running: usize, locale: Locale) -> Vec<Span<'static>> 
     };
     vec![Span::styled(
         text,
-        Style::default().fg(palette::DEEPSEEK_SKY),
+        Style::default().fg(palette::MIMOFAN_SKY),
     )]
 }
 
@@ -641,7 +641,7 @@ impl Renderable for FooterWidget {
         let spacer_span = match self.props.working_strip_frame {
             Some(frame) if spacer_width > 0 => Span::styled(
                 footer_working_strip_string(spacer_width, frame),
-                Style::default().fg(palette::DEEPSEEK_SKY),
+                Style::default().fg(palette::MIMOFAN_SKY),
             ),
             _ => Span::raw(" ".repeat(spacer_width)),
         };

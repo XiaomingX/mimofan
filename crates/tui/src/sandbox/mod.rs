@@ -384,7 +384,7 @@ impl SandboxManager {
 
         // Add sandbox indicator to environment
         let mut env = spec.env.clone();
-        env.insert("DEEPSEEK_SANDBOX".to_string(), "seatbelt".to_string());
+        env.insert("MIMOFAN_SANDBOX".to_string(), "seatbelt".to_string());
 
         ExecEnv {
             command,

@@ -461,9 +461,7 @@ fn add_app_runtime_entries(builder: &mut ReportBuilder, app: &App) {
 }
 
 fn add_handoff_entry(builder: &mut ReportBuilder, workspace: &Path) {
-    let primary = workspace.join(crate::prompts::HANDOFF_RELATIVE_PATH);
-    let legacy = workspace.join(".mimofan/handoff.md");
-    let path = if primary.exists() { primary } else { legacy };
+    let path = workspace.join(crate::prompts::HANDOFF_RELATIVE_PATH);
     let Some(raw) = std::fs::read_to_string(&path)
         .ok()
         .filter(|raw| !raw.trim().is_empty())

@@ -630,7 +630,7 @@ pub(crate) fn run_model_command(
             if trimmed.is_empty() {
                 bail!("Model name cannot be empty");
             }
-            let canonical = mimofan_config::canonical_deepseek_model_name(trimmed)
+            let canonical = mimofan_config::canonical_model_name(trimmed)
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| trimmed.to_string());
             store.config.default_text_model = Some(canonical.to_string());
@@ -786,7 +786,7 @@ pub(crate) fn app_server_serve_passthrough(args: &AppServerArgs) -> Vec<String> 
 pub(crate) fn app_server_token_from_env() -> Option<String> {
     std::env::var("MIMOFAN_APP_SERVER_TOKEN")
         .ok()
-        .or_else(|| std::env::var("DEEPSEEK_APP_SERVER_TOKEN").ok())
+        .or_else(|| std::env::var("MIMOFAN_APP_SERVER_TOKEN").ok())
 }
 
 // ── MCP Server command implementation ───────────────────────────────────────
@@ -1310,14 +1310,14 @@ fn build_tui_command_for_server(
     cmd.args(passthrough);
 
     if let Some(api_key) = resolved_runtime.api_key.as_ref() {
-        cmd.env("DEEPSEEK_API_KEY", api_key);
+        cmd.env("MIMOFAN_API_KEY", api_key);
         for var in provider_env_vars(resolved_runtime.provider) {
-            if *var != "DEEPSEEK_API_KEY" {
+            if *var != "MIMOFAN_API_KEY" {
                 cmd.env(var, api_key);
             }
         }
         cmd.env(
-            "DEEPSEEK_API_KEY_SOURCE",
+            "MIMOFAN_API_KEY_SOURCE",
             RuntimeApiKeySource::Keyring.as_env_value(),
         );
     }

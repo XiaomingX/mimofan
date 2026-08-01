@@ -446,9 +446,9 @@ pub async fn capture_and_transcribe(
         return Err(tr(locale, MessageId::VoiceErrNoRecorder).to_string());
     }
     let api_key = config
-        .deepseek_api_key()
+        .api_key()
         .map_err(|_| tr(locale, MessageId::VoiceErrNoAuth).to_string())?;
-    let base_url = config.deepseek_base_url();
+    let base_url = config.api_base_url();
 
     app.status_message = Some(tr(locale, MessageId::VoiceRecording).to_string());
     let (samples, _duration) = tokio::task::spawn_blocking(record_audio)

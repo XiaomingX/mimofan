@@ -27,7 +27,7 @@ pub const RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
 pub const LEGACY_RELEASE_BASE_URL_ENV: &str = "CODEWHALE_RELEASE_BASE_URL";
 
 /// Legacy environment variable (alias for [`RELEASE_BASE_URL_ENV`]).
-pub const DEEPSEEK_RELEASE_BASE_URL_ENV: &str = "DEEPSEEK_RELEASE_BASE_URL";
+pub const MIMOFAN_RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
 
 /// Environment variable that, when set, enables the CNB mirror for downloads.
 pub const CNB_MIRROR_ENV: &str = "MIMOFAN_USE_CNB_MIRROR";
@@ -39,7 +39,7 @@ pub const UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
 pub const LEGACY_UPDATE_VERSION_ENV: &str = "CODEWHALE_VERSION";
 
 /// Legacy environment variable (alias for [`UPDATE_VERSION_ENV`]).
-pub const DEEPSEEK_UPDATE_VERSION_ENV: &str = "DEEPSEEK_VERSION";
+pub const MIMOFAN_UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
 
 /// User-Agent header sent with release metadata requests.
 pub const UPDATE_USER_AGENT: &str = "mimofan-updater";
@@ -105,7 +105,7 @@ pub fn release_base_url_from_env(version: &str) -> Option<String> {
     for env_name in [
         RELEASE_BASE_URL_ENV,
         LEGACY_RELEASE_BASE_URL_ENV,
-        DEEPSEEK_RELEASE_BASE_URL_ENV,
+        MIMOFAN_RELEASE_BASE_URL_ENV,
     ] {
         if let Ok(value) = std::env::var(env_name) {
             let trimmed = value.trim().to_string();
@@ -132,12 +132,12 @@ pub fn cnb_release_base_url(version: &str) -> String {
 
 /// Returns the pinned update version from environment variables, or `None`
 /// if neither `MIMOFAN_VERSION`, `MIMOFAN_VERSION`, nor
-/// `DEEPSEEK_VERSION` is set.
+/// `MIMOFAN_VERSION` is set.
 pub fn update_version_from_env() -> Option<String> {
     std::env::var(UPDATE_VERSION_ENV)
         .ok()
         .or_else(|| std::env::var(LEGACY_UPDATE_VERSION_ENV).ok())
-        .or_else(|| std::env::var(DEEPSEEK_UPDATE_VERSION_ENV).ok())
+        .or_else(|| std::env::var(MIMOFAN_UPDATE_VERSION_ENV).ok())
         .map(|value| value.trim().trim_start_matches('v').to_string())
         .filter(|value| !value.is_empty())
 }
@@ -326,11 +326,11 @@ mod tests {
     const RELEASE_ENV_VARS: &[&str] = &[
         RELEASE_BASE_URL_ENV,
         LEGACY_RELEASE_BASE_URL_ENV,
-        DEEPSEEK_RELEASE_BASE_URL_ENV,
+        MIMOFAN_RELEASE_BASE_URL_ENV,
         CNB_MIRROR_ENV,
         UPDATE_VERSION_ENV,
         LEGACY_UPDATE_VERSION_ENV,
-        DEEPSEEK_UPDATE_VERSION_ENV,
+        MIMOFAN_UPDATE_VERSION_ENV,
     ];
 
     struct ReleaseEnvGuard {
@@ -444,7 +444,7 @@ mod tests {
         let _env = ReleaseEnvGuard::clear();
         set_release_env(LEGACY_RELEASE_BASE_URL_ENV, "https://legacy.example.com");
         set_release_env(
-            DEEPSEEK_RELEASE_BASE_URL_ENV,
+            MIMOFAN_RELEASE_BASE_URL_ENV,
             "https://deepseek.example.com",
         );
 
@@ -473,7 +473,7 @@ mod tests {
 
         set_release_env(RELEASE_BASE_URL_ENV, "   ");
         set_release_env(LEGACY_RELEASE_BASE_URL_ENV, "");
-        set_release_env(DEEPSEEK_RELEASE_BASE_URL_ENV, "\n");
+        set_release_env(MIMOFAN_RELEASE_BASE_URL_ENV, "\n");
 
         assert_eq!(release_base_url_from_env("1.0.0"), None);
     }
@@ -514,7 +514,7 @@ mod tests {
 
         {
             let _env = ReleaseEnvGuard::clear();
-            set_release_env(DEEPSEEK_UPDATE_VERSION_ENV, "v1.2.5");
+            set_release_env(MIMOFAN_UPDATE_VERSION_ENV, "v1.2.5");
 
             assert_eq!(update_version_from_env().as_deref(), Some("1.2.5"));
         }
@@ -593,7 +593,7 @@ mod tests {
                 "https://legacy.example.com/mirror",
             ),
             (
-                DEEPSEEK_RELEASE_BASE_URL_ENV,
+                MIMOFAN_RELEASE_BASE_URL_ENV,
                 "https://deepseek.example.com/mirror",
             ),
         ] {

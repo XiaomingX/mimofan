@@ -1577,7 +1577,7 @@ impl ConfigToml {
         } else if let Some(provider) = env.provider {
             (
                 provider,
-                ProviderSource::Env(env.provider_source.unwrap_or("MIMO_PROVIDER")),
+                ProviderSource::Env(env.provider_source.unwrap_or("MIMOFAN_PROVIDER")),
             )
         } else if env.custom_base_url.is_some() {
             (ProviderKind::Custom, ProviderSource::Env("CUSTOM_BASE_URL"))
@@ -1901,7 +1901,7 @@ pub fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
 /// spellings are rewritten to their hyphenated forms. Returns `None` when the
 /// input is not a recognised DeepSeek alias (callers decide fallthrough).
 #[must_use]
-pub fn canonical_deepseek_model_name(model: &str) -> Option<&'static str> {
+pub fn canonical_model_name(model: &str) -> Option<&'static str> {
     match model.trim().to_ascii_lowercase().as_str() {
         "pro" | "deepseek-v4pro" => Some("deepseek-v4-pro"),
         "flash" | "deepseek-v4flash" => Some("deepseek-v4-flash"),
@@ -2552,9 +2552,7 @@ pub fn mimofan_home() -> Result<PathBuf> {
 }
 
 fn mimofan_home_env_override() -> Option<PathBuf> {
-    let val = std::env::var("MIMO_HOME")
-        .or_else(|_| std::env::var("MIMOFAN_HOME"))
-        .ok()?;
+    let val = std::env::var("MIMOFAN_HOME").ok()?;
     let trimmed = val.trim();
     if trimmed.is_empty() {
         None
@@ -2643,12 +2641,6 @@ pub fn ensure_project_state_dir(workspace: &Path, subdir: &str) -> Result<PathBu
 pub fn resolve_config_path(explicit: Option<PathBuf>) -> Result<PathBuf> {
     if let Some(path) = explicit {
         return normalize_config_file_path(path);
-    }
-    if let Ok(path) = std::env::var("MIMO_CONFIG_PATH") {
-        if let Some(path) = config_path_from_env_value(&path)? {
-            return Ok(path);
-        }
-        return default_config_path();
     }
     if let Ok(path) = std::env::var("MIMOFAN_CONFIG_PATH") {
         if let Some(path) = config_path_from_env_value(&path)? {
@@ -3106,86 +3098,73 @@ impl EnvRuntimeOverrides {
             provider,
             provider_source,
             model: std::env::var("MIMOFAN_MODEL")
-                .or_else(|_| std::env::var("DEEPSEEK_MODEL"))
-                .or_else(|_| std::env::var("DEEPSEEK_DEFAULT_TEXT_MODEL"))
+                .or_else(|_| std::env::var("MIMOFAN_MODEL"))
+                .or_else(|_| std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             xiaomi_mimo_model: std::env::var("XIAOMI_MIMO_MODEL")
-                .or_else(|_| std::env::var("MIMO_MODEL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             xiaomi_mimo_mode: std::env::var("XIAOMI_MIMO_MODE")
-                .or_else(|_| std::env::var("MIMO_MODE"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             verbosity: std::env::var("MIMOFAN_VERBOSITY")
-                .or_else(|_| std::env::var("DEEPSEEK_VERBOSITY"))
+                .or_else(|_| std::env::var("MIMOFAN_VERBOSITY"))
                 .ok(),
-            output_mode: std::env::var("DEEPSEEK_OUTPUT_MODE").ok(),
-            auth_mode: std::env::var("DEEPSEEK_AUTH_MODE").ok(),
-            log_level: std::env::var("DEEPSEEK_LOG_LEVEL").ok(),
-            telemetry: std::env::var("DEEPSEEK_TELEMETRY")
+            output_mode: std::env::var("MIMOFAN_OUTPUT_MODE").ok(),
+            auth_mode: std::env::var("MIMOFAN_AUTH_MODE").ok(),
+            log_level: std::env::var("MIMOFAN_LOG_LEVEL").ok(),
+            telemetry: std::env::var("MIMOFAN_TELEMETRY")
                 .ok()
                 .and_then(|v| match parse_bool(&v) {
                     Ok(b) => Some(b),
                     Err(_) => {
-                        tracing::warn!("Invalid DEEPSEEK_TELEMETRY value '{v}', expected true/false");
+                        tracing::warn!("Invalid MIMOFAN_TELEMETRY value '{v}', expected true/false");
                         None
                     }
                 }),
-            approval_policy: std::env::var("DEEPSEEK_APPROVAL_POLICY").ok(),
-            sandbox_mode: std::env::var("DEEPSEEK_SANDBOX_MODE").ok(),
-            yolo: std::env::var("DEEPSEEK_YOLO")
+            approval_policy: std::env::var("MIMOFAN_APPROVAL_POLICY").ok(),
+            sandbox_mode: std::env::var("MIMOFAN_SANDBOX_MODE").ok(),
+            yolo: std::env::var("MIMOFAN_YOLO")
                 .ok()
                 .and_then(|v| match parse_bool(&v) {
                     Ok(b) => Some(b),
                     Err(_) => {
-                        tracing::warn!("Invalid DEEPSEEK_YOLO value '{v}', expected true/false");
+                        tracing::warn!("Invalid MIMOFAN_YOLO value '{v}', expected true/false");
                         None
                     }
                 }),
-            http_headers: std::env::var("DEEPSEEK_HTTP_HEADERS")
+            http_headers: std::env::var("MIMOFAN_HTTP_HEADERS")
                 .ok()
                 .and_then(|value| match parse_http_headers(&value) {
                     Ok(h) => Some(h),
                     Err(_) => {
-                        tracing::warn!("Invalid DEEPSEEK_HTTP_HEADERS value, expected format: header1=val1,header2=val2");
+                        tracing::warn!("Invalid MIMOFAN_HTTP_HEADERS value, expected format: header1=val1,header2=val2");
                         None
                     }
                 })
                 .filter(|headers| !headers.is_empty()),
             xiaomi_mimo_base_url: std::env::var("XIAOMI_MIMO_BASE_URL")
-                .or_else(|_| std::env::var("MIMO_BASE_URL"))
                 .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             custom_base_url: std::env::var("CUSTOM_BASE_URL")
                 .or_else(|_| std::env::var("OPENAI_BASE_URL"))
-                .or_else(|_| std::env::var("DEEPSEEK_BASE_URL"))
+                .or_else(|_| std::env::var("MIMOFAN_BASE_URL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
         }
     }
 
     fn load_provider() -> (Option<ProviderKind>, Option<&'static str>) {
-        if let Ok(value) = std::env::var("MIMO_PROVIDER") {
-            let parsed = ProviderKind::parse(&value);
-            return (parsed, parsed.map(|_| "MIMO_PROVIDER"));
-        }
-
         if let Ok(value) = std::env::var("MIMOFAN_PROVIDER") {
             let parsed = ProviderKind::parse(&value);
             return (parsed, parsed.map(|_| "MIMOFAN_PROVIDER"));
         }
 
-        if let Ok(value) = std::env::var("DEEPSEEK_PROVIDER") {
-            let parsed = ProviderKind::parse(&value);
-            return (parsed, parsed.map(|_| "DEEPSEEK_PROVIDER"));
-        }
-
         if std::env::var("CUSTOM_BASE_URL").is_ok()
             || std::env::var("OPENAI_BASE_URL").is_ok()
-            || std::env::var("DEEPSEEK_BASE_URL").is_ok()
+            || std::env::var("MIMOFAN_BASE_URL").is_ok()
         {
             return (Some(ProviderKind::Custom), Some("CUSTOM_BASE_URL"));
         }

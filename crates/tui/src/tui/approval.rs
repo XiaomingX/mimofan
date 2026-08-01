@@ -313,8 +313,6 @@ pub fn get_tool_category(name: &str) -> ToolCategory {
             | "task_shell_wait"
             | "exec_shell_wait"
             | "exec_shell_interact"
-            | "exec_wait"
-            | "exec_interact"
     ) {
         ToolCategory::Shell
     } else if name.starts_with("list_mcp_")

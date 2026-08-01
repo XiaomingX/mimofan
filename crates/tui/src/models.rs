@@ -1,16 +1,14 @@
-//! API request/response models for `DeepSeek` and OpenAI-compatible endpoints.
+//! API request/response models for OpenAI-compatible endpoints.
 
 use serde::{Deserialize, Serialize};
 
-/// Context window used only for legacy DeepSeek model IDs that do not name a
-/// newer V4 alias and do not carry an explicit `*k` suffix.
-pub const LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS: u32 = 128_000;
-pub const DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS: u32 = 1_000_000;
+/// Context window for models without an explicit `*k` suffix.
+pub const DEEPSEEK_DEFAULT_CONTEXT_WINDOW: u32 = 128_000;
+pub const MIMOFAN_V4_CONTEXT_WINDOW_TOKENS: u32 = 1_000_000;
 /// Last-resort compaction trigger when [`context_window_for_model`] returns
-/// `None` (an unrecognised model id). v0.8.11 raised this from `50_000` to
-/// `102_400` (80% of [`LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS`]) so unknown
+/// `None` (an unrecognised model id). 80% of `DEEPSEEK_DEFAULT_CONTEXT_WINDOW`.
 /// models inherit the same late-trigger discipline as V4 instead of paying
-/// the prefix-cache hit at 5% of the V4 window. Known DeepSeek / Claude
+/// the prefix-cache hit at 5% of the V4 window. Known models
 /// models resolve to their own scaled value via
 /// [`compaction_threshold_for_model`] (#664).
 pub const DEFAULT_COMPACTION_TOKEN_THRESHOLD: usize = 102_400;
@@ -36,8 +34,8 @@ pub struct MessageRequest {
     pub metadata: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<serde_json::Value>,
-    /// DeepSeek reasoning-effort tier: "off" | "low" | "medium" | "high" | "max".
-    /// Translated by the client into DeepSeek's `reasoning_effort` + `thinking` fields.
+    /// Reasoning-effort tier: "off" | "low" | "medium" | "high" | "max".
+    /// Translated by the client into's `reasoning_effort` + `thinking` fields.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_effort: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -223,7 +221,7 @@ pub struct Usage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_tokens: Option<u32>,
     /// Approximate input tokens spent re-sending prior `reasoning_content`
-    /// across user-message boundaries in DeepSeek V4 thinking-mode tool-calling
+    /// across user-message boundaries in thinking-mode tool-calling
     /// turns (V4 §5.1.1 "Interleaved Thinking"). Estimated client-side at
     /// ~4 chars/token from the outgoing request body, before the model sees it.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -238,9 +236,9 @@ pub struct Usage {
 /// 1. An explicit `_Nk` suffix in the model name, for **any** vendor. This
 ///    lets self-hosted deployments advertise their window through the served
 ///    model name (e.g. a vLLM `--served-model-name qwen3-32b-256k`), which is
-///    the only signal we have for non-DeepSeek/Claude models. The 1000-token
+///    the only signal we have for non-Claude models. The 1000-token
 ///    approximation is fine for compaction-threshold math.
-/// 2. DeepSeek vendor heuristics (V4 family -> 1M, legacy -> 128K).
+/// 2. Model-specific heuristics (V4 family -> 1M, legacy -> 128K).
 /// 3. Claude -> 200K.
 #[must_use]
 pub fn context_window_for_model(model: &str) -> Option<u32> {
@@ -253,9 +251,9 @@ pub fn context_window_for_model(model: &str) -> Option<u32> {
     }
     if lower.contains("deepseek") {
         if lower.contains("v4") {
-            return Some(DEEPSEEK_V4_CONTEXT_WINDOW_TOKENS);
+            return Some(MIMOFAN_V4_CONTEXT_WINDOW_TOKENS);
         }
-        return Some(LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS);
+        return Some(DEEPSEEK_DEFAULT_CONTEXT_WINDOW);
     }
     if is_openai_gpt_55_api_model(&lower) {
         return Some(1_050_000);

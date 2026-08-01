@@ -1161,7 +1161,7 @@ fn config_base_url_row_value(app: &App) -> String {
     Config::load(app.config_path.clone(), app.config_profile.as_deref())
         .map(|mut config| {
             config.provider = Some(app.api_provider.as_str().to_string());
-            config.deepseek_base_url()
+            config.api_base_url()
         })
         .unwrap_or_else(|_| tr(app.ui_locale, MessageId::ConfigUnavailable).to_string())
 }
@@ -1296,8 +1296,8 @@ fn render_config_editor_value_line(
     ));
 
     let cursor_style = Style::default()
-        .fg(palette::DEEPSEEK_INK)
-        .bg(palette::DEEPSEEK_SKY)
+        .fg(palette::MIMOFAN_INK)
+        .bg(palette::MIMOFAN_SKY)
         .bold();
     let selected_style = Style::default()
         .fg(palette::SELECTION_TEXT)
@@ -1473,7 +1473,7 @@ impl ModalView for ConfigView {
         let base_block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(palette::BORDER_COLOR))
-            .style(Style::default().bg(palette::DEEPSEEK_INK))
+            .style(Style::default().bg(palette::MIMOFAN_INK))
             .padding(Padding::uniform(1));
 
         let inner = base_block.inner(popup_area);
@@ -1481,7 +1481,7 @@ impl ModalView for ConfigView {
             let mut lines: Vec<Line> = Vec::new();
             lines.push(Line::from(vec![Span::styled(
                 format!("{}{}", self.tr(MessageId::ConfigEditTitlePrefix), edit.key),
-                Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+                Style::default().fg(palette::MIMOFAN_SKY).bold(),
             )]));
             lines.push(Line::from(""));
             lines.push(Line::from(vec![
@@ -1574,7 +1574,7 @@ impl ModalView for ConfigView {
                     ConfigListItem::Section(section) => {
                         lines.push(Line::from(Span::styled(
                             format!("  {}", section.label(self.locale)),
-                            Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+                            Style::default().fg(palette::MIMOFAN_SKY).bold(),
                         )));
                     }
                     ConfigListItem::Row(idx) => {
@@ -1667,7 +1667,7 @@ impl ModalView for ConfigView {
             )))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(palette::BORDER_COLOR))
-            .style(Style::default().bg(palette::DEEPSEEK_INK))
+            .style(Style::default().bg(palette::MIMOFAN_INK))
             .padding(Padding::uniform(1));
 
         let inner = block.inner(popup_area);
@@ -1905,13 +1905,13 @@ impl ModalView for SubAgentsView {
                 ("Running", running.len(), palette::STATUS_WARNING),
                 ("Completed", completed.len(), palette::STATUS_SUCCESS),
                 ("Interrupted", interrupted.len(), palette::STATUS_WARNING),
-                ("Failed", failed.len(), palette::DEEPSEEK_RED),
+                ("Failed", failed.len(), palette::MIMOFAN_RED),
                 ("Cancelled", cancelled.len(), palette::TEXT_MUTED),
             ];
 
             lines.push(Line::from(Span::styled(
                 "Fleet workers",
-                Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+                Style::default().fg(palette::MIMOFAN_SKY).bold(),
             )));
             lines.push(Line::from(Span::styled(
                 "Sub-agent roles are Fleet worker roles.",
@@ -1984,7 +1984,7 @@ impl ModalView for SubAgentsView {
             append_subagent_group(
                 &mut lines,
                 "Failed",
-                palette::DEEPSEEK_RED.into(),
+                palette::MIMOFAN_RED.into(),
                 &failed,
                 content_width,
             );
@@ -2019,11 +2019,11 @@ impl ModalView for SubAgentsView {
                         Span::styled(" Esc to close ", Style::default().fg(palette::TEXT_MUTED)),
                         Span::styled(" R to refresh ", Style::default().fg(palette::TEXT_MUTED)),
                         Span::styled(" F setup ", Style::default().fg(palette::TEXT_MUTED)),
-                        Span::styled(scroll_indicator, Style::default().fg(palette::DEEPSEEK_SKY)),
+                        Span::styled(scroll_indicator, Style::default().fg(palette::MIMOFAN_SKY)),
                     ]))
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(palette::BORDER_COLOR))
-                    .style(Style::default().bg(palette::DEEPSEEK_INK))
+                    .style(Style::default().bg(palette::MIMOFAN_INK))
                     .padding(Padding::uniform(1)),
             )
             .scroll((scroll as u16, 0));
@@ -2090,7 +2090,7 @@ fn append_subagent_group(
             let detail = truncate_view_text(detail, max_len);
             lines.push(Line::from(vec![
                 Span::styled("    reason: ", Style::default().fg(palette::TEXT_MUTED)),
-                Span::styled(detail, Style::default().fg(palette::DEEPSEEK_RED)),
+                Span::styled(detail, Style::default().fg(palette::MIMOFAN_RED)),
             ]));
         }
 
@@ -2099,7 +2099,7 @@ fn append_subagent_group(
             let role = truncate_view_text(role, max_len);
             lines.push(Line::from(vec![
                 Span::styled("    role: ", Style::default().fg(palette::TEXT_MUTED)),
-                Span::styled(role, Style::default().fg(palette::DEEPSEEK_SKY)),
+                Span::styled(role, Style::default().fg(palette::MIMOFAN_SKY)),
             ]));
         }
 
@@ -2118,7 +2118,7 @@ fn append_subagent_group(
             let branch_detail = truncate_view_text(&branch_detail, max_len);
             lines.push(Line::from(vec![
                 Span::styled("    git: ", Style::default().fg(palette::TEXT_MUTED)),
-                Span::styled(branch_detail, Style::default().fg(palette::DEEPSEEK_SKY)),
+                Span::styled(branch_detail, Style::default().fg(palette::MIMOFAN_SKY)),
             ]));
         }
 
@@ -2166,7 +2166,7 @@ fn format_agent_status(
     use ratatui::style::Style;
 
     match status {
-        SubAgentStatus::Running => ("running", Style::default().fg(palette::DEEPSEEK_SKY), None),
+        SubAgentStatus::Running => ("running", Style::default().fg(palette::MIMOFAN_SKY), None),
         SubAgentStatus::Completed => (
             "completed",
             Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY),
@@ -2185,7 +2185,7 @@ fn format_agent_status(
         ),
         SubAgentStatus::Failed(reason) => (
             "failed",
-            Style::default().fg(palette::DEEPSEEK_RED),
+            Style::default().fg(palette::MIMOFAN_RED),
             Some(reason.as_str()),
         ),
     }

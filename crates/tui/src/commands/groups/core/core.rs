@@ -4,7 +4,7 @@ use std::fmt::Write;
 use std::path::PathBuf;
 
 use crate::config::{
-    ApiProvider, COMMON_DEEPSEEK_MODELS, normalize_custom_model_id,
+    ApiProvider, COMMON_MIMOFAN_MODELS, normalize_custom_model_id,
     normalize_model_name_for_provider,
 };
 use crate::localization::{MessageId, tr};
@@ -164,7 +164,7 @@ pub fn model(app: &mut App, model_name: Option<&str>) -> CommandResult {
             let Some(model_id) = normalize_model_name_for_provider(app.api_provider, name) else {
                 return CommandResult::error(format!(
                     "Invalid model '{name}'. Expected auto or a model for the active provider. Common DeepSeek models: {}",
-                    COMMON_DEEPSEEK_MODELS.join(", ")
+                    COMMON_MIMOFAN_MODELS.join(", ")
                 ));
             };
             model_id

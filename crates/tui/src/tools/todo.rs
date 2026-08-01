@@ -173,80 +173,39 @@ pub fn new_shared_todo_list() -> SharedTodoList {
     Arc::new(Mutex::new(TodoList::new()))
 }
 
-const TODO_ALIAS_FIRST_DEPRECATED_VERSION: &str = "0.8.53";
-const TODO_ALIAS_REMOVAL_VERSION: &str = "0.9.0";
 const CANONICAL_WORK_SURFACE: &str = "checklist";
 const DURABLE_WORK_OWNER: &str = "fleet_whaleflow_ledger";
-
-fn is_compat_alias(tool_name: &str) -> bool {
-    tool_name.starts_with("todo_")
-}
-
-fn checklist_replacement_tool_name(tool_name: &str) -> &'static str {
-    match tool_name {
-        "todo_add" | "checklist_add" => "checklist_add",
-        "todo_update" | "checklist_update" => "checklist_update",
-        "todo_list" | "checklist_list" => "checklist_list",
-        _ => "checklist_write",
-    }
-}
 
 /// Tool for writing and updating the todo list
 pub struct TodoWriteTool {
     todo_list: SharedTodoList,
-    tool_name: &'static str,
 }
 
 impl TodoWriteTool {
     pub fn new(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "todo_write",
-        }
-    }
-
-    pub fn checklist(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "checklist_write",
-        }
+        Self { todo_list }
     }
 }
 
-/// Tool for adding a single todo item (legacy compatibility).
+/// Tool for adding a single todo item.
 pub struct TodoAddTool {
     todo_list: SharedTodoList,
-    tool_name: &'static str,
 }
 
 impl TodoAddTool {
     pub fn new(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "todo_add",
-        }
-    }
-
-    pub fn checklist(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "checklist_add",
-        }
+        Self { todo_list }
     }
 }
 
 #[async_trait]
 impl ToolSpec for TodoAddTool {
     fn name(&self) -> &'static str {
-        self.tool_name
+        "checklist_add"
     }
 
     fn description(&self) -> &'static str {
-        if self.tool_name == "todo_add" {
-            "Compatibility alias for checklist_add. Adds one checklist item on the active thread/task."
-        } else {
-            "Add one checklist item on the active thread/task. Durable tasks persist this checklist as subordinate work progress."
-        }
+        "Add one checklist item on the active thread/task. Durable tasks persist this checklist as subordinate work progress."
     }
 
     fn input_schema(&self) -> serde_json::Value {
@@ -275,10 +234,6 @@ impl ToolSpec for TodoAddTool {
         ApprovalRequirement::Auto
     }
 
-    fn model_visible(&self) -> bool {
-        !is_compat_alias(self.tool_name)
-    }
-
     async fn execute(
         &self,
         input: serde_json::Value,
@@ -305,44 +260,29 @@ impl ToolSpec for TodoAddTool {
             item.status.as_str(),
             result
         ))
-        .with_metadata(checklist_metadata(&snapshot, self.tool_name)))
+        .with_metadata(checklist_metadata(&snapshot)))
     }
 }
 
-/// Tool for updating a todo item's status (legacy compatibility).
+/// Tool for updating a todo item's status.
 pub struct TodoUpdateTool {
     todo_list: SharedTodoList,
-    tool_name: &'static str,
 }
 
 impl TodoUpdateTool {
     pub fn new(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "todo_update",
-        }
-    }
-
-    pub fn checklist(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "checklist_update",
-        }
+        Self { todo_list }
     }
 }
 
 #[async_trait]
 impl ToolSpec for TodoUpdateTool {
     fn name(&self) -> &'static str {
-        self.tool_name
+        "checklist_update"
     }
 
     fn description(&self) -> &'static str {
-        if self.tool_name == "todo_update" {
-            "Compatibility alias for checklist_update. Updates one checklist item by id on the active thread/task."
-        } else {
-            "Update one checklist item's status by id on the active thread/task."
-        }
+        "Update one checklist item's status by id on the active thread/task."
     }
 
     fn input_schema(&self) -> serde_json::Value {
@@ -369,10 +309,6 @@ impl ToolSpec for TodoUpdateTool {
 
     fn approval_requirement(&self) -> ApprovalRequirement {
         ApprovalRequirement::Auto
-    }
-
-    fn model_visible(&self) -> bool {
-        !is_compat_alias(self.tool_name)
     }
 
     async fn execute(
@@ -403,46 +339,31 @@ impl ToolSpec for TodoUpdateTool {
                 item.status.as_str(),
                 result
             ))
-            .with_metadata(checklist_metadata(&snapshot, self.tool_name))),
+            .with_metadata(checklist_metadata(&snapshot))),
             None => Ok(ToolResult::error(format!("Todo id {id} not found"))),
         }
     }
 }
 
-/// Tool for listing current todos (legacy compatibility).
+/// Tool for listing current todos.
 pub struct TodoListTool {
     todo_list: SharedTodoList,
-    tool_name: &'static str,
 }
 
 impl TodoListTool {
     pub fn new(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "todo_list",
-        }
-    }
-
-    pub fn checklist(todo_list: SharedTodoList) -> Self {
-        Self {
-            todo_list,
-            tool_name: "checklist_list",
-        }
+        Self { todo_list }
     }
 }
 
 #[async_trait]
 impl ToolSpec for TodoListTool {
     fn name(&self) -> &'static str {
-        self.tool_name
+        "checklist_list"
     }
 
     fn description(&self) -> &'static str {
-        if self.tool_name == "todo_list" {
-            "Compatibility alias for checklist_list. Lists current checklist progress."
-        } else {
-            "List current checklist progress for the active thread/task."
-        }
+        "List current checklist progress for the active thread/task."
     }
 
     fn input_schema(&self) -> serde_json::Value {
@@ -460,10 +381,6 @@ impl ToolSpec for TodoListTool {
         ApprovalRequirement::Auto
     }
 
-    fn model_visible(&self) -> bool {
-        !is_compat_alias(self.tool_name)
-    }
-
     async fn execute(
         &self,
         _input: serde_json::Value,
@@ -478,22 +395,18 @@ impl ToolSpec for TodoListTool {
             snapshot.completion_pct,
             result
         ))
-        .with_metadata(checklist_metadata(&snapshot, self.tool_name)))
+        .with_metadata(checklist_metadata(&snapshot)))
     }
 }
 
 #[async_trait]
 impl ToolSpec for TodoWriteTool {
     fn name(&self) -> &'static str {
-        self.tool_name
+        "checklist_write"
     }
 
     fn description(&self) -> &'static str {
-        if self.tool_name == "todo_write" {
-            "Compatibility alias for checklist_write. Replace the active thread/task checklist; durable tasks are the real executable work object."
-        } else {
-            "Replace the active thread/task checklist. Use this for granular progress under the current durable task or runtime thread; durable tasks remain the real executable work object."
-        }
+        "Replace the active thread/task checklist. Use this for granular progress under the current durable task or runtime thread; durable tasks remain the real executable work object."
     }
 
     fn input_schema(&self) -> serde_json::Value {
@@ -530,10 +443,6 @@ impl ToolSpec for TodoWriteTool {
 
     fn approval_requirement(&self) -> ApprovalRequirement {
         ApprovalRequirement::Auto
-    }
-
-    fn model_visible(&self) -> bool {
-        !is_compat_alias(self.tool_name)
     }
 
     async fn execute(
@@ -576,13 +485,11 @@ impl ToolSpec for TodoWriteTool {
             snapshot.completion_pct,
             result
         ))
-        .with_metadata(checklist_metadata(&snapshot, self.tool_name)))
+        .with_metadata(checklist_metadata(&snapshot)))
     }
 }
 
-fn checklist_metadata(snapshot: &TodoListSnapshot, tool_name: &str) -> serde_json::Value {
-    let canonical_tool = checklist_replacement_tool_name(tool_name);
-    let compat_alias = is_compat_alias(tool_name);
+fn checklist_metadata(snapshot: &TodoListSnapshot) -> serde_json::Value {
     let items = snapshot
         .items
         .iter()
@@ -594,12 +501,10 @@ fn checklist_metadata(snapshot: &TodoListSnapshot, tool_name: &str) -> serde_jso
             })
         })
         .collect::<Vec<_>>();
-    let mut metadata = json!({
-        "canonical_tool": canonical_tool,
-        "compat_alias": compat_alias,
+    json!({
         "work_surface": {
             "canonical": CANONICAL_WORK_SURFACE,
-            "model_visible": !compat_alias,
+            "model_visible": true,
             "durable_owner": DURABLE_WORK_OWNER,
             "progress_key": "task_updates.checklist"
         },
@@ -611,22 +516,7 @@ fn checklist_metadata(snapshot: &TodoListSnapshot, tool_name: &str) -> serde_jso
                 "updated_at": null
             }
         }
-    });
-    if compat_alias && let Some(obj) = metadata.as_object_mut() {
-        obj.insert(
-            "_deprecation".to_string(),
-            json!({
-                "this_tool": tool_name,
-                "use_instead": canonical_tool,
-                "first_deprecated": TODO_ALIAS_FIRST_DEPRECATED_VERSION,
-                "removed_in": TODO_ALIAS_REMOVAL_VERSION,
-                "message": format!(
-                    "Tool '{tool_name}' is a hidden compatibility alias; use '{canonical_tool}' before v{TODO_ALIAS_REMOVAL_VERSION}."
-                ),
-            }),
-        );
-    }
-    metadata
+    })
 }
 
 #[cfg(test)]

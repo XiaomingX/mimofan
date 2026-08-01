@@ -97,13 +97,13 @@ pub struct RuntimeApiOptions {
     /// Additional CORS origins to allow on top of the built-in defaults
     /// (`http://localhost:{3000,1420}`, `http://127.0.0.1:{3000,1420}`,
     /// `tauri://localhost`). Populated by `--cors-origin` (repeatable),
-    /// `MIMOFAN_CORS_ORIGINS` (comma-separated, `DEEPSEEK_CORS_ORIGINS`
+    /// `MIMOFAN_CORS_ORIGINS` (comma-separated, `MIMOFAN_CORS_ORIGINS`
     /// as alias), and `[runtime_api] cors_origins` in `config.toml`.
     /// Mimofanscale#255 / #561.
     pub cors_origins: Vec<String>,
     /// Optional bearer token required for `/v1/*` routes. If omitted here,
     /// `run_http_server` checks `MIMOFAN_RUNTIME_TOKEN`, then
-    /// `DEEPSEEK_RUNTIME_TOKEN` as an alias.
+    /// `MIMOFAN_RUNTIME_TOKEN` as an alias.
     pub auth_token: Option<String>,
     /// Allow `/v1/*` routes without auth when no token is configured.
     pub insecure_no_auth: bool,
@@ -162,7 +162,7 @@ fn runtime_auth_status_lines(auth: &ResolvedRuntimeAuth) -> Vec<String> {
     if auth.generated {
         return vec![
             "Runtime API auth: generated bearer token for this process (not printed).".to_string(),
-            "  Set MIMOFAN_RUNTIME_TOKEN (or DEEPSEEK_RUNTIME_TOKEN as an alias) or pass --auth-token when another client needs to connect.".to_string(),
+            "  Set MIMOFAN_RUNTIME_TOKEN (or MIMOFAN_RUNTIME_TOKEN as an alias) or pass --auth-token when another client needs to connect.".to_string(),
         ];
     }
     if auth.token.is_some() {
@@ -531,7 +531,7 @@ pub async fn run_http_server(
     });
     let runtime_token_env = std::env::var("MIMOFAN_RUNTIME_TOKEN")
         .ok()
-        .or_else(|| std::env::var("DEEPSEEK_RUNTIME_TOKEN").ok());
+        .or_else(|| std::env::var("MIMOFAN_RUNTIME_TOKEN").ok());
     let resolved_auth = resolve_runtime_auth(
         options.auth_token.clone(),
         runtime_token_env,

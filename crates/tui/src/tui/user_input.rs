@@ -353,7 +353,7 @@ impl ModalView for UserInputView {
         let mut lines: Vec<Line> = Vec::new();
         lines.push(Line::from(vec![Span::styled(
             "Action required",
-            Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+            Style::default().fg(palette::MIMOFAN_SKY).bold(),
         )]));
         lines.push(Line::from(vec![
             Span::styled(
@@ -437,10 +437,10 @@ impl ModalView for UserInputView {
         lines.push(Line::from(""));
         if self.mode == InputMode::OtherInput {
             lines.push(Line::from(vec![
-                Span::styled("Enter", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                Span::styled("Enter", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                 Span::styled(" submit", Style::default().fg(palette::TEXT_MUTED)),
                 Span::raw("  "),
-                Span::styled("Esc", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                Span::styled("Esc", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                 Span::styled(" back", Style::default().fg(palette::TEXT_MUTED)),
             ]));
         } else {
@@ -454,34 +454,34 @@ impl ModalView for UserInputView {
                 lines.push(Line::from(vec![
                     Span::styled(
                         quick_pick_label,
-                        Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+                        Style::default().fg(palette::MIMOFAN_SKY).bold(),
                     ),
                     Span::styled(" move", Style::default().fg(palette::TEXT_MUTED)),
                     Span::raw("  "),
-                    Span::styled("Space", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                    Span::styled("Space", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                     Span::styled(" toggle", Style::default().fg(palette::TEXT_MUTED)),
                     Span::raw("  "),
-                    Span::styled("Enter", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                    Span::styled("Enter", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                     Span::styled(" toggle/confirm", Style::default().fg(palette::TEXT_MUTED)),
                     Span::raw("  "),
-                    Span::styled("Esc", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                    Span::styled("Esc", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                     Span::styled(" cancel", Style::default().fg(palette::TEXT_MUTED)),
                 ]));
             } else {
                 lines.push(Line::from(vec![
                     Span::styled(
                         quick_pick_label,
-                        Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+                        Style::default().fg(palette::MIMOFAN_SKY).bold(),
                     ),
                     Span::styled(" quick pick", Style::default().fg(palette::TEXT_MUTED)),
                     Span::raw("  "),
-                    Span::styled("Up/Down", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                    Span::styled("Up/Down", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                     Span::styled(" move", Style::default().fg(palette::TEXT_MUTED)),
                     Span::raw("  "),
-                    Span::styled("Enter", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                    Span::styled("Enter", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                     Span::styled(" confirm", Style::default().fg(palette::TEXT_MUTED)),
                     Span::raw("  "),
-                    Span::styled("Esc", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                    Span::styled("Esc", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                     Span::styled(" cancel", Style::default().fg(palette::TEXT_MUTED)),
                 ]));
             }

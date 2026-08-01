@@ -12,7 +12,7 @@ use anyhow::{Result, anyhow};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::config::Config;
 use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
@@ -238,7 +238,7 @@ impl AcpServer {
         let route =
             crate::resolve_cli_auto_route(&self.config, &self.model, last_user_text).await?;
         let execution_config = crate::config_for_cli_route(&self.config, &route);
-        let client = DeepSeekClient::new(&execution_config)?;
+        let client = ApiClient::new(&execution_config)?;
         let reasoning_effort = route
             .reasoning_effort
             .and_then(|effort| effort.api_value_for_provider(execution_config.api_provider()))

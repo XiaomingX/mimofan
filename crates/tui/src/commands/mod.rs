@@ -108,29 +108,6 @@ pub fn get_command_info(name: &str) -> Option<&'static CommandInfo> {
 pub fn execute(cmd: &str, app: &mut App) -> CommandResult {
     let trimmed = cmd.trim();
 
-    // `$skillname` is a backward-compatible alias for `/skill skillname`.
-    // Resolve it early so skills can be loaded with the `$` prefix.
-    if let Some(skill_input) = trimmed.strip_prefix('$') {
-        let skill_input = skill_input.trim_start();
-        if skill_input.is_empty() {
-            return CommandResult::error(
-                "Type a skill name after $. For example: $getting-started",
-            );
-        }
-        let parts: Vec<&str> = skill_input.splitn(2, char::is_whitespace).collect();
-        let skill_name = parts.first().copied().unwrap_or("");
-        let arg = parts
-            .get(1)
-            .map(|value| value.trim())
-            .filter(|value| !value.is_empty());
-        if let Some(result) = groups::skills::run_skill_by_name(app, skill_name, arg) {
-            return result;
-        }
-        return CommandResult::error(format!(
-            "Unknown skill: ${skill_name}. Type /skills to see installed skills."
-        ));
-    }
-
     let parts: Vec<&str> = trimmed.splitn(2, char::is_whitespace).collect();
     let command = parts
         .first()
@@ -175,14 +152,6 @@ pub fn execute(cmd: &str, app: &mut App) -> CommandResult {
 
     match command.as_str() {
         // Permanent legacy migration hints. These are deliberately excluded
-        // from registry/autocomplete and only appear when users type old names.
-        "set" => CommandResult::error(
-            "The /set command was retired. Use /config to edit settings and /settings to inspect current values.",
-        ),
-        "deepseek" => CommandResult::error(
-            "The /deepseek command was renamed. Use /links (aliases: /dashboard, /api).",
-        ),
-
         _ => {
             // Third source: skills (lowest precedence after native and user-config).
             // Try to run a skill whose name matches the command.

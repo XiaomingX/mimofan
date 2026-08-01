@@ -1,7 +1,7 @@
 //! `/memory` slash command — inspect and edit the user memory file.
 //!
 //! When the user-memory feature is opted-in (`[memory] enabled = true` in
-//! config or `DEEPSEEK_MEMORY=on` in the environment), `/memory` shows
+//! config or `MIMOFAN_MEMORY=on` in the environment), `/memory` shows
 //! the current memory file path and contents inline. Subcommands let the
 //! user clear or open the file:
 //!
@@ -46,7 +46,7 @@ fn memory_help(path: &Path) -> String {
 pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
     if !app.use_memory {
         return CommandResult::error(
-            "user memory is disabled. Enable with `[memory] enabled = true` in `~/.mimofan/config.toml` or `DEEPSEEK_MEMORY=on` in your environment, then restart the TUI.",
+            "user memory is disabled. Enable with `[memory] enabled = true` in `~/.mimofan/config.toml` or `MIMOFAN_MEMORY=on` in your environment, then restart the TUI.",
         );
     }
 

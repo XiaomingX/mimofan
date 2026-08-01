@@ -709,7 +709,7 @@ impl CommandPaletteView {
         Line::from(vec![Span::styled(
             format!("  {title} ({count})  "),
             Style::default()
-                .fg(palette::DEEPSEEK_SKY)
+                .fg(palette::MIMOFAN_SKY)
                 .add_modifier(Modifier::BOLD),
         )])
     }

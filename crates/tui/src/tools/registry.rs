@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use mimofan_protocol::runtime::DynamicToolSpec;
 use serde_json::Value;
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::models::Tool;
 
 use super::schema_canonicalize;
@@ -527,8 +527,6 @@ impl ToolRegistryBuilder {
             .with_tool(Arc::new(ShellWaitTool::new("exec_shell_wait")))
             .with_tool(Arc::new(ShellInteractTool::new("exec_shell_interact")))
             .with_tool(Arc::new(ShellCancelTool))
-            .with_tool(Arc::new(ShellWaitTool::new("exec_wait")))
-            .with_tool(Arc::new(ShellInteractTool::new("exec_interact")))
     }
 
     /// Include search tools (`grep_files`).
@@ -783,7 +781,7 @@ impl ToolRegistryBuilder {
     #[must_use]
     pub fn with_speech_tools(
         self,
-        client: Option<DeepSeekClient>,
+        client: Option<ApiClient>,
         output_dir: Option<PathBuf>,
     ) -> Self {
         use super::speech::SpeechTool;
@@ -797,7 +795,7 @@ impl ToolRegistryBuilder {
 
     /// Include persistent RLM session tools.
     #[must_use]
-    pub fn with_rlm_tool(self, client: Option<DeepSeekClient>, _root_model: String) -> Self {
+    pub fn with_rlm_tool(self, client: Option<ApiClient>, _root_model: String) -> Self {
         use super::rlm::{
             RlmCloseTool, RlmConfigureTool, RlmEvalTool, RlmOpenTool, RlmSessionObjectsTool,
         };
@@ -818,7 +816,7 @@ impl ToolRegistryBuilder {
 
     /// Include the review tool.
     #[must_use]
-    pub fn with_review_tool(self, client: Option<DeepSeekClient>, model: String) -> Self {
+    pub fn with_review_tool(self, client: Option<ApiClient>, model: String) -> Self {
         use super::review::ReviewTool;
         self.with_tool(Arc::new(ReviewTool::new(client, model)))
     }
@@ -832,7 +830,7 @@ impl ToolRegistryBuilder {
 
     /// Include the FIM (Fill-in-the-Middle) edit tool.
     #[must_use]
-    pub fn with_fim_tool(self, client: Option<DeepSeekClient>, model: String) -> Self {
+    pub fn with_fim_tool(self, client: Option<ApiClient>, model: String) -> Self {
         use super::fim::FimEditTool;
         self.with_tool(Arc::new(FimEditTool::new(client, model)))
     }
@@ -955,7 +953,7 @@ impl ToolRegistryBuilder {
     #[allow(clippy::too_many_arguments)]
     pub fn with_full_agent_surface(
         self,
-        client: Option<DeepSeekClient>,
+        client: Option<ApiClient>,
         model: String,
         manager: super::subagent::SharedSubAgentManager,
         runtime: super::subagent::SubAgentRuntime,
@@ -979,7 +977,7 @@ impl ToolRegistryBuilder {
     #[allow(clippy::too_many_arguments)]
     pub fn with_full_agent_surface_policy(
         self,
-        client: Option<DeepSeekClient>,
+        client: Option<ApiClient>,
         model: String,
         manager: super::subagent::SharedSubAgentManager,
         runtime: super::subagent::SubAgentRuntime,
@@ -1002,11 +1000,7 @@ impl ToolRegistryBuilder {
     #[must_use]
     pub fn with_todo_tool(self, todo_list: super::todo::SharedTodoList) -> Self {
         use super::todo::{TodoAddTool, TodoListTool, TodoUpdateTool, TodoWriteTool};
-        self.with_tool(Arc::new(TodoWriteTool::checklist(todo_list.clone())))
-            .with_tool(Arc::new(TodoAddTool::checklist(todo_list.clone())))
-            .with_tool(Arc::new(TodoUpdateTool::checklist(todo_list.clone())))
-            .with_tool(Arc::new(TodoListTool::checklist(todo_list.clone())))
-            .with_tool(Arc::new(TodoWriteTool::new(todo_list.clone())))
+        self.with_tool(Arc::new(TodoWriteTool::new(todo_list.clone())))
             .with_tool(Arc::new(TodoAddTool::new(todo_list.clone())))
             .with_tool(Arc::new(TodoUpdateTool::new(todo_list.clone())))
             .with_tool(Arc::new(TodoListTool::new(todo_list)))

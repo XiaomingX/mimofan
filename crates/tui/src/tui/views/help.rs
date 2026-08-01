@@ -264,7 +264,7 @@ fn modal_block() -> Block<'static> {
     Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(palette::BORDER_COLOR))
-        .style(Style::default().bg(palette::DEEPSEEK_INK))
+        .style(Style::default().bg(palette::MIMOFAN_INK))
         .padding(Padding::uniform(1))
 }
 
@@ -396,7 +396,7 @@ impl ModalView for HelpView {
         lines.push(Line::from(Span::styled(
             query_label,
             Style::default()
-                .fg(palette::DEEPSEEK_SKY)
+                .fg(palette::MIMOFAN_SKY)
                 .add_modifier(Modifier::BOLD),
         )));
 

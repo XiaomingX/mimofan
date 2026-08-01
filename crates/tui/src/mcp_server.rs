@@ -1,4 +1,4 @@
-//! MCP server implementation for exposing DeepSeek tools over stdio.
+//! MCP server implementation for exposing API tools over stdio.
 
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Write};
@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use tokio::runtime::Runtime;
 use uuid::Uuid;
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::config::Config;
 use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest};
@@ -81,7 +81,7 @@ struct McpServer {
     registry: crate::tools::ToolRegistry,
     exposed_tools: Vec<ExposedTool>,
     require_approval: bool,
-    /// Thread-based conversation state for deepseek/deepseek-reply tools.
+    /// Thread-based conversation state for deepseek/mimofan-reply tools.
     /// Maps thread_id -> ordered list of messages in the conversation.
     threads: Arc<Mutex<HashMap<String, Vec<Message>>>>,
     /// Monotonic request counter for notification correlation.
@@ -176,14 +176,14 @@ impl McpServer {
             match entry.internal.as_str() {
                 "deepseek" => {
                     tools.push(json!({
-                        "name": "deepseek",
-                        "description": "Send a prompt to DeepSeek and get a response. Creates a new conversation thread.",
+                        "name": "mimofan",
+                        "description": "Send a prompt to Mimofan and get a response. Creates a new conversation thread.",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
                                 "prompt": {
                                     "type": "string",
-                                    "description": "The user prompt to send to DeepSeek"
+                                    "description": "The user prompt to send to the API"
                                 },
                                 "model": {
                                     "type": "string",
@@ -198,16 +198,16 @@ impl McpServer {
                         }
                     }));
                 }
-                "deepseek-reply" => {
+                "mimofan-reply" => {
                     tools.push(json!({
-                        "name": "deepseek-reply",
-                        "description": "Continue an existing conversation thread with DeepSeek. Requires a thread_id from a previous deepseek call.",
+                        "name": "mimofan-reply",
+                        "description": "Continue an existing conversation thread with Mimofan. Requires a thread_id from a previous mimofan call.",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
                                 "thread_id": {
                                     "type": "string",
-                                    "description": "Thread ID from a previous deepseek call"
+                                    "description": "Thread ID from a previous mimofan call"
                                 },
                                 "prompt": {
                                     "type": "string",
@@ -250,7 +250,7 @@ impl McpServer {
         {
             for session in sessions {
                 resources.push(json!({
-                    "uri": format!("deepseek://session/{}", session.id),
+                    "uri": format!("mimofan://session/{}", session.id),
                     "name": session.title,
                     "description": format!("{} messages", session.message_count),
                     "mimeType": "application/json",
@@ -301,13 +301,13 @@ impl McpServer {
                 message: format!("Tool not exposed: {name}"),
             })?;
 
-        // Handle deepseek and deepseek-reply natively
-        if internal == "deepseek" || internal == "deepseek-reply" {
+        // Handle mimofan and mimofan-reply natively
+        if internal == "mimofan" || internal == "mimofan-reply" {
             let arguments = params
                 .get("arguments")
                 .cloned()
                 .unwrap_or_else(|| json!({}));
-            return self.handle_deepseek_call(runtime, &internal, &arguments, request_id);
+            return self.handle_api_call(runtime, &internal, &arguments, request_id);
         }
 
         let arguments = params
@@ -318,13 +318,13 @@ impl McpServer {
         Ok(tool_result_to_mcp(result))
     }
 
-    /// Handle a `deepseek` or `deepseek-reply` tool call.
+    /// Handle a `mimofan` or `mimofan-reply` tool call.
     ///
-    /// Uses `DeepSeekClient` directly (not the full engine) to send a prompt
-    /// and return the response. For `deepseek` a new thread is created; for
-    /// `deepseek-reply` the caller supplies a `thread_id` to continue an
+    /// Uses `ApiClient` directly (not the full engine) to send a prompt
+    /// and return the response. For `mimofan` a new thread is created; for
+    /// `mimofan-reply` the caller supplies a `thread_id` to continue an
     /// existing conversation.
-    fn handle_deepseek_call(
+    fn handle_api_call(
         &mut self,
         runtime: &Runtime,
         internal_name: &str,
@@ -354,7 +354,7 @@ impl McpServer {
                 .and_then(Value::as_str)
                 .ok_or_else(|| RpcError {
                     code: -32602,
-                    message: "Missing required argument: thread_id for deepseek-reply".to_string(),
+                    message: "Missing required argument: thread_id for mimofan-reply".to_string(),
                 })?
                 .to_string()
         };
@@ -364,9 +364,9 @@ impl McpServer {
             code: -32000,
             message: format!("Failed to load config: {e}"),
         })?;
-        let client = DeepSeekClient::new(&config).map_err(|e| RpcError {
+        let client = ApiClient::new(&config).map_err(|e| RpcError {
             code: -32000,
-            message: format!("Failed to create DeepSeek client: {e}"),
+            message: format!("Failed to create API client: {e}"),
         })?;
 
         // Build message list
@@ -411,7 +411,7 @@ impl McpServer {
             .block_on(client.create_message(request))
             .map_err(|e| RpcError {
                 code: -32000,
-                message: format!("DeepSeek API call failed: {e}"),
+                message: format!("API call failed: {e}"),
             })?;
 
         // Extract response text from content blocks
@@ -434,7 +434,7 @@ impl McpServer {
         {
             let mut thread = self.threads.lock().unwrap_or_else(|e| e.into_inner());
             let convo = thread.entry(thread_id.clone()).or_default();
-            // If deepseek, we already have just the user message; if deepseek-reply,
+            // If mimofan, we already have just the user message; if mimofan-reply,
             // the user message was appended to the cloned messages above but we need
             // to also append it to the stored thread and then the assistant response.
             if internal_name == "deepseek" {
@@ -529,8 +529,8 @@ fn build_exposed_tools(names: &[String]) -> Vec<ExposedTool> {
             "shell" => "exec_shell",
             "search" => "grep_files",
             "file_search" => "file_search",
-            // deepseek and deepseek-reply are handled natively in call_tool
-            "deepseek" | "deepseek-reply" => trimmed,
+            // mimofan and mimofan-reply are handled natively in call_tool
+            "deepseek" | "mimofan-reply" => trimmed,
             other => other,
         }
         .to_string();
@@ -562,7 +562,7 @@ fn initialize_response() -> Value {
     json!({
         "protocolVersion": "2024-11-05",
         "serverInfo": {
-            "name": "deepseek-mcp-server",
+            "name": "mimofan-mcp-server",
             "version": env!("CARGO_PKG_VERSION"),
         },
         "capabilities": {

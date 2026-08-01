@@ -18,8 +18,6 @@
 //! which is a re-export alias of [`crate::provider::WireFormat`] rather than a
 //! fourth protocol synonym.
 
-#![allow(dead_code)]
-
 /// The selected endpoint's request/response wire shape.
 ///
 /// Alias of [`crate::provider::WireFormat`]; intentionally NOT a new enum, to

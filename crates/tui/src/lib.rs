@@ -39,7 +39,7 @@ mod context_budget;
 mod context_report;
 mod core;
 mod cost_status;
-mod deepseek_theme;
+mod mimofan_theme;
 mod dependencies;
 mod error_taxonomy;
 mod errors;
@@ -134,7 +134,7 @@ fn install_rustls_crypto_provider() {
     name = "mimofan",
     bin_name = "mimofan",
     author,
-    version = env!("DEEPSEEK_BUILD_VERSION"),
+    version = env!("MIMOFAN_BUILD_VERSION"),
     about = "mimofan terminal coding agent",
     long_about = "Terminal-native TUI and CLI for open-source and open-weight coding models.\n\nRun 'mimo' to start.\n\nProvider routes include DeepSeek, Arcee, Hugging Face, OpenRouter, Xiaomi MiMo, and more."
 )]
@@ -604,7 +604,7 @@ fn resolve_exec_model(config: &Config, explicit_model: Option<&str>) -> String {
 }
 
 fn exec_model_env_override() -> Option<String> {
-    ["MIMOFAN_MODEL", "DEEPSEEK_MODEL"]
+    ["MIMOFAN_MODEL"]
         .into_iter()
         .find_map(|key| {
             std::env::var(key)
@@ -841,12 +841,12 @@ struct ServeArgs {
     /// Additional CORS origin to allow (repeatable). Stacks on top of the
     /// built-in defaults (localhost:3000, localhost:1420, tauri://localhost).
     /// Also reads `MIMOFAN_CORS_ORIGINS` (comma-separated), then
-    /// `DEEPSEEK_CORS_ORIGINS` as an alias, and `[runtime_api] cors_origins`
+    /// `MIMOFAN_CORS_ORIGINS` as an alias, and `[runtime_api] cors_origins`
     /// from `config.toml`. Mimofanscale#255.
     #[arg(long = "cors-origin", value_name = "URL")]
     cors_origin: Vec<String>,
     /// Require this bearer token for `/v1/*` runtime API routes. Also reads
-    /// `MIMOFAN_RUNTIME_TOKEN` when omitted, then `DEEPSEEK_RUNTIME_TOKEN`
+    /// `MIMOFAN_RUNTIME_TOKEN` when omitted, then `MIMOFAN_RUNTIME_TOKEN`
     /// as an alias.
     #[arg(long = "auth-token", value_name = "TOKEN")]
     auth_token: Option<String>,
@@ -1290,21 +1290,11 @@ pub async fn run() -> Result<()> {
                 });
                 let mut config = config.clone();
                 merge_user_workspace_config(&mut config, cli.config.clone(), &workspace);
-                // Honour MIMO_BASE_URL forwarded by the CLI dispatcher from --base-url.
-                if let Ok(env_url) = std::env::var("MIMO_BASE_URL") {
-                    let trimmed = env_url.trim();
-                    eprintln!("DEBUG MIMO_BASE_URL='{trimmed}'");
-                    if !trimmed.is_empty() {
-                        config.base_url = Some(trimmed.to_string());
-                    }
-                } else {
-                    eprintln!("DEBUG MIMO_BASE_URL not set");
-                }
                 let model = resolve_exec_model(&config, args.model.as_deref());
                 let prompt = join_prompt_parts(&args.prompt);
                 let resume_session_id = resolve_exec_resume_session_id(&args, &workspace)?;
                 // The `deepseek` launcher forwards `--yolo` to this binary via
-                // the DEEPSEEK_YOLO env var (which the config loader folds into
+                // the MIMOFAN_YOLO env var (which the config loader folds into
                 // `config.yolo`), not as a CLI flag. Honour either source.
                 let yolo = cli.yolo || config.yolo.unwrap_or(false);
                 let needs_engine = args.auto
@@ -2135,7 +2125,7 @@ fn init_plugins_dir(
 /// Sources, in priority order (later sources extend earlier ones):
 /// 1. `--cors-origin URL` flags (repeatable)
 /// 2. `MIMOFAN_CORS_ORIGINS` env var (comma-separated),
-///    then `DEEPSEEK_CORS_ORIGINS` as an alias
+///    then `MIMOFAN_CORS_ORIGINS` as an alias
 /// 3. `[runtime_api] cors_origins = [...]` in `config.toml`
 ///
 /// The runtime API always allows the built-in dev defaults
@@ -2157,7 +2147,7 @@ fn resolve_cors_origins(config: &Config, flag_origins: &[String]) -> Vec<String>
         push(o);
     }
     if let Ok(env_value) =
-        std::env::var("MIMOFAN_CORS_ORIGINS").or_else(|_| std::env::var("DEEPSEEK_CORS_ORIGINS"))
+        std::env::var("MIMOFAN_CORS_ORIGINS")
     {
         for piece in env_value.split(',') {
             push(piece);
@@ -2230,8 +2220,8 @@ fn run_setup(config: &Config, workspace: &Path, args: SetupArgs) -> Result<()> {
     use crate::palette;
     use colored::Colorize;
 
-    let (aqua_r, aqua_g, aqua_b) = palette::DEEPSEEK_SKY_RGB;
-    let (sky_r, sky_g, sky_b) = palette::DEEPSEEK_SKY_RGB;
+    let (aqua_r, aqua_g, aqua_b) = palette::MIMOFAN_SKY_RGB;
+    let (sky_r, sky_g, sky_b) = palette::MIMOFAN_SKY_RGB;
 
     let any_explicit = args.mcp || args.skills || args.tools || args.plugins;
     let run_mcp = args.mcp || args.all || !any_explicit;
@@ -2357,12 +2347,12 @@ enum ApiKeySource {
 
 fn resolve_api_key_source(config: &Config) -> ApiKeySource {
     let provider = config.api_provider();
-    if std::env::var("DEEPSEEK_API_KEY")
+    if std::env::var("MIMOFAN_API_KEY")
         .ok()
         .filter(|k| !k.trim().is_empty())
         .is_some()
     {
-        match std::env::var("DEEPSEEK_API_KEY_SOURCE").ok().as_deref() {
+        match std::env::var("MIMOFAN_API_KEY_SOURCE").ok().as_deref() {
             Some("config") => return ApiKeySource::Config,
             Some("keyring") => return ApiKeySource::Keyring,
             _ => {}
@@ -2443,9 +2433,9 @@ fn run_setup_status(config: &Config, workspace: &Path) -> Result<()> {
     use crate::palette;
     use colored::Colorize;
 
-    let (aqua_r, aqua_g, aqua_b) = palette::DEEPSEEK_SKY_RGB;
-    let (sky_r, sky_g, sky_b) = palette::DEEPSEEK_SKY_RGB;
-    let (red_r, red_g, red_b) = palette::DEEPSEEK_RED_RGB;
+    let (aqua_r, aqua_g, aqua_b) = palette::MIMOFAN_SKY_RGB;
+    let (sky_r, sky_g, sky_b) = palette::MIMOFAN_SKY_RGB;
+    let (red_r, red_g, red_b) = palette::MIMOFAN_RED_RGB;
 
     println!(
         "{}",
@@ -2493,7 +2483,7 @@ fn run_setup_status(config: &Config, workspace: &Path) -> Result<()> {
     }
     println!(
         "  · base_url: {}",
-        crate::client::redact_url_for_display(&config.deepseek_base_url())
+        crate::client::redact_url_for_display(&config.api_base_url())
     );
     let model = config
         .default_text_model
@@ -2635,9 +2625,9 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
     use colored::Colorize;
 
     let (accent_r, accent_g, accent_b) = palette::MIMOFAN_ACCENT_PRIMARY_RGB;
-    let (sky_r, sky_g, sky_b) = palette::DEEPSEEK_SKY_RGB;
-    let (aqua_r, aqua_g, aqua_b) = palette::DEEPSEEK_SKY_RGB;
-    let (red_r, red_g, red_b) = palette::DEEPSEEK_RED_RGB;
+    let (sky_r, sky_g, sky_b) = palette::MIMOFAN_SKY_RGB;
+    let (aqua_r, aqua_g, aqua_b) = palette::MIMOFAN_SKY_RGB;
+    let (red_r, red_g, red_b) = palette::MIMOFAN_RED_RGB;
 
     println!(
         "{}",
@@ -2650,7 +2640,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
 
     // Version info
     println!("{}", "Version Information:".bold());
-    println!("  mimofan: {}", env!("DEEPSEEK_BUILD_VERSION"));
+    println!("  mimofan: {}", env!("MIMOFAN_BUILD_VERSION"));
     println!("  rust: {}", rustc_version());
     println!();
 
@@ -2736,7 +2726,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
 
     // Per-provider state: env + config file only (no values printed).
     // Keep doctor/status prompt-free even for unsigned rebuilt binaries.
-    let dispatcher_api_key_source = std::env::var("DEEPSEEK_API_KEY_SOURCE").ok();
+    let dispatcher_api_key_source = std::env::var("MIMOFAN_API_KEY_SOURCE").ok();
     for provider in crate::config::ApiProvider::all().iter().copied() {
         let slot = provider.as_str();
         let in_env = provider.env_vars().iter().any(|var| {
@@ -2774,7 +2764,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
     println!("  · credential precedence: ~/.mimofan/config.toml, OS keyring, then env");
 
     let api_key_source = resolve_api_key_source(config);
-    let has_api_key = if config.deepseek_api_key().is_ok() {
+    let has_api_key = if config.api_key().is_ok() {
         let source_label = match api_key_source {
             ApiKeySource::Command => "configured auth command",
             ApiKeySource::Config => "config.toml",
@@ -2854,7 +2844,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
                 );
                 if error_msg.contains("401") || error_msg.contains("Unauthorized") {
                     println!(
-                        "    Invalid API key. Check `mimofan auth status`, DEEPSEEK_API_KEY, or config.toml"
+                        "    Invalid API key. Check `mimofan auth status`, MIMOFAN_API_KEY, or config.toml"
                     );
                     if matches!(api_key_source, ApiKeySource::Keyring) {
                         println!(
@@ -2865,7 +2855,7 @@ async fn run_doctor(config: &Config, workspace: &Path, config_path_override: Opt
                         );
                     } else if matches!(api_key_source, ApiKeySource::Env) {
                         println!(
-                            "    The rejected key came from DEEPSEEK_API_KEY; no saved config key is present."
+                            "    The rejected key came from MIMOFAN_API_KEY; no saved config key is present."
                         );
                         println!(
                             "    Run `mimofan auth set --provider deepseek` to save a config key that overrides stale env."
@@ -3589,7 +3579,7 @@ fn run_doctor_json(
     // until the two PRs land and it can be replaced with a single
     // method call.)
     let memory_path = config.memory_path();
-    let memory_enabled_env = std::env::var("DEEPSEEK_MEMORY")
+    let memory_enabled_env = std::env::var("MIMOFAN_MEMORY")
         .ok()
         .map(|raw| {
             matches!(
@@ -3821,9 +3811,9 @@ fn doctor_base_url_class(provider: crate::config::ApiProvider, base_url: &str) -
 fn doctor_auth_scheme(config: &Config) -> &'static str {
     let provider = config.api_provider();
     if provider == crate::config::ApiProvider::XiaomiMimo {
-        if doctor_xiaomi_mimo_base_url_uses_token_plan(&config.deepseek_base_url())
+        if doctor_xiaomi_mimo_base_url_uses_token_plan(&config.api_base_url())
             || config
-                .deepseek_api_key()
+                .api_key()
                 .ok()
                 .is_some_and(|key| key.trim_start().starts_with("tp-"))
         {
@@ -3910,7 +3900,7 @@ fn doctor_api_target(config: &Config) -> DoctorApiTarget {
     let provider = config.api_provider();
     DoctorApiTarget {
         provider: provider.as_str(),
-        base_url: config.deepseek_base_url(),
+        base_url: config.api_base_url(),
         model: config.default_model(),
     }
 }
@@ -3927,15 +3917,15 @@ fn doctor_strict_tool_mode_status(config: &Config) -> DoctorStrictToolModeStatus
     }
 
     let target = doctor_api_target(config);
-    match known_deepseek_base_url_kind(&target.base_url) {
-        Some(DeepSeekBaseUrlKind::Beta) => DoctorStrictToolModeStatus {
+    match known_api_base_url_kind(&target.base_url) {
+        Some(BaseUrlKind::Beta) => DoctorStrictToolModeStatus {
             enabled: true,
             status: "ready",
             function_strict_sent: true,
             message: "enabled; DeepSeek strict schemas use the beta endpoint".to_string(),
             recommended_base_url: None,
         },
-        Some(DeepSeekBaseUrlKind::NonBeta) => {
+        Some(BaseUrlKind::NonBeta) => {
             let recommended = recommended_strict_base_url(config, &target.base_url);
             DoctorStrictToolModeStatus {
                 enabled: true,
@@ -3983,20 +3973,20 @@ fn doctor_tls_status(config: &Config) -> DoctorTlsStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DeepSeekBaseUrlKind {
+enum BaseUrlKind {
     Beta,
     NonBeta,
 }
 
-fn known_deepseek_base_url_kind(base_url: &str) -> Option<DeepSeekBaseUrlKind> {
+fn known_api_base_url_kind(base_url: &str) -> Option<BaseUrlKind> {
     match base_url.trim_end_matches('/').to_ascii_lowercase().as_str() {
         "https://api.deepseek.com/beta" | "https://api.deepseeki.com/beta" => {
-            Some(DeepSeekBaseUrlKind::Beta)
+            Some(BaseUrlKind::Beta)
         }
         "https://api.deepseek.com"
         | "https://api.deepseek.com/v1"
         | "https://api.deepseeki.com"
-        | "https://api.deepseeki.com/v1" => Some(DeepSeekBaseUrlKind::NonBeta),
+        | "https://api.deepseeki.com/v1" => Some(BaseUrlKind::NonBeta),
         _ => None,
     }
 }
@@ -4059,9 +4049,9 @@ fn run_features_command(config: &Config, command: FeaturesCli) -> Result<()> {
 }
 
 async fn run_models(config: &Config, args: ModelsArgs) -> Result<()> {
-    use crate::client::DeepSeekClient;
+    use crate::client::ApiClient;
 
-    let client = DeepSeekClient::new(config)?;
+    let client = ApiClient::new(config)?;
     let mut models = client.list_models().await?;
     models.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -4091,7 +4081,7 @@ async fn run_models(config: &Config, args: ModelsArgs) -> Result<()> {
 }
 
 async fn run_speech(config: &Config, args: SpeechArgs) -> Result<()> {
-    use crate::client::{DeepSeekClient, SpeechSynthesisRequest};
+    use crate::client::{ApiClient, SpeechSynthesisRequest};
     use crate::config::ApiProvider;
     use crate::tools::speech::{
         DEFAULT_VOICE, SPEECH_MODEL_EXAMPLES, combine_speech_instructions,
@@ -4176,7 +4166,7 @@ async fn run_speech(config: &Config, args: SpeechArgs) -> Result<()> {
             .join(default_speech_output_name(&format))
     });
 
-    let client = DeepSeekClient::new(config)?;
+    let client = ApiClient::new(config)?;
     let response = client
         .synthesize_speech(SpeechSynthesisRequest {
             model: model.clone(),
@@ -4223,10 +4213,10 @@ async fn run_speech(config: &Config, args: SpeechArgs) -> Result<()> {
 
 /// Test API connectivity by making a minimal request
 async fn test_api_connectivity(config: &Config) -> Result<()> {
-    use crate::client::DeepSeekClient;
+    use crate::client::ApiClient;
     use crate::models::{ContentBlock, Message, MessageRequest};
 
-    let client = DeepSeekClient::new(config)?;
+    let client = ApiClient::new(config)?;
     let model = client.model().to_string();
 
     // Minimal request: single word prompt, 1 max token
@@ -4284,8 +4274,8 @@ fn list_sessions(limit: usize, search: Option<String>) -> Result<()> {
     use session_manager::{SessionManager, format_session_line};
 
     let (accent_r, accent_g, accent_b) = palette::MIMOFAN_ACCENT_PRIMARY_RGB;
-    let (sky_r, sky_g, sky_b) = palette::DEEPSEEK_SKY_RGB;
-    let (aqua_r, aqua_g, aqua_b) = palette::DEEPSEEK_SKY_RGB;
+    let (sky_r, sky_g, sky_b) = palette::MIMOFAN_SKY_RGB;
+    let (aqua_r, aqua_g, aqua_b) = palette::MIMOFAN_SKY_RGB;
 
     let manager = SessionManager::default_location()?;
 
@@ -4351,9 +4341,9 @@ fn init_project() -> Result<()> {
     use colored::Colorize;
     use project_context::create_default_agents_md;
 
-    let (sky_r, sky_g, sky_b) = palette::DEEPSEEK_SKY_RGB;
-    let (aqua_r, aqua_g, aqua_b) = palette::DEEPSEEK_SKY_RGB;
-    let (red_r, red_g, red_b) = palette::DEEPSEEK_RED_RGB;
+    let (sky_r, sky_g, sky_b) = palette::MIMOFAN_SKY_RGB;
+    let (aqua_r, aqua_g, aqua_b) = palette::MIMOFAN_SKY_RGB;
+    let (red_r, red_g, red_b) = palette::MIMOFAN_RED_RGB;
 
     let workspace = std::env::current_dir()?;
     let agents_path = workspace.join("AGENTS.md");
@@ -4533,7 +4523,7 @@ fn pick_session_id() -> Result<String> {
 }
 
 async fn run_review(config: &Config, args: ReviewArgs) -> Result<()> {
-    use crate::client::DeepSeekClient;
+    use crate::client::ApiClient;
 
     let diff = collect_diff(&args)?;
     if diff.trim().is_empty() {
@@ -4564,7 +4554,7 @@ Provide findings ordered by severity with file references, then open questions, 
     let user_prompt =
         format!("Review the following diff and provide feedback:\n\n{diff}\n\nEnd of diff.");
 
-    let client = DeepSeekClient::new(&execution_config)?;
+    let client = ApiClient::new(&execution_config)?;
     let request = MessageRequest {
         model: model.clone(),
         messages: vec![Message {
@@ -5935,7 +5925,7 @@ fn merge_user_workspace_config(
         return;
     }
     let allow_shell_before = config.allow_shell;
-    let allow_shell_from_env = std::env::var_os("DEEPSEEK_ALLOW_SHELL").is_some();
+    let allow_shell_from_env = std::env::var_os("MIMOFAN_ALLOW_SHELL").is_some();
     let Some(path) = crate::config::resolve_load_config_path(config_path) else {
         return;
     };
@@ -6078,7 +6068,7 @@ async fn run_interactive(
     }
 
     // The `deepseek` launcher forwards `--yolo` to this binary via the
-    // DEEPSEEK_YOLO env var (config.yolo), not as a CLI flag. Honour either.
+    // MIMOFAN_YOLO env var (config.yolo), not as a CLI flag. Honour either.
     let yolo = cli.yolo || config.yolo.unwrap_or(false);
 
     tui::run_tui(
@@ -6195,12 +6185,12 @@ async fn resolve_cli_auto_route(
 }
 
 async fn run_one_shot(config: &Config, model: &str, prompt: &str) -> Result<()> {
-    use crate::client::DeepSeekClient;
+    use crate::client::ApiClient;
     use crate::models::{ContentBlock, Message, MessageRequest};
 
     let route = resolve_cli_auto_route(config, model, prompt).await?;
     let execution_config = config_for_cli_route(config, &route);
-    let client = DeepSeekClient::new(&execution_config)?;
+    let client = ApiClient::new(&execution_config)?;
     let reasoning_effort = route
         .reasoning_effort
         .and_then(|effort| cli_reasoning_effort_value(&execution_config, effort));
@@ -6239,12 +6229,12 @@ async fn run_one_shot(config: &Config, model: &str, prompt: &str) -> Result<()> 
 }
 
 async fn run_one_shot_json(config: &Config, model: &str, prompt: &str) -> Result<()> {
-    use crate::client::DeepSeekClient;
+    use crate::client::ApiClient;
     use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
 
     let route = resolve_cli_auto_route(config, model, prompt).await?;
     let execution_config = config_for_cli_route(config, &route);
-    let client = DeepSeekClient::new(&execution_config)?;
+    let client = ApiClient::new(&execution_config)?;
     let model = route.model.clone();
     let reasoning_effort = route
         .reasoning_effort

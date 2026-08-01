@@ -42,7 +42,7 @@ pub(crate) fn resolve_runtime_route(
         provider,
         model_selector,
         saved_provider_model,
-        Some(route_config.deepseek_base_url()),
+        Some(route_config.api_base_url()),
     )?;
     let model = candidate.wire_model_id.as_str().to_string();
     route_config.provider_config_for_mut(provider).model = Some(model.clone());

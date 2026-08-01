@@ -452,7 +452,7 @@ impl ModalView for PagerView {
             visible_lines.push(Line::from(Span::styled(
                 prompt,
                 Style::default()
-                    .fg(palette::DEEPSEEK_SKY)
+                    .fg(palette::MIMOFAN_SKY)
                     .add_modifier(Modifier::BOLD),
             )));
         } else if !self.search_matches.is_empty() {
@@ -471,7 +471,7 @@ impl ModalView for PagerView {
             Span::styled(
                 FOOTER_HINT_EXIT,
                 Style::default()
-                    .fg(palette::DEEPSEEK_SKY)
+                    .fg(palette::MIMOFAN_SKY)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(FOOTER_HINT_NAV, Style::default().fg(palette::TEXT_HINT)),

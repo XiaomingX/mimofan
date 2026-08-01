@@ -18,7 +18,7 @@ use ratatui::{
     widgets::{Block, Paragraph, Wrap},
 };
 
-use crate::deepseek_theme::Theme;
+use crate::mimofan_theme::Theme;
 use crate::palette;
 use crate::tools::plan::StepStatus;
 use crate::tools::subagent::{AgentWorkerStatus, SubAgentStatus, agent_worker_status_name};

@@ -721,7 +721,7 @@ impl UiThemeValue {
             Self::Dark => "dark",
             Self::Light => "light",
             Self::Ember => "claude",
-            Self::Cosmic => "antigravity",
+            Self::Cosmic => "cosmic",
             Self::Handwritten => "handwritten",
             Self::Crush => "crush",
         }
@@ -733,7 +733,7 @@ impl UiThemeValue {
             Some("dark") => Ok(Self::Dark),
             Some("light") => Ok(Self::Light),
             Some("claude") => Ok(Self::Ember),
-            Some("antigravity") => Ok(Self::Cosmic),
+            Some("cosmic") => Ok(Self::Cosmic),
             Some("handwritten") => Ok(Self::Handwritten),
             Some("crush") => Ok(Self::Crush),
             Some(other) => bail!("unsupported theme '{other}'"),

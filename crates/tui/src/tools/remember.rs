@@ -7,7 +7,7 @@
 //! gated behind the same approval flow as shell or arbitrary file writes.
 //!
 //! Only registered when `[memory] enabled = true` (or
-//! `DEEPSEEK_MEMORY=on`). When disabled, the tool isn't surfaced to the
+//! `MIMOFAN_MEMORY=on`). When disabled, the tool isn't surfaced to the
 //! model at all, so prompts that mention `remember` simply fall through.
 
 use async_trait::async_trait;
@@ -65,7 +65,7 @@ impl ToolSpec for RememberTool {
         let path = context.memory_path.as_ref().ok_or_else(|| {
             ToolError::execution_failed(
                 "user memory is disabled — set `[memory] enabled = true` in config.toml or \
-                 `DEEPSEEK_MEMORY=on` in the environment to enable",
+                 `MIMOFAN_MEMORY=on` in the environment to enable",
             )
         })?;
 

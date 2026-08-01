@@ -1717,7 +1717,7 @@ fn default_auto_approve() -> bool {
 /// existing installs when only that directory exists).
 #[must_use]
 pub fn default_tasks_dir() -> PathBuf {
-    if let Ok(path) = std::env::var("DEEPSEEK_TASKS_DIR")
+    if let Ok(path) = std::env::var("MIMOFAN_TASKS_DIR")
         && !path.trim().is_empty()
     {
         return PathBuf::from(path);

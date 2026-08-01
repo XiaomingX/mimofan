@@ -116,10 +116,7 @@ provider!(
     DEFAULT_XIAOMI_MIMO_MODEL,
     [
         "XIAOMI_MIMO_TOKEN_PLAN_API_KEY",
-        "MIMO_TOKEN_PLAN_API_KEY",
         "XIAOMI_MIMO_API_KEY",
-        "XIAOMI_API_KEY",
-        "MIMO_API_KEY",
         "ANTHROPIC_API_KEY",
     ],
     "xiaomi_mimo",
@@ -167,7 +164,7 @@ impl Provider for Custom {
     fn env_vars(&self) -> &'static [&'static str] {
         &[
             "OPENAI_API_KEY",
-            "DEEPSEEK_API_KEY",
+            "MIMOFAN_API_KEY",
             "DASHSCOPE_API_KEY",
             "QWEN_API_KEY",
         ]

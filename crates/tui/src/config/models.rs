@@ -27,7 +27,7 @@ pub use mimofan_config::XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL;
 pub use mimofan_config::XIAOMI_MIMO_V2_5_OMNI_MODEL;
 pub use mimofan_config::XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL;
 
-pub const COMMON_DEEPSEEK_MODELS: &[&str] = &[
+pub const COMMON_MIMOFAN_MODELS: &[&str] = &[
     "deepseek-v4-pro",
     "deepseek-v4-flash",
     "deepseek-ai/deepseek-v4-pro",

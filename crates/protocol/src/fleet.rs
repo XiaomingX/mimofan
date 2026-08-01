@@ -1280,9 +1280,9 @@ mod tests {
 
     #[test]
     fn secret_ref_redacted_never_exposes_value() {
-        let ref_ = FleetSecretRef::new("DEEPSEEK_API_KEY");
+        let ref_ = FleetSecretRef::new("MIMOFAN_API_KEY");
         let redacted = ref_.redacted();
-        assert!(redacted.contains("DEEPSEEK_API_KEY"));
+        assert!(redacted.contains("MIMOFAN_API_KEY"));
         assert!(!redacted.contains("sk-"));
         assert!(redacted.contains("<secret:"));
 

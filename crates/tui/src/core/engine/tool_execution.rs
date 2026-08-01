@@ -120,7 +120,7 @@ impl Drop for InteractiveTerminalGuard {
 }
 
 pub(super) fn emit_tool_audit(event: serde_json::Value) {
-    let Some(path) = std::env::var_os("DEEPSEEK_TOOL_AUDIT_LOG") else {
+    let Some(path) = std::env::var_os("MIMOFAN_TOOL_AUDIT_LOG") else {
         return;
     };
     let line = match serde_json::to_string(&event) {

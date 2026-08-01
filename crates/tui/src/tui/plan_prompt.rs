@@ -337,7 +337,7 @@ impl ModalView for PlanPromptView {
             let confirm_lines = vec![
                 Line::from(Span::styled(
                     "Exit without implementing?",
-                    Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+                    Style::default().fg(palette::MIMOFAN_SKY).bold(),
                 )),
                 Line::from(""),
                 Line::from(Span::styled(
@@ -347,7 +347,7 @@ impl ModalView for PlanPromptView {
                 Line::from(""),
                 Line::from(Span::styled(
                     "  y — Yes, exit Plan mode",
-                    Style::default().fg(palette::DEEPSEEK_SKY),
+                    Style::default().fg(palette::MIMOFAN_SKY),
                 )),
                 Line::from(Span::styled(
                     "  n / Esc — Cancel, go back to plan",
@@ -355,10 +355,10 @@ impl ModalView for PlanPromptView {
                 )),
             ];
             let confirm_footer = Line::from(vec![
-                Span::styled(" y ", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                Span::styled(" y ", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                 Span::styled("confirm exit", Style::default().fg(palette::TEXT_MUTED)),
                 Span::raw("  "),
-                Span::styled("n / Esc", Style::default().fg(palette::DEEPSEEK_SKY).bold()),
+                Span::styled("n / Esc", Style::default().fg(palette::MIMOFAN_SKY).bold()),
                 Span::styled(" cancel", Style::default().fg(palette::TEXT_MUTED)),
             ]);
             let popup_area = centered_rect(66, 34, area);
@@ -376,7 +376,7 @@ impl ModalView for PlanPromptView {
         let mut lines: Vec<Line> = Vec::new();
         lines.push(Line::from(vec![Span::styled(
             "Action required",
-            Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+            Style::default().fg(palette::MIMOFAN_SKY).bold(),
         )]));
         lines.push(Line::from(vec![Span::styled(
             "Choose what should happen after this plan.",
@@ -430,7 +430,7 @@ impl ModalView for PlanPromptView {
                     scroll + 1,
                     max_scroll + 1
                 ),
-                Style::default().fg(palette::DEEPSEEK_SKY),
+                Style::default().fg(palette::MIMOFAN_SKY),
             ));
         }
         for (idx, option) in PLAN_OPTIONS.iter().enumerate() {
@@ -443,7 +443,7 @@ impl ModalView for PlanPromptView {
                     .bg(palette::SELECTION_BG)
                     .bold()
             } else {
-                Style::default().fg(palette::DEEPSEEK_SKY)
+                Style::default().fg(palette::MIMOFAN_SKY)
             };
             footer_spans.push(Span::styled(
                 format!("[{}/{}] {}", idx + 1, shortcut, short_label),
@@ -561,7 +561,7 @@ fn push_plan_snapshot_lines(
     if !plan.items.is_empty() {
         lines.push(Line::from(Span::styled(
             "Plan steps:",
-            Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+            Style::default().fg(palette::MIMOFAN_SKY).bold(),
         )));
         for (i, item) in plan.items.iter().enumerate() {
             let status_mark = match item.status {
@@ -581,7 +581,7 @@ fn push_plan_snapshot_lines(
     } else if show_empty {
         lines.push(Line::from(Span::styled(
             "Plan steps:",
-            Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+            Style::default().fg(palette::MIMOFAN_SKY).bold(),
         )));
         lines.push(Line::from(Span::styled(
             "  Not provided",
@@ -606,7 +606,7 @@ fn push_todo_snapshot_lines(
     }
     lines.push(Line::from(Span::styled(
         format!("Checklist ({}% complete):", todos.completion_pct),
-        Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+        Style::default().fg(palette::MIMOFAN_SKY).bold(),
     )));
     for (i, item) in todos.items.iter().enumerate() {
         let status_mark = match item.status {
@@ -653,7 +653,7 @@ fn push_plan_text(
     };
     lines.push(Line::from(Span::styled(
         format!("{label}:"),
-        Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+        Style::default().fg(palette::MIMOFAN_SKY).bold(),
     )));
     let (value, style) = value.map_or_else(
         || {
@@ -687,7 +687,7 @@ fn push_plan_list(
     }
     lines.push(Line::from(Span::styled(
         format!("{label}:"),
-        Style::default().fg(palette::DEEPSEEK_SKY).bold(),
+        Style::default().fg(palette::MIMOFAN_SKY).bold(),
     )));
     if values.is_empty() {
         lines.push(Line::from(Span::styled(

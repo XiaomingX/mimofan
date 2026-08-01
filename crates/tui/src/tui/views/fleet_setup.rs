@@ -323,7 +323,7 @@ impl ModalView for FleetSetupView {
             ]))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(palette::BORDER_COLOR))
-            .style(Style::default().bg(palette::DEEPSEEK_INK))
+            .style(Style::default().bg(palette::MIMOFAN_INK))
             .padding(Padding::uniform(1));
 
         let inner = block.inner(popup_area);
@@ -575,7 +575,7 @@ fn render_lane(
         )))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border))
-        .style(Style::default().bg(palette::DEEPSEEK_INK))
+        .style(Style::default().bg(palette::MIMOFAN_INK))
         .padding(Padding::horizontal(1));
     let inner = block.inner(area);
     block.render(area, buf);

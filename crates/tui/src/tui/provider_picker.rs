@@ -905,7 +905,7 @@ impl ProviderPickerView {
             .title(Line::from(Span::styled(
                 " Provider ",
                 Style::default()
-                    .fg(palette::DEEPSEEK_SKY)
+                    .fg(palette::MIMOFAN_SKY)
                     .add_modifier(Modifier::BOLD),
             )))
             .title_bottom(Line::from(vec![
@@ -996,7 +996,7 @@ impl ProviderPickerView {
             .title(Line::from(Span::styled(
                 format!(" API key — {} ", provider.display_name()),
                 Style::default()
-                    .fg(palette::DEEPSEEK_SKY)
+                    .fg(palette::MIMOFAN_SKY)
                     .add_modifier(Modifier::BOLD),
             )))
             .title_bottom(Line::from(vec![

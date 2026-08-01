@@ -256,7 +256,7 @@ pub fn provider_capability(provider: ApiProvider, resolved_model: &str) -> Provi
         provider,
         resolved_model: resolved_model.to_string(),
         context_window: crate::models::context_window_for_model(resolved_model)
-            .unwrap_or(crate::models::LEGACY_DEEPSEEK_CONTEXT_WINDOW_TOKENS),
+            .unwrap_or(crate::models::DEEPSEEK_DEFAULT_CONTEXT_WINDOW),
         max_output: crate::models::max_output_tokens_for_model(resolved_model).unwrap_or(4096),
         thinking_supported: crate::models::model_supports_reasoning(resolved_model),
         cache_telemetry_supported: false,
@@ -273,7 +273,7 @@ pub fn provider_capability(provider: ApiProvider, resolved_model: &str) -> Provi
 /// `v4pro`/`v4flash` spellings are rewritten to their hyphenated forms.
 #[must_use]
 pub fn canonical_model_name(model: &str) -> Option<&'static str> {
-    mimofan_config::canonical_deepseek_model_name(model)
+    mimofan_config::canonical_model_name(model)
 }
 
 /// Normalize a configured/runtime model name.
@@ -974,11 +974,7 @@ pub struct SubagentsConfig {
     /// behavior unless an individual `agent` call supplies a per-run override.
     #[serde(default)]
     pub token_budget: Option<u64>,
-    /// Deprecated pre-v0.8.61 alias for `launch_concurrency`. Honored only
-    /// when `launch_concurrency` is unset, so the new key always wins.
-    #[serde(default, rename = "interactive_max_launch")]
-    pub interactive_max_launch_legacy: Option<usize>,
-    /// Per-step DeepSeek API timeout for sub-agent requests, in seconds. The
+    /// Per-step API timeout for sub-agent requests, in seconds. The
     /// timeout wraps `client.create_message` so a stuck single step cannot
     /// pin the parent's parent-completion wakeup channel indefinitely.
     /// Defaults to `DEFAULT_SUBAGENT_API_TIMEOUT_SECS` (120) and is clamped
@@ -1195,7 +1191,7 @@ pub struct Config {
 
     /// User-level memory file (#489). Default behaviour is **opt-in**:
     /// loading + injection happens only when `[memory] enabled = true` or
-    /// `DEEPSEEK_MEMORY=on` is set.
+    /// `MIMOFAN_MEMORY=on` is set.
     #[serde(default)]
     pub memory: Option<MemoryConfig>,
 
@@ -1484,7 +1480,7 @@ pub struct RuntimeApiConfig {
     /// dev server port (e.g. Vite's default `:5173`).
     ///
     /// Resolution order (highest priority first): `--cors-origin` CLI flag,
-    /// `DEEPSEEK_CORS_ORIGINS` env var (comma-separated), this field. Mimofanscale#255 / #561.
+    /// `MIMOFAN_CORS_ORIGINS` env var (comma-separated), this field. Mimofanscale#255 / #561.
     #[serde(default)]
     pub cors_origins: Option<Vec<String>>,
 }
@@ -1688,16 +1684,10 @@ impl ProviderConfig {
 pub struct ProvidersConfig {
     #[serde(default)]
     pub deepseek: ProviderConfig,
-    #[serde(default, alias = "deepseekCn")]
-    pub deepseek_cn: ProviderConfig,
-    #[serde(
-        default,
-        alias = "deepseek-anthropic",
-        alias = "deepseekAnthropic",
-        alias = "deepseek-claude",
-        alias = "deepseek_claude"
-    )]
-    pub deepseek_anthropic: ProviderConfig,
+    #[serde(default)]
+    pub cn: ProviderConfig,
+    #[serde(default)]
+    pub deepseek_claude: ProviderConfig,
     #[serde(default, alias = "nvidiaNim")]
     pub nvidia_nim: ProviderConfig,
     #[serde(default)]
@@ -1795,7 +1785,7 @@ struct RequirementsFile {
 impl Config {
     #[must_use]
     pub fn search_provider_resolution(&self) -> SearchProviderResolution {
-        if let Ok(raw) = std::env::var("DEEPSEEK_SEARCH_PROVIDER")
+        if let Ok(raw) = std::env::var("MIMOFAN_SEARCH_PROVIDER")
             && let Some(provider) = SearchProvider::parse(&raw)
         {
             return SearchProviderResolution {
@@ -2156,7 +2146,7 @@ impl Config {
 
     /// Return the configured API base URL (normalized).
     #[must_use]
-    pub fn deepseek_base_url(&self) -> String {
+    pub fn api_base_url(&self) -> String {
         let provider = self.api_provider();
         let provider_base = self
             .provider_config_string_with_runtime_fallback(provider, |entry| entry.base_url.clone());
@@ -2190,7 +2180,7 @@ impl Config {
 
     fn active_provider_preserves_custom_base_url_model(&self) -> bool {
         let provider = self.api_provider();
-        provider_preserves_custom_base_url_model(provider, &self.deepseek_base_url())
+        provider_preserves_custom_base_url_model(provider, &self.api_base_url())
     }
 
     pub(crate) fn model_ids_pass_through(&self) -> bool {
@@ -2207,7 +2197,7 @@ impl Config {
     /// The in-memory `self.api_key` override is only honored when the user
     /// explicitly set the field (not the legacy `API_KEYRING_SENTINEL`
     /// placeholder, not empty whitespace).
-    pub fn deepseek_api_key(&self) -> Result<String> {
+    pub fn api_key(&self) -> Result<String> {
         let provider = self.api_provider();
 
         // 1. Config file (provider-scoped slot). This intentionally wins
@@ -2243,7 +2233,7 @@ impl Config {
                 .provider_config_for(provider)
                 .and_then(|provider| provider.mode.as_deref());
             if let Some(value) =
-                xiaomi_mimo_env_api_key_for_runtime(mode, Some(&self.deepseek_base_url()))
+                xiaomi_mimo_env_api_key_for_runtime(mode, Some(&self.api_base_url()))
                 && !value.trim().is_empty()
             {
                 return Ok(value);
@@ -2253,7 +2243,7 @@ impl Config {
             return Ok(value);
         }
 
-        if base_url_uses_local_host(&self.deepseek_base_url()) {
+        if base_url_uses_local_host(&self.api_base_url()) {
             return Ok(String::new());
         }
 
@@ -2326,8 +2316,6 @@ impl Config {
     #[must_use]
     pub fn speech_output_dir(&self) -> Option<PathBuf> {
         std::env::var("XIAOMI_MIMO_SPEECH_OUTPUT_DIR")
-            .or_else(|_| std::env::var("MIMO_SPEECH_OUTPUT_DIR"))
-            .or_else(|_| std::env::var("XIAOMIMIMO_SPEECH_OUTPUT_DIR"))
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
@@ -2362,7 +2350,7 @@ impl Config {
     /// Whether the user-memory feature is enabled. The default is **off**
     /// to preserve zero-overhead behavior for users who haven't opted in.
     /// Flips to `true` when `[memory] enabled = true` in `config.toml` or
-    /// `DEEPSEEK_MEMORY=on` is set in the environment.
+    /// `MIMOFAN_MEMORY=on` is set in the environment.
     #[must_use]
     pub fn memory_enabled(&self) -> bool {
         self.memory
@@ -2503,7 +2491,7 @@ impl Config {
         let max = self.max_subagents();
         self.subagents
             .as_ref()
-            .and_then(|cfg| cfg.launch_concurrency.or(cfg.interactive_max_launch_legacy))
+            .and_then(|cfg| cfg.launch_concurrency)
             .unwrap_or(max)
             .clamp(1, max)
     }
@@ -2518,7 +2506,7 @@ impl Config {
             .or_else(|| {
                 self.subagents
                     .as_ref()
-                    .and_then(|cfg| cfg.launch_concurrency.or(cfg.interactive_max_launch_legacy))
+                    .and_then(|cfg| cfg.launch_concurrency)
             })
             .unwrap_or(max)
             .clamp(1, max)
@@ -2634,7 +2622,7 @@ impl Config {
     /// Resolved per-SSE-chunk idle timeout in seconds.
     ///
     /// Reads `[tui].stream_chunk_timeout_secs`, falling back to the legacy
-    /// `DEEPSEEK_STREAM_IDLE_TIMEOUT_SECS` env var when the config key is
+    /// `MIMOFAN_STREAM_IDLE_TIMEOUT_SECS` env var when the config key is
     /// omitted. `None` or `0` resolve to the default 300 seconds; explicit
     /// values are clamped to `1..=3600`.
     #[must_use]
@@ -2951,31 +2939,24 @@ check_for_updates = true
 /// dispatcher forwards from `--base-url`.  Returns `None` when the var is
 /// absent or empty so that provider-specific defaults still apply.
 fn env_base_url_override() -> Option<String> {
-    mimofan_env_var("MIMOFAN_BASE_URL", "MIMO_BASE_URL")
+    env_nonempty("MIMOFAN_BASE_URL")
         .ok()
         .filter(|v| !v.trim().is_empty())
 }
 
-/// Resolve an env var, preferring the `MIMOFAN_*` form over the
-/// legacy `DEEPSEEK_*` form. Empty values are ignored so a blank shell export
-/// does not erase configured provider settings.
-fn mimofan_env_var(mimofan_name: &str, legacy_name: &str) -> Result<String, std::env::VarError> {
-    std::env::var(mimofan_name)
+/// Read an env var, returning `Err(NotPresent)` if unset or blank.
+fn env_nonempty(name: &str) -> Result<String, std::env::VarError> {
+    std::env::var(name)
         .ok()
         .filter(|value| !value.trim().is_empty())
-        .or_else(|| {
-            std::env::var(legacy_name)
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
         .ok_or(std::env::VarError::NotPresent)
 }
 
 fn apply_env_overrides(config: &mut Config) {
-    if let Ok(value) = mimofan_env_var("MIMOFAN_PROVIDER", "DEEPSEEK_PROVIDER") {
+    if let Ok(value) = env_nonempty("MIMOFAN_PROVIDER") {
         config.provider = Some(value);
     }
-    if let Ok(value) = mimofan_env_var("MIMOFAN_BASE_URL", "MIMO_BASE_URL") {
+    if let Ok(value) = env_nonempty("MIMOFAN_BASE_URL") {
         match config.api_provider() {
             ApiProvider::XiaomiMimo => {
                 config
@@ -3034,8 +3015,7 @@ fn apply_env_overrides(config: &mut Config) {
             .base_url = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) =
-            std::env::var("XIAOMI_MIMO_BASE_URL").or_else(|_| std::env::var("MIMO_BASE_URL"))
+        && let Ok(value) = std::env::var("XIAOMI_MIMO_BASE_URL")
         && !value.trim().is_empty()
     {
         config
@@ -3045,7 +3025,7 @@ fn apply_env_overrides(config: &mut Config) {
             .base_url = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("XIAOMI_MIMO_MODE").or_else(|_| std::env::var("MIMO_MODE"))
+        && let Ok(value) = std::env::var("XIAOMI_MIMO_MODE")
         && !value.trim().is_empty()
     {
         config
@@ -3084,7 +3064,7 @@ fn apply_env_overrides(config: &mut Config) {
             .moonshot
             .base_url = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_HTTP_HEADERS")
+    if let Ok(value) = std::env::var("MIMOFAN_HTTP_HEADERS")
         && let Ok(headers) = parse_http_headers(&value)
         && !headers.is_empty()
     {
@@ -3125,8 +3105,7 @@ fn apply_env_overrides(config: &mut Config) {
             .model = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) =
-            std::env::var("XIAOMI_MIMO_MODEL").or_else(|_| std::env::var("MIMO_MODEL"))
+        && let Ok(value) = std::env::var("XIAOMI_MIMO_MODEL")
     {
         config
             .providers
@@ -3179,15 +3158,15 @@ fn apply_env_overrides(config: &mut Config) {
     {
         config.provider_config_for_mut(active_provider).model = Some(value);
     }
-    if let Some(value) = mimofan_env_var("MIMOFAN_MODEL", "DEEPSEEK_MODEL")
+    if let Some(value) = env_nonempty("MIMOFAN_MODEL")
         .ok()
         .or_else(|| {
-            std::env::var("DEEPSEEK_DEFAULT_TEXT_MODEL")
+            std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL")
                 .ok()
                 .filter(|value| !value.trim().is_empty())
         })
     {
-        // The CLI `--model` handoff always sets DEEPSEEK_MODEL, never the
+        // The CLI `--model` handoff always sets MIMOFAN_MODEL, never the
         // provider-specific *_MODEL var. The legacy root `default_text_model`
         // is a DeepSeek-only slot (the validator rejects non-DeepSeek IDs
         // there). For a non-DeepSeek provider the explicit model must land in
@@ -3224,19 +3203,19 @@ fn apply_env_overrides(config: &mut Config) {
     {
         config.default_text_model = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_SKILLS_DIR") {
+    if let Ok(value) = std::env::var("MIMOFAN_SKILLS_DIR") {
         config.skills_dir = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_MCP_CONFIG") {
+    if let Ok(value) = std::env::var("MIMOFAN_MCP_CONFIG") {
         config.mcp_config_path = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_NOTES_PATH") {
+    if let Ok(value) = std::env::var("MIMOFAN_NOTES_PATH") {
         config.notes_path = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_MEMORY_PATH") {
+    if let Ok(value) = std::env::var("MIMOFAN_MEMORY_PATH") {
         config.memory_path = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_MEMORY") {
+    if let Ok(value) = std::env::var("MIMOFAN_MEMORY") {
         let on = matches!(
             value.trim().to_ascii_lowercase().as_str(),
             "1" | "on" | "true" | "yes" | "y" | "enabled"
@@ -3246,36 +3225,36 @@ fn apply_env_overrides(config: &mut Config) {
             .get_or_insert_with(MemoryConfig::default)
             .enabled = Some(on);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_ALLOW_SHELL") {
+    if let Ok(value) = std::env::var("MIMOFAN_ALLOW_SHELL") {
         config.allow_shell = Some(value == "1" || value.eq_ignore_ascii_case("true"));
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_APPROVAL_POLICY") {
+    if let Ok(value) = std::env::var("MIMOFAN_APPROVAL_POLICY") {
         config.approval_policy = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_SANDBOX_MODE") {
+    if let Ok(value) = std::env::var("MIMOFAN_SANDBOX_MODE") {
         config.sandbox_mode = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_YOLO") {
+    if let Ok(value) = std::env::var("MIMOFAN_YOLO") {
         config.yolo = Some(value == "1" || value.eq_ignore_ascii_case("true"));
     }
     if let Ok(value) =
-        std::env::var("MIMOFAN_VERBOSITY").or_else(|_| std::env::var("DEEPSEEK_VERBOSITY"))
+        std::env::var("MIMOFAN_VERBOSITY")
     {
         config.verbosity = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_SANDBOX_BACKEND") {
+    if let Ok(value) = std::env::var("MIMOFAN_SANDBOX_BACKEND") {
         config.sandbox_backend = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_SANDBOX_URL") {
+    if let Ok(value) = std::env::var("MIMOFAN_SANDBOX_URL") {
         config.sandbox_url = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_SANDBOX_API_KEY") {
+    if let Ok(value) = std::env::var("MIMOFAN_SANDBOX_API_KEY") {
         config.sandbox_api_key = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_MANAGED_CONFIG_PATH") {
+    if let Ok(value) = std::env::var("MIMOFAN_MANAGED_CONFIG_PATH") {
         config.managed_config_path = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_SEARCH_API_KEY")
+    if let Ok(value) = std::env::var("MIMOFAN_SEARCH_API_KEY")
         && !value.trim().is_empty()
     {
         config
@@ -3283,16 +3262,16 @@ fn apply_env_overrides(config: &mut Config) {
             .get_or_insert_with(SearchConfig::default)
             .api_key = Some(value);
     }
-    if let Ok(value) = mimofan_env_var("MIMOFAN_SEARCH_BASE_URL", "DEEPSEEK_SEARCH_BASE_URL") {
+    if let Ok(value) = env_nonempty("MIMOFAN_SEARCH_BASE_URL") {
         config
             .search
             .get_or_insert_with(SearchConfig::default)
             .base_url = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_REQUIREMENTS_PATH") {
+    if let Ok(value) = std::env::var("MIMOFAN_REQUIREMENTS_PATH") {
         config.requirements_path = Some(value);
     }
-    if let Ok(value) = std::env::var("DEEPSEEK_MAX_SUBAGENTS")
+    if let Ok(value) = std::env::var("MIMOFAN_MAX_SUBAGENTS")
         && let Ok(parsed) = value.parse::<usize>()
     {
         config.max_subagents = Some(parsed.clamp(1, MAX_SUBAGENTS));
@@ -3709,10 +3688,10 @@ fn merge_providers(
         (None, Some(override_cfg)) => Some(override_cfg),
         (Some(base), Some(override_cfg)) => Some(ProvidersConfig {
             deepseek: merge_provider_config(base.deepseek, override_cfg.deepseek),
-            deepseek_cn: merge_provider_config(base.deepseek_cn, override_cfg.deepseek_cn),
-            deepseek_anthropic: merge_provider_config(
-                base.deepseek_anthropic,
-                override_cfg.deepseek_anthropic,
+            cn: merge_provider_config(base.cn, override_cfg.cn),
+            deepseek_claude: merge_provider_config(
+                base.deepseek_claude,
+                override_cfg.deepseek_claude,
             ),
             nvidia_nim: merge_provider_config(base.nvidia_nim, override_cfg.nvidia_nim),
             openai: merge_provider_config(base.openai, override_cfg.openai),
@@ -4090,7 +4069,7 @@ fn save_api_key_to_config_file(api_key: &str) -> Result<PathBuf> {
         format!(
             r#"# mimofan Configuration
 # Get your API key from https://platform.deepseek.com
-# Or set DEEPSEEK_API_KEY environment variable
+# Or set MIMOFAN_API_KEY environment variable
 
 api_key = "{key_to_write}"
 
@@ -4182,7 +4161,7 @@ pub fn has_api_key_for(config: &Config, provider: ApiProvider) -> bool {
         return true;
     }
 
-    if provider == config.api_provider() && base_url_uses_local_host(&config.deepseek_base_url()) {
+    if provider == config.api_provider() && base_url_uses_local_host(&config.api_base_url()) {
         return true;
     }
 
@@ -4395,9 +4374,9 @@ pub fn kimi_cli_credentials_present() -> bool {
 /// root `api_key = ...` line *and* every `api_key` line nested in a
 /// `[providers.<name>]` table.
 ///
-/// Environment variables (`DEEPSEEK_API_KEY`, etc.) are intentionally
+/// Environment variables (`MIMOFAN_API_KEY`, etc.) are intentionally
 /// **not** unset — they are managed by the user's shell and outside the
-/// CLI's purview. `Config::deepseek_api_key`'s explicit-override path
+/// CLI's purview. `Config::api_key`'s explicit-override path
 /// (Path 0) ensures a freshly-entered key still wins over a stale env
 /// var that lingers from a previous session.
 pub fn clear_api_key() -> Result<()> {

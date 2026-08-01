@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::config::DEFAULT_TEXT_MODEL;
 use crate::llm_client::LlmClient;
 use crate::logging;
@@ -888,7 +888,7 @@ fn is_transient_error(e: &anyhow::Error) -> bool {
 /// - Never corrupts the original messages (returns error instead)
 /// - Only retries on transient errors (network, rate limit, etc.)
 pub async fn compact_messages_safe(
-    client: &DeepSeekClient,
+    client: &ApiClient,
     messages: &[Message],
     config: &CompactionConfig,
     workspace: Option<&Path>,
@@ -1039,7 +1039,7 @@ fn anchor_summary_section(workspace: Option<&Path>) -> String {
 }
 
 pub async fn compact_messages(
-    client: &DeepSeekClient,
+    client: &ApiClient,
     messages: &[Message],
     config: &CompactionConfig,
     workspace: Option<&Path>,
@@ -1116,7 +1116,7 @@ pub async fn compact_messages(
 }
 
 async fn create_summary(
-    client: &DeepSeekClient,
+    client: &ApiClient,
     messages: &[Message],
     model: &str,
 ) -> Result<String> {

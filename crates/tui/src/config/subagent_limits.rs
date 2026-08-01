@@ -38,7 +38,7 @@ pub const DEFAULT_STREAM_CHUNK_TIMEOUT_SECS: u64 = 300;
 pub const MIN_STREAM_CHUNK_TIMEOUT_SECS: u64 = 1;
 /// Maximum accepted stream chunk timeout.
 pub const MAX_STREAM_CHUNK_TIMEOUT_SECS: u64 = 3600;
-pub(crate) const STREAM_CHUNK_TIMEOUT_ENV: &str = "DEEPSEEK_STREAM_IDLE_TIMEOUT_SECS";
+pub(crate) const STREAM_CHUNK_TIMEOUT_ENV: &str = "MIMOFAN_STREAM_IDLE_TIMEOUT_SECS";
 
 pub(crate) fn resolve_subagent_api_timeout_secs(raw: Option<u64>) -> u64 {
     let raw = raw.unwrap_or(DEFAULT_SUBAGENT_API_TIMEOUT_SECS);

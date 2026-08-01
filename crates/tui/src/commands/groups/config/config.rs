@@ -2,7 +2,7 @@
 
 use super::CommandResult;
 use crate::config::{
-    ApiProvider, COMMON_DEEPSEEK_MODELS, Config, DEFAULT_STREAM_CHUNK_TIMEOUT_SECS,
+    ApiProvider, COMMON_MIMOFAN_MODELS, Config, DEFAULT_STREAM_CHUNK_TIMEOUT_SECS,
     DEFAULT_SUBAGENT_API_TIMEOUT_SECS, DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
     DEFAULT_XIAOMI_MIMO_BASE_URL, MAX_STREAM_CHUNK_TIMEOUT_SECS, MAX_SUBAGENT_API_TIMEOUT_SECS,
     MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, MAX_SUBAGENTS, MIN_STREAM_CHUNK_TIMEOUT_SECS,
@@ -220,7 +220,7 @@ fn show_single_setting(app: &App, key: &str) -> CommandResult {
                     return CommandResult::error(format!("Failed to load config: {err}"));
                 }
             };
-            Some(config.deepseek_base_url())
+            Some(config.api_base_url())
         }
         "provider_url" | "provider_base_url" | "endpoint" => {
             let config = match Config::load(app.config_path.clone(), app.config_profile.as_deref())
@@ -233,7 +233,7 @@ fn show_single_setting(app: &App, key: &str) -> CommandResult {
                     return CommandResult::error(format!("Failed to load config: {err}"));
                 }
             };
-            Some(config.deepseek_base_url())
+            Some(config.api_base_url())
         }
         "stream_chunk_timeout_secs" => Some(app.stream_chunk_timeout_secs.to_string()),
         "locale" | "language" => Some(locale_display(app.ui_locale).to_string()),
@@ -615,14 +615,14 @@ fn config_editability_audit(app: &App) -> CommandResult {
         ),
         (
             "base_url",
-            config.deepseek_base_url(),
+            config.api_base_url(),
             "persisted restart",
             "/config base_url <url> --save",
             "Writes top-level base_url; model clients read it on startup.",
         ),
         (
             "providers.<active>.base_url",
-            provider_config.deepseek_base_url(),
+            provider_config.api_base_url(),
             "persisted restart",
             "/config provider_url <url> --save",
             "Writes the active provider table; model clients read it on startup.",
@@ -1194,7 +1194,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
             let Some(model) = normalize_model_name_for_provider(app.api_provider, value) else {
                 return CommandResult::error(format!(
                     "Invalid model '{value}'. Expected a DeepSeek model ID. Common models: {}",
-                    COMMON_DEEPSEEK_MODELS.join(", ")
+                    COMMON_MIMOFAN_MODELS.join(", ")
                 ));
             };
             app.set_model_selection(model.clone());

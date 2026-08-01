@@ -1,4 +1,4 @@
-//! Mimofan/DeepSeek terminal theme tokens.
+//! Mimofan terminal theme tokens.
 //!
 //! A small, deliberately flat module that names the color, border, and
 //! padding choices the TUI is already making. All values match the dark
@@ -64,7 +64,7 @@ impl Theme {
             section_borders: Borders::ALL,
             section_border_type: BorderType::Plain,
             section_border_color: palette::BORDER_COLOR,
-            section_bg: palette::DEEPSEEK_INK,
+            section_bg: palette::MIMOFAN_INK,
             section_title_color: palette::MIMOFAN_ACCENT_PRIMARY,
             // Horizontal padding only. `Padding::uniform(1)` ate two rows of
             // each sidebar panel — for compact terminals where Work/Tasks/Agents
@@ -103,7 +103,7 @@ impl Theme {
             tool_label_color: palette::LIGHT_TEXT_HINT,
             tool_running_accent: palette::MIMOFAN_ACCENT_PRIMARY,
             tool_success_accent: palette::LIGHT_TEXT_HINT,
-            tool_failed_accent: palette::DEEPSEEK_RED,
+            tool_failed_accent: palette::MIMOFAN_RED,
             plan_progress_color: palette::MIMOFAN_ACCENT_PRIMARY,
             plan_summary_color: palette::LIGHT_TEXT_MUTED,
             plan_explanation_color: palette::LIGHT_TEXT_HINT,

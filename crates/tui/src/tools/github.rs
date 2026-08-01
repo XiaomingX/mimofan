@@ -392,7 +392,7 @@ fn close_github_thread(
 }
 
 fn gh_bin() -> String {
-    if let Ok(bin) = std::env::var("DEEPSEEK_GH_BIN") {
+    if let Ok(bin) = std::env::var("MIMOFAN_GH_BIN") {
         return bin;
     }
     for path in FALLBACK_GH_PATHS {
@@ -410,7 +410,7 @@ fn run_gh_text(context: &ToolContext, args: &[&str]) -> Result<String, ToolError
         .output()
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                ToolError::not_available("gh CLI not found; install it or set DEEPSEEK_GH_BIN")
+                ToolError::not_available("gh CLI not found; install it or set MIMOFAN_GH_BIN")
             } else {
                 ToolError::execution_failed(format!("failed to run gh: {e}"))
             }

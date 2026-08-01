@@ -11,7 +11,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::repl::PythonRuntime;
 use crate::rlm::RlmBridge;
 use crate::rlm::session::{
@@ -224,12 +224,12 @@ impl ToolSpec for RlmOpenTool {
 }
 
 pub struct RlmEvalTool {
-    client: Option<DeepSeekClient>,
+    client: Option<ApiClient>,
 }
 
 impl RlmEvalTool {
     #[must_use]
-    pub fn new(client: Option<DeepSeekClient>) -> Self {
+    pub fn new(client: Option<ApiClient>) -> Self {
         Self { client }
     }
 }

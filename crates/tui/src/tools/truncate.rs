@@ -80,12 +80,7 @@ pub fn spillover_root() -> Option<PathBuf> {
     }
 
     let home = dirs::home_dir()?;
-    let primary = home.join(".mimofan").join(SPILLOVER_DIR_NAME);
-    let legacy = home.join(".mimofan").join(SPILLOVER_DIR_NAME);
-    if primary.exists() || !legacy.exists() {
-        return Some(primary);
-    }
-    Some(legacy)
+    Some(home.join(".mimofan").join(SPILLOVER_DIR_NAME))
 }
 
 /// Resolve the spillover-file path for a tool call id. Sanitises the
@@ -374,7 +369,7 @@ fn apply_spillover_inner(
                 serde_json::Value::String(absolute_path.display().to_string()),
             );
             obj.insert(
-                "legacy_spillover_path".into(),
+                "spillover_path".into(),
                 serde_json::Value::String(path_str),
             );
             obj.insert(
@@ -420,7 +415,7 @@ fn apply_spillover_inner(
                     serde_json::Value::String(absolute_path.display().to_string()),
                 );
                 obj.insert(
-                    "legacy_spillover_path".into(),
+                    "spillover_path".into(),
                     serde_json::Value::String(path.display().to_string()),
                 );
                 obj.insert(

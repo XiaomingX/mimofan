@@ -120,7 +120,7 @@ pub struct SessionMetadata {
     /// Accumulated cost data for persisted billing and high-water mark.
     #[serde(default)]
     pub cost: SessionCostSnapshot,
-    /// Source session id when this session was created with `deepseek fork`.
+    /// Source session id when this session was created with `mimofan fork`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_session_id: Option<String>,
     /// Source message count at fork time. This is intentionally coarse:
@@ -285,7 +285,7 @@ impl SessionManager {
             return Ok(None);
         }
         let content = fs::read_to_string(&path)?;
-        let mut session: SavedSession = serde_json::from_str(&content)
+        let session: SavedSession = serde_json::from_str(&content)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         if session.schema_version > CURRENT_SESSION_SCHEMA_VERSION {
             return Err(std::io::Error::new(
@@ -296,7 +296,6 @@ impl SessionManager {
                 ),
             ));
         }
-        session.system_prompt = strip_legacy_truncation_note(session.system_prompt);
         Ok(Some(session))
     }
 
@@ -367,7 +366,7 @@ impl SessionManager {
         let path = self.validated_session_path(id)?;
 
         let content = fs::read_to_string(&path)?;
-        let mut session: SavedSession = serde_json::from_str(&content)
+        let session: SavedSession = serde_json::from_str(&content)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
         if session.schema_version > CURRENT_SESSION_SCHEMA_VERSION {
             return Err(std::io::Error::new(
@@ -378,8 +377,6 @@ impl SessionManager {
                 ),
             ));
         }
-
-        session.system_prompt = strip_legacy_truncation_note(session.system_prompt);
 
         Ok(session)
     }
@@ -750,25 +747,6 @@ pub fn update_session(
         session.system_prompt = system_prompt_to_string(system_prompt);
     }
     session
-}
-
-/// Strip a stale `[Session note]` block that was written by the old
-/// 500-message cap. Only removes notes that contain the specific
-/// "older messages were dropped" phrase — ordinary user-added
-/// `[Session note]` prompts are left untouched.
-fn strip_legacy_truncation_note(system_prompt: Option<String>) -> Option<String> {
-    let sp = system_prompt?;
-    let Some(trimmed) = sp.strip_prefix("[Session note]\n") else {
-        return Some(sp);
-    };
-    // Only strip if this is the known cap_messages note.
-    if !trimmed.contains("older messages were dropped") {
-        return Some(sp);
-    }
-    // The note block ends with "\n\n---\n\n" (7 chars) followed by the real prompt.
-    trimmed
-        .find("\n\n---\n\n")
-        .map(|pos| trimmed[pos + 7..].to_string())
 }
 
 /// String-scan a JSON byte buffer for the top-level `"metadata":{...}`

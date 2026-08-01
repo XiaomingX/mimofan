@@ -34,22 +34,15 @@ fn global_commands_dir() -> PathBuf {
     home.join(".mimofan").join("commands")
 }
 
-fn legacy_global_commands_dir() -> PathBuf {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("~"));
-    home.join(".mimofan").join("commands")
-}
-
 /// Return all candidate commands directories in precedence order.
 pub(crate) fn commands_dirs(workspace: Option<&Path>) -> Vec<PathBuf> {
     let mut dirs = Vec::new();
     if let Some(ws) = workspace {
         dirs.push(ws.join(".mimofan").join("commands"));
-        dirs.push(ws.join(".mimofan").join("commands"));
         dirs.push(ws.join(".claude").join("commands"));
         dirs.push(ws.join(".cursor").join("commands"));
     }
     dirs.push(global_commands_dir());
-    dirs.push(legacy_global_commands_dir());
     dirs
 }
 

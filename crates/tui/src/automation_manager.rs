@@ -2,7 +2,7 @@
 //!
 //! Automations are local-first recurring jobs that enqueue standard background
 //! tasks. This module stores automation definitions and run history under
-//! `~/.mimofan/automations` (or `DEEPSEEK_AUTOMATIONS_DIR` override).
+//! `~/.mimofan/automations` (or `MIMOFAN_AUTOMATIONS_DIR` override).
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -873,7 +873,7 @@ fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<()> {
 
 pub fn default_automations_dir() -> PathBuf {
     // Most-specific override: an explicit automations dir.
-    if let Ok(path) = std::env::var("DEEPSEEK_AUTOMATIONS_DIR") {
+    if let Ok(path) = std::env::var("MIMOFAN_AUTOMATIONS_DIR") {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);

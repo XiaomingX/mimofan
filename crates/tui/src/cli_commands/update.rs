@@ -822,7 +822,7 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 fn glibc_check_disabled() -> bool {
-    ["MIMOFAN_SKIP_GLIBC_CHECK", "DEEPSEEK_SKIP_GLIBC_CHECK"]
+    ["MIMOFAN_SKIP_GLIBC_CHECK", "MIMOFAN_SKIP_GLIBC_CHECK"]
         .into_iter()
         .any(|name| std::env::var_os(name).is_some_and(|value| value == std::ffi::OsStr::new("1")))
 }

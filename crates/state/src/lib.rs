@@ -2031,13 +2031,6 @@ mod tests {
             unsafe { std::env::set_var("MIMOFAN_HOME", value) };
             Self { prior }
         }
-        #[allow(dead_code)]
-        fn remove() -> Self {
-            let prior = std::env::var_os("MIMOFAN_HOME");
-            // SAFETY: serialised by MIMOFAN_HOME_TEST_LOCK.
-            unsafe { std::env::remove_var("MIMOFAN_HOME") };
-            Self { prior }
-        }
     }
     impl Drop for MimofanHomeGuard {
         fn drop(&mut self) {

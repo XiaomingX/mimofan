@@ -697,7 +697,7 @@ impl Renderable for ComposerWidget<'_> {
                         if queue_count > 0 {
                             (
                                 Some(format!("↵ send ({queue_count} queued)")),
-                                palette::DEEPSEEK_SKY,
+                                palette::MIMOFAN_SKY,
                             )
                         } else {
                             (None, palette::TEXT_MUTED)
@@ -718,7 +718,7 @@ impl Renderable for ComposerWidget<'_> {
                     // Steer and QueueFollowUp are now only reached via Ctrl+Enter override.
                     SubmitDisposition::Steer => (
                         Some("↵ steering (Ctrl+Enter)".to_string()),
-                        palette::DEEPSEEK_SKY,
+                        palette::MIMOFAN_SKY,
                     ),
                     SubmitDisposition::QueueFollowUp => (
                         Some("↵ queued (Ctrl+Enter to steer)".to_string()),
@@ -1008,7 +1008,7 @@ impl Renderable for ComposerWidget<'_> {
 
                 // Name column
                 let name_style = if entry.is_skill && !is_selected {
-                    Style::default().fg(palette::DEEPSEEK_SKY)
+                    Style::default().fg(palette::MIMOFAN_SKY)
                 } else {
                     sel_style
                 };
@@ -1215,7 +1215,7 @@ impl Renderable for ApprovalWidget<'_> {
             let line = Line::from(Span::styled(
                 summary,
                 Style::default()
-                    .fg(palette::DEEPSEEK_INK)
+                    .fg(palette::MIMOFAN_INK)
                     .bg(palette_colors.accent)
                     .add_modifier(Modifier::BOLD),
             ));
@@ -1239,7 +1239,7 @@ impl Renderable for ApprovalWidget<'_> {
             Span::styled(
                 format!(" {} ", risk_badge_text(risk, locale)),
                 Style::default()
-                    .fg(palette::DEEPSEEK_INK)
+                    .fg(palette::MIMOFAN_INK)
                     .bg(palette_colors.accent)
                     .add_modifier(Modifier::BOLD),
             ),
@@ -1247,7 +1247,7 @@ impl Renderable for ApprovalWidget<'_> {
             Span::styled(
                 self.request.tool_name.clone(),
                 Style::default()
-                    .fg(palette::DEEPSEEK_SKY)
+                    .fg(palette::MIMOFAN_SKY)
                     .add_modifier(Modifier::BOLD),
             ),
         ]));
@@ -1458,7 +1458,7 @@ impl Renderable for ApprovalWidget<'_> {
             .title(title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(palette_colors.border))
-            .style(Style::default().bg(palette::DEEPSEEK_INK))
+            .style(Style::default().bg(palette::MIMOFAN_INK))
             .padding(Padding::uniform(1));
 
         // Render the card body inside the block, then paint the warm
@@ -1518,7 +1518,7 @@ fn paint_left_rail(card: Rect, buf: &mut Buffer, color: Color) {
         }
         let cell = &mut buf[(rail_x, y)];
         cell.set_char('\u{2503}'); // ┃ — heavy bar so the warning reads at a glance
-        cell.set_style(Style::default().fg(color).bg(palette::DEEPSEEK_INK));
+        cell.set_style(Style::default().fg(color).bg(palette::MIMOFAN_INK));
     }
 }
 
@@ -1533,12 +1533,12 @@ fn approval_palette(risk: RiskLevel) -> ApprovalColors {
     match risk {
         RiskLevel::Benign => ApprovalColors {
             border: palette::BORDER_COLOR,
-            accent: palette::DEEPSEEK_SKY,
-            shortcut: palette::DEEPSEEK_SKY,
+            accent: palette::MIMOFAN_SKY,
+            shortcut: palette::MIMOFAN_SKY,
         },
         RiskLevel::Destructive => ApprovalColors {
-            border: palette::DEEPSEEK_RED,
-            accent: palette::DEEPSEEK_RED,
+            border: palette::MIMOFAN_RED,
+            accent: palette::MIMOFAN_RED,
             shortcut: palette::STATUS_WARNING,
         },
     }
@@ -1581,7 +1581,7 @@ fn category_label_for(category: ToolCategory, locale: Locale) -> (&'static str, 
         ToolCategory::FileWrite => palette::STATUS_WARNING,
         ToolCategory::Shell => palette::STATUS_ERROR,
         ToolCategory::Network => palette::STATUS_WARNING,
-        ToolCategory::McpRead => palette::DEEPSEEK_SKY,
+        ToolCategory::McpRead => palette::MIMOFAN_SKY,
         ToolCategory::McpAction => palette::STATUS_WARNING,
         ToolCategory::Unknown => palette::STATUS_ERROR,
     };
@@ -1614,7 +1614,7 @@ fn push_detail_line(lines: &mut Vec<Line<'static>>, label: &str, value: &str) {
         Span::styled(
             format!("{label:<7} "),
             Style::default()
-                .fg(palette::DEEPSEEK_SKY)
+                .fg(palette::MIMOFAN_SKY)
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(value.to_string(), Style::default().fg(palette::TEXT_BODY)),
@@ -1627,7 +1627,7 @@ fn push_shell_command_lines(lines: &mut Vec<Line<'static>>, label: &str, command
         Span::styled(
             format!("{label}:"),
             Style::default()
-                .fg(palette::DEEPSEEK_SKY)
+                .fg(palette::MIMOFAN_SKY)
                 .add_modifier(Modifier::BOLD),
         ),
     ]));
@@ -1763,7 +1763,7 @@ impl Renderable for ElevationWidget<'_> {
                 Span::styled(
                     &self.request.tool_name,
                     Style::default()
-                        .fg(palette::DEEPSEEK_SKY)
+                        .fg(palette::MIMOFAN_SKY)
                         .add_modifier(Modifier::BOLD),
                 ),
             ]),
@@ -1885,7 +1885,7 @@ impl Renderable for ElevationWidget<'_> {
             .title(title)
             .borders(Borders::ALL)
             .border_style(Style::default().fg(palette::BORDER_COLOR))
-            .style(Style::default().bg(palette::DEEPSEEK_INK))
+            .style(Style::default().bg(palette::MIMOFAN_INK))
             .padding(Padding::uniform(1));
 
         let paragraph = Paragraph::new(lines)
@@ -2108,7 +2108,7 @@ fn truncate_display_width(text: &str, max_width: usize) -> String {
 fn vim_mode_style(mode: VimMode) -> Style {
     let color = match mode {
         VimMode::Normal => palette::TEXT_MUTED,
-        VimMode::Insert => palette::DEEPSEEK_SKY,
+        VimMode::Insert => palette::MIMOFAN_SKY,
         VimMode::Visual => palette::MODE_PLAN,
     };
     Style::default().fg(color).bold()

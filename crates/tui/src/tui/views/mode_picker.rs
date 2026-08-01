@@ -105,7 +105,7 @@ impl ModalView for ModePickerView {
             .title(Line::from(Span::styled(
                 " Mode ",
                 Style::default()
-                    .fg(palette::DEEPSEEK_SKY)
+                    .fg(palette::MIMOFAN_SKY)
                     .add_modifier(Modifier::BOLD),
             )))
             .title_bottom(Line::from(vec![
@@ -118,7 +118,7 @@ impl ModalView for ModePickerView {
             ]))
             .borders(Borders::ALL)
             .border_style(Style::default().fg(palette::BORDER_COLOR))
-            .style(Style::default().bg(palette::DEEPSEEK_INK))
+            .style(Style::default().bg(palette::MIMOFAN_INK))
             .padding(Padding::uniform(1));
 
         let inner = block.inner(popup_area);

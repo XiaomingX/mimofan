@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
 
-use crate::client::DeepSeekClient;
+use crate::client::ApiClient;
 use crate::compaction::{
     CompactionConfig, compact_messages_safe, merge_system_prompts, should_compact,
 };
@@ -372,7 +372,7 @@ pub struct EngineConfig {
     pub subagent_api_timeout: Duration,
     /// Per-SSE-chunk idle timeout for streamed model responses.
     /// Resolved from `[tui].stream_chunk_timeout_secs` (or the legacy
-    /// `DEEPSEEK_STREAM_IDLE_TIMEOUT_SECS`) and updated live by `/config`.
+    /// `MIMOFAN_STREAM_IDLE_TIMEOUT_SECS`) and updated live by `/config`.
     pub stream_chunk_timeout: Duration,
     /// No-progress heartbeat timeout for live sub-agents. Used by the manager
     /// and parent wait loop to auto-cancel stuck children before they exhaust
@@ -539,7 +539,7 @@ pub struct EngineHandle {
 pub struct Engine {
     config: EngineConfig,
     api_config: Config,
-    deepseek_client: Option<DeepSeekClient>,
+    deepseek_client: Option<ApiClient>,
     deepseek_client_error: Option<String>,
     api_key_env_only_recovery: Option<String>,
     session: Session,
@@ -693,7 +693,7 @@ impl Engine {
     /// never interrupt the user's turn.
     pub(super) fn spawn_cache_warmup_after_compaction(
         &self,
-        client: &DeepSeekClient,
+        client: &ApiClient,
         messages: &[Message],
         system: Option<&SystemPrompt>,
         tools: Option<&[Tool]>,
@@ -811,7 +811,7 @@ impl Engine {
                 )
             })?;
         let route_config = route.config;
-        match DeepSeekClient::from_candidate(&route_config, &route.candidate) {
+        match ApiClient::from_candidate(&route_config, &route.candidate) {
             Ok(client) => {
                 self.api_provider = provider;
                 self.api_config = route_config;
@@ -860,7 +860,7 @@ impl Engine {
         let tool_exec_lock = Arc::new(RwLock::new(()));
 
         // Create clients for both providers
-        let (deepseek_client, deepseek_client_error) = match DeepSeekClient::new(api_config) {
+        let (deepseek_client, deepseek_client_error) = match ApiClient::new(api_config) {
             Ok(client) => (Some(client), None),
             Err(err) => (None, Some(err.to_string())),
         };
@@ -2787,7 +2787,7 @@ impl Engine {
         removed
     }
 
-    async fn recover_context_overflow(&mut self, client: &DeepSeekClient, reason: &str) -> bool {
+    async fn recover_context_overflow(&mut self, client: &ApiClient, reason: &str) -> bool {
         let Some(target_budget) = context_input_budget_for_route(
             self.api_provider,
             &self.session.model,
