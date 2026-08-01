@@ -19,28 +19,6 @@ use chrono::Utc;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::warn;
-
-const DEFAULT_SLOW_QUERY_THRESHOLD_MS: u64 = 50;
-
-/// Measures the execution duration of a database operation and emits a `tracing::warn!`
-/// if it exceeds the slow query threshold.
-pub fn measure_slow_query<T, F: FnOnce() -> T>(query_label: &str, f: F) -> T {
-    let start = std::time::Instant::now();
-    let result = f();
-    let elapsed = start.elapsed();
-    let elapsed_ms = elapsed.as_millis() as u64;
-    if elapsed_ms >= DEFAULT_SLOW_QUERY_THRESHOLD_MS {
-        warn!(
-            target: "slow_sql",
-            query = %query_label,
-            elapsed_ms = elapsed_ms,
-            threshold_ms = DEFAULT_SLOW_QUERY_THRESHOLD_MS,
-            "SQLite query exceeded performance threshold"
-        );
-    }
-    result
-}
 
 /// Lifecycle status of a conversation thread.
 ///
@@ -331,7 +309,10 @@ impl StateStore {
             .with_context(|| format!("failed to open state db {}", self.db_path.display()))?;
         conn.busy_timeout(std::time::Duration::from_secs(5))
             .with_context(|| {
-                format!("failed to set busy timeout for {}", self.db_path.display())
+                format!(
+                    "failed to set busy timeout for {}",
+                    self.db_path.display()
+                )
             })?;
         let _ = conn.pragma_update(None, "journal_mode", "WAL");
         conn.pragma_update(None, "foreign_keys", "ON")
@@ -348,8 +329,7 @@ impl StateStore {
         let conn = self.conn()?;
         let mut user_version: u32 = conn.query_row("PRAGMA user_version;", [], |row| row.get(0))?;
         if user_version == 0 {
-            measure_slow_query("init_tables_v0", || {
-                conn.execute_batch(
+            conn.execute_batch(
                 r#"
                 BEGIN;
                 CREATE TABLE IF NOT EXISTS threads (
@@ -454,8 +434,7 @@ impl StateStore {
                 PRAGMA user_version = 1;
                 COMMIT;
                 "#,
-                )
-            })
+            )
             .context("failed to initialize thread schema")?;
             user_version = 1;
         }
@@ -2088,17 +2067,5 @@ mod tests {
         // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.mimofan
         // fallback is bypassed entirely.
         assert_eq!(default_state_db_path(), dir.join("state.db"));
-    }
-
-    #[test]
-    fn test_measure_slow_query_executes_correctly() {
-        let val = measure_slow_query("test_fast_query", || 42);
-        assert_eq!(val, 42);
-
-        let slow_val = measure_slow_query("test_slow_query", || {
-            std::thread::sleep(std::time::Duration::from_millis(55));
-            100
-        });
-        assert_eq!(slow_val, 100);
     }
 }
