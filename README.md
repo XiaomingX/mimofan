@@ -1,13 +1,50 @@
-# mimofan
+# 米魔范 (mimofan)
 
-> 终端 AI 编程助手 -- 像 Pair Developer 一样帮你写代码、修 Bug、跑测试
+> 终端 AI 编程助手 —— 像魔法一样帮你写代码、修 Bug、跑测试
 >
 > 基于 Rust 实现，原生支持小米 MiMo 模型，兼容 DeepSeek、OpenAI、通义千问等主流大模型。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)]()
 [![MCP Ready](https://img.shields.io/badge/MCP-Supported-green.svg)](docs/MCP.md)
+
+---
+
+## 📖 产品故事
+
+### 为什么做米魔范？
+
+在 AI 编程助手百花齐放的今天，我们发现一个痛点：**大多数工具只解决了"写代码"的问题，却没有解决"写好代码"的问题。**
+
+- 有的工具生成代码很快，但不理解项目上下文，产出质量参差不齐
+- 有的工具功能强大，但配置复杂，学习成本高
+- 有的工具依赖特定平台，无法融入开发者的工作流
+
+我们相信，一个好的编程助手应该像一位默契的搭档——**它知道你的项目结构，理解你的编码习惯，在你需要时出现，在你不需要时安静。**
+
+### 米魔范是什么？
+
+"米魔范"这个名字来自三个词的融合：
+
+- **米** —— 源自小米 MiMo，代表我们对国产大模型生态的支持
+- **魔** —— 魔法般的体验，让复杂的编程任务变得简单
+- **范** —— 标准与范式，我们追求的不只是"能用"，而是"好用"的标杆
+
+米魔范是一个**终端原生的 AI 编程助手**。它不是 IDE 插件，不是网页工具，而是直接运行在你终端里的伙伴。无论你用 Vim、Emacs 还是 VS Code 的终端，它都能无缝融入。
+
+### 我们坚持什么？
+
+1. **终端优先** —— 开发者 80% 的时间在终端，米魔范就在终端
+2. **零配置启动** —— 设置一个 API Key 就能用，不需要写复杂的配置文件
+3. **安全可控** —— 每个敏感操作都需要你确认，你的代码库永远在你手中
+4. **开源透明** —— MIT 协议，代码完全开放，你可以审计每一行逻辑
+
+### 一句话总结
+
+> **米魔范 = 终端原生 + AI 魔法 + 开发范式**
+>
+> 它不只是一个工具，而是你编码工作流中那个"懂你"的搭档。
 
 ---
 
