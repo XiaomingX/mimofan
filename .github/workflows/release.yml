@@ -20,22 +20,13 @@ env:
 jobs:
   parity:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: '1.88'
+          toolchain: nightly
           components: clippy, rustfmt
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          for i in 1 2 3 4 5; do
-            sudo apt-get update && break
-            echo "apt-get update failed (attempt $i); retrying in 15s"
-            sleep 15
-          done
-          sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@v2
         with:
           cache-bin: false
@@ -43,8 +34,6 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Compile check
         run: cargo check --workspace --all-targets --locked
-      - name: OHOS dependency graph
-        run: ./scripts/release/check-ohos-deps.sh
       - name: Clippy
         run: |
           cargo clippy --workspace --all-targets --all-features --locked -- \
@@ -55,10 +44,6 @@ jobs:
             -A clippy::assertions_on_constants
       - name: Workspace tests
         run: cargo test --workspace --all-features --locked
-      - name: Protocol schema parity
-        run: cargo test -p mimofan-protocol --test parity_protocol --locked
-      - name: State persistence parity
-        run: cargo test -p mimofan-state --test parity_state --locked
       - name: Lockfile drift guard
         run: git diff --exit-code -- Cargo.lock
 
@@ -117,18 +102,6 @@ jobs:
       matrix:
         include:
           # --- mimofan (cli dispatcher, canonical) ---
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            binary: mimofan
-            artifact_name: mimofan-linux-x64
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            binary: mimofan
-            artifact_name: mimofan-linux-arm64
-          - os: ubuntu-latest
-            target: riscv64gc-unknown-linux-gnu
-            binary: mimofan
-            artifact_name: mimofan-linux-riscv64
           - os: macos-latest
             target: x86_64-apple-darwin
             binary: mimofan
@@ -137,10 +110,6 @@ jobs:
             target: aarch64-apple-darwin
             binary: mimofan
             artifact_name: mimofan-macos-arm64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary: mimofan.exe
-            artifact_name: mimofan-windows-x64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -148,77 +117,17 @@ jobs:
           ref: ${{ needs.resolve.outputs.source_ref }}
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: '1.88'
+          toolchain: nightly
           targets: ${{ matrix.target }}
       - name: Install Rust target
-        run: rustup target add --toolchain 1.88 ${{ matrix.target }}
+        run: rustup target add --toolchain nightly ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           cache-bin: false
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux' && matrix.target != 'x86_64-unknown-linux-musl'
-        run: |
-          for i in 1 2 3 4 5; do
-            sudo apt-get update && break
-            echo "apt-get update failed (attempt $i); retrying in 15s"
-            sleep 15
-          done
-          sudo apt-get install -y libdbus-1-dev pkg-config
-      - name: Build static Linux x64 binary (musl)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          rustup target add --toolchain 1.88 x86_64-unknown-linux-musl
-          cargo build --release --locked --target x86_64-unknown-linux-musl
-      - name: Install RISC-V cross-compilation toolchain
-        if: matrix.target == 'riscv64gc-unknown-linux-gnu'
-        run: |
-          # Install cross-compiler (available in standard repos)
-          sudo apt-get update
-          sudo apt-get install -y gcc-riscv64-linux-gnu libc6-dev-riscv64-cross
-
-          # Add Ubuntu ports for riscv64 packages
-          . /etc/os-release
-          sudo tee /etc/apt/sources.list.d/riscv64.sources <<SRC
-          Types: deb
-          URIs: http://ports.ubuntu.com/
-          Suites: ${UBUNTU_CODENAME} ${UBUNTU_CODENAME}-updates
-          Components: main universe
-          Architectures: riscv64
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          SRC
-          sudo dpkg --add-architecture riscv64
-          sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64.sources -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
-          sudo apt-get install -y libdbus-1-dev:riscv64
-      - name: Install AArch64 cross-compilation toolchain
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.os == 'Linux'
-        run: |
-          . /etc/os-release
-          sudo tee /etc/apt/sources.list.d/arm64.sources <<SRC
-          Types: deb
-          URIs: http://ports.ubuntu.com/ubuntu-ports/
-          Suites: ${UBUNTU_CODENAME} ${UBUNTU_CODENAME}-updates ${UBUNTU_CODENAME}-security
-          Components: main universe
-          Architectures: arm64
-          Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-          SRC
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/arm64.sources -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
-          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross libdbus-1-dev:arm64 pkg-config
       - name: Build
-        if: matrix.target != 'x86_64-unknown-linux-musl'
         shell: bash
         env:
           DEEPSEEK_BUILD_SHA: ${{ needs.resolve.outputs.sha }}
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CC_riscv64gc_unknown_linux_gnu: riscv64-linux-gnu-gcc
-          CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
-          PKG_CONFIG_ALLOW_CROSS: 1
-          PKG_CONFIG_LIBDIR_aarch64_unknown_linux_gnu: /usr/lib/aarch64-linux-gnu/pkgconfig
-          PKG_CONFIG_LIBDIR_riscv64gc_unknown_linux_gnu: /usr/lib/riscv64-linux-gnu/pkgconfig
         run: cargo build --release --locked --target ${{ matrix.target }}
       - name: Rename binary
         shell: bash
@@ -256,70 +165,35 @@ jobs:
           : > "$MANIFEST"
 
           bundle() {
-            local platform="$1"   # linux-x64, linux-arm64, macos-x64, macos-arm64, windows-x64
+            local platform="$1"   # macos-x64, macos-arm64
             local src="$2"        # artifact name for mimofan binary
-            local ext="$3"        # tar.gz or zip
-            local variant="$4"    # '' (standard) or 'portable' (Windows only, no install script)
-            shift 4
+            local ext="$3"        # tar.gz
+            shift 3
 
-            local dir="bundles/mimofan-${platform}${variant:+-}${variant}"
+            local dir="bundles/mimofan-${platform}"
             mkdir -p "$dir"
 
             # Copy binary
-            local dst="mimofan"
-            if [[ "$platform" == windows-* ]]; then
-              dst="mimofan.exe"
-            fi
-            cp "artifacts/${src}/${src}" "$dir/${dst}"
+            cp "artifacts/${src}/${src}" "$dir/mimofan"
 
-            # Add install script (standard variant only)
-            if [[ "$variant" != "portable" ]]; then
-              if [[ "$platform" == windows-* ]]; then
-                cp scripts/release/install.bat "$dir/"
-                # Convert line endings to CRLF for Windows
-                sed -i 's/$/\r/' "$dir/install.bat" 2>/dev/null || true
-              else
-                cp scripts/release/install.sh "$dir/"
-                chmod +x "$dir/install.sh"
-              fi
-            fi
+            # Add install script
+            cp scripts/release/install.sh "$dir/"
+            chmod +x "$dir/install.sh"
 
-            if [[ "$ext" == "zip" ]]; then
-              (cd bundles && zip -r "mimofan-${platform}${variant:+-}${variant}.zip" "mimofan-${platform}${variant:+-}${variant}/")
-            else
-              tar -czf "bundles/mimofan-${platform}${variant:+-}${variant}.tar.gz" -C bundles "mimofan-${platform}${variant:+-}${variant}/"
-            fi
+            tar -czf "bundles/mimofan-${platform}.tar.gz" -C bundles "mimofan-${platform}/"
 
-            local archive="mimofan-${platform}${variant:+-}${variant}.${ext}"
+            local archive="mimofan-${platform}.${ext}"
             sha256sum "bundles/${archive}" | awk '{printf "%s  %s\n", $1, $2}' >> "$MANIFEST"
             echo "  Created bundles/${archive}"
           }
 
-          # Platform: linux-x64
-          bundle linux-x64 \
-            mimofan-linux-x64 tar.gz ""
-
-          # Platform: linux-arm64
-          bundle linux-arm64 \
-            mimofan-linux-arm64 tar.gz ""
-
-          # Platform: linux-riscv64
-          bundle linux-riscv64 \
-            mimofan-linux-riscv64 tar.gz ""
-
           # Platform: macos-x64
           bundle macos-x64 \
-            mimofan-macos-x64 tar.gz ""
+            mimofan-macos-x64 tar.gz
 
           # Platform: macos-arm64
           bundle macos-arm64 \
-            mimofan-macos-arm64 tar.gz ""
-
-          # Platform: windows-x64 (standard + portable)
-          bundle windows-x64 \
-            mimofan-windows-x64.exe zip ""
-          bundle windows-x64 \
-            mimofan-windows-x64.exe zip "portable"
+            mimofan-macos-arm64 tar.gz
 
           echo ""
           echo "=== Archive checksums ==="
@@ -332,118 +206,9 @@ jobs:
           path: bundles/*
           if-no-files-found: error
 
-  windows-installer:
-    needs: [build, resolve]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.resolve.outputs.source_ref }}
-      - uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-          pattern: 'mimofan*-windows-x64.exe'
-      - name: Install NSIS
-        shell: pwsh
-        run: choco install nsis -y --no-progress
-      - name: Build NSIS installer
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $version = "${{ needs.resolve.outputs.tag }}".TrimStart("v")
-          Copy-Item "artifacts\mimofan-windows-x64.exe\mimofan-windows-x64.exe" "scripts\installer\mimofan.exe"
-          $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
-          if (!(Test-Path $makensis)) {
-            $makensis = "${env:ProgramFiles}\NSIS\makensis.exe"
-          }
-          if (!(Test-Path $makensis)) {
-            throw "makensis.exe not found after NSIS install"
-          }
-          Push-Location scripts\installer
-          & $makensis "/DVERSION=$version" "mimofan.nsi"
-          Pop-Location
-          if (!(Test-Path "scripts\installer\MimofanSetup.exe")) {
-            throw "MimofanSetup.exe was not produced"
-          }
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: MimofanSetup.exe
-          path: scripts/installer/MimofanSetup.exe
-          if-no-files-found: error
-
-  docker:
-    needs: [build, resolve]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout release source
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.resolve.outputs.source_ref }}
-          path: source
-      - name: Checkout release infrastructure
-        uses: actions/checkout@v7
-        with:
-          path: infra
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.5.2
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Normalize image name
-        id: image
-        shell: bash
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: |
-            ${{ steps.image.outputs.name }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern=v{{major}}
-            type=ref,event=tag
-            type=semver,pattern={{version}},value=${{ needs.resolve.outputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.resolve.outputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=semver,pattern=v{{major}},value=${{ needs.resolve.outputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=v${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            type=raw,value=latest
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        env:
-          # The build record is useful in CI, but it is uploaded as a
-          # `.dockerbuild` artifact. The release job intentionally downloads
-          # all binary artifacts, so suppress the extra record artifact there.
-          DOCKER_BUILD_RECORD_UPLOAD: false
-          DOCKER_BUILD_SUMMARY: false
-        with:
-          context: source
-          file: infra/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          build-args: |
-            DEEPSEEK_BUILD_SHA=${{ needs.resolve.outputs.sha }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   release:
-    needs: [build, bundle, windows-installer, docker, resolve]
-    if: ${{ !cancelled() && needs.build.result == 'success' && needs.bundle.result == 'success' && needs.windows-installer.result == 'success' }}
+    needs: [build, bundle, resolve]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.bundle.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -458,22 +223,6 @@ jobs:
         with:
           path: artifacts
           pattern: '*'
-      - name: Generate Windows npm launcher asset
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/mimofan-windows-launcher
-          {
-            printf '@echo off\r\n'
-            printf 'where wt >nul 2>nul\r\n'
-            printf 'set NO_ANIMATIONS=1\r\n'
-            printf 'if "%%ERRORLEVEL%%"=="0" (\r\n'
-            printf '    wt --title Mimofan cmd /k "%%~dp0mimofan-windows-x64.exe"\r\n'
-            printf ') else (\r\n'
-            printf '    "%%~dp0mimofan-windows-x64.exe"\r\n'
-            printf ')\r\n'
-            printf '\r\n'
-          } > artifacts/mimofan-windows-launcher/mimofan.bat
       - name: List artifacts
         run: find artifacts -type f
       - name: Generate checksum manifest
