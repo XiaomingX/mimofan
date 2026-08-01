@@ -1,6 +1,5 @@
 //! Performance benchmark for memory system
 
-use mimofan_memory::compressor::ObservationCompressor;
 use mimofan_memory::optimization::{
     BatchProcessor, LongTaskManager, ObservationStore, RateLimiter,
 };

@@ -7,9 +7,7 @@
 //! 4. Knowledge: Corpus build and query
 //! 5. Optimization: Batch, cache, rate limit, tasks
 
-use mimofan_memory::compressor::{ObservationCompressor, SessionSummary};
-use mimofan_memory::injector::{InjectionConfig, MemoryInjector};
-use mimofan_memory::knowledge::KnowledgeAgent;
+use mimofan_memory::compressor::ObservationCompressor;
 use mimofan_memory::optimization::{BatchProcessor, LongTaskManager, RateLimiter, SearchCache};
 use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, VectorStore};
 use std::time::Duration;

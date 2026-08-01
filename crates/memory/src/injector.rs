@@ -1,12 +1,11 @@
 //! Cross-session memory injection
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::Result;
 use crate::embedding::EmbeddingService;
-use crate::error::MemoryError;
-use crate::vector::{Observation, SearchFilters, VectorMatch, VectorStore};
+use crate::vector::{SearchFilters, VectorMatch, VectorStore};
 
 /// Memory injection configuration
 #[derive(Debug, Clone)]
@@ -221,7 +220,7 @@ impl MemoryInjector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
+    
 
     #[test]
     fn test_injection_config_default() {

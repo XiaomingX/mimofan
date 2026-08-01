@@ -9,7 +9,7 @@ use tracing::info;
 use crate::Result;
 use crate::embedding::EmbeddingService;
 use crate::error::MemoryError;
-use crate::vector::{Observation, SearchFilters, VectorMatch, VectorStore};
+use crate::vector::{SearchFilters, VectorMatch, VectorStore};
 
 /// Knowledge corpus
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,13 +116,12 @@ impl KnowledgeAgent {
             let entry = entry?;
             let path = entry.path();
 
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
                     let data = std::fs::read_to_string(&path)?;
                     let metadata: CorpusMetadata = serde_json::from_str(&data)?;
                     corpora.insert(name.to_string(), metadata);
                 }
-            }
         }
 
         Ok(corpora)
@@ -311,7 +310,7 @@ impl KnowledgeAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
+    
 
     #[test]
     fn test_knowledge_corpus_serialization() {

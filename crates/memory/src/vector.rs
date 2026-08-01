@@ -377,18 +377,16 @@ impl VectorStore {
     /// Check if an observation matches the given filters
     fn matches_filters(&self, observation: &Observation, filters: &SearchFilters) -> bool {
         // Filter by project
-        if let Some(ref project) = filters.project {
-            if observation.project.as_ref() != Some(project) {
+        if let Some(ref project) = filters.project
+            && observation.project.as_ref() != Some(project) {
                 return false;
             }
-        }
 
         // Filter by kind
-        if let Some(ref kind) = filters.kind {
-            if observation.kind != *kind {
+        if let Some(ref kind) = filters.kind
+            && observation.kind != *kind {
                 return false;
             }
-        }
 
         // Filter by files
         if !filters.files.is_empty() {
@@ -412,16 +410,14 @@ impl VectorStore {
         }
 
         // Filter by time range
-        if let Some(start) = filters.start_time {
-            if observation.created_at < start {
+        if let Some(start) = filters.start_time
+            && observation.created_at < start {
                 return false;
             }
-        }
-        if let Some(end) = filters.end_time {
-            if observation.created_at > end {
+        if let Some(end) = filters.end_time
+            && observation.created_at > end {
                 return false;
             }
-        }
 
         true
     }

@@ -10,12 +10,9 @@
 
 use std::time::{Duration, Instant};
 
-use mimofan_memory::compressor::{CompressionStrategy, ObservationCompressor, SessionSummary};
-use mimofan_memory::embedding::{EmbeddingConfig, EmbeddingService};
-use mimofan_memory::injector::{InjectionConfig, MemoryInjector};
-use mimofan_memory::knowledge::KnowledgeAgent;
+use mimofan_memory::compressor::ObservationCompressor;
 use mimofan_memory::optimization::{
-    BatchProcessor, LongTaskManager, ObservationStore, RateLimiter,
+    BatchProcessor, LongTaskManager, RateLimiter,
 };
 use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, VectorStore};
 
@@ -66,10 +63,10 @@ fn benchmark_vector_store() {
     println!("\n=== Vector Store Benchmark ===");
 
     let dir = tempfile::tempdir().unwrap();
-    let mut store = VectorStore::open(&dir.path().join("bench.db"), 384).unwrap();
+    let store = VectorStore::open(&dir.path().join("bench.db"), 384).unwrap();
 
     // Benchmark: Store observations
-    let iterations = 1000 as usize;
+    let iterations = 1000_usize;
     let start = Instant::now();
     for i in 0..iterations {
         let obs = Observation::new(
@@ -83,7 +80,7 @@ fn benchmark_vector_store() {
     BenchmarkResult::new("Store observations", iterations, start.elapsed()).print();
 
     // Benchmark: Search
-    let iterations = 100 as usize;
+    let iterations = 100_usize;
     let query_embedding = generate_embedding(0);
     let start = Instant::now();
     for _ in 0..iterations {
@@ -99,7 +96,7 @@ fn benchmark_vector_store() {
         kind: Some(ObservationKind::Discovery),
         ..Default::default()
     };
-    let iterations = 100 as usize;
+    let iterations = 100_usize;
     let start = Instant::now();
     for _ in 0..iterations {
         let _results = store.search(&query_embedding, 10, &filters).unwrap();
@@ -114,7 +111,7 @@ fn benchmark_batch_processor() {
     let mut processor = BatchProcessor::new(100, 10_000);
 
     // Benchmark: Enqueue
-    let iterations = 10_000 as usize;
+    let iterations = 10_000_usize;
     let start = Instant::now();
     for i in 0..iterations {
         let obs = Observation::new(
@@ -142,7 +139,7 @@ fn benchmark_rate_limiter() {
     let mut limiter = RateLimiter::new(1000, Duration::from_secs(1));
 
     // Benchmark: Check rate limit
-    let iterations = 10_000 as usize;
+    let iterations = 10_000_usize;
     let start = Instant::now();
     for _ in 0..iterations {
         limiter.is_allowed();
@@ -157,7 +154,7 @@ async fn benchmark_task_manager() {
     let manager = LongTaskManager::new(1000);
 
     // Benchmark: Start tasks
-    let iterations = 1000 as usize;
+    let iterations = 1000_usize;
     let start = Instant::now();
     for i in 0..iterations {
         manager
@@ -196,7 +193,7 @@ fn benchmark_compressor() {
         .collect();
 
     // Benchmark: Analyze observations
-    let iterations = 100 as usize;
+    let iterations = 100_usize;
     let start = Instant::now();
     for _ in 0..iterations {
         let _strategies = compressor.analyze_observations(&observations);
@@ -204,7 +201,7 @@ fn benchmark_compressor() {
     BenchmarkResult::new("Analyze 1000 observations", iterations, start.elapsed()).print();
 
     // Benchmark: Summarize session
-    let iterations = 100 as usize;
+    let iterations = 100_usize;
     let start = Instant::now();
     for _ in 0..iterations {
         let _summary = compressor.summarize_session("test-session", &observations);
@@ -224,7 +221,7 @@ fn benchmark_search_cache() {
         .collect();
 
     // Benchmark: Insert into cache
-    let iterations = 1000 as usize;
+    let iterations = 1000_usize;
     let start = Instant::now();
     for (key, value) in &test_data {
         cache.insert(key.clone(), value.clone());
@@ -232,7 +229,7 @@ fn benchmark_search_cache() {
     BenchmarkResult::new("Cache insert 1000 entries", iterations, start.elapsed()).print();
 
     // Benchmark: Cache hit
-    let iterations = 1000 as usize;
+    let iterations = 1000_usize;
     let start = Instant::now();
     for i in 0..iterations {
         let _result = cache.get(&format!("query-{}", i % 1000));
