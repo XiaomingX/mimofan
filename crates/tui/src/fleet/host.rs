@@ -4,7 +4,6 @@
 //! observe work through this trait without knowing whether the worker is a
 //! local child process or an SSH-backed remote command.
 
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom};

@@ -11,7 +11,6 @@
 //! projects that into the offline metadata layer that the legacy match tables
 //! in `models.rs` / `pricing.rs` now delegate to.
 
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::{OnceLock, RwLock};

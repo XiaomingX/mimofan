@@ -1,6 +1,5 @@
 //! Typed task-spec loading, artifact refs, deterministic scorers, and receipts.
 
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 

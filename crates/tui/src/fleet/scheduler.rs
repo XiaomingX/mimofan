@@ -1,6 +1,5 @@
 //! Fleet scheduler policy: leases, heartbeats, backpressure, and recovery.
 
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::time::Duration;

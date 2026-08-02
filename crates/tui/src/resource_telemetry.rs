@@ -1,4 +1,3 @@
-
 //! Resource-usage telemetry for long-running mimofan tasks.
 //!
 //! This module is a pure, side-effect-free foundation for surfacing how many
