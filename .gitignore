@@ -112,6 +112,7 @@ web/pnpm-lock.yaml
 !benchmark/*.sh
 !web/public/install.sh
 !redeploy.sh
+!evals/*.sh
 test.txt
 TODO*.md
 todo*.md

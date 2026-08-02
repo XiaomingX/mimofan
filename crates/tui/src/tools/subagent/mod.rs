@@ -52,14 +52,9 @@ pub mod bus;
 pub mod custom_agents;
 pub mod decomposer;
 pub mod mailbox;
-#[allow(unused_imports)]
-pub use aggregator::{AggregatedResult, AggregationStrategy, Conflict, ResultAggregator};
-#[allow(unused_imports)]
 pub use bus::AgentBus;
 #[allow(unused_imports)]
 pub use custom_agents::CustomAgentRegistry;
-#[allow(unused_imports)]
-pub use decomposer::{TaskDecomposer, TaskGraph, TaskNode, TaskNodeStatus};
 pub use mailbox::{Mailbox, MailboxMessage};
 
 // === Constants ===

@@ -11,9 +11,6 @@
 //!
 //! Configuration is done via `[[hooks.hooks]]` in config.toml.
 
-// Note: anyhow is available if needed for future error handling
-#[allow(unused_imports)]
-use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;

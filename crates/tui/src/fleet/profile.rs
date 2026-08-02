@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
 
-#[allow(unused_imports)]
 pub use mimofan_config::{
     FleetDelegationHints, FleetLoadout, FleetProfile, FleetProfilePermissions, FleetRole, FleetSlot,
 };
