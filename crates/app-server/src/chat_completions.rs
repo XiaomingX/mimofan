@@ -349,14 +349,14 @@ mod tests {
 
     /// Start a minimal upstream mock server that echoes back what it received.
     async fn start_mock_upstream() -> (String, tokio::task::JoinHandle<()>) {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind mock upstream listener");
+        let addr = listener.local_addr().expect("get mock upstream local address");
         let base_url = format!("http://{}:{}", addr.ip(), addr.port());
 
         let handle = tokio::spawn(async move {
             let app = axum::Router::new()
                 .route("/v1/chat/completions", axum::routing::post(mock_handler));
-            axum::serve(listener, app).await.unwrap();
+            axum::serve(listener, app).await.expect("serve mock upstream");
         });
 
         // Give the server a moment to start.
@@ -468,11 +468,11 @@ api_key = "arcee-configured-key"
                     .method(Method::POST)
                     .uri("/v1/chat/completions")
                     .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
+                    .body(Body::from(serde_json::to_vec(&body).expect("serialize request body")))
+                    .expect("build HTTP request"),
             )
             .await
-            .unwrap();
+            .expect("send test request");
 
         assert_eq!(response.status(), StatusCode::OK);
         let resp_body = response_body_json(response).await;
@@ -480,7 +480,7 @@ api_key = "arcee-configured-key"
         assert!(
             resp_body["choices"][0]["message"]["content"]
                 .as_str()
-                .unwrap()
+                .expect("extract response content string")
                 .contains("1 messages")
         );
     }
@@ -503,11 +503,11 @@ api_key = "arcee-configured-key"
                     .method(Method::POST)
                     .uri("/v1/chat/completions")
                     .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
+                    .body(Body::from(serde_json::to_vec(&body).expect("serialize request body")))
+                    .expect("build HTTP request"),
             )
             .await
-            .unwrap();
+            .expect("send test request");
 
         assert_eq!(response.status(), StatusCode::OK);
         let resp_body = response_body_json(response).await;
@@ -534,11 +534,11 @@ api_key = "arcee-configured-key"
                     .method(Method::POST)
                     .uri("/v1/chat/completions")
                     .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
+                    .body(Body::from(serde_json::to_vec(&body).expect("serialize request body")))
+                    .expect("build HTTP request"),
             )
             .await
-            .unwrap();
+            .expect("send test request");
 
         assert_eq!(response.status(), StatusCode::OK);
         let resp_body = response_body_json(response).await;
@@ -566,17 +566,17 @@ api_key = "arcee-configured-key"
                     .uri("/v1/chat/completions")
                     .header("content-type", "application/json")
                     .header("authorization", "Bearer user-provided-secret-key")
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
+                    .body(Body::from(serde_json::to_vec(&body).expect("serialize request body")))
+                    .expect("build HTTP request"),
             )
             .await
-            .unwrap();
+            .expect("send test request");
 
         assert_eq!(response.status(), StatusCode::OK);
         let resp_body = response_body_json(response).await;
         let content = resp_body["choices"][0]["message"]["content"]
             .as_str()
-            .unwrap();
+            .expect("extract response content string");
         // The configured key takes priority, not the incoming Bearer.
         assert!(
             content.contains("auth=Bearer arcee-configured-key"),
@@ -604,17 +604,17 @@ api_key = "arcee-configured-key"
                     .method(Method::POST)
                     .uri("/v1/chat/completions")
                     .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
+                    .body(Body::from(serde_json::to_vec(&body).expect("serialize request body")))
+                    .expect("build HTTP request"),
             )
             .await
-            .unwrap();
+            .expect("send test request");
 
         assert_eq!(response.status(), StatusCode::OK);
         let resp_body = response_body_json(response).await;
         let content = resp_body["choices"][0]["message"]["content"]
             .as_str()
-            .unwrap();
+            .expect("extract response content string");
         assert!(
             content.contains("auth=Bearer arcee-configured-key"),
             "expected configured auth in mock echo, got: {content}"
@@ -644,19 +644,19 @@ api_key = "arcee-configured-key"
                     .method(Method::POST)
                     .uri("/v1/chat/completions")
                     .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
+                    .body(Body::from(serde_json::to_vec(&body).expect("serialize request body")))
+                    .expect("build HTTP request"),
             )
             .await
-            .unwrap();
+            .expect("send test request");
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let resp_body = response_body_json(response).await;
         assert_eq!(resp_body["error"]["code"], "tls_verification_required");
         assert!(
-            resp_body["error"]["message"]
-                .as_str()
-                .unwrap()
+                resp_body["error"]["message"]
+                    .as_str()
+                    .expect("extract error message string")
                 .contains("SSL_CERT_FILE")
         );
     }
@@ -681,11 +681,11 @@ api_key = "arcee-configured-key"
                     .method(Method::POST)
                     .uri("/v1/chat/completions")
                     .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
+                    .body(Body::from(serde_json::to_vec(&body).expect("serialize request body")))
+                    .expect("build HTTP request"),
             )
             .await
-            .unwrap();
+            .expect("send test request");
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let resp_body = response_body_json(response).await;

@@ -357,7 +357,7 @@ mod tests {
 
         let summary = compressor
             .summarize_session("test-session", &observations)
-            .unwrap();
+            .expect("summarize test session");
 
         assert_eq!(summary.session_id, "test-session");
         assert_eq!(summary.total_observations, 3);

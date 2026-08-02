@@ -60,8 +60,8 @@ fn generate_embedding(seed: u64) -> Vec<f32> {
 fn benchmark_vector_store() {
     println!("\n=== Vector Store Benchmark ===");
 
-    let dir = tempfile::tempdir().unwrap();
-    let store = VectorStore::open(&dir.path().join("bench.db"), 384).unwrap();
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let store = VectorStore::open(&dir.path().join("bench.db"), 384).expect("open vector store");
 
     // Benchmark: Store observations
     let iterations = 1000_usize;
@@ -73,7 +73,7 @@ fn benchmark_vector_store() {
             format!("Benchmark observation {}", i),
         );
         let embedding = generate_embedding(i as u64);
-        store.store_observation(&obs, &embedding).unwrap();
+        store.store_observation(&obs, &embedding).expect("store observation");
     }
     BenchmarkResult::new("Store observations", iterations, start.elapsed()).print();
 
@@ -84,7 +84,7 @@ fn benchmark_vector_store() {
     for _ in 0..iterations {
         let _results = store
             .search(&query_embedding, 10, &Default::default())
-            .unwrap();
+            .expect("search vector store");
     }
     BenchmarkResult::new("Search (k=10)", iterations, start.elapsed()).print();
 
@@ -97,7 +97,7 @@ fn benchmark_vector_store() {
     let iterations = 100_usize;
     let start = Instant::now();
     for _ in 0..iterations {
-        let _results = store.search(&query_embedding, 10, &filters).unwrap();
+        let _results = store.search(&query_embedding, 10, &filters).expect("search vector store with filters");
     }
     BenchmarkResult::new("Search with filters", iterations, start.elapsed()).print();
 }
@@ -117,7 +117,7 @@ fn benchmark_batch_processor() {
             ObservationKind::Change,
             format!("Batch observation {}", i),
         );
-        processor.enqueue(obs).unwrap();
+        processor.enqueue(obs).expect("enqueue observation");
     }
     BenchmarkResult::new("Enqueue 10k observations", iterations, start.elapsed()).print();
 
@@ -158,7 +158,7 @@ async fn benchmark_task_manager() {
         manager
             .start_task(format!("task-{}", i), format!("Task {}", i))
             .await
-            .unwrap();
+            .expect("start benchmark task");
     }
     BenchmarkResult::new("Start 1000 tasks", iterations, start.elapsed()).print();
 
@@ -168,7 +168,7 @@ async fn benchmark_task_manager() {
         manager
             .complete_task(&format!("task-{}", i), true, "Done".to_string())
             .await
-            .unwrap();
+            .expect("complete benchmark task");
     }
     BenchmarkResult::new("Complete 1000 tasks", iterations, start.elapsed()).print();
 }

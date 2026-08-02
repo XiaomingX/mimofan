@@ -166,11 +166,11 @@ impl MemoryInjector {
         if estimated_tokens > self.config.max_tokens {
             // Truncate lists to fit
             while estimated_tokens > self.config.max_tokens && !recent_changes.is_empty() {
-                let removed = recent_changes.pop().unwrap();
+                let removed = recent_changes.pop().expect("pop recent change from capped list");
                 estimated_tokens -= self.estimate_tokens(&removed);
             }
             while estimated_tokens > self.config.max_tokens && !key_decisions.is_empty() {
-                let removed = key_decisions.pop().unwrap();
+                let removed = key_decisions.pop().expect("pop key decision from capped list");
                 estimated_tokens -= self.estimate_tokens(&removed);
             }
         }
@@ -239,8 +239,9 @@ mod tests {
             estimated_tokens: 100,
         };
 
-        let json = serde_json::to_string(&injection).unwrap();
-        let deserialized: MemoryInjection = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&injection).expect("serialize injection to json");
+        let deserialized: MemoryInjection =
+            serde_json::from_str(&json).expect("parse injection json");
 
         assert_eq!(deserialized.summary, injection.summary);
         assert_eq!(deserialized.key_decisions, injection.key_decisions);

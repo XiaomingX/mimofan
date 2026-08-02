@@ -237,7 +237,7 @@ impl TaskGraph {
             sorted.push(id.to_string());
             if let Some(neighbors) = adjacency.get(id) {
                 for &neighbor in neighbors {
-                    let deg = in_degree.get_mut(neighbor).unwrap();
+                    let deg = in_degree.get_mut(neighbor).expect("in-degree entry missing for neighbor");
                     *deg -= 1;
                     if *deg == 0 {
                         queue.push_back(neighbor);
@@ -379,31 +379,31 @@ mod tests {
     #[test]
     fn test_topological_sort_linear_chain() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("a", vec![])).unwrap();
-        graph.add_node(make_node("b", vec!["a"])).unwrap();
-        graph.add_node(make_node("c", vec!["b"])).unwrap();
-        graph.build_edges().unwrap();
+        graph.add_node(make_node("a", vec![])).expect("add task node");
+        graph.add_node(make_node("b", vec!["a"])).expect("add task node");
+        graph.add_node(make_node("c", vec!["b"])).expect("add task node");
+        graph.build_edges().expect("build task graph edges");
 
-        let order = graph.topological_sort().unwrap();
+        let order = graph.topological_sort().expect("topological sort");
         assert_eq!(order, vec!["a", "b", "c"]);
     }
 
     #[test]
     fn test_topological_sort_diamond() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("a", vec![])).unwrap();
-        graph.add_node(make_node("b", vec!["a"])).unwrap();
-        graph.add_node(make_node("c", vec!["a"])).unwrap();
-        graph.add_node(make_node("d", vec!["b", "c"])).unwrap();
-        graph.build_edges().unwrap();
+        graph.add_node(make_node("a", vec![])).expect("add task node");
+        graph.add_node(make_node("b", vec!["a"])).expect("add task node");
+        graph.add_node(make_node("c", vec!["a"])).expect("add task node");
+        graph.add_node(make_node("d", vec!["b", "c"])).expect("add task node");
+        graph.build_edges().expect("build task graph edges");
 
-        let order = graph.topological_sort().unwrap();
+        let order = graph.topological_sort().expect("topological sort");
         assert_eq!(order[0], "a");
         assert_eq!(order[3], "d");
         // b and c must appear before d.
-        let pos_b = order.iter().position(|x| x == "b").unwrap();
-        let pos_c = order.iter().position(|x| x == "c").unwrap();
-        let pos_d = order.iter().position(|x| x == "d").unwrap();
+        let pos_b = order.iter().position(|x| x == "b").expect("find position in iterator");
+        let pos_c = order.iter().position(|x| x == "c").expect("find position in iterator");
+        let pos_d = order.iter().position(|x| x == "d").expect("find position in iterator");
         assert!(pos_b < pos_d);
         assert!(pos_c < pos_d);
     }
@@ -411,10 +411,10 @@ mod tests {
     #[test]
     fn test_topological_sort_cycle_detection() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("a", vec!["c"])).unwrap();
-        graph.add_node(make_node("b", vec!["a"])).unwrap();
-        graph.add_node(make_node("c", vec!["b"])).unwrap();
-        graph.build_edges().unwrap();
+        graph.add_node(make_node("a", vec!["c"])).expect("add task node");
+        graph.add_node(make_node("b", vec!["a"])).expect("add task node");
+        graph.add_node(make_node("c", vec!["b"])).expect("add task node");
+        graph.build_edges().expect("build task graph edges");
 
         let result = graph.topological_sort();
         assert!(result.is_err());
@@ -427,13 +427,13 @@ mod tests {
     #[test]
     fn test_parallel_groups_diamond() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("a", vec![])).unwrap();
-        graph.add_node(make_node("b", vec!["a"])).unwrap();
-        graph.add_node(make_node("c", vec!["a"])).unwrap();
-        graph.add_node(make_node("d", vec!["b", "c"])).unwrap();
-        graph.build_edges().unwrap();
+        graph.add_node(make_node("a", vec![])).expect("add task node");
+        graph.add_node(make_node("b", vec!["a"])).expect("add task node");
+        graph.add_node(make_node("c", vec!["a"])).expect("add task node");
+        graph.add_node(make_node("d", vec!["b", "c"])).expect("add task node");
+        graph.build_edges().expect("build task graph edges");
 
-        let groups = graph.parallel_groups().unwrap();
+        let groups = graph.parallel_groups().expect("compute parallel groups");
         assert_eq!(groups.len(), 3);
         assert_eq!(groups[0], vec!["a"]);
         assert!(groups[1].contains(&"b".to_string()));
@@ -444,12 +444,12 @@ mod tests {
     #[test]
     fn test_parallel_groups_independent_nodes() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("x", vec![])).unwrap();
-        graph.add_node(make_node("y", vec![])).unwrap();
-        graph.add_node(make_node("z", vec![])).unwrap();
-        graph.build_edges().unwrap();
+        graph.add_node(make_node("x", vec![])).expect("add task node");
+        graph.add_node(make_node("y", vec![])).expect("add task node");
+        graph.add_node(make_node("z", vec![])).expect("add task node");
+        graph.build_edges().expect("build task graph edges");
 
-        let groups = graph.parallel_groups().unwrap();
+        let groups = graph.parallel_groups().expect("compute parallel groups");
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].len(), 3);
     }
@@ -457,17 +457,17 @@ mod tests {
     #[test]
     fn test_ready_nodes() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("a", vec![])).unwrap();
-        graph.add_node(make_node("b", vec!["a"])).unwrap();
-        graph.add_node(make_node("c", vec!["a"])).unwrap();
-        graph.build_edges().unwrap();
+        graph.add_node(make_node("a", vec![])).expect("add task node");
+        graph.add_node(make_node("b", vec!["a"])).expect("add task node");
+        graph.add_node(make_node("c", vec!["a"])).expect("add task node");
+        graph.build_edges().expect("build task graph edges");
 
         let ready = graph.ready_nodes();
         assert_eq!(ready.len(), 1);
         assert_eq!(ready[0].id, "a");
 
-        graph.start_node("a").unwrap();
-        graph.complete_node("a", Some("done".into())).unwrap();
+        graph.start_node("a").expect("start task node");
+        graph.complete_node("a", Some("done".into())).expect("complete task node");
 
         let ready = graph.ready_nodes();
         assert_eq!(ready.len(), 2);
@@ -476,7 +476,7 @@ mod tests {
     #[test]
     fn test_duplicate_node_rejected() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("a", vec![])).unwrap();
+        graph.add_node(make_node("a", vec![])).expect("add task node");
         let result = graph.add_node(make_node("a", vec![]));
         assert!(matches!(result, Err(DecomposerError::DuplicateNodeId(_))));
     }
@@ -484,7 +484,7 @@ mod tests {
     #[test]
     fn test_missing_dependency_rejected() {
         let mut graph = TaskGraph::new();
-        graph.add_node(make_node("a", vec!["nonexistent"])).unwrap();
+        graph.add_node(make_node("a", vec!["nonexistent"])).expect("add task node");
         let result = graph.build_edges();
         assert!(matches!(
             result,
@@ -516,10 +516,10 @@ mod tests {
                     vec!["step2".into()],
                 ),
             ])
-            .unwrap();
+            .expect("unexpected None/Err in test");
 
         assert_eq!(graph.node_count(), 3);
-        let groups = graph.parallel_groups().unwrap();
+        let groups = graph.parallel_groups().expect("compute parallel groups");
         assert_eq!(groups.len(), 3);
     }
 

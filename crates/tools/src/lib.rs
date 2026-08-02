@@ -621,9 +621,9 @@ mod tests {
             required_u64(&json!({}), "count"),
             Err(ToolError::MissingField { .. })
         ));
-        assert_eq!(required_u64(&json!({"count": 42}), "count").unwrap(), 42);
+        assert_eq!(required_u64(&json!({"count": 42}), "count").expect("require count field"), 42);
         assert_eq!(
-            required_u64(&json!({"count": u64::MAX}), "count").unwrap(),
+            required_u64(&json!({"count": u64::MAX}), "count").expect("require count field"),
             u64::MAX
         );
 
@@ -780,7 +780,8 @@ mod tests {
     #[test]
     fn replace_file_content_str_replaces_target_within_line_range() {
         let text = "line 1\nline 2\nline 3\nline 4\n";
-        let res = replace_file_content_str(text, 2, 3, "line 2", "line TWO").unwrap();
+        let res = replace_file_content_str(text, 2, 3, "line 2", "line TWO")
+            .expect("replace file content within line range");
         assert_eq!(res, "line 1\nline TWO\nline 3\nline 4\n");
     }
 

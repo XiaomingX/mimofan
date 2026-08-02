@@ -833,7 +833,7 @@ mod tests {
     fn sse_invalid_json_returns_error() {
         let result = convert_anthropic_sse_data("not-json");
         assert!(result.is_some());
-        assert!(result.unwrap().is_err());
+        assert!(result.expect("SSE parse must yield a result").is_err());
     }
 
     #[test]
@@ -846,7 +846,7 @@ mod tests {
     fn sse_ping_returns_ok() {
         let result = convert_anthropic_sse_data(r#"{"type":"ping"}"#);
         assert!(result.is_some());
-        let event = result.unwrap().unwrap();
+        let event = result.expect("SSE parse must yield a result").expect("unwrap test result");
         assert!(matches!(event, StreamEvent::Ping));
     }
 
@@ -854,14 +854,14 @@ mod tests {
     fn sse_message_stop_returns_ok() {
         let result = convert_anthropic_sse_data(r#"{"type":"message_stop"}"#);
         assert!(result.is_some());
-        let event = result.unwrap().unwrap();
+        let event = result.expect("SSE parse must yield a result").expect("unwrap test result");
         assert!(matches!(event, StreamEvent::MessageStop));
     }
 
     #[test]
     fn sse_message_start_normalizes_usage() {
         let data = r#"{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"mimo-v2.5-pro","usage":{"input_tokens":100,"cache_read_input_tokens":50,"output_tokens":0}}}"#;
-        let result = convert_anthropic_sse_data(data).unwrap().unwrap();
+        let result = convert_anthropic_sse_data(data).expect("decode SSE data").expect("decode SSE data");
         if let StreamEvent::MessageStart { message } = result {
             // input_tokens = 100 + 50 = 150 (normalized)
             assert_eq!(message.usage.input_tokens, 150);
@@ -874,9 +874,9 @@ mod tests {
     #[test]
     fn sse_message_delta_normalizes_usage() {
         let data = r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":42}}"#;
-        let result = convert_anthropic_sse_data(data).unwrap().unwrap();
+        let result = convert_anthropic_sse_data(data).expect("decode SSE data").expect("decode SSE data");
         if let StreamEvent::MessageDelta { usage, .. } = result {
-            let usage = usage.unwrap();
+            let usage = usage.expect("message delta usage present");
             assert_eq!(usage.output_tokens, 42);
         } else {
             panic!("expected MessageDelta");
@@ -891,7 +891,7 @@ mod tests {
             text: "hello".into(),
             cache_control: None,
         };
-        let value = content_block_to_anthropic(&block).unwrap();
+        let value = content_block_to_anthropic(&block).expect("convert content block to anthropic");
         assert_eq!(value, json!({"type": "text", "text": "hello"}));
     }
 
@@ -903,7 +903,7 @@ mod tests {
                 cache_type: "ephemeral".into(),
             }),
         };
-        let value = content_block_to_anthropic(&block).unwrap();
+        let value = content_block_to_anthropic(&block).expect("convert content block to anthropic");
         assert_eq!(
             value,
             json!({"type": "text", "text": "cached", "cache_control": {"type": "ephemeral"}})
@@ -916,7 +916,7 @@ mod tests {
             thinking: "reasoning...".into(),
             signature: Some("sig_abc".into()),
         };
-        let value = content_block_to_anthropic(&block).unwrap();
+        let value = content_block_to_anthropic(&block).expect("convert content block to anthropic");
         assert_eq!(
             value,
             json!({"type": "thinking", "thinking": "reasoning...", "signature": "sig_abc"})
@@ -940,7 +940,7 @@ mod tests {
             input: json!({"path": "/tmp/test.txt"}),
             caller: None,
         };
-        let value = content_block_to_anthropic(&block).unwrap();
+        let value = content_block_to_anthropic(&block).expect("convert content block to anthropic");
         assert_eq!(
             value,
             json!({"type": "tool_use", "id": "tu_123", "name": "read_file", "input": {"path": "/tmp/test.txt"}})
@@ -955,7 +955,7 @@ mod tests {
             is_error: Some(false),
             content_blocks: None,
         };
-        let value = content_block_to_anthropic(&block).unwrap();
+        let value = content_block_to_anthropic(&block).expect("convert content block to anthropic");
         assert_eq!(
             value,
             json!({"type": "tool_result", "tool_use_id": "tu_123", "content": "file contents", "is_error": false})
@@ -969,7 +969,7 @@ mod tests {
                 url: "https://example.com/img.png".into(),
             },
         };
-        let value = content_block_to_anthropic(&block).unwrap();
+        let value = content_block_to_anthropic(&block).expect("convert content block to anthropic");
         assert_eq!(
             value,
             json!({"type": "image", "source": {"type": "url", "url": "https://example.com/img.png"}})
@@ -1007,7 +1007,7 @@ mod tests {
                 cache_control: None,
             }],
         };
-        let value = message_to_anthropic(&msg).unwrap();
+        let value = message_to_anthropic(&msg).expect("convert message to anthropic");
         assert_eq!(value["role"], "user");
         assert_eq!(value["content"][0]["text"], "hello");
     }
@@ -1098,7 +1098,7 @@ mod tests {
             cache_control: None,
         }]);
         assert!(req.tools.is_some());
-        assert_eq!(req.tools.as_ref().unwrap()[0].name, "read_file");
+        assert_eq!(req.tools.as_ref().expect("request tools present")[0].name, "read_file");
     }
 
     #[test]
@@ -1175,7 +1175,7 @@ mod tests {
 
     #[test]
     fn xiaomimimo_live_response_decodes_to_message_response() {
-        let mut value: Value = serde_json::from_str(XIAOMIMIMO_LIVE_RESPONSE).unwrap();
+        let mut value: Value = serde_json::from_str(XIAOMIMIMO_LIVE_RESPONSE).expect("json parse");
         if let Some(usage) = value.get_mut("usage") {
             *usage = json!(parse_anthropic_usage(usage));
         }
@@ -1244,14 +1244,14 @@ mod tests {
         apply_anthropic_cache_breakpoints(&mut body);
 
         // Last tool should have cache_control
-        let tools = body["tools"].as_array().unwrap();
+        let tools = body["tools"].as_array().expect("convert JSON value to array");
         assert!(tools[1].get("cache_control").is_some());
         assert!(tools[0].get("cache_control").is_none());
 
         // Last block of last user message should have cache_control
-        let messages = body["messages"].as_array().unwrap();
+        let messages = body["messages"].as_array().expect("convert JSON value to array");
         let last_user = &messages[2];
-        let blocks = last_user["content"].as_array().unwrap();
+        let blocks = last_user["content"].as_array().expect("convert JSON value to array");
         assert!(blocks[1].get("cache_control").is_some());
         assert!(blocks[0].get("cache_control").is_none());
     }
@@ -1269,7 +1269,7 @@ mod tests {
         });
         apply_anthropic_cache_breakpoints(&mut body);
 
-        let system = body["system"].as_array().unwrap();
+        let system = body["system"].as_array().expect("convert JSON value to array");
         assert!(system[1].get("cache_control").is_some());
         assert!(system[0].get("cache_control").is_none());
     }

@@ -528,9 +528,9 @@ mod tests {
         let id = job.id.clone();
         jm.set_running(&id);
         let jobs = jm.list();
-        let updated = jobs.iter().find(|j| j.id == id).unwrap();
+        let updated = jobs.iter().find(|j| j.id == id).expect("find updated job by id");
         assert_eq!(updated.status, JobStatus::Running);
-        assert_eq!(updated.history.last().unwrap().phase, "running");
+        assert_eq!(updated.history.last().expect("job history has last entry").phase, "running");
     }
 
     #[test]
@@ -540,7 +540,7 @@ mod tests {
         let id = job.id.clone();
         jm.update_progress(&id, 150, Some("over".to_string()));
         let jobs = jm.list();
-        let updated = jobs.iter().find(|j| j.id == id).unwrap();
+        let updated = jobs.iter().find(|j| j.id == id).expect("find updated job by id");
         assert_eq!(updated.progress, Some(100));
     }
 
@@ -552,7 +552,7 @@ mod tests {
         jm.set_running(&id);
         jm.complete(&id);
         let jobs = jm.list();
-        let updated = jobs.iter().find(|j| j.id == id).unwrap();
+        let updated = jobs.iter().find(|j| j.id == id).expect("find updated job by id");
         assert_eq!(updated.status, JobStatus::Completed);
         assert_eq!(updated.progress, Some(100));
     }
@@ -565,7 +565,7 @@ mod tests {
         jm.set_running(&id);
         jm.fail(&id, "crashed");
         let jobs = jm.list();
-        let updated = jobs.iter().find(|j| j.id == id).unwrap();
+        let updated = jobs.iter().find(|j| j.id == id).expect("find updated job by id");
         assert_eq!(updated.status, JobStatus::Failed);
         assert_eq!(updated.retry.attempt, 1);
         assert!(updated.retry.next_backoff_ms > 0);
@@ -583,7 +583,7 @@ mod tests {
             jm.fail(&id, "boom");
         }
         let jobs = jm.list();
-        let updated = jobs.iter().find(|j| j.id == id).unwrap();
+        let updated = jobs.iter().find(|j| j.id == id).expect("find updated job by id");
         assert_eq!(updated.retry.attempt, DEFAULT_JOB_MAX_ATTEMPTS);
         assert_eq!(updated.retry.next_backoff_ms, 0);
         assert!(updated.retry.next_retry_at.is_none());
@@ -596,7 +596,7 @@ mod tests {
         let id = job.id.clone();
         jm.cancel(&id);
         let jobs = jm.list();
-        let updated = jobs.iter().find(|j| j.id == id).unwrap();
+        let updated = jobs.iter().find(|j| j.id == id).expect("find updated job by id");
         assert_eq!(updated.status, JobStatus::Cancelled);
         assert_eq!(updated.retry.next_backoff_ms, 0);
     }
@@ -609,15 +609,15 @@ mod tests {
         jm.set_running(&id);
         jm.pause(&id, Some("waiting".to_string()));
         let jobs = jm.list();
-        let paused = jobs.iter().find(|j| j.id == id).unwrap();
+        let paused = jobs.iter().find(|j| j.id == id).expect("find paused job by id");
         assert_eq!(paused.status, JobStatus::Paused);
         assert_eq!(paused.detail.as_deref(), Some("waiting"));
 
         jm.resume(&id, None);
         let jobs = jm.list();
-        let resumed = jobs.iter().find(|j| j.id == id).unwrap();
+        let resumed = jobs.iter().find(|j| j.id == id).expect("find resumed job by id");
         assert_eq!(resumed.status, JobStatus::Running);
-        assert_eq!(resumed.history.last().unwrap().phase, "resumed");
+        assert_eq!(resumed.history.last().expect("resumed job history has last entry").phase, "resumed");
     }
 
     #[test]
@@ -736,10 +736,13 @@ mod tests {
         let id = job.id.clone();
         jm.set_running(&id);
         jm.fail(&id, "oops");
-        let job = jm.list().into_iter().find(|j| j.id == id).unwrap();
+        let job = jm.list().into_iter().find(|j| j.id == id).expect("find persisted job by id");
 
-        let encoded = JobManager::encode_persisted_detail(&job).unwrap().unwrap();
-        let parsed = JobManager::parse_persisted_detail(Some(&encoded)).unwrap();
+        let encoded = JobManager::encode_persisted_detail(&job)
+            .expect("encode persisted job detail")
+            .expect("persisted detail present");
+        let parsed = JobManager::parse_persisted_detail(Some(&encoded))
+            .expect("parse persisted detail round-trip");
 
         assert_eq!(parsed.status, job.status);
         assert_eq!(parsed.detail, job.detail);

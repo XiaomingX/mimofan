@@ -1041,15 +1041,15 @@ mod tests {
 
     #[test]
     fn legacy_dispatcher_update_targets_canonical_mimofan() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("create temp dir");
         let dispatcher = dir
             .path()
             .join(format!("deepseek{}", std::env::consts::EXE_SUFFIX));
         let mimofan_bin = dir
             .path()
             .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
-        std::fs::write(&dispatcher, b"legacy dispatcher").unwrap();
-        std::fs::write(&mimofan_bin, b"mimofan binary").unwrap();
+        std::fs::write(&dispatcher, b"legacy dispatcher").expect("write temp file");
+        std::fs::write(&mimofan_bin, b"mimofan binary").expect("write temp file");
 
         let targets = update_targets_for_exe(&dispatcher);
         let paths = targets
@@ -1065,11 +1065,11 @@ mod tests {
 
     #[test]
     fn mimofan_update_targets_only_itself() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("create temp dir");
         let mimofan = dir
             .path()
             .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
-        std::fs::write(&mimofan, b"mimofan binary").unwrap();
+        std::fs::write(&mimofan, b"mimofan binary").expect("write temp file");
 
         let targets = update_targets_for_exe(&mimofan);
         let paths = targets
@@ -1098,11 +1098,11 @@ mod tests {
 
     #[test]
     fn update_targets_include_only_mimofan() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("create temp dir");
         let mimofan = dir
             .path()
             .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
-        std::fs::write(&mimofan, b"mimofan").unwrap();
+        std::fs::write(&mimofan, b"mimofan").expect("write temp file");
 
         let targets = update_targets_for_exe(&mimofan);
         let paths = targets
@@ -1117,11 +1117,11 @@ mod tests {
 
     #[test]
     fn update_targets_skip_missing_sibling() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("create temp dir");
         let dispatcher = dir
             .path()
             .join(format!("mimofan{}", std::env::consts::EXE_SUFFIX));
-        std::fs::write(&dispatcher, b"dispatcher").unwrap();
+        std::fs::write(&dispatcher, b"dispatcher").expect("write temp file");
 
         let targets = update_targets_for_exe(&dispatcher);
 
@@ -1254,23 +1254,23 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
 
     #[test]
     fn test_replace_binary_creates_and_replaces() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("create temp dir");
         let target = dir.path().join("mimofan-test");
         // Write initial content
-        std::fs::write(&target, b"old binary").unwrap();
+        std::fs::write(&target, b"old binary").expect("write temp file");
 
-        replace_binary(&target, b"new binary content").unwrap();
-        let content = std::fs::read_to_string(&target).unwrap();
+        replace_binary(&target, b"new binary content").expect("replace binary");
+        let content = std::fs::read_to_string(&target).expect("read replaced binary");
         assert_eq!(content, "new binary content");
     }
 
     #[test]
     fn test_replace_binary_creates_new_file() {
-        let dir = tempfile::TempDir::new().unwrap();
+        let dir = tempfile::TempDir::new().expect("create temp dir");
         let target = dir.path().join("mimofan-new-test");
 
-        replace_binary(&target, b"fresh binary").unwrap();
-        let content = std::fs::read_to_string(&target).unwrap();
+        replace_binary(&target, b"fresh binary").expect("replace binary");
+        let content = std::fs::read_to_string(&target).expect("read replaced binary");
         assert_eq!(content, "fresh binary");
     }
 
@@ -1365,7 +1365,7 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
     #[test]
     fn github_release_url_parser_extracts_tag() {
         let url = reqwest::Url::parse("https://github.com/XiaomingX/mimofan/releases/tag/v0.8.61")
-            .unwrap();
+            .expect("unexpected None/Err in test");
 
         assert_eq!(
             release_tag_from_github_release_url(&url).as_deref(),

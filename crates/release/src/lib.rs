@@ -500,49 +500,49 @@ mod tests {
 
     #[test]
     fn stable_update_is_needed_only_when_latest_is_newer() {
-        assert!(update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.8.46").unwrap());
-        assert!(update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.9.0-beta.1").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.8.45").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Stable, "0.9.0", "v0.9.0-beta.1").unwrap());
+        assert!(update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.8.46").expect("stable_update_is_needed_only_when_latest_is_newer"));
+        assert!(update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.9.0-beta.1").expect("stable_update_is_needed_only_when_latest_is_newer"));
+        assert!(!update_is_needed(ReleaseChannel::Stable, "0.8.45", "v0.8.45").expect("stable_update_is_needed_only_when_latest_is_newer"));
+        assert!(!update_is_needed(ReleaseChannel::Stable, "0.9.0", "v0.9.0-beta.1").expect("stable_update_is_needed_only_when_latest_is_newer"));
         assert!(
-            !update_is_needed(ReleaseChannel::Stable, "0.9.0-beta.2", "v0.9.0-beta.1").unwrap()
+            !update_is_needed(ReleaseChannel::Stable, "0.9.0-beta.2", "v0.9.0-beta.1").expect("stable_update_is_needed_only_when_latest_is_newer")
         );
     }
 
     #[test]
     fn beta_update_allows_switching_from_same_stable_to_beta() {
-        assert!(update_is_needed(ReleaseChannel::Beta, "1.0.0", "v1.0.0-beta.2").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.2", "v1.0.0-beta.2").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.3", "v1.0.0-beta.2").unwrap());
-        assert!(update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.2", "v1.0.0-beta.3").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "2.0.0", "v1.0.0-beta.3").unwrap());
-        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-rc.1", "v1.0.0-beta.3").unwrap());
+        assert!(update_is_needed(ReleaseChannel::Beta, "1.0.0", "v1.0.0-beta.2").expect("beta_update_allows_switching_from_same_stable_to_beta"));
+        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.2", "v1.0.0-beta.2").expect("beta_update_allows_switching_from_same_stable_to_beta"));
+        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.3", "v1.0.0-beta.2").expect("beta_update_allows_switching_from_same_stable_to_beta"));
+        assert!(update_is_needed(ReleaseChannel::Beta, "1.0.0-beta.2", "v1.0.0-beta.3").expect("beta_update_allows_switching_from_same_stable_to_beta"));
+        assert!(!update_is_needed(ReleaseChannel::Beta, "2.0.0", "v1.0.0-beta.3").expect("beta_update_allows_switching_from_same_stable_to_beta"));
+        assert!(!update_is_needed(ReleaseChannel::Beta, "1.0.0-rc.1", "v1.0.0-beta.3").expect("beta_update_allows_switching_from_same_stable_to_beta"));
     }
 
     #[test]
     fn parse_release_version_accepts_tags_and_build_suffixes() {
         assert_eq!(
-            parse_release_version("v0.9.0-beta.1").unwrap(),
-            semver::Version::parse("0.9.0-beta.1").unwrap()
+            parse_release_version("v0.9.0-beta.1").expect("parse_release_version_accepts_tags_and_build_suffixes"),
+            semver::Version::parse("0.9.0-beta.1").expect("parse_release_version_accepts_tags_and_build_suffixes")
         );
         assert_eq!(
-            parse_release_version("0.8.45 (abcdef123456)").unwrap(),
-            semver::Version::parse("0.8.45").unwrap()
+            parse_release_version("0.8.45 (abcdef123456)").expect("parse_release_version_accepts_tags_and_build_suffixes"),
+            semver::Version::parse("0.8.45").expect("parse_release_version_accepts_tags_and_build_suffixes")
         );
     }
 
     #[test]
     fn release_version_compare_ignores_v_prefix_and_build_sha() {
         assert_eq!(
-            compare_release_versions("0.8.39 (eeccf7d)", "v0.8.39").unwrap(),
+            compare_release_versions("0.8.39 (eeccf7d)", "v0.8.39").expect("release_version_compare_ignores_v_prefix_and_build_sha"),
             std::cmp::Ordering::Equal
         );
         assert_eq!(
-            compare_release_versions("0.8.39", "v0.8.40").unwrap(),
+            compare_release_versions("0.8.39", "v0.8.40").expect("release_version_compare_ignores_v_prefix_and_build_sha"),
             std::cmp::Ordering::Less
         );
         assert_eq!(
-            compare_release_versions("0.8.40", "v0.8.39").unwrap(),
+            compare_release_versions("0.8.40", "v0.8.39").expect("release_version_compare_ignores_v_prefix_and_build_sha"),
             std::cmp::Ordering::Greater
         );
     }
@@ -556,7 +556,7 @@ mod tests {
           { "tag_name": "v0.9.0-beta.1" }
         ]"#;
         assert_eq!(
-            latest_beta_tag_from_release_list_json(body).unwrap(),
+            latest_beta_tag_from_release_list_json(body).expect("latest_beta_tag_selects_first_beta_release"),
             "v0.9.0-beta.2"
         );
     }

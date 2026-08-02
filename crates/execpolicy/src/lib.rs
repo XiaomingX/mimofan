@@ -668,7 +668,7 @@ mod tests {
             "sudo rm -rf /",
             "command rm -rf /",
         ] {
-            let decision = engine.check(ctx(cmd, AskForApproval::Never)).unwrap();
+            let decision = engine.check(ctx(cmd, AskForApproval::Never)).expect("deny_rule_blocks_path_and_wrapper_bypasses");
             assert!(!decision.allow, "expected block for {cmd}");
             assert!(
                 matches!(
@@ -681,7 +681,7 @@ mod tests {
 
         // Non-matching commands must NOT be caught by the `rm` rule.
         for cmd in ["rmdir foo", "rmview", "git rm file"] {
-            let decision = engine.check(ctx(cmd, AskForApproval::Never)).unwrap();
+            let decision = engine.check(ctx(cmd, AskForApproval::Never)).expect("deny_rule_blocks_path_and_wrapper_bypasses");
             assert!(decision.allow, "expected allow for {cmd}");
         }
     }
@@ -704,7 +704,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("git status --porcelain", AskForApproval::UnlessTrusted))
-            .unwrap();
+            .expect("trusted_prefix_skips_approval_when_policy_is_unless_trusted");
 
         assert!(decision.allow);
         assert!(!decision.requires_approval);
@@ -727,7 +727,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("git status --porcelain", AskForApproval::UnlessTrusted))
-            .unwrap();
+            .expect("denied_prefix_blocks_even_when_command_is_also_trusted");
 
         assert!(!decision.allow);
         assert!(!decision.requires_approval);
@@ -748,7 +748,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("cargo test --workspace", AskForApproval::UnlessTrusted))
-            .unwrap();
+            .expect("unmatched_command_requires_approval_and_proposes_first_token_rule");
 
         assert!(decision.allow);
         assert!(decision.requires_approval);
@@ -778,7 +778,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("cargo test --workspace", AskForApproval::OnRequest))
-            .unwrap();
+            .expect("trusted_command_in_on_request_mode_still_requires_approval_without_new_rule");
 
         assert!(decision.allow);
         assert!(decision.requires_approval);
@@ -805,7 +805,7 @@ mod tests {
                     mcp_elicitations: false,
                 },
             ))
-            .unwrap();
+            .expect("reject_rules_mode_forbids_unmatched_command");
 
         assert!(!decision.allow);
         assert!(!decision.requires_approval);
@@ -826,7 +826,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("cargo test --workspace", AskForApproval::Never))
-            .unwrap();
+            .expect("typed_ask_rule_forbids_matching_command_when_policy_is_never");
 
         assert!(!decision.allow);
         assert!(!decision.requires_approval);
@@ -850,7 +850,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("cargo test --workspace", AskForApproval::UnlessTrusted))
-            .unwrap();
+            .expect("typed_ask_rule_requires_approval_under_unless_trusted");
 
         assert!(decision.allow);
         assert!(decision.requires_approval);
@@ -885,7 +885,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("cargo test --workspace", AskForApproval::OnFailure))
-            .unwrap();
+            .expect("typed_ask_rule_requires_approval_under_on_failure");
 
         assert!(decision.allow);
         assert!(decision.requires_approval);
@@ -907,7 +907,7 @@ mod tests {
 
         let trusted = engine
             .check(ctx("cargo test --workspace", AskForApproval::UnlessTrusted))
-            .unwrap();
+            .expect("typed_ask_rule_overrides_trusted_but_not_deny");
         assert!(trusted.allow);
         assert!(trusted.requires_approval);
         assert_eq!(
@@ -917,7 +917,7 @@ mod tests {
 
         let denied = engine
             .check(ctx("cargo test --danger", AskForApproval::Never))
-            .unwrap();
+            .expect("typed_ask_rule_overrides_trusted_but_not_deny");
         assert!(!denied.allow);
         assert!(!denied.requires_approval);
         assert_eq!(denied.matched_rule.as_deref(), Some("cargo test --danger"));
@@ -941,7 +941,7 @@ mod tests {
                 "cargo test --workspace --all-features",
                 AskForApproval::UnlessTrusted,
             ))
-            .unwrap();
+            .expect("typed_ask_rule_prefers_higher_layer_before_specificity");
 
         assert!(decision.requires_approval);
         assert_eq!(
@@ -966,7 +966,7 @@ mod tests {
                     mcp_elicitations: false,
                 },
             ))
-            .unwrap();
+            .expect("reject_rules_mode_still_forbids_matching_ask_rule");
 
         assert!(!decision.allow);
         assert!(!decision.requires_approval);
@@ -986,7 +986,7 @@ mod tests {
 
         let decision = engine
             .check(ctx("cargo test --workspace", AskForApproval::Never))
-            .unwrap();
+            .expect("typed_ask_rule_label_wins_when_never_blocks_trusted_command");
 
         assert!(!decision.allow);
         assert_eq!(
@@ -1018,7 +1018,7 @@ mod tests {
                 ask_for_approval: AskForApproval::Never,
                 sandbox_mode: Some("workspace-write"),
             })
-            .unwrap();
+            .expect("typed_ask_path_matching_trims_spaces_before_workspace_normalization");
 
         assert!(!decision.allow);
         assert_eq!(
@@ -1042,7 +1042,7 @@ mod tests {
                 ask_for_approval: AskForApproval::OnFailure,
                 sandbox_mode: Some("workspace-write"),
             })
-            .unwrap();
+            .expect("typed_ask_path_matching_normalizes_relative_and_absolute_workspace_paths");
         assert!(absolute_path.requires_approval);
 
         let absolute_rule =
@@ -1058,7 +1058,7 @@ mod tests {
                 ask_for_approval: AskForApproval::OnFailure,
                 sandbox_mode: Some("workspace-write"),
             })
-            .unwrap();
+            .expect("typed_ask_path_matching_normalizes_relative_and_absolute_workspace_paths");
         assert!(relative_path.requires_approval);
     }
 
@@ -1084,7 +1084,7 @@ mod tests {
                     ask_for_approval: AskForApproval::OnFailure,
                     sandbox_mode: Some("workspace-write"),
                 })
-                .unwrap();
+                .expect("typed_ask_path_matching_rejects_traversal_and_external_paths");
             assert_eq!(
                 decision.matched_rule, None,
                 "rule {rule_path:?} and path {path:?} must not match"
@@ -1108,7 +1108,7 @@ mod tests {
                 ask_for_approval: AskForApproval::OnFailure,
                 sandbox_mode: Some("workspace-write"),
             })
-            .unwrap();
+            .expect("typed_ask_path_matching_accepts_windows_separators");
 
         assert!(decision.requires_approval);
     }

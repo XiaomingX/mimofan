@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_mode_shortcut_commands() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_rewind_command() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -249,14 +249,14 @@ mod tests {
         // Test /rewind (no snapshots) should return the "No snapshots yet" message with tip
         let res = crate::commands::execute("/rewind", &mut app);
         assert!(!res.is_error);
-        let msg = res.message.unwrap();
+        let msg = res.message.expect("command result message");
         assert!(msg.contains("No snapshots yet"));
         assert!(msg.contains("💡 Tip"));
     }
 
     #[test]
     fn test_grill_me_command() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_simplify_command() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_skill_run_command() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -370,7 +370,7 @@ mod tests {
 
         // create a dummy markdown file
         let dummy_path = tmp.path().join("test_skill.md");
-        std::fs::write(&dummy_path, "# Test Skill\nDescription").unwrap();
+        std::fs::write(&dummy_path, "# Test Skill\nDescription").expect("write temp file");
 
         // /skill-run with valid file path starts skill activation
         let cmd = format!("/skill-run {} arg1 arg2", dummy_path.display());
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_plugin_test_command() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -421,28 +421,28 @@ mod tests {
             &dummy_script,
             "#!/bin/sh\n# name: test-tool\n# description: test\n# schema: {}\n\necho '{\"content\":\"success\",\"success\":true}'",
         )
-        .unwrap();
+        .expect("unexpected None/Err in test");
 
         // Make executable on unix
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&dummy_script).unwrap().permissions();
+            let mut perms = std::fs::metadata(&dummy_script).expect("read file metadata").permissions();
             perms.set_mode(0o755);
-            std::fs::set_permissions(&dummy_script, perms).unwrap();
+            std::fs::set_permissions(&dummy_script, perms).expect("set file permissions");
         }
 
         let cmd = format!("/plugin-test {} {}", dummy_script.display(), "{}");
         let res = crate::commands::execute(&cmd, &mut app);
         assert!(!res.is_error);
-        let msg = res.message.unwrap();
+        let msg = res.message.expect("command result message");
         assert!(msg.contains("test-tool"));
         assert!(msg.contains("success"));
     }
 
     #[test]
     fn test_tools_inspect_command() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -469,21 +469,21 @@ mod tests {
         // /tools list
         let res = crate::commands::execute("/tools", &mut app);
         assert!(!res.is_error);
-        let msg = res.message.unwrap();
+        let msg = res.message.expect("command result message");
         assert!(msg.contains("Available Native and Plugin Tools"));
         assert!(msg.contains("read_file"));
 
         // /tools read_file (inspect a single tool details)
         let res = crate::commands::execute("/tools read_file", &mut app);
         assert!(!res.is_error);
-        let msg = res.message.unwrap();
+        let msg = res.message.expect("command result message");
         assert!(msg.contains("Tool: read_file"));
         assert!(msg.contains("Input Schema"));
     }
 
     #[test]
     fn test_code_review_alias_and_schema() {
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -555,7 +555,7 @@ mod tests {
     #[test]
     fn test_make_plan_and_do_commands() {
         use crate::tools::todo::TodoStatus;
-        let tmp = TempDir::new().unwrap();
+        let tmp = TempDir::new().expect("create temp dir");
         let options = TuiOptions {
             model: "deepseek-v4-pro".to_string(),
             workspace: tmp.path().to_path_buf(),
@@ -583,9 +583,9 @@ mod tests {
         let res = crate::commands::execute("/make-plan Migrate configuration", &mut app);
         assert!(!res.is_error);
         assert_eq!(app.mode, AppMode::Plan);
-        let msg = res.message.unwrap();
+        let msg = res.message.expect("command result message");
         assert!(msg.contains("Switched to Plan mode"));
-        let action = res.action.unwrap();
+        let action = res.action.expect("command result action");
         match action {
             crate::tui::app::AppAction::SendMessage(prompt) => {
                 assert!(prompt.contains("Task: Migrate configuration"));
@@ -607,7 +607,7 @@ mod tests {
         let res = crate::commands::execute("/do", &mut app);
         assert!(!res.is_error);
         assert_eq!(app.mode, AppMode::Agent);
-        let action = res.action.unwrap();
+        let action = res.action.expect("command result action");
         match action {
             crate::tui::app::AppAction::SendMessage(prompt) => {
                 assert!(prompt.contains("Step 1: Step one"));
@@ -624,7 +624,7 @@ mod tests {
         // 5. /do all executes all pending steps
         let res = crate::commands::execute("/do all", &mut app);
         assert!(!res.is_error);
-        let action = res.action.unwrap();
+        let action = res.action.expect("command result action");
         match action {
             crate::tui::app::AppAction::SendMessage(prompt) => {
                 assert!(prompt.contains("execute all remaining pending checklist steps"));

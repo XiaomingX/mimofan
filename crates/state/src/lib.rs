@@ -2043,16 +2043,16 @@ mod tests {
 
     #[test]
     fn default_state_db_path_uses_mimofan_home_when_set() {
-        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().unwrap();
+        let _lock = MIMOFAN_HOME_TEST_LOCK.lock().expect("lock MIMOFAN_HOME test mutex");
         let dir = std::env::temp_dir().join(format!(
             "cw-home-state-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("system clock is valid since unix epoch")
                 .as_nanos()
         ));
-        let _g = MimofanHomeGuard::set(dir.to_str().unwrap());
+        let _g = MimofanHomeGuard::set(dir.to_str().expect("MIMOFAN_HOME dir is valid utf-8"));
         // Hard override: the DB is <MIMOFAN_HOME>/state.db, NOT
         // <MIMOFAN_HOME>/.mimofan/state.db, and the legacy ~/.mimofan
         // fallback is bypassed entirely.

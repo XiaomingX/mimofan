@@ -36,21 +36,21 @@ async fn main() {
 
     // Test 1: Vector Store
     println!("1. Vector Store Tests");
-    let dir = tempfile::tempdir().unwrap();
-    let store = VectorStore::open(&dir.path().join("test.db"), 384).unwrap();
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let store = VectorStore::open(&dir.path().join("test.db"), 384).expect("open vector store");
     let mut obs_store = mimofan_memory::optimization::ObservationStore::new(store);
 
     // Store observation
     let obs = create_observation("test", ObservationKind::Discovery, "Test discovery");
     let embedding = generate_embedding(1);
-    let id = obs_store.store_observation(&obs, &embedding).unwrap();
+    let id = obs_store.store_observation(&obs, &embedding).expect("store observation");
     assert!(id > 0, "Store should return positive ID");
     println!("   ✓ Store observation: ID = {}", id);
 
     // Search
     let results = obs_store
         .search(&embedding, 10, &Default::default())
-        .unwrap();
+        .expect("search vector store");
     assert!(!results.is_empty(), "Search should find stored observation");
     assert_eq!(results[0].observation.id, id);
     println!(
@@ -63,7 +63,7 @@ async fn main() {
         project: Some("test".to_string()),
         ..Default::default()
     };
-    let results = obs_store.search(&embedding, 10, &filters).unwrap();
+    let results = obs_store.search(&embedding, 10, &filters).expect("search vector store with filter");
     assert!(
         !results.is_empty(),
         "Filtered search should find observation"
@@ -77,7 +77,7 @@ async fn main() {
     // Enqueue
     for i in 0..10 {
         let obs = create_observation("batch", ObservationKind::Change, &format!("Item {}", i));
-        batch.enqueue(obs).unwrap();
+        batch.enqueue(obs).expect("enqueue observation");
     }
     assert_eq!(batch.queue_size(), 10);
     println!("   ✓ Enqueued 10 items");
@@ -108,7 +108,7 @@ async fn main() {
     manager
         .start_task("task-1".to_string(), "Test Task".to_string())
         .await
-        .unwrap();
+        .expect("start test task");
     let active = manager.get_active_tasks().await;
     assert_eq!(active.len(), 1);
     println!("   ✓ Started task");
@@ -117,7 +117,7 @@ async fn main() {
     manager
         .complete_task("task-1", true, "Done".to_string())
         .await
-        .unwrap();
+        .expect("complete test task");
     let active = manager.get_active_tasks().await;
     assert_eq!(active.len(), 0);
     let completed = manager.get_completed_tasks().await;
@@ -146,7 +146,7 @@ async fn main() {
     // Summarize
     let summary = compressor
         .summarize_session("test-session", &observations)
-        .unwrap();
+        .expect("summarize test session");
     assert!(!summary.session_id.is_empty());
     println!("   ✓ Generated session summary: {}", summary.session_id);
 
@@ -165,7 +165,7 @@ async fn main() {
     // Get (hit)
     let result = cache.get("query-1");
     assert!(result.is_some());
-    let cached = result.unwrap();
+    let cached = result.expect("unwrap cached result");
     assert_eq!(cached.len(), 1);
     println!("   ✓ Cache hit works");
 

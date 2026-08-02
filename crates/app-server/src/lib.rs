@@ -1387,9 +1387,9 @@ mod tests {
             insecure_no_auth: false,
             cors_origins: Vec::new(),
         };
-        let token = resolve_auth_token(&options).unwrap();
+        let token = resolve_auth_token(&options).expect("resolve auth token");
         assert!(token.is_some());
-        assert!(token.unwrap().starts_with("cwapp_"));
+        assert!(token.expect("auth token should be present").starts_with("cwapp_"));
     }
 
     #[test]
@@ -1410,7 +1410,7 @@ mod tests {
             insecure_no_auth: false,
             cors_origins: Vec::new(),
         };
-        let token = resolve_auth_token(&options).unwrap();
+        let token = resolve_auth_token(&options).expect("resolve auth token");
         assert_eq!(token.as_deref(), Some("my-secret"));
     }
 
@@ -1423,7 +1423,7 @@ mod tests {
             insecure_no_auth: false,
             cors_origins: Vec::new(),
         };
-        let token = resolve_auth_token(&options).unwrap();
+        let token = resolve_auth_token(&options).expect("resolve auth token");
         assert_eq!(token.as_deref(), Some("my-secret"));
     }
 
@@ -1436,7 +1436,7 @@ mod tests {
             insecure_no_auth: true,
             cors_origins: Vec::new(),
         };
-        let token = resolve_auth_token(&options).unwrap();
+        let token = resolve_auth_token(&options).expect("resolve auth token");
         assert!(token.is_none());
     }
 

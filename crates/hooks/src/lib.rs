@@ -359,19 +359,19 @@ mod tests {
             response_id: "resp-1".to_string(),
         })
         .await
-        .unwrap();
+        .expect("emit response_start event to jsonl sink");
         sink.emit(&HookEvent::ResponseEnd {
             response_id: "resp-1".to_string(),
         })
         .await
-        .unwrap();
+        .expect("emit response_end event to jsonl sink");
 
-        let raw = std::fs::read_to_string(&path).unwrap();
+        let raw = std::fs::read_to_string(&path).expect("read jsonl hook log file");
         let lines = raw.lines().collect::<Vec<_>>();
         assert_eq!(lines.len(), 2);
 
-        let first: Value = serde_json::from_str(lines[0]).unwrap();
-        let second: Value = serde_json::from_str(lines[1]).unwrap();
+        let first: Value = serde_json::from_str(lines[0]).expect("parse first jsonl line");
+        let second: Value = serde_json::from_str(lines[1]).expect("parse second jsonl line");
         assert!(first["at"].as_str().is_some());
         assert_eq!(first["event"]["type"], "response_start");
         assert_eq!(first["event"]["response_id"], "resp-1");
@@ -469,14 +469,14 @@ mod tests {
 
     impl RecordingSink {
         fn events(&self) -> Vec<Value> {
-            self.events.lock().unwrap().clone()
+            self.events.lock().expect("lock recording sink events").clone()
         }
     }
 
     #[async_trait::async_trait]
     impl HookSink for RecordingSink {
         async fn emit(&self, event: &HookEvent) -> Result<()> {
-            self.events.lock().unwrap().push(event.to_json());
+            self.events.lock().expect("lock recording sink events").push(event.to_json());
             Ok(())
         }
     }
@@ -493,7 +493,7 @@ mod tests {
     fn unique_temp_dir(label: &str) -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock is valid since unix epoch")
             .as_nanos();
         std::env::temp_dir().join(format!(
             "deepseek-hooks-{label}-{}-{nanos}",
@@ -505,7 +505,7 @@ mod tests {
     fn unique_short_socket_path(label: &str) -> (PathBuf, PathBuf) {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock is valid since unix epoch")
             .as_nanos();
         let root = PathBuf::from("/tmp").join(format!("cw-hk-{}-{nanos}", std::process::id()));
         let path = root.join(format!("{label}.sock"));

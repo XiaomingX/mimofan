@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn save_image_as_png_writes_valid_png() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("create temp dir");
         let img = solid_rgba(8, 4, [255, 0, 0, 255]);
         let pasted = save_image_as_png_in(dir.path(), &img).expect("encode png");
 
@@ -415,14 +415,14 @@ mod tests {
 
         // The first eight bytes of any PNG file are the magic signature; if
         // we ever regress to PPM or another format this will catch it.
-        let header = std::fs::read(&pasted.path).unwrap();
+        let header = std::fs::read(&pasted.path).expect("read file");
         assert_eq!(&header[..8], b"\x89PNG\r\n\x1a\n");
     }
 
     #[test]
     fn clipboard_images_dir_uses_mimofan_home_directory() {
-        let home = tempfile::tempdir().unwrap();
-        let workspace = tempfile::tempdir().unwrap();
+        let home = tempfile::tempdir().expect("create temp dir");
+        let workspace = tempfile::tempdir().expect("create temp dir");
 
         assert_eq!(
             clipboard_images_dir_for_home(workspace.path(), Some(home.path())),
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn clipboard_images_dir_falls_back_to_workspace_without_home() {
-        let workspace = tempfile::tempdir().unwrap();
+        let workspace = tempfile::tempdir().expect("create temp dir");
 
         assert_eq!(
             clipboard_images_dir_for_home(workspace.path(), None),
@@ -477,7 +477,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn wl_paste_helper_reads_text_from_stdout() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tempfile::tempdir().expect("create temp dir");
         let script = dir.path().join("wl-paste");
         std::fs::write(
             &script,
@@ -502,12 +502,12 @@ else
 fi
 "#,
         )
-        .unwrap();
-        let mut perms = std::fs::metadata(&script).unwrap().permissions();
+        .expect("unexpected None/Err in test");
+        let mut perms = std::fs::metadata(&script).expect("read file metadata").permissions();
         perms.set_mode(0o755);
-        std::fs::set_permissions(&script, perms).unwrap();
+        std::fs::set_permissions(&script, perms).expect("set file permissions");
 
-        let text = read_text_with_wlpaste_using_argv(script.to_str().unwrap())
+        let text = read_text_with_wlpaste_using_argv(script.to_str().expect("convert OsStr to str"))
             .expect("read text through wl-paste helper");
 
         assert_eq!(text, "from-wayland");

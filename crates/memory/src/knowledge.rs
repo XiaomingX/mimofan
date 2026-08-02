@@ -324,8 +324,9 @@ mod tests {
             updated_at: 2000,
         };
 
-        let json = serde_json::to_string(&corpus).unwrap();
-        let deserialized: KnowledgeCorpus = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&corpus).expect("serialize knowledge corpus");
+        let deserialized: KnowledgeCorpus =
+            serde_json::from_str(&json).expect("parse knowledge corpus json");
 
         assert_eq!(deserialized.name, corpus.name);
         assert_eq!(deserialized.observation_count, corpus.observation_count);
@@ -344,8 +345,9 @@ mod tests {
             confidence: 0.95,
         };
 
-        let json = serde_json::to_string(&answer).unwrap();
-        let deserialized: CorpusAnswer = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&answer).expect("serialize corpus answer");
+        let deserialized: CorpusAnswer =
+            serde_json::from_str(&json).expect("parse corpus answer json");
 
         assert_eq!(deserialized.answer, answer.answer);
         assert_eq!(deserialized.confidence, answer.confidence);

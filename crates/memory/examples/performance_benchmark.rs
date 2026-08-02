@@ -13,8 +13,8 @@ async fn main() {
 
     // Benchmark 1: Vector Store Performance
     println!("1. Vector Store Performance:");
-    let dir = tempfile::tempdir().unwrap();
-    let store = VectorStore::open(&dir.path().join("benchmark.db"), 384).unwrap();
+    let dir = tempfile::tempdir().expect("create temp dir");
+    let store = VectorStore::open(&dir.path().join("benchmark.db"), 384).expect("open vector store");
 
     let mut observation_store = ObservationStore::new(store);
 
@@ -32,7 +32,7 @@ async fn main() {
         );
         observation_store
             .store_observation(&obs, &embeddings[i])
-            .unwrap();
+            .expect("store observation");
     }
     println!("   Store 1000 observations: {:?}", start.elapsed());
 
@@ -42,7 +42,7 @@ async fn main() {
     for _ in 0..100 {
         let _results = observation_store
             .search(&query, 10, &Default::default())
-            .unwrap();
+            .expect("search vector store");
     }
     println!("   100 search queries: {:?}", start.elapsed());
 
@@ -57,7 +57,7 @@ async fn main() {
             ObservationKind::Change,
             format!("Batch observation {}", i),
         );
-        batch_proc.enqueue(obs).unwrap();
+        batch_proc.enqueue(obs).expect("enqueue observation");
     }
     println!("   Enqueue 10,000 observations: {:?}", start.elapsed());
 
@@ -74,7 +74,7 @@ async fn main() {
         manager
             .start_task(format!("task-{}", i), format!("Task {}", i))
             .await
-            .unwrap();
+            .expect("start benchmark task");
     }
     println!("   Start 100 tasks: {:?}", start.elapsed());
 
@@ -83,7 +83,7 @@ async fn main() {
         manager
             .complete_task(&format!("task-{}", i), true, "Done".to_string())
             .await
-            .unwrap();
+            .expect("complete benchmark task");
     }
     println!("   Complete 100 tasks: {:?}", start.elapsed());
 

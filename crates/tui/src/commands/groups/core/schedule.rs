@@ -177,7 +177,7 @@ mod tests {
     fn test_parse_night_args_valid() {
         let result = parse_night_args("run tests --schedule 00:30");
         assert!(result.is_ok());
-        let (prompt, (hour, minute)) = result.unwrap();
+        let (prompt, (hour, minute)) = result.expect("unexpected None/Err in test");
         assert_eq!(prompt, "run tests");
         assert_eq!(hour, 0);
         assert_eq!(minute, 30);

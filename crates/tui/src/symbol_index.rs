@@ -40,7 +40,7 @@ impl SymbolIndex {
         }
 
         if !file_symbols.is_empty() {
-            let mut guard = self.symbols.lock().unwrap();
+            let mut guard = self.symbols.lock().expect("symbol index mutex poisoned");
             for sym in file_symbols {
                 guard.entry(sym.name.to_lowercase()).or_default().push(sym);
             }
@@ -48,7 +48,7 @@ impl SymbolIndex {
     }
 
     pub fn search(&self, query: &str) -> Vec<CodeSymbol> {
-        let guard = self.symbols.lock().unwrap();
+        let guard = self.symbols.lock().expect("symbol index mutex poisoned");
         let query_lower = query.to_lowercase();
         let mut results = Vec::new();
 

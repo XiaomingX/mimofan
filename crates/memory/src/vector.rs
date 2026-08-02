@@ -474,33 +474,33 @@ mod tests {
 
     #[test]
     fn test_vector_store_creation() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = TempDir::new().expect("create temp dir");
         let store = VectorStore::open(temp_dir.path(), 384);
         assert!(store.is_ok());
     }
 
     #[test]
     fn test_store_and_load_observation() {
-        let temp_dir = TempDir::new().unwrap();
-        let store = VectorStore::open(temp_dir.path(), 384).unwrap();
+        let temp_dir = TempDir::new().expect("create temp dir");
+        let store = VectorStore::open(temp_dir.path(), 384).expect("open vector store");
 
         let observation = test_observation();
         let embedding = vec![0.0; 384];
 
-        let id = store.store_observation(&observation, &embedding).unwrap();
+        let id = store.store_observation(&observation, &embedding).expect("store observation");
         assert!(id > 0);
 
-        let loaded = store.load_observation(id).unwrap();
+        let loaded = store.load_observation(id).expect("load observation");
         assert!(loaded.is_some());
-        let loaded = loaded.unwrap();
+        let loaded = loaded.expect("unwrap loaded observation");
         assert_eq!(loaded.content, observation.content);
         assert_eq!(loaded.kind, observation.kind);
     }
 
     #[test]
     fn test_search() {
-        let temp_dir = TempDir::new().unwrap();
-        let store = VectorStore::open(temp_dir.path(), 384).unwrap();
+        let temp_dir = TempDir::new().expect("create temp dir");
+        let store = VectorStore::open(temp_dir.path(), 384).expect("open vector store");
 
         // Store some observations
         for i in 0..5 {
@@ -508,12 +508,12 @@ mod tests {
             obs.id = i;
             obs.content = format!("Observation {}", i);
             let embedding = vec![i as f32; 384];
-            store.store_observation(&obs, &embedding).unwrap();
+            store.store_observation(&obs, &embedding).expect("store observation");
         }
 
         // Search
         let query = vec![0.0; 384];
-        let results = store.search(&query, 3, &SearchFilters::default()).unwrap();
+        let results = store.search(&query, 3, &SearchFilters::default()).expect("search vector store");
         assert!(!results.is_empty());
     }
 }

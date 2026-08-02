@@ -858,7 +858,7 @@ mod tests {
 
     #[test]
     fn parse_since_7d() {
-        let cutoff = parse_since("7d").unwrap();
+        let cutoff = parse_since("7d").expect("parse_since must succeed");
         let expected = Utc::now() - Duration::days(7);
         // Allow ±2s for test execution time.
         assert!((cutoff - expected).num_seconds().abs() < 2);
@@ -866,14 +866,14 @@ mod tests {
 
     #[test]
     fn parse_since_24h() {
-        let cutoff = parse_since("24h").unwrap();
+        let cutoff = parse_since("24h").expect("parse_since must succeed");
         let expected = Utc::now() - Duration::hours(24);
         assert!((cutoff - expected).num_seconds().abs() < 2);
     }
 
     #[test]
     fn parse_since_30m() {
-        let cutoff = parse_since("30m").unwrap();
+        let cutoff = parse_since("30m").expect("parse_since must succeed");
         let expected = Utc::now() - Duration::minutes(30);
         assert!((cutoff - expected).num_seconds().abs() < 2);
     }
@@ -881,21 +881,21 @@ mod tests {
     #[test]
     fn parse_since_now_prefix() {
         // "now-2h" should strip "now-" and parse "2h".
-        let cutoff = parse_since("now-2h").unwrap();
+        let cutoff = parse_since("now-2h").expect("parse_since must succeed");
         let expected = Utc::now() - Duration::hours(2);
         assert!((cutoff - expected).num_seconds().abs() < 2);
     }
 
     #[test]
     fn parse_since_compound() {
-        let cutoff = parse_since("2h30m").unwrap();
+        let cutoff = parse_since("2h30m").expect("parse_since must succeed");
         let expected = Utc::now() - Duration::seconds(2 * 3600 + 30 * 60);
         assert!((cutoff - expected).num_seconds().abs() < 2);
     }
 
     #[test]
     fn parse_since_compound_days_hours() {
-        let cutoff = parse_since("1d12h").unwrap();
+        let cutoff = parse_since("1d12h").expect("parse_since must succeed");
         let expected = Utc::now() - Duration::seconds(36 * 3600);
         assert!((cutoff - expected).num_seconds().abs() < 2);
     }
@@ -939,7 +939,7 @@ mod tests {
     #[test]
     fn audit_log_parses_auto_approve() {
         use std::io::Write;
-        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        let mut tmp = tempfile::NamedTempFile::new().expect("create named temp file");
         let line1 = make_audit_line(
             "tool.approval.auto_approve",
             "exec_shell",
@@ -950,8 +950,8 @@ mod tests {
             "read_file",
             "2026-04-02T10:00:00+00:00",
         );
-        writeln!(tmp, "{line1}").unwrap();
-        writeln!(tmp, "{line2}").unwrap();
+        writeln!(tmp, "{line1}").expect("write temp audit file");
+        writeln!(tmp, "{line2}").expect("write temp audit file");
 
         let mut rollup = Rollup::default();
         read_audit_log(tmp.path(), None, &mut rollup);
@@ -965,13 +965,13 @@ mod tests {
     #[test]
     fn audit_log_skips_malformed_lines() {
         use std::io::Write;
-        let mut tmp = tempfile::NamedTempFile::new().unwrap();
-        writeln!(tmp, "not json at all").unwrap();
+        let mut tmp = tempfile::NamedTempFile::new().expect("create named temp file");
+        writeln!(tmp, "not json at all").expect("write temp audit file");
         writeln!(
             tmp,
             r#"{{"event":"credential.save","ts":"2026-04-01T10:00:00+00:00"}}"#
         )
-        .unwrap();
+        .expect("write temp audit file");
 
         let mut rollup = Rollup::default();
         read_audit_log(tmp.path(), None, &mut rollup);
@@ -985,7 +985,7 @@ mod tests {
     #[test]
     fn audit_log_since_filter() {
         use std::io::Write;
-        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        let mut tmp = tempfile::NamedTempFile::new().expect("create named temp file");
         let line_old = make_audit_line(
             "tool.approval.auto_approve",
             "exec_shell",
@@ -996,10 +996,10 @@ mod tests {
             "read_file",
             "2026-04-01T00:00:00+00:00",
         );
-        writeln!(tmp, "{line_old}").unwrap();
-        writeln!(tmp, "{line_new}").unwrap();
+        writeln!(tmp, "{line_old}").expect("write temp audit file");
+        writeln!(tmp, "{line_new}").expect("write temp audit file");
 
-        let cutoff: DateTime<Utc> = "2026-01-01T00:00:00Z".parse().unwrap();
+        let cutoff: DateTime<Utc> = "2026-01-01T00:00:00Z".parse().expect("parse string");
         let mut rollup = Rollup::default();
         read_audit_log(tmp.path(), Some(cutoff), &mut rollup);
 

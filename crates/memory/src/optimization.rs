@@ -80,7 +80,7 @@ impl SearchCache {
     pub fn get(&mut self, key: &str) -> Option<&Vec<VectorMatch>> {
         if let Some(pos) = self.cache.iter().position(|(k, _)| k == key) {
             // Move to back (most recently used)
-            let item = self.cache.remove(pos).unwrap();
+            let item = self.cache.remove(pos).expect("remove cached search result");
             self.cache.push_back(item);
             return self.cache.back().map(|(_, v)| v);
         }
@@ -345,7 +345,7 @@ mod tests {
         manager
             .start_task("1".to_string(), "Test".to_string())
             .await
-            .unwrap();
+            .expect("start test task");
 
         let active = manager.get_active_tasks().await;
         assert_eq!(active.len(), 1);
@@ -353,7 +353,7 @@ mod tests {
         manager
             .complete_task("1", true, "Done".to_string())
             .await
-            .unwrap();
+            .expect("complete test task");
 
         let active = manager.get_active_tasks().await;
         assert_eq!(active.len(), 0);

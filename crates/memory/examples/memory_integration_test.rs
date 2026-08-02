@@ -23,12 +23,12 @@ async fn main() {
     println!("==============================\n");
 
     // Setup
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("create temp dir");
     let db_path = dir.path().join("integration.db");
     let _corpora_path = dir.path().join("corpora");
 
     // Initialize components
-    let vector_store = VectorStore::open(&db_path, 384).unwrap();
+    let vector_store = VectorStore::open(&db_path, 384).expect("open vector store");
     let compressor = ObservationCompressor::with_settings(10, 86400);
 
     println!("1. Store observations");
@@ -49,7 +49,7 @@ async fn main() {
             format!("Integration test observation {}", i),
         );
         let embedding = generate_embedding(i);
-        obs_store.store_observation(&obs, &embedding).unwrap();
+        obs_store.store_observation(&obs, &embedding).expect("store observation");
     }
     println!("   ✓ Stored 100 observations");
 
@@ -60,7 +60,7 @@ async fn main() {
         kind: Some(ObservationKind::Discovery),
         ..Default::default()
     };
-    let results = obs_store.search(&query, 10, &filters).unwrap();
+    let results = obs_store.search(&query, 10, &filters).expect("search vector store with filters");
     assert!(!results.is_empty(), "Should find observations");
     println!("   ✓ Found {} observations", results.len());
 
@@ -81,7 +81,7 @@ async fn main() {
 
     let summary = compressor
         .summarize_session("integration-session", &observations)
-        .unwrap();
+        .expect("summarize integration session");
     assert!(!summary.session_id.is_empty());
     println!("   ✓ Generated session summary");
 
