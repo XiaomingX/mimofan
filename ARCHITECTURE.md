@@ -403,7 +403,8 @@ reg.register(Box::new(MyTool));
 **待办（[ ]，均来自 12.3 的真实问题，非可有可无）：**
 
 - [ ] 拆分 `tui/ui.rs` 上帝文件（目标单文件 < 1000 行；按 chat/sidebar/footer/picker 拆子模块）
-- [ ] 拆分 `tui/lib.rs`（clap 定义 / `run()` / panic-signal / 子命令处理分离）
+- [x] 抽离 `tui/lib.rs` 的 panic-signal 处理到独立 `signals.rs`（无跨模块引用，零行为变化；clap 定义 / `run()` / 子命令处理仍待进一步拆分）
+- [ ] 继续拆分 `tui/lib.rs`（clap 定义 / `run()` / 子命令处理分离；注意 clap 类型当前均为私有，需先 `pub` 化并收敛 14 处跨模块引用）
 - [ ] 将 UI 层直连 IO 收口到端口（余额请求、`std::fs` 散落点改为经 core 端口）
 - [ ] 统一 MCP 客户端：明确 `mimofan-mcp` 为规范客户端，`tui::mcp` 仅保留服务端职责
 - [ ] 收敛 `mcp_server.rs` 跨层穿透（不再直接 use client/llm_client/session_manager）

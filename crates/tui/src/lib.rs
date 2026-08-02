@@ -101,6 +101,7 @@ mod seam_manager;
 mod session_manager;
 mod settings;
 mod shell_dispatcher;
+mod signals;
 mod skill_state;
 mod skills;
 mod slop_ledger;
@@ -549,53 +550,6 @@ enum FleetAlertAdapterArg {
     PagerDuty,
 }
 
-/// Spawn a tokio task that listens for terminating signals (SIGINT
-/// always; SIGTERM and SIGHUP on Unix) and, on receipt, restores the
-/// terminal modes and exits with the conventional 128 + signal code.
-/// Multiple deliveries are tolerated: once the cleanup runs, a second
-/// signal short-circuits to plain exit so a stuck cleanup can never
-/// trap a frustrated user pressing Ctrl+C repeatedly.
-///
-/// See the call site in `main` for the rationale (#1583).
-fn spawn_signal_cleanup_task() {
-    tokio::spawn(async {
-        let exit_code = wait_for_terminating_signal().await;
-        // If we get here a fatal signal arrived. Restore the terminal
-        // and exit. A second signal during cleanup re-enters this
-        // path and aborts via `std::process::exit` directly.
-        static CLEANED_UP: std::sync::atomic::AtomicBool =
-            std::sync::atomic::AtomicBool::new(false);
-        if !CLEANED_UP.swap(true, std::sync::atomic::Ordering::SeqCst) {
-            crate::tui::ui::emergency_restore_terminal();
-        }
-        std::process::exit(exit_code);
-    });
-}
-
-#[cfg(unix)]
-async fn wait_for_terminating_signal() -> i32 {
-    use tokio::signal::unix::{SignalKind, signal};
-    // Failing to install any individual stream is non-fatal: we still
-    // want the others to work. The fallback never-resolving future
-    // keeps `select!` well-typed when a stream fails to register.
-    let mut sigint = signal(SignalKind::interrupt()).ok();
-    let mut sigterm = signal(SignalKind::terminate()).ok();
-    let mut sighup = signal(SignalKind::hangup()).ok();
-    tokio::select! {
-        _ = async { match sigint.as_mut() { Some(s) => { s.recv().await; }, None => std::future::pending::<()>().await, } } => 130,
-        _ = async { match sigterm.as_mut() { Some(s) => { s.recv().await; }, None => std::future::pending::<()>().await, } } => 143,
-        _ = async { match sighup.as_mut() { Some(s) => { s.recv().await; }, None => std::future::pending::<()>().await, } } => 129,
-    }
-}
-
-#[cfg(not(unix))]
-async fn wait_for_terminating_signal() -> i32 {
-    // Windows: tokio::signal::ctrl_c covers both Ctrl+C and Ctrl+Break
-    // (CTRL_C_EVENT / CTRL_BREAK_EVENT). Console-close, logoff, and
-    // shutdown events are not currently routed through tokio.
-    let _ = tokio::signal::ctrl_c().await;
-    130
-}
 
 fn join_prompt_parts(parts: &[String]) -> String {
     parts.join(" ")
@@ -1121,7 +1075,7 @@ pub async fn run() -> Result<()> {
     // pre-TUI subcommands (--version, doctor, login, …), the moments
     // around enable_raw_mode / disable_raw_mode, the external-editor
     // suspend path, and SIGTERM / SIGHUP from the OS.
-    spawn_signal_cleanup_task();
+    signals::spawn_signal_cleanup_task();
 
     dotenv().ok();
 
