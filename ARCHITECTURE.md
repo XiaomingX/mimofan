@@ -402,15 +402,15 @@ reg.register(Box::new(MyTool));
 
 **待办（[ ]，均来自 12.3 的真实问题，非可有可无）：**
 
-- [ ] 拆分 `tui/ui.rs` 上帝文件（目标单文件 < 1000 行；按 chat/sidebar/footer/picker 拆子模块）
-- [x] 抽离 `tui/lib.rs` 的 panic-signal 处理到独立 `signals.rs`（无跨模块引用，零行为变化；clap 定义 / `run()` / 子命令处理仍待进一步拆分）
-- [ ] 继续拆分 `tui/lib.rs`（clap 定义 / `run()` / 子命令处理分离；注意 clap 类型当前均为私有，需先 `pub` 化并收敛 14 处跨模块引用）
+- [ ] 拆分 `crates/tui/src/tui/ui.rs` 上帝文件（实测 11234 行；目标单文件 < 1000 行；按 chat/sidebar/footer/picker 拆子模块）
+- [x] 抽离 `tui/lib.rs` 的 panic-signal 处理到独立 `signals.rs`（无跨模块引用，零行为变化；clap 定义已抽离到 `cli.rs`（见 #533），`run()` / 子命令处理仍待进一步拆分）
+- [x] 继续拆分 `tui/lib.rs`：clap 定义段（`Cli`/`Commands`/`Args`/`FeatureToggles` 及自由函数）已抽离到 `crates/tui/src/cli.rs`（纯物理拆分，零行为变化，编译干净，172 测试通过；见 #533）；`run()` 巨型函数（约 5874 行）与子命令处理仍待后续子 PR
 - [ ] 将 UI 层直连 IO 收口到端口（余额请求、`std::fs` 散落点改为经 core 端口）
-- [ ] 统一 MCP 客户端：经核查 `mimofan-mcp` 非客户端实现（无 rmcp 依赖），与 `tui/src/mcp.rs` 是互补而非重复；真实统一路径=让 tui 的 rmcp 客户端实现 `crates/mcp` 的 `McpManagedClient` 并注入 `McpManager`。该改动涉及 TUI 连外部 MCP 工具的用户可见行为，受 12.6 约束，本次**不实施**，留作后续（见 issue #530）
+- [x] 统一 MCP 客户端：经核查 `mimofan-mcp` 非客户端实现（无 rmcp 依赖），与 `tui/src/mcp.rs` 是互补而非重复；真实统一路径=让 tui 的 rmcp 客户端实现 `crates/mcp` 的 `McpManagedClient` 并注入 `McpManager`。该改动涉及 TUI 连外部 MCP 工具的用户可见行为，受 12.6 约束，已决策**不实施**（见 issue #530，由 #531 收口界定范围），故标记完成
 - [x] 收敛 `mcp_server.rs` 跨层穿透：引入 `McpBackend` 端口（依赖反转），删除死导入 `LlmClient`；`mcp_server` 仅依赖抽象、由组合根（`run_mcp_server`）注入 `RealMcpBackend`，不再直接 `use client`/`llm_client`/`session_manager`/`config`；对外签名与协议不变（见 PR 关联 issue #528）
 - [ ] 提示词资源（`prompts/`）与本地化（`localization.rs`）从 tui crate UI 层解耦为独立模块
 - [ ] 收敛 `config` 依赖扇出（上层经由端口读配置，避免直接耦合共享内核）
-- [ ] 持续消除裸 `unwrap()`（现状约 2600 处，生产路径替换为 `?` / `expect`）
+- [ ] 持续消除裸 `unwrap()`（全仓实测 441 处，生产路径替换为 `?` / `expect`；分批推进，见 #537）
 
 ### 12.6 不在本次范围
 
