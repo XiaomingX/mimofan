@@ -288,7 +288,7 @@ reg.register(Box::new(MyTool));
 
 | 我想了解... | 去看... |
 |------------|---------|
-| CLI 命令解析 | `cli/src/lib.rs` |
+| CLI 命令解析 | `tui/src/cli.rs` |
 | TUI 界面渲染 | `tui/src/tui/ui.rs`、`tui/src/tui/widgets/` |
 | 对话轮次循环 | `tui/src/core/engine.rs` |
 | LLM 配置 | `config/src/provider.rs`、`config/src/route/` |

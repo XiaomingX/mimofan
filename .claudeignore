@@ -99,6 +99,7 @@ settings.example.json
 .aiderignore
 .codeiumignore
 .clineignore
+.workbuddy/
 
 # ── Nix 配置 ──
 flake.nix
@@ -137,6 +138,9 @@ workflows/
 # ── Benchmark 结果 ──
 benchmark_results/
 results/
+
+# ── 评估 harness（Python，非核心 Rust，省 token）──
+evals/
 
 # ── 非核心根文件 ──
 package.json
