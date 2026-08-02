@@ -1,4 +1,3 @@
-
 //! Markdown stream collector for live micro-chunk rendering.
 //!
 //! This module implements the pattern from codex-rs where:

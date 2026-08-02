@@ -5,7 +5,6 @@
 //! Artifacts are referenced by bounded metadata; large payloads live on disk
 //! and are never embedded in the ledger.
 
-
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::{BufRead, Write};

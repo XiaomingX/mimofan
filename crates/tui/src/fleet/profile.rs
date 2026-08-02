@@ -1,6 +1,5 @@
 //! Fleet profile vocabulary, local profile discovery, and config-facing aliases.
 
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

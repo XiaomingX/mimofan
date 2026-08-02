@@ -7,8 +7,8 @@
 //! mimofan 仅内置 XiaomiMiMo provider，以及 Custom 用于用户自定义 OpenAI-compatible endpoint。
 
 use super::{
-    DEFAULT_XIAOMI_MIMO_BASE_URL, DEFAULT_XIAOMI_MIMO_MODEL, XIAOMI_MIMO_ANTHROPIC_BASE_URL,
-    ProviderKind,
+    DEFAULT_XIAOMI_MIMO_BASE_URL, DEFAULT_XIAOMI_MIMO_MODEL, ProviderKind,
+    XIAOMI_MIMO_ANTHROPIC_BASE_URL,
 };
 
 /// Wire protocol spoken by a provider.

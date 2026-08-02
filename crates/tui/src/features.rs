@@ -1,4 +1,3 @@
-
 //! Feature flags and metadata for mimofan.
 
 use std::collections::{BTreeMap, BTreeSet};

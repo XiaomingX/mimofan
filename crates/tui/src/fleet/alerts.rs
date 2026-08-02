@@ -1,6 +1,5 @@
 //! Opt-in fleet alert routing and adapter payloads.
 
-
 use std::collections::BTreeMap;
 use std::time::Duration;
 

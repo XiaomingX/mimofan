@@ -18,7 +18,6 @@
 //! never render a child session, which is what keeps the orchestrator light at
 //! high fanout.
 
-
 use anyhow::Result;
 use mimofan_config::FleetExecConfig;
 use mimofan_protocol::fleet::{FleetHostSpec, FleetTaskSpec, FleetWorkerEventPayload};
