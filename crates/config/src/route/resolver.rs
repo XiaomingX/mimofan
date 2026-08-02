@@ -328,6 +328,8 @@ fn classify(kind: ProviderKind) -> ProviderClass {
         // XiaomiMiMo (and anything else) is treated as an aggregator-style
         // pass-through.
         ProviderKind::XiaomiMimo => ProviderClass::Aggregator,
+        // Anthropic Messages API endpoint: pass-through (same as aggregator).
+        ProviderKind::Anthropic => ProviderClass::Aggregator,
     }
 }
 

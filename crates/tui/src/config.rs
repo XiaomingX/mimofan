@@ -39,6 +39,8 @@ const API_KEYRING_SENTINEL: &str = "__KEYRING__";
 #[serde(rename_all = "snake_case")]
 pub enum ApiProvider {
     XiaomiMimo,
+    /// Anthropic Messages API compatible endpoint for Xiaomi MiMo.
+    Anthropic,
     /// User-defined OpenAI-compatible endpoint (#1519).
     Custom,
 }
@@ -46,7 +48,7 @@ pub enum ApiProvider {
 impl ApiProvider {
     #[must_use]
     pub fn names_hint() -> String {
-        "xiaomi_mimo, custom".to_string()
+        "xiaomi_mimo, anthropic, custom".to_string()
     }
 
     #[must_use]
@@ -66,6 +68,7 @@ impl ApiProvider {
     pub fn display_name(self) -> &'static str {
         match self {
             Self::XiaomiMimo => "Xiaomi MiMo",
+            Self::Anthropic => "Xiaomi MiMo (Anthropic)",
             Self::Custom => "Custom",
         }
     }
@@ -114,7 +117,7 @@ impl ApiProvider {
     #[must_use]
     pub fn credential_url(self) -> Option<&'static str> {
         Some(match self {
-            Self::XiaomiMimo => "https://platform.xiaomimimo.com/token-plan",
+            Self::XiaomiMimo | Self::Anthropic => "https://platform.xiaomimimo.com/token-plan",
             Self::Custom => return None,
         })
     }
@@ -126,13 +129,14 @@ impl ApiProvider {
     }
 
     /// `ProviderKind` discriminant → `ApiProvider` lookup.
-    const FROM_KIND_LOOKUP: [Self; 2] = [Self::XiaomiMimo, Self::Custom];
+    const FROM_KIND_LOOKUP: [Self; 3] = [Self::XiaomiMimo, Self::Anthropic, Self::Custom];
 
     /// Map to the config-level `ProviderKind`.
     #[must_use]
     pub fn kind(self) -> Option<mimofan_config::ProviderKind> {
         match self {
             Self::XiaomiMimo => Some(mimofan_config::ProviderKind::XiaomiMimo),
+            Self::Anthropic => Some(mimofan_config::ProviderKind::Anthropic),
             Self::Custom => Some(mimofan_config::ProviderKind::Custom),
         }
     }
@@ -142,6 +146,7 @@ impl ApiProvider {
     pub fn from_kind(kind: mimofan_config::ProviderKind) -> Self {
         match kind {
             mimofan_config::ProviderKind::XiaomiMimo => Self::XiaomiMimo,
+            mimofan_config::ProviderKind::Anthropic => Self::Anthropic,
             mimofan_config::ProviderKind::Custom => Self::Custom,
         }
     }
@@ -183,9 +188,9 @@ fn subagent_provider_key_matches(key: &str, provider: ApiProvider) -> bool {
     }
 
     match provider {
-        ApiProvider::XiaomiMimo => matches!(
+        ApiProvider::XiaomiMimo | ApiProvider::Anthropic => matches!(
             normalized.as_str(),
-            "xiaomi_mimo" | "xiaomi" | "mimo" | "xiaomimimo"
+            "xiaomi_mimo" | "xiaomi" | "mimo" | "xiaomimimo" | "anthropic"
         ),
         ApiProvider::Custom => false,
     }
@@ -371,10 +376,9 @@ pub fn wire_model_for_provider(provider: ApiProvider, model: &str) -> String {
 #[must_use]
 pub fn model_completion_names_for_provider(provider: ApiProvider) -> Vec<&'static str> {
     match provider {
-        ApiProvider::XiaomiMimo => vec![
+        ApiProvider::XiaomiMimo | ApiProvider::Anthropic => vec![
             DEFAULT_XIAOMI_MIMO_MODEL,
             XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL,
-            XIAOMI_MIMO_V2_5_OMNI_MODEL,
         ],
         // Custom endpoints expose no built-in completion names; the user
         // supplies their own model id (#1519).
@@ -1696,13 +1700,7 @@ pub struct ProvidersConfig {
     pub volcengine: ProviderConfig,
     #[serde(default)]
     pub openrouter: ProviderConfig,
-    #[serde(
-        default,
-        alias = "xiaomi",
-        alias = "mimo",
-        alias = "xiaomimimo",
-        alias = "xiaomiMimo"
-    )]
+    #[serde(default, alias = "mimo")]
     pub xiaomi_mimo: ProviderConfig,
     #[serde(default)]
     pub siliconflow: ProviderConfig,
@@ -2023,6 +2021,7 @@ impl Config {
         }
         Some(match provider {
             ApiProvider::XiaomiMimo => &providers.xiaomi_mimo,
+            ApiProvider::Anthropic => &providers.anthropic,
             ApiProvider::Custom => unreachable!("custom provider resolved by name above"),
         })
     }
@@ -2049,6 +2048,7 @@ impl Config {
         }
         match provider {
             ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
+            ApiProvider::Anthropic => &mut providers.anthropic,
             ApiProvider::Custom => unreachable!("custom provider resolved by name above"),
         }
     }
@@ -2134,7 +2134,7 @@ impl Config {
         }
 
         match provider {
-            ApiProvider::XiaomiMimo => DEFAULT_XIAOMI_MIMO_MODEL,
+            ApiProvider::XiaomiMimo | ApiProvider::Anthropic => DEFAULT_XIAOMI_MIMO_MODEL,
             ApiProvider::Custom => mimofan_config::ProviderKind::Custom
                 .provider()
                 .default_model(),
@@ -2166,6 +2166,7 @@ impl Config {
                 .unwrap_or_else(|| {
                     match provider {
                         ApiProvider::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL,
+                        ApiProvider::Anthropic => XIAOMI_MIMO_ANTHROPIC_BASE_URL,
                         ApiProvider::Custom => mimofan_config::ProviderKind::Custom
                             .provider()
                             .default_base_url(),
@@ -2963,6 +2964,13 @@ fn apply_env_overrides(config: &mut Config) {
                     .xiaomi_mimo
                     .base_url = Some(value);
             }
+            ApiProvider::Anthropic => {
+                config
+                    .providers
+                    .get_or_insert_with(ProvidersConfig::default)
+                    .anthropic
+                    .base_url = Some(value);
+            }
             ApiProvider::Custom => {
                 config.provider_config_for_mut(ApiProvider::Custom).base_url = Some(value);
             }
@@ -3074,6 +3082,7 @@ fn apply_env_overrides(config: &mut Config) {
             .get_or_insert_with(ProvidersConfig::default);
         let entry = match provider {
             ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
+            ApiProvider::Anthropic => &mut providers.anthropic,
             ApiProvider::Custom => providers
                 .custom
                 .entry(custom_key.expect("custom key captured for custom provider"))
@@ -3170,6 +3179,7 @@ fn apply_env_overrides(config: &mut Config) {
                 .get_or_insert_with(ProvidersConfig::default);
             let entry = match provider {
                 ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
+                ApiProvider::Anthropic => &mut providers.anthropic,
                 ApiProvider::Custom => providers
                     .custom
                     .entry(custom_key.expect("custom key captured for custom provider"))
@@ -3290,9 +3300,7 @@ fn xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode: &str) -> bool {
 
 fn xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
     let normalized = normalize_base_url(base_url).to_ascii_lowercase();
-    normalized == XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL
-        || normalized == DEFAULT_XIAOMI_MIMO_BASE_URL
-        || normalized == XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL
+    normalized == XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL || normalized == DEFAULT_XIAOMI_MIMO_BASE_URL
 }
 
 fn xiaomi_mimo_env_var(candidates: &[&str]) -> Option<String> {
@@ -3358,11 +3366,11 @@ fn resolve_xiaomi_mimo_base_url(
             if let Some(base_url) = mode_base_url {
                 base_url.to_string()
             } else if uses_standard_mode {
-                XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string()
+                mimofan_config::XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string()
             } else if uses_token_plan || api_key.is_none() {
                 DEFAULT_XIAOMI_MIMO_BASE_URL.to_string()
             } else {
-                XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string()
+                mimofan_config::XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string()
             }
         }
     }
@@ -3680,12 +3688,12 @@ fn merge_providers(
             siliconflow_cn: merge_provider_config(base.siliconflow_cn, override_cfg.siliconflow_cn),
             moonshot: merge_provider_config(base.moonshot, override_cfg.moonshot),
             volcengine: merge_provider_config(base.volcengine, override_cfg.volcengine),
-            qianfan: merge_provider_config(base.qianfan, override_cfg.qianfan),
             openai_codex: merge_provider_config(base.openai_codex, override_cfg.openai_codex),
-            zai: merge_provider_config(base.zai, override_cfg.zai),
-            stepfun: merge_provider_config(base.stepfun, override_cfg.stepfun),
             minimax: merge_provider_config(base.minimax, override_cfg.minimax),
             custom: merge_custom_providers(base.custom, override_cfg.custom),
+            qianfan: merge_provider_config(base.qianfan, override_cfg.qianfan),
+            zai: merge_provider_config(base.zai, override_cfg.zai),
+            stepfun: merge_provider_config(base.stepfun, override_cfg.stepfun),
         }),
     }
 }

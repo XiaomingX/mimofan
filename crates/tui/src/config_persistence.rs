@@ -288,6 +288,7 @@ pub(crate) fn persist_provider_base_url_key(
 fn provider_base_url_table_key(provider: ApiProvider) -> anyhow::Result<&'static str> {
     match provider {
         ApiProvider::XiaomiMimo => Ok("xiaomi_mimo"),
+        ApiProvider::Anthropic => Ok("anthropic"),
         // Custom providers live under a user-chosen `[providers.<name>]` table,
         // not a fixed key. Persisting base_url through this static-key path is
         // out of scope for the #1519 constrained slice; users edit the named

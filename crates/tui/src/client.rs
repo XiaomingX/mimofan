@@ -1556,6 +1556,10 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::XiaomiMimo => {
                 body["thinking"] = json!({ "type": "disabled" });
             }
+            ApiProvider::Anthropic => {
+                // Anthropic uses budget_tokens for thinking control
+                body["thinking"] = json!({ "type": "disabled" });
+            }
             ApiProvider::Custom if is_reasoning_model => {
                 body["reasoning_effort"] = json!("none");
             }
@@ -1563,6 +1567,15 @@ pub(super) fn apply_reasoning_effort(
         },
         "low" | "minimal" | "medium" | "mid" | "high" | "" => match provider {
             ApiProvider::XiaomiMimo => {
+                let value = match normalized.as_str() {
+                    "low" | "minimal" => "low",
+                    "medium" | "mid" => "medium",
+                    _ => "high",
+                };
+                body["reasoning_effort"] = json!(value);
+                body["thinking"] = json!({ "type": "enabled" });
+            }
+            ApiProvider::Anthropic => {
                 let value = match normalized.as_str() {
                     "low" | "minimal" => "low",
                     "medium" | "mid" => "medium",
@@ -1583,6 +1596,10 @@ pub(super) fn apply_reasoning_effort(
         },
         "xhigh" | "max" | "highest" | "ultracode" => match provider {
             ApiProvider::XiaomiMimo => {
+                body["reasoning_effort"] = json!("max");
+                body["thinking"] = json!({ "type": "enabled" });
+            }
+            ApiProvider::Anthropic => {
                 body["reasoning_effort"] = json!("max");
                 body["thinking"] = json!({ "type": "enabled" });
             }

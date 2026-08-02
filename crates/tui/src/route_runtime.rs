@@ -2,7 +2,7 @@ use mimofan_config::route::{
     LogicalModelRef, ReadyRouteCandidate, RouteRequest, RouteResolver, WireModelId,
 };
 
-use crate::config::{ApiProvider, Config, DEFAULT_NVIDIA_NIM_BASE_URL};
+use crate::config::{ApiProvider, Config};
 
 #[derive(Debug, Clone)]
 pub(crate) struct ResolvedRuntimeRoute {
@@ -67,15 +67,6 @@ fn prepared_route_config(
     // resolution and silently misroute.
     if provider != ApiProvider::Custom {
         route_config.provider = Some(provider.as_str().to_string());
-    }
-    if matches!(provider, ApiProvider::XiaomiMimo)
-        && route_config
-            .base_url
-            .as_deref()
-            .map(|base| !base.contains("integrate.api.nvidia.com"))
-            .unwrap_or(true)
-    {
-        route_config.base_url = Some(DEFAULT_NVIDIA_NIM_BASE_URL.to_string());
     }
     if matches!(provider, ApiProvider::XiaomiMimo)
         && route_config

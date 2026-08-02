@@ -14,6 +14,9 @@ pub enum ProviderKind {
     #[default]
     #[serde(alias = "mimo", alias = "xiaomi", alias = "xiaomi_mimo")]
     XiaomiMimo,
+    /// Anthropic Messages API 兼容端点 (https://api.xiaomimimo.com/anthropic)
+    #[serde(alias = "anthropic")]
+    Anthropic,
     /// 用户自定义 OpenAI-compatible endpoint
     ///
     /// 配置时统一使用 `provider = "custom"`，由 base_url 与 model 指定具体网关。
@@ -21,7 +24,7 @@ pub enum ProviderKind {
 }
 
 impl ProviderKind {
-    pub const ALL: [Self; 2] = [Self::XiaomiMimo, Self::Custom];
+    pub const ALL: [Self; 3] = [Self::XiaomiMimo, Self::Anthropic, Self::Custom];
 
     #[must_use]
     pub fn all() -> &'static [Self] {
@@ -41,6 +44,7 @@ impl ProviderKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             ProviderKind::XiaomiMimo => "xiaomi-mimo",
+            ProviderKind::Anthropic => "anthropic",
             ProviderKind::Custom => "custom",
         }
     }

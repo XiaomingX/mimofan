@@ -57,6 +57,9 @@ pub struct ProviderConfigToml {
 pub struct ProvidersToml {
     #[serde(default)]
     pub xiaomi_mimo: ProviderConfigToml,
+    /// Anthropic Messages API compatible endpoint for Xiaomi MiMo.
+    #[serde(default)]
+    pub anthropic: ProviderConfigToml,
     /// Catch-all table for the dynamic OpenAI-compatible custom provider
     /// identity (#1519). Arbitrary `[providers.<name>]` tables are handled by
     /// the tui-side flatten map; this named slot keeps the canonical
@@ -95,6 +98,7 @@ impl ProvidersToml {
     pub fn for_provider(&self, provider: ProviderKind) -> &ProviderConfigToml {
         match provider {
             ProviderKind::XiaomiMimo => &self.xiaomi_mimo,
+            ProviderKind::Anthropic => &self.anthropic,
             ProviderKind::Custom => &self.custom,
         }
     }
@@ -102,6 +106,7 @@ impl ProvidersToml {
     pub fn for_provider_mut(&mut self, provider: ProviderKind) -> &mut ProviderConfigToml {
         match provider {
             ProviderKind::XiaomiMimo => &mut self.xiaomi_mimo,
+            ProviderKind::Anthropic => &mut self.anthropic,
             ProviderKind::Custom => &mut self.custom,
         }
     }
@@ -1870,7 +1875,7 @@ pub fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
         | "xiaomi-mimo-v2.5"
         | "xiaomi-mimo-v2-5"
         | "xiaomi-mimo-v2.5-omni"
-        | "xiaomi-mimo-v2-5-omni" => Some(XIAOMI_MIMO_V2_5_OMNI_MODEL),
+        | "xiaomi-mimo-v2-5-omni" => Some("mimo-v2.5"),
         "asr" | "mimo-asr" | "mimo-v2.5-asr" | "speech-to-text" | "transcribe" => {
             Some(XIAOMI_MIMO_ASR_MODEL)
         }
@@ -1912,6 +1917,7 @@ pub fn canonical_model_name(model: &str) -> Option<&'static str> {
 fn default_model_for_provider(provider: ProviderKind) -> &'static str {
     match provider {
         ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_MODEL,
+        ProviderKind::Anthropic => DEFAULT_XIAOMI_MIMO_MODEL,
         // No built-in default model; the registry placeholder keeps this total.
         ProviderKind::Custom => provider.provider().default_model(),
     }
@@ -1920,6 +1926,7 @@ fn default_model_for_provider(provider: ProviderKind) -> &'static str {
 pub fn default_base_url_for_provider(provider: ProviderKind) -> &'static str {
     match provider {
         ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL,
+        ProviderKind::Anthropic => XIAOMI_MIMO_ANTHROPIC_BASE_URL,
         // No built-in default base URL; the registry placeholder keeps this total.
         ProviderKind::Custom => provider.provider().default_base_url(),
     }
@@ -1946,14 +1953,6 @@ pub fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
         | "sgp"
         | "sg"
         | "singapore" => DEFAULT_XIAOMI_MIMO_BASE_URL,
-        "token-plan-ams"
-        | "token-plan-eu"
-        | "token-plan-europe"
-        | "token-plan-amsterdam"
-        | "ams"
-        | "eu"
-        | "europe"
-        | "amsterdam" => XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL,
         _ => DEFAULT_XIAOMI_MIMO_BASE_URL,
     })
 }
@@ -1969,7 +1968,6 @@ fn xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
     let normalized = base_url.trim_end_matches('/').to_ascii_lowercase();
     normalized == XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL
         || normalized == DEFAULT_XIAOMI_MIMO_BASE_URL
-        || normalized == XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL
 }
 
 fn xiaomi_mimo_env_var(candidates: &[&str]) -> Option<String> {
@@ -3177,6 +3175,7 @@ impl EnvRuntimeOverrides {
         // values (`providers.<name>.base_url`) still win when env is unset.
         match provider {
             ProviderKind::XiaomiMimo => self.xiaomi_mimo_base_url.clone(),
+            ProviderKind::Anthropic => self.xiaomi_mimo_base_url.clone(),
             ProviderKind::Custom => self
                 .custom_base_url
                 .clone()

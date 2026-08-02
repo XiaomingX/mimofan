@@ -2,7 +2,7 @@
 # 使用此配置验证 Anthropic API 连接
 
 provider = "anthropic"
-api_key = "sk-sjpn9lf7wlks5v6d4ytgcui6fq6rjdqto3vr4533qwrl1xw3"
+api_key = "$XIAOMI_MIMO_API_KEY"
 base_url = "https://api.xiaomimimo.com/anthropic"
 default_text_model = "mimo-v2.5"
 

@@ -48,11 +48,7 @@ pub(crate) enum ProviderArg {
     Together,
     OpenaiCodex,
     Anthropic,
-    Zai,
-    Stepfun,
     Minimax,
-    #[value(alias = "deep-infra", alias = "deep_infra")]
-    Deepinfra,
 }
 
 impl From<ProviderArg> for ProviderKind {
@@ -74,10 +70,7 @@ impl From<ProviderArg> for ProviderKind {
             ProviderArg::Together => ProviderKind::XiaomiMimo,
             ProviderArg::OpenaiCodex => ProviderKind::XiaomiMimo,
             ProviderArg::Anthropic => ProviderKind::XiaomiMimo,
-            ProviderArg::Zai => ProviderKind::XiaomiMimo,
-            ProviderArg::Stepfun => ProviderKind::XiaomiMimo,
             ProviderArg::Minimax => ProviderKind::XiaomiMimo,
-            ProviderArg::Deepinfra => ProviderKind::XiaomiMimo,
         }
     }
 }

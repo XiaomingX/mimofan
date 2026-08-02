@@ -6,7 +6,10 @@
 //!
 //! mimofan 仅内置 XiaomiMiMo provider，以及 Custom 用于用户自定义 OpenAI-compatible endpoint。
 
-use super::{DEFAULT_XIAOMI_MIMO_BASE_URL, DEFAULT_XIAOMI_MIMO_MODEL, ProviderKind};
+use super::{
+    DEFAULT_XIAOMI_MIMO_BASE_URL, DEFAULT_XIAOMI_MIMO_MODEL, XIAOMI_MIMO_ANTHROPIC_BASE_URL,
+    ProviderKind,
+};
 
 /// Wire protocol spoken by a provider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -123,6 +126,50 @@ provider!(
     aliases: ["xiaomi_mimo", "xiaomimimo", "mimo", "xiaomi"]
 );
 
+/// Anthropic Messages API compatible endpoint for Xiaomi MiMo.
+///
+/// Uses the native Anthropic wire format (`/v1/messages`) for providers
+/// that support both OpenAI and Anthropic protocols.
+pub struct AnthropicProvider;
+
+impl Provider for AnthropicProvider {
+    fn id(&self) -> &'static str {
+        "anthropic"
+    }
+
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::Anthropic
+    }
+
+    fn display_name(&self) -> &'static str {
+        "Xiaomi MiMo (Anthropic)"
+    }
+
+    fn default_base_url(&self) -> &'static str {
+        XIAOMI_MIMO_ANTHROPIC_BASE_URL
+    }
+
+    fn default_model(&self) -> &'static str {
+        DEFAULT_XIAOMI_MIMO_MODEL
+    }
+
+    fn env_vars(&self) -> &'static [&'static str] {
+        &["XIAOMI_MIMO_API_KEY", "ANTHROPIC_API_KEY"]
+    }
+
+    fn provider_config_key(&self) -> &'static str {
+        "anthropic"
+    }
+
+    fn aliases(&self) -> &'static [&'static str] {
+        &["anthropic"]
+    }
+
+    fn wire(&self) -> WireFormat {
+        WireFormat::AnthropicMessages
+    }
+}
+
 /// User-defined OpenAI-compatible endpoint (#1519).
 ///
 /// A single dynamic provider identity for arbitrary `[providers.<name>]
@@ -180,9 +227,10 @@ impl Provider for Custom {
 }
 
 static XIAOMI_MIMO: XiaomiMimo = XiaomiMimo;
+static ANTHROPIC_PROVIDER: AnthropicProvider = AnthropicProvider;
 static CUSTOM: Custom = Custom;
 
-static PROVIDER_REGISTRY: [&dyn Provider; 2] = [&XIAOMI_MIMO, &CUSTOM];
+static PROVIDER_REGISTRY: [&dyn Provider; 3] = [&XIAOMI_MIMO, &ANTHROPIC_PROVIDER, &CUSTOM];
 
 /// Return all built-in provider metadata entries in `ProviderKind::ALL` order.
 ///
@@ -290,6 +338,11 @@ mod tests {
             providers
                 .iter()
                 .any(|p| p.kind() == ProviderKind::XiaomiMimo)
+        );
+        assert!(
+            providers
+                .iter()
+                .any(|p| p.kind() == ProviderKind::Anthropic)
         );
         assert!(providers.iter().any(|p| p.kind() == ProviderKind::Custom));
     }

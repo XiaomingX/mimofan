@@ -8293,6 +8293,7 @@ fn render(f: &mut Frame, app: &mut App) {
         let effort_label = app.reasoning_effort_display_label();
         let provider_label = match app.api_provider {
             crate::config::ApiProvider::XiaomiMimo => Some("MiMo"),
+            crate::config::ApiProvider::Anthropic => Some("MiMo (Anthropic)"),
             crate::config::ApiProvider::Custom => Some("Custom"),
         };
         let status_indicator_started_at = if app.low_motion {
@@ -9466,6 +9467,7 @@ async fn apply_provider_picker_api_key(
             .get_or_insert_with(ProvidersConfig::default);
         let entry: &mut ProviderConfig = match provider {
             ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
+            ApiProvider::Anthropic => &mut providers.anthropic,
             ApiProvider::Custom => providers
                 .custom
                 .entry(custom_key.expect("custom key captured for custom provider"))
@@ -9518,7 +9520,7 @@ fn set_provider_auth_mode_in_memory(config: &mut Config, provider: ApiProvider, 
         .providers
         .get_or_insert_with(ProvidersConfig::default);
     let entry: &mut ProviderConfig = match provider {
-        ApiProvider::XiaomiMimo => return,
+        ApiProvider::XiaomiMimo | ApiProvider::Anthropic => return,
         ApiProvider::Custom => providers
             .custom
             .entry(custom_key.expect("custom key captured for custom provider"))

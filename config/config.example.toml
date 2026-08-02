@@ -221,6 +221,11 @@ provider = "xiaomi-mimo"
 api_key = "YOUR_XIAOMI_KEY"
 default_text_model = "mimo-v2.5-pro"
 
+[profiles.mimo-anthropic]
+provider = "anthropic"
+api_key = "YOUR_XIAOMI_KEY"
+default_text_model = "mimo-v2.5"
+
 [profiles.deepseek]
 provider = "custom"
 api_key = "YOUR_DEEPSEEK_API_KEY"

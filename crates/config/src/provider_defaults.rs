@@ -26,13 +26,12 @@ pub const DEFAULT_MIMOFAN_FLASH_MODEL: &str = "deepseek-v4-flash";
 // ── Xiaomi MiMo defaults ────────────────────────────────────────────
 pub const DEFAULT_XIAOMI_MIMO_MODEL: &str = "mimo-v2.5-pro";
 pub const XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL: &str = "mimo-v2.5-pro-ultraspeed";
-pub const XIAOMI_MIMO_V2_5_OMNI_MODEL: &str = "mimo-v2.5";
 pub const XIAOMI_MIMO_ASR_MODEL: &str = "mimo-v2.5-asr";
 pub const XIAOMI_MIMO_TTS_MODEL: &str = "mimo-v2.5-tts";
 pub const XIAOMI_MIMO_TTS_VOICE_DESIGN_MODEL: &str = "mimo-v2.5-tts-voicedesign";
 pub const XIAOMI_MIMO_TTS_VOICE_CLONE_MODEL: &str = "mimo-v2.5-tts-voiceclone";
 pub const XIAOMI_MIMO_V2_TTS_MODEL: &str = "mimo-v2-tts";
 pub const XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL: &str = "https://api.xiaomimimo.com/v1";
+pub const XIAOMI_MIMO_ANTHROPIC_BASE_URL: &str = "https://api.xiaomimimo.com/anthropic";
 pub const DEFAULT_XIAOMI_MIMO_BASE_URL: &str = "https://token-plan-sgp.xiaomimimo.com/v1";
 pub const XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL: &str = "https://token-plan-cn.xiaomimimo.com/v1";
-pub const XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL: &str = "https://token-plan-ams.xiaomimimo.com/v1";

@@ -6,8 +6,8 @@ use crate::config::{
     DEFAULT_SUBAGENT_API_TIMEOUT_SECS, DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
     DEFAULT_XIAOMI_MIMO_BASE_URL, MAX_STREAM_CHUNK_TIMEOUT_SECS, MAX_SUBAGENT_API_TIMEOUT_SECS,
     MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, MAX_SUBAGENTS, MIN_STREAM_CHUNK_TIMEOUT_SECS,
-    MIN_SUBAGENT_API_TIMEOUT_SECS, MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, SubagentsConfig,
-    XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL, clear_active_provider_api_key,
+    MIN_SUBAGENT_API_TIMEOUT_SECS, MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,     SubagentsConfig,
+    clear_active_provider_api_key,
     normalize_model_name_for_provider,
 };
 use crate::config_persistence::{
@@ -485,7 +485,7 @@ fn resolve_provider_url_value(provider: ApiProvider, value: &str) -> Result<Stri
                 return Ok(DEFAULT_XIAOMI_MIMO_BASE_URL.to_string());
             }
             "payg" | "pay-go" | "paygo" | "pay-as-you-go" | "pay_as_you_go" | "api" => {
-                return Ok(XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string());
+                return Ok(mimofan_config::XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string());
             }
             _ => {}
         }

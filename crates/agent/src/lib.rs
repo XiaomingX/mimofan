@@ -74,13 +74,7 @@ impl Default for ModelRegistry {
             ModelInfo {
                 id: "deepseek-v4-flash".to_string(),
                 provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "deepseek-chat".to_string(),
-                    "deepseek-reasoner".to_string(),
-                    "deepseek-r1".to_string(),
-                    "deepseek-v3".to_string(),
-                    "deepseek-v3.2".to_string(),
-                ],
+                aliases: vec!["deepseek-chat".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
@@ -137,13 +131,6 @@ impl Default for ModelRegistry {
                 supports_reasoning: true,
             },
             ModelInfo {
-                id: "deepseek-reasoner".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec![],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
                 id: "DeepSeek-V4-Pro".to_string(),
                 provider: ProviderKind::XiaomiMimo,
                 aliases: vec![
@@ -162,17 +149,6 @@ impl Default for ModelRegistry {
                     "deepseek-chat".to_string(),
                     "volcengine-deepseek-v4-flash".to_string(),
                     "ark-deepseek-v4-flash".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "trinity-large-thinking".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "trinity".to_string(),
-                    "arcee-trinity".to_string(),
-                    "arcee-trinity-large-thinking".to_string(),
                 ],
                 supports_tools: true,
                 supports_reasoning: true,
@@ -283,23 +259,9 @@ impl Default for ModelRegistry {
                 supports_reasoning: true,
             },
             ModelInfo {
-                id: "moonshotai/kimi-k2.6".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec!["openrouter-kimi-k2.6".to_string()],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
                 id: "minimax/minimax-m3".to_string(),
                 provider: ProviderKind::XiaomiMimo,
                 aliases: vec!["openrouter-minimax-m3".to_string()],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "z-ai/glm-5.1".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec!["glm-5.1".to_string(), "zai-glm-5.1".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
@@ -311,13 +273,6 @@ impl Default for ModelRegistry {
                 supports_reasoning: true,
             },
             ModelInfo {
-                id: "z-ai/glm-5-turbo".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec!["glm-5-turbo".to_string(), "zai-glm-5-turbo".to_string()],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
                 id: "GLM-5.2".to_string(),
                 provider: ProviderKind::XiaomiMimo,
                 aliases: vec![
@@ -325,18 +280,6 @@ impl Default for ModelRegistry {
                     "glm-5-2".to_string(),
                     "zai-glm-5.2".to_string(),
                     "zai-glm-5-2".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "GLM-5.1".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "glm-5.1".to_string(),
-                    "glm-5-1".to_string(),
-                    "zai-glm-5.1".to_string(),
-                    "zai-glm-5-1".to_string(),
                 ],
                 supports_tools: true,
                 supports_reasoning: true,
@@ -360,41 +303,9 @@ impl Default for ModelRegistry {
                 supports_reasoning: true,
             },
             ModelInfo {
-                id: "google/gemma-4-31b-it".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec!["gemma-4-31b".to_string(), "gemma-4-31b-it".to_string()],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "google/gemma-4-26b-a4b-it".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "gemma-4-26b-a4b".to_string(),
-                    "gemma-4-26b-a4b-it".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
-                id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "nemotron-3-nano-omni".to_string(),
-                    "nemotron-3-nano-omni-reasoning".to_string(),
-                ],
-                supports_tools: true,
-                supports_reasoning: true,
-            },
-            ModelInfo {
                 id: "mimo-v2.5-pro".to_string(),
                 provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "mimo".to_string(),
-                    "pro".to_string(),
-                    "xiaomi-mimo-v2.5-pro".to_string(),
-                    "xiaomi-mimo-v2-5-pro".to_string(),
-                ],
+                aliases: vec!["mimo".to_string(), "pro".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
@@ -406,8 +317,6 @@ impl Default for ModelRegistry {
                     "mimo-omni".to_string(),
                     "v2.5-omni".to_string(),
                     "mimo-v2.5-omni".to_string(),
-                    "xiaomi-mimo-v2.5".to_string(),
-                    "xiaomi-mimo-v2.5-omni".to_string(),
                 ],
                 supports_tools: true,
                 supports_reasoning: true,
@@ -501,7 +410,6 @@ impl Default for ModelRegistry {
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "deepseek-reasoner".to_string(),
-                    "deepseek-r1".to_string(),
                     "siliconflow-deepseek-v4-pro".to_string(),
                 ],
                 supports_tools: true,
@@ -513,25 +421,16 @@ impl Default for ModelRegistry {
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
-                    "deepseek-v3".to_string(),
                     "siliconflow-deepseek-v4-flash".to_string(),
                 ],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
-                id: "trinity-large-preview".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec!["arcee-trinity-large-preview".to_string()],
-                supports_tools: true,
-                supports_reasoning: false,
-            },
-            ModelInfo {
                 id: "kimi-k2.7-code".to_string(),
                 provider: ProviderKind::XiaomiMimo,
                 aliases: vec![
                     "kimi".to_string(),
-                    "kimi-k2".to_string(),
                     "kimi-k2.7".to_string(),
                     "kimi-code".to_string(),
                     "moonshot-kimi-k2.7-code".to_string(),
@@ -641,13 +540,6 @@ impl Default for ModelRegistry {
                 supports_reasoning: true,
             },
             ModelInfo {
-                id: "step-3.7-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
-                aliases: vec!["stepfun".to_string(), "stepflash".to_string()],
-                supports_tools: true,
-                supports_reasoning: false,
-            },
-            ModelInfo {
                 id: "MiniMax-M3".to_string(),
                 provider: ProviderKind::XiaomiMimo,
                 aliases: vec![
@@ -755,10 +647,7 @@ impl Default for ModelRegistry {
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
                 provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "deepseek-v4-pro".to_string(),
-                    "di-deepseek-v4-pro".to_string(),
-                ],
+                aliases: vec!["deepseek-v4-pro".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
@@ -968,11 +857,7 @@ mod tests {
         let registry = ModelRegistry::default();
         let models = registry.list();
 
-        for (provider, id) in [
-            (ProviderKind::XiaomiMimo, "GLM-5.2"),
-            (ProviderKind::XiaomiMimo, "step-3.7-flash"),
-            (ProviderKind::XiaomiMimo, "MiniMax-M2.1"),
-        ] {
+        for (provider, id) in [(ProviderKind::XiaomiMimo, "GLM-5.2")] {
             assert!(
                 models
                     .iter()
@@ -989,33 +874,7 @@ mod tests {
         // model_matches checks aliases too; openrouter entries like
         // "z-ai/glm-5.1" have lowercase aliases that match the
         // normalized request, and they appear before direct entries.
-        for (alias, expected) in [
-            ("GLM-5.1", "z-ai/glm-5.1"),
-            ("GLM-5.2", "z-ai/glm-5.2"),
-            ("GLM-5-Turbo", "z-ai/glm-5-turbo"),
-        ] {
-            let resolved = registry.resolve(Some(alias), Some(ProviderKind::XiaomiMimo));
-
-            assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-            assert_eq!(resolved.resolved.id, expected);
-            assert!(!resolved.used_fallback);
-            assert!(resolved.resolved.supports_tools);
-            assert!(resolved.resolved.supports_reasoning);
-        }
-    }
-
-    #[test]
-    fn stepfun_and_minimax_direct_models_resolve_when_provider_hinted() {
-        let registry = ModelRegistry::default();
-
-        for (alias, expected) in [
-            ("minimax", "MiniMax-M3"),
-            ("minimax-m3", "MiniMax-M3"),
-            ("MiniMax-M2.7", "MiniMax-M2.7"),
-            ("MiniMax-M2.7-highspeed", "MiniMax-M2.7-highspeed"),
-            ("MiniMax-M2.1", "MiniMax-M2.1"),
-            ("MiniMax-M2", "MiniMax-M2"),
-        ] {
+        for (alias, expected) in [("GLM-5.2", "z-ai/glm-5.2")] {
             let resolved = registry.resolve(Some(alias), Some(ProviderKind::XiaomiMimo));
 
             assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);

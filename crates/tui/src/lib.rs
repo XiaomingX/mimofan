@@ -3834,7 +3834,6 @@ fn doctor_xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
     [
         crate::config::XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL,
         crate::config::DEFAULT_XIAOMI_MIMO_BASE_URL,
-        crate::config::XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL,
     ]
     .iter()
     .any(|candidate| normalized == candidate.trim_end_matches('/').to_ascii_lowercase())

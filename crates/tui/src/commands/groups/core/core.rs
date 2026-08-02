@@ -361,11 +361,6 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
             docs_url: "https://docs.sglang.ai/",
             note: "Self-hosted SGLang usually needs a local base URL, not a hosted token.",
         },
-        "vllm" => ProviderLinkInfo {
-            key_url: None,
-            docs_url: "https://docs.vllm.ai/en/stable/serving/openai_compatible_server/",
-            note: "Self-hosted vLLM usually needs a local base URL, not a hosted token.",
-        },
         "openai-codex" => ProviderLinkInfo {
             key_url: None,
             docs_url: "https://developers.openai.com/codex/",
@@ -380,11 +375,6 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
             key_url: None,
             docs_url: "https://docs.z.ai/api-reference/introduction",
             note: "Create or manage Z.ai API keys from the API Keys page linked in the docs.",
-        },
-        "stepfun" => ProviderLinkInfo {
-            key_url: Some("https://platform.stepfun.ai/"),
-            docs_url: "https://platform.stepfun.ai/docs/en/quickstart/overview",
-            note: "Open Account Management > Interface Keys in the StepFun console.",
         },
         "minimax" => ProviderLinkInfo {
             key_url: Some(
