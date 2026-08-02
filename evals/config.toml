@@ -32,6 +32,12 @@ api_key = "$XIAOMI_MIMO_API_KEY"
 model = "mimo-v2.5-pro"
 
 [[models]]
+name = "mimo-anthropic"
+endpoint = "https://api.xiaomimimo.com/anthropic"
+api_key = "$XIAOMI_MIMO_API_KEY"
+model = "mimo-v2.5"
+
+[[models]]
 name = "deepseek-chat"
 endpoint = "https://api.deepseek.com/v1"
 api_key = "$DEEPSEEK_API_KEY"

@@ -1,7 +1,5 @@
 # Claude 项目指南
 
-请先阅读 `AGENTS.md` 了解完整的智能体工作约定。
-
 ## 项目概述
 
 Mimofan 是一个基于 Rust 的终端 AI 编程助手（对标 opencode / claude code），
@@ -123,24 +121,22 @@ config/config.example.toml  示例配置
 
 ### 大文件（已从 .claudeignore 排除）
 
-这些文件稳定且很少修改。此处提供其摘要以避免将数千行加载到上下文中：
+下列文件稳定且很少修改，已从 `.claudeignore` 排除以节省 token；行数会变动，不在此逐一标注。完整索引见 `ARCHITECTURE.md` 第 8 节。
 
-| 文件 | 行数 | 用途 | 关键 API |
-|------|------|------|----------|
-| `localization.rs` | 4,698 | TUI 字符串翻译（zh-Hans） | `tr(MessageId)`、`Locale`、`MessageId` 枚举 |
-| `prompts.rs` | 3,071 | 模式系统提示词 | `PromptSessionContext`、`build_system_prompt()` |
-| `tui/widgets/mod.rs` | 4,848 | UI 组件实现 | `FooterWidget`、`HeaderWidget`、`AgentCard`、`ToolCard` |
-| `tui/views/mod.rs` | 3,125 | 模态框/对话框视图系统 | `ModalKind` 枚举、`CommandPaletteAction`、视图渲染 |
-| `tui/ui.rs` | 11,317 | UI 渲染主循环 | `render()`、`draw_*()` 系列函数 |
-| `tui/lib.rs` | 6,827 | 模块声明与 re-export | 所有 pub 模块入口 |
-| `tools/subagent/mod.rs` | 6,584 | 子智能体工具 | `SubagentTool`、`SubagentConfig` |
-| `tui/app.rs` | 5,922 | TUI 应用状态机 | `App`、`AppEvent`、`handle_key()` |
-| `config.rs` (tui) | 4,602 | TUI 配置管理 | `TuiConfig`、`load_tui_config()` |
-| `runtime_threads.rs` | 3,943 | 线程运行时 | `RuntimeThread`、`ThreadHandle` |
-| `core/engine.rs` | 3,678 | 引擎核心 | `Engine`、`TurnResult`、`dispatch_tool()` |
-| `runtime_api.rs` | 3,444 | 运行时 API | `RuntimeApi`、`send_message()`、`cancel()` |
-| `tools/shell.rs` | 3,413 | Shell 工具 | `ShellTool`、`ShellConfig`、`execute_command()` |
-| `mcp.rs` (tui) | 3,261 | MCP 集成 | `McpManager`、`connect_server()`、`list_tools()` |
+- `crates/tui/src/localization.rs` — TUI 字符串翻译（zh-Hans），`tr(MessageId)`、`Locale`
+- `crates/tui/src/prompts.rs` — 模式系统提示词，`build_system_prompt()`
+- `crates/tui/src/tui/widgets/mod.rs` — UI 组件实现
+- `crates/tui/src/tui/views/mod.rs` — 模态框/对话框视图系统
+- `crates/tui/src/tui/ui.rs` — UI 渲染主循环
+- `crates/tui/src/lib.rs` — 模块声明与 re-export
+- `crates/tui/src/tools/subagent/mod.rs` — 子智能体工具
+- `crates/tui/src/tui/app.rs` — TUI 应用状态机
+- `crates/tui/src/config.rs` — TUI 配置管理
+- `crates/tui/src/runtime_threads.rs` — 线程运行时
+- `crates/tui/src/core/engine.rs` — 引擎核心
+- `crates/tui/src/runtime_api.rs` — 运行时 API
+- `crates/tui/src/tools/shell.rs` — Shell 工具
+- `crates/tui/src/mcp.rs` — MCP 集成
 
 ## 详细文档
 
@@ -281,4 +277,4 @@ cargo clippy --workspace --all-features --locked -- \
 - 按此顺序处理队列：发布阻塞项、最近批准的 PR、小范围的干净 PR、有明显修复的阻塞 PR、可安全收割的脏 PR，然后是更大的架构问题。
 - 优先在暂存分支上批量发现 PR 冲突，然后将已审查、已署名、已测试的切片收割回发布分支。
 - 在声称问题完成之前，验证分支是否已包含等效工作。如果已包含，准备 GitHub 注释/关闭路径而非重新实现。
-- 见 `AGENTS.md` -> "当前工作位置" 了解构建/测试命令、已知套件问题和已移除机制护栏（仅限智能体表面、无生命周期/一致性系统）。
+- 见上方「构建 / 测试 / 格式化快速参考」了解构建/测试命令，以及「关键设计约束」了解已移除机制护栏（仅限智能体表面、无生命周期/一致性系统）。

@@ -200,26 +200,24 @@ mimofan 是一个**跑在本地的 AI 编码助手**。用户用自然语言下�
 
 ---
 
-## 8. 大文件摘要
+## 8. 大文件索引
 
-以下文件超过 2000 行，已在 `.claudeignore` 中排除以节省 token。
+以下文件稳定且很少修改，已从 `.claudeignore` 排除以节省 token；行数会变动，不在此逐一标注。完整列表见 `.claudeignore` 的「超大稳定模块」段。
 
-| 文件 | 行数 | 用途 | 关键 API |
-|------|------|------|----------|
-| `localization.rs` | 4,698 | TUI 字符串翻译（zh-Hans） | `tr(MessageId)`、`Locale`、`MessageId` 枚举 |
-| `prompts.rs` | 3,071 | 模式系统提示词 | `PromptSessionContext`、`build_system_prompt()` |
-| `tui/widgets/mod.rs` | 2,986 | UI 组件实现 | `FooterWidget`、`HeaderWidget`、`AgentCard`、`ToolCard` |
-| `tui/views/mod.rs` | 2,205 | 模态框/对话框视图系统 | `ModalKind` 枚举、`CommandPaletteAction`、视图渲染 |
-| `tui/ui.rs` | 11,317 | UI 渲染主循环 | `render()`、`draw_*()` 系列函数 |
-| `tui/lib.rs` | 6,827 | 模块声明与 re-export | 所有 pub 模块入口 |
-| `tools/subagent/mod.rs` | 6,584 | 子智能体工具 | `SubagentTool`、`SubagentConfig` |
-| `tui/app.rs` | 5,922 | TUI 应用状态机 | `App`、`AppEvent`、`handle_key()` |
-| `config.rs` (tui) | 4,602 | TUI 配置管理 | `TuiConfig`、`load_tui_config()` |
-| `runtime_threads.rs` | 3,943 | 线程运行时 | `RuntimeThread`、`ThreadHandle` |
-| `core/engine.rs` | 3,678 | 引擎核心 | `Engine`、`TurnResult`、`dispatch_tool()` |
-| `runtime_api.rs` | 3,444 | 运行时 API | `RuntimeApi`、`send_message()`、`cancel()` |
-| `tools/shell.rs` | 3,413 | Shell 工具 | `ShellTool`、`ShellConfig`、`execute_command()` |
-| `mcp.rs` (tui) | 3,261 | MCP 集成 | `McpManager`、`connect_server()`、`list_tools()` |
+- `crates/tui/src/tui/ui.rs` — UI 渲染主循环
+- `crates/tui/src/lib.rs` — 模块声明与 re-export
+- `crates/tui/src/tools/subagent/mod.rs` — 子智能体工具
+- `crates/tui/src/tui/app.rs` — TUI 应用状态机
+- `crates/tui/src/config.rs` — TUI 配置管理
+- `crates/tui/src/runtime_threads.rs` — 线程运行时
+- `crates/tui/src/core/engine.rs` — 引擎核心
+- `crates/tui/src/runtime_api.rs` — 运行时 API
+- `crates/tui/src/tools/shell.rs` — Shell 工具
+- `crates/tui/src/mcp.rs` — MCP 集成
+- `crates/tui/src/prompts.rs` — 模式系统提示词
+- `crates/tui/src/localization.rs` — TUI 字符串翻译（zh-Hans）
+- `crates/tui/src/tui/widgets/mod.rs` — UI 组件实现
+- `crates/tui/src/tui/views/mod.rs` — 模态框/对话框视图
 
 ---
 
@@ -316,3 +314,105 @@ reg.register(Box::new(MyTool));
 | 加 IM 桥 | `integrations/<bridge-name>/` | ~300-500 行 |
 | 自定义主题 | `tui/src/` 主题相关 | ~50 行 |
 | 改审批策略 | `execpolicy/src/lib.rs` | ~100 行 |
+
+---
+
+## 12. DDD 架构分析与改进计划
+
+> 视角：资深架构师 · 第一性原理 + 领域驱动设计（DDD）
+> 约束：本次重构**只动底层**（领域/基础设施），**不改动**用户与外部系统的交互层（TUI / CLI / MCP / HTTP / ACP 的对外接口与行为保持不变）。
+
+### 12.1 第一性原理：这个系统到底解决什么
+
+把"在终端里跑一个 AI 编程搭档"拆到不可再分：
+
+- **输入**：用户的自然语言指令 + 当前代码库上下文。
+- **决策**：调用哪家大模型、用什么人格/模式/审批策略。
+- **动作**：读写文件、跑命令、调外部工具（MCP）。
+- **闭环**：模型输出 → 工具执行 → 结果回灌 → 再决策，直到任务完成。
+- **状态**：会话/记忆需持久化，密钥需安全管理。
+
+由此自然导出几个本质关注点（限界上下文）：**配置与路由、模型网关、对话与状态、工具与外部协议、密钥与安全**。mimofan 用 14 个 crate 把这些关注点分开——这是它架构上最正确的决定。
+
+### 12.2 架构精妙之处（已经做对的）
+
+1. **线协议先行（`protocol` crate）**：App/Thread/Prompt/Event 等跨进程 DTO 单独成 crate，TUI、app-server、MCP 都围着同一套类型说话。这是 DDD 中"共享内核"的干净实现，让"多前端共享同一内核"成为可能。
+2. **领域运行时聚合根（`core::Runtime`）**：把 ThreadManager、JobManager、工具/MCP/hooks 编排收口到一个 Runtime，而不是让 UI 到处 new。方向正确。
+3. **配置单一内核（`config` crate）**：服务商、路由、模型清单、定价集中管理，全仓以 `ProviderKind` 为新类型标识，避免"字符串满天飞"。
+4. **提示词分层 + 编译期嵌入**：constitution / modes / personalities / approvals 分层，用 `include_str!` 内嵌，字节稳定、零运行时 IO。是"提示词即代码"的好范式。
+5. **端口化扩展（trait）**：加工具 = 实现 `Tool` trait，加钩子 = `Hook` trait，加沙箱后端 = `SandboxBackend` trait。符合 DDD"通过端口适配外部系统"，扩展面清晰。
+6. **零官方 LLM SDK**：自研 OpenAI/Anthropic wire format 适配，依赖面小、可控。
+
+### 12.3 架构边界问题（需要修的）
+
+以下均为代码探查得到的事实，非臆断：
+
+1. **`tui` crate 过度膨胀（最严重）**：392 个 `.rs` 文件、约 20.7 万行，占全仓绝对主体。TUI 渲染、CLI 派发、MCP 客户端、LLM 客户端、提示词、本地化全挤在一个 crate。违反单一职责，导致编译慢、认知负荷高、修改易牵连。
+2. **UI 层直连底层 IO**：`tui/ui.rs` 直接在视图模块里 `static BALANCE_CLIENT: LazyLock<reqwest::Client>` 拉余额（网络 IO 在视图层）；`file_tree.rs`/`sidebar.rs`/`clipboard.rs` 等多处直接用 `std::fs`/`std::process`（文件 IO 在视图层）。DDD 中 UI 应是纯展现，IO 应通过端口（Repository / HttpClient）注入。
+3. **MCP 双实现边界不清**：有规范的 `mimofan-mcp` crate（被 core 用），又有 tui 自研的 `tui/src/mcp.rs`（基于 rmcp，三千余行）。两套客户端职责重叠，新人难判断该用哪个。
+4. **`lib.rs` 上帝文件**：`tui/src/lib.rs` 同时承载 clap 定义、全局 `run()`、panic/signal 处理、以及 Doctor/Models/Eval/Fleet 等多个子命令处理函数。单一文件承担"入口 + 编排 + 多用例"。
+5. **`mcp_server.rs` 跨层穿透**：`tui/src/mcp_server.rs` 直接 `use crate::client::ApiClient; crate::llm_client::LlmClient; crate::session_manager; crate::tools`，边界适配器穿透到内部领域对象。
+6. **`config` 依赖扇出大**：config 被 agent/app-server/core/state/tui 共 5 个 crate 直接依赖，是事实上的共享内核；改动面大，且易诱使上层直接读配置而非经由端口。
+
+### 12.4 目标架构（DDD 分层重构方案）
+
+按 DDD 经典四层，把现有 crate 重新归类，明确依赖方向（上层依赖下层，下层不反向依赖）：
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ 接口适配层 (Interface Adapters) —— 用户/外部系统交互层（本次不动）  │
+│  TUI(ratatui) │ CLI(clap) │ app-server(axum HTTP/SSE/stdio)        │
+│  MCP server │ ACP server │ integrations/(feishu/weixin, Node)      │
+└───────────────────────────────────────┬──────────────────────────┘
+                                         │ 调用
+┌────────────────────────────────────────▼──────────────────────────┐
+│ 应用层 (Application) —— 用例编排                                       │
+│  core::Runtime  (Turn Loop / ThreadManager / JobManager)            │
+└───────────────────────────────────────┬──────────────────────────┘
+                                         │ 依赖领域
+┌────────────────────────────────────────▼──────────────────────────┐
+│ 领域层 (Domain) —— 纯业务逻辑，不依赖 IO 框架                         │
+│  config(配置/路由) │ agent(模型网关) │ tools(工具定义)                │
+│  protocol(线协议 DTO) │ memory(记忆)                                 │
+└───────────────────────────────────────┬──────────────────────────┘
+                                         │ 通过端口适配
+┌────────────────────────────────────────▼──────────────────────────┐
+│ 基础设施层 (Infrastructure) —— 端口的实现                             │
+│  secrets(密钥) │ execpolicy(沙箱/审批) │ hooks(生命周期)             │
+│  mcp(外部工具协议) │ state(SQLite 持久化)                            │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+关键约束（奥卡姆：少即是多）：
+
+- **只收敛职责，不制造 crate 数量爆炸**：优先在 `tui` crate 内部按子目录归并（已有 `tools/` `core/` `fleet/` 先例），不盲目拆几十个新 crate。
+- **IO 收口**：UI 层不再直接 `reqwest`/`std::fs`，改为依赖 core 暴露的端口（如 `BalanceProvider`、`WorkspaceFs`），由基础设施层实现。
+- **MCP 客户端归一**：明确 `mimofan-mcp` 为唯一规范客户端；`tui::mcp` 仅保留"服务端暴露工具给外部"的职责，客户端逻辑下沉到 crate。
+- **提示词/本地化解耦**：`prompts/` 与 `localization.rs` 与 UI 渲染无关，宜归到独立模块（甚至独立 crate），由 core/tui 按需引用，而非塞在 tui crate。
+
+### 12.5 改进计划 checklist
+
+**已实现（[x]）：**
+
+- [x] 统一 `.claudeignore` / `.cursorignore` / `.windsurfignore`，减少 AI 上下文 token 浪费
+- [x] 合并冗余 AI 工作流文档（AGENTS.md 内容并入 CLAUDE.md，删除 AGENTS.md）
+- [x] 清理 LEGACY_ / dead_code 早期遗留（前期会话）
+- [x] 移除无关第三方端点 `DEFAULT_NVIDIA_NIM_BASE_URL` 及其遗留强制改写逻辑
+- [x] 移除 MiMo AMS 区域端点与 `xiaomi-mimo-v2-5-omni` 模型别名（含底层 const 与解析分支，统一为 SGP 默认 + CN 可选；`api.xiaomimimo.com/v1` 网关保留）
+
+**待办（[ ]，均来自 12.3 的真实问题，非可有可无）：**
+
+- [ ] 拆分 `tui/ui.rs` 上帝文件（目标单文件 < 1000 行；按 chat/sidebar/footer/picker 拆子模块）
+- [ ] 拆分 `tui/lib.rs`（clap 定义 / `run()` / panic-signal / 子命令处理分离）
+- [ ] 将 UI 层直连 IO 收口到端口（余额请求、`std::fs` 散落点改为经 core 端口）
+- [ ] 统一 MCP 客户端：明确 `mimofan-mcp` 为规范客户端，`tui::mcp` 仅保留服务端职责
+- [ ] 收敛 `mcp_server.rs` 跨层穿透（不再直接 use client/llm_client/session_manager）
+- [ ] 提示词资源（`prompts/`）与本地化（`localization.rs`）从 tui crate UI 层解耦为独立模块
+- [ ] 收敛 `config` 依赖扇出（上层经由端口读配置，避免直接耦合共享内核）
+- [ ] 持续消除裸 `unwrap()`（现状约 2600 处，生产路径替换为 `?` / `expect`）
+
+### 12.6 不在本次范围
+
+- 不改动任何对外交互接口与用户可见行为（CLI 子命令、MCP 工具、HTTP 路由、TUI 操作、配置键名）。
+- 不新增功能；只做存量优化与边界收敛。
+- 不全面翻译 20 万行英文注释（风险高、收益低）；仅清理确属无用的版权 boilerplate 与过时注释。
