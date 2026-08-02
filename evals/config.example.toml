@@ -1,0 +1,38 @@
+# ============================================================================
+# mimofan 横向模型对比 —— 配置模板
+# 用法：复制本文件为同目录下的 config.toml，填写后运行 `python cli.py run`。
+#       config.toml 不建议入库；密钥一律通过 $ENV 引用，避免明文落盘。
+# ============================================================================
+
+[settings]
+# 每个提示词重复次数（repeat>1 时才会计算「自一致性」）
+repeat = 1
+# 单次请求超时（秒）
+timeout_seconds = 120
+# 是否开启流式（开启后可测 TTFT；部分网关不支持流式，请按需关闭）
+stream = false
+# 样本提示词文件：相对仓库根的路径，harness 会自动向上查找
+prompts_path = "benchmark/model-comparison/prompts.jsonl"
+# 报告输出目录：相对本配置文件所在目录（默认 evals/out）
+output_dir = "out"
+
+# 可选裁判模型：用于 LLM-as-judge 质量评分（1-10）。
+# 留空则只使用「启发式质量」与「参考准确率」两类指标。
+# 支持 $ENV 读取密钥。
+[judge]
+endpoint = ""
+api_key = ""
+model = ""
+
+# ── 待对比模型：任意增加 [[models]] 项即可 ────────────────────────────────
+[[models]]
+name = "mimo-pro"
+endpoint = "https://api.xiaomimimo.com/v1"
+api_key = "$XIAOMI_MIMO_API_KEY"
+model = "mimo-v2.5-pro"
+
+[[models]]
+name = "deepseek-chat"
+endpoint = "https://api.deepseek.com/v1"
+api_key = "$DEEPSEEK_API_KEY"
+model = "deepseek-chat"
