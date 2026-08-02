@@ -1,10 +1,10 @@
 // clap 命令行定义（从 lib.rs 抽离，纯物理拆分，零行为变化）
-use std::path::{Path, PathBuf};
-use clap::{Args, Parser, Subcommand, ValueEnum};
-use clap_complete::Shell;
 use crate::config::Config;
 use crate::latest_session_id_for_workspace;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
+use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -419,7 +419,6 @@ pub(crate) enum FleetAlertAdapterArg {
     PagerDuty,
 }
 
-
 pub(crate) fn join_prompt_parts(parts: &[String]) -> String {
     parts.join(" ")
 }
@@ -446,7 +445,10 @@ pub(crate) fn top_level_prompt_initial_input(parts: &[String]) -> Option<crate::
     (!parts.is_empty()).then(|| crate::tui::InitialInput::Submit(join_prompt_parts(parts)))
 }
 
-pub(crate) fn resolve_exec_resume_session_id(args: &ExecArgs, workspace: &Path) -> Result<Option<String>> {
+pub(crate) fn resolve_exec_resume_session_id(
+    args: &ExecArgs,
+    workspace: &Path,
+) -> Result<Option<String>> {
     if let Some(id) = args.resume.as_ref().or(args.session_id.as_ref()) {
         return Ok(Some(id.clone()));
     }
@@ -591,7 +593,7 @@ pub(crate) struct FeatureToggles {
 }
 
 impl FeatureToggles {
-pub(crate) fn apply(&self, config: &mut Config) -> Result<()> {
+    pub(crate) fn apply(&self, config: &mut Config) -> Result<()> {
         for feature in &self.enable {
             config.set_feature(feature, true)?;
         }
@@ -706,7 +708,12 @@ pub(crate) fn resolve_serve_bind_host(mobile: bool, host: Option<String>) -> Ser
     }
 }
 
-pub(crate) fn validate_serve_mode_selection(mcp: bool, http: bool, mobile: bool, acp: bool) -> Result<bool> {
+pub(crate) fn validate_serve_mode_selection(
+    mcp: bool,
+    http: bool,
+    mobile: bool,
+    acp: bool,
+) -> Result<bool> {
     if http && mobile {
         bail!("--http and --mobile are mutually exclusive; choose one");
     }

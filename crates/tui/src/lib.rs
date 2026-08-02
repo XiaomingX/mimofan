@@ -59,6 +59,7 @@ mod mimofan_theme;
 pub use fleet::observability::{
     AgentMetrics, AgentTopology, FleetStatusSummary, ObservabilityCollector,
 };
+mod cli;
 mod goal_loop;
 mod hooks;
 mod llm_client;
@@ -121,7 +122,6 @@ mod worker_profile;
 mod working_set;
 mod workspace_discovery;
 mod workspace_trust;
-mod cli;
 use crate::cli::*;
 use crate::config::{Config, DEFAULT_TEXT_MODEL, MAX_SUBAGENTS, effective_home_dir};
 use crate::eval::{EvalHarness, EvalHarnessConfig, ScenarioStepKind};
@@ -138,7 +138,6 @@ fn configure_windows_console_utf8() {}
 fn install_rustls_crypto_provider() {
     crate::tls::ensure_rustls_crypto_provider();
 }
-
 
 pub async fn run() -> Result<()> {
     configure_windows_console_utf8();
