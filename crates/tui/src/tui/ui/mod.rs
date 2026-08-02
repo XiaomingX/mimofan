@@ -4,7 +4,7 @@ use std::collections::{HashSet, VecDeque};
 use std::fmt::Write as _;
 use std::io::{self, Stdout, Write};
 use std::path::PathBuf;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::resource_telemetry::{TokenThroughput, estimate_output_tokens_from_text};
@@ -142,6 +142,9 @@ use terminal_input::TerminalInputPump;
 
 mod translation_event;
 use translation_event::TranslationEvent;
+
+mod ports;
+use ports::{BalanceProvider, ReqwestBalanceProvider};
 
 // === Constants ===
 
@@ -655,6 +658,7 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
         task_manager,
         &event_broker,
         translation_client,
+        Arc::new(ReqwestBalanceProvider::new()),
     )
     .await;
     automation_cancel.cancel();
@@ -1294,42 +1298,20 @@ fn active_rlm_task_entries(app: &App) -> Vec<TaskPanelEntry> {
 /// Minimum interval between balance API fetches to avoid flooding.
 const BALANCE_FETCH_COOLDOWN: Duration = Duration::from_secs(60);
 
-/// Shared `reqwest::Client` for balance fetches so connection pools are
-/// reused across successive background polls.
-static BALANCE_CLIENT: LazyLock<::reqwest::Client> = LazyLock::new(|| {
-    crate::tls::reqwest_client_builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .unwrap_or_default()
-});
-
 /// Fetch the DeepSeek account balance from the balance API.
 ///
 /// Returns `None` on any error (network, auth, parse) — callers should treat
 /// a `None` return as "balance unknown" and keep the previous value.
+/// Fetch the DeepSeek account balance via the injected [`BalanceProvider`].
+///
+/// Returns `None` on any error (network, auth, parse) — callers should treat
+/// a `None` return as "balance unknown" and keep the previous value.
 async fn fetch_deepseek_balance(
+    provider: &impl BalanceProvider,
     api_key: &str,
     base_url: &str,
 ) -> Option<crate::pricing::BalanceInfo> {
-    let url = format!("{}/user/balance", base_url.trim_end_matches('/'));
-    let client = &*BALANCE_CLIENT;
-    let response = client
-        .get(url)
-        .header("Authorization", format!("Bearer {api_key}"))
-        .send()
-        .await
-        .ok()?;
-    if !response.status().is_success() {
-        tracing::debug!(
-            "balance API returned {}: {}",
-            response.status().as_u16(),
-            response.text().await.unwrap_or_default()
-        );
-        return None;
-    }
-    let body: crate::pricing::BalanceResponse = response.json().await.ok()?;
-    // Return the first balance entry (typically the user's primary currency).
-    body.balance_infos.into_iter().next()
+    provider.fetch_balance(api_key, base_url).await
 }
 
 fn should_fetch_deepseek_balance(app: &App) -> bool {
@@ -1346,6 +1328,7 @@ async fn run_event_loop(
     task_manager: SharedTaskManager,
     event_broker: &EventBroker,
     translation_client: Option<Arc<ApiClient>>,
+    balance_provider: Arc<impl BalanceProvider + 'static>,
 ) -> Result<()> {
     // Subscribe to task completion events for proactive notification.
     let mut task_completion_rx = task_manager.subscribe_completions();
@@ -1402,8 +1385,9 @@ async fn run_event_loop(
         let base_url = config.api_base_url();
         if !api_key.is_empty() {
             app.last_balance_fetch = Some(Instant::now());
+            let provider = balance_provider.clone();
             tokio::spawn(async move {
-                if let Some(info) = fetch_deepseek_balance(&api_key, &base_url).await
+                if let Some(info) = fetch_deepseek_balance(&*provider, &api_key, &base_url).await
                     && let Ok(mut guard) = cell.lock()
                 {
                     *guard = Some(info);
@@ -2260,9 +2244,10 @@ async fn run_event_loop(
                             let base_url = config.api_base_url();
                             if !api_key.is_empty() {
                                 app.last_balance_fetch = Some(Instant::now());
+                                let provider = balance_provider.clone();
                                 tokio::spawn(async move {
                                     if let Some(info) =
-                                        fetch_deepseek_balance(&api_key, &base_url).await
+                                        fetch_deepseek_balance(&*provider, &api_key, &base_url).await
                                         && let Ok(mut guard) = cell.lock()
                                     {
                                         *guard = Some(info);
@@ -6993,7 +6978,9 @@ async fn apply_command_result(
                     if !api_key.is_empty() {
                         app.last_balance_fetch = Some(Instant::now());
                         tokio::spawn(async move {
-                            if let Some(info) = fetch_deepseek_balance(&api_key, &base_url).await
+                            let provider = ReqwestBalanceProvider::new();
+                            if let Some(info) =
+                                fetch_deepseek_balance(&provider, &api_key, &base_url).await
                                 && let Ok(mut guard) = cell.lock()
                             {
                                 *guard = Some(info);
