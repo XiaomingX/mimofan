@@ -349,7 +349,7 @@ reg.register(Box::new(MyTool));
 
 1. **`tui` crate 过度膨胀（最严重）**：392 个 `.rs` 文件、约 20.7 万行，占全仓绝对主体。TUI 渲染、CLI 派发、MCP 客户端、LLM 客户端、提示词、本地化全挤在一个 crate。违反单一职责，导致编译慢、认知负荷高、修改易牵连。
 2. **UI 层直连底层 IO**：`tui/ui.rs` 直接在视图模块里 `static BALANCE_CLIENT: LazyLock<reqwest::Client>` 拉余额（网络 IO 在视图层）；`file_tree.rs`/`sidebar.rs`/`clipboard.rs` 等多处直接用 `std::fs`/`std::process`（文件 IO 在视图层）。DDD 中 UI 应是纯展现，IO 应通过端口（Repository / HttpClient）注入。
-3. **MCP 双实现边界不清**：有规范的 `mimofan-mcp` crate（被 core 用），又有 tui 自研的 `tui/src/mcp.rs`（基于 rmcp，三千余行）。两套客户端职责重叠，新人难判断该用哪个。
+3. **MCP 职责边界表述需校正（原「双实现」措辞不准确）**：经核查，`mimofan-mcp`（`crates/mcp`）的 `Cargo.toml` 仅依赖 `anyhow/serde/serde_json`，**不含 `rmcp`**——它并非连接外部 server 的客户端，而是两类能力：(a) **服务端框架** `run_stdio_server`（把 mimofan 自身工具经 JSON-RPC stdio 暴露给外部 MCP 客户端，自身仅用 `InMemoryMcpClient` 桩做自检）；(b) **注入式代理** `McpManager`（持有 `Box<dyn McpManagedClient>`，代理 `list_tools/call_tool`，目前唯一实现是测试用的 `InMemoryMcpClient`）。真正基于 **rmcp** 连接外部 server 的客户端**只**在 `tui/src/mcp.rs`（约 3197 行）。两者是**互补**（服务端框架 + 注入式代理 vs 真实外部客户端），**并非重复实现**。关于「统一」的真实路径与约束，见第 12.5 节「统一 MCP 客户端」待办。
 4. **`lib.rs` 上帝文件**：`tui/src/lib.rs` 同时承载 clap 定义、全局 `run()`、panic/signal 处理、以及 Doctor/Models/Eval/Fleet 等多个子命令处理函数。单一文件承担"入口 + 编排 + 多用例"。
 5. **`mcp_server.rs` 跨层穿透**：`tui/src/mcp_server.rs` 直接 `use crate::client::ApiClient; crate::llm_client::LlmClient; crate::session_manager; crate::tools`，边界适配器穿透到内部领域对象。
 6. **`config` 依赖扇出大**：config 被 agent/app-server/core/state/tui 共 5 个 crate 直接依赖，是事实上的共享内核；改动面大，且易诱使上层直接读配置而非经由端口。
@@ -387,7 +387,7 @@ reg.register(Box::new(MyTool));
 
 - **只收敛职责，不制造 crate 数量爆炸**：优先在 `tui` crate 内部按子目录归并（已有 `tools/` `core/` `fleet/` 先例），不盲目拆几十个新 crate。
 - **IO 收口**：UI 层不再直接 `reqwest`/`std::fs`，改为依赖 core 暴露的端口（如 `BalanceProvider`、`WorkspaceFs`），由基础设施层实现。
-- **MCP 客户端归一**：明确 `mimofan-mcp` 为唯一规范客户端；`tui::mcp` 仅保留"服务端暴露工具给外部"的职责，客户端逻辑下沉到 crate。
+- **MCP 客户端归一（范围需校正）**：原「明确 `mimofan-mcp` 为唯一规范客户端」的措辞基于「双实现」误述。校正值：真实统一路径是让 `tui/src/mcp.rs` 的 rmcp 外部客户端**实现 `crates/mcp` 的 `McpManagedClient` trait**，并注入 `McpManager` 作为唯一编排入口（`tui::mcp` 同时保留「服务端暴露工具给外部」职责，即 `mcp_server.rs` 那类）。但这会改动 TUI 连接/调用外部 MCP 工具的方式，属**用户可见行为**，与 12.6「不改用户可见行为」约束冲突，故**不在本次存量优化范围**，留作后续单独评估行为兼容。详见 issue #530。
 - **提示词/本地化解耦**：`prompts/` 与 `localization.rs` 与 UI 渲染无关，宜归到独立模块（甚至独立 crate），由 core/tui 按需引用，而非塞在 tui crate。
 
 ### 12.5 改进计划 checklist
@@ -406,7 +406,7 @@ reg.register(Box::new(MyTool));
 - [x] 抽离 `tui/lib.rs` 的 panic-signal 处理到独立 `signals.rs`（无跨模块引用，零行为变化；clap 定义 / `run()` / 子命令处理仍待进一步拆分）
 - [ ] 继续拆分 `tui/lib.rs`（clap 定义 / `run()` / 子命令处理分离；注意 clap 类型当前均为私有，需先 `pub` 化并收敛 14 处跨模块引用）
 - [ ] 将 UI 层直连 IO 收口到端口（余额请求、`std::fs` 散落点改为经 core 端口）
-- [ ] 统一 MCP 客户端：明确 `mimofan-mcp` 为规范客户端，`tui::mcp` 仅保留服务端职责
+- [ ] 统一 MCP 客户端：经核查 `mimofan-mcp` 非客户端实现（无 rmcp 依赖），与 `tui/src/mcp.rs` 是互补而非重复；真实统一路径=让 tui 的 rmcp 客户端实现 `crates/mcp` 的 `McpManagedClient` 并注入 `McpManager`。该改动涉及 TUI 连外部 MCP 工具的用户可见行为，受 12.6 约束，本次**不实施**，留作后续（见 issue #530）
 - [x] 收敛 `mcp_server.rs` 跨层穿透：引入 `McpBackend` 端口（依赖反转），删除死导入 `LlmClient`；`mcp_server` 仅依赖抽象、由组合根（`run_mcp_server`）注入 `RealMcpBackend`，不再直接 `use client`/`llm_client`/`session_manager`/`config`；对外签名与协议不变（见 PR 关联 issue #528）
 - [ ] 提示词资源（`prompts/`）与本地化（`localization.rs`）从 tui crate UI 层解耦为独立模块
 - [ ] 收敛 `config` 依赖扇出（上层经由端口读配置，避免直接耦合共享内核）
