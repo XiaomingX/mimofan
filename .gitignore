@@ -111,7 +111,7 @@ web/pnpm-lock.yaml
 !.github/scripts/**
 !benchmark/*.sh
 !web/public/install.sh
-!redeploy.sh
+!build/*.sh
 !evals/*.sh
 test.txt
 TODO*.md

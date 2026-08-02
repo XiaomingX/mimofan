@@ -7,20 +7,12 @@
 ```
 benchmark/
 ├── README.md                    # 本文件
-├── config.env                   # 统一配置文件
-├── release_check.sh             # 发布前验收脚本（必须通过）
-├── run_all.sh                   # 一键运行所有测试
-├── test_api_endpoints.sh        # API 端点验收测试
-├── test_mimofan_integration.sh  # mimofan 集成测试
-├── tui_benchmark.sh             # 基准测试（exec + CLI 命令）
-├── prompts/                     # 测试用例
-│   ├── code_generation.txt      # 代码生成测试
-│   ├── knowledge_qa.txt         # 知识问答测试
-│   ├── math_reasoning.txt       # 数学推理测试
-│   ├── creative_writing.txt     # 创意写作测试
-│   └── multi_turn.txt           # 多轮对话测试
-├── metrics.sh                   # 评估指标计算
-└── results/                     # 测试结果输出目录
+├── configs/                     # 配置文件
+├── docker/                      # Docker 配置
+├── memory/                      # 记忆系统测试
+├── model-comparison/            # 横向模型对比样本
+├── run_observability_bench.sh   # fleet::observability 测试
+└── run_all.sh                   # 一键运行所有测试
 ```
 
 ## 评估指标
@@ -62,14 +54,6 @@ export MIMOFAN_TEST_BASE_URL=your_base_url
 export MIMOFAN_TEST_MODEL=your_model
 ```
 
-### 发布前验收（必须通过）
-
-每次发布前运行此脚本，确保基本功能正常：
-
-```bash
-./release_check.sh
-```
-
 ### 一键运行所有测试
 
 ```bash
@@ -78,36 +62,12 @@ export MIMOFAN_TEST_MODEL=your_model
 
 ### 单独运行测试
 
-#### API 端点验收测试
+#### fleet::observability 测试
 
-测试两种 API 端点是否都能正常工作：
-- Anthropic Messages API (`/anthropic/v1/messages`)
-- OpenAI Chat Completions API (`/v1/chat/completions`)
+验收 fleet 可观测性能力：
 
 ```bash
-./test_api_endpoints.sh
-```
-
-#### mimofan 集成测试
-
-测试 mimofan 二进制能否正确调用两种 API 端点：
-
-```bash
-./test_mimofan_integration.sh
-```
-
-#### 基准测试
-
-运行所有 exec 和 CLI 命令测试：
-
-```bash
-./tui_benchmark.sh
-```
-
-#### 计算评估指标
-
-```bash
-./metrics.sh results/
+./run_observability_bench.sh
 ```
 
 ### API 路由逻辑
