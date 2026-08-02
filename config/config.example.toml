@@ -11,7 +11,7 @@
 # ─────────────────────────────────────────────────────────────────────────────────
 # 选择默认使用的服务商。现在主要推荐使用 [profiles.xxx] 来管理多套环境。
 # 为了向后兼容，如果未指定 provider，顶层的 `api_key` 和 `base_url` 依然被视为默认配置。
-provider = "deepseek"
+provider = "custom"
 api_key = "YOUR_DEEPSEEK_API_KEY" # 必须非空
 base_url = "https://api.deepseek.com/beta"
 # provider = "deepseek-cn"                       # 官方 API 的国内别名
@@ -222,12 +222,12 @@ api_key = "YOUR_XIAOMI_KEY"
 default_text_model = "mimo-v2.5-pro"
 
 [profiles.deepseek]
-provider = "deepseek"
+provider = "custom"
 api_key = "YOUR_DEEPSEEK_API_KEY"
 default_text_model = "deepseek-v4-pro"
 
 [profiles.nvidia-nim]
-provider = "nvidia-nim"
+provider = "custom"
 api_key = "YOUR_NVIDIA_API_KEY"
 base_url = "https://integrate.api.nvidia.com/v1"
 default_text_model = "deepseek-ai/deepseek-v4-pro"

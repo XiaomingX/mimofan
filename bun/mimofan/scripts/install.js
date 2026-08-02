@@ -81,21 +81,19 @@ class DownloadTimeoutError extends Error {
 function resolvePackageVersion() {
   const configuredVersion =
     process.env.MIMOFAN_VERSION ||
-    process.env.DEEPSEEK_VERSION ||
-    pkg.deepseekBinaryVersion ||
+    pkg.mimofanBinaryVersion ||
     pkg.version;
   return String(configuredVersion).trim();
 }
 
 function resolveRepo() {
-  return process.env.MIMOFAN_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "XiaomingX/mimofan";
+  return process.env.MIMOFAN_GITHUB_REPO || "XiaomingX/mimofan";
 }
 
 function isOptionalInstall(argv = process.argv.slice(2), env = process.env) {
   return (
     argv.includes("--optional") ||
-    env.MIMOFAN_OPTIONAL_INSTALL === "1" ||
-    env.DEEPSEEK_OPTIONAL_INSTALL === "1"
+    env.MIMOFAN_OPTIONAL_INSTALL === "1"
   );
 }
 
@@ -184,8 +182,7 @@ function installFailureHint(error) {
   const message = error && error.message ? String(error.message) : "";
   const code = error && error.code ? String(error.code) : "";
   const releaseBase =
-    process.env.MIMOFAN_RELEASE_BASE_URL ||
-    process.env.DEEPSEEK_RELEASE_BASE_URL;
+    process.env.MIMOFAN_RELEASE_BASE_URL;
   const networkMarkers = [
     "github.com",
     "ENOTFOUND",
@@ -235,19 +232,11 @@ function envInt(name, fallback) {
 }
 
 function downloadTimeoutMs(context = "runtime") {
-  return envInt(
-    "MIMOFAN_DOWNLOAD_TIMEOUT_MS",
-    envInt("MIMOFAN_DOWNLOAD_TIMEOUT_MS",
-      envInt("DEEPSEEK_DOWNLOAD_TIMEOUT_MS", defaultTimeoutMs(context))),
-  );
+  return envInt("MIMOFAN_DOWNLOAD_TIMEOUT_MS", defaultTimeoutMs(context));
 }
 
 function downloadStallMs(context = "runtime") {
-  return envInt(
-    "MIMOFAN_DOWNLOAD_STALL_MS",
-    envInt("MIMOFAN_DOWNLOAD_STALL_MS",
-      envInt("DEEPSEEK_DOWNLOAD_STALL_MS", defaultStallMs(context))),
-  );
+  return envInt("MIMOFAN_DOWNLOAD_STALL_MS", defaultStallMs(context));
 }
 
 function formatMb(bytes) {
@@ -1068,7 +1057,7 @@ async function adoptExistingBinaryIfValid(targetPath, assetName, version, getChe
 async function ensureBinary(targetPath, assetName, version, repo, getChecksums, options = {}) {
   const marker = `${targetPath}.version`;
   const downloadIfNeeded =
-    process.env.MIMOFAN_FORCE_DOWNLOAD === "1" || process.env.DEEPSEEK_FORCE_DOWNLOAD === "1";
+    process.env.MIMOFAN_FORCE_DOWNLOAD === "1";
   if (!downloadIfNeeded) {
     const existing = await fileExists(targetPath);
     if (existing) {
@@ -1115,7 +1104,7 @@ function shouldIgnoreInstallFailure(
 async function run(options = {}) {
   const context =
     options.context === undefined || options.context === null ? "runtime" : options.context;
-  if (process.env.MIMOFAN_DISABLE_INSTALL === "1" || process.env.DEEPSEEK_DISABLE_INSTALL === "1") {
+  if (process.env.MIMOFAN_DISABLE_INSTALL === "1") {
     return;
   }
   if (shouldSkipOptionalPostinstall(context)) {

@@ -33,6 +33,22 @@ if [ -z "${MIMOFAN_TEST_API_KEY:-}" ]; then
     exit 1
 fi
 
+# 运行 API 端点测试
+echo -e "\n${YELLOW}Running API Endpoint Tests...${NC}"
+if "${SCRIPT_DIR}/test_api_endpoints.sh"; then
+    echo -e "${GREEN}API Endpoint Tests completed successfully${NC}"
+else
+    echo -e "${RED}API Endpoint Tests had failures${NC}"
+fi
+
+# 运行集成测试
+echo -e "\n${YELLOW}Running Integration Tests...${NC}"
+if "${SCRIPT_DIR}/test_mimofan_integration.sh"; then
+    echo -e "${GREEN}Integration Tests completed successfully${NC}"
+else
+    echo -e "${RED}Integration Tests had failures${NC}"
+fi
+
 # 运行基准测试（包含所有 exec 和 CLI 命令测试）
 echo -e "\n${YELLOW}Running Benchmark...${NC}"
 if "${SCRIPT_DIR}/tui_benchmark.sh"; then

@@ -243,16 +243,16 @@ impl AutoReviewRule {
     }
 
     fn matches(&self, ctx: &AutoReviewContext<'_>) -> bool {
-        if let Some(tool_name) = self.tool_name.as_deref() {
-            if tool_name != ctx.tool_name {
-                return false;
-            }
+        if let Some(tool_name) = self.tool_name.as_deref()
+            && tool_name != ctx.tool_name
+        {
+            return false;
         }
 
-        if let Some(action_kind) = self.action_kind {
-            if action_kind != ctx.action_kind {
-                return false;
-            }
+        if let Some(action_kind) = self.action_kind
+            && action_kind != ctx.action_kind
+        {
+            return false;
         }
 
         if let Some(text) = self.text_contains.as_deref() {

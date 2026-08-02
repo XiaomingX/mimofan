@@ -1,6 +1,5 @@
 //! Opt-in fleet alert routing and adapter payloads.
 
-#![allow(dead_code)]
 
 use std::collections::BTreeMap;
 use std::time::Duration;

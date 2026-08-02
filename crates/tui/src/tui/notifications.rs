@@ -438,7 +438,7 @@ fn file_sound() {
 #[cfg(target_os = "macos")]
 fn is_terminal_focused() -> bool {
     let output = match std::process::Command::new("osascript")
-        .args(&["-e", "tell application \"System Events\" to get name of first process whose frontmost is true"])
+        .args(["-e", "tell application \"System Events\" to get name of first process whose frontmost is true"])
         .output()
     {
         Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).trim().to_string(),

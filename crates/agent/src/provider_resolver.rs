@@ -23,21 +23,6 @@ pub(crate) fn preserve_requested_model_id_case(mut model: ModelInfo, requested: 
     model
 }
 
-pub(crate) fn atlascloud_passthrough_model(requested: &str) -> Option<ModelInfo> {
-    let requested = requested.trim();
-    if requested.is_empty() || !requested.contains('/') {
-        return None;
-    }
-
-    Some(ModelInfo {
-        id: requested.to_string(),
-        provider: ProviderKind::XiaomiMimo,
-        aliases: Vec::new(),
-        supports_tools: true,
-        supports_reasoning: true,
-    })
-}
-
 pub(crate) fn arcee_passthrough_model(requested: &str) -> Option<ModelInfo> {
     let requested = requested.trim();
     if requested.is_empty() {

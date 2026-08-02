@@ -236,17 +236,16 @@ impl ToolSpec for FetchUrlTool {
 
         let mut body_text = String::from_utf8_lossy(usable).to_string();
 
-        if is_forbidden_or_js_spa
+        if (is_forbidden_or_js_spa
             || body_text.contains("<noscript>")
-            || body_text.contains("Just a moment...")
+            || body_text.contains("Just a moment..."))
+            && let Ok(headless_res) = try_headless_browser_fetch(&final_url).await
         {
-            if let Ok(headless_res) = try_headless_browser_fetch(&final_url).await {
-                tracing::info!(
-                    "Successfully performed Headless Browser fallback for {}",
-                    final_url
-                );
-                body_text = headless_res;
-            }
+            tracing::info!(
+                "Successfully performed Headless Browser fallback for {}",
+                final_url
+            );
+            body_text = headless_res;
         }
         let fields = project_json_fields(&body_text, &content_type, &requested_fields)?;
         let processed = match format {
@@ -546,12 +545,12 @@ async fn try_headless_browser_fetch(url: &str) -> Result<String, ToolError> {
                         .output(),
                 )
                 .await;
-                if let Ok(Ok(out)) = result {
-                    if out.status.success() {
-                        let dom = String::from_utf8_lossy(&out.stdout).to_string();
-                        if !dom.is_empty() {
-                            return Ok(dom);
-                        }
+                if let Ok(Ok(out)) = result
+                    && out.status.success()
+                {
+                    let dom = String::from_utf8_lossy(&out.stdout).to_string();
+                    if !dom.is_empty() {
+                        return Ok(dom);
                     }
                 }
                 // If this browser failed, try the next one rather than hanging.

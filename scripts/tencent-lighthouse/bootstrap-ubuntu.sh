@@ -6,15 +6,15 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-MIMOFAN_USER="${MIMOFAN_USER:-${DEEPSEEK_USER:-mimofan}}"
-MIMOFAN_ROOT="${MIMOFAN_ROOT:-${DEEPSEEK_ROOT:-/opt/mimofan}}"
+MIMOFAN_USER="${MIMOFAN_USER:-mimofan}"
+MIMOFAN_ROOT="${MIMOFAN_ROOT:-/opt/mimofan}"
 WHALEBRO_ROOT="${WHALEBRO_ROOT:-/opt/whalebro}"
-REPO_URL="${MIMOFAN_REPO_URL:-${DEEPSEEK_REPO_URL:-https://github.com/XiaomingX/mimofan.git}}"
+REPO_URL="${MIMOFAN_REPO_URL:-https://github.com/XiaomingX/mimofan.git}"
 WHALEBRO_EXTRA_REPOS="${WHALEBRO_EXTRA_REPOS:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SOURCE_BRANCH="$(git -C "${SOURCE_ROOT}" branch --show-current 2>/dev/null || true)"
-REPO_BRANCH="${MIMOFAN_REPO_BRANCH:-${DEEPSEEK_REPO_BRANCH:-${SOURCE_BRANCH:-main}}}"
+REPO_BRANCH="${MIMOFAN_REPO_BRANCH:-${SOURCE_BRANCH:-main}}"
 
 apt-get update
 apt-get install -y \

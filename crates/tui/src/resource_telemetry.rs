@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 //! Resource-usage telemetry for long-running mimofan tasks.
 //!

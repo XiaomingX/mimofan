@@ -42,6 +42,7 @@ struct EmbeddingRequest {
 #[derive(Debug, Deserialize)]
 struct EmbeddingResponse {
     data: Vec<EmbeddingData>,
+    #[allow(dead_code)]
     model: String,
     usage: EmbeddingUsage,
 }
@@ -49,12 +50,15 @@ struct EmbeddingResponse {
 #[derive(Debug, Deserialize)]
 struct EmbeddingData {
     embedding: Vec<f32>,
+    #[allow(dead_code)]
     index: usize,
 }
 
 #[derive(Debug, Deserialize)]
 struct EmbeddingUsage {
+    #[allow(dead_code)]
     prompt_tokens: usize,
+    #[allow(dead_code)]
     total_tokens: usize,
 }
 

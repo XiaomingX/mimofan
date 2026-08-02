@@ -867,7 +867,11 @@ fn api_provider_uses_anthropic_messages(api_provider: ApiProvider, base_url: &st
     // `https://api.xiaomimimo.com/anthropic`) the gateway expects the native
     // Anthropic Messages wire format. Other base URLs (token-plan pay-as-you-
     // go, local proxies, custom gateways) keep using the Responses dialect.
-    if matches!(api_provider, ApiProvider::XiaomiMimo) {
+    //
+    // For Custom providers, also detect Anthropic Messages API if the base_url
+    // ends with `/anthropic`. This enables custom providers to work with
+    // Anthropic-compatible API endpoints.
+    if matches!(api_provider, ApiProvider::XiaomiMimo | ApiProvider::Custom) {
         return base_url.trim_end_matches('/').ends_with("/anthropic");
     }
     false
@@ -1767,13 +1771,32 @@ mod tests {
     }
 
     #[test]
-    fn non_xiaomi_providers_never_use_anthropic_messages() {
-        // No other provider exposes the Anthropic Messages dialect yet.
+    fn custom_provider_with_anthropic_url_uses_messages_api() {
+        // Custom providers with /anthropic base URL should use Anthropic Messages API.
         let provider = ApiProvider::Custom;
         assert!(
-            !api_provider_uses_anthropic_messages(provider, "https://api.xiaomimimo.com/anthropic"),
-            "{provider:?} should not dispatch through Anthropic Messages"
+            api_provider_uses_anthropic_messages(provider, "https://api.xiaomimimo.com/anthropic"),
+            "{provider:?} with /anthropic URL should dispatch through Anthropic Messages"
         );
+    }
+
+    #[test]
+    fn custom_provider_with_v1_url_uses_chat_completions() {
+        // Custom providers with /v1 base URL should use OpenAI Chat Completions API.
+        let provider = ApiProvider::Custom;
+        assert!(
+            !api_provider_uses_anthropic_messages(provider, "https://api.xiaomimimo.com/v1"),
+            "{provider:?} with /v1 URL should NOT dispatch through Anthropic Messages"
+        );
+    }
+
+    #[test]
+    fn xiaomi_mimo_with_v1_url_uses_chat_completions() {
+        // XiaomiMimo with /v1 base URL should use OpenAI Chat Completions API.
+        assert!(!api_provider_uses_anthropic_messages(
+            ApiProvider::XiaomiMimo,
+            "https://api.xiaomimimo.com/v1"
+        ));
     }
 
     // ── MessageRequest::response_format round-trip (#0.0.3-rc.3) ──────────

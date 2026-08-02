@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 //! Feature flags and metadata for mimofan.
 

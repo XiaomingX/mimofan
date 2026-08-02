@@ -4741,77 +4741,76 @@ async fn run_subagent(
         // (both derive from `response.usage`), so the scope accounting stays
         // consistent and is never inflated by this check.
         tokens_used = tokens_used.saturating_add(usage_total_tokens(&response.usage));
-        if let Some(budget) = token_budget {
-            if tokens_used > budget {
-                record_agent_progress(
-                    runtime,
-                    &agent_id,
-                    format!(
-                        "{}: token budget exhausted ({tokens_used}/{budget})",
-                        format_step_counter(steps, max_steps)
-                    ),
-                );
-                if let Some(mb) = runtime.mailbox.as_ref() {
-                    let _ = mb.send(MailboxMessage::Cancelled {
-                        agent_id: agent_id.clone(),
-                    });
-                }
-                let status = SubAgentStatus::BudgetExhausted;
-                let duration_ms =
-                    u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX);
-                latest_checkpoint = Some(
-                    checkpoint_subagent_progress(
-                        runtime,
-                        &agent_id,
-                        "token_budget_exhausted",
-                        &messages,
-                        steps,
-                        true,
-                    )
-                    .await,
-                );
-                insert_subagent_full_transcript_handle(
-                    runtime,
-                    &agent_id,
-                    &agent_type,
-                    &assignment,
-                    &status,
-                    final_result.as_ref(),
-                    latest_checkpoint.as_ref(),
-                    &messages,
-                    steps,
-                    duration_ms,
-                    fork_context_enabled,
-                )
-                .await;
-                return Ok(SubAgentResult {
-                    name: agent_id.clone(),
+        if let Some(budget) = token_budget
+            && tokens_used > budget
+        {
+            record_agent_progress(
+                runtime,
+                &agent_id,
+                format!(
+                    "{}: token budget exhausted ({tokens_used}/{budget})",
+                    format_step_counter(steps, max_steps)
+                ),
+            );
+            if let Some(mb) = runtime.mailbox.as_ref() {
+                let _ = mb.send(MailboxMessage::Cancelled {
                     agent_id: agent_id.clone(),
-                    context_mode: if fork_context_enabled {
-                        "forked"
-                    } else {
-                        "fresh"
-                    }
-                    .to_string(),
-                    fork_context: fork_context_enabled,
-                    workspace: Some(runtime.context.workspace.clone()),
-                    git_branch: current_git_branch(&runtime.context.workspace),
-                    agent_type: agent_type.clone(),
-                    assignment: assignment.clone(),
-                    model: runtime.model.clone(),
-                    nickname: None,
-                    status,
-                    worker_status: None,
-                    parent_run_id: runtime.parent_agent_id.clone(),
-                    spawn_depth: runtime.spawn_depth,
-                    result: final_result.clone(),
-                    steps_taken: steps,
-                    checkpoint: latest_checkpoint.clone(),
-                    needs_input: None,
-                    duration_ms,
-                    from_prior_session: false,
                 });
             }
+            let status = SubAgentStatus::BudgetExhausted;
+            let duration_ms = u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX);
+            latest_checkpoint = Some(
+                checkpoint_subagent_progress(
+                    runtime,
+                    &agent_id,
+                    "token_budget_exhausted",
+                    &messages,
+                    steps,
+                    true,
+                )
+                .await,
+            );
+            insert_subagent_full_transcript_handle(
+                runtime,
+                &agent_id,
+                &agent_type,
+                &assignment,
+                &status,
+                final_result.as_ref(),
+                latest_checkpoint.as_ref(),
+                &messages,
+                steps,
+                duration_ms,
+                fork_context_enabled,
+            )
+            .await;
+            return Ok(SubAgentResult {
+                name: agent_id.clone(),
+                agent_id: agent_id.clone(),
+                context_mode: if fork_context_enabled {
+                    "forked"
+                } else {
+                    "fresh"
+                }
+                .to_string(),
+                fork_context: fork_context_enabled,
+                workspace: Some(runtime.context.workspace.clone()),
+                git_branch: current_git_branch(&runtime.context.workspace),
+                agent_type: agent_type.clone(),
+                assignment: assignment.clone(),
+                model: runtime.model.clone(),
+                nickname: None,
+                status,
+                worker_status: None,
+                parent_run_id: runtime.parent_agent_id.clone(),
+                spawn_depth: runtime.spawn_depth,
+                result: final_result.clone(),
+                steps_taken: steps,
+                checkpoint: latest_checkpoint.clone(),
+                needs_input: None,
+                duration_ms,
+                from_prior_session: false,
+            });
         }
 
         for block in &response.content {

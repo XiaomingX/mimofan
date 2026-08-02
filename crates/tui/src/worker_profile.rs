@@ -14,7 +14,6 @@
 //! contract. Runtime enforcement of every declared field remains incremental
 //! follow-up work (#3217).
 
-#![allow(dead_code)] // foundation: consumers are wired in a follow-up (#3217).
 
 use crate::tools::subagent::SubAgentType;
 use serde::{Deserialize, Serialize};

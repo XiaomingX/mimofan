@@ -23,7 +23,6 @@ pub use mimofan_config::DEFAULT_XIAOMI_MIMO_BASE_URL;
 pub use mimofan_config::XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL;
 pub use mimofan_config::XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL;
 pub use mimofan_config::XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL;
-pub use mimofan_config::XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL;
 pub use mimofan_config::XIAOMI_MIMO_V2_5_OMNI_MODEL;
 pub use mimofan_config::XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL;
 

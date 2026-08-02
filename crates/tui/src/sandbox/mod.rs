@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 //! Sandbox module for secure command execution.
 //!

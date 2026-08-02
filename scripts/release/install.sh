@@ -54,7 +54,7 @@ preflight_glibc() {
     if [[ "$(uname -s)" != "Linux" ]]; then
         return 0
     fi
-    if [[ "${MIMOFAN_SKIP_GLIBC_CHECK:-}" == "1" || "${MIMOFAN_SKIP_GLIBC_CHECK:-}" == "1" || "${MIMOFAN_SKIP_GLIBC_CHECK:-}" == "1" || "${DEEPSEEK_SKIP_GLIBC_CHECK:-}" == "1" ]]; then
+    if [[ "${MIMOFAN_SKIP_GLIBC_CHECK:-}" == "1" ]]; then
         return 0
     fi
 

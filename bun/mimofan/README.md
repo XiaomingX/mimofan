@@ -75,11 +75,11 @@ build-from-source guide.
 
 | Setting | What it does |
 | --- | --- |
-| `mimofanBinaryVersion` in `package.json` | Default native binary version. `deepseekBinaryVersion` is still read as a backward-compat fallback. |
-| `MIMOFAN_RELEASE_BASE_URL` | Canonical override: use an internal or mirrored release-asset directory when GitHub Releases is unavailable. The directory must contain `mimofan-artifacts-sha256.txt` and the platform binaries. `MIMOFAN_RELEASE_BASE_URL` is the primary alias; legacy `DEEPSEEK_*` names also work. |
+| `mimofanBinaryVersion` in `package.json` | Default native binary version. |
+| `MIMOFAN_RELEASE_BASE_URL` | Canonical override: use an internal or mirrored release-asset directory when GitHub Releases is unavailable. The directory must contain `mimofan-artifacts-sha256.txt` and the platform binaries. |
 | `MIMOFAN_USE_CNB_MIRROR=1` | Download release assets from the CNB (China-friendly) mirror instead of GitHub. |
-| `MIMOFAN_VERSION` | Override the GitHub release version to download. Legacy `DEEPSEEK_VERSION` also works. |
-| `MIMOFAN_GITHUB_REPO` | Override the source repo. Defaults to `XiaomingX/mimofan`. Legacy `DEEPSEEK_GITHUB_REPO` also works. |
+| `MIMOFAN_VERSION` | Override the GitHub release version to download. |
+| `MIMOFAN_GITHUB_REPO` | Override the source repo. Defaults to `XiaomingX/mimofan`. |
 | `MIMOFAN_FORCE_DOWNLOAD=1` | Force download even when the cached binary is already present. |
 | `MIMOFAN_DISABLE_INSTALL=1` | Skip install-time download. |
 | `MIMOFAN_OPTIONAL_INSTALL=1` | Make install-time retryable download failures warn and exit `0` instead of failing `bun install`. |

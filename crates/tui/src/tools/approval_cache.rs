@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! Per‑call approval cache with fingerprint keys (§5.A).
 //!
 //! Instead of caching by tool name alone (which would let an approved
@@ -141,10 +140,7 @@ pub fn build_approval_key(tool_name: &str, input: &serde_json::Value) -> Approva
         "apply_patch" | "write_file" | "edit_file" | "fim_edit" => {
             format!("file:{tool_name}:{}", hash_json_value(input))
         }
-        "exec_shell"
-        | "task_shell_start"
-        | "exec_shell_wait"
-        | "exec_shell_interact" => {
+        "exec_shell" | "task_shell_start" | "exec_shell_wait" | "exec_shell_interact" => {
             format!("shell:{tool_name}:{}", hash_json_value(input))
         }
         "fetch_url" | "web.fetch" | "web_fetch" => {
@@ -169,10 +165,7 @@ pub fn build_approval_grouping_key(tool_name: &str, input: &serde_json::Value) -
             let paths_hash = hash_patch_paths(input);
             format!("patch:{paths_hash}")
         }
-        "exec_shell"
-        | "task_shell_start"
-        | "exec_shell_wait"
-        | "exec_shell_interact" => {
+        "exec_shell" | "task_shell_start" | "exec_shell_wait" | "exec_shell_interact" => {
             let prefix = command_prefix(input);
             format!("shell:{prefix}")
         }

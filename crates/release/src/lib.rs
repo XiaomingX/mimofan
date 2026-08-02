@@ -17,34 +17,15 @@ pub const LATEST_RELEASE_URL: &str =
 pub const RELEASES_URL: &str =
     "https://api.github.com/repos/XiaomingX/mimofan/releases?per_page=100";
 
-/// Base URL of the mimofan repository on the CNB mirror platform.
-pub const CNB_REPO_URL: &str = "https://cnb.cool/XiaomingX/mimofan";
-
 /// Environment variable that overrides the base URL for release asset downloads.
 pub const RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
-
-/// Legacy environment variable (alias for [`RELEASE_BASE_URL_ENV`]).
-pub const LEGACY_RELEASE_BASE_URL_ENV: &str = "CODEWHALE_RELEASE_BASE_URL";
-
-/// Legacy environment variable (alias for [`RELEASE_BASE_URL_ENV`]).
-pub const MIMOFAN_RELEASE_BASE_URL_ENV: &str = "MIMOFAN_RELEASE_BASE_URL";
-
-/// Environment variable that, when set, enables the CNB mirror for downloads.
-pub const CNB_MIRROR_ENV: &str = "MIMOFAN_USE_CNB_MIRROR";
 
 /// Environment variable that pins the update target version.
 pub const UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
 
-/// Legacy environment variable (alias for [`UPDATE_VERSION_ENV`]).
-pub const LEGACY_UPDATE_VERSION_ENV: &str = "CODEWHALE_VERSION";
-
-/// Legacy environment variable (alias for [`UPDATE_VERSION_ENV`]).
-pub const MIMOFAN_UPDATE_VERSION_ENV: &str = "MIMOFAN_VERSION";
-
 /// User-Agent header sent with release metadata requests.
 pub const UPDATE_USER_AGENT: &str = "mimofan-updater";
 
-const CNB_RELEASE_ASSET_BASE: &str = "https://cnb.cool/XiaomingX/mimofan/-/releases";
 const RELEASE_METADATA_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The release channel to query for updates.
@@ -86,7 +67,7 @@ pub enum ReleaseQuery {
 /// environment-variable overrides (mirror URL, pinned version) into account.
 pub fn resolve_release_query(channel: ReleaseChannel) -> ReleaseQuery {
     let version = update_version_from_env().unwrap_or_else(|| env!("CARGO_PKG_VERSION").into());
-    if let Some(base_url) = release_base_url_from_env(&version) {
+    if let Some(base_url) = release_base_url_from_env() {
         return ReleaseQuery::Mirror { base_url, version };
     }
 
@@ -98,46 +79,23 @@ pub fn resolve_release_query(channel: ReleaseChannel) -> ReleaseQuery {
     }
 }
 
-/// Reads the release base URL from environment variables, falling back to the
-/// CNB mirror if `MIMOFAN_USE_CNB_MIRROR` is set. Returns `None` when no
-/// override is configured.
-pub fn release_base_url_from_env(version: &str) -> Option<String> {
-    for env_name in [
-        RELEASE_BASE_URL_ENV,
-        LEGACY_RELEASE_BASE_URL_ENV,
-        MIMOFAN_RELEASE_BASE_URL_ENV,
-    ] {
-        if let Ok(value) = std::env::var(env_name) {
-            let trimmed = value.trim().to_string();
-            if !trimmed.is_empty() {
-                return Some(trimmed);
-            }
+/// Reads the release base URL from environment variables.
+/// Returns `None` when no override is configured.
+pub fn release_base_url_from_env() -> Option<String> {
+    if let Ok(value) = std::env::var(RELEASE_BASE_URL_ENV) {
+        let trimmed = value.trim().to_string();
+        if !trimmed.is_empty() {
+            return Some(trimmed);
         }
-    }
-
-    if std::env::var(CNB_MIRROR_ENV).is_ok() {
-        return Some(cnb_release_base_url(version));
     }
     None
 }
 
-/// Constructs the CNB mirror asset URL for a given version tag.
-pub fn cnb_release_base_url(version: &str) -> String {
-    format!(
-        "{}/v{}",
-        CNB_RELEASE_ASSET_BASE.trim_end_matches('/'),
-        version.trim_start_matches('v')
-    )
-}
-
 /// Returns the pinned update version from environment variables, or `None`
-/// if neither `MIMOFAN_VERSION`, `MIMOFAN_VERSION`, nor
-/// `MIMOFAN_VERSION` is set.
+/// if `MIMOFAN_VERSION` is not set or empty.
 pub fn update_version_from_env() -> Option<String> {
     std::env::var(UPDATE_VERSION_ENV)
         .ok()
-        .or_else(|| std::env::var(LEGACY_UPDATE_VERSION_ENV).ok())
-        .or_else(|| std::env::var(MIMOFAN_UPDATE_VERSION_ENV).ok())
         .map(|value| value.trim().trim_start_matches('v').to_string())
         .filter(|value| !value.is_empty())
 }
@@ -152,11 +110,8 @@ pub fn mirror_asset_url(base_url: &str, asset_name: &str) -> String {
 pub fn update_network_fallback_hint() -> String {
     format!(
         "GitHub release downloads may be blocked or slow on this network.\n\
-         For mainland China, use one of these fallback paths:\n\
-           1. Source build from the CNB mirror:\n\
-              cargo install --git {CNB_REPO_URL} --tag vX.Y.Z mimofan --locked --force\n\
-           2. Use a binary asset mirror:\n\
-              {RELEASE_BASE_URL_ENV}=https://<mirror>/<release-assets>/ {UPDATE_VERSION_ENV}=X.Y.Z mimofan update\n\
+         Use a binary asset mirror:\n\
+           {RELEASE_BASE_URL_ENV}=https://<mirror>/<release-assets>/ {UPDATE_VERSION_ENV}=X.Y.Z mimofan update\n\
          The mirror directory must contain {CHECKSUM_MANIFEST_ASSET} and the platform binaries."
     )
 }
@@ -323,15 +278,7 @@ mod tests {
     use super::*;
 
     static RELEASE_ENV_LOCK: Mutex<()> = Mutex::new(());
-    const RELEASE_ENV_VARS: &[&str] = &[
-        RELEASE_BASE_URL_ENV,
-        LEGACY_RELEASE_BASE_URL_ENV,
-        MIMOFAN_RELEASE_BASE_URL_ENV,
-        CNB_MIRROR_ENV,
-        UPDATE_VERSION_ENV,
-        LEGACY_UPDATE_VERSION_ENV,
-        MIMOFAN_UPDATE_VERSION_ENV,
-    ];
+    const RELEASE_ENV_VARS: &[&str] = &[RELEASE_BASE_URL_ENV, UPDATE_VERSION_ENV];
 
     struct ReleaseEnvGuard {
         previous: Vec<(&'static str, Option<OsString>)>,
@@ -424,40 +371,17 @@ mod tests {
     fn release_base_url_from_env_returns_none_without_overrides() {
         let _env = ReleaseEnvGuard::clear();
 
-        assert_eq!(release_base_url_from_env("1.0.0"), None);
+        assert_eq!(release_base_url_from_env(), None);
     }
 
     #[test]
-    fn release_base_url_from_env_prefers_primary_override() {
+    fn release_base_url_from_env_uses_primary_override() {
         let _env = ReleaseEnvGuard::clear();
         set_release_env(RELEASE_BASE_URL_ENV, "https://primary.example.com");
-        set_release_env(LEGACY_RELEASE_BASE_URL_ENV, "https://legacy.example.com");
 
         assert_eq!(
-            release_base_url_from_env("1.0.0"),
+            release_base_url_from_env(),
             Some("https://primary.example.com".to_string())
-        );
-    }
-
-    #[test]
-    fn release_base_url_from_env_falls_back_to_legacy_overrides() {
-        let _env = ReleaseEnvGuard::clear();
-        set_release_env(LEGACY_RELEASE_BASE_URL_ENV, "https://legacy.example.com");
-        set_release_env(
-            MIMOFAN_RELEASE_BASE_URL_ENV,
-            "https://deepseek.example.com",
-        );
-
-        assert_eq!(
-            release_base_url_from_env("1.0.0"),
-            Some("https://legacy.example.com".to_string())
-        );
-
-        set_release_env(LEGACY_RELEASE_BASE_URL_ENV, "");
-
-        assert_eq!(
-            release_base_url_from_env("1.0.0"),
-            Some("https://deepseek.example.com".to_string())
         );
     }
 
@@ -467,57 +391,21 @@ mod tests {
         set_release_env(RELEASE_BASE_URL_ENV, "  https://spaced.example.com  \n");
 
         assert_eq!(
-            release_base_url_from_env("1.0.0"),
+            release_base_url_from_env(),
             Some("https://spaced.example.com".to_string())
         );
 
         set_release_env(RELEASE_BASE_URL_ENV, "   ");
-        set_release_env(LEGACY_RELEASE_BASE_URL_ENV, "");
-        set_release_env(MIMOFAN_RELEASE_BASE_URL_ENV, "\n");
 
-        assert_eq!(release_base_url_from_env("1.0.0"), None);
+        assert_eq!(release_base_url_from_env(), None);
     }
 
     #[test]
-    fn release_base_url_from_env_uses_cnb_mirror_last() {
+    fn update_version_from_env_trims_and_strips_v_prefix() {
         let _env = ReleaseEnvGuard::clear();
-        set_release_env(CNB_MIRROR_ENV, "1");
+        set_release_env(UPDATE_VERSION_ENV, "  v1.2.3  ");
 
-        assert_eq!(
-            release_base_url_from_env("v1.2.3"),
-            Some("https://cnb.cool/XiaomingX/mimofan/-/releases/v1.2.3".to_string())
-        );
-
-        set_release_env(RELEASE_BASE_URL_ENV, "https://explicit.example.com");
-
-        assert_eq!(
-            release_base_url_from_env("1.0.0"),
-            Some("https://explicit.example.com".to_string())
-        );
-    }
-
-    #[test]
-    fn update_version_from_env_prefers_primary_then_legacy() {
-        {
-            let _env = ReleaseEnvGuard::clear();
-            set_release_env(UPDATE_VERSION_ENV, "  v1.2.3  ");
-
-            assert_eq!(update_version_from_env().as_deref(), Some("1.2.3"));
-        }
-
-        {
-            let _env = ReleaseEnvGuard::clear();
-            set_release_env(LEGACY_UPDATE_VERSION_ENV, "v1.2.4");
-
-            assert_eq!(update_version_from_env().as_deref(), Some("1.2.4"));
-        }
-
-        {
-            let _env = ReleaseEnvGuard::clear();
-            set_release_env(MIMOFAN_UPDATE_VERSION_ENV, "v1.2.5");
-
-            assert_eq!(update_version_from_env().as_deref(), Some("1.2.5"));
-        }
+        assert_eq!(update_version_from_env().as_deref(), Some("1.2.3"));
     }
 
     #[test]
@@ -526,7 +414,6 @@ mod tests {
         assert_eq!(update_version_from_env(), None);
 
         set_release_env(UPDATE_VERSION_ENV, "   ");
-        set_release_env(LEGACY_UPDATE_VERSION_ENV, "");
 
         assert_eq!(update_version_from_env(), None);
     }
@@ -535,7 +422,6 @@ mod tests {
     fn update_network_fallback_hint_mentions_required_mirror_inputs() {
         let hint = update_network_fallback_hint();
 
-        assert!(hint.contains(CNB_REPO_URL), "hint missing CNB_REPO_URL");
         assert!(
             hint.contains(RELEASE_BASE_URL_ENV),
             "hint missing RELEASE_BASE_URL_ENV"
@@ -585,42 +471,13 @@ mod tests {
     #[test]
     fn resolve_release_query_uses_release_base_url_overrides() {
         let default_version = env!("CARGO_PKG_VERSION").to_string();
-
-        for (env_name, expected_url) in [
-            (RELEASE_BASE_URL_ENV, "https://primary.example.com/mirror"),
-            (
-                LEGACY_RELEASE_BASE_URL_ENV,
-                "https://legacy.example.com/mirror",
-            ),
-            (
-                MIMOFAN_RELEASE_BASE_URL_ENV,
-                "https://deepseek.example.com/mirror",
-            ),
-        ] {
-            let _env = ReleaseEnvGuard::clear();
-            set_release_env(env_name, expected_url);
-
-            assert_eq!(
-                resolve_release_query(ReleaseChannel::Stable),
-                ReleaseQuery::Mirror {
-                    base_url: expected_url.to_string(),
-                    version: default_version.clone(),
-                },
-                "{env_name} should drive mirror query"
-            );
-        }
-    }
-
-    #[test]
-    fn resolve_release_query_uses_cnb_mirror_override() {
         let _env = ReleaseEnvGuard::clear();
-        let default_version = env!("CARGO_PKG_VERSION").to_string();
-        set_release_env(CNB_MIRROR_ENV, "1");
+        set_release_env(RELEASE_BASE_URL_ENV, "https://primary.example.com/mirror");
 
         assert_eq!(
             resolve_release_query(ReleaseChannel::Stable),
             ReleaseQuery::Mirror {
-                base_url: cnb_release_base_url(&default_version),
+                base_url: "https://primary.example.com/mirror".to_string(),
                 version: default_version,
             }
         );
@@ -628,44 +485,16 @@ mod tests {
 
     #[test]
     fn resolve_release_query_uses_pinned_release_versions_for_mirrors() {
-        {
-            let _env = ReleaseEnvGuard::clear();
-            set_release_env(RELEASE_BASE_URL_ENV, "https://example.com/mirror");
-            set_release_env(UPDATE_VERSION_ENV, "v1.2.3");
+        let _env = ReleaseEnvGuard::clear();
+        set_release_env(RELEASE_BASE_URL_ENV, "https://example.com/mirror");
+        set_release_env(UPDATE_VERSION_ENV, "v1.2.3");
 
-            assert_eq!(
-                resolve_release_query(ReleaseChannel::Stable),
-                ReleaseQuery::Mirror {
-                    base_url: "https://example.com/mirror".to_string(),
-                    version: "1.2.3".to_string(),
-                }
-            );
-        }
-
-        {
-            let _env = ReleaseEnvGuard::clear();
-            set_release_env(RELEASE_BASE_URL_ENV, "https://example.com/mirror");
-            set_release_env(LEGACY_UPDATE_VERSION_ENV, "v1.2.3-legacy");
-
-            assert_eq!(
-                resolve_release_query(ReleaseChannel::Stable),
-                ReleaseQuery::Mirror {
-                    base_url: "https://example.com/mirror".to_string(),
-                    version: "1.2.3-legacy".to_string(),
-                }
-            );
-        }
-    }
-
-    #[test]
-    fn cnb_release_base_url_includes_tag_directory() {
         assert_eq!(
-            cnb_release_base_url("0.8.47"),
-            "https://cnb.cool/XiaomingX/mimofan/-/releases/v0.8.47"
-        );
-        assert_eq!(
-            cnb_release_base_url("v0.8.47"),
-            "https://cnb.cool/XiaomingX/mimofan/-/releases/v0.8.47"
+            resolve_release_query(ReleaseChannel::Stable),
+            ReleaseQuery::Mirror {
+                base_url: "https://example.com/mirror".to_string(),
+                version: "1.2.3".to_string(),
+            }
         );
     }
 

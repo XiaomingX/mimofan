@@ -82,12 +82,7 @@ function buildFromSourceHint() {
 }
 
 function skipGlibcCheck() {
-  return (
-    process.env.MIMOFAN_SKIP_GLIBC_CHECK === "1" ||
-    process.env.MIMOFAN_SKIP_GLIBC_CHECK === "1" ||
-    process.env.MIMOFAN_SKIP_GLIBC_CHECK === "1" ||
-    process.env.DEEPSEEK_SKIP_GLIBC_CHECK === "1"
-  );
+  return process.env.MIMOFAN_SKIP_GLIBC_CHECK === "1";
 }
 
 function glibcCompatibilityMessage(required, host) {

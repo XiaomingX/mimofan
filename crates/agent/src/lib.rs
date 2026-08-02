@@ -7,8 +7,8 @@ pub mod family;
 pub mod provider_resolver;
 
 use provider_resolver::{
-    arcee_passthrough_model, atlascloud_passthrough_model, model_matches, normalize,
-    preserve_requested_model_id_case, xiaomi_mimo_passthrough_model,
+    arcee_passthrough_model, model_matches, normalize, preserve_requested_model_id_case,
+    xiaomi_mimo_passthrough_model,
 };
 
 // Re-export for backward compatibility
@@ -125,30 +125,21 @@ impl Default for ModelRegistry {
             ModelInfo {
                 id: "deepseek-ai/deepseek-v4-flash".to_string(),
                 provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "deepseek-v4-flash".to_string(),
-                    "atlascloud-deepseek-v4-flash".to_string(),
-                ],
+                aliases: vec!["deepseek-v4-flash".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-ai/deepseek-v4-pro".to_string(),
                 provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "deepseek-v4-pro".to_string(),
-                    "atlascloud-deepseek-v4-pro".to_string(),
-                ],
+                aliases: vec!["deepseek-v4-pro".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-reasoner".to_string(),
                 provider: ProviderKind::XiaomiMimo,
-                aliases: vec![
-                    "wanjie-deepseek-reasoner".to_string(),
-                    "ark-wanjie-deepseek-reasoner".to_string(),
-                ],
+                aliases: vec![],
                 supports_tools: true,
                 supports_reasoning: true,
             },
@@ -844,14 +835,6 @@ impl ModelRegistry {
                 };
             }
             if provider_hint == Some(ProviderKind::XiaomiMimo) {
-                if let Some(model) = atlascloud_passthrough_model(name) {
-                    return ModelResolution {
-                        requested: Some(name.to_string()),
-                        resolved: model,
-                        used_fallback: false,
-                        fallback_chain,
-                    };
-                }
                 if let Some(model) = arcee_passthrough_model(name) {
                     return ModelResolution {
                         requested: Some(name.to_string()),
@@ -918,19 +901,6 @@ mod tests {
 
         assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
         assert_eq!(resolved.resolved.id, "deepseek-v4-pro");
-    }
-
-    #[test]
-    fn xiaomi_mimo_provider_hint_passes_through_explicit_model_id() {
-        let registry = ModelRegistry::default();
-        let resolved =
-            registry.resolve(Some("openai/gpt-5.2-chat"), Some(ProviderKind::XiaomiMimo));
-
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, "openai/gpt-5.2-chat");
-        assert!(resolved.resolved.supports_tools);
-        assert!(resolved.resolved.supports_reasoning);
-        assert!(!resolved.used_fallback);
     }
 
     #[test]

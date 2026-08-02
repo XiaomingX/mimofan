@@ -275,7 +275,6 @@ impl RouteResolver {
             .iter()
             .find(|offering| offering.provider == *provider_id && offering.default_for_provider)
     }
-
 }
 
 /// Build the default resolver offerings: the bundled Models.dev asset rows

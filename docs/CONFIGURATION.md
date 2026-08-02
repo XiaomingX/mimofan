@@ -47,13 +47,13 @@ provider = "xiaomi-mimo"
 api_key = "YOUR_KEY"
 ```
 
-选择 profile：`mimofan --profile work` 或 `DEEPSEEK_PROFILE=work`
+选择 profile：`mimofan --profile work` 或 `MIMOFAN_PROFILE=work`
 
 ## 核心配置项
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `provider` | string | 服务商 ID（`deepseek`, `xiaomi-mimo`, `openai` 等） |
+| `provider` | string | 服务商 ID（`xiaomi-mimo`, `custom` 等） |
 | `api_key` | string | API 密钥 |
 | `base_url` | string | API 地址 |
 | `default_text_model` | string | 默认模型 |
@@ -79,27 +79,27 @@ api_key = "YOUR_KEY"
 
 每个服务商都有对应的 `*_API_KEY`、`*_BASE_URL`、`*_MODEL` 变量，格式为 `<PROVIDER>_API_KEY`。常用：
 
-- `XIAOMI_MIMO_API_KEY` / `MIMO_API_KEY`
+- `XIAOMI_MIMO_API_KEY`
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `SILICONFLOW_API_KEY`
 
-完整列表见 `config.example.toml`。
+完整列表见 `config/config.example.toml`。
 
 ### 功能变量
 
 | 变量 | 说明 |
 |------|------|
-| `DEEPSEEK_ALLOW_SHELL` | `1` 启用 shell |
-| `DEEPSEEK_APPROVAL_POLICY` | 审批策略 |
-| `DEEPSEEK_MEMORY` | `on` 启用用户记忆 |
-| `DEEPSEEK_LOG_LEVEL` | 日志级别 |
+| `MIMOFAN_ALLOW_SHELL` | `1` 启用 shell |
+| `MIMOFAN_APPROVAL_POLICY` | 审批策略 |
+| `MIMOFAN_MEMORY` | `on` 启用用户记忆 |
+| `MIMOFAN_LOG_LEVEL` | 日志级别 |
 | `NO_ANIMATIONS` | `1` 禁用动画 |
 
 ## 自定义 OpenAI 兼容网关
 
 ```toml
-provider = "openai"
+provider = "custom"
 default_text_model = "your-model-id"
 
 [providers.openai]
@@ -110,7 +110,7 @@ base_url = "https://your-gateway.example/v1"
 阿里云百炼 / DashScope：
 
 ```toml
-provider = "openai"
+provider = "custom"
 [providers.openai]
 api_key = "YOUR_DASHSCOPE_API_KEY"
 base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"

@@ -1,6 +1,5 @@
 //! Typed task-spec loading, artifact refs, deterministic scorers, and receipts.
 
-#![allow(dead_code)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};

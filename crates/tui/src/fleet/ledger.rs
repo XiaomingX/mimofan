@@ -5,7 +5,6 @@
 //! Artifacts are referenced by bounded metadata; large payloads live on disk
 //! and are never embedded in the ledger.
 
-#![allow(dead_code)]
 
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;

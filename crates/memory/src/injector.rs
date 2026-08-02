@@ -220,7 +220,6 @@ impl MemoryInjector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_injection_config_default() {

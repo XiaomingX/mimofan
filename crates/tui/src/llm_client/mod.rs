@@ -31,9 +31,6 @@ use std::pin::Pin;
 use std::time::{Duration, Instant};
 use uuid::Uuid;
 
-#[cfg(test)]
-pub mod mock;
-
 // === LlmClient Trait ===
 
 /// Type alias for boxed stream of SSE events

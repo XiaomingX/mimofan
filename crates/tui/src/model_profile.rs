@@ -6,7 +6,6 @@
 //! facts so future route resolution can combine catalog offerings, user
 //! overrides, live hints, and auth readiness without scattering provider/model
 //! string checks through prompt, tool, and Fleet code.
-#![allow(dead_code)]
 
 use crate::config::{ApiProvider, RequestPayloadMode, provider_capability};
 use crate::model_registry::{self, ModelProvider};

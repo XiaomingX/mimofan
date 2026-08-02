@@ -33,7 +33,15 @@ impl AgentTopology {
             children_of: BTreeMap::new(),
         }
     }
+}
 
+impl Default for AgentTopology {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AgentTopology {
     /// Register a parent-child relationship.
     pub fn register(&mut self, parent: AgentId, child: AgentId) {
         self.parent_of.insert(child.clone(), parent.clone());
@@ -311,7 +319,7 @@ impl ObservabilityCollector {
                 child,
                 &next_prefix,
                 lines,
-                &child_prefix,
+                child_prefix,
                 next_connector,
             );
         }

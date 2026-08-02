@@ -47,11 +47,7 @@ pub struct SpeechTool {
 
 impl SpeechTool {
     #[must_use]
-    pub fn new(
-        name: &'static str,
-        client: Option<ApiClient>,
-        output_dir: Option<PathBuf>,
-    ) -> Self {
+    pub fn new(name: &'static str, client: Option<ApiClient>, output_dir: Option<PathBuf>) -> Self {
         Self {
             name,
             client,

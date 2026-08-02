@@ -97,8 +97,6 @@ fn root_base_url_belongs_to_non_deepseek_provider(base_url: &str) -> bool {
     [
         "integrate.api.nvidia.com",
         "api.openai.com",
-        "api.atlascloud.ai",
-        "maas-openapi.wanjiedata.com",
         "volces.com",
         "openrouter.ai",
         "xiaomimimo.com",

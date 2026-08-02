@@ -26,16 +26,11 @@ const CODE_EXECUTION_TOOL_TYPE: &str = "code_execution_20250825";
 pub(super) use crate::tools::js_execution::JS_EXECUTION_TOOL_NAME;
 pub(super) const TOOL_SEARCH_NAME: &str = "tool_search";
 const TOOL_SEARCH_TYPE: &str = "tool_search_20251119";
-const LEGACY_TOOL_SEARCH_REGEX_NAME: &str = "tool_search_tool_regex";
-const LEGACY_TOOL_SEARCH_BM25_NAME: &str = "tool_search_tool_bm25";
 const TOOL_SEARCH_DEFAULT_MAX_RESULTS: usize = 20;
 const TOOL_SEARCH_MAX_RESULTS_LIMIT: usize = 100;
 
 pub(super) fn is_tool_search_tool(name: &str) -> bool {
-    matches!(
-        name,
-        TOOL_SEARCH_NAME | LEGACY_TOOL_SEARCH_REGEX_NAME | LEGACY_TOOL_SEARCH_BM25_NAME
-    )
+    name == TOOL_SEARCH_NAME
 }
 
 pub(super) const DEFAULT_ACTIVE_NATIVE_TOOLS: &[&str] = &[
@@ -854,17 +849,13 @@ fn likely_field_corrections(
 }
 
 pub(super) fn execute_tool_search(
-    tool_name: &str,
+    _tool_name: &str,
     input: &serde_json::Value,
     catalog: &[Tool],
     active_tools: &mut HashSet<String>,
 ) -> Result<ToolResult, ToolError> {
     let query = required_str(input, "query")?;
-    let match_kind = match tool_name {
-        LEGACY_TOOL_SEARCH_REGEX_NAME => "regex",
-        LEGACY_TOOL_SEARCH_BM25_NAME => "bm25",
-        _ => optional_str(input, "match").unwrap_or("bm25"),
-    };
+    let match_kind = optional_str(input, "match").unwrap_or("bm25");
     if !matches!(match_kind, "bm25" | "regex") {
         return Err(ToolError::invalid_input(format!(
             "Unsupported match algorithm '{match_kind}'. Expected one of: bm25, regex"

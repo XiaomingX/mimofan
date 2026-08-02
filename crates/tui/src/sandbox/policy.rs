@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 //! Sandbox policy definitions for command execution restrictions.
 //!

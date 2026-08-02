@@ -682,9 +682,7 @@ impl Secrets {
 /// | `arcee` / `arcee-ai` | `ARCEE_API_KEY` |
 /// | `moonshot` / `kimi` | `MOONSHOT_API_KEY`, `KIMI_API_KEY` |
 /// | `openai` | `OPENAI_API_KEY` |
-/// | `atlascloud` / `atlas` | `ATLASCLOUD_API_KEY` |
 /// | `volcengine` / `ark` | `VOLCENGINE_API_KEY`, `VOLCENGINE_ARK_API_KEY`, `ARK_API_KEY` |
-/// | `wanjie` / `wanjie-ark` | `WANJIE_ARK_API_KEY`, `WANJIE_API_KEY`, `WANJIE_MAAS_API_KEY` |
 ///
 /// Returns `None` if the provider is not recognised or none of its
 /// candidate environment variables are set to a non-empty value.
@@ -697,9 +695,6 @@ pub fn env_for(name: &str) -> Option<String> {
             &["XIAOMI_MIMO_API_KEY"]
         }
         "novita" => &["NOVITA_API_KEY"],
-        // NVIDIA NIM falls back to `MIMOFAN_API_KEY` last because the
-        // catalog endpoint accepts the same DeepSeek-issued key when no
-        // dedicated NVIDIA token is set. This mirrors pre-v0.7 behaviour.
         "nvidia" | "nvidia-nim" | "nvidia_nim" | "nim" => {
             &["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY", "MIMOFAN_API_KEY"]
         }
@@ -710,18 +705,11 @@ pub fn env_for(name: &str) -> Option<String> {
         "moonshot" | "moonshot-ai" | "kimi" | "kimi-k2" => &["MOONSHOT_API_KEY", "KIMI_API_KEY"],
         "openai" => &["OPENAI_API_KEY"],
         "anthropic" | "claude" => &["ANTHROPIC_API_KEY"],
-        "atlascloud" | "atlas-cloud" | "atlas_cloud" | "atlas" => &["ATLASCLOUD_API_KEY"],
         "volcengine" | "volcengine-ark" | "volcengine_ark" | "ark" | "volc-ark"
         | "volcengineark" => &[
             "VOLCENGINE_API_KEY",
             "VOLCENGINE_ARK_API_KEY",
             "ARK_API_KEY",
-        ],
-        "wanjie" | "wanjie-ark" | "wanjie_ark" | "ark-wanjie" | "ark_wanjie" | "wanjieark"
-        | "wanjie-maas" | "wanjie_maas" | "wanjiemaas" => &[
-            "WANJIE_ARK_API_KEY",
-            "WANJIE_API_KEY",
-            "WANJIE_MAAS_API_KEY",
         ],
         _ => return None,
     };
@@ -761,10 +749,6 @@ mod tests {
             "SILICONFLOW_API_KEY",
             "ARCEE_API_KEY",
             "OPENAI_API_KEY",
-            "ATLASCLOUD_API_KEY",
-            "WANJIE_ARK_API_KEY",
-            "WANJIE_API_KEY",
-            "WANJIE_MAAS_API_KEY",
             "XIAOMI_MIMO_API_KEY",
             SECRET_BACKEND_ENV,
         ] {
@@ -1050,35 +1034,11 @@ mod tests {
     }
 
     #[test]
-    fn atlascloud_env_aliases_resolve() {
-        let _guard = env_lock();
-        clear_known_envs();
-        unsafe { std::env::set_var("ATLASCLOUD_API_KEY", "atlas-key") };
-
-        assert_eq!(env_for("atlascloud").as_deref(), Some("atlas-key"));
-        assert_eq!(env_for("atlas").as_deref(), Some("atlas-key"));
-        assert_eq!(env_for("atlas-cloud").as_deref(), Some("atlas-key"));
-
-        clear_known_envs();
-    }
-
-    #[test]
-    fn wanjie_ark_env_aliases_resolve() {
-        let _guard = env_lock();
-        clear_known_envs();
-        unsafe { std::env::set_var("WANJIE_API_KEY", "wanjie-key") };
-
-        assert_eq!(env_for("wanjie-ark").as_deref(), Some("wanjie-key"));
-        assert_eq!(env_for("ark_wanjie").as_deref(), Some("wanjie-key"));
-        assert_eq!(env_for("wanjie-maas").as_deref(), Some("wanjie-key"));
-
-        clear_known_envs();
-    }
-
-    #[test]
     fn xiaomi_mimo_env_aliases_resolve() {
         let _guard = env_lock();
         clear_known_envs();
+        // Safety: env mutation guarded by env_lock().
+        unsafe { std::env::set_var("XIAOMI_MIMO_API_KEY", "mimo-key") };
 
         assert_eq!(env_for("xiaomi-mimo").as_deref(), Some("mimo-key"));
         assert_eq!(env_for("xiaomimimo").as_deref(), Some("mimo-key"));

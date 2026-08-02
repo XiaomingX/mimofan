@@ -51,7 +51,7 @@ MCP 工具名称格式：`mcp__<server>__<tool>`
 
 | 变量 | 说明 |
 |------|------|
-| `DEEPSEEK_MCP_CONFIG` | MCP 配置文件路径 |
+| `MIMOFAN_MCP_CONFIG` | MCP 配置文件路径 |
 
 ## 审批控制
 

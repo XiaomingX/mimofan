@@ -117,11 +117,12 @@ impl KnowledgeAgent {
             let path = entry.path();
 
             if path.extension().and_then(|s| s.to_str()) == Some("json")
-                && let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                    let data = std::fs::read_to_string(&path)?;
-                    let metadata: CorpusMetadata = serde_json::from_str(&data)?;
-                    corpora.insert(name.to_string(), metadata);
-                }
+                && let Some(name) = path.file_stem().and_then(|s| s.to_str())
+            {
+                let data = std::fs::read_to_string(&path)?;
+                let metadata: CorpusMetadata = serde_json::from_str(&data)?;
+                corpora.insert(name.to_string(), metadata);
+            }
         }
 
         Ok(corpora)
@@ -310,7 +311,6 @@ impl KnowledgeAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn test_knowledge_corpus_serialization() {

@@ -1,6 +1,5 @@
 //! Fleet scheduler policy: leases, heartbeats, backpressure, and recovery.
 
-#![allow(dead_code)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

@@ -150,30 +150,25 @@ pub fn execute(cmd: &str, app: &mut App) -> CommandResult {
         return command_object.execute(app, arg);
     }
 
-    match command.as_str() {
-        // Permanent legacy migration hints. These are deliberately excluded
-        _ => {
-            // Third source: skills (lowest precedence after native and user-config).
-            // Try to run a skill whose name matches the command.
-            if let Some(result) = groups::skills::run_skill_by_name(app, command.as_str(), arg) {
-                return result;
-            }
-            let suggestions = suggest_command_names(command.as_str(), 3);
-            if suggestions.is_empty() {
-                CommandResult::error(format!(
-                    "Unknown command: /{command}. Type /help for available commands."
-                ))
-            } else {
-                let list = suggestions
-                    .into_iter()
-                    .map(|name| format!("/{name}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                CommandResult::error(format!(
-                    "Unknown command: /{command}. Did you mean: {list}? Type /help for available commands."
-                ))
-            }
-        }
+    // Third source: skills (lowest precedence after native and user-config).
+    // Try to run a skill whose name matches the command.
+    if let Some(result) = groups::skills::run_skill_by_name(app, command.as_str(), arg) {
+        return result;
+    }
+    let suggestions = suggest_command_names(command.as_str(), 3);
+    if suggestions.is_empty() {
+        CommandResult::error(format!(
+            "Unknown command: /{command}. Type /help for available commands."
+        ))
+    } else {
+        let list = suggestions
+            .into_iter()
+            .map(|name| format!("/{name}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        CommandResult::error(format!(
+            "Unknown command: /{command}. Did you mean: {list}? Type /help for available commands."
+        ))
     }
 }
 

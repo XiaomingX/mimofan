@@ -14,14 +14,10 @@ pub const DEFAULT_PROVIDER_ID: &str = ProviderKind::XiaomiMimo.as_str();
 
 // ── Environment variable names ──────────────────────────────────────
 /// Standard API key environment variables for Xiaomi MiMo (pay-as-you-go).
-pub const XIAOMI_MIMO_STANDARD_ENV_VARS: &[&str] = &[
-    "XIAOMI_MIMO_API_KEY",
-    "ANTHROPIC_API_KEY",
-];
+pub const XIAOMI_MIMO_STANDARD_ENV_VARS: &[&str] = &["XIAOMI_MIMO_API_KEY", "ANTHROPIC_API_KEY"];
 
 /// Token plan API key environment variables for Xiaomi MiMo.
-pub const XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS: &[&str] =
-    &["XIAOMI_MIMO_TOKEN_PLAN_API_KEY"];
+pub const XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS: &[&str] = &["XIAOMI_MIMO_TOKEN_PLAN_API_KEY"];
 
 // ── DeepSeek defaults ────────────────────────────────────────────────
 pub const DEFAULT_MIMOFAN_MODEL: &str = "deepseek-v4-pro";
@@ -39,5 +35,4 @@ pub const XIAOMI_MIMO_V2_TTS_MODEL: &str = "mimo-v2-tts";
 pub const XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL: &str = "https://api.xiaomimimo.com/v1";
 pub const DEFAULT_XIAOMI_MIMO_BASE_URL: &str = "https://token-plan-sgp.xiaomimimo.com/v1";
 pub const XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL: &str = "https://token-plan-cn.xiaomimimo.com/v1";
-pub const XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL: &str = DEFAULT_XIAOMI_MIMO_BASE_URL;
 pub const XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL: &str = "https://token-plan-ams.xiaomimimo.com/v1";

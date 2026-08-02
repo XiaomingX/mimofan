@@ -116,8 +116,7 @@ fn parse_agent_file(path: &Path) -> Result<Option<CustomAgentDef>> {
         .to_string();
 
     // Check for YAML frontmatter (--- delimited)
-    let (frontmatter, body) = if content.starts_with("---") {
-        let rest = &content[3..];
+    let (frontmatter, body) = if let Some(rest) = content.strip_prefix("---") {
         if let Some(end) = rest.find("---") {
             let yaml_part = &rest[..end];
             let body_part = &rest[end + 3..];

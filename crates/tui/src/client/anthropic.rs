@@ -465,40 +465,40 @@ fn apply_anthropic_cache_breakpoints(body: &mut Value) {
     // Remove from the earliest items first: tools → system → messages.
     let mut to_remove = excess;
     // Remove from tools array (first `to_remove` marked items).
-    if to_remove > 0 {
-        if let Some(tools) = body.get_mut("tools").and_then(Value::as_array_mut) {
-            let mut removed = 0;
-            for item in tools.iter_mut() {
-                if removed >= to_remove {
-                    break;
-                }
-                if item.get("cache_control").is_some() {
-                    if let Some(map) = item.as_object_mut() {
-                        map.remove("cache_control");
-                    }
-                    removed += 1;
-                }
+    if to_remove > 0
+        && let Some(tools) = body.get_mut("tools").and_then(Value::as_array_mut)
+    {
+        let mut removed = 0;
+        for item in tools.iter_mut() {
+            if removed >= to_remove {
+                break;
             }
-            to_remove -= removed;
+            if item.get("cache_control").is_some() {
+                if let Some(map) = item.as_object_mut() {
+                    map.remove("cache_control");
+                }
+                removed += 1;
+            }
         }
+        to_remove -= removed;
     }
     // Remove from system array.
-    if to_remove > 0 {
-        if let Some(system) = body.get_mut("system").and_then(Value::as_array_mut) {
-            let mut removed = 0;
-            for item in system.iter_mut() {
-                if removed >= to_remove {
-                    break;
-                }
-                if item.get("cache_control").is_some() {
-                    if let Some(map) = item.as_object_mut() {
-                        map.remove("cache_control");
-                    }
-                    removed += 1;
-                }
+    if to_remove > 0
+        && let Some(system) = body.get_mut("system").and_then(Value::as_array_mut)
+    {
+        let mut removed = 0;
+        for item in system.iter_mut() {
+            if removed >= to_remove {
+                break;
             }
-            to_remove -= removed;
+            if item.get("cache_control").is_some() {
+                if let Some(map) = item.as_object_mut() {
+                    map.remove("cache_control");
+                }
+                removed += 1;
+            }
         }
+        to_remove -= removed;
     }
     // Remove from message content blocks.
     if to_remove > 0 {
@@ -512,13 +512,11 @@ fn apply_anthropic_cache_breakpoints(body: &mut Value) {
                     .get_mut(*mi)
                     .and_then(|m| m.get_mut("content"))
                     .and_then(Value::as_array_mut)
+                    && let Some(block) = blocks.get_mut(*bi)
+                    && let Some(map) = block.as_object_mut()
                 {
-                    if let Some(block) = blocks.get_mut(*bi) {
-                        if let Some(map) = block.as_object_mut() {
-                            map.remove("cache_control");
-                            removed += 1;
-                        }
-                    }
+                    map.remove("cache_control");
+                    removed += 1;
                 }
             }
         }

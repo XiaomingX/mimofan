@@ -368,10 +368,7 @@ fn apply_spillover_inner(
                 "spillover_path".into(),
                 serde_json::Value::String(absolute_path.display().to_string()),
             );
-            obj.insert(
-                "spillover_path".into(),
-                serde_json::Value::String(path_str),
-            );
+            obj.insert("spillover_path".into(), serde_json::Value::String(path_str));
             obj.insert(
                 "artifact_id".into(),
                 serde_json::Value::String(record.id.clone()),

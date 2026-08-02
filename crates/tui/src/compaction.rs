@@ -1115,11 +1115,7 @@ pub async fn compact_messages(
     ))
 }
 
-async fn create_summary(
-    client: &ApiClient,
-    messages: &[Message],
-    model: &str,
-) -> Result<String> {
+async fn create_summary(client: &ApiClient, messages: &[Message], model: &str) -> Result<String> {
     let limits = summary_input_limits_for_model(model);
     let used_cache_aligned = should_use_cache_aligned_summary(model, messages);
     let request = if used_cache_aligned {

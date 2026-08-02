@@ -326,16 +326,6 @@ fn provider_link_info(provider_id: &str) -> ProviderLinkInfo {
             docs_url: "https://platform.openai.com/docs/api-reference",
             note: "Use this for OpenAI or compatible endpoints that share OpenAI-style auth.",
         },
-        "atlascloud" => ProviderLinkInfo {
-            key_url: None,
-            docs_url: "https://atlascloud.ai/docs/en/api-keys",
-            note: "Atlas Cloud documents API key creation in its API Keys guide.",
-        },
-        "wanjie-ark" => ProviderLinkInfo {
-            key_url: None,
-            docs_url: "https://platform.lingyiwanwu.com/docs",
-            note: "Use the Wanjie/01.AI platform console for provider credentials.",
-        },
         "volcengine" => ProviderLinkInfo {
             key_url: Some("https://console.volcengine.com/ark/apiKey"),
             docs_url: "https://www.volcengine.com/docs/82379/1541594",

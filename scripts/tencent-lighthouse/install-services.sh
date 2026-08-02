@@ -7,9 +7,9 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-MIMOFAN_USER="${MIMOFAN_USER:-${DEEPSEEK_USER:-mimofan}}"
-MIMOFAN_ROOT="${MIMOFAN_ROOT:-${DEEPSEEK_ROOT:-/opt/mimofan}}"
-BRIDGE_KIND="${MIMOFAN_BRIDGE:-${DEEPSEEK_BRIDGE:-feishu}}"
+MIMOFAN_USER="${MIMOFAN_USER:-mimofan}"
+MIMOFAN_ROOT="${MIMOFAN_ROOT:-/opt/mimofan}"
+BRIDGE_KIND="${MIMOFAN_BRIDGE:-feishu}"
 
 case "${BRIDGE_KIND}" in
   feishu|lark)

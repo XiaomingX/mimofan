@@ -12,14 +12,13 @@ const pkg = require("../package.json");
 function resolveBinaryVersion() {
   const configuredVersion =
     process.env.MIMOFAN_VERSION ||
-    process.env.DEEPSEEK_VERSION ||
-    pkg.mimofanBinaryVersion || pkg.deepseekBinaryVersion ||
+    pkg.mimofanBinaryVersion ||
     pkg.version;
   return String(configuredVersion).trim();
 }
 
 function resolveRepo() {
-  return process.env.MIMOFAN_GITHUB_REPO || process.env.DEEPSEEK_GITHUB_REPO || "XiaomingX/mimofan";
+  return process.env.MIMOFAN_GITHUB_REPO || "XiaomingX/mimofan";
 }
 
 function requestStatus(url, method = "HEAD", redirects = 0) {

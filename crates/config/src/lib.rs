@@ -1945,7 +1945,7 @@ pub fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
         | "token-plan-singapore"
         | "sgp"
         | "sg"
-        | "singapore" => XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL,
+        | "singapore" => DEFAULT_XIAOMI_MIMO_BASE_URL,
         "token-plan-ams"
         | "token-plan-eu"
         | "token-plan-europe"
@@ -1968,7 +1968,7 @@ pub fn xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode: &str) -> bool {
 fn xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
     let normalized = base_url.trim_end_matches('/').to_ascii_lowercase();
     normalized == XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL
-        || normalized == XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL
+        || normalized == DEFAULT_XIAOMI_MIMO_BASE_URL
         || normalized == XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL
 }
 

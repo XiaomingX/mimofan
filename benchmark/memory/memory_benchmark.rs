@@ -11,9 +11,7 @@
 use std::time::{Duration, Instant};
 
 use mimofan_memory::compressor::ObservationCompressor;
-use mimofan_memory::optimization::{
-    BatchProcessor, LongTaskManager, RateLimiter,
-};
+use mimofan_memory::optimization::{BatchProcessor, LongTaskManager, RateLimiter};
 use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, VectorStore};
 
 /// Benchmark results

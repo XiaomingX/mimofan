@@ -822,7 +822,7 @@ fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 fn glibc_check_disabled() -> bool {
-    ["MIMOFAN_SKIP_GLIBC_CHECK", "MIMOFAN_SKIP_GLIBC_CHECK"]
+    ["MIMOFAN_SKIP_GLIBC_CHECK"]
         .into_iter()
         .any(|name| std::env::var_os(name).is_some_and(|value| value == std::ffi::OsStr::new("1")))
 }
@@ -1446,16 +1446,14 @@ E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855  *mimofan-windo
     }
 
     #[test]
-    fn update_fallback_hint_points_china_users_to_cnb_and_asset_mirrors() {
+    fn update_fallback_hint_points_to_asset_mirrors() {
         let hint = update_network_fallback_hint();
 
-        assert!(hint.contains(mimofan_release::CNB_REPO_URL), "{hint}");
         assert!(
             hint.contains(mimofan_release::RELEASE_BASE_URL_ENV),
             "{hint}"
         );
         assert!(hint.contains(mimofan_release::UPDATE_VERSION_ENV), "{hint}");
-        assert!(hint.contains("mimofan --locked"), "{hint}");
     }
 
     fn serve_http_responses(

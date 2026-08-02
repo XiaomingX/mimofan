@@ -30,7 +30,6 @@
 //! NOTE: the public surface here is intentionally not yet consumed by
 //! production call sites (consumers are wired in a later pass), so
 //! `dead_code` is allowed at the module level until then.
-#![allow(dead_code)]
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;

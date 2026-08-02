@@ -41,7 +41,6 @@
 // `label`, but the rest of the substrate (`ContextBudget` and its methods,
 // `PressureLevel::suggests_compaction`) is still pending its engine/TUI
 // consumers, so the blanket allow stays until those land.
-#![allow(dead_code)]
 
 /// Fraction of the window, expressed as a percentage, at or above which
 /// compaction should be suggested. Mirrors the "high" pressure boundary the

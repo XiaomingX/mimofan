@@ -2,7 +2,6 @@
 // wiring (`/network allow <host>`, `/network deny <host>`) and for the
 // approval-modal hook that v0.7.x adds incrementally. Dead-code warnings
 // would otherwise be noisy until those call sites land.
-#![allow(dead_code)]
 // Audit-write failure must route through `tracing::*`, not raw stderr —
 // see `runtime_log` for the scroll-demon rationale.
 #![deny(clippy::print_stdout)]

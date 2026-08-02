@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MIMOFAN_USER="${MIMOFAN_USER:-${DEEPSEEK_USER:-mimofan}}"
-MIMOFAN_ROOT="${MIMOFAN_ROOT:-${DEEPSEEK_ROOT:-/opt/mimofan}}"
+MIMOFAN_USER="${MIMOFAN_USER:-mimofan}"
+MIMOFAN_ROOT="${MIMOFAN_ROOT:-/opt/mimofan}"
 WHALEBRO_ROOT="${WHALEBRO_ROOT:-/opt/whalebro}"
 if [[ -z "${RUNTIME_ENV:-}" ]]; then
   if [[ -f /etc/mimofan/runtime.env || ! -f /etc/deepseek/runtime.env ]]; then
@@ -12,7 +12,7 @@ if [[ -z "${RUNTIME_ENV:-}" ]]; then
   fi
 fi
 REPO_ROOT="${REPO_ROOT:-${WHALEBRO_ROOT}/mimofan}"
-BRIDGE_KIND="${MIMOFAN_BRIDGE:-${DEEPSEEK_BRIDGE:-feishu}}"
+BRIDGE_KIND="${MIMOFAN_BRIDGE:-feishu}"
 
 case "${BRIDGE_KIND}" in
   feishu|lark)
@@ -189,18 +189,18 @@ check_env() {
   check_env_file "${BRIDGE_ENV}" "bridge"
 
   local runtime_token bridge_token workspace domain allow_groups allow_unlisted provider
-  runtime_token="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
-  bridge_token="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
-  workspace="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_WORKSPACE DEEPSEEK_WORKSPACE)"
-  provider="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_PROVIDER DEEPSEEK_PROVIDER)"
+  runtime_token="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_RUNTIME_TOKEN)"
+  bridge_token="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_RUNTIME_TOKEN)"
+  workspace="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_WORKSPACE)"
+  provider="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_PROVIDER)"
 
   if [[ "${BRIDGE_KIND}" == "telegram" ]]; then
     allow_groups="$(env_value "${BRIDGE_ENV}" TELEGRAM_ALLOW_GROUPS)"
-    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" TELEGRAM_ALLOW_UNLISTED MIMOFAN_ALLOW_UNLISTED DEEPSEEK_ALLOW_UNLISTED)"
+    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" TELEGRAM_ALLOW_UNLISTED MIMOFAN_ALLOW_UNLISTED)"
   else
     domain="$(env_value "${BRIDGE_ENV}" FEISHU_DOMAIN)"
     allow_groups="$(env_value "${BRIDGE_ENV}" FEISHU_ALLOW_GROUPS)"
-    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_ALLOW_UNLISTED DEEPSEEK_ALLOW_UNLISTED)"
+    allow_unlisted="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_ALLOW_UNLISTED)"
   fi
 
   if is_placeholder "${runtime_token}"; then
@@ -292,9 +292,9 @@ check_bridge_install() {
 check_localhost_health() {
   section "Localhost health"
   local port token
-  port="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_RUNTIME_PORT DEEPSEEK_RUNTIME_PORT)"
+  port="$(env_value_any "${RUNTIME_ENV}" MIMOFAN_RUNTIME_PORT)"
   port="${port:-7878}"
-  token="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_RUNTIME_TOKEN DEEPSEEK_RUNTIME_TOKEN)"
+  token="$(env_value_any "${BRIDGE_ENV}" MIMOFAN_RUNTIME_TOKEN)"
 
   if have_command ss; then
     local listeners

@@ -77,10 +77,8 @@ function executableName(base, platform) {
 }
 
 function releaseBaseUrl(version, repo = "XiaomingX/mimofan") {
-  // MIMOFAN_RELEASE_BASE_URL is the canonical override; DEEPSEEK_RELEASE_BASE_URL is a legacy alias.
-  const override =
-    process.env.MIMOFAN_RELEASE_BASE_URL ||
-    process.env.DEEPSEEK_RELEASE_BASE_URL;
+  // MIMOFAN_RELEASE_BASE_URL is the canonical override.
+  const override = process.env.MIMOFAN_RELEASE_BASE_URL;
   if (override) {
     const trimmed = String(override).trim();
     return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;

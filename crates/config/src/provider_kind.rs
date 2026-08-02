@@ -16,8 +16,7 @@ pub enum ProviderKind {
     XiaomiMimo,
     /// 用户自定义 OpenAI-compatible endpoint
     ///
-    /// 用于 `[providers.<name>] kind="openai-compatible"` 配置。
-    /// 使用 OpenAI Chat Completions 协议，base_url 和 model 通过配置指定。
+    /// 配置时统一使用 `provider = "custom"`，由 base_url 与 model 指定具体网关。
     Custom,
 }
 

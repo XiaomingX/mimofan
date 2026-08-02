@@ -338,10 +338,10 @@ pub fn canonical_model_id_for_provider(provider: ApiProvider, model: &str) -> Op
         return None;
     }
 
-    if let ApiProvider::XiaomiMimo = provider {
-        if let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(trimmed) {
-            return Some(canonical.to_string());
-        }
+    if let ApiProvider::XiaomiMimo = provider
+        && let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(trimmed)
+    {
+        return Some(canonical.to_string());
     }
 
     Some(trimmed.to_string())
@@ -1693,8 +1693,6 @@ pub struct ProvidersConfig {
     #[serde(default)]
     pub openai: ProviderConfig,
     #[serde(default)]
-    pub atlascloud: ProviderConfig,
-    #[serde(default)]
     pub volcengine: ProviderConfig,
     #[serde(default)]
     pub openrouter: ProviderConfig,
@@ -2995,16 +2993,6 @@ fn apply_env_overrides(config: &mut Config) {
             .base_url = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("ATLASCLOUD_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .atlascloud
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
         && let Ok(value) = std::env::var("OPENROUTER_BASE_URL")
         && !value.trim().is_empty()
     {
@@ -3114,11 +3102,6 @@ fn apply_env_overrides(config: &mut Config) {
             .model = Some(value);
     }
     if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("ATLASCLOUD_MODEL")
-    {
-        config.default_text_model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
         && let Ok(value) = std::env::var("OPENROUTER_MODEL")
         && !value.trim().is_empty()
     {
@@ -3158,14 +3141,11 @@ fn apply_env_overrides(config: &mut Config) {
     {
         config.provider_config_for_mut(active_provider).model = Some(value);
     }
-    if let Some(value) = env_nonempty("MIMOFAN_MODEL")
-        .ok()
-        .or_else(|| {
-            std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL")
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
-    {
+    if let Some(value) = env_nonempty("MIMOFAN_MODEL").ok().or_else(|| {
+        std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+    }) {
         // The CLI `--model` handoff always sets MIMOFAN_MODEL, never the
         // provider-specific *_MODEL var. The legacy root `default_text_model`
         // is a DeepSeek-only slot (the validator rejects non-DeepSeek IDs
@@ -3237,9 +3217,7 @@ fn apply_env_overrides(config: &mut Config) {
     if let Ok(value) = std::env::var("MIMOFAN_YOLO") {
         config.yolo = Some(value == "1" || value.eq_ignore_ascii_case("true"));
     }
-    if let Ok(value) =
-        std::env::var("MIMOFAN_VERBOSITY")
-    {
+    if let Ok(value) = std::env::var("MIMOFAN_VERBOSITY") {
         config.verbosity = Some(value);
     }
     if let Ok(value) = std::env::var("MIMOFAN_SANDBOX_BACKEND") {
@@ -3313,7 +3291,7 @@ fn xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode: &str) -> bool {
 fn xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
     let normalized = normalize_base_url(base_url).to_ascii_lowercase();
     normalized == XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL
-        || normalized == XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL
+        || normalized == DEFAULT_XIAOMI_MIMO_BASE_URL
         || normalized == XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL
 }
 
@@ -3696,7 +3674,6 @@ fn merge_providers(
             nvidia_nim: merge_provider_config(base.nvidia_nim, override_cfg.nvidia_nim),
             openai: merge_provider_config(base.openai, override_cfg.openai),
             anthropic: merge_provider_config(base.anthropic, override_cfg.anthropic),
-            atlascloud: merge_provider_config(base.atlascloud, override_cfg.atlascloud),
             openrouter: merge_provider_config(base.openrouter, override_cfg.openrouter),
             xiaomi_mimo: merge_provider_config(base.xiaomi_mimo, override_cfg.xiaomi_mimo),
             siliconflow: merge_provider_config(base.siliconflow, override_cfg.siliconflow),

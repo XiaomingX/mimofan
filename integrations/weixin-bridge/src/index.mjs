@@ -89,41 +89,37 @@ function requiredEnvFirst(...names) {
 
 const config = {
   runtimeUrl: (
-    envFirst(process.env, "MIMOFAN_RUNTIME_URL", "DEEPSEEK_RUNTIME_URL") ||
+    envFirst(process.env, "MIMOFAN_RUNTIME_URL") ||
     "http://127.0.0.1:7878"
   ).replace(/\/+$/, ""),
   runtimeToken: requiredEnvFirst(
-    "MIMOFAN_RUNTIME_TOKEN",
-    "DEEPSEEK_RUNTIME_TOKEN"
+    "MIMOFAN_RUNTIME_TOKEN"
   ),
   workspace:
-    envFirst(process.env, "MIMOFAN_WORKSPACE", "DEEPSEEK_WORKSPACE") ||
+    envFirst(process.env, "MIMOFAN_WORKSPACE") ||
     process.cwd(),
   model:
-    envFirst(process.env, "MIMOFAN_MODEL", "DEEPSEEK_MODEL") || "auto",
+    envFirst(process.env, "MIMOFAN_MODEL") || "auto",
   mode:
-    envFirst(process.env, "MIMOFAN_MODE", "DEEPSEEK_MODE") || "agent",
+    envFirst(process.env, "MIMOFAN_MODE") || "agent",
   allowShell: parseBool(
     envFirst(
       process.env,
-      "MIMOFAN_ALLOW_SHELL",
-      "DEEPSEEK_ALLOW_SHELL"
+      "MIMOFAN_ALLOW_SHELL"
     ),
     true
   ),
   trustMode: parseBool(
     envFirst(
       process.env,
-      "MIMOFAN_TRUST_MODE",
-      "DEEPSEEK_TRUST_MODE"
+      "MIMOFAN_TRUST_MODE"
     ),
     false
   ),
   autoApprove: parseBool(
     envFirst(
       process.env,
-      "MIMOFAN_AUTO_APPROVE",
-      "DEEPSEEK_AUTO_APPROVE"
+      "MIMOFAN_AUTO_APPROVE"
     ),
     false
   ),
@@ -131,16 +127,14 @@ const config = {
     envFirst(
       process.env,
       "WEXIN_CHAT_ALLOWLIST",
-      "MIMOFAN_CHAT_ALLOWLIST",
-      "DEEPSEEK_CHAT_ALLOWLIST"
+      "MIMOFAN_CHAT_ALLOWLIST"
     )
   ),
   allowUnlisted: parseBool(
     envFirst(
       process.env,
       "WEXIN_ALLOW_UNLISTED",
-      "MIMOFAN_ALLOW_UNLISTED",
-      "DEEPSEEK_ALLOW_UNLISTED"
+      "MIMOFAN_ALLOW_UNLISTED"
     ),
     false
   ),
@@ -157,8 +151,7 @@ const config = {
   turnTimeoutMs: Number(
     envFirst(
       process.env,
-      "MIMOFAN_TURN_TIMEOUT_MS",
-      "DEEPSEEK_TURN_TIMEOUT_MS"
+      "MIMOFAN_TURN_TIMEOUT_MS"
     ) || 900000
   ),
 };

@@ -3,6 +3,14 @@
 //! This library contains the core TUI functionality.
 
 #![allow(clippy::uninlined_format_args)]
+// Allow dead_code crate-wide: `tui` is a scaffolding-heavy crate. The
+// suppressed items are intentional foundation APIs (provider/model catalog,
+// fleet orchestration, sandbox/network policy, telemetry, approval cache,
+// subagent decomposition/aggregation, composable prompt layers, worker
+// profile) tracked for follow-up features — not legacy cruft. They are
+// deliberately kept as the public surface for not-yet-wired consumers.
+// If a specific module's scaffolding is retired, delete it rather than
+// re-allowing it here.
 #![allow(dead_code)]
 
 use std::io::{self, IsTerminal, Read, Write};
@@ -39,7 +47,6 @@ mod context_budget;
 mod context_report;
 mod core;
 mod cost_status;
-mod mimofan_theme;
 mod dependencies;
 mod error_taxonomy;
 mod errors;
@@ -47,6 +54,7 @@ mod eval;
 mod execpolicy;
 mod features;
 mod fleet;
+mod mimofan_theme;
 /// Re-export observability types for integration tests and external consumers.
 pub use fleet::observability::{
     AgentMetrics, AgentTopology, FleetStatusSummary, ObservabilityCollector,
@@ -68,7 +76,6 @@ mod model_registry;
 mod model_routing;
 mod models;
 mod network_policy;
-mod oauth;
 mod palette;
 mod prefix_cache;
 mod pricing;
@@ -604,14 +611,12 @@ fn resolve_exec_model(config: &Config, explicit_model: Option<&str>) -> String {
 }
 
 fn exec_model_env_override() -> Option<String> {
-    ["MIMOFAN_MODEL"]
-        .into_iter()
-        .find_map(|key| {
-            std::env::var(key)
-                .ok()
-                .map(|model| model.trim().to_string())
-                .filter(|model| !model.is_empty())
-        })
+    ["MIMOFAN_MODEL"].into_iter().find_map(|key| {
+        std::env::var(key)
+            .ok()
+            .map(|model| model.trim().to_string())
+            .filter(|model| !model.is_empty())
+    })
 }
 
 fn top_level_prompt_initial_input(parts: &[String]) -> Option<tui::InitialInput> {
@@ -2146,9 +2151,7 @@ fn resolve_cors_origins(config: &Config, flag_origins: &[String]) -> Vec<String>
     for o in flag_origins {
         push(o);
     }
-    if let Ok(env_value) =
-        std::env::var("MIMOFAN_CORS_ORIGINS")
-    {
+    if let Ok(env_value) = std::env::var("MIMOFAN_CORS_ORIGINS") {
         for piece in env_value.split(',') {
             push(piece);
         }
@@ -3830,7 +3833,7 @@ fn doctor_xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
     let normalized = base_url.trim_end_matches('/').to_ascii_lowercase();
     [
         crate::config::XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL,
-        crate::config::XIAOMI_MIMO_TOKEN_PLAN_SGP_BASE_URL,
+        crate::config::DEFAULT_XIAOMI_MIMO_BASE_URL,
         crate::config::XIAOMI_MIMO_TOKEN_PLAN_AMS_BASE_URL,
     ]
     .iter()

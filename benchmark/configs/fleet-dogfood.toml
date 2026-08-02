@@ -57,7 +57,7 @@ input_files = ["crates/protocol/src/fleet.rs", "crates/secrets/src/lib.rs"]
 context = ["You are a fleet protocol reviewer. Be thorough but concise. Reference specific lines."]
 budget = { max_tokens = 10000, max_tool_calls = 16, max_seconds = 600 }
 expected_artifacts = ["log", "report", "receipt"]
-scorer = { kind = "code_whale_verifier_prompt", prompt = "Verify the review includes at least one concrete file:line finding or explicitly says 'all clear'." }
+scorer = { kind = "mimofan_verifier_prompt", prompt = "Verify the review includes at least one concrete file:line finding or explicitly says 'all clear'." }
 retry_policy = { max_attempts = 1, initial_backoff_seconds = 10 }
 timeout_seconds = 600
 tags = ["smoke", "review", "protocol"]

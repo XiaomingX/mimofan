@@ -2530,40 +2530,40 @@ impl Engine {
         // blocked, the user pauses/clears, or an optional budget is exhausted.
         // There is no continuation cap. A Failed or Interrupted turn does NOT
         // continue — Esc cancels the loop by interrupting the turn.
-        if status == TurnOutcomeStatus::Completed {
-            if let Some(continuation) = self.goal_continuation_if_active() {
-                // Re-dispatch with the same route/mode/approval settings as
-                // the prior turn. The non-Copy values were moved into
-                // `self.config` / `self.session` earlier in this function, so
-                // we clone them back out here.
-                let _ = self
-                    .tx_op
-                    .send(Op::SendMessage {
-                        content: continuation,
-                        mode,
-                        provider,
-                        model: self.session.model.clone(),
-                        goal_objective: None,
-                        goal_token_budget: None,
-                        goal_status: GoalStatus::Active,
-                        reasoning_effort: self.session.reasoning_effort.clone(),
-                        reasoning_effort_auto,
-                        response_format: self.session.response_format.clone(),
-                        auto_model,
-                        allow_shell,
-                        trust_mode,
-                        auto_approve,
-                        approval_mode,
-                        translation_enabled,
-                        show_thinking,
-                        allowed_tools: self.config.allowed_tools.clone(),
-                        dynamic_tools: dynamic_tools.clone(),
-                        hook_executor: self.config.hook_executor.clone(),
-                        verbosity: self.config.verbosity.clone(),
-                        provenance: UserInputProvenance::Runtime,
-                    })
-                    .await;
-            }
+        if status == TurnOutcomeStatus::Completed
+            && let Some(continuation) = self.goal_continuation_if_active()
+        {
+            // Re-dispatch with the same route/mode/approval settings as
+            // the prior turn. The non-Copy values were moved into
+            // `self.config` / `self.session` earlier in this function, so
+            // we clone them back out here.
+            let _ = self
+                .tx_op
+                .send(Op::SendMessage {
+                    content: continuation,
+                    mode,
+                    provider,
+                    model: self.session.model.clone(),
+                    goal_objective: None,
+                    goal_token_budget: None,
+                    goal_status: GoalStatus::Active,
+                    reasoning_effort: self.session.reasoning_effort.clone(),
+                    reasoning_effort_auto,
+                    response_format: self.session.response_format.clone(),
+                    auto_model,
+                    allow_shell,
+                    trust_mode,
+                    auto_approve,
+                    approval_mode,
+                    translation_enabled,
+                    show_thinking,
+                    allowed_tools: self.config.allowed_tools.clone(),
+                    dynamic_tools: dynamic_tools.clone(),
+                    hook_executor: self.config.hook_executor.clone(),
+                    verbosity: self.config.verbosity.clone(),
+                    provenance: UserInputProvenance::Runtime,
+                })
+                .await;
         }
     }
 

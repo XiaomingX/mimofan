@@ -779,11 +779,7 @@ impl ToolRegistryBuilder {
 
     /// Include Xiaomi MiMo speech/TTS tools (`speech`, `tts`).
     #[must_use]
-    pub fn with_speech_tools(
-        self,
-        client: Option<ApiClient>,
-        output_dir: Option<PathBuf>,
-    ) -> Self {
+    pub fn with_speech_tools(self, client: Option<ApiClient>, output_dir: Option<PathBuf>) -> Self {
         use super::speech::SpeechTool;
         self.with_tool(Arc::new(SpeechTool::new(
             "speech",

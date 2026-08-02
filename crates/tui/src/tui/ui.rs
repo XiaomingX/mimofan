@@ -20,7 +20,7 @@ use anyhow::{Context, Result};
 use crate::audit::log_sensitive_event;
 use crate::automation_manager::{AutomationManager, AutomationSchedulerConfig, spawn_scheduler};
 use crate::client::{
-    CacheWarmupKey, ApiClient, PromptInspection, build_cache_warmup_request,
+    ApiClient, CacheWarmupKey, PromptInspection, build_cache_warmup_request,
     inspect_prompt_for_request,
 };
 use crate::commands;
@@ -1572,14 +1572,12 @@ async fn run_event_loop(
         // Drain the version-check handle once; re-assign None so we
         // don't poll it again.
         let should_check = version_check.as_ref().is_some_and(|h| h.is_finished());
-        if should_check {
-            if let Ok(Some(hint)) = version_check.take().expect("checked above").await {
-                app.push_status_toast(
-                    hint,
-                    StatusToastLevel::Warning,
-                    Some(VERSION_HINT_TOAST_TTL_MS),
-                );
-            }
+        if should_check && let Ok(Some(hint)) = version_check.take().expect("checked above").await {
+            app.push_status_toast(
+                hint,
+                StatusToastLevel::Warning,
+                Some(VERSION_HINT_TOAST_TTL_MS),
+            );
         }
 
         if !drain_web_config_events(&mut web_config_session, app, config, &engine_handle).await {
@@ -2176,12 +2174,12 @@ async fn run_event_loop(
                         // Compute TTFT from the instant the turn started to the
                         // first content delta. Only store when we have both anchors
                         // and the result is positive.
-                        if let Some(first_token_at) = app.turn_first_token_at.take() {
-                            if let Some(started) = app.turn_started_at {
-                                let ttft = first_token_at.duration_since(started);
-                                if ttft.as_secs_f64() > 0.0 && ttft.as_secs_f64().is_finite() {
-                                    app.session.last_ttft = Some(ttft);
-                                }
+                        if let Some(first_token_at) = app.turn_first_token_at.take()
+                            && let Some(started) = app.turn_started_at
+                        {
+                            let ttft = first_token_at.duration_since(started);
+                            if ttft.as_secs_f64() > 0.0 && ttft.as_secs_f64().is_finite() {
+                                app.session.last_ttft = Some(ttft);
                             }
                         }
                         app.turn_started_at = None;
@@ -9250,9 +9248,7 @@ fn mark_active_turn_cancelled_locally(app: &mut App) {
         .streaming_message_index
         .and_then(|i| app.history.get(i))
         .and_then(|cell| match cell {
-            HistoryCell::Assistant { content, .. } if !content.is_empty() => {
-                Some(content.clone())
-            }
+            HistoryCell::Assistant { content, .. } if !content.is_empty() => Some(content.clone()),
             _ => None,
         });
 
@@ -11136,9 +11132,7 @@ async fn version_hint_from_release_mirror_env(current: &str) -> Option<String> {
 }
 
 fn release_mirror_env_configured() -> bool {
-    let version = mimofan_release::update_version_from_env()
-        .unwrap_or_else(|| env!("CARGO_PKG_VERSION").to_string());
-    mimofan_release::release_base_url_from_env(&version).is_some()
+    mimofan_release::release_base_url_from_env().is_some()
 }
 
 async fn version_hint_from_configured_update_uri(

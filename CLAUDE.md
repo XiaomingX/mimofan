@@ -93,7 +93,7 @@ Mimofan 只支持云 API 服务商。本地推理服务商（Ollama）和
 Novita、WanjieArk）已被明确移除。服务商配置位于
 `mimofan-config`，路由解析在 `config/src/route/`。
 
-详见 `config.example.toml` 了解服务商配置。
+详见 `config/config.example.toml` 了解服务商配置。
 
 ## 关键设计约束
 
@@ -111,14 +111,12 @@ Novita、WanjieArk）已被明确移除。服务商配置位于
 
 ```
 ARCHITECTURE.md           架构文档（中文，根目录）
-USER_GUIDE.md             使用指南（中文，根目录）
-IMPROVEMENT_PLAN.md       改进计划（DDD 视角，根目录）
 docs/CONFIGURATION.md     配置指南
 docs/SUBAGENTS.md         子智能体指南
 docs/MCP.md               MCP 集成指南
 docs/MODES.md             模式（plan/agent/yolo）
 docs/PROMPTS.md           提示词工程索引
-config.example.toml       示例配置
+config/config.example.toml  示例配置
 ~/.mimofan/settings.toml          用户设置
 ~/.mimofan/constitution.json      宪法（基础提示词）
 ```
@@ -211,7 +209,7 @@ config.example.toml       示例配置
 - **异步测试**：对异步代码使用 `#[tokio::test]`。对时间敏感测试优先使用 `#[tokio::test(start_paused = true)]`。
 - **测试隔离**：测试不能依赖外部状态（`~/.mimofan/`、环境变量）。使用 `tempfile` 和环境守卫（`config/tests.rs` 中的 `EnvGuard`）。
 - **快照测试**：在适当时使用 `insta` 或 `expect_test` 进行 UI 输出验证。
-- **集成测试**：放在 `tests/` 目录，带 `support/` 辅助工具。使用 PTY 工具（`qa_harness/`）进行终端交互测试。
+- **集成测试**：放在 `tests/` 目录，带 `support/` 辅助工具。
 
 ---
 

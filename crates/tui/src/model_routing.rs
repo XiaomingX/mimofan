@@ -294,7 +294,7 @@ pub(crate) async fn resolve_auto_route_with_inventory(
     let inventory = ModelInventory::from_config(config);
     if !inventory.router_available {
         // Fall back to heuristic-only auto routing when the flash router
-        // is unavailable (e.g. non-DeepSeek providers like wanjie-ark).
+        // is unavailable.
         return Ok(auto_route_from_inventory_heuristic(
             config,
             latest_request,

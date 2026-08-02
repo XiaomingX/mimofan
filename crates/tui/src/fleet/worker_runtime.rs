@@ -11,7 +11,6 @@
 //! - Mailbox events stream into fleet ledger as `FleetWorkerEventPayload`
 //! - `FleetWorkerInspection` reads both ledger state and sub-agent worker records
 
-#![allow(dead_code)]
 
 use anyhow::{Result, bail};
 use mimofan_protocol::fleet::{

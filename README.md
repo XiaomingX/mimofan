@@ -4,7 +4,6 @@
 >
 > 基于 Rust 实现，原生支持小米 MiMo 模型，兼容 DeepSeek、OpenAI、通义千问等主流大模型。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)]()
 [![MCP Ready](https://img.shields.io/badge/MCP-Supported-green.svg)](docs/MCP.md)
@@ -86,12 +85,11 @@ cargo install --path crates/tui --locked
 
 ```bash
 # 使用 小米 MiMo (默认)
-export MIMO_API_KEY="你的_MIMO_API_KEY"
+export XIAOMI_MIMO_API_KEY="你的_XIAOMI_MIMO_API_KEY"
 mimofan
 
-# 或使用 DeepSeek / OpenAI / 通义千问
-export DEEPSEEK_API_KEY="你的_DEEPSEEK_API_KEY"
-mimofan
+# DeepSeek / OpenAI / 通义千问 等非内置服务商，请使用自定义 provider：
+# 在 ~/.mimofan/config.toml 中按下方「配置示例」填写后运行 mimofan
 ```
 
 > 💡 **提示**：若未设置环境变量，首次运行 `mimofan` 会自动启动交互式配置向导帮你完成配置。
@@ -126,9 +124,10 @@ mimofan doctor
 | 服务商 | 模型示例 | 配置 |
 |--------|----------|------|
 | 小米 MiMo | mimo-v2.5-pro | 默认 |
-| DeepSeek | deepseek-chat | `provider = "deepseek"` |
-| 通义千问 | qwen-max | `provider = "openai-compatible"` |
-| OpenAI | gpt-4 | `provider = "openai-compatible"` |
+| Anthropic (Messages API) | mimo-v2.5 | `provider = "custom"` + `/anthropic` base_url |
+| DeepSeek | deepseek-chat | `provider = "custom"` |
+| 通义千问 | qwen-max | `provider = "custom"` |
+| OpenAI | gpt-4 | `provider = "custom"` |
 
 ### 操作模式
 
@@ -188,10 +187,35 @@ mimofan exec "用 Python 写一个简单的爬虫脚本，保存到 spider.py"
 
 ## 配置示例
 
+### Anthropic (Messages API)
+
+使用 Anthropic 原生 Messages API 协议，需要将 base_url 设置为以 `/anthropic` 结尾：
+
+```toml
+provider = "custom"
+api_key = "你的_ANTHROPIC_API_KEY"
+base_url = "https://api.xiaomimimo.com/anthropic"
+default_text_model = "mimo-v2.5"
+```
+
+> ⚠️ **重要**: base_url 必须以 `/anthropic` 结尾，mimofan 会自动检测并使用 Anthropic Messages API 协议。
+> 如果 base_url 不以 `/anthropic` 结尾，将使用 OpenAI Chat Completions 协议。
+
+### OpenAI Chat Completions (MiMo 模型)
+
+MiMo 模型兼容 OpenAI Chat Completions 接口：
+
+```toml
+provider = "custom"
+api_key = "你的_XIAOMI_MIMO_API_KEY"
+base_url = "https://api.xiaomimimo.com/v1"
+default_text_model = "mimo-v2.5"
+```
+
 ### DeepSeek
 
 ```toml
-provider = "deepseek"
+provider = "custom"
 api_key = "你的_DEEPSEEK_API_KEY"
 base_url = "https://api.deepseek.com/v1"
 default_text_model = "deepseek-chat"
@@ -200,7 +224,7 @@ default_text_model = "deepseek-chat"
 ### 通义千问
 
 ```toml
-provider = "openai-compatible"
+provider = "custom"
 api_key = "你的_DASHSCOPE_API_KEY"
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 default_text_model = "qwen-max"
@@ -220,13 +244,12 @@ default_text_model = "qwen-max"
 
 **Q: 能让 AI 读取本地文档吗？**
 
-直接告诉 AI："读取根目录下的 USER_GUIDE.md 并回答我的问题"。
+直接告诉 AI："读取根目录下的 ARCHITECTURE.md 并回答我的问题"。
 
 ---
 
 ## 文档
 
-- [USER_GUIDE.md](USER_GUIDE.md) -- 用户进阶教程
 - [ARCHITECTURE.md](ARCHITECTURE.md) -- 系统架构设计
 - [docs/MCP.md](docs/MCP.md) -- MCP 扩展服务
 - [AGENTS.md](AGENTS.md) -- 贡献指南
@@ -235,4 +258,4 @@ default_text_model = "qwen-max"
 
 ## 开源许可
 
-本项目遵循 [MIT License](LICENSE) 开源协议。
+本项目遵循 MIT License 开源协议。

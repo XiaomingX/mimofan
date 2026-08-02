@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 
 //! Markdown stream collector for live micro-chunk rendering.
 //!

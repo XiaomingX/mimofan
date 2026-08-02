@@ -18,7 +18,6 @@
 //! never render a child session, which is what keeps the orchestrator light at
 //! high fanout.
 
-#![allow(dead_code)]
 
 use anyhow::Result;
 use mimofan_config::FleetExecConfig;

@@ -1,0 +1,11 @@
+# Mimofan Anthropic 配置测试示例
+# 使用此配置验证 Anthropic API 连接
+
+provider = "anthropic"
+api_key = "sk-sjpn9lf7wlks5v6d4ytgcui6fq6rjdqto3vr4533qwrl1xw3"
+base_url = "https://api.xiaomimimo.com/anthropic"
+default_text_model = "mimo-v2.5"
+
+# 可选配置
+# approval_policy = "yolo"  # 自动批准模式
+# default_mode = "agent"    # 默认操作模式

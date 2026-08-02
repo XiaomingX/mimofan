@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! System prompts for different modes.
 //!
 //! Prompts are assembled from composable layers loaded at compile time:
