@@ -68,6 +68,7 @@ mod logging;
 mod lsp;
 mod mcp;
 mod mcp_server;
+mod mcp_server_backend;
 mod memory;
 mod model_catalog;
 mod model_inventory;
