@@ -11,11 +11,8 @@ use serde_json::{Value, json};
 use tokio::runtime::Runtime;
 use uuid::Uuid;
 
-use crate::client::ApiClient;
-use crate::config::Config;
-use crate::llm_client::LlmClient;
-use crate::models::{ContentBlock, Message, MessageRequest};
-use crate::session_manager::SessionManager;
+use crate::mcp_server_backend::{McpBackend, RealMcpBackend};
+use crate::models::{ContentBlock, Message, MessageRequest, MessageResponse};
 use crate::tools::spec::{ToolError, ToolResult};
 use crate::tools::{ToolContext, ToolRegistryBuilder};
 
@@ -72,7 +69,9 @@ struct ExposedTool {
 
 pub fn run_mcp_server(workspace: PathBuf) -> Result<()> {
     let settings = McpServerSettings::load()?;
-    let mut server = McpServer::new(workspace, settings)?;
+    // 组合根：注入默认后端实现，mcp_server 只依赖端口抽象（不在本模块直接耦合 client/config/session_manager）。
+    let backend: Box<dyn McpBackend> = Box::new(RealMcpBackend);
+    let mut server = McpServer::new(workspace, settings, backend)?;
     server.run()
 }
 
@@ -86,10 +85,17 @@ struct McpServer {
     threads: Arc<Mutex<HashMap<String, Vec<Message>>>>,
     /// Monotonic request counter for notification correlation.
     next_notification_id: u64,
+    /// 依赖反转：运行期能力（配置加载 / API 客户端 / 会话列举）经端口注入，
+    /// mcp_server 不再直接耦合 `client` / `config` / `session_manager` 等平级实现模块。
+    backend: Box<dyn McpBackend>,
 }
 
 impl McpServer {
-    fn new(workspace: PathBuf, settings: McpServerSettings) -> Result<Self> {
+    fn new(
+        workspace: PathBuf,
+        settings: McpServerSettings,
+        backend: Box<dyn McpBackend>,
+    ) -> Result<Self> {
         let exposed_tools = build_exposed_tools(&settings.expose_tools);
         let mut internal_names: HashSet<String> = HashSet::new();
         for tool in &exposed_tools {
@@ -117,6 +123,7 @@ impl McpServer {
             require_approval: settings.require_approval,
             threads: Arc::new(Mutex::new(HashMap::new())),
             next_notification_id: 0,
+            backend,
         })
     }
 
@@ -245,17 +252,14 @@ impl McpServer {
             "mimeType": "inode/directory",
         }));
 
-        if let Ok(manager) = SessionManager::default_location()
-            && let Ok(sessions) = manager.list_sessions()
-        {
-            for session in sessions {
-                resources.push(json!({
-                    "uri": format!("mimofan://session/{}", session.id),
-                    "name": session.title,
-                    "description": format!("{} messages", session.message_count),
-                    "mimeType": "application/json",
-                }));
-            }
+        // 经端口列举历史会话（不再直接依赖 session_manager 实现模块）
+        for session in self.backend.list_sessions() {
+            resources.push(json!({
+                "uri": format!("mimofan://session/{}", session.id),
+                "name": session.title,
+                "description": format!("{} messages", session.message_count),
+                "mimeType": "application/json",
+            }));
         }
 
         json!({ "resources": resources, "nextCursor": Value::Null })
@@ -320,10 +324,9 @@ impl McpServer {
 
     /// Handle a `mimofan` or `mimofan-reply` tool call.
     ///
-    /// Uses `ApiClient` directly (not the full engine) to send a prompt
-    /// and return the response. For `mimofan` a new thread is created; for
-    /// `mimofan-reply` the caller supplies a `thread_id` to continue an
-    /// existing conversation.
+    /// 经由注入的 `McpBackend` 端口（而非在本模块直接构造 `ApiClient` / `Config`）
+    /// 发送 prompt 并返回响应（不走完整 engine）。`mimofan` 新建线程，
+    /// `mimofan-reply` 由调用方提供 `thread_id` 续接既有会话。
     fn handle_api_call(
         &mut self,
         runtime: &Runtime,
@@ -359,15 +362,8 @@ impl McpServer {
                 .to_string()
         };
 
-        // Load config and create client
-        let config = Config::load(None, None).map_err(|e| RpcError {
-            code: -32000,
-            message: format!("Failed to load config: {e}"),
-        })?;
-        let client = ApiClient::new(&config).map_err(|e| RpcError {
-            code: -32000,
-            message: format!("Failed to create API client: {e}"),
-        })?;
+        // 经端口发送聊天请求（加载配置 / 建客户端 / 调 LlmClient 均在端口实现内，
+        // 本传输层不再直接依赖 client / config / llm_client 实现模块）
 
         // Build message list
         let user_message = Message {
@@ -407,8 +403,8 @@ impl McpServer {
             response_format: None,
         };
 
-        let response = runtime
-            .block_on(client.create_message(request))
+        let response: MessageResponse = runtime
+            .block_on(self.backend.send_message(request))
             .map_err(|e| RpcError {
                 code: -32000,
                 message: format!("API call failed: {e}"),

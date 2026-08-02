@@ -407,7 +407,7 @@ reg.register(Box::new(MyTool));
 - [ ] 继续拆分 `tui/lib.rs`（clap 定义 / `run()` / 子命令处理分离；注意 clap 类型当前均为私有，需先 `pub` 化并收敛 14 处跨模块引用）
 - [ ] 将 UI 层直连 IO 收口到端口（余额请求、`std::fs` 散落点改为经 core 端口）
 - [ ] 统一 MCP 客户端：明确 `mimofan-mcp` 为规范客户端，`tui::mcp` 仅保留服务端职责
-- [ ] 收敛 `mcp_server.rs` 跨层穿透（不再直接 use client/llm_client/session_manager）
+- [x] 收敛 `mcp_server.rs` 跨层穿透：引入 `McpBackend` 端口（依赖反转），删除死导入 `LlmClient`；`mcp_server` 仅依赖抽象、由组合根（`run_mcp_server`）注入 `RealMcpBackend`，不再直接 `use client`/`llm_client`/`session_manager`/`config`；对外签名与协议不变（见 PR 关联 issue #528）
 - [ ] 提示词资源（`prompts/`）与本地化（`localization.rs`）从 tui crate UI 层解耦为独立模块
 - [ ] 收敛 `config` 依赖扇出（上层经由端口读配置，避免直接耦合共享内核）
 - [ ] 持续消除裸 `unwrap()`（现状约 2600 处，生产路径替换为 `?` / `expect`）
