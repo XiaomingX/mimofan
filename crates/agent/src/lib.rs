@@ -778,4 +778,3 @@ impl ModelRegistry {
         }
     }
 }
-

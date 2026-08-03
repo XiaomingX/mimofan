@@ -67,4 +67,3 @@ pub fn model_family(model_id: &str) -> ModelFamily {
 
     ModelFamily::Inferencer
 }
-
