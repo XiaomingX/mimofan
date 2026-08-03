@@ -143,7 +143,7 @@ fn parse_index(input: Option<&str>, locale: Locale) -> Result<usize, String> {
     Ok(raw - 1)
 }
 
-fn truncate_preview(text: &str) -> String {
+pub fn truncate_preview(text: &str) -> String {
     if text.chars().count() <= PREVIEW_LIMIT {
         return text.to_string();
     }

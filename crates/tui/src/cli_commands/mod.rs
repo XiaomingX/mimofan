@@ -1,6 +1,6 @@
 #![allow(clippy::uninlined_format_args)]
 
-pub(crate) mod metrics;
+pub mod metrics;
 pub(crate) mod update;
 
 use std::io::{self, Read, Write};
