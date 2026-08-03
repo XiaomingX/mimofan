@@ -3129,6 +3129,7 @@ dependencies = [
  "mimofan-agent",
  "mimofan-app-server",
  "mimofan-config",
+ "mimofan-core",
  "mimofan-execpolicy",
  "mimofan-mcp",
  "mimofan-protocol",
