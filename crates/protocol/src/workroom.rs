@@ -259,4 +259,3 @@ pub struct WorkroomResolveResponse {
     pub external_ref: Option<ExternalThreadRef>,
     pub recent_events: Vec<WorkroomEvent>,
 }
-

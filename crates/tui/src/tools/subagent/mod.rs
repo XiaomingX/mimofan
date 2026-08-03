@@ -51,11 +51,25 @@ pub mod aggregator;
 pub mod bus;
 pub mod custom_agents;
 pub mod decomposer;
+pub mod events;
 pub mod mailbox;
+pub mod naming;
+pub mod persistence;
+pub mod runtime;
+pub mod types;
 pub use bus::AgentBus;
 #[allow(unused_imports)]
 pub use custom_agents::CustomAgentRegistry;
 pub use mailbox::{Mailbox, MailboxMessage};
+pub use naming::{assign_unique_whale_name, whale_name_for_id};
+pub use types::{
+    AgentRunArtifactRef, AgentRunFollowUpTarget, AgentRunRecommendedAction, AgentRunTakeoverTarget,
+    AgentRunUsage, AgentRunVerificationSummary, AgentWorkerEvent, AgentWorkerRecord,
+    AgentWorkerSpec, AgentWorkerStatus, AgentWorkerToolProfile, DEFAULT_MAX_SPAWN_DEPTH,
+    PersistedSubAgent, PersistedSubAgentState, SubAgentAssignment, SubAgentCheckpoint,
+    SubAgentCompletion, SubAgentForkContext, SubAgentNeedsInput, SubAgentResult, SubAgentStatus,
+    SubAgentType, is_false,
+};
 
 // === Constants ===
 
@@ -297,431 +311,7 @@ pub const MIMOFAN_NICKNAMES: &[&str] = &[
     "拉河豚",
 ];
 
-/// Return a deterministic whale name for a given agent ID using a hash of
-/// the ID string. The same ID always gets the same name — stable across
-/// session restarts for persisted agents.
-#[must_use]
-pub fn whale_name_for_id(id: &str) -> String {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    id.hash(&mut hasher);
-    let idx = (hasher.finish() as usize) % MIMOFAN_NICKNAMES.len();
-    MIMOFAN_NICKNAMES[idx].to_string()
-}
-
-/// Assign a unique whale name for an agent ID, avoiding collisions with
-/// names already in `active_names`. If the deterministic name is taken,
-/// appends a numeric suffix (e.g. "Orca (2)").
-#[must_use]
-pub fn assign_unique_whale_name(
-    id: &str,
-    active_names: &std::collections::HashSet<String>,
-) -> String {
-    let base = whale_name_for_id(id);
-    if !active_names.contains(&base) {
-        return base;
-    }
-    // Deterministic suffix from the same hash to keep it stable
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    id.hash(&mut hasher);
-    let suffix_seed = hasher.finish();
-    for i in 2.. {
-        let candidate = format!("{base} ({i})");
-        if !active_names.contains(&candidate) {
-            return candidate;
-        }
-        // Vary the probe using the seed
-        let probe = (suffix_seed.wrapping_add(i as u64)) % 100;
-        let candidate2 = format!("{base} ({probe})");
-        if !active_names.contains(&candidate2) {
-            return candidate2;
-        }
-    }
-    // Fallback (should never reach here)
-    format!("{base} ({})", id.get(..4).unwrap_or("?"))
-}
-
 // === Types ===
-
-/// Assignment metadata for sub-agent orchestration.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct SubAgentAssignment {
-    pub objective: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
-}
-
-impl SubAgentAssignment {
-    fn new(objective: String, role: Option<String>) -> Self {
-        Self { objective, role }
-    }
-}
-
-/// Sub-agent execution types with specialized behavior and tool access.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum SubAgentType {
-    /// General purpose - full tool access for multi-step tasks.
-    #[default]
-    General,
-    /// Fast exploration - read-only tools for codebase search.
-    Explore,
-    /// Planning - analysis tools only for architectural planning.
-    Plan,
-    /// Code review - read + analysis tools.
-    Review,
-    /// Implementation — focused on writing / patching code to satisfy
-    /// a specific change. Distinct from `General` in that the prompt
-    /// posture pushes hard on landing the change cleanly with the
-    /// minimum surrounding edit (#404).
-    Implementer,
-    /// Verification — focused on running the test suite or other
-    /// validation gates and reporting pass/fail with evidence.
-    /// Distinct from `Review` in that Review reads code and grades it;
-    /// Verifier *runs* tests and reports the outcome (#404).
-    Verifier,
-    /// Custom tool access defined at spawn time.
-    Custom,
-}
-
-impl SubAgentType {
-    /// Parse a sub-agent type from user input.
-    #[must_use]
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "general" | "general-purpose" | "general_purpose" | "worker" | "default" => {
-                Some(Self::General)
-            }
-            "explore" | "exploration" | "explorer" => Some(Self::Explore),
-            "plan" | "planning" | "planner" | "awaiter" => Some(Self::Plan),
-            "review" | "code-review" | "code_review" | "reviewer" => Some(Self::Review),
-            "implementer" | "implement" | "implementation" | "builder" => Some(Self::Implementer),
-            "verifier" | "verify" | "verification" | "validator" | "tester" => Some(Self::Verifier),
-            "custom" => Some(Self::Custom),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::General => "general",
-            Self::Explore => "explore",
-            Self::Plan => "plan",
-            Self::Review => "review",
-            Self::Implementer => "implementer",
-            Self::Verifier => "verifier",
-            Self::Custom => "custom",
-        }
-    }
-
-    /// Get the system prompt for this agent type.
-    #[must_use]
-    pub fn system_prompt(&self) -> String {
-        let role_intro = match self {
-            Self::General => GENERAL_AGENT_INTRO,
-            Self::Explore => EXPLORE_AGENT_INTRO,
-            Self::Plan => PLAN_AGENT_INTRO,
-            Self::Review => REVIEW_AGENT_INTRO,
-            Self::Implementer => IMPLEMENTER_AGENT_INTRO,
-            Self::Verifier => VERIFIER_AGENT_INTRO,
-            Self::Custom => CUSTOM_AGENT_INTRO,
-        };
-        format!("{role_intro}{SUBAGENT_OUTPUT_FORMAT}")
-    }
-}
-
-/// Status of a sub-agent execution.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum SubAgentStatus {
-    Running,
-    Completed,
-    Interrupted(String),
-    Failed(String),
-    Cancelled,
-    /// Worker stopped because it exceeded its own per-worker token budget.
-    /// Distinct from the scope-level admission gate (#3319): this caps a
-    /// single runaway worker mid-run, while the scope gate bounds total
-    /// fan-out across a root run and its descendants.
-    BudgetExhausted,
-}
-
-/// Structured reason a non-running sub-agent needs parent action.
-///
-/// This is intentionally separate from `SubAgentStatus`: legacy surfaces keep
-/// seeing `Interrupted`, while parent-visible projections get a concrete
-/// question/action instead of a parked child task.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct SubAgentNeedsInput {
-    pub question: String,
-}
-
-/// Snapshot of sub-agent state for tool results.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubAgentResult {
-    pub name: String,
-    pub agent_id: String,
-    pub context_mode: String,
-    pub fork_context: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub workspace: Option<PathBuf>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub git_branch: Option<String>,
-    pub agent_type: SubAgentType,
-    pub assignment: SubAgentAssignment,
-    #[serde(default)]
-    pub model: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub nickname: Option<String>,
-    pub status: SubAgentStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_status: Option<AgentWorkerStatus>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_run_id: Option<String>,
-    #[serde(default)]
-    pub spawn_depth: u32,
-    pub result: Option<String>,
-    pub steps_taken: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub checkpoint: Option<SubAgentCheckpoint>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub needs_input: Option<SubAgentNeedsInput>,
-    pub duration_ms: u64,
-    /// `true` when this agent was loaded from a prior-session persisted
-    /// state file rather than spawned in the current session (#405).
-    /// Lets listings filter out historical noise by default while
-    /// keeping the records reachable via `include_archived=true`.
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub from_prior_session: bool,
-}
-
-/// Headless worker lifecycle states for sub-agent execution.
-///
-/// This is the TUI-independent state machine that future CLI/API/workflow
-/// surfaces should consume. The legacy `SubAgentStatus` remains the
-/// compatibility projection returned by sub-agent runs.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentWorkerStatus {
-    Queued,
-    Starting,
-    Running,
-    WaitingForUser,
-    ModelWait,
-    RunningTool,
-    Completed,
-    Failed,
-    Cancelled,
-    Interrupted,
-}
-
-/// Tool capability profile requested for a headless worker.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentWorkerToolProfile {
-    /// Inherit the parent runtime registry for compatibility.
-    Inherited,
-    /// Use the listed tools only.
-    Explicit(Vec<String>),
-}
-
-/// Declarative headless worker request derived from `agent`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentWorkerSpec {
-    pub worker_id: String,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub run_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_run_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_name: Option<String>,
-    pub objective: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
-    pub agent_type: SubAgentType,
-    pub model: String,
-    pub workspace: PathBuf,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub git_branch: Option<String>,
-    pub context_mode: String,
-    pub fork_context: bool,
-    pub tool_profile: AgentWorkerToolProfile,
-    #[serde(default)]
-    pub runtime_profile: WorkerRuntimeProfile,
-    pub max_steps: u32,
-    pub spawn_depth: u32,
-    pub max_spawn_depth: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentRunFollowUpDelivery {
-    pub delivered: bool,
-    pub timestamp_ms: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message_preview: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub interrupt: bool,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub continued_from_checkpoint: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentRunFollowUpTarget {
-    #[serde(default = "default_agent_inspect_tool")]
-    pub tool: String,
-    pub agent_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_name: Option<String>,
-    #[serde(default)]
-    pub accepted_statuses: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub latest_delivery: Option<AgentRunFollowUpDelivery>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentRunTakeoverTarget {
-    #[serde(default = "default_subagent_takeover_kind")]
-    pub kind: String,
-    #[serde(default)]
-    pub supported: bool,
-    pub agent_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_name: Option<String>,
-    pub instructions: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub unsupported_reason: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentRunArtifactRef {
-    pub kind: String,
-    pub name: String,
-    pub target: String,
-    pub description: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentRunUsage {
-    pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub input_tokens: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub output_tokens: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub total_tokens: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub token_budget: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub budget_spent_tokens: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub budget_remaining_tokens: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub budget_scope: Option<String>,
-    pub note: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentRunVerificationSummary {
-    pub status: String,
-    pub summary: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentRunRecommendedAction {
-    pub action: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tool: Option<String>,
-    pub reason: String,
-}
-
-/// Structured headless worker event.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentWorkerEvent {
-    pub seq: u64,
-    pub worker_id: String,
-    pub status: AgentWorkerStatus,
-    pub timestamp_ms: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub step: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tool_name: Option<String>,
-}
-
-/// Canonical headless worker record retained by `SubAgentManager`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AgentWorkerRecord {
-    pub spec: AgentWorkerSpec,
-    #[serde(default = "default_subagent_actor_kind")]
-    pub actor_kind: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_run_id: Option<String>,
-    #[serde(default = "default_agent_run_follow_up")]
-    pub follow_up: AgentRunFollowUpTarget,
-    #[serde(default = "default_agent_run_takeover")]
-    pub takeover: AgentRunTakeoverTarget,
-    #[serde(default)]
-    pub artifacts: Vec<AgentRunArtifactRef>,
-    #[serde(default = "default_agent_run_usage")]
-    pub usage: AgentRunUsage,
-    #[serde(default = "default_agent_run_verification")]
-    pub verification: AgentRunVerificationSummary,
-    #[serde(default = "default_agent_run_recommended_action")]
-    pub recommended_action: AgentRunRecommendedAction,
-    pub status: AgentWorkerStatus,
-    pub created_at_ms: u64,
-    pub updated_at_ms: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub started_at_ms: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub completed_at_ms: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub latest_message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub result_summary: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-    #[serde(default)]
-    pub steps_taken: u32,
-    #[serde(default)]
-    pub events: VecDeque<AgentWorkerEvent>,
-}
-
-impl AgentWorkerRecord {
-    fn new(spec: AgentWorkerSpec, now_ms: u64) -> Self {
-        let run_id = agent_worker_run_id(&spec);
-        let artifacts = default_subagent_artifacts(&run_id);
-        let follow_up = follow_up_target_for_spec(&spec);
-        let takeover = takeover_target_for_spec(&spec);
-        let recommended_action =
-            recommended_action_for_worker_status(AgentWorkerStatus::Starting, &spec);
-        Self {
-            parent_run_id: spec.parent_run_id.clone(),
-            spec,
-            actor_kind: default_subagent_actor_kind(),
-            follow_up,
-            takeover,
-            artifacts,
-            usage: default_agent_run_usage(),
-            verification: default_agent_run_verification(),
-            recommended_action,
-            status: AgentWorkerStatus::Starting,
-            created_at_ms: now_ms,
-            updated_at_ms: now_ms,
-            started_at_ms: None,
-            completed_at_ms: None,
-            latest_message: None,
-            result_summary: None,
-            error: None,
-            steps_taken: 0,
-            events: VecDeque::new(),
-        }
-    }
-}
 
 fn default_subagent_actor_kind() -> String {
     "subagent".to_string()
@@ -1017,7 +607,8 @@ fn normalize_worker_record(mut record: AgentWorkerRecord) -> AgentWorkerRecord {
     {
         record.takeover = takeover_target_for_spec(&record.spec);
     }
-    record.recommended_action = recommended_action_for_worker_status(record.status, &record.spec);
+    record.recommended_action =
+        recommended_action_for_worker_status(record.status.clone(), &record.spec);
     if record.artifacts.is_empty() {
         record.artifacts = default_subagent_artifacts(&run_id);
     }
@@ -1030,10 +621,6 @@ fn normalize_worker_record(mut record: AgentWorkerRecord) -> AgentWorkerRecord {
         record.verification = default_agent_run_verification();
     }
     record
-}
-
-fn is_false(b: &bool) -> bool {
-    !*b
 }
 
 fn current_git_branch(workspace: &Path) -> Option<String> {
@@ -1177,111 +764,6 @@ struct AgentUsageBudgetScope {
     limit: u64,
     spent: u64,
     remaining: u64,
-}
-
-/// Durable recovery point for an interrupted sub-agent session.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SubAgentCheckpoint {
-    pub checkpoint_id: String,
-    pub agent_id: String,
-    pub continuation_handle: String,
-    pub reason: String,
-    pub continuable: bool,
-    pub steps_taken: u32,
-    pub message_count: usize,
-    pub created_at_ms: u64,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub messages: Vec<Message>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PersistedSubAgent {
-    id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    session_name: Option<String>,
-    #[serde(default)]
-    fork_context: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    workspace: Option<PathBuf>,
-    agent_type: SubAgentType,
-    prompt: String,
-    assignment: SubAgentAssignment,
-    #[serde(default)]
-    model: String,
-    #[serde(default)]
-    nickname: Option<String>,
-    status: SubAgentStatus,
-    result: Option<String>,
-    steps_taken: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    checkpoint: Option<SubAgentCheckpoint>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    needs_input: Option<SubAgentNeedsInput>,
-    duration_ms: u64,
-    allowed_tools: Vec<String>,
-    updated_at_ms: u64,
-    /// Stable id of the manager / process boot that spawned this agent
-    /// (#405). Lets a fresh manager filter out agents that were
-    /// persisted by a prior session. Optional with `#[serde(default)]`
-    /// for backward compatibility — older records lack the field and
-    /// load with an empty string, which the manager treats as
-    /// "from_prior_session" because it can't match any current id.
-    #[serde(default)]
-    session_boot_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct PersistedSubAgentState {
-    schema_version: u32,
-    agents: Vec<PersistedSubAgent>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    workers: Vec<AgentWorkerRecord>,
-}
-
-impl Default for PersistedSubAgentState {
-    fn default() -> Self {
-        Self {
-            schema_version: SUBAGENT_STATE_SCHEMA_VERSION,
-            agents: Vec::new(),
-            workers: Vec::new(),
-        }
-    }
-}
-
-/// Default cap on sub-agent recursion depth. Override via
-/// `[subagents] max_depth = N` in config.
-///
-/// Sourced from [`mimofan_config::DEFAULT_SPAWN_DEPTH`] so standalone
-/// sub-agents and fleet workers share ONE recursion axis (no "two moving
-/// targets"). Configured/requested depths clamp to
-/// [`mimofan_config::MAX_SPAWN_DEPTH_CEILING`].
-pub const DEFAULT_MAX_SPAWN_DEPTH: u32 = mimofan_config::DEFAULT_SPAWN_DEPTH;
-
-/// Terminal-state notification emitted to the immediate parent's completion
-/// inbox when one of its children finishes (issue #756). For root-spawned
-/// agents that inbox is the engine turn loop; for nested agents it is a
-/// parent-local receiver inside `run_subagent`. Carries the already-rendered
-/// `<mimo:subagent.done>` sentinel that the model expects in the
-/// transcript per `prompts/constitution.md`.
-#[derive(Debug, Clone)]
-pub struct SubAgentCompletion {
-    /// The completing child's agent id. Held for routing/logging — the
-    /// engine's turn loop does not currently key on it (it just injects
-    /// the payload), but downstream tooling and tests need the field.
-    pub agent_id: String,
-    /// Human summary on line 1, sentinel on line 2. Same payload shape as
-    /// `Event::AgentComplete::result`.
-    pub payload: String,
-}
-
-/// Parent transcript snapshot available to sub-agents that opt into context
-/// forking. The system prompt and leading messages are kept byte-identical to
-/// the parent request so DeepSeek's prefix cache can reuse the warmed prefix.
-#[derive(Clone, Debug)]
-pub struct SubAgentForkContext {
-    pub system: Option<SystemPrompt>,
-    pub messages: Vec<Message>,
-    pub structured_state_block: Option<String>,
 }
 
 /// Runtime configuration for spawning sub-agents.
@@ -2239,8 +1721,9 @@ impl SubAgentManager {
         let Some(mut record) = self.worker_records.remove(worker_id) else {
             return;
         };
-        record.status = status;
-        record.recommended_action = recommended_action_for_worker_status(status, &record.spec);
+        record.status = status.clone();
+        record.recommended_action =
+            recommended_action_for_worker_status(status.clone(), &record.spec);
         record.updated_at_ms = now_ms;
         record.latest_message = message.clone();
         if matches!(
@@ -2690,7 +2173,7 @@ impl SubAgentManager {
         let mut snap = agent.snapshot();
         snap.from_prior_session = self.is_from_prior_session(agent);
         if let Some(record) = self.worker_records.get(&agent.id) {
-            snap.worker_status = Some(record.status);
+            snap.worker_status = Some(record.status.clone());
             snap.parent_run_id = record
                 .parent_run_id
                 .clone()
@@ -3053,7 +2536,7 @@ async fn subagent_session_projection(
     // is no record so both paths agree on the "needs parent action" signal.
     let status = worker_record
         .as_ref()
-        .map(|record| agent_worker_status_name(record.status))
+        .map(|record| agent_worker_status_name(record.status.clone()))
         .unwrap_or_else(|| agent_worker_status_name(worker_status_from_subagent_result(&snapshot)))
         .to_string();
 

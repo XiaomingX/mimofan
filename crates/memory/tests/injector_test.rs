@@ -19,8 +19,7 @@ fn test_memory_injection_serialization() {
     };
 
     let json = serde_json::to_string(&injection).expect("serialize injection to json");
-    let deserialized: MemoryInjection =
-        serde_json::from_str(&json).expect("parse injection json");
+    let deserialized: MemoryInjection = serde_json::from_str(&json).expect("parse injection json");
 
     assert_eq!(deserialized.summary, injection.summary);
     assert_eq!(deserialized.key_decisions, injection.key_decisions);

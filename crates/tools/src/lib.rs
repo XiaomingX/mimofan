@@ -575,4 +575,3 @@ fn tool_payload_kind(payload: &ToolPayload) -> ToolKind {
         | ToolPayload::LocalShell { .. } => ToolKind::Function,
     }
 }
-

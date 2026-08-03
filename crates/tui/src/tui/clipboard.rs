@@ -503,12 +503,15 @@ fi
 "#,
         )
         .expect("unexpected None/Err in test");
-        let mut perms = std::fs::metadata(&script).expect("read file metadata").permissions();
+        let mut perms = std::fs::metadata(&script)
+            .expect("read file metadata")
+            .permissions();
         perms.set_mode(0o755);
         std::fs::set_permissions(&script, perms).expect("set file permissions");
 
-        let text = read_text_with_wlpaste_using_argv(script.to_str().expect("convert OsStr to str"))
-            .expect("read text through wl-paste helper");
+        let text =
+            read_text_with_wlpaste_using_argv(script.to_str().expect("convert OsStr to str"))
+                .expect("read text through wl-paste helper");
 
         assert_eq!(text, "from-wayland");
     }

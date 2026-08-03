@@ -1,15 +1,16 @@
 use mimofan_core::*;
-use mimofan_state::{SessionSource, StateStore, ThreadMetadata, ThreadStatus as PersistedThreadStatus};
-use mimofan_tools::{ToolCall, ToolCallSource};
-use mimofan_protocol::{EventFrame, LocalShellParams, ToolPayload};
 use mimofan_execpolicy::ExecApprovalRequirement;
+use mimofan_protocol::{EventFrame, LocalShellParams, ToolPayload};
+use mimofan_state::{
+    SessionSource, StateStore, ThreadMetadata, ThreadStatus as PersistedThreadStatus,
+};
+use mimofan_tools::{ToolCall, ToolCallSource};
 use serde_json::json;
 use std::path::PathBuf;
 use uuid::Uuid;
 
 fn temp_core_state(name: &str) -> StateStore {
-    let dir =
-        std::env::temp_dir().join(format!("mimofan-core-{name}-{}", Uuid::new_v4().simple()));
+    let dir = std::env::temp_dir().join(format!("mimofan-core-{name}-{}", Uuid::new_v4().simple()));
     std::fs::create_dir_all(&dir).expect("create temp state dir");
     StateStore::open(Some(dir.join("state.db"))).expect("open state store")
 }

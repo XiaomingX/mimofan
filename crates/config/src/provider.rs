@@ -292,4 +292,3 @@ pub fn provider_for_kind(kind: ProviderKind) -> &'static dyn Provider {
         .copied()
         .expect("ProviderKind variant missing from PROVIDER_REGISTRY")
 }
-

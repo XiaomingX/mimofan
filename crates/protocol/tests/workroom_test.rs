@@ -14,7 +14,8 @@ fn workroom_id_new_is_stable() {
 
 #[test]
 fn workroom_link_parse_workroom_only() {
-    let link = WorkroomLink::parse("mimofan://workroom/wr_abc123def456").expect("parse workroom-only link");
+    let link = WorkroomLink::parse("mimofan://workroom/wr_abc123def456")
+        .expect("parse workroom-only link");
     assert_eq!(link.workroom_id.0, "wr_abc123def456");
     assert!(link.thread_id.is_none());
     assert!(link.event_id.is_none());
@@ -22,7 +23,8 @@ fn workroom_link_parse_workroom_only() {
 
 #[test]
 fn workroom_link_parse_with_thread() {
-    let link = WorkroomLink::parse("mimofan://workroom/wr_abc/thread/thr_xyz").expect("parse link with thread");
+    let link = WorkroomLink::parse("mimofan://workroom/wr_abc/thread/thr_xyz")
+        .expect("parse link with thread");
     assert_eq!(link.workroom_id.0, "wr_abc");
     assert_eq!(link.thread_id.as_deref(), Some("thr_xyz"));
     assert!(link.event_id.is_none());
@@ -30,7 +32,8 @@ fn workroom_link_parse_with_thread() {
 
 #[test]
 fn workroom_link_parse_with_event() {
-    let link = WorkroomLink::parse("mimofan://workroom/wr_abc/event/evt_789").expect("parse link with event");
+    let link = WorkroomLink::parse("mimofan://workroom/wr_abc/event/evt_789")
+        .expect("parse link with event");
     assert_eq!(link.workroom_id.0, "wr_abc");
     assert_eq!(link.event_id.as_deref(), Some("evt_789"));
     assert!(link.thread_id.is_none());
@@ -68,7 +71,8 @@ fn external_thread_ref_serde_roundtrip() {
         number: 3209,
     };
     let json = serde_json::to_string(&issue).expect("serialize external thread ref");
-    let back: ExternalThreadRef = serde_json::from_str(&json).expect("deserialize external thread ref");
+    let back: ExternalThreadRef =
+        serde_json::from_str(&json).expect("deserialize external thread ref");
     assert!(matches!(back, ExternalThreadRef::GitHubIssue { .. }));
 }
 
@@ -80,7 +84,8 @@ fn agent_attribution_serde_roundtrip() {
         agent_id: "sub_agent_1".into(),
     };
     let json = serde_json::to_string(&attr).expect("serialize agent attribution");
-    let back: AgentAttribution = serde_json::from_str(&json).expect("deserialize agent attribution");
+    let back: AgentAttribution =
+        serde_json::from_str(&json).expect("deserialize agent attribution");
     assert_eq!(back.provider, "deepseek");
     assert_eq!(back.model, "deepseek-v4-pro");
 }

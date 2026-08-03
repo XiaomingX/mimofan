@@ -31,7 +31,6 @@ node_modules/
 *~
 .DS_Store
 Thumbs.db
-
 # Python
 __pycache__/
 *.py[cod]
@@ -43,7 +42,6 @@ env/
 .venv/
 *.egg-info/
 dist/
-
 # Logs
 *.log
 cron.log
@@ -51,7 +49,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-
 # Generated
 outputs/
 tmp/
@@ -60,24 +57,18 @@ temp/
 .cache/
 coverage/
 backup/
-
 # Reference papers / large research blobs (keep locally if needed, don't ship)
 docs/DeepSeek_V4.pdf
 docs/*.pdf
-
 # Evidence and reference material (screenshots, data dumps)
 docs/evidence/
-
 # Benchmark results
 benchmark_results/
 results/
-
 # Historical RFCs and design docs (not needed for code understanding)
 docs/rfcs/
-
 # Skill documentation (non-code, for skill marketplace)
 docs/skills/
-
 # Non-core docs (release ops, changelog archive, reform plans)
 docs/CHANGELOG_ARCHIVE.md
 docs/OPERATIONS_RUNBOOK.md
@@ -88,27 +79,21 @@ docs/V0865_RELEASE_LEDGER.md
 docs/V0865_REMAINING_AGENT_PROMPT.md
 docs/ACP_REGISTRY_SUBMISSION.md
 ARCHITECTURE_REFORM.md
-
 # Nix configuration
 flake.nix
 flake.lock
 nix/
-
 # Dev container
 .devcontainer/
-
 # Lock files: bun.lock is committed (not ignored) for reproducible
 # `bun install --frozen-lockfile`. (Cargo.lock is also committed.)
-
 extensions/vscode/pnpm-lock.yaml
 integrations/*/pnpm-lock.yaml
 web/pnpm-lock.yaml
-
 # Local dev scripts and temp files
 *.sh
 *.cmd
 !scripts/**
-!.github/scripts/**
 !benchmark/*.sh
 !web/public/install.sh
 !build/*.sh
@@ -116,16 +101,11 @@ web/pnpm-lock.yaml
 test.txt
 TODO*.md
 todo*.md
-AGENTS.md
-NEXT_SESSION.md
-AI_HANDOFF.md
 result.json
 count_deps.py
-project_overhaul_prompt.md
 .codex/
 .context/
 .wrangler/
-
 # Local runtime state
 # Ignore everything under any .mimofan/ (snapshots, auto-generated
 # instructions.md, etc.) at any depth EXCEPT the committed repo authority policy.
@@ -135,23 +115,17 @@ project_overhaul_prompt.md
 **/session_*.json
 *.db
 bun/*/bin/downloads/
-
 # Companion app (tracked separately)
 apps/
-
 # Claude Code runtime artifacts
 .claude/settings.json
 .claude/scheduled_tasks.lock
 .claude/worktrees/
 .worktrees/
-.ace-tool/
-.github/
-
 # Local-only Claude / ralph notes
 .claude/*.local.md
 .claude/*.local.json
 **/CLAUDE.local.md
-
 # Maintainer handoff + codemap notes are working-state, not user-facing
 # artifacts. They've leaked into the public repo via .claude/ in the past
 # (HANDOFF_v0.8.28, CODEMAP_v0.8.25) — those files now live under
@@ -161,37 +135,29 @@ apps/
 .claude/CODEMAP_*
 .claude/handoff_*
 .claude/codemap_*
-
 # Maintainer-internal design notes (trade-secret material, never published)
 .private/
-
 # Agent handoffs and version-specific setup plans are working-state notes, not
 # public docs. Keep durable setup guidance in docs/runbooks instead.
 docs/*HANDOFF*.md
 docs/*handoff*.md
 docs/*_PLAN.md
 !docs/archive/**
-
 # direnv
 .envrc
 .direnv
 scripts/run_deep_swe.py
 .claude/
-
 # Local run artifacts and caches re-included by !scripts/**
-results/
 scripts/**/__pycache__/
-
 # AI tool ignore files (local config, not tracked)
 .aiderignore
 .codeiumignore
 .clineignore
 .mimofan/
 .kiro/specs/tui-lib-bin-refactor/
-
 # Cargo local
 .cargo/
-
 # Maintainer-local verification artifacts
 .uv-bin/
 .uv-cache/
@@ -199,14 +165,12 @@ scripts/**/__pycache__/
 issues/
 logs/
 notes/
-
 # Temporary local scripts and draft plans
 doctor.sh
 verify.sh
 IMPROVEMENT_PLAN.md
 ARCHITECTURE_PLAN.md
 settings.example.json
-
 # Local agent runtimes & caches
 .gemini/
 .antigravity/

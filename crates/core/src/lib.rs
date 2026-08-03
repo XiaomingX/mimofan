@@ -1,6 +1,6 @@
+mod balance_provider;
 mod job;
 mod thread;
-mod balance_provider;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -27,9 +27,9 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 // Re-export all public types for backward compatibility.
+pub use balance_provider::BalanceProvider;
 pub use job::*;
 pub use thread::*;
-pub use balance_provider::BalanceProvider;
 
 /// Top-level runtime combining config, model registry, threads, tools, MCP, and hooks.
 pub struct Runtime {
@@ -1139,4 +1139,3 @@ fn event_frame_payload(frame: &EventFrame) -> Value {
 
 /// Tool name that triggers the headless clarification-question flow.
 const REQUEST_USER_INPUT_TOOL_NAME: &str = "request_user_input";
-

@@ -71,7 +71,9 @@ fn benchmark_vector_store() {
             format!("Benchmark observation {}", i),
         );
         let embedding = generate_embedding(i as u64);
-        store.store_observation(&obs, &embedding).expect("store observation");
+        store
+            .store_observation(&obs, &embedding)
+            .expect("store observation");
     }
     BenchmarkResult::new("Store observations", iterations, start.elapsed()).print();
 
@@ -95,7 +97,9 @@ fn benchmark_vector_store() {
     let iterations = 100_usize;
     let start = Instant::now();
     for _ in 0..iterations {
-        let _results = store.search(&query_embedding, 10, &filters).expect("search vector store with filters");
+        let _results = store
+            .search(&query_embedding, 10, &filters)
+            .expect("search vector store with filters");
     }
     BenchmarkResult::new("Search with filters", iterations, start.elapsed()).print();
 }

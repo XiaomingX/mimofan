@@ -7,7 +7,7 @@ use crate::tui::history::HistoryCell;
 use crate::tui::osc8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CopyLineSeparator {
+pub enum CopyLineSeparator {
     None,
     Space,
     Newline,
@@ -15,7 +15,7 @@ pub(crate) enum CopyLineSeparator {
 
 impl CopyLineSeparator {
     #[must_use]
-    pub(crate) const fn as_str(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::None => "",
             Self::Space => " ",

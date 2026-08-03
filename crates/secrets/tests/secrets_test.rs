@@ -174,7 +174,10 @@ fn file_default_path_migrates_legacy_entries_to_mimofan() {
             .join("secrets.json")
     );
     assert_eq!(
-        primary_store.get("xiaomi-mimo").expect("get xiaomi-mimo secret from primary store").as_deref(),
+        primary_store
+            .get("xiaomi-mimo")
+            .expect("get xiaomi-mimo secret from primary store")
+            .as_deref(),
         Some("legacy-mimo")
     );
     assert!(
@@ -212,7 +215,10 @@ fn file_default_path_migration_preserves_primary_values() {
 
     assert_eq!(resolved, primary);
     assert_eq!(
-        primary_store.get("openrouter").expect("get openrouter secret from primary store").as_deref(),
+        primary_store
+            .get("openrouter")
+            .expect("get openrouter secret from primary store")
+            .as_deref(),
         Some("primary-openrouter")
     );
 }
@@ -220,18 +226,41 @@ fn file_default_path_migration_preserves_primary_values() {
 #[test]
 fn in_memory_store_round_trips() {
     let store = InMemoryKeyringStore::new();
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), None);
-    store.set("deepseek", "sk-test").expect("write deepseek test secret");
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), Some("sk-test".to_string()));
-    store.set("deepseek", "sk-replaced").expect("overwrite deepseek secret");
     assert_eq!(
-        store.get("deepseek").expect("get deepseek secret from in-memory store"),
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        None
+    );
+    store
+        .set("deepseek", "sk-test")
+        .expect("write deepseek test secret");
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        Some("sk-test".to_string())
+    );
+    store
+        .set("deepseek", "sk-replaced")
+        .expect("overwrite deepseek secret");
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
         Some("sk-replaced".to_string())
     );
     store.delete("deepseek").expect("delete deepseek secret");
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), None);
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        None
+    );
     // Deleting an absent key is a no-op.
-    store.delete("missing").expect("delete absent secret (no-op)");
+    store
+        .delete("missing")
+        .expect("delete absent secret (no-op)");
 }
 
 #[test]
@@ -242,7 +271,9 @@ fn resolve_prefers_keyring_over_env() {
     unsafe { std::env::set_var("MIMOFAN_API_KEY", "env-key") };
 
     let store = Arc::new(InMemoryKeyringStore::new());
-    store.set("deepseek", "ring-key").expect("write deepseek ring-key secret");
+    store
+        .set("deepseek", "ring-key")
+        .expect("write deepseek ring-key secret");
     let secrets = Secrets::new(store);
 
     assert_eq!(secrets.resolve("deepseek").as_deref(), Some("ring-key"));
@@ -287,7 +318,9 @@ fn resolve_treats_blank_keyring_value_as_unset() {
     unsafe { std::env::set_var("MIMOFAN_API_KEY", "env-real") };
 
     let store = Arc::new(InMemoryKeyringStore::new());
-    store.set("deepseek", "   ").expect("write blank deepseek secret");
+    store
+        .set("deepseek", "   ")
+        .expect("write blank deepseek secret");
     let secrets = Secrets::new(store);
     assert_eq!(secrets.resolve("deepseek").as_deref(), Some("env-real"));
     // Safety: env mutation guarded by env_lock().
@@ -388,23 +421,53 @@ fn file_store_round_trips_with_secure_perms() {
     let tmp = tempfile::tempdir().expect("create tempdir");
     let path = tmp.path().join("nested").join("secrets.json");
     let store = FileKeyringStore::new(path.clone());
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), None);
-    store.set("deepseek", "sk-disk").expect("write deepseek secret to disk");
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), Some("sk-disk".to_string()));
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        None
+    );
+    store
+        .set("deepseek", "sk-disk")
+        .expect("write deepseek secret to disk");
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        Some("sk-disk".to_string())
+    );
 
-    let mode = fs::metadata(&path).expect("read secrets file metadata").permissions().mode() & 0o777;
+    let mode = fs::metadata(&path)
+        .expect("read secrets file metadata")
+        .permissions()
+        .mode()
+        & 0o777;
     assert_eq!(mode, 0o600, "expected 0600, got {mode:o}");
 
-    store.set("openrouter", "or-disk").expect("write openrouter secret to disk");
+    store
+        .set("openrouter", "or-disk")
+        .expect("write openrouter secret to disk");
     assert_eq!(
-        store.get("openrouter").expect("get openrouter secret from disk store"),
+        store
+            .get("openrouter")
+            .expect("get openrouter secret from disk store"),
         Some("or-disk".to_string())
     );
     // First entry must still be intact.
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), Some("sk-disk".to_string()));
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        Some("sk-disk".to_string())
+    );
 
     store.delete("deepseek").expect("delete deepseek secret");
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), None);
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        None
+    );
 }
 
 #[cfg(unix)]
@@ -413,8 +476,11 @@ fn file_store_rejects_world_readable_file() {
     use std::os::unix::fs::PermissionsExt;
     let tmp = tempfile::tempdir().expect("create tempdir");
     let path = tmp.path().join("secrets.json");
-    fs::write(&path, "{\"entries\":{\"deepseek\":\"leak\"}}").expect("write world-readable fixture secrets file");
-    let mut perms = fs::metadata(&path).expect("read secrets file metadata").permissions();
+    fs::write(&path, "{\"entries\":{\"deepseek\":\"leak\"}}")
+        .expect("write world-readable fixture secrets file");
+    let mut perms = fs::metadata(&path)
+        .expect("read secrets file metadata")
+        .permissions();
     perms.set_mode(0o644);
     fs::set_permissions(&path, perms).expect("chmod secrets file to 0600");
 
@@ -439,7 +505,9 @@ fn file_store_set_does_not_clobber_secrets_when_perms_are_bad() {
     let path = tmp.path().join("secrets.json");
     let original = "{\"entries\":{\"deepseek\":\"sk-keep\",\"nvidia\":\"nv-keep\"}}";
     fs::write(&path, original).expect("write fixture secrets file");
-    let mut perms = fs::metadata(&path).expect("read secrets file metadata").permissions();
+    let mut perms = fs::metadata(&path)
+        .expect("read secrets file metadata")
+        .permissions();
     perms.set_mode(0o644);
     fs::set_permissions(&path, perms).expect("chmod secrets file to 0600");
 
@@ -465,7 +533,9 @@ fn file_store_delete_does_not_clobber_secrets_when_perms_are_bad() {
     let path = tmp.path().join("secrets.json");
     let original = "{\"entries\":{\"deepseek\":\"sk-keep\",\"nvidia\":\"nv-keep\"}}";
     fs::write(&path, original).expect("write fixture secrets file");
-    let mut perms = fs::metadata(&path).expect("read secrets file metadata").permissions();
+    let mut perms = fs::metadata(&path)
+        .expect("read secrets file metadata")
+        .permissions();
     perms.set_mode(0o644);
     fs::set_permissions(&path, perms).expect("chmod secrets file to 0600");
 
@@ -489,7 +559,9 @@ fn file_store_set_does_not_clobber_secrets_when_json_is_corrupt() {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&path).expect("read secrets file metadata").permissions();
+        let mut perms = fs::metadata(&path)
+            .expect("read secrets file metadata")
+            .permissions();
         perms.set_mode(0o600);
         fs::set_permissions(&path, perms).expect("chmod secrets file to 0600");
     }
@@ -514,8 +586,15 @@ fn file_store_set_still_creates_file_when_missing() {
     let path = tmp.path().join("nested").join("secrets.json");
     let store = FileKeyringStore::new(path.clone());
 
-    store.set("deepseek", "sk-fresh").expect("write fresh deepseek secret to new file");
-    assert_eq!(store.get("deepseek").expect("get deepseek secret from in-memory store"), Some("sk-fresh".to_string()));
+    store
+        .set("deepseek", "sk-fresh")
+        .expect("write fresh deepseek secret to new file");
+    assert_eq!(
+        store
+            .get("deepseek")
+            .expect("get deepseek secret from in-memory store"),
+        Some("sk-fresh".to_string())
+    );
 }
 
 #[test]

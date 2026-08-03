@@ -1,7 +1,6 @@
 use mimofan_execpolicy::bash_arity::*;
 use mimofan_execpolicy::*;
 
-
 fn dict() -> BashArityDict {
     BashArityDict::new()
 }

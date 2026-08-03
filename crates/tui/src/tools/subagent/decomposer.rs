@@ -237,7 +237,9 @@ impl TaskGraph {
             sorted.push(id.to_string());
             if let Some(neighbors) = adjacency.get(id) {
                 for &neighbor in neighbors {
-                    let deg = in_degree.get_mut(neighbor).expect("in-degree entry missing for neighbor");
+                    let deg = in_degree
+                        .get_mut(neighbor)
+                        .expect("in-degree entry missing for neighbor");
                     *deg -= 1;
                     if *deg == 0 {
                         queue.push_back(neighbor);

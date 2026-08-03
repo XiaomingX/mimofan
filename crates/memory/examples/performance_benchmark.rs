@@ -14,7 +14,8 @@ async fn main() {
     // Benchmark 1: Vector Store Performance
     println!("1. Vector Store Performance:");
     let dir = tempfile::tempdir().expect("create temp dir");
-    let store = VectorStore::open(&dir.path().join("benchmark.db"), 384).expect("open vector store");
+    let store =
+        VectorStore::open(&dir.path().join("benchmark.db"), 384).expect("open vector store");
 
     let mut observation_store = ObservationStore::new(store);
 

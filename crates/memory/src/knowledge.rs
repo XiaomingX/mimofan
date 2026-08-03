@@ -307,4 +307,3 @@ impl KnowledgeAgent {
         Ok(())
     }
 }
-

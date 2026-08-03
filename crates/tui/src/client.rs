@@ -1732,7 +1732,7 @@ impl ApiClient {
     }
 }
 
-mod anthropic;
+pub mod anthropic;
 mod chat;
 mod responses;
 

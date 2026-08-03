@@ -49,7 +49,9 @@ async fn main() {
             format!("Integration test observation {}", i),
         );
         let embedding = generate_embedding(i);
-        obs_store.store_observation(&obs, &embedding).expect("store observation");
+        obs_store
+            .store_observation(&obs, &embedding)
+            .expect("store observation");
     }
     println!("   ✓ Stored 100 observations");
 
@@ -60,7 +62,9 @@ async fn main() {
         kind: Some(ObservationKind::Discovery),
         ..Default::default()
     };
-    let results = obs_store.search(&query, 10, &filters).expect("search vector store with filters");
+    let results = obs_store
+        .search(&query, 10, &filters)
+        .expect("search vector store with filters");
     assert!(!results.is_empty(), "Should find observations");
     println!("   ✓ Found {} observations", results.len());
 

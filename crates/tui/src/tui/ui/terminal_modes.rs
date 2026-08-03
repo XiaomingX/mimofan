@@ -59,7 +59,10 @@ pub(crate) fn resume_terminal(
     Ok(())
 }
 
-pub(crate) fn reset_terminal_viewport(terminal: &mut AppTerminal, sync_output_enabled: bool) -> Result<()> {
+pub(crate) fn reset_terminal_viewport(
+    terminal: &mut AppTerminal,
+    sync_output_enabled: bool,
+) -> Result<()> {
     // Reset scroll margins and origin mode before clearing. Some interactive
     // child processes leave DECSTBM/DECOM behind; if ratatui's diff renderer
     // then writes "row 0", terminals can place it relative to the leaked
@@ -219,4 +222,3 @@ pub(crate) fn disable_bracketed_paste_mode<W: Write>(writer: &mut W) {
 pub(crate) fn terminal_event_needs_viewport_recapture(evt: &Event) -> bool {
     matches!(evt, Event::FocusGained)
 }
-

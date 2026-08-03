@@ -1,11 +1,11 @@
+use anyhow::Result;
+use async_trait::async_trait;
 use mimofan_hooks::*;
 use mimofan_protocol::EventFrame;
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
-use anyhow::Result;
-use async_trait::async_trait;
 
 #[test]
 fn hook_event_serializes_with_snake_case_type_and_payload() {
@@ -160,14 +160,20 @@ struct RecordingSink {
 
 impl RecordingSink {
     fn events(&self) -> Vec<Value> {
-        self.events.lock().expect("lock recording sink events").clone()
+        self.events
+            .lock()
+            .expect("lock recording sink events")
+            .clone()
     }
 }
 
 #[async_trait]
 impl HookSink for RecordingSink {
     async fn emit(&self, event: &HookEvent) -> Result<()> {
-        self.events.lock().expect("lock recording sink events").push(event.to_json());
+        self.events
+            .lock()
+            .expect("lock recording sink events")
+            .push(event.to_json());
         Ok(())
     }
 }

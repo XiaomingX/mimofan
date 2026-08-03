@@ -504,4 +504,3 @@ pub fn parse_history_entry(value: &Value) -> Option<JobHistoryEntry> {
         retry: parse_retry_metadata(value.get("retry")),
     })
 }
-

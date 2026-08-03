@@ -303,7 +303,9 @@ impl Drop for MimofanHomeGuard {
 
 #[test]
 fn default_state_db_path_uses_mimofan_home_when_set() {
-    let _lock = MIMOFAN_HOME_TEST_LOCK.lock().expect("lock MIMOFAN_HOME test mutex");
+    let _lock = MIMOFAN_HOME_TEST_LOCK
+        .lock()
+        .expect("lock MIMOFAN_HOME test mutex");
     let dir = std::env::temp_dir().join(format!(
         "cw-home-state-{}-{}",
         std::process::id(),

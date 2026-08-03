@@ -192,7 +192,7 @@ enum UpdateReleaseSource {
     Mirror { base_url: String },
 }
 
-pub(crate) fn release_arch_for_rust_arch(arch: &str) -> &str {
+pub fn release_arch_for_rust_arch(arch: &str) -> &str {
     match arch {
         "aarch64" => "arm64",
         "x86_64" => "x64",
@@ -201,7 +201,7 @@ pub(crate) fn release_arch_for_rust_arch(arch: &str) -> &str {
 }
 
 /// Returns true when the binary name belongs to the pre-rebrand `mimofan` era.
-pub(crate) fn is_legacy_binary(current_exe: &Path) -> bool {
+pub fn is_legacy_binary(current_exe: &Path) -> bool {
     let exe_name = current_exe
         .file_name()
         .and_then(|name| name.to_str())
@@ -242,7 +242,7 @@ Once `mimofan` is on your PATH, run `mimofan update` for future updates.",
     )
 }
 
-pub(crate) fn binary_prefix_for_exe(_current_exe: &Path) -> &'static str {
+pub fn binary_prefix_for_exe(_current_exe: &Path) -> &'static str {
     // After the binary merge, all mimofan variants use "mimofan" prefix
     "mimofan"
 }
@@ -345,12 +345,12 @@ fn release_asset_name_for_prefix(prefix: &str, os: &str, rust_arch: &str) -> Str
 }
 
 #[cfg(test)]
-fn release_asset_stem_for(current_exe: &Path, os: &str, rust_arch: &str) -> String {
+pub fn release_asset_stem_for(current_exe: &Path, os: &str, rust_arch: &str) -> String {
     let prefix = binary_prefix_for_exe(current_exe);
     release_asset_stem_for_prefix(prefix, os, rust_arch)
 }
 
-pub(crate) fn asset_matches_platform(asset_name: &str, binary_name: &str) -> bool {
+pub fn asset_matches_platform(asset_name: &str, binary_name: &str) -> bool {
     if asset_name.ends_with(".sha256") {
         return false;
     }
@@ -743,7 +743,7 @@ fn download_url_once(url: &str, proxy: Option<&Proxy>) -> Result<(reqwest::Statu
 }
 
 /// Compute the SHA256 hex digest of data.
-fn sha256_hex(data: &[u8]) -> String {
+pub fn sha256_hex(data: &[u8]) -> String {
     use sha2::Digest;
     let hash = sha2::Sha256::digest(data);
     format!("{hash:x}")

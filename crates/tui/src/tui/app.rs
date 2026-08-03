@@ -5,14 +5,12 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use ratatui::layout::Rect;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
 use mimofan_config::{ProviderChain, route::RouteLimits};
 
 use crate::artifacts::ArtifactRecord;
-use crate::client::{CacheWarmupKey, PromptInspection};
 use crate::compaction::CompactionConfig;
 use crate::config::{
     ApiProvider, Config, DEFAULT_TEXT_MODEL, SavedCredential, has_api_key, has_api_key_for,
@@ -22,12 +20,20 @@ use crate::config_ui::ConfigUiMode;
 use crate::hooks::{HookContext, HookEvent, HookExecutor, HookResult};
 use crate::localization::{Locale, MessageId, resolve_locale, tr};
 use crate::models::{
-    Message, SystemPrompt, Tool, auto_compact_default_for_model,
+    Message, SystemPrompt, auto_compact_default_for_model,
     compaction_threshold_for_model_at_percent,
 };
 use crate::palette::{self, UiTheme};
 use crate::pricing::{CostCurrency, CostEstimate};
-use crate::resource_telemetry::TokenThroughput;
+
+// Re-export types moved to submodules for backward compatibility
+pub use super::composer::{ComposerState, MentionCompletionCache};
+pub(crate) use super::history_search::InputHistoryDraft;
+pub use super::history_search::{ComposerHistorySearch, HuntState, HuntVerdict};
+pub use super::state::{SessionState, SidebarHoverRow, SidebarHoverSection, SidebarHoverState};
+pub use super::tool_collapse::ToolCollapseMode;
+pub use super::viewport::ViewportState;
+pub use super::vim::VimMode;
 use crate::session_manager::SessionContextReference;
 use crate::settings::Settings;
 use crate::tools::plan::{SharedPlanState, new_shared_plan_state};
@@ -42,8 +48,7 @@ use crate::tui::file_mention::ContextReference;
 use crate::tui::history::{HistoryCell, TranscriptRenderOptions};
 use crate::tui::hotbar::HotbarActionRegistry;
 use crate::tui::paste_burst::{FlushResult, PasteBurst};
-use crate::tui::scrolling::{MouseScrollState, TranscriptLineMeta, TranscriptScroll};
-use crate::tui::selection::{SelectionAutoscroll, TranscriptSelection};
+use crate::tui::scrolling::{TranscriptLineMeta, TranscriptScroll};
 use crate::tui::sidebar::SidebarWorkSummary;
 use crate::tui::streaming::StreamingState;
 use crate::tui::transcript::TranscriptViewCache;
@@ -418,46 +423,6 @@ impl SidebarFocus {
     }
 }
 
-/// Controls how dense tool-call runs are collapsed in the transcript.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ToolCollapseMode {
-    /// Collapse qualifying tool runs by default.
-    Compact,
-    /// Never collapse tool runs automatically.
-    Expanded,
-    /// Collapse only when calm mode is active.
-    Calm,
-}
-
-impl ToolCollapseMode {
-    #[must_use]
-    pub fn from_setting(value: &str) -> Self {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "expanded" | "off" | "none" => Self::Expanded,
-            "calm" | "calm-mode" | "calm_only" | "calm-only" => Self::Calm,
-            _ => Self::Compact,
-        }
-    }
-
-    #[must_use]
-    pub fn as_setting(self) -> &'static str {
-        match self {
-            Self::Compact => "compact",
-            Self::Expanded => "expanded",
-            Self::Calm => "calm",
-        }
-    }
-
-    #[must_use]
-    pub fn is_active(self, calm_mode: bool) -> bool {
-        match self {
-            Self::Compact => true,
-            Self::Expanded => false,
-            Self::Calm => calm_mode,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StatusToastLevel {
     Info,
@@ -490,31 +455,6 @@ impl StatusToast {
         self.ttl_ms
             .is_some_and(|ttl| now.duration_since(self.created_at).as_millis() >= u128::from(ttl))
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ComposerHistorySearch {
-    pre_search_input: String,
-    pre_search_cursor: usize,
-    query: String,
-    selected: usize,
-}
-
-impl ComposerHistorySearch {
-    fn new(pre_search_input: String, pre_search_cursor: usize) -> Self {
-        Self {
-            pre_search_input,
-            pre_search_cursor,
-            query: String::new(),
-            selected: 0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct InputHistoryDraft {
-    input: String,
-    cursor: usize,
 }
 
 pub(crate) fn char_count(text: &str) -> usize {
@@ -1136,367 +1076,6 @@ fn base_policy_for_mode(mode: AppMode, prefs: &ModeSessionPrefs) -> EffectiveMod
     }
 }
 
-// === Sub-state structs for App field organization (#377) ===
-
-/// Vim modal editing mode for the composer input area.
-///
-/// Enabled via `[composer] mode = "vim"` in `settings.json`.  When the
-/// composer vim mode is active the user starts in `Normal` mode and presses
-/// `i`, `a`, or `o` to enter `Insert` mode.  `Esc` from `Insert` returns to
-/// `Normal`.  Standard vim motions (`h`/`j`/`k`/`l`, `w`/`b`, `0`/`$`, `x`,
-/// `dd`) work in `Normal` mode.  `Visual` is reserved for future selection
-/// support and currently behaves like `Normal`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum VimMode {
-    /// Normal / command mode — motions and operators, no text insertion.
-    #[default]
-    Normal,
-    /// Insert mode — characters are appended at the cursor as typed.
-    Insert,
-    /// Visual mode — reserved for future selection support.
-    Visual,
-}
-
-impl VimMode {
-    /// Localized status-bar label shown in the composer border (user-facing).
-    #[must_use]
-    pub fn label_localized(self, locale: Locale) -> &'static str {
-        tr(
-            locale,
-            match self {
-                Self::Normal => MessageId::VimModeNormal,
-                Self::Insert => MessageId::VimModeInsert,
-                Self::Visual => MessageId::VimModeVisual,
-            },
-        )
-    }
-}
-
-/// Cached @-mention completion results to avoid re-walking the filesystem when
-/// the cursor moves inside the same mention token.
-#[derive(Debug, Clone)]
-pub struct MentionCompletionCache {
-    /// Workspace root used for this completion walk.
-    pub workspace: PathBuf,
-    /// Process cwd captured for cwd-relative completion entries.
-    pub cwd: Option<PathBuf>,
-    /// The partial text after `@` that triggered this completion.
-    pub partial: String,
-    /// Candidate limit used for this completion walk.
-    pub limit: usize,
-    /// Workspace depth limit used for this completion walk. Included so live
-    /// config changes invalidate cached popup results.
-    pub walk_depth: usize,
-    /// Completion behavior used for this walk. Included so live config changes
-    /// invalidate cached popup results.
-    pub behavior: String,
-    /// Whether symlink following was enabled for this completion walk.
-    /// Included so live config changes invalidate cached popup results.
-    pub follow_links: bool,
-    /// Cached completion entries.
-    pub entries: Vec<String>,
-}
-
-/// Composer input state — grouped fields for the text input area.
-pub struct ComposerState {
-    /// Current composer text content.
-    pub input: String,
-    /// Cursor position within `input` (in characters).
-    pub cursor_position: usize,
-    /// Single-entry kill buffer for emacs-style `Ctrl+K` cut / `Ctrl+Y` yank.
-    pub kill_buffer: String,
-    pub paste_burst: PasteBurst,
-    /// When a large paste is consolidated at submit time, the file @mention
-    /// is stored here so it can be appended to the submitted text without
-    /// replacing the visible composer content (#3263).
-    pub(crate) pending_paste_reference: Option<String>,
-    /// When composer content is oversized, the full text is stored here
-    /// while `self.input` shows a truncated preview. At submit time the
-    /// full text is restored for model submission (#3263).
-    pub(crate) oversized_paste_full_text: Option<String>,
-    pub input_history: Vec<String>,
-    pub draft_history: VecDeque<String>,
-    pub clear_undo_buffer: Option<String>,
-    pub history_index: Option<usize>,
-    pub(crate) history_navigation_draft: Option<InputHistoryDraft>,
-    pub composer_history_search: Option<ComposerHistorySearch>,
-    pub selected_attachment_index: Option<usize>,
-    pub slash_menu_selected: usize,
-    pub slash_menu_hidden: bool,
-    pub mention_menu_selected: usize,
-    pub mention_menu_hidden: bool,
-    /// Cached @-mention completions to avoid re-walking the filesystem when
-    /// the cursor moves inside the same mention token.
-    pub mention_completion_cache: Option<MentionCompletionCache>,
-    /// Whether vim modal editing is enabled for this composer.
-    /// Sourced from `Settings::vim_mode` at startup.
-    pub vim_enabled: bool,
-    /// Current vim editing mode.  Only meaningful when `vim_enabled` is true.
-    pub vim_mode: VimMode,
-    /// Pending `d` prefix for the `dd` delete-line operator.  Set when the
-    /// user presses `d` in Normal mode; cleared on the next key (either `d`
-    /// to complete `dd`, or any other key to cancel).
-    pub vim_pending_d: bool,
-    /// When set, the cursor is the active end of a text selection and
-    /// `selection_anchor` is the fixed end.  Both are char-indexed.
-    /// `None` means no selection is active.
-    pub selection_anchor: Option<usize>,
-}
-
-impl Default for ComposerState {
-    fn default() -> Self {
-        Self {
-            input: String::new(),
-            cursor_position: 0,
-            kill_buffer: String::new(),
-            paste_burst: PasteBurst::default(),
-            pending_paste_reference: None,
-            oversized_paste_full_text: None,
-            input_history: Vec::new(),
-            draft_history: VecDeque::new(),
-            clear_undo_buffer: None,
-            history_index: None,
-            history_navigation_draft: None,
-            composer_history_search: None,
-            selected_attachment_index: None,
-            slash_menu_selected: 0,
-            slash_menu_hidden: false,
-            mention_menu_selected: 0,
-            mention_menu_hidden: false,
-            mention_completion_cache: None,
-            vim_enabled: false,
-            vim_mode: VimMode::Normal,
-            vim_pending_d: false,
-            selection_anchor: None,
-        }
-    }
-}
-
-/// Viewport/scroll state — fields related to transcript scrolling and caching.
-pub struct ViewportState {
-    pub transcript_scroll: TranscriptScroll,
-    pub pending_scroll_delta: i32,
-    pub mouse_scroll: MouseScrollState,
-    pub transcript_cache: TranscriptViewCache,
-    pub transcript_selection: TranscriptSelection,
-    pub selection_autoscroll: Option<SelectionAutoscroll>,
-    pub transcript_scrollbar_dragging: bool,
-    pub last_transcript_area: Option<Rect>,
-    pub last_composer_area: Option<Rect>,
-    /// Outer rect of the right-hand sidebar (when visible), stored at render
-    /// time so mouse hit-testing can keep scroll events over the sidebar from
-    /// leaking into the transcript viewport.
-    pub last_sidebar_area: Option<Rect>,
-    pub last_transcript_top: usize,
-    pub last_transcript_visible: usize,
-    pub last_transcript_total: usize,
-    pub last_transcript_padding_top: usize,
-    pub jump_to_latest_button_area: Option<Rect>,
-    /// Inner content rect of the composer (excluding border/padding),
-    /// stored at render time for mouse coordinate mapping.
-    pub last_composer_content: Option<Rect>,
-    /// Number of rendered text lines scrolled off the top of the composer,
-    /// stored at render time for mouse coordinate mapping.
-    pub last_composer_scroll_offset: usize,
-    /// Vertical padding above the first text line in the composer,
-    /// stored at render time for mouse coordinate mapping.
-    pub last_composer_top_padding: usize,
-}
-
-impl Default for ViewportState {
-    fn default() -> Self {
-        Self {
-            transcript_scroll: TranscriptScroll::to_bottom(),
-            pending_scroll_delta: 0,
-            mouse_scroll: MouseScrollState::new(),
-            transcript_cache: TranscriptViewCache::new(),
-            transcript_selection: TranscriptSelection::default(),
-            selection_autoscroll: None,
-            transcript_scrollbar_dragging: false,
-            last_transcript_area: None,
-            last_composer_area: None,
-            last_sidebar_area: None,
-            last_transcript_top: 0,
-            last_transcript_visible: 0,
-            last_transcript_total: 0,
-            last_transcript_padding_top: 0,
-            jump_to_latest_button_area: None,
-            last_composer_content: None,
-            last_composer_scroll_offset: 0,
-            last_composer_top_padding: 0,
-        }
-    }
-}
-
-/// Verdict for a hunt (#2092).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum HuntVerdict {
-    #[default]
-    Hunting,
-    Hunted,
-    Wounded,
-    Escaped,
-}
-
-impl HuntVerdict {
-    #[must_use]
-    pub fn goal_status(self) -> crate::tools::goal::GoalStatus {
-        match self {
-            Self::Hunting => crate::tools::goal::GoalStatus::Active,
-            Self::Hunted => crate::tools::goal::GoalStatus::Complete,
-            Self::Wounded => crate::tools::goal::GoalStatus::Paused,
-            Self::Escaped => crate::tools::goal::GoalStatus::Blocked,
-        }
-    }
-
-    #[must_use]
-    pub fn from_goal_status(status: crate::tools::goal::GoalStatus) -> Self {
-        match status {
-            crate::tools::goal::GoalStatus::Active => Self::Hunting,
-            crate::tools::goal::GoalStatus::Paused => Self::Wounded,
-            crate::tools::goal::GoalStatus::Complete => Self::Hunted,
-            crate::tools::goal::GoalStatus::Blocked => Self::Escaped,
-        }
-    }
-}
-
-/// Hunt tracking state (#2092 — was GoalState).
-#[derive(Debug, Clone, Default)]
-pub struct HuntState {
-    pub quarry: Option<String>,
-    pub token_budget: Option<u32>,
-    pub tokens_used: u64,
-    pub time_used_seconds: u64,
-    pub continuation_count: u32,
-    pub started_at: Option<Instant>,
-    pub verdict: HuntVerdict,
-}
-
-/// Session cost and token telemetry state.
-#[derive(Debug, Clone)]
-pub struct SessionState {
-    pub session_cost: f64,
-    pub session_cost_cny: f64,
-    pub subagent_cost: f64,
-    pub subagent_cost_cny: f64,
-    pub subagent_cost_event_seqs: HashSet<u64>,
-    pub displayed_cost_high_water: f64,
-    pub displayed_cost_high_water_cny: f64,
-    pub last_prompt_tokens: Option<u32>,
-    pub last_completion_tokens: Option<u32>,
-    pub last_output_throughput: Option<TokenThroughput>,
-    /// Time-to-first-token: wall-clock from `TurnStarted` to the first
-    /// content `MessageDelta`. Stored here for the footer chip.
-    pub last_ttft: Option<std::time::Duration>,
-    pub last_prompt_cache_hit_tokens: Option<u32>,
-    pub last_prompt_cache_miss_tokens: Option<u32>,
-    pub last_reasoning_replay_tokens: Option<u32>,
-    pub total_tokens: u32,
-    pub total_conversation_tokens: u32,
-    /// Accumulated token breakdown for the session.
-    pub total_input_tokens: u32,
-    pub total_cache_hit_tokens: u32,
-    pub total_cache_miss_tokens: u32,
-    pub total_output_tokens: u32,
-    pub turn_cache_history: VecDeque<TurnCacheRecord>,
-    pub last_cache_inspection: Option<PromptInspection>,
-    pub last_warmup_key: Option<CacheWarmupKey>,
-    /// Tool catalog from the most recent model request.
-    ///
-    /// `/cache inspect` uses this to inspect the same tool schema bytes
-    /// that were eligible for the provider's prefix cache.
-    pub last_tool_catalog: Option<Vec<Tool>>,
-    /// API base URL used by the most recent model request or cache warmup.
-    pub last_base_url: Option<String>,
-}
-
-/// Sidebar hover state for mouse tooltip support.
-#[derive(Debug, Clone, Default)]
-pub struct SidebarHoverState {
-    /// Rendered sections with their areas and full-text lines.
-    pub sections: Vec<SidebarHoverSection>,
-}
-
-/// Per-row metadata for sidebar detail popovers.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SidebarHoverRow {
-    /// Absolute row position in the terminal.
-    pub row_y: u16,
-    /// Text shown in the compact sidebar row.
-    pub display_text: String,
-    /// Full untruncated text for the popover.
-    pub full_text: String,
-    /// Optional additional detail line.
-    pub detail: Option<String>,
-    /// Whether the compact row lost information.
-    pub is_truncated: bool,
-    /// Slash command to execute when this row is clicked (#3028).
-    /// `shell_*` job ids route through `/jobs` (e.g. `/jobs cancel
-    /// shell_abc123`); task-manager ids route through `/task` (e.g.
-    /// `/task show task_abc123`).
-    pub click_action: Option<String>,
-    /// Optional narrower stop target for rows that show an inline `[x]`.
-    pub stop_action: Option<String>,
-    pub stop_zone_start_col: Option<u16>,
-    pub stop_zone_end_col: Option<u16>,
-}
-
-/// Per-section metadata for sidebar hover detection.
-#[derive(Debug, Clone)]
-pub struct SidebarHoverSection {
-    /// Content area within the section (inside border + padding).
-    pub content_area: Rect,
-    /// Full original text for each content line rendered.
-    pub lines: Vec<String>,
-    /// Per-row metadata for rich hover popovers.
-    pub rows: Vec<SidebarHoverRow>,
-}
-
-impl Default for SessionState {
-    fn default() -> Self {
-        Self {
-            session_cost: 0.0,
-            session_cost_cny: 0.0,
-            subagent_cost: 0.0,
-            subagent_cost_cny: 0.0,
-            subagent_cost_event_seqs: HashSet::new(),
-            displayed_cost_high_water: 0.0,
-            displayed_cost_high_water_cny: 0.0,
-            last_prompt_tokens: None,
-            last_completion_tokens: None,
-            last_output_throughput: None,
-            last_ttft: None,
-            last_prompt_cache_hit_tokens: None,
-            last_prompt_cache_miss_tokens: None,
-            last_reasoning_replay_tokens: None,
-            total_tokens: 0,
-            total_conversation_tokens: 0,
-            total_input_tokens: 0,
-            total_cache_hit_tokens: 0,
-            total_cache_miss_tokens: 0,
-            total_output_tokens: 0,
-            turn_cache_history: VecDeque::new(),
-            last_cache_inspection: None,
-            last_warmup_key: None,
-            last_tool_catalog: None,
-            last_base_url: None,
-        }
-    }
-}
-
-impl SessionState {
-    /// Reset the accumulated token breakdown fields to zero.
-    pub fn reset_token_breakdown(&mut self) {
-        self.total_input_tokens = 0;
-        self.total_cache_hit_tokens = 0;
-        self.total_cache_miss_tokens = 0;
-        self.total_output_tokens = 0;
-        self.last_output_throughput = None;
-        self.last_ttft = None;
-    }
-}
-
 /// Evidence collected during a turn for the post-turn receipt.
 #[derive(Debug, Clone)]
 pub struct ToolEvidence {
@@ -1607,7 +1186,7 @@ pub struct App {
     pub active_route_limits: Option<RouteLimits>,
     /// Pending provider transition for transactional rollback when the next
     /// auth failure indicates the new provider cannot be used.
-    pub pending_provider_switch: Option<PendingProviderSwitch>,
+    pub(crate) pending_provider_switch: Option<PendingProviderSwitch>,
     /// Current reasoning-effort tier for DeepSeek thinking mode.
     /// Cycled via Shift+Tab; initialized from config at startup.
     pub reasoning_effort: ReasoningEffort,

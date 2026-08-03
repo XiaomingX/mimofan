@@ -12,7 +12,10 @@ pub(crate) async fn fetch_available_models(config: &Config) -> Result<Vec<String
     Ok(ids)
 }
 
-pub(crate) async fn run_cache_warmup(app: &App, config: &Config) -> Result<(Usage, String, PromptInspection)> {
+pub(crate) async fn run_cache_warmup(
+    app: &App,
+    config: &Config,
+) -> Result<(Usage, String, PromptInspection)> {
     let client = ApiClient::new(config)?;
     let base_url = client.base_url().to_string();
     let reasoning_effort = if app.reasoning_effort == ReasoningEffort::Auto {

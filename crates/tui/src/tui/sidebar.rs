@@ -2293,6 +2293,7 @@ fn sidebar_agent_rows(app: &App) -> Vec<SidebarAgentRow> {
                 role: agent.agent_type.as_str().to_string(),
                 status: agent
                     .worker_status
+                    .clone()
                     .map(sidebar_worker_status_text)
                     .unwrap_or_else(|| subagent_status_text(&agent.status))
                     .to_string(),

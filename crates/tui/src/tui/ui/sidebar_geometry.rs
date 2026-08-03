@@ -4,8 +4,8 @@
 //! the current `App` state and the last measured host width. Kept free of any
 //! terminal/rendering I/O so it can be unit-reasoned about in isolation.
 
-use crate::tui::app::{App, SidebarFocus};
 use super::SIDEBAR_VISIBLE_MIN_WIDTH;
+use crate::tui::app::{App, SidebarFocus};
 
 /// How the sidebar should be presented on the next paint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

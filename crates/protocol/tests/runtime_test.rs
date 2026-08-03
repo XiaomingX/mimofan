@@ -25,7 +25,8 @@ fn dynamic_tool_spec_roundtrip() {
     };
 
     let serialized = serde_json::to_string(&spec).expect("serialize dynamic tool spec");
-    let deserialized: DynamicToolSpec = serde_json::from_str(&serialized).expect("deserialize dynamic tool spec");
+    let deserialized: DynamicToolSpec =
+        serde_json::from_str(&serialized).expect("deserialize dynamic tool spec");
     assert_eq!(spec, deserialized);
 }
 
@@ -38,7 +39,8 @@ fn dynamic_tool_spec_omits_defer_loading_defaults_false() {
         "input_schema": { "type": "object" }
     }"#;
 
-    let spec: DynamicToolSpec = serde_json::from_str(json).expect("deserialize dynamic tool spec omitting defer_loading");
+    let spec: DynamicToolSpec =
+        serde_json::from_str(json).expect("deserialize dynamic tool spec omitting defer_loading");
     assert_eq!(spec.namespace, Some("tau_bench".into()));
     assert_eq!(spec.name, "get_reservation");
     assert!(!spec.defer_loading);
@@ -47,15 +49,18 @@ fn dynamic_tool_spec_omits_defer_loading_defaults_false() {
 #[test]
 fn dynamic_tool_item_status_snake_case() {
     assert_eq!(
-        serde_json::to_string(&DynamicToolItemStatus::InProgress).expect("serialize in_progress status"),
+        serde_json::to_string(&DynamicToolItemStatus::InProgress)
+            .expect("serialize in_progress status"),
         "\"in_progress\""
     );
     assert_eq!(
-        serde_json::from_str::<DynamicToolItemStatus>("\"completed\"").expect("deserialize completed status"),
+        serde_json::from_str::<DynamicToolItemStatus>("\"completed\"")
+            .expect("deserialize completed status"),
         DynamicToolItemStatus::Completed
     );
     assert_eq!(
-        serde_json::from_str::<DynamicToolItemStatus>("\"failed\"").expect("deserialize failed status"),
+        serde_json::from_str::<DynamicToolItemStatus>("\"failed\"")
+            .expect("deserialize failed status"),
         DynamicToolItemStatus::Failed
     );
 }
@@ -72,7 +77,8 @@ fn dynamic_tool_call_params_roundtrip() {
     };
 
     let serialized = serde_json::to_string(&params).expect("serialize dynamic tool call params");
-    let deserialized: DynamicToolCallParams = serde_json::from_str(&serialized).expect("deserialize dynamic tool call params");
+    let deserialized: DynamicToolCallParams =
+        serde_json::from_str(&serialized).expect("deserialize dynamic tool call params");
     assert_eq!(params, deserialized);
 }
 
@@ -88,12 +94,14 @@ fn dynamic_tool_call_content_roundtrip() {
     ];
 
     let value = serde_json::to_value(&content).expect("serialize dynamic tool call content");
-    let deserialized: Vec<DynamicToolCallContent> = serde_json::from_value(value).expect("deserialize dynamic tool call content");
+    let deserialized: Vec<DynamicToolCallContent> =
+        serde_json::from_value(value).expect("deserialize dynamic tool call content");
     assert_eq!(content, deserialized);
 
     // Verify the exact JSON tag names expected by the spec.
     assert_eq!(
-        serde_json::to_string(&DynamicToolCallContent::InputText { text: "x".into() }).expect("serialize input_text content"),
+        serde_json::to_string(&DynamicToolCallContent::InputText { text: "x".into() })
+            .expect("serialize input_text content"),
         r#"{"type":"input_text","text":"x"}"#
     );
     assert_eq!(
@@ -108,7 +116,8 @@ fn dynamic_tool_call_content_roundtrip() {
 #[test]
 fn dynamic_tool_call_result_defaults_empty_content() {
     let json = r#"{ "success": false }"#;
-    let result: DynamicToolCallResult = serde_json::from_str(json).expect("deserialize dynamic tool call result defaults");
+    let result: DynamicToolCallResult =
+        serde_json::from_str(json).expect("deserialize dynamic tool call result defaults");
     assert!(!result.success);
     assert!(result.content.is_empty());
 }
@@ -123,7 +132,8 @@ fn dynamic_tool_call_result_roundtrip_with_content() {
     };
 
     let serialized = serde_json::to_string(&result).expect("serialize dynamic tool call result");
-    let deserialized: DynamicToolCallResult = serde_json::from_str(&serialized).expect("deserialize dynamic tool call result");
+    let deserialized: DynamicToolCallResult =
+        serde_json::from_str(&serialized).expect("deserialize dynamic tool call result");
     assert_eq!(result, deserialized);
 }
 
@@ -135,7 +145,8 @@ fn turn_environment_params_roundtrip() {
     };
 
     let serialized = serde_json::to_string(&env).expect("serialize turn environment params");
-    let deserialized: TurnEnvironmentParams = serde_json::from_str(&serialized).expect("deserialize turn environment params");
+    let deserialized: TurnEnvironmentParams =
+        serde_json::from_str(&serialized).expect("deserialize turn environment params");
     assert_eq!(env, deserialized);
 
     // Verify JSON from the spec deserializes directly.
@@ -143,7 +154,8 @@ fn turn_environment_params_roundtrip() {
         "environment_id": "local",
         "cwd": "/workspace"
     }"#;
-    let parsed: TurnEnvironmentParams = serde_json::from_str(from_spec).expect("deserialize turn environment params from spec");
+    let parsed: TurnEnvironmentParams =
+        serde_json::from_str(from_spec).expect("deserialize turn environment params from spec");
     assert_eq!(parsed.environment_id, "local");
     assert_eq!(parsed.cwd, PathBuf::from("/workspace"));
 }
@@ -162,8 +174,15 @@ fn runtime_capabilities_serializes_expected_shape() {
     };
     let value = serde_json::to_value(&caps).expect("serialize runtime capabilities");
     let obj = value.as_object().expect("runtime capabilities as object");
-    assert_eq!(obj.get("threads").expect("threads key present"), &json!(true));
-    assert_eq!(obj.get("external_tools").expect("external_tools key present"), &json!(false));
+    assert_eq!(
+        obj.get("threads").expect("threads key present"),
+        &json!(true)
+    );
+    assert_eq!(
+        obj.get("external_tools")
+            .expect("external_tools key present"),
+        &json!(false)
+    );
     assert!(obj.contains_key("worker_runtime"));
 }
 
@@ -177,7 +196,8 @@ fn runtime_event_envelope_schema_version_default() {
         "timestamp": "2026-06-12T00:00:00Z",
         "payload": {}
     }"#;
-    let envelope: RuntimeEventEnvelope = serde_json::from_str(json).expect("deserialize runtime event envelope");
+    let envelope: RuntimeEventEnvelope =
+        serde_json::from_str(json).expect("deserialize runtime event envelope");
     assert_eq!(
         envelope.schema_version,
         RUNTIME_EVENT_ENVELOPE_SCHEMA_VERSION

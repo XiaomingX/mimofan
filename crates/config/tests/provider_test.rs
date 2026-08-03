@@ -4,8 +4,8 @@
 //! `#[cfg(test)] mod tests` wrapper and the `use super::*` import were replaced
 //! with the public-API imports below; no test logic or assertion changed.
 
-use mimofan_config::provider::*;
 use mimofan_config::ProviderKind;
+use mimofan_config::provider::*;
 
 #[test]
 fn display_order_is_alphabetical_by_display_name() {

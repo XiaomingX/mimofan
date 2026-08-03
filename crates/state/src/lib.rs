@@ -1745,4 +1745,3 @@ fn row_to_thread_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<ThreadGoalRec
         updated_at: row.get(9)?,
     })
 }
-

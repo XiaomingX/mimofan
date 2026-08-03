@@ -191,4 +191,3 @@ pub(crate) fn replace_matching_assistant_text(
 }
 
 // Streaming-thinking lifecycle helpers moved to `tui/streaming_thinking.rs`.
-

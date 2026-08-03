@@ -41,7 +41,10 @@ fn required_u64_rejects_missing_or_non_integer_values() {
         required_u64(&json!({}), "count"),
         Err(ToolError::MissingField { .. })
     ));
-    assert_eq!(required_u64(&json!({"count": 42}), "count").expect("require count field"), 42);
+    assert_eq!(
+        required_u64(&json!({"count": 42}), "count").expect("require count field"),
+        42
+    );
     assert_eq!(
         required_u64(&json!({"count": u64::MAX}), "count").expect("require count field"),
         u64::MAX

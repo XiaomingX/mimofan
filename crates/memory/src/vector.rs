@@ -453,4 +453,3 @@ impl VectorStore {
         Ok(())
     }
 }
-

@@ -427,7 +427,9 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&dummy_script).expect("read file metadata").permissions();
+            let mut perms = std::fs::metadata(&dummy_script)
+                .expect("read file metadata")
+                .permissions();
             perms.set_mode(0o755);
             std::fs::set_permissions(&dummy_script, perms).expect("set file permissions");
         }

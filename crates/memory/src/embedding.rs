@@ -160,4 +160,3 @@ impl EmbeddingService {
         &self.config
     }
 }
-

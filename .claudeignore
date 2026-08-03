@@ -1,9 +1,10 @@
 # ============================================
-# mimofan .claudeignore
+# mimofan AI 工具忽略文件
 # 策略：仅保留核心 Rust crates 源码，减少 token 消耗
+# 同步更新：.claudeignore, .cursorignore, .windsurfignore
 # ============================================
 
-# ── 构建产物（核心：避免扫描编译文件）──
+# ── 构建产物 ──
 target/
 build/
 out/
@@ -18,14 +19,14 @@ node_modules/
 *.so
 *.dylib
 
-# ── 非 Rust 代码（与 Rust 核心无关）──
+# ── 非 Rust 代码 ──
 web/
 bun/
 extensions/
 integrations/
 apps/
 
-# ── Lock 文件（零信息密度）──
+# ── Lock 文件 ──
 Cargo.lock
 pnpm-lock.yaml
 pnpm-workspace.yaml
@@ -57,7 +58,7 @@ crates/tui/src/runtime_api.rs
 crates/tui/src/tools/shell.rs
 crates/tui/src/mcp.rs
 
-# ── 测试文件（统一模式，不影响代码理解）──
+# ── 测试文件 ──
 crates/*/tests/
 **/tests.rs
 **/conformance_tests.rs
@@ -81,6 +82,8 @@ crates/tui/CHANGELOG.md
 !README.md
 !ARCHITECTURE.md
 !CLAUDE.md
+!ARCHITECTURE-CN.md
+!USER-GUIDE-CN.md
 
 # ── AI 记忆文件与本地设置 ──
 **/CLAUDE.local.md
@@ -115,7 +118,7 @@ Dockerfile
 # ── GitHub 模板/工作流 ──
 .github/
 
-# ── 资源文件（图片等）──
+# ── 资源文件 ──
 assets/
 *.png
 *.jpg
@@ -124,7 +127,7 @@ assets/
 *.ico
 *.svg
 
-# ── 脚本与工作流 ──
+# ── 脚本 ──
 scripts/
 workflows/
 *.sh
@@ -132,14 +135,12 @@ workflows/
 !scripts/**
 !.github/scripts/**
 !benchmark/*.sh
-!web/public/install.sh
-!redeploy.sh
 
 # ── Benchmark 结果 ──
 benchmark_results/
 results/
 
-# ── 评估 harness（Python，非核心 Rust，省 token）──
+# ── 评估 harness ──
 evals/
 
 # ── 非核心根文件 ──

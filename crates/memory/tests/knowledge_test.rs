@@ -34,8 +34,7 @@ fn test_corpus_answer_serialization() {
     };
 
     let json = serde_json::to_string(&answer).expect("serialize corpus answer");
-    let deserialized: CorpusAnswer =
-        serde_json::from_str(&json).expect("parse corpus answer json");
+    let deserialized: CorpusAnswer = serde_json::from_str(&json).expect("parse corpus answer json");
 
     assert_eq!(deserialized.answer, answer.answer);
     assert_eq!(deserialized.confidence, answer.confidence);

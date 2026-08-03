@@ -59,7 +59,7 @@ impl TranscriptLineMeta {
     }
 
     #[must_use]
-    pub fn copy_separator_after(&self) -> CopyLineSeparator {
+    pub(crate) fn copy_separator_after(&self) -> CopyLineSeparator {
         match *self {
             TranscriptLineMeta::CellLine {
                 copy_separator_after,

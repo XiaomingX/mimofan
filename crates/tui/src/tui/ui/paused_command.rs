@@ -149,4 +149,3 @@ pub(crate) fn clear_paused_command_state(app: &mut App, engine_handle: &EngineHa
     app.paused_quarry = None;
     engine_handle.set_paused(false);
 }
-

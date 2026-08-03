@@ -269,4 +269,3 @@ pub fn is_beta_tag(tag_name: &str) -> bool {
 fn version_is_beta(version: &semver::Version) -> bool {
     version.pre.as_str().to_ascii_lowercase().contains("beta")
 }
-

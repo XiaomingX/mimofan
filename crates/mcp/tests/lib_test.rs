@@ -1,7 +1,6 @@
 use mimofan_mcp::*;
-use std::collections::HashMap;
 use serde_json::json;
-
+use std::collections::HashMap;
 
 // ── InMemoryMcpClient ──────────────────────────────────────────────
 
@@ -10,7 +9,9 @@ fn in_memory_client_list_tools_returns_registered() {
     let client = InMemoryMcpClient::default()
         .with_tool("echo", json!({"output": "hi"}))
         .with_tool("greet", json!({"msg": "hello"}));
-    let tools = client.list_tools().expect("in_memory_client_list_tools_returns_registered");
+    let tools = client
+        .list_tools()
+        .expect("in_memory_client_list_tools_returns_registered");
     assert_eq!(tools.len(), 2);
     let names: Vec<&str> = tools.iter().map(|t| t.tool_name.as_str()).collect();
     assert!(names.contains(&"echo"));
@@ -20,7 +21,9 @@ fn in_memory_client_list_tools_returns_registered() {
 #[test]
 fn in_memory_client_call_tool_returns_value() {
     let client = InMemoryMcpClient::default().with_tool("echo", json!({"output": "hi"}));
-    let result = client.call_tool("echo", json!({})).expect("in_memory_client_call_tool_returns_value");
+    let result = client
+        .call_tool("echo", json!({}))
+        .expect("in_memory_client_call_tool_returns_value");
     assert_eq!(result["output"], "hi");
 }
 
@@ -36,15 +39,18 @@ fn in_memory_client_list_resources_returns_registered() {
     let client = InMemoryMcpClient::default()
         .with_resource("mcp://s/health", json!({"ok": true}))
         .with_resource("mcp://s/caps", json!({"tools": []}));
-    let resources = client.list_resources().expect("in_memory_client_list_resources_returns_registered");
+    let resources = client
+        .list_resources()
+        .expect("in_memory_client_list_resources_returns_registered");
     assert_eq!(resources.len(), 2);
 }
 
 #[test]
 fn in_memory_client_read_resource_returns_value() {
-    let client =
-        InMemoryMcpClient::default().with_resource("mcp://s/health", json!({"ok": true}));
-    let result = client.read_resource("mcp://s/health").expect("in_memory_client_read_resource_returns_value");
+    let client = InMemoryMcpClient::default().with_resource("mcp://s/health", json!({"ok": true}));
+    let result = client
+        .read_resource("mcp://s/health")
+        .expect("in_memory_client_read_resource_returns_value");
     assert_eq!(result["ok"], true);
 }
 
@@ -79,13 +85,15 @@ fn manager_start_all_marks_ready_for_registered_clients() {
     let summary = manager.start_all(|e| events.push(e));
     assert_eq!(summary.ready, vec!["s1"]);
     assert!(summary.failed.is_empty());
-    assert!(events.iter().any(|event| {
-        event.server_name == "s1" && event.status == McpStartupStatus::Starting
-    }));
     assert!(
         events.iter().any(|event| {
-            event.server_name == "s1" && event.status == McpStartupStatus::Ready
+            event.server_name == "s1" && event.status == McpStartupStatus::Starting
         })
+    );
+    assert!(
+        events
+            .iter()
+            .any(|event| { event.server_name == "s1" && event.status == McpStartupStatus::Ready })
     );
 }
 
@@ -97,7 +105,9 @@ fn manager_start_all_marks_failed_when_client_missing() {
         ToolFilter::default(),
         Box::new(InMemoryMcpClient::default()),
     );
-    manager.stop_server("s1").expect("manager_start_all_marks_failed_when_client_missing");
+    manager
+        .stop_server("s1")
+        .expect("manager_start_all_marks_failed_when_client_missing");
     let summary = manager.start_all(|_| {});
     assert!(summary.ready.is_empty());
     assert_eq!(summary.failed.len(), 1);
@@ -133,7 +143,9 @@ fn manager_list_tools_applies_filter() {
         },
         Box::new(client),
     );
-    let tools = manager.list_tools().expect("manager_list_tools_applies_filter");
+    let tools = manager
+        .list_tools()
+        .expect("manager_list_tools_applies_filter");
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].tool_name, "allowed");
 }
@@ -152,7 +164,9 @@ fn manager_list_tools_deny_overrides_allow() {
         },
         Box::new(client),
     );
-    let tools = manager.list_tools().expect("manager_list_tools_deny_overrides_allow");
+    let tools = manager
+        .list_tools()
+        .expect("manager_list_tools_deny_overrides_allow");
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].tool_name, "a");
 }
@@ -165,7 +179,9 @@ fn manager_call_tool_delegates_to_client() {
         ToolFilter::default(),
         Box::new(InMemoryMcpClient::default().with_tool("t", json!({"v": 42}))),
     );
-    let result = manager.call_tool("s1", "t", json!({})).expect("manager_call_tool_delegates_to_client");
+    let result = manager
+        .call_tool("s1", "t", json!({}))
+        .expect("manager_call_tool_delegates_to_client");
     assert_eq!(result["v"], 42);
 }
 
@@ -200,12 +216,16 @@ fn manager_call_qualified_tool_handles_truncated_names() {
         ToolFilter::default(),
         Box::new(InMemoryMcpClient::default().with_tool(&long_tool, json!({"ok": true}))),
     );
-    let tools = manager.list_tools().expect("manager_call_qualified_tool_handles_truncated_names");
+    let tools = manager
+        .list_tools()
+        .expect("manager_call_qualified_tool_handles_truncated_names");
     let qualified = &tools[0].qualified_name;
     assert!(qualified.len() <= 64);
     assert!(parse_qualified_tool_name(qualified).is_ok());
 
-    let result = manager.call_qualified_tool(qualified, json!({})).expect("manager_call_qualified_tool_handles_truncated_names");
+    let result = manager
+        .call_qualified_tool(qualified, json!({}))
+        .expect("manager_call_qualified_tool_handles_truncated_names");
     assert_eq!(result["ok"], true);
 }
 
@@ -217,7 +237,9 @@ fn manager_unregister_removes_server() {
         ToolFilter::default(),
         Box::new(InMemoryMcpClient::default()),
     );
-    manager.unregister_server("s1").expect("manager_unregister_removes_server");
+    manager
+        .unregister_server("s1")
+        .expect("manager_unregister_removes_server");
     assert!(manager.configs.is_empty());
 }
 
@@ -245,7 +267,9 @@ fn manager_list_resources_returns_from_clients() {
             InMemoryMcpClient::default().with_resource("mcp://s1/health", json!({"ok": true})),
         ),
     );
-    let resources = manager.list_resources().expect("manager_list_resources_returns_from_clients");
+    let resources = manager
+        .list_resources()
+        .expect("manager_list_resources_returns_from_clients");
     assert_eq!(resources.len(), 1);
     assert_eq!(resources[0].server_name, "s1");
 }
@@ -260,7 +284,9 @@ fn manager_read_resource_delegates() {
             InMemoryMcpClient::default().with_resource("mcp://s1/health", json!({"ok": true})),
         ),
     );
-    let result = manager.read_resource("s1", "mcp://s1/health").expect("manager_read_resource_delegates");
+    let result = manager
+        .read_resource("s1", "mcp://s1/health")
+        .expect("manager_read_resource_delegates");
     assert_eq!(result["ok"], true);
 }
 
@@ -272,7 +298,9 @@ fn manager_update_sandbox_state_returns_notices() {
         ToolFilter::default(),
         Box::new(InMemoryMcpClient::default()),
     );
-    let notices = manager.update_sandbox_state("strict", "/tmp").expect("manager_update_sandbox_state_returns_notices");
+    let notices = manager
+        .update_sandbox_state("strict", "/tmp")
+        .expect("manager_update_sandbox_state_returns_notices");
     assert_eq!(notices.len(), 1);
     assert_eq!(notices[0]["server_name"], "s1");
 }
@@ -333,7 +361,8 @@ fn qualify_tool_name_truncates_long_names() {
 #[test]
 fn parse_qualified_tool_name_round_trip() {
     let qualified = qualify_tool_name("my_server", "my_tool");
-    let (server, tool) = parse_qualified_tool_name(&qualified).expect("parse_qualified_tool_name_round_trip");
+    let (server, tool) =
+        parse_qualified_tool_name(&qualified).expect("parse_qualified_tool_name_round_trip");
     assert_eq!(server, "my_server");
     assert_eq!(tool, "my_tool");
 }
@@ -396,7 +425,8 @@ fn jsonrpc_error_produces_valid_envelope() {
 #[test]
 fn mcp_server_config_defaults_enabled_to_true() {
     let json = json!({"name": "s", "command": "cmd"});
-    let config: McpServerConfig = serde_json::from_value(json).expect("mcp_server_config_defaults_enabled_to_true");
+    let config: McpServerConfig =
+        serde_json::from_value(json).expect("mcp_server_config_defaults_enabled_to_true");
     assert!(config.enabled);
     assert!(config.args.is_empty());
     assert!(config.env.is_empty());
@@ -407,6 +437,7 @@ fn mcp_startup_status_serializes_with_snake_case() {
     let status = McpStartupStatus::Failed {
         error: "oops".to_string(),
     };
-    let json = serde_json::to_value(&status).expect("mcp_startup_status_serializes_with_snake_case");
+    let json =
+        serde_json::to_value(&status).expect("mcp_startup_status_serializes_with_snake_case");
     assert_eq!(json["failed"]["error"], "oops");
 }

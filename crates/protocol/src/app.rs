@@ -68,4 +68,3 @@ pub struct PromptResponse {
     #[serde(default)]
     pub events: Vec<EventFrame>,
 }
-

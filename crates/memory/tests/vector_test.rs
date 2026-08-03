@@ -29,7 +29,9 @@ fn test_store_and_load_observation() {
     let observation = test_observation();
     let embedding = vec![0.0; 384];
 
-    let id = store.store_observation(&observation, &embedding).expect("store observation");
+    let id = store
+        .store_observation(&observation, &embedding)
+        .expect("store observation");
     assert!(id > 0);
 
     let loaded = store.load_observation(id).expect("load observation");
@@ -50,11 +52,15 @@ fn test_search() {
         obs.id = i;
         obs.content = format!("Observation {}", i);
         let embedding = vec![i as f32; 384];
-        store.store_observation(&obs, &embedding).expect("store observation");
+        store
+            .store_observation(&obs, &embedding)
+            .expect("store observation");
     }
 
     // Search
     let query = vec![0.0; 384];
-    let results = store.search(&query, 3, &SearchFilters::default()).expect("search vector store");
+    let results = store
+        .search(&query, 3, &SearchFilters::default())
+        .expect("search vector store");
     assert!(!results.is_empty());
 }

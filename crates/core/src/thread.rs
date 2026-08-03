@@ -498,4 +498,3 @@ fn to_persisted_source(source: &mimofan_protocol::SessionSource) -> SessionSourc
         mimofan_protocol::SessionSource::Unknown => SessionSource::Unknown,
     }
 }
-

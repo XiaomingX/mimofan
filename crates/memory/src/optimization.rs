@@ -316,4 +316,3 @@ impl ObservationStore {
         Ok(processed)
     }
 }
-

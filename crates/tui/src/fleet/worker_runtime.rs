@@ -21,7 +21,7 @@ use super::host::FleetHostKind;
 use super::profile::AgentProfile;
 use crate::config::ApiProvider;
 use crate::route_runtime::resolve_route_candidate;
-use crate::tools::subagent::{
+use crate::tools::subagent::types::{
     AgentWorkerSpec, AgentWorkerStatus, AgentWorkerToolProfile, SubAgentType,
 };
 use crate::worker_profile::{ModelRoute, ToolScope, WorkerRuntimeProfile};

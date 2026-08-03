@@ -1,6 +1,7 @@
 //! Composer vim Normal-mode keybindings.
 
-use crate::tui::app::{App, VimMode};
+use crate::tui::app::App;
+use crate::tui::vim::VimMode;
 
 /// Handle a plain character key press when the composer is in vim Normal mode.
 ///

@@ -1,5 +1,5 @@
-use mimofan_memory::*;
 use chrono::Utc;
+use mimofan_memory::*;
 
 fn test_observations() -> Vec<Observation> {
     let now = Utc::now().timestamp();

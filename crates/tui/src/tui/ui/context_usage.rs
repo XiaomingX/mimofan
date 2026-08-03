@@ -150,4 +150,3 @@ pub(crate) fn history_has_live_motion(history: &[HistoryCell]) -> bool {
         _ => false,
     })
 }
-

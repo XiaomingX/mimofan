@@ -90,7 +90,10 @@ pub(crate) fn apply_engine_error_to_app(
     // toast in the footer — that duplicates the transcript entry.
 }
 
-pub(crate) fn rollback_provider_after_auth_failure(app: &mut App, config: &mut Config) -> Option<String> {
+pub(crate) fn rollback_provider_after_auth_failure(
+    app: &mut App,
+    config: &mut Config,
+) -> Option<String> {
     let pending = app.pending_provider_switch.take()?;
     let PendingProviderSwitch {
         previous_provider,

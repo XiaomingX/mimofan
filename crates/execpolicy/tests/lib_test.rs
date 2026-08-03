@@ -1,7 +1,6 @@
 use mimofan_execpolicy::*;
 use mimofan_protocol::{NetworkPolicyAmendment, NetworkPolicyRuleAction};
 
-
 fn ctx(command: &str, ask_for_approval: AskForApproval) -> ExecPolicyContext<'_> {
     ExecPolicyContext {
         command,
@@ -25,7 +24,9 @@ fn deny_rule_blocks_path_and_wrapper_bypasses() {
         "sudo rm -rf /",
         "command rm -rf /",
     ] {
-        let decision = engine.check(ctx(cmd, AskForApproval::Never)).expect("deny_rule_blocks_path_and_wrapper_bypasses");
+        let decision = engine
+            .check(ctx(cmd, AskForApproval::Never))
+            .expect("deny_rule_blocks_path_and_wrapper_bypasses");
         assert!(!decision.allow, "expected block for {cmd}");
         assert!(
             matches!(
@@ -38,7 +39,9 @@ fn deny_rule_blocks_path_and_wrapper_bypasses() {
 
     // Non-matching commands must NOT be caught by the `rm` rule.
     for cmd in ["rmdir foo", "rmview", "git rm file"] {
-        let decision = engine.check(ctx(cmd, AskForApproval::Never)).expect("deny_rule_blocks_path_and_wrapper_bypasses");
+        let decision = engine
+            .check(ctx(cmd, AskForApproval::Never))
+            .expect("deny_rule_blocks_path_and_wrapper_bypasses");
         assert!(decision.allow, "expected allow for {cmd}");
     }
 }
@@ -177,8 +180,7 @@ fn reject_rules_mode_forbids_unmatched_command() {
 #[test]
 fn typed_ask_rule_forbids_matching_command_when_policy_is_never() {
     let engine = ExecPolicyEngine::with_rulesets(vec![
-        Ruleset::user(vec![], vec![])
-            .with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
+        Ruleset::user(vec![], vec![]).with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
     ]);
 
     let decision = engine
@@ -201,8 +203,7 @@ fn typed_ask_rule_forbids_matching_command_when_policy_is_never() {
 #[test]
 fn typed_ask_rule_requires_approval_under_unless_trusted() {
     let engine = ExecPolicyEngine::with_rulesets(vec![
-        Ruleset::user(vec![], vec![])
-            .with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
+        Ruleset::user(vec![], vec![]).with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
     ]);
 
     let decision = engine
@@ -236,8 +237,7 @@ fn typed_ask_rule_requires_approval_under_unless_trusted() {
 #[test]
 fn typed_ask_rule_requires_approval_under_on_failure() {
     let engine = ExecPolicyEngine::with_rulesets(vec![
-        Ruleset::user(vec![], vec![])
-            .with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
+        Ruleset::user(vec![], vec![]).with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
     ]);
 
     let decision = engine
@@ -289,8 +289,7 @@ fn typed_ask_rule_prefers_higher_layer_before_specificity() {
     let engine = ExecPolicyEngine::with_rulesets(vec![
         Ruleset::agent(vec![], vec![])
             .with_ask_rules(vec![ToolAskRule::exec_shell("cargo test --workspace")]),
-        Ruleset::user(vec![], vec![])
-            .with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
+        Ruleset::user(vec![], vec![]).with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
     ]);
 
     let decision = engine
@@ -310,8 +309,7 @@ fn typed_ask_rule_prefers_higher_layer_before_specificity() {
 #[test]
 fn reject_rules_mode_still_forbids_matching_ask_rule() {
     let engine = ExecPolicyEngine::with_rulesets(vec![
-        Ruleset::user(vec![], vec![])
-            .with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
+        Ruleset::user(vec![], vec![]).with_ask_rules(vec![ToolAskRule::exec_shell("cargo test")]),
     ]);
 
     let decision = engine
@@ -359,12 +357,9 @@ fn typed_ask_rule_label_wins_when_never_blocks_trusted_command() {
 #[test]
 fn typed_ask_path_matching_trims_spaces_before_workspace_normalization() {
     let engine =
-        ExecPolicyEngine::with_rulesets(vec![Ruleset::user(vec![], vec![]).with_ask_rules(
-            vec![ToolAskRule::file_path(
-                "edit_file",
-                " /workspace/tmp/project/ ",
-            )],
-        )]);
+        ExecPolicyEngine::with_rulesets(vec![Ruleset::user(vec![], vec![]).with_ask_rules(vec![
+            ToolAskRule::file_path("edit_file", " /workspace/tmp/project/ "),
+        ])]);
 
     let decision = engine
         .check(ExecPolicyContext {
@@ -403,9 +398,9 @@ fn typed_ask_path_matching_normalizes_relative_and_absolute_workspace_paths() {
     assert!(absolute_path.requires_approval);
 
     let absolute_rule =
-        ExecPolicyEngine::with_rulesets(vec![Ruleset::user(vec![], vec![]).with_ask_rules(
-            vec![ToolAskRule::file_path("edit_file", "/workspace/src/a.rs")],
-        )]);
+        ExecPolicyEngine::with_rulesets(vec![Ruleset::user(vec![], vec![]).with_ask_rules(vec![
+            ToolAskRule::file_path("edit_file", "/workspace/src/a.rs"),
+        ])]);
     let relative_path = absolute_rule
         .check(ExecPolicyContext {
             command: "",

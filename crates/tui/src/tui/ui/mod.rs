@@ -157,43 +157,82 @@ mod ports;
 use mimofan_core::BalanceProvider;
 use ports::ReqwestBalanceProvider;
 mod engine_config_prompt;
-pub(crate) use engine_config_prompt::{build_engine_config, build_app_system_prompt};
+pub(crate) use engine_config_prompt::{build_app_system_prompt, build_engine_config};
 mod search_direction;
 pub(crate) use search_direction::{SearchDirection, jump_to_adjacent_tool_cell};
 mod foreground_shell;
-pub(crate) use foreground_shell::{request_foreground_shell_background, prefill_jobs_cancel_all_if_tasks_sidebar, active_foreground_shell_running, terminal_pause_has_live_owner};
+pub(crate) use foreground_shell::{
+    active_foreground_shell_running, prefill_jobs_cancel_all_if_tasks_sidebar,
+    request_foreground_shell_background, terminal_pause_has_live_owner,
+};
 mod toast;
-pub(crate) use toast::{status_color, render_toast_stack_overlay};
+pub(crate) use toast::{render_toast_stack_overlay, status_color};
 mod provider_picker_api_key;
-pub(crate) use provider_picker_api_key::{apply_provider_picker_api_key, apply_provider_picker_auth_mode};
+pub(crate) use provider_picker_api_key::{
+    apply_provider_picker_api_key, apply_provider_picker_auth_mode,
+};
 mod queued_message;
-pub(crate) use queued_message::{build_queued_message, submit_initial_input_if_ready, queue_current_draft_for_next_turn, send_ctrl_s_queued_message_now, send_queued_message_at_index_now, queued_message_content_for_app};
+pub(crate) use queued_message::{
+    build_queued_message, queue_current_draft_for_next_turn, queued_message_content_for_app,
+    send_ctrl_s_queued_message_now, send_queued_message_at_index_now,
+    submit_initial_input_if_ready,
+};
 mod engine_error_handling;
-pub(crate) use engine_error_handling::{apply_engine_error_to_app, rollback_provider_after_auth_failure, persist_offline_queue_state};
+pub(crate) use engine_error_handling::{
+    apply_engine_error_to_app, persist_offline_queue_state, rollback_provider_after_auth_failure,
+};
 mod session_warmup;
-pub(crate) use session_warmup::{fetch_available_models, run_cache_warmup, build_session_snapshot, queued_ui_to_session, queued_session_to_ui};
+pub(crate) use session_warmup::{
+    build_session_snapshot, fetch_available_models, queued_session_to_ui, queued_ui_to_session,
+    run_cache_warmup,
+};
 mod hotbar_shortcuts;
-pub(crate) use hotbar_shortcuts::{hotbar_slot_from_key, dispatch_hotbar_slot, apply_alt_4_shortcut, persist_sidebar_settings_if_dirty, apply_alt_0_shortcut};
+pub(crate) use hotbar_shortcuts::{
+    apply_alt_0_shortcut, apply_alt_4_shortcut, dispatch_hotbar_slot, hotbar_slot_from_key,
+    persist_sidebar_settings_if_dirty,
+};
 mod work_sidebar_tasks;
 pub(crate) use work_sidebar_tasks::{refresh_active_task_panel, refresh_shell_exec_live_output};
 mod subagent_hooks;
 pub(crate) use subagent_hooks::{execute_subagent_observer_hook, execute_turn_end_observer_hook};
 mod activity_detail;
-pub(crate) use activity_detail::{open_pager_for_selection, open_pager_for_last_message, open_activity_detail_pager, open_tool_details_pager, open_details_pager_for_cell, copy_focused_cell, copy_cell_to_clipboard, detail_target_cell_index, selected_detail_footer_label, detail_target_label, extract_reasoning_header};
+pub(crate) use activity_detail::{
+    copy_cell_to_clipboard, copy_focused_cell, detail_target_cell_index, detail_target_label,
+    extract_reasoning_header, open_activity_detail_pager, open_details_pager_for_cell,
+    open_pager_for_last_message, open_pager_for_selection, open_tool_details_pager,
+    selected_detail_footer_label,
+};
 mod session_loading;
 pub(crate) use session_loading::{apply_loaded_session, derive_session_title};
 mod approval;
-pub(crate) use approval::{push_approval_request_view, apply_approval_decision, mark_active_turn_cancelled_locally, suppress_engine_event_after_local_cancel, ignore_stale_stream_event_while_idle, ApprovalDecisionEvent};
+pub(crate) use approval::{
+    ApprovalDecisionEvent, apply_approval_decision, ignore_stale_stream_event_while_idle,
+    mark_active_turn_cancelled_locally, push_approval_request_view,
+    suppress_engine_event_after_local_cancel,
+};
 mod paused_command;
-pub(crate) use paused_command::{prepare_paused_command_message, pause_pausable_command, clear_paused_command_state};
+pub(crate) use paused_command::{
+    clear_paused_command_state, pause_pausable_command, prepare_paused_command_message,
+};
 mod streaming;
-pub(crate) use streaming::{sanitize_stream_chunk, ensure_streaming_assistant_history_cell, append_streaming_text, push_assistant_message, tool_result_content_for_api_message, replace_matching_assistant_text};
+pub(crate) use streaming::{
+    append_streaming_text, ensure_streaming_assistant_history_cell, push_assistant_message,
+    replace_matching_assistant_text, sanitize_stream_chunk, tool_result_content_for_api_message,
+};
 mod context_usage;
-pub(crate) use context_usage::{context_usage_snapshot, maybe_warn_context_pressure, should_auto_compact_before_send, status_animation_interval_ms, active_poll_ms, idle_poll_ms, clamp_event_poll_timeout, history_has_live_motion};
+pub(crate) use context_usage::{
+    active_poll_ms, clamp_event_poll_timeout, context_usage_snapshot, history_has_live_motion,
+    idle_poll_ms, maybe_warn_context_pressure, should_auto_compact_before_send,
+    status_animation_interval_ms,
+};
 mod terminal_modes;
-pub(crate) use terminal_modes::{pause_terminal, resume_terminal, reset_terminal_viewport, pop_keyboard_enhancement_flags, disable_alternate_scroll_mode, emergency_restore_terminal, recover_terminal_modes, disable_bracketed_paste_mode, terminal_event_needs_viewport_recapture};
+pub(crate) use terminal_modes::{
+    disable_alternate_scroll_mode, disable_bracketed_paste_mode, emergency_restore_terminal,
+    pause_terminal, pop_keyboard_enhancement_flags, recover_terminal_modes,
+    reset_terminal_viewport, resume_terminal, terminal_event_needs_viewport_recapture,
+};
 mod version_check;
-pub(crate) use version_check::{spawn_startup_version_check};
+pub(crate) use version_check::spawn_startup_version_check;
 
 // === Constants ===
 
@@ -301,7 +340,6 @@ const END_SYNC_UPDATE: &[u8] = b"\x1b[?2026l";
 const TERMINAL_INPUT_STALL_TIMEOUT: Duration = Duration::from_secs(5);
 const TERMINAL_INPUT_RECOVERY_COOLDOWN: Duration = Duration::from_secs(10);
 const MAX_ENGINE_EVENTS_PER_DRAIN: usize = 128;
-
 
 fn next_terminal_event(
     input: &TerminalInputPump,
@@ -716,7 +754,6 @@ fn terminal_probe_timeout(config: &Config) -> Duration {
     Duration::from_millis(timeout_ms)
 }
 
-
 struct TerminalCleanupGuard {
     use_alt_screen: bool,
     use_mouse_capture: bool,
@@ -793,7 +830,6 @@ fn handle_memory_quick_add(app: &mut App, input: &str, config: &Config) {
     }
 }
 
-
 /// How long after a task finishes it should still appear in the Work
 /// sidebar even if its `ended_at` predates the current TUI session.
 ///
@@ -803,7 +839,6 @@ fn handle_memory_quick_add(app: &mut App, input: &str, config: &Config) {
 /// finished X". Anything older than this window is hidden — preventing
 /// the sidebar from accumulating indefinitely (bug #1913).
 const WORK_SIDEBAR_RECENT_COMPLETED_TTL: chrono::Duration = chrono::Duration::hours(2);
-
 
 /// Minimum interval between balance API fetches to avoid flooding.
 const BALANCE_FETCH_COOLDOWN: Duration = Duration::from_secs(60);
@@ -1757,7 +1792,8 @@ async fn run_event_loop(
                                 let provider = balance_provider.clone();
                                 tokio::spawn(async move {
                                     if let Some(info) =
-                                        fetch_deepseek_balance(&*provider, &api_key, &base_url).await
+                                        fetch_deepseek_balance(&*provider, &api_key, &base_url)
+                                            .await
                                         && let Ok(mut guard) = cell.lock()
                                     {
                                         *guard = Some(info);
@@ -4275,8 +4311,6 @@ async fn run_event_loop(
     }
 }
 
-
-
 fn reconcile_turn_liveness(app: &mut App, now: Instant, has_running_agents: bool) -> bool {
     if app.is_loading
         && app.runtime_turn_status.is_none()
@@ -4539,8 +4573,6 @@ fn tool_cell_is_running(tool: &ToolCell) -> bool {
         ToolCell::Generic(cell) => cell.status == ToolStatus::Running,
     }
 }
-
-
 
 async fn dispatch_user_message(
     app: &mut App,

@@ -354,4 +354,3 @@ fn supports_text_chat(modalities: Option<&ModelsDevModalities>) -> bool {
             .any(|modality| modality.eq_ignore_ascii_case("text"));
     input_ok && output_ok
 }
-

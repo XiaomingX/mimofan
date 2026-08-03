@@ -43,7 +43,9 @@ async fn main() {
     // Store observation
     let obs = create_observation("test", ObservationKind::Discovery, "Test discovery");
     let embedding = generate_embedding(1);
-    let id = obs_store.store_observation(&obs, &embedding).expect("store observation");
+    let id = obs_store
+        .store_observation(&obs, &embedding)
+        .expect("store observation");
     assert!(id > 0, "Store should return positive ID");
     println!("   ✓ Store observation: ID = {}", id);
 
@@ -63,7 +65,9 @@ async fn main() {
         project: Some("test".to_string()),
         ..Default::default()
     };
-    let results = obs_store.search(&embedding, 10, &filters).expect("search vector store with filter");
+    let results = obs_store
+        .search(&embedding, 10, &filters)
+        .expect("search vector store with filter");
     assert!(
         !results.is_empty(),
         "Filtered search should find observation"

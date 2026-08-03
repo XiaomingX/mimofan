@@ -66,7 +66,12 @@ fn fleet_run_round_trip() {
     assert_eq!(back.status, FleetRunStatus::Running);
     assert_eq!(back.task_specs.len(), 1);
     assert_eq!(
-        back.task_specs[0].worker.as_ref().expect("worker profile present").role.as_deref(),
+        back.task_specs[0]
+            .worker
+            .as_ref()
+            .expect("worker profile present")
+            .role
+            .as_deref(),
         Some("release-checker")
     );
     assert_eq!(
@@ -92,7 +97,8 @@ fn worker_profile_carries_agent_profile_and_loadout_intent() {
         "capabilities": ["rust"]
     }"#;
 
-    let profile: FleetTaskWorkerProfile = serde_json::from_str(json).expect("deserialize worker profile");
+    let profile: FleetTaskWorkerProfile =
+        serde_json::from_str(json).expect("deserialize worker profile");
 
     assert_eq!(
         profile.agent_profile.as_deref(),
@@ -148,7 +154,8 @@ fn worker_event_lifecycle_round_trip() {
         },
     ];
     let json = serde_json::to_string(&events).expect("serialize worker events");
-    let back: Vec<FleetWorkerEvent> = serde_json::from_str(&json).expect("deserialize worker events");
+    let back: Vec<FleetWorkerEvent> =
+        serde_json::from_str(&json).expect("deserialize worker events");
     assert_eq!(back.len(), 3);
     assert!(matches!(back[0].payload, FleetWorkerEventPayload::Queued));
     assert!(matches!(
@@ -223,24 +230,27 @@ fn ssh_host_spec_accepts_minimal_legacy_json() {
 
 #[test]
 fn artifact_kind_uses_flat_string_json() {
-    let known = serde_json::to_string(&FleetArtifactKind::TestResult).expect("serialize artifact kind");
+    let known =
+        serde_json::to_string(&FleetArtifactKind::TestResult).expect("serialize artifact kind");
     assert_eq!(known, "\"test_result\"");
 
-    let custom =
-        serde_json::to_string(&FleetArtifactKind::Other("coverage.xml".to_string())).expect("serialize custom artifact kind");
+    let custom = serde_json::to_string(&FleetArtifactKind::Other("coverage.xml".to_string()))
+        .expect("serialize custom artifact kind");
     assert_eq!(custom, "\"coverage.xml\"");
 
-    let parsed: FleetArtifactKind = serde_json::from_str("\"coverage.xml\"").expect("deserialize artifact kind");
+    let parsed: FleetArtifactKind =
+        serde_json::from_str("\"coverage.xml\"").expect("deserialize artifact kind");
     assert_eq!(parsed, FleetArtifactKind::Other("coverage.xml".to_string()));
 }
 
 #[test]
 fn retry_policy_missing_fields_use_nonzero_defaults() {
-    let policy: FleetRetryPolicy = serde_json::from_value(serde_json::json!({})).expect("deserialize retry policy from empty json");
+    let policy: FleetRetryPolicy = serde_json::from_value(serde_json::json!({}))
+        .expect("deserialize retry policy from empty json");
     assert_eq!(policy, FleetRetryPolicy::default());
 
-    let policy: FleetRetryPolicy =
-        serde_json::from_value(serde_json::json!({"max_attempts": 5})).expect("deserialize retry policy with max_attempts");
+    let policy: FleetRetryPolicy = serde_json::from_value(serde_json::json!({"max_attempts": 5}))
+        .expect("deserialize retry policy with max_attempts");
     assert_eq!(policy.max_attempts, 5);
     assert_eq!(
         policy.initial_backoff_seconds,
@@ -293,7 +303,10 @@ fn receipt_round_trip() {
     let json = serde_json::to_string(&receipt).expect("serialize receipt");
     let back: FleetReceipt = serde_json::from_str(&json).expect("deserialize receipt");
     assert_eq!(back.result, FleetTaskResult::Pass);
-    assert_eq!(back.score.as_ref().expect("receipt score present").value, 0.95);
+    assert_eq!(
+        back.score.as_ref().expect("receipt score present").value,
+        0.95
+    );
 }
 
 #[test]
@@ -381,23 +394,31 @@ fn alert_endpoint_from_secret_round_trip() {
     assert!(!json.contains("hooks.slack.com"));
 
     let back: FleetAlertEndpoint = serde_json::from_str(&json).expect("deserialize alert endpoint");
-    assert_eq!(back.url_ref.as_ref().expect("alert endpoint url_ref present").key, "SLACK_WEBHOOK");
+    assert_eq!(
+        back.url_ref
+            .as_ref()
+            .expect("alert endpoint url_ref present")
+            .key,
+        "SLACK_WEBHOOK"
+    );
     assert_eq!(back.url, None);
 }
 
 #[test]
 fn secret_ref_accepts_legacy_string_wire_shape() {
-    let ref_: FleetSecretRef = serde_json::from_str(r#""MIMOFAN_FLEET_TOKEN""#).expect("deserialize secret ref from legacy string");
+    let ref_: FleetSecretRef = serde_json::from_str(r#""MIMOFAN_FLEET_TOKEN""#)
+        .expect("deserialize secret ref from legacy string");
     assert_eq!(ref_, FleetSecretRef::new("MIMOFAN_FLEET_TOKEN"));
 
-    let ref_: FleetSecretRef =
-        serde_json::from_str(r#"{"key":"GH_TOKEN","source":"env"}"#).expect("deserialize secret ref with source");
+    let ref_: FleetSecretRef = serde_json::from_str(r#"{"key":"GH_TOKEN","source":"env"}"#)
+        .expect("deserialize secret ref with source");
     assert_eq!(ref_, FleetSecretRef::with_source("GH_TOKEN", "env"));
 }
 
 #[test]
 fn trust_level_accepts_hyphenated_remote_verified() {
-    let trust: FleetTrustLevel = serde_json::from_str(r#""remote-verified""#).expect("deserialize trust level");
+    let trust: FleetTrustLevel =
+        serde_json::from_str(r#""remote-verified""#).expect("deserialize trust level");
     assert_eq!(trust, FleetTrustLevel::RemoteVerified);
 
     let canonical = serde_json::to_string(&trust).expect("serialize trust level");
@@ -476,7 +497,8 @@ fn sample_receipt_with_route() -> FleetReceipt {
 fn fleet_resolved_route_round_trips() {
     let receipt = sample_receipt_with_route();
     let json = serde_json::to_string(&receipt).expect("serialize resolved-route receipt");
-    let back: FleetReceipt = serde_json::from_str(&json).expect("deserialize resolved-route receipt");
+    let back: FleetReceipt =
+        serde_json::from_str(&json).expect("deserialize resolved-route receipt");
     assert_eq!(back.resolved_route, receipt.resolved_route);
     let route = back.resolved_route.expect("resolved route present");
     assert_eq!(route.provider_id, "deepseek");
@@ -511,7 +533,13 @@ fn fleet_resolved_route_serialization_carries_no_secrets() {
     // no-secrets invariant we are asserting. Scoping to the route value
     // avoids false positives from unrelated envelope ids (e.g. a task id
     // such as "task-foo" innocently contains the substring "sk-").
-    let route_json = serde_json::to_string(receipt.resolved_route.as_ref().expect("resolved route present for secret scan")).expect("serialize resolved route for secret scan");
+    let route_json = serde_json::to_string(
+        receipt
+            .resolved_route
+            .as_ref()
+            .expect("resolved route present for secret scan"),
+    )
+    .expect("serialize resolved route for secret scan");
     assert_no_secret_markers(&route_json);
     // The envelope as a whole must also stay credential-free.
     let receipt_json = serde_json::to_string(&receipt).expect("serialize receipt for secret scan");

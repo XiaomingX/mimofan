@@ -166,11 +166,15 @@ impl MemoryInjector {
         if estimated_tokens > self.config.max_tokens {
             // Truncate lists to fit
             while estimated_tokens > self.config.max_tokens && !recent_changes.is_empty() {
-                let removed = recent_changes.pop().expect("pop recent change from capped list");
+                let removed = recent_changes
+                    .pop()
+                    .expect("pop recent change from capped list");
                 estimated_tokens -= self.estimate_tokens(&removed);
             }
             while estimated_tokens > self.config.max_tokens && !key_decisions.is_empty() {
-                let removed = key_decisions.pop().expect("pop key decision from capped list");
+                let removed = key_decisions
+                    .pop()
+                    .expect("pop key decision from capped list");
                 estimated_tokens -= self.estimate_tokens(&removed);
             }
         }
@@ -216,4 +220,3 @@ impl MemoryInjector {
         text.len() / 4
     }
 }
-
