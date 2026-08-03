@@ -1,30 +1,15 @@
-//! UI-layer IO ports (dependency inversion).
+//! UI-layer IO adapters for the `BalanceProvider` port (dependency inversion).
 //!
-//! The TUI previously reached for concrete IO (`reqwest`, `std::fs`,
-//! `std::process`) directly at call sites. These traits capture the *intent*
-//! behind that IO so the UI depends on an abstraction; concrete adapters are
-//! supplied at the boundary. As this refactor matures, port traits like these
-//! are natural candidates to be promoted into the `core` crate (task B).
+//! The port trait itself lives in `mimofan_core` so any crate can depend on
+//! the abstraction. This module supplies the concrete `reqwest`-backed
+//! adapter used by the TUI.
 
 use std::future::Future;
 use std::time::Duration;
 
-use crate::pricing::{BalanceInfo, BalanceResponse};
+use mimofan_core::BalanceProvider;
 
-/// Port for fetching the account balance from the provider's balance API.
-///
-/// Abstracts the HTTP call so the balance UI no longer depends on a concrete
-/// `reqwest` client. Adapters implement this against real or fake backends.
-///
-/// The returned future is `Send`; the balance refresh paths spawn background
-/// tasks, so the trait contract must guarantee `Send` (RPITIT with `+ Send`).
-pub(crate) trait BalanceProvider: Send + Sync {
-    fn fetch_balance(
-        &self,
-        api_key: &str,
-        base_url: &str,
-    ) -> impl Future<Output = Option<BalanceInfo>> + Send;
-}
+use crate::pricing::{BalanceInfo, BalanceResponse};
 
 /// Concrete `reqwest`-backed adapter.
 ///
@@ -46,6 +31,8 @@ impl ReqwestBalanceProvider {
 }
 
 impl BalanceProvider for ReqwestBalanceProvider {
+    type Balance = BalanceInfo;
+
     fn fetch_balance(
         &self,
         api_key: &str,

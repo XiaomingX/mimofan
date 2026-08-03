@@ -154,7 +154,8 @@ pub(crate) use plan_choice::{
 };
 
 mod ports;
-use ports::{BalanceProvider, ReqwestBalanceProvider};
+use mimofan_core::BalanceProvider;
+use ports::ReqwestBalanceProvider;
 
 // === Constants ===
 
@@ -1260,7 +1261,7 @@ const BALANCE_FETCH_COOLDOWN: Duration = Duration::from_secs(60);
 /// Returns `None` on any error (network, auth, parse) — callers should treat
 /// a `None` return as "balance unknown" and keep the previous value.
 async fn fetch_deepseek_balance(
-    provider: &impl BalanceProvider,
+    provider: &impl BalanceProvider<Balance = crate::pricing::BalanceInfo>,
     api_key: &str,
     base_url: &str,
 ) -> Option<crate::pricing::BalanceInfo> {
@@ -1281,7 +1282,7 @@ async fn run_event_loop(
     task_manager: SharedTaskManager,
     event_broker: &EventBroker,
     translation_client: Option<Arc<ApiClient>>,
-    balance_provider: Arc<impl BalanceProvider + 'static>,
+    balance_provider: Arc<impl BalanceProvider<Balance = crate::pricing::BalanceInfo> + 'static>,
 ) -> Result<()> {
     // Subscribe to task completion events for proactive notification.
     let mut task_completion_rx = task_manager.subscribe_completions();

@@ -1,5 +1,6 @@
 mod job;
 mod thread;
+mod balance_provider;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -28,6 +29,7 @@ use uuid::Uuid;
 // Re-export all public types for backward compatibility.
 pub use job::*;
 pub use thread::*;
+pub use balance_provider::BalanceProvider;
 
 /// Top-level runtime combining config, model registry, threads, tools, MCP, and hooks.
 pub struct Runtime {

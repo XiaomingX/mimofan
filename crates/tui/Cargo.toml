@@ -24,6 +24,7 @@ anyhow.workspace = true
 mimofan-agent = { path = "../agent" }
 mimofan-app-server = { path = "../app-server" }
 mimofan-config = { path = "../config" }
+mimofan-core = { path = "../core" }
 mimofan-execpolicy = { path = "../execpolicy" }
 mimofan-mcp = { path = "../mcp" }
 mimofan-protocol = { path = "../protocol" }
