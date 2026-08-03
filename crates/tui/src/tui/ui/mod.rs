@@ -7647,10 +7647,3 @@ fn apply_backtrack(app: &mut App, depth: usize) {
     app.mark_history_updated();
     app.needs_redraw = true;
 }
-
-
-
-
-
-
-
