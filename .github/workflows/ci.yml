@@ -19,11 +19,27 @@ jobs:
       - name: Install Rust Toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
-          components: rustfmt
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
 
       - name: Check Formatting
         run: cargo fmt --all -- --check
 
+      - name: Clippy
+        run: |
+          cargo clippy --workspace --all-features --locked -- \
+            -D warnings \
+            -A clippy::uninlined_format_args \
+            -A clippy::too_many_arguments \
+            -A clippy::unnecessary_map_or \
+            -A clippy::assertions_on_constants
+
       - name: Workspace Check
         run: cargo check --workspace
+
+      - name: Workspace Tests
+        run: cargo test --workspace --all-features --locked
