@@ -18,7 +18,6 @@ use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, Vector
 struct BenchmarkResult {
     name: String,
     iterations: usize,
-    total_duration: Duration,
     avg_duration: Duration,
     ops_per_sec: f64,
 }
@@ -30,7 +29,6 @@ impl BenchmarkResult {
         Self {
             name: name.to_string(),
             iterations,
-            total_duration,
             avg_duration,
             ops_per_sec,
         }

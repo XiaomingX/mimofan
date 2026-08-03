@@ -4,7 +4,7 @@
 //!
 //! 运行: cargo test -p mimofan fleet_observability -- --nocapture
 
-use mimofan::{AgentTopology, FleetStatusSummary, ObservabilityCollector};
+use mimofan::ObservabilityCollector;
 use std::time::Duration;
 
 // ═════════════════════════════════════════════════════════════════════════════
