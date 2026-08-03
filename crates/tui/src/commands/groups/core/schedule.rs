@@ -132,7 +132,7 @@ fn cancel_scheduled_task(app: &mut App, id: Option<&str>) -> CommandResult {
 ///
 /// Expected format: `<prompt> --schedule <HH:MM>`
 /// Returns `(prompt, (hour, minute))` or an error message.
-fn parse_night_args(args: &str) -> Result<(String, (u32, u32)), String> {
+pub fn parse_night_args(args: &str) -> Result<(String, (u32, u32)), String> {
     let parts: Vec<&str> = args.splitn(2, "--schedule").collect();
     if parts.len() != 2 {
         return Err("Usage: /night <prompt> --schedule <HH:MM>".to_string());
@@ -157,7 +157,7 @@ fn parse_night_args(args: &str) -> Result<(String, (u32, u32)), String> {
 }
 
 /// Truncate text to a maximum length with ellipsis.
-fn truncate_preview(text: &str, max_chars: usize) -> String {
+pub fn truncate_preview(text: &str, max_chars: usize) -> String {
     if text.chars().count() <= max_chars {
         return text.to_string();
     }
@@ -167,45 +167,4 @@ fn truncate_preview(text: &str, max_chars: usize) -> String {
     }
     out.push_str("...");
     out
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_night_args_valid() {
-        let result = parse_night_args("run tests --schedule 00:30");
-        assert!(result.is_ok());
-        let (prompt, (hour, minute)) = result.expect("unexpected None/Err in test");
-        assert_eq!(prompt, "run tests");
-        assert_eq!(hour, 0);
-        assert_eq!(minute, 30);
-    }
-
-    #[test]
-    fn test_parse_night_args_missing_schedule() {
-        let result = parse_night_args("run tests");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_parse_night_args_invalid_time() {
-        let result = parse_night_args("run tests --schedule abc");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_truncate_preview_short() {
-        let text = "short text";
-        assert_eq!(truncate_preview(text, 20), "short text");
-    }
-
-    #[test]
-    fn test_truncate_preview_long() {
-        let text = "this is a very long text that should be truncated";
-        let result = truncate_preview(text, 20);
-        assert!(result.len() <= 23); // 20 + "..."
-        assert!(result.ends_with("..."));
-    }
 }
