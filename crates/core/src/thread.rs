@@ -400,11 +400,11 @@ impl ThreadManager {
 
 // ── Helper functions ──────────────────────────────────────────────────
 
-pub(crate) fn truncate_preview(value: &str) -> String {
+pub fn truncate_preview(value: &str) -> String {
     value.chars().take(120).collect()
 }
 
-fn preview_from_initial_history(initial_history: &InitialHistory) -> String {
+pub fn preview_from_initial_history(initial_history: &InitialHistory) -> String {
     match initial_history {
         InitialHistory::New => "New conversation".to_string(),
         InitialHistory::Forked(items) => truncate_preview(
@@ -499,42 +499,3 @@ fn to_persisted_source(source: &mimofan_protocol::SessionSource) -> SessionSourc
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn truncate_preview_limits_to_120_chars() {
-        let long = "a".repeat(200);
-        let truncated = truncate_preview(&long);
-        assert_eq!(truncated.len(), 120);
-    }
-
-    #[test]
-    fn truncate_preview_preserves_short_strings() {
-        let short = "hello";
-        assert_eq!(truncate_preview(short), "hello");
-    }
-
-    #[test]
-    fn preview_from_initial_history_new() {
-        let preview = preview_from_initial_history(&InitialHistory::New);
-        assert_eq!(preview, "New conversation");
-    }
-
-    #[test]
-    fn preview_from_initial_history_forked() {
-        let preview = preview_from_initial_history(&InitialHistory::Forked(vec![json!("hello")]));
-        assert!(preview.contains("hello"));
-    }
-
-    #[test]
-    fn preview_from_initial_history_resumed() {
-        let preview = preview_from_initial_history(&InitialHistory::Resumed {
-            conversation_id: "test".to_string(),
-            history: vec![json!("world")],
-            rollout_path: PathBuf::from("/tmp/test"),
-        });
-        assert!(preview.contains("world"));
-    }
-}
