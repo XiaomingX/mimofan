@@ -158,7 +158,7 @@ EOF
 
 **完整约束见 `CLAUDE.md`「关键设计约束」**，核心不可违反项：
 
-1. 面向模型的工具仅限 `agent`，不存在 `agent_open` / `agent_eval` / `agent_close`
+1. 面向模型的工具仅限 `agent`，不存在 `agent_open` / `agent_eval` / `agent_close` / `delegate_to_agent`
 2. 不引入容量/一致性/运行时标签系统
 3. `constitution.md` 是唯一基础提示词，不注入运行时提示词
 4. 子智能体深度可配置，不新增任意限制
