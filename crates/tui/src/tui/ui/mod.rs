@@ -148,6 +148,11 @@ pub(crate) use sidebar_geometry::{
     SidebarRenderState, sidebar_render_state, sidebar_width_for_chat_area,
 };
 
+mod plan_choice;
+pub(crate) use plan_choice::{
+    PlanChoice, parse_plan_choice, plan_choice_from_option, plan_next_step_prompt,
+};
+
 mod ports;
 use ports::{BalanceProvider, ReqwestBalanceProvider};
 
@@ -7799,49 +7804,6 @@ fn merge_pending_steers(app: &mut App) -> Option<QueuedMessage> {
         bodies.push(msg.display);
     }
     Some(QueuedMessage::new(bodies.join("\n\n"), skill_instruction))
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PlanChoice {
-    AcceptAgent,
-    AcceptYolo,
-    RevisePlan,
-    ExitPlan,
-}
-
-fn plan_next_step_prompt() -> String {
-    [
-        "Action required: choose the next step for this plan.",
-        "  1) Accept + implement in Agent mode",
-        "  2) Accept + implement in YOLO mode",
-        "  3) Revise the plan / ask follow-ups",
-        "  4) Return to Agent mode without implementing",
-        "",
-        "Use the plan confirmation popup, or type 1-4 and press Enter.",
-    ]
-    .join("\n")
-}
-
-fn plan_choice_from_option(option: usize) -> Option<PlanChoice> {
-    match option {
-        1 => Some(PlanChoice::AcceptAgent),
-        2 => Some(PlanChoice::AcceptYolo),
-        3 => Some(PlanChoice::RevisePlan),
-        4 => Some(PlanChoice::ExitPlan),
-        _ => None,
-    }
-}
-
-fn parse_plan_choice(input: &str) -> Option<PlanChoice> {
-    // Once the modal is dismissed, only the advertised 1-4 fallback remains active.
-    // Letter shortcuts stay modal-only so normal messages like "yolo" are not captured.
-    match input.trim() {
-        "1" => Some(PlanChoice::AcceptAgent),
-        "2" => Some(PlanChoice::AcceptYolo),
-        "3" => Some(PlanChoice::RevisePlan),
-        "4" => Some(PlanChoice::ExitPlan),
-        _ => None,
-    }
 }
 
 async fn apply_plan_choice(
