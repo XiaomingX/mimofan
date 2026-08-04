@@ -23,6 +23,8 @@
 - 🧪 写完自动跑验证，红了就修
 - 🔧 给报错信息就能定位到具体代码行
 - 🤫 不弹窗不打扰，只在需要你决策时才开口（每次危险操作都会先问「可以吗？」）
+- 🔒 Spec Freeze 冻结计划，防止 Agent 偏离
+- 📋 Issue Monitor 监控 GitHub Issue，自动关联 PR
 
 > 米谋不是一个替你写代码的工具，而是一个帮你把代码写好的搭档。谋定而后动，知止而有得。
 
@@ -33,11 +35,11 @@
 ### 1. 安装
 
 ```bash
-# 使用 bun 全局安装（推荐）
-bun add -g mimofan
-
-# 或使用 cargo 编译安装
+# 使用 cargo 编译安装
 cargo install --path crates/tui --locked
+
+# 或下载预编译二进制
+# https://github.com/XiaomingX/mimofan/releases
 ```
 
 ### 2. 零配置直接启动
@@ -72,7 +74,69 @@ mimofan doctor
 
 ---
 
-## 核心能力
+## 🎯 高频实用场景
+
+### 场景一：快速修复 Bug
+
+```text
+> 这个函数报错了 "index out of bounds"，帮我修复并添加测试
+
+# AI 会自动：
+# 1. 分析错误原因
+# 2. 修复代码
+# 3. 编写测试用例
+# 4. 运行 cargo test 验证
+```
+
+### 场景二：代码重构
+
+```text
+> 把这个 500 行的函数拆分成多个小函数，保持功能不变
+
+# AI 会自动：
+# 1. 分析函数逻辑
+# 2. 提取公共部分
+# 3. 重构代码结构
+# 4. 运行测试确保无回归
+```
+
+### 场景三：生成单元测试
+
+```text
+> 给 src/auth.rs 里的 login 函数写完整的单元测试，覆盖正常和异常情况
+
+# AI 会自动：
+# 1. 读取函数签名和逻辑
+# 2. 生成测试用例
+# 3. 添加 mock 和 fixture
+# 4. 运行测试验证
+```
+
+### 场景四：代码审查
+
+```text
+> 帮我审查这个 PR 的代码，重点关注安全性和性能问题
+
+# AI 会自动：
+# 1. 读取 diff 变更
+# 2. 分析潜在问题
+# 3. 给出改进建议
+```
+
+### 场景五：文档生成
+
+```text
+> 给这个模块写 README 文档，包括使用示例和 API 说明
+
+# AI 会自动：
+# 1. 分析模块结构
+# 2. 提取公开 API
+# 3. 生成文档和示例
+```
+
+---
+
+## 🔧 核心能力
 
 ### AI 编程助手
 
@@ -95,10 +159,11 @@ mimofan doctor
 - **交互模式**: 全屏 TUI 终端界面
 - **单次模式**: `mimofan exec` 命令行调用
 - **Plan 模式**: 先列计划，审核后再执行
+- **YOLO 模式**: 全自动执行（信任仓库时使用）
 
 ---
 
-## TUI 操作指南
+## ⌨️ TUI 操作指南
 
 ### 基础按键
 
@@ -109,44 +174,106 @@ mimofan doctor
 | Ctrl+C | 中止任务 / 退出 |
 | Ctrl+L | 清空历史 |
 | PageUp/PageDown | 滚动历史 |
+| Tab | 切换侧边栏焦点 |
 
 ### 安全授权
 
 AI 执行命令时会弹出授权窗口：
 - `y`: 允许执行
 - `n`: 拒绝操作
-
-### 斜杠指令
-
-- `/plan <目标>`: 生成执行计划
-- `/clear`: 清屏重置
-- `/help`: 查看帮助
-- `/exit`: 退出
+- `a`: 本次会话全部允许
 
 ---
 
-## 使用场景
+## 📋 斜杠指令大全
 
-### 场景一：添加功能 / 修复 Bug
+### 基础指令
+
+| 指令 | 说明 | 示例 |
+|------|------|------|
+| `/help` | 查看帮助 | `/help` |
+| `/clear` | 清屏重置 | `/clear` |
+| `/exit` | 退出 | `/exit` |
+| `/model` | 切换模型 | `/model deepseek-chat` |
+| `/provider` | 切换服务商 | `/provider custom` |
+
+### 模式切换
+
+| 指令 | 说明 | 示例 |
+|------|------|------|
+| `/plan` | 进入规划模式 | `/plan 实现用户登录功能` |
+| `/auto` | 自动模式 | `/auto` |
+| `/yolo` | 全自动模式 | `/yolo` |
+| `/fast` | 快速模式 | `/fast` |
+| `/normal` | 恢复正常 | `/normal` |
+
+### 代码管理
+
+| 指令 | 说明 | 示例 |
+|------|------|------|
+| `/freeze` | 冻结计划 | `/freeze 只修复登录 bug` |
+| `/unfreeze` | 解冻计划 | `/unfreeze` |
+| `/stash` | 暂存更改 | `/stash` |
+| `/anchor` | 设置锚点 | `/anchor` |
+
+### 任务管理
+
+| 指令 | 说明 | 示例 |
+|------|------|------|
+| `/plan` | 生成计划 | `/plan 重构数据库模块` |
+| `/monitor` | Issue 监控 | `/monitor create fix-bug --issues 123,456` |
+| `/subagents` | 子智能体 | `/subagents` |
+| `/fleet` | 舰队管理 | `/fleet` |
+
+### 其他
+
+| 指令 | 说明 | 示例 |
+|------|------|------|
+| `/translate` | 翻译模式 | `/translate` |
+| `/voice` | 语音输入 | `/voice` |
+| `/hooks` | 钩子管理 | `/hooks` |
+| `/memory` | 记忆管理 | `/memory` |
+
+---
+
+## 🚀 进阶功能
+
+### Spec Freeze（计划冻结）
+
+防止 Agent 偏离既定计划：
 
 ```text
-> 帮我在 src/main.rs 里加一个检查网络连接的函数，并写对应的单元测试
+> /freeze 只修复登录页面的 bug，不要改动其他模块
+
+# Agent 将严格在冻结的范围内工作
+# 任何越界操作都需要你确认
 ```
 
-AI 会自动：
-1. 读取 `src/main.rs` 分析上下文
-2. 插入新函数与测试
-3. 运行 `cargo test` 验证
+### Issue Monitor（Issue 监控）
 
-### 场景二：快速问答
+监控 GitHub Issue 并自动关联 PR：
 
-```bash
-mimofan exec "用 Python 写一个简单的爬虫脚本，保存到 spider.py"
+```text
+> /monitor create fix-auth --issues 123,456 --repo owner/repo
+
+# 监控指定 Issue 的状态变化
+# 自动创建或更新关联的 PR
+```
+
+### 子智能体（Sub-agents）
+
+并行处理复杂任务：
+
+```text
+> 帮我同时重构 auth 模块和 database 模块
+
+# AI 会启动多个子智能体并行工作
+# 每个子智能体在独立的 worktree 中操作
 ```
 
 ---
 
-## 配置示例
+## 📦 配置示例
 
 ### Anthropic (Messages API)
 
@@ -193,7 +320,7 @@ default_text_model = "qwen-max"
 
 ---
 
-## 常见问题
+## ❓ 常见问题
 
 **Q: 启动时提示 Config not found 或连接超时？**
 
@@ -207,16 +334,32 @@ default_text_model = "qwen-max"
 
 直接告诉 AI："读取根目录下的 ARCHITECTURE.md 并回答我的问题"。
 
+**Q: 如何切换模型？**
+
+使用 `/model` 命令：`/model deepseek-chat` 或 `/model gpt-4`。
+
+**Q: 如何防止 AI 偏离计划？**
+
+使用 `/freeze` 命令冻结当前计划：`/freeze 只修复这个 bug`。
+
 ---
 
-## 文档
+## 📚 文档
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) -- 系统架构设计与 DDD 改进计划
+- [ARCHITECTURE.md](ARCHITECTURE.md) -- 系统架构设计
 - [docs/MCP.md](docs/MCP.md) -- MCP 扩展服务
-- [CLAUDE.md](CLAUDE.md) -- 开发者与 AI 协作指南
+- [docs/SUBAGENTS.md](docs/SUBAGENTS.md) -- 子智能体指南
+- [docs/MODES.md](docs/MODES.md) -- 操作模式详解
+- [CLAUDE.md](CLAUDE.md) -- 开发者指南
 
 ---
 
-## 开源许可
+## 🤝 贡献
+
+欢迎贡献代码！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
+
+---
+
+## 📄 开源许可
 
 本项目遵循 MIT License 开源协议。
