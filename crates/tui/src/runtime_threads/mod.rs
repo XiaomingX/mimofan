@@ -1745,6 +1745,7 @@ impl RuntimeThreadManager {
             verbosity: self.config.verbosity.clone(),
             workspace_follow_symlinks: settings.workspace_follow_symlinks,
             exec_policy_engine: self.config.exec_policy_engine.clone(),
+            frozen_spec: None,
         };
 
         let engine = spawn_engine(engine_cfg, &self.config);

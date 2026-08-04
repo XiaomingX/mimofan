@@ -166,6 +166,9 @@ pub struct EngineConfig {
     /// Applied to the per-turn tool registry after built-in tools are registered.
     /// When `None`, no overrides or plugin loading occurs.
     pub tools: Option<crate::config::ToolsConfig>,
+    /// Frozen spec content for spec freeze (#557). When set, injected into
+    /// the system prompt as a hard constraint that the agent must not deviate from.
+    pub frozen_spec: Option<String>,
     /// Whether tools should follow symbolic links. When `true`, symlinked
     /// directories are traversed by walk-based tools and symlinked paths
     /// that resolve outside the workspace are still allowed (the symlink
@@ -248,6 +251,7 @@ impl Default for EngineConfig {
             tools: None,
             workspace_follow_symlinks: false,
             exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine::new(Vec::new(), Vec::new()),
+            frozen_spec: None,
         }
     }
 }

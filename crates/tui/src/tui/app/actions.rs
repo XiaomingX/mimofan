@@ -109,6 +109,10 @@ pub enum AppAction {
         model: String,
         mode: String,
     },
+    /// Spec has been frozen (#557).
+    SpecFrozen,
+    /// Spec has been unfrozen (#557).
+    SpecUnfrozen,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

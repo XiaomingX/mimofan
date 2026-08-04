@@ -4569,6 +4569,18 @@ async fn apply_command_result(
             AppAction::ModeChanged(mode) => {
                 sync_mode_update(engine_handle, mode).await;
             }
+            AppAction::SpecFrozen => {
+                // Spec freeze state is already set in the command handler.
+                // The frozen spec will be injected into the system prompt
+                // when the next message is sent.
+                app.status_message =
+                    Some("Spec frozen. Agent will respect the frozen spec.".to_string());
+            }
+            AppAction::SpecUnfrozen => {
+                // Spec unfreeze state is already set in the command handler.
+                app.status_message =
+                    Some("Spec unfrozen. Agent is no longer constrained.".to_string());
+            }
             AppAction::SendMessage(content) => {
                 let queued = build_queued_message(app, content);
                 submit_or_steer_message(app, config, engine_handle, queued).await?;

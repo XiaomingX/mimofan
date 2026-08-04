@@ -46,6 +46,9 @@ pub struct PromptSessionContext<'a> {
     /// Restrict skill discovery to mimofan-owned roots plus explicit
     /// `skills_dir` configuration.
     pub skills_scan_mimofan_only: bool,
+    /// Frozen spec content for spec freeze (#557). When set, injected into
+    /// the system prompt as a hard constraint that the agent must not deviate from.
+    pub frozen_spec: Option<&'a str>,
 }
 
 impl Default for PromptSessionContext<'_> {
@@ -61,6 +64,7 @@ impl Default for PromptSessionContext<'_> {
             show_thinking: true,
             verbosity: None,
             skills_scan_mimofan_only: false,
+            frozen_spec: None,
         }
     }
 }
@@ -838,6 +842,7 @@ pub fn system_prompt_for_mode_with_context_and_skills(
             show_thinking: true,
             verbosity: None,
             skills_scan_mimofan_only: false,
+            frozen_spec: None,
         },
     )
 }
@@ -1054,6 +1059,18 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
         full_prompt = format!(
             "{full_prompt}\n\n## Current Goal\n\n<session_goal>\n{}\n</session_goal>",
             goal_objective.trim()
+        );
+    }
+
+    // 6f. Frozen spec constraint (#557). When a spec/plan is frozen via
+    // `/freeze`, the agent MUST NOT deviate from it without explicit user
+    // approval. Injected after the goal block for maximum visibility.
+    if let Some(frozen_spec) = session_context.frozen_spec
+        && !frozen_spec.trim().is_empty()
+    {
+        full_prompt = format!(
+            "{full_prompt}\n\n## ⚠ Frozen Spec — DO NOT DEVIATE\n\n<frozen_spec>\n{}\n</frozen_spec>\n\nYou MUST strictly follow the above frozen spec. Do not add features, change scope, or deviate from the plan without explicit user approval. If the user asks you to change the spec, remind them to use `/unfreeze` first.",
+            frozen_spec.trim()
         );
     }
 

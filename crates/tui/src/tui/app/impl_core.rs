@@ -605,6 +605,8 @@ impl App {
             receipt_text: None,
             receipt_started_at: None,
             tool_evidence: Vec::new(),
+            spec_frozen: false,
+            frozen_spec: None,
         }
     }
 
