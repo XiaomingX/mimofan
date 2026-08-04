@@ -10,12 +10,76 @@ use super::spec::{
 };
 use async_trait::async_trait;
 use serde_json::{Value, json};
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::Display;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
+
+/// Compute a short content hash for a line (6 hex chars).
+/// Based on trimmed line content (without leading whitespace) for stability
+/// across indentation changes.
+fn line_content_hash(line: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    line.trim_start().hash(&mut hasher);
+    format!("{:06x}", hasher.finish() & 0xFFFFFF)
+}
+
+/// Find a line by its content anchor hash.
+/// Returns (line_start_byte, line_end_byte) including the newline.
+/// The search is performed on trimmed content (without leading whitespace).
+fn find_line_by_anchor(contents: &str, anchor: &str) -> Option<(usize, usize)> {
+    let mut byte_pos = 0;
+    for line in contents.lines() {
+        let line_len = line.len();
+        let line_end = byte_pos + line_len;
+        let hash = line_content_hash(line);
+        if hash == anchor {
+            // Include the newline in the range if present
+            let end = if line_end < contents.len() && contents.as_bytes()[line_end] == b'\n' {
+                line_end + 1
+            } else {
+                line_end
+            };
+            return Some((byte_pos, end));
+        }
+        // Skip the newline
+        byte_pos = if line_end < contents.len() {
+            line_end + 1
+        } else {
+            line_end
+        };
+    }
+    None
+}
+
+/// Find all lines matching a content anchor hash.
+fn find_all_lines_by_anchor(contents: &str, anchor: &str) -> Vec<(usize, usize)> {
+    let mut results = Vec::new();
+    let mut byte_pos = 0;
+    for line in contents.lines() {
+        let line_len = line.len();
+        let line_end = byte_pos + line_len;
+        let hash = line_content_hash(line);
+        if hash == anchor {
+            let end = if line_end < contents.len() && contents.as_bytes()[line_end] == b'\n' {
+                line_end + 1
+            } else {
+                line_end
+            };
+            results.push((byte_pos, end));
+        }
+        byte_pos = if line_end < contents.len() {
+            line_end + 1
+        } else {
+            line_end
+        };
+    }
+    results
+}
 
 // === ReadFileTool ===
 
@@ -29,7 +93,7 @@ impl ToolSpec for ReadFileTool {
     }
 
     fn description(&self) -> &'static str {
-        "Read a UTF-8 file from the workspace. Use this instead of `cat`, `head`, `tail`, or `sed -n '..p'` in `exec_shell` — it's faster, sandbox-aware, and skips the approval prompt. Plain text is returned as-is and records the file snapshot required before `edit_file` will make a narrow in-place edit. PDFs are auto-extracted via the bundled pure-Rust extractor (no Poppler install required). Image screenshots are OCR-extracted when local OCR is available. Cannot read other non-PDF binaries.\n\nFor large files, use `start_line` and `max_lines` to read in chunks. By default, returns at most 200 lines (~16KB). If `truncated=\"true\"` in the response, use `next_start_line` to continue reading. For PDFs, use `pages` instead — `start_line`/`max_lines` only apply to text files."
+        "Read a UTF-8 file from the workspace. Use this instead of `cat`, `head`, `tail`, or `sed -n '..p'` in `exec_shell` — it's faster, sandbox-aware, and skips the approval prompt. Plain text is returned as-is and records the file snapshot required before `edit_file` will make a narrow in-place edit. PDFs are auto-extracted via the bundled pure-Rust extractor (no Poppler install required). Image screenshots are OCR-extracted when local OCR is available. Cannot read other non-PDF binaries.\n\nEach line includes a 6-character content hash anchor (e.g. `     1│a1b2c3│ line`). Use this anchor with `edit_file`'s `line_ref` parameter for token-efficient editing without retyping the full line content.\n\nFor large files, use `start_line` and `max_lines` to read in chunks. By default, returns at most 200 lines (~16KB). If `truncated=\"true\"` in the response, use `next_start_line` to continue reading. For PDFs, use `pages` instead — `start_line`/`max_lines` only apply to text files."
     }
 
     fn input_schema(&self) -> Value {
@@ -163,7 +227,8 @@ impl ToolSpec for ReadFileTool {
         let mut numbered = String::new();
         for (offset, line) in lines[zero_based_start..zero_based_end].iter().enumerate() {
             let line_no = start_line + offset;
-            numbered.push_str(&format!("{line_no:>6}│ {line}\n"));
+            let hash = line_content_hash(line);
+            numbered.push_str(&format!("{line_no:>6}│{hash}│ {line}\n"));
         }
 
         // UTF-8-safe byte truncation of the rendered range.
@@ -586,7 +651,7 @@ impl ToolSpec for EditFileTool {
     }
 
     fn description(&self) -> &'static str {
-        "Replace text in a single file via exact search/replace after the file has been read with `read_file` in this session. Use this instead of `sed -i` in `exec_shell` for one unambiguous in-place edit. `search` must match exactly one location by default; when no exact match is found the tool retries with leading-whitespace-tolerant fuzzy matching automatically. The optional `fuzz` parameter is accepted for backward compatibility and is no longer needed. Returns a compact unified diff, not the full file. For structural, multi-block, or cross-file changes, use `apply_patch` or `write_file` instead."
+        "Replace text in a single file via exact search/replace after the file has been read with `read_file` in this session. Use this instead of `sed -i` in `exec_shell` for one unambiguous in-place edit. Returns a compact unified diff, not the full file. For structural, multi-block, or cross-file changes, use `apply_patch` or `write_file` instead.\n\nTwo editing modes:\n1. **Anchor mode** (token-efficient): Use `line_ref` from `read_file` output + `replace` with the new line content. No need to retype the full old line.\n2. **Search mode** (legacy): Use `search` + `replace` for exact text matching. Supports automatic fuzzy matching for indentation and punctuation differences."
     }
 
     fn input_schema(&self) -> Value {
@@ -597,20 +662,28 @@ impl ToolSpec for EditFileTool {
                     "type": "string",
                     "description": "Path to the file"
                 },
+                "line_ref": {
+                    "type": "string",
+                    "description": "Line anchor from read_file output (e.g. 'a1b2c3'). Replaces the anchored line with `replace` content."
+                },
                 "search": {
                     "type": "string",
-                    "description": "Exact text to search for, including whitespace, indentation, and newlines"
+                    "description": "Exact text to search for, including whitespace, indentation, and newlines. Used when line_ref is not provided."
                 },
                 "replace": {
                     "type": "string",
-                    "description": "Text to replace with"
+                    "description": "Text to replace with (required)"
                 },
                 "fuzz": {
                     "type": "boolean",
                     "description": "Deprecated: fuzzy fallback is now automatic. Accepted for backward compatibility but ignored."
                 }
             },
-            "required": ["path", "search", "replace"]
+            "required": ["path", "replace"],
+            "anyOf": [
+                { "required": ["line_ref"] },
+                { "required": ["search"] }
+            ]
         })
     }
 
@@ -628,15 +701,32 @@ impl ToolSpec for EditFileTool {
 
     async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
         let path_str = required_str(&input, "path")?;
-        let search = required_str(&input, "search")?;
         let replace = required_str(&input, "replace")?;
+        let line_ref = optional_str(&input, "line_ref");
+        let search = optional_str(&input, "search");
         let _fuzz = optional_bool(&input, "fuzz", false);
 
-        if search == replace {
-            return Err(ToolError::invalid_input(
-                "search and replace are identical, no change intended",
-            ));
-        }
+        // Validate: must have either line_ref or search
+        let is_anchor_mode = match (&line_ref, &search) {
+            (Some(lr), _) if !lr.trim().is_empty() => true,
+            (None, Some(s)) if !s.trim().is_empty() => false,
+            (None, None) | (Some(_), None) => {
+                return Err(ToolError::invalid_input(
+                    "Either line_ref (from read_file anchor) or search text is required"
+                        .to_string(),
+                ));
+            }
+            (Some(lr), Some(s)) if lr.trim().is_empty() && s.trim().is_empty() => {
+                return Err(ToolError::invalid_input(
+                    "Either line_ref or search must be non-empty".to_string(),
+                ));
+            }
+            (Some(_), Some(_)) => {
+                // Both provided - prefer anchor mode
+                true
+            }
+            _ => false,
+        };
 
         let file_path = context.resolve_path(path_str)?;
         context.require_fresh_file_read(&file_path, path_str)?;
@@ -645,60 +735,106 @@ impl ToolSpec for EditFileTool {
             ToolError::execution_failed(format!("Failed to read {}: {}", file_path.display(), e))
         })?;
 
-        let count = contents.matches(search).count();
-        let (updated, count, fuzz_kind) = if count == 0 {
-            // First fallback: tolerate indentation differences.
-            let indent_matches = leading_whitespace_fuzzy_matches(&contents, search);
-            match indent_matches.as_slice() {
+        let (updated, count, fuzz_kind) = if is_anchor_mode {
+            // Anchor mode: find line by content hash
+            let anchor = line_ref.unwrap();
+            let matches = find_all_lines_by_anchor(&contents, &anchor);
+            match matches.as_slice() {
+                [] => {
+                    return Err(ToolError::execution_failed(format!(
+                        "Anchor '{}' not found in {}. The line may have been deleted or modified. Recovery: call read_file to get fresh anchors.",
+                        anchor,
+                        file_path.display(),
+                    )));
+                }
                 [(start, end)] => {
                     let mut updated = contents.clone();
-                    updated.replace_range(*start..*end, replace);
-                    (updated, 1, Some("indentation"))
-                }
-                [] => {
-                    // Second fallback: tolerate typographic-punctuation
-                    // drift (smart quotes, em-dashes, NBSP). Picks up the
-                    // copy-paste failure mode where a browser/chat client
-                    // silently substituted Unicode punctuation in for the
-                    // ASCII the file actually contains.
-                    let punct_matches = punctuation_normalized_matches(&contents, search);
-                    match punct_matches.as_slice() {
-                        [] => {
-                            return Err(ToolError::execution_failed(format!(
-                                "Search string not found in {}. Recovery: call read_file with path=\"{path_str}\" to inspect the current contents, then retry with a search string copied from the file.",
-                                file_path.display(),
-                            )));
-                        }
-                        [(start, end)] => {
-                            let mut updated = contents.clone();
-                            updated.replace_range(*start..*end, replace);
-                            (updated, 1, Some("punctuation"))
-                        }
-                        _ => {
-                            return Err(ToolError::execution_failed(format!(
-                                "edit_file search is non-unique after punctuation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
-                                punct_matches.len(),
-                                file_path.display()
-                            )));
-                        }
-                    }
+                    // Replace the entire line. User provides line content without
+                    // trailing newline; we add it back if the original had one.
+                    let original_had_newline = end > start && contents.as_bytes()[end - 1] == b'\n';
+                    let new_content = if original_had_newline && !replace.ends_with('\n') {
+                        format!("{replace}\n")
+                    } else if !original_had_newline && replace.ends_with('\n') {
+                        replace.trim_end_matches('\n').to_string()
+                    } else {
+                        replace.to_string()
+                    };
+                    updated.replace_range(*start..*end, &new_content);
+                    (updated, 1, Some("anchor"))
                 }
                 _ => {
                     return Err(ToolError::execution_failed(format!(
-                        "edit_file search is non-unique after indentation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
-                        indent_matches.len(),
-                        file_path.display()
+                        "Anchor '{}' is non-unique: matched {} locations in {}. Recovery: use a different anchor or provide surrounding context with search mode.",
+                        anchor,
+                        matches.len(),
+                        file_path.display(),
                     )));
                 }
             }
-        } else if count > 1 {
-            return Err(ToolError::execution_failed(format!(
-                "edit_file search is non-unique: matched {count} locations in {}. \
-                 Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
-                file_path.display()
-            )));
         } else {
-            (contents.replace(search, replace), count, None)
+            // Search mode: existing str_replace logic
+            let search = search.unwrap();
+            if search == replace {
+                return Err(ToolError::invalid_input(
+                    "search and replace are identical, no change intended",
+                ));
+            }
+
+            let count = contents.matches(&search).count();
+            if count == 0 {
+                // First fallback: tolerate indentation differences.
+                let indent_matches = leading_whitespace_fuzzy_matches(&contents, &search);
+                match indent_matches.as_slice() {
+                    [(start, end)] => {
+                        let mut updated = contents.clone();
+                        updated.replace_range(*start..*end, &replace);
+                        (updated, 1, Some("indentation"))
+                    }
+                    [] => {
+                        // Second fallback: tolerate typographic-punctuation
+                        // drift (smart quotes, em-dashes, NBSP). Picks up the
+                        // copy-paste failure mode where a browser/chat client
+                        // silently substituted Unicode punctuation in for the
+                        // ASCII the file actually contains.
+                        let punct_matches = punctuation_normalized_matches(&contents, &search);
+                        match punct_matches.as_slice() {
+                            [] => {
+                                return Err(ToolError::execution_failed(format!(
+                                    "Search string not found in {}. Recovery: call read_file with path=\"{path_str}\" to inspect the current contents, then retry with a search string copied from the file.",
+                                    file_path.display(),
+                                )));
+                            }
+                            [(start, end)] => {
+                                let mut updated = contents.clone();
+                                updated.replace_range(*start..*end, &replace);
+                                (updated, 1, Some("punctuation"))
+                            }
+                            _ => {
+                                return Err(ToolError::execution_failed(format!(
+                                    "edit_file search is non-unique after punctuation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
+                                    punct_matches.len(),
+                                    file_path.display()
+                                )));
+                            }
+                        }
+                    }
+                    _ => {
+                        return Err(ToolError::execution_failed(format!(
+                            "edit_file search is non-unique after indentation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
+                            indent_matches.len(),
+                            file_path.display()
+                        )));
+                    }
+                }
+            } else if count > 1 {
+                return Err(ToolError::execution_failed(format!(
+                    "edit_file search is non-unique: matched {count} locations in {}. \
+                     Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
+                    file_path.display()
+                )));
+            } else {
+                (contents.replace(&search, &replace), count, None)
+            }
         };
 
         fs::write(&file_path, &updated).map_err(|e| {
@@ -709,6 +845,7 @@ impl ToolSpec for EditFileTool {
         let display = file_path.display().to_string();
         let diff = make_unified_diff(&display, &contents, &updated);
         let fuzz_note = match fuzz_kind {
+            Some("anchor") => " (anchor match)",
             Some("indentation") => " (fuzzy indentation match)",
             Some("punctuation") => {
                 " (fuzzy punctuation match — typographic quotes/dashes normalized)"
