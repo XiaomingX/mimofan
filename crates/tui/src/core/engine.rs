@@ -662,6 +662,7 @@ impl Engine {
                     show_thinking: config.show_thinking,
                     verbosity: config.verbosity.as_deref(),
                     skills_scan_mimofan_only: config.skills_scan_mimofan_only,
+                    frozen_spec: config.frozen_spec.as_deref(),
                 },
             );
         let stable_prompt = Some(system_prompt);
@@ -2905,6 +2906,7 @@ impl Engine {
                 show_thinking: self.config.show_thinking,
                 verbosity: self.config.verbosity.as_deref(),
                 skills_scan_mimofan_only: self.config.skills_scan_mimofan_only,
+                frozen_spec: self.config.frozen_spec.as_deref(),
             },
         );
         let mut stable_prompt =

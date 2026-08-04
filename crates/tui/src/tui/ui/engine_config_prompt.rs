@@ -88,6 +88,7 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         tools: config.tools.clone(),
         workspace_follow_symlinks: app.workspace_follow_symlinks,
         exec_policy_engine: config.exec_policy_engine.clone(),
+        frozen_spec: app.frozen_spec.clone(),
     }
 }
 
@@ -119,6 +120,7 @@ pub(crate) fn build_app_system_prompt(app: &App, config: &Config) -> SystemPromp
             show_thinking: app.show_thinking,
             verbosity: app.verbosity.as_deref(),
             skills_scan_mimofan_only: app.skills_scan_mimofan_only,
+            frozen_spec: app.frozen_spec.as_deref(),
         },
     )
 }

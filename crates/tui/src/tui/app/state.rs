@@ -1196,6 +1196,14 @@ pub struct App {
     pub receipt_started_at: Option<Instant>,
     /// Tool evidence collected during the current turn for the receipt.
     pub tool_evidence: Vec<ToolEvidence>,
+
+    // === Spec Freeze (#557) ===
+    /// Whether the current spec/plan is frozen. When true, the agent must not
+    /// deviate from the frozen spec without explicit user approval.
+    pub spec_frozen: bool,
+    /// The frozen spec content. Populated when `/freeze` is called; cleared on
+    /// `/unfreeze`. Injected into the system prompt as a hard constraint.
+    pub frozen_spec: Option<String>,
 }
 
 // === Deref to ComposerState for backward compat ===

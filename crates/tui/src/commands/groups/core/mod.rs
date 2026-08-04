@@ -14,6 +14,7 @@ mod exit;
 mod fast;
 mod feedback;
 mod fleet;
+mod freeze;
 mod grill;
 mod help;
 mod hf;
@@ -102,6 +103,14 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 fleet::FleetCmd::info(),
                 fleet::FleetCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                freeze::FreezeCmd::info(),
+                freeze::FreezeCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                freeze::UnfreezeCmd::info(),
+                freeze::UnfreezeCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 grill::GrillCmd::info(),
