@@ -46,6 +46,7 @@ mod dependencies;
 mod error_taxonomy;
 mod errors;
 mod eval;
+pub mod evidence;
 pub mod execpolicy;
 pub(crate) mod features;
 pub mod fleet;
