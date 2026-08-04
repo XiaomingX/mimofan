@@ -97,12 +97,10 @@ Novita、WanjieArk）已被明确移除。服务商配置位于
 
 1. **仅限智能体表面**：面向模型的子智能体工具是 **`agent` 仅**。
    不存在 `agent_open` / `agent_eval` / `agent_close` / `delegate_to_agent`。
-2. **无生命周期/一致性系统**：不要引入容量/一致性/
-   运行时标签系统或生命周期工具。
-3. **无运行时提示词/标签注入**：`constitution.md`（通过
+2. **无运行时提示词/标签注入**：`constitution.md`（通过
    `~/.mimofan/constitution.json`）是唯一的基础提示词。
-4. **子智能体深度可配置**；除非明确需要并解释清楚，否则不要新增任意限制。
-5. **子智能体 TUI 冻结已解决**：v0.8.61 切换修复了它。不要提交
+3. **子智能体深度可配置**；除非明确需要并解释清楚，否则不要新增任意限制。
+4. **子智能体 TUI 冻结已解决**：v0.8.61 切换修复了它。不要提交
    推测性的 `spawn_blocking` 修复。
 
 ## 文件组织
@@ -243,6 +241,88 @@ cargo clippy --workspace --all-features --locked -- \
 - **`Arc<Mutex<T>>` vs `Arc<RwLock<T>>`**：读主导时使用 `RwLock`（配置、会话状态）。写密集或短临界区使用 `Mutex`。
 - **避免锁顺序错误**：同时持有多个锁时在注释中记录锁获取顺序。
 - **`CancellationToken`**：用于生成任务的优雅关闭。引擎已使用此模式。
+
+### 死锁防护模式
+
+**问题**：持有写锁时调用获取读锁的方法会导致死锁。
+
+```rust
+// ❌ 错误：死锁！
+pub async fn start_task(&self, task_id: &str) -> Result {
+    let mut tasks = self.tasks.write().await;  // 获取写锁
+    let mut running = self.running.write().await;  // 获取写锁
+
+    // is_ready() 尝试获取 tasks.read() 和 running.read() → 死锁！
+    if !self.is_ready(task_id).await {
+        return Err(...);
+    }
+    // ...
+}
+```
+
+**解决方案 1**：创建内部辅助方法，接受预获取的锁引用
+
+```rust
+// ✅ 正确：内部方法接受锁引用
+fn is_ready_internal(
+    task_id: &str,
+    tasks: &HashMap<String, Task>,
+    running: &HashSet<String>,
+) -> bool {
+    // 使用已获取的锁，不再尝试获取新锁
+    tasks.get(task_id).map(|t| /* 检查逻辑 */).unwrap_or(false)
+}
+
+pub async fn is_ready(&self, task_id: &str) -> bool {
+    let tasks = self.tasks.read().await;
+    let running = self.running.read().await;
+    Self::is_ready_internal(task_id, &tasks, &running)
+}
+
+pub async fn start_task(&self, task_id: &str) -> Result {
+    // 先用不可变借用检查
+    {
+        let tasks = self.tasks.read().await;
+        let running = self.running.read().await;
+        if !Self::is_ready_internal(task_id, &tasks, &running) {
+            return Err(...);
+        }
+    }
+    // 再用可变借用更新
+    let mut tasks = self.tasks.write().await;
+    let mut running = self.running.write().await;
+    // ...
+}
+```
+
+**解决方案 2**：分阶段获取锁（先检查，后更新）
+
+```rust
+// ✅ 正确：分阶段获取锁
+pub async fn start_task(&self, task_id: &str) -> Result {
+    // 阶段 1：只读检查
+    let is_ready = {
+        let tasks = self.tasks.read().await;
+        let running = self.running.read().await;
+        Self::is_ready_internal(task_id, &tasks, &running)
+    };
+
+    if !is_ready {
+        return Err(...);
+    }
+
+    // 阶段 2：可变更新
+    let mut tasks = self.tasks.write().await;
+    let mut running = self.running.write().await;
+    // ...
+}
+```
+
+**锁获取顺序规则**：
+1. 始终按固定顺序获取多个锁（如：tasks → running → history）
+2. 在模块文档中记录锁顺序
+3. 避免在持有锁时调用可能获取同一锁的方法
+4. 优先使用内部辅助方法传递锁引用
 
 ### 安全
 
