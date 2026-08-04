@@ -20,6 +20,7 @@ mod help;
 mod hf;
 mod home;
 mod hooks;
+mod issue_monitor;
 mod links;
 mod model;
 mod models;
@@ -95,6 +96,10 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 hooks::HooksCmd::info(),
                 hooks::HooksCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                issue_monitor::MonitorCmd::info(),
+                issue_monitor::MonitorCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 subagents::SubagentsCmd::info(),
