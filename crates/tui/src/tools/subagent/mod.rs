@@ -56,12 +56,17 @@ pub mod mailbox;
 pub mod naming;
 pub mod persistence;
 pub mod runtime;
+pub mod task_claim;
 pub mod types;
 pub use bus::AgentBus;
 #[allow(unused_imports)]
 pub use custom_agents::CustomAgentRegistry;
 pub use mailbox::{Mailbox, MailboxMessage};
 pub use naming::{assign_unique_whale_name, whale_name_for_id};
+pub use task_claim::{
+    ClaimResult, SharedTaskClaimManager, TaskClaim, TaskClaimManager, TaskClaimStatus,
+    new_shared_task_claim_manager,
+};
 pub use types::{
     AgentRunArtifactRef, AgentRunFollowUpTarget, AgentRunRecommendedAction, AgentRunTakeoverTarget,
     AgentRunUsage, AgentRunVerificationSummary, AgentWorkerEvent, AgentWorkerRecord,
