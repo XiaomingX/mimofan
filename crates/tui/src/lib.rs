@@ -42,6 +42,7 @@ mod context_budget;
 mod context_report;
 mod core;
 mod cost_status;
+pub mod decision_gate;
 mod dependencies;
 mod error_taxonomy;
 mod errors;
