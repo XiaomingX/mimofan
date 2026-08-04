@@ -15,7 +15,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # 测试配置
-API_KEY="sk-sisyqk4mvbhk13uyiq9lsf4jtr3a0vji2dijeu5ujm71v7im"
+API_KEY="sk-sfl2f69ak7vrf538yq093akm8ngh149cf489eqmvfam3ndhi"
 OPENAI_BASE_URL="https://api.xiaomimimo.com/v1"
 ANTHROPIC_BASE_URL="https://api.xiaomimimo.com/anthropic"
 MODEL="mimo-v2.5"
