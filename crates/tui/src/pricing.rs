@@ -125,10 +125,9 @@ fn pricing_for_model_at(model: &str, _now: DateTime<Utc>) -> Option<ModelPricing
         return Some(pricing);
     }
     if lower.contains("deepseek") {
-        if lower.contains("v4-pro") || lower.contains("v4pro") {
-            // DeepSeek's pricing page says the V4-Pro promotional 75% discount
-            // becomes the official one-quarter base price after 2026-05-31 15:59
-            // UTC. Keep using the adjusted rate after that cutoff (#2489).
+        if lower.contains("v4-pro") {
+            // DeepSeek V4-Pro promotional pricing has been adjusted to reflect
+            // the current official rate structure (#2489).
             Some(deepseek_v4_pro_pricing())
         } else {
             Some(deepseek_v4_flash_pricing())
@@ -344,6 +343,3 @@ pub fn format_cost_amount_precise(cost: f64, currency: CostCurrency) -> String {
 pub fn format_cost_estimate(estimate: CostEstimate, currency: CostCurrency) -> String {
     format_cost_amount(estimate.amount(currency), currency)
 }
-
-#[cfg(test)]
-mod tests {}

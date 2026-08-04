@@ -86,6 +86,3 @@ fn stable_hex(path: &Path) -> String {
     }
     format!("{hash:016x}")
 }
-
-#[cfg(test)]
-mod tests {}

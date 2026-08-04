@@ -52,6 +52,3 @@ fn add_optional_usage(total: Option<u32>, delta: Option<u32>) -> Option<u32> {
         (None, None) => None,
     }
 }
-
-#[cfg(test)]
-mod tests {}

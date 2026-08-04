@@ -174,6 +174,3 @@ fn expand_model_alias_for_provider(provider: ApiProvider, name: &str) -> String 
         _ => trimmed.to_string(),
     }
 }
-
-#[cfg(test)]
-mod tests {}

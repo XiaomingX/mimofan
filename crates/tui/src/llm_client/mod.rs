@@ -1109,6 +1109,3 @@ pub fn extract_retry_after(headers: &reqwest::header::HeaderMap) -> Option<Durat
 }
 
 // === Tests ===
-
-#[cfg(test)]
-mod tests {}

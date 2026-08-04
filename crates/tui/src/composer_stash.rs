@@ -187,6 +187,3 @@ fn write_stash_to(path: &Path, entries: &[StashedDraft]) {
         );
     }
 }
-
-#[cfg(test)]
-mod tests {}

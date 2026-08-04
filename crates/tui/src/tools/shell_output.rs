@@ -210,6 +210,3 @@ pub(crate) fn summarize_output(text: &str) -> String {
         truncate_chars(&summary, SUMMARY_MAX_CHARS)
     }
 }
-
-#[cfg(test)]
-mod tests {}

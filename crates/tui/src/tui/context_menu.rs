@@ -233,6 +233,3 @@ fn trim_to_width(text: &str, max_width: usize) -> String {
     out.push_str("...");
     out
 }
-
-#[cfg(test)]
-mod tests {}

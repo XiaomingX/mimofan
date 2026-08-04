@@ -729,6 +729,3 @@ fn truncate_output(value: &str, max_chars: usize) -> String {
     let truncated: String = value.chars().take(max_chars).collect();
     format!("{truncated}...")
 }
-
-#[cfg(test)]
-mod tests {}

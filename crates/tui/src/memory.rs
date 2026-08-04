@@ -140,6 +140,3 @@ pub fn append_entry(path: &Path, entry: &str) -> io::Result<()> {
     writeln!(file, "- ({timestamp}) {trimmed}")?;
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {}

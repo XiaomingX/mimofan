@@ -50,6 +50,3 @@ pub fn apply_process_hardening() {
         tracing::debug!("Process hardening skipped: not on Linux");
     }
 }
-
-#[cfg(test)]
-mod tests {}

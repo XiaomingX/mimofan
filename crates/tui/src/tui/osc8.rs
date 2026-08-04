@@ -417,6 +417,3 @@ pub fn strip_into(s: &str, out: &mut String) {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

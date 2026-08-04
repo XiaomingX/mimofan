@@ -553,6 +553,3 @@ pub fn system_prompt_text(system: Option<&SystemPrompt>) -> String {
         None => String::new(),
     }
 }
-
-#[cfg(test)]
-mod tests {}

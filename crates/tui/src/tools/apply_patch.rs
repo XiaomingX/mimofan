@@ -1180,6 +1180,3 @@ fn matches_at_position(lines: &[String], old_lines: &[&str], pos: usize) -> bool
 }
 
 // === Unit Tests ===
-
-#[cfg(test)]
-mod tests {}

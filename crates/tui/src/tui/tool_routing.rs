@@ -1248,6 +1248,3 @@ fn exec_is_background(input: &serde_json::Value) -> bool {
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false)
 }
-
-#[cfg(test)]
-mod tests {}

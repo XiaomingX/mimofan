@@ -1,10 +1,38 @@
 // clap 命令行定义（从 lib.rs 抽离，纯物理拆分，零行为变化）
+use crate::cli::session::latest_session_id_for_workspace;
 use crate::config::Config;
-use crate::latest_session_id_for_workspace;
-use anyhow::{Result, bail};
+use crate::models::SystemPrompt;
+use crate::session_manager::{SessionManager, create_saved_session, truncate_id};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
+
+// Re-exports from sub-modules so sibling modules can access them via
+// `use super::*;`.
+pub(crate) use crate::config;
+pub(crate) use crate::config::effective_home_dir;
+pub(crate) use crate::dependencies::ExternalTool;
+pub(crate) use crate::llm_client::LlmClient;
+pub(crate) use crate::session_manager;
+pub(crate) use config_merge::merge_user_workspace_config;
+pub(crate) use exec_agent::{
+    cli_reasoning_effort_value, config_for_cli_route, resolve_cli_auto_route,
+};
+pub(crate) use setup::{WriteStatus, init_mcp_config};
+
+pub(crate) mod config_merge;
+pub(crate) mod doctor;
+pub(crate) mod exec_agent;
+pub(crate) mod fleet_cmd;
+pub(crate) mod interactive;
+pub(crate) mod mcp_cmd;
+pub(crate) mod model_cmd;
+pub(crate) mod pr;
+pub(crate) mod review;
+pub(crate) mod session;
+pub(crate) mod setup;
 
 #[derive(Parser, Debug)]
 #[command(

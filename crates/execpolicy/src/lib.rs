@@ -4,8 +4,26 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use bash_arity::BashArityDict;
-use mimofan_protocol::{NetworkPolicyAmendment, NetworkPolicyRuleAction};
 use serde::{Deserialize, Serialize};
+
+/// Action to take for a network policy rule.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NetworkPolicyRuleAction {
+    /// Allow network access to the host.
+    Allow,
+    /// Deny network access to the host.
+    Deny,
+}
+
+/// A proposed amendment to the network access policy for a specific host.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NetworkPolicyAmendment {
+    /// The host to amend the policy for.
+    pub host: String,
+    /// The action to apply.
+    pub action: NetworkPolicyRuleAction,
+}
 
 /// Priority layer for a permission ruleset. Higher ordinal = higher priority.
 /// On conflict, the highest-priority layer's longest matching prefix wins.

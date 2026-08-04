@@ -43,6 +43,3 @@ pub struct ReplBlock {
     pub start_offset: usize,
     pub end_offset: usize,
 }
-
-#[cfg(test)]
-mod tests {}

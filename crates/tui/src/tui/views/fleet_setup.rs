@@ -708,6 +708,3 @@ fn profile_authoring_prompt(
         reasoning = snapshot.reasoning
     )
 }
-
-#[cfg(test)]
-mod tests {}

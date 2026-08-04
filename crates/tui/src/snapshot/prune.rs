@@ -28,6 +28,3 @@ pub fn prune_older_than(workspace: &Path, max_age: Duration) -> io::Result<usize
     repo.prune_unreachable_objects()?;
     Ok(removed)
 }
-
-#[cfg(test)]
-mod tests {}

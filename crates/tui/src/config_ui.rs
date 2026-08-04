@@ -1025,6 +1025,3 @@ impl From<StatusItemValue> for StatusItem {
 fn bool_str(value: bool) -> &'static str {
     if value { "true" } else { "false" }
 }
-
-#[cfg(test)]
-mod tests {}

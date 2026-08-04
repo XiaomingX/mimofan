@@ -570,6 +570,3 @@ pub fn translate(app: &mut App) -> CommandResult {
         CommandResult::message(tr(locale, MessageId::CmdTranslateOff))
     }
 }
-
-#[cfg(test)]
-mod tests {}

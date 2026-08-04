@@ -265,6 +265,3 @@ pub fn sync_api_key_validation_status(app: &mut App, show_empty_error: bool) {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

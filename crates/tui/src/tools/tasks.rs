@@ -999,6 +999,3 @@ fn sanitize_filename(input: &str) -> String {
         out
     }
 }
-
-#[cfg(test)]
-mod tests {}

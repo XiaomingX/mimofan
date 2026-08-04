@@ -274,6 +274,3 @@ fn run_git(workspace: &Path, args: &[&str]) -> std::io::Result<String> {
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
-
-#[cfg(test)]
-mod tests {}

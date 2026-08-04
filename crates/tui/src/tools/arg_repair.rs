@@ -179,6 +179,3 @@ fn strip_excess_closers(s: &str) -> String {
     }
     out
 }
-
-#[cfg(test)]
-mod tests {}

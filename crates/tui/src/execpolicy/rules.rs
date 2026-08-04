@@ -86,6 +86,3 @@ pub fn load_default_policy() -> Result<Option<ExecPolicyConfig>> {
     }
     ExecPolicyConfig::from_path(&path).map(Some)
 }
-
-#[cfg(test)]
-mod tests {}

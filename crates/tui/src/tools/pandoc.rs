@@ -198,6 +198,3 @@ impl ToolSpec for PandocConvertTool {
 pub(crate) fn format_is_binary(target_format: &str) -> bool {
     matches!(target_format, "docx" | "odt" | "epub")
 }
-
-#[cfg(test)]
-mod tests {}

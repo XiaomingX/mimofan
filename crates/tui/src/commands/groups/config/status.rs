@@ -193,6 +193,3 @@ fn cache_summary(app: &App) -> String {
         (None, None) => "not reported".to_string(),
     }
 }
-
-#[cfg(test)]
-mod tests {}

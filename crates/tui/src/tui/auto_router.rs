@@ -117,6 +117,3 @@ fn truncate_for_auto_router(text: &str, max_chars: usize) -> String {
         truncated
     }
 }
-
-#[cfg(test)]
-mod tests {}

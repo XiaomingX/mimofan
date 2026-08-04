@@ -507,6 +507,3 @@ fn format_task_detail(task: &TaskRecord) -> String {
 
     lines.join("\n")
 }
-
-#[cfg(test)]
-mod tests {}

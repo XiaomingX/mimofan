@@ -90,7 +90,6 @@ impl SubAgentType {
     /// Get the system prompt for this agent type.
     #[must_use]
     pub fn system_prompt(&self) -> String {
-        // TODO: 从 prompts 模块获取提示词
         format!("You are a {} sub-agent.", self.as_str())
     }
 }

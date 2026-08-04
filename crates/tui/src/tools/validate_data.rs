@@ -252,6 +252,3 @@ fn summarize_toml(value: &toml::Value) -> Value {
         toml::Value::Datetime(_) => json!({ "top_level": "datetime" }),
     }
 }
-
-#[cfg(test)]
-mod tests {}

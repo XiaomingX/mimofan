@@ -1107,6 +1107,3 @@ pub(crate) fn selection_to_text(app: &App) -> Option<String> {
     }
     Some(selected)
 }
-
-#[cfg(test)]
-mod tests {}

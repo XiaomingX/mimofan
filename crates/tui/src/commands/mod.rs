@@ -260,6 +260,3 @@ fn suggest_command_names(input: &str, limit: usize) -> Vec<String> {
         .map(|(_, _, name)| name)
         .collect()
 }
-
-#[cfg(test)]
-mod tests {}

@@ -1789,6 +1789,3 @@ fn extract_query_param(url: &str, key: &str) -> Option<String> {
     }
     None
 }
-
-#[cfg(test)]
-mod tests {}

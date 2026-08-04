@@ -30,6 +30,3 @@ pub fn make_unified_diff(path: &str, old: &str, new: &str) -> String {
         .header(&a, &b)
         .to_string()
 }
-
-#[cfg(test)]
-mod tests {}

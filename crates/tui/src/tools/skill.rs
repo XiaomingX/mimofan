@@ -209,6 +209,3 @@ fn collect_companion_files(skill: &Skill) -> Vec<std::path::PathBuf> {
     entries.sort();
     entries
 }
-
-#[cfg(test)]
-mod tests {}

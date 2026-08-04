@@ -147,6 +147,3 @@ pub fn provider_tuning_support(provider_name: &str) -> TuningSupport {
         _ => TuningSupport::UNKNOWN,
     }
 }
-
-#[cfg(test)]
-mod tests {}

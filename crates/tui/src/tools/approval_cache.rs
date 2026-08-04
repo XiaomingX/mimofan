@@ -295,6 +295,3 @@ fn push_canonical_json(value: &Value, out: &mut String) {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

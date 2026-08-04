@@ -447,6 +447,3 @@ pub fn has_tool_call_markers(text: &str) -> bool {
         || text.contains("<tool_call")
         || text.contains("<invoke ")
 }
-
-#[cfg(test)]
-mod tests {}

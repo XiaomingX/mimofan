@@ -1674,15 +1674,18 @@ fn switch_mode_with_status(app: &mut App, mode: AppMode) -> (String, bool) {
     }
 }
 
-/// `/theme [name]` — with no argument, open the interactive picker (arrow
-/// keys, live preview, Enter to persist, Esc to revert). With an argument,
+/// `/theme [name]` — with no argument, show help. With an argument,
 /// route through `set_config_value("theme", ...)` so the apply + save flow is
 /// shared with `/config`.
 pub fn theme(app: &mut App, arg: Option<&str>) -> CommandResult {
     match arg.map(str::trim).filter(|s| !s.is_empty()) {
-        None => CommandResult::action(AppAction::OpenThemePicker),
+        None => CommandResult::message(theme_help()),
         Some(name) => set_config_value(app, "theme", name, true),
     }
+}
+
+fn theme_help() -> String {
+    "Usage: /theme <name>\n\nAvailable themes: dark, light, system".to_string()
 }
 
 /// `/debt [query|export]` — inspect or export the debt ledger (#2127).
@@ -1894,6 +1897,3 @@ pub fn logout(app: &mut App) -> CommandResult {
         Err(e) => CommandResult::error(format!("Failed to clear API key for {provider_name}: {e}")),
     }
 }
-
-#[cfg(test)]
-mod tests {}

@@ -102,6 +102,3 @@ pub(super) fn open_mcp_manager_pager(app: &mut App, snapshot: &McpManagerSnapsho
 pub(super) fn add_mcp_message(app: &mut App, content: String) {
     app.add_message(HistoryCell::System { content });
 }
-
-#[cfg(test)]
-mod tests {}

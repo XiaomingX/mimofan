@@ -165,6 +165,3 @@ impl ModalView for ModePickerView {
         Paragraph::new(lines).render(inner, buf);
     }
 }
-
-#[cfg(test)]
-mod tests {}

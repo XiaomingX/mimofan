@@ -219,6 +219,3 @@ fn redirect_stderr_to(file: &File) -> Result<libc::c_int> {
         Ok(saved)
     }
 }
-
-#[cfg(test)]
-mod tests {}

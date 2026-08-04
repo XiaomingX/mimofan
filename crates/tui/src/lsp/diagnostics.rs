@@ -130,6 +130,3 @@ pub fn render_blocks(blocks: &[DiagnosticBlock]) -> String {
     }
     chunks.join("\n")
 }
-
-#[cfg(test)]
-mod tests {}

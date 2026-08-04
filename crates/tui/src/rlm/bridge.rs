@@ -320,6 +320,3 @@ impl RpcDispatcher for RlmBridge {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {}

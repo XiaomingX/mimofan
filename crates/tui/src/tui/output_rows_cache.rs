@@ -232,6 +232,3 @@ pub fn hash_str(s: &str) -> u64 {
     hash ^= s.len() as u64;
     hash.wrapping_mul(FNV_PRIME)
 }
-
-#[cfg(test)]
-mod tests {}

@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+// Re-export types from execpolicy crate
+pub use mimofan_execpolicy::{NetworkPolicyAmendment, NetworkPolicyRuleAction};
+
 /// Policy controlling when the agent must ask the user for approval before acting.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -18,25 +21,6 @@ pub enum AskForApproval {
     },
     /// Never ask; auto-approve all actions.
     Never,
-}
-
-/// Action to take for a network policy rule.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum NetworkPolicyRuleAction {
-    /// Allow network access to the host.
-    Allow,
-    /// Deny network access to the host.
-    Deny,
-}
-
-/// A proposed amendment to the network access policy for a specific host.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct NetworkPolicyAmendment {
-    /// The host to amend the policy for.
-    pub host: String,
-    /// The action to apply.
-    pub action: NetworkPolicyRuleAction,
 }
 
 /// A user's decision on an approval request.

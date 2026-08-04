@@ -780,6 +780,3 @@ fn safe_path_segment(value: &str) -> String {
         })
         .collect()
 }
-
-#[cfg(test)]
-mod tests {}

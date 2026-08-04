@@ -73,6 +73,3 @@ fn sort_string_array(arr: &mut [Value]) {
         (None, None) => std::cmp::Ordering::Equal,
     });
 }
-
-#[cfg(test)]
-mod tests {}

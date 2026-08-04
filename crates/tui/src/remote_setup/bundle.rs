@@ -458,6 +458,3 @@ sudo systemctl enable --now mimofan-runtime {unit}\n```\n\n",
     out.push_str("it (`ssh -L 7878:127.0.0.1:7878 <host>`) rather than opening the port.\n");
     out
 }
-
-#[cfg(test)]
-mod tests {}

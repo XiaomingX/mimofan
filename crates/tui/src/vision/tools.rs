@@ -274,6 +274,3 @@ impl ToolSpec for ImageAnalyzeTool {
             .map_err(|e| ToolError::execution_failed(format!("Failed to serialize result: {e}")))
     }
 }
-
-#[cfg(test)]
-mod tests {}

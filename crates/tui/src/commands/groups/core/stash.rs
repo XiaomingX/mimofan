@@ -119,6 +119,3 @@ fn preview_first_line(text: &str, max_chars: usize) -> String {
     out.push('…');
     out
 }
-
-#[cfg(test)]
-mod tests {}

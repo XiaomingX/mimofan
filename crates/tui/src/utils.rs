@@ -517,8 +517,6 @@ pub fn estimate_message_chars(messages: &[Message]) -> usize {
 // that stomps `HOME` will race with tests that *read* it.  Using the injected
 // helper avoids the race entirely and makes the tests portable to Windows
 // without additional platform scaffolding.
-#[cfg(test)]
-mod tests {}
 
 #[cfg(test)]
 mod atomic_write_tests {}

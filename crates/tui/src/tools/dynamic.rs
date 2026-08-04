@@ -67,6 +67,3 @@ impl ToolSpec for RuntimeDynamicTool {
             .await
     }
 }
-
-#[cfg(test)]
-mod tests {}

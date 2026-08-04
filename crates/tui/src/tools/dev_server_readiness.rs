@@ -433,6 +433,3 @@ fn readiness_result(output: ReadinessOutput) -> Result<ToolResult, ToolError> {
         metadata: Some(metadata),
     })
 }
-
-#[cfg(test)]
-mod tests {}

@@ -170,6 +170,3 @@ impl WorkshopVariables {
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-mod tests {}

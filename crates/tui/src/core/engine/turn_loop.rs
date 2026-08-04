@@ -2850,6 +2850,3 @@ fn resolve_auto_effort(
 fn is_turn_metadata_text(text: &str) -> bool {
     text.trim_start().starts_with("<turn_meta>")
 }
-
-#[cfg(test)]
-mod tests {}

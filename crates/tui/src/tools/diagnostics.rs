@@ -208,6 +208,3 @@ fn run_command(program: &str, args: &[&str], cwd: &Path) -> CommandProbe {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

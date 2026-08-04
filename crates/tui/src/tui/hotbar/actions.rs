@@ -344,6 +344,3 @@ impl HotbarAction for SlashHotbarAction {
         Ok(dispatch_command_result(app, result))
     }
 }
-
-#[cfg(test)]
-mod tests {}

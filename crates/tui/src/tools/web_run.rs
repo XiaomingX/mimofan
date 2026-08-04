@@ -1706,6 +1706,3 @@ fn url_encode(input: &str) -> String {
 }
 
 // === Tests ===
-
-#[cfg(test)]
-mod tests {}

@@ -3131,6 +3131,7 @@ dependencies = [
  "mimofan-config",
  "mimofan-core",
  "mimofan-execpolicy",
+ "mimofan-localization",
  "mimofan-mcp",
  "mimofan-protocol",
  "mimofan-release",
@@ -3259,7 +3260,6 @@ name = "mimofan-execpolicy"
 version = "0.0.7"
 dependencies = [
  "anyhow",
- "mimofan-protocol",
  "serde",
 ]
 
@@ -3275,6 +3275,15 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "mimofan-localization"
+version = "0.0.7"
+dependencies = [
+ "serde",
+ "serde_json",
+ "unicode-width 0.2.2",
 ]
 
 [[package]]
@@ -3310,9 +3319,13 @@ dependencies = [
 name = "mimofan-protocol"
 version = "0.0.7"
 dependencies = [
+ "anyhow",
  "chrono",
+ "mimofan-config",
+ "mimofan-execpolicy",
  "serde",
  "serde_json",
+ "tempfile",
  "uuid",
 ]
 

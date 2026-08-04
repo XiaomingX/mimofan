@@ -596,6 +596,3 @@ fn alert_policy_matches(policy: &FleetAlertPolicy, class: FleetAlertEventClass) 
 fn event_key(worker_id: &str, run_id: &str, task_id: &str) -> String {
     format!("{worker_id}:{run_id}:{task_id}")
 }
-
-#[cfg(test)]
-mod tests {}

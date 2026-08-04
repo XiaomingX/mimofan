@@ -74,6 +74,3 @@ fn update_field(hasher: &mut Sha256, bytes: &[u8]) {
     hasher.update((bytes.len() as u64).to_le_bytes());
     hasher.update(bytes);
 }
-
-#[cfg(test)]
-mod tests {}

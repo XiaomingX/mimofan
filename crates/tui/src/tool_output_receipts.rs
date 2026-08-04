@@ -342,6 +342,3 @@ fn approx_tokens(chars: usize) -> usize {
 fn format_count(value: usize) -> String {
     value.to_string()
 }
-
-#[cfg(test)]
-mod tests {}

@@ -436,6 +436,3 @@ pub fn try_dispatch(app: &mut App, input: &str) -> Option<CommandResult> {
     let message = user_commands::apply_template(&metadata.body, args);
     Some(CommandResult::action(AppAction::SendMessage(message)))
 }
-
-#[cfg(test)]
-mod tests {}

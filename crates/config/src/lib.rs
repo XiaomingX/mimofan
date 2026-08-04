@@ -71,9 +71,8 @@ pub struct ProvidersToml {
 
 /// Sibling `permissions.toml` schema.
 ///
-/// This slice is intentionally ask-only: each rule is a typed condition that
-/// means "ask before this tool invocation." Typed allow/deny records and UI
-/// actions are expected to land in follow-up PRs.
+/// Each rule is a typed condition that means "ask before this tool invocation."
+/// Typed allow/deny records and UI actions are expected to land in follow-up PRs.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct PermissionsToml {
@@ -161,8 +160,7 @@ pub struct ConfigToml {
     /// applies the defaults documented in [`LspConfigToml`].
     #[serde(default)]
     pub lsp: Option<LspConfigToml>,
-    /// Per-model harness profiles (#2693). Runtime wiring lands in follow-up
-    /// v0.9 slices; this is the durable config data model.
+    /// Per-model harness profiles (#2693). This is the durable config data model.
     #[serde(default)]
     pub harness_profiles: Vec<HarnessProfile>,
     /// Optional 1-8 hotbar slot bindings (#2064). When absent, the TUI falls
@@ -436,9 +434,8 @@ fn insert_provider_config_values(
 impl ConfigToml {
     /// Resolve the first configured harness profile for a provider/model route.
     ///
-    /// This helper is deliberately dormant for v0.9: callers may display or
-    /// test the resolved profile, but runtime provider/model routing and prompt
-    /// shaping remain unchanged until a later, explicit integration slice.
+    /// Callers may display or test the resolved profile, but runtime
+    /// provider/model routing and prompt shaping remain unchanged.
     #[must_use]
     pub fn resolve_harness_profile(
         &self,
@@ -453,8 +450,8 @@ impl ConfigToml {
 
     /// Resolve durable hotbar config into normalized 1-8 slot bindings.
     ///
-    /// `known_action_ids` is supplied by the TUI action registry in later
-    /// slices. Unknown actions are preserved so the UI can render a disabled
+    /// `known_action_ids` is supplied by the TUI action registry.
+    /// Unknown actions are preserved so the UI can render a disabled
     /// `?` cell instead of silently deleting user config.
     #[must_use]
     pub fn resolve_hotbar_bindings(&self, known_action_ids: &[&str]) -> HotbarConfigResolution {
@@ -462,10 +459,10 @@ impl ConfigToml {
     }
 }
 
-/// Ordered primary-plus-fallback provider list for future provider routing.
+/// Ordered primary-plus-fallback provider list for provider routing.
 ///
-/// The helper is intentionally dormant: constructing or parsing a chain does
-/// not change [`ConfigToml::resolve_runtime_options`].
+/// Constructing or parsing a chain does not change
+/// [`ConfigToml::resolve_runtime_options`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderChain {
     providers: Vec<ProviderKind>,
@@ -761,8 +758,7 @@ pub struct FleetConfigToml {
     #[serde(default)]
     pub roles: BTreeMap<String, FleetRolePreset>,
     /// Fleet profile vocabulary (#3167). Profiles group role semantics,
-    /// loadout hints, permission defaults, and delegation bounds. They are
-    /// config-only in this slice; executor/model routing wiring lands later.
+    /// loadout hints, permission defaults, and delegation bounds.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub profiles: BTreeMap<String, FleetProfile>,
     /// Headless worker execution hardening (#3027).
@@ -873,7 +869,7 @@ pub struct FleetProfile {
     /// Semantic role name and optional instruction overlay.
     #[serde(default)]
     pub role: FleetRole,
-    /// Model class / route-role hint. This is data only in this slice.
+    /// Model class / route-role hint.
     #[serde(default)]
     pub loadout: FleetLoadout,
     /// Optional explicit model id for this profile on the active/resolved route.

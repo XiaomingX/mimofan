@@ -933,6 +933,3 @@ fn is_safe_relative_path(path: &Path) -> bool {
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
 }
-
-#[cfg(test)]
-mod tests {}

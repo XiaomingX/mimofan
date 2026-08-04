@@ -2977,6 +2977,3 @@ fn line_spans_with_selection<'a>(
 
     spans
 }
-
-#[cfg(test)]
-mod tests {}

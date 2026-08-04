@@ -889,5 +889,3 @@ fn is_media_path(path: &Path) -> bool {
 // not the user's launch CWD. When the two diverged (the canonical case is
 // `--workspace=/repo` with `pwd=/repo/sub`), every relative `@` token routed
 // to the wrong root and the prompt got `<missing-file>` blocks.
-#[cfg(test)]
-mod tests {}

@@ -523,6 +523,3 @@ fn local_pins_for_range(
         .map(|idx| idx - start_idx)
         .collect()
 }
-
-#[cfg(test)]
-mod tests {}

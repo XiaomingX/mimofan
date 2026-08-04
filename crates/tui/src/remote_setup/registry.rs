@@ -419,6 +419,3 @@ fn digitalocean_plan(inputs: &DeployInputs) -> Vec<ProvisionStep> {
         ),
     ]
 }
-
-#[cfg(test)]
-mod tests {}

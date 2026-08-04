@@ -767,6 +767,3 @@ fn json_type(value: &Value) -> &'static str {
         Value::Object(_) => "object",
     }
 }
-
-#[cfg(test)]
-mod tests {}

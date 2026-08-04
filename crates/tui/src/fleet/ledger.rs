@@ -684,6 +684,3 @@ fn sanitize_run_for_ledger(run: &FleetRun) -> FleetRun {
     }
     run
 }
-
-#[cfg(test)]
-mod tests {}

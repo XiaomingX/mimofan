@@ -92,6 +92,3 @@ impl LineBuffer {
         self.pending.clear();
     }
 }
-
-#[cfg(test)]
-mod tests {}

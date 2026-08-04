@@ -418,6 +418,3 @@ fn push_word_breaking_chars(
         *current_width += char_width;
     }
 }
-
-#[cfg(test)]
-mod tests {}

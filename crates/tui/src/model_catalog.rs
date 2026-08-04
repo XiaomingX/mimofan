@@ -440,6 +440,3 @@ fn per_token_usd_to_million(value: &str) -> Option<f64> {
         .ok()
         .map(|per_token| per_token * 1_000_000.0)
 }
-
-#[cfg(test)]
-mod tests {}

@@ -506,6 +506,3 @@ impl ModalView for HelpView {
         Paragraph::new(lines).block(block).render(popup_area, buf);
     }
 }
-
-#[cfg(test)]
-mod tests {}

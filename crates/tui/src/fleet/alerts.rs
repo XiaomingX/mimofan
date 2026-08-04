@@ -523,6 +523,3 @@ fn short_reason(reason: &str) -> String {
 fn default_pagerduty_severity() -> String {
     "error".to_string()
 }
-
-#[cfg(test)]
-mod tests {}

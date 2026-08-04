@@ -154,6 +154,3 @@ pub fn truncate_preview(text: &str) -> String {
     out.push_str("...");
     out
 }
-
-#[cfg(test)]
-mod tests {}

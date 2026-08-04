@@ -551,6 +551,3 @@ impl StreamingState {
         self.accumulated_thinking.clear();
     }
 }
-
-#[cfg(test)]
-mod tests {}

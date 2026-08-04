@@ -235,6 +235,3 @@ fn is_severe_backlog(snapshot: QueueSnapshot) -> bool {
             .oldest_age
             .is_some_and(|oldest| oldest >= SEVERE_OLDEST_AGE)
 }
-
-#[cfg(test)]
-mod tests {}

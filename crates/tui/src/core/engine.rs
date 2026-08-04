@@ -10,26 +10,23 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::Result;
 use futures_util::StreamExt;
 use futures_util::stream::FuturesUnordered;
-use mimofan_execpolicy::{AskForApproval, ExecPolicyContext};
 use mimofan_protocol::runtime::DynamicToolSpec;
-use serde_json::{Value, json};
+use serde_json::json;
 use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
 
 use crate::client::ApiClient;
-use crate::compaction::{
-    CompactionConfig, compact_messages_safe, merge_system_prompts, should_compact,
-};
-use crate::config::{ApiProvider, Config, DEFAULT_MAX_SUBAGENTS, DEFAULT_TEXT_MODEL};
+use crate::compaction::{compact_messages_safe, merge_system_prompts, should_compact};
+use crate::config::{ApiProvider, Config};
 use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, StreamError};
-use crate::features::{Feature, Features};
+use crate::features::Feature;
 use crate::llm_client::LlmClient;
 use crate::mcp::McpPool;
 
@@ -41,17 +38,16 @@ use crate::prompts;
 use crate::purge::{emit_purge_completed, emit_purge_failed, emit_purge_started, run_purge};
 use crate::route_runtime::resolve_runtime_route;
 use crate::seam_manager::{SeamConfig, SeamManager};
-use crate::tools::goal::{GoalSnapshot, GoalStatus, SharedGoalState, new_shared_goal_state};
-use crate::tools::plan::{PlanSnapshot, SharedPlanState, new_shared_plan_state};
+use crate::tools::goal::{GoalSnapshot, GoalStatus};
+use crate::tools::plan::{PlanSnapshot, SharedPlanState};
 use crate::tools::shell::{SharedShellManager, new_shared_shell_manager};
-use crate::tools::spec::RuntimeToolServices;
 use crate::tools::spec::{ApprovalRequirement, ToolError, ToolResult};
 use crate::tools::subagent::{
     Mailbox, MailboxMessage, SharedSubAgentManager, SubAgentCompletion, SubAgentForkContext,
     SubAgentResult, SubAgentRuntime, SubAgentStatus, SubAgentThinking, SubAgentType,
     new_shared_subagent_manager_with_timeout, resolve_subagent_assignment_route,
 };
-use crate::tools::todo::{SharedTodoList, TodoListSnapshot, new_shared_todo_list};
+use crate::tools::todo::{SharedTodoList, TodoListSnapshot};
 use crate::tools::user_input::{UserInputRequest, UserInputResponse};
 use crate::tools::{ToolContext, ToolRegistryBuilder};
 use crate::tui::app::AppMode;
@@ -234,245 +230,6 @@ fn append_plan_list(out: &mut String, label: &str, values: &[String]) {
 }
 
 // === Types ===
-
-/// Configuration for the engine
-#[derive(Debug, Clone)]
-pub struct EngineConfig {
-    /// Model identifier to use for responses.
-    pub model: String,
-    /// Route/offering limits for the active provider+model, when the runtime
-    /// route resolver had concrete catalog facts.
-    pub active_route_limits: Option<mimofan_config::route::RouteLimits>,
-    /// Workspace root for tool execution and file operations.
-    pub workspace: PathBuf,
-    /// Allow shell tool execution when true.
-    pub allow_shell: bool,
-    /// Enable trust mode (skip approvals) when true.
-    pub trust_mode: bool,
-    /// Path to the notes file used by the notes tool.
-    pub notes_path: PathBuf,
-    /// Path to the MCP configuration file.
-    pub mcp_config_path: PathBuf,
-    /// Directory containing discoverable skills.
-    pub skills_dir: PathBuf,
-    /// Restrict skill discovery to mimofan-owned roots plus explicit
-    /// `skills_dir` configuration.
-    pub skills_scan_mimofan_only: bool,
-    /// Sources injected as `<instructions source="…">` blocks in the system
-    /// prompt (#454). Each entry is either a disk path (read at render time)
-    /// or an inline string. Loaded in declared order from the user's
-    /// `instructions = [...]` config or constructed by embedders.
-    ///
-    /// Generalized from `Vec<PathBuf>` so embedders can inject inline content
-    /// without staging a disk file. `From<PathBuf>` impl keeps existing callers
-    /// working with `.into()` at the call site.
-    pub instructions: Vec<crate::prompts::InstructionSource>,
-    pub project_context_pack_enabled: bool,
-    /// When true, the model is instructed to respond in the current locale
-    /// and a post-hoc translation layer replaces remaining English output.
-    pub translation_enabled: bool,
-    /// Whether user-visible transcript rendering shows thinking blocks.
-    /// Prompt assembly uses this to avoid localizing hidden reasoning.
-    pub show_thinking: bool,
-    pub verbosity: Option<String>,
-    /// Maximum number of assistant steps before stopping.
-    pub max_steps: u32,
-    /// Maximum number of concurrently active subagents.
-    pub max_subagents: usize,
-    /// Maximum queued + running sub-agents admitted for this engine session.
-    pub max_admitted_subagents: usize,
-    /// Number of direct (depth-1) sub-agents that may execute concurrently
-    /// before further launches queue for a launch slot (#3095).
-    /// Resolved from `[subagents] launch_concurrency`.
-    pub launch_concurrency: usize,
-    /// Whether the model-facing `agent` tool is available after applying
-    /// feature flags and `[subagents]` opt-out controls.
-    pub subagents_enabled: bool,
-    /// Feature flags controlling tool availability.
-    pub features: Features,
-    /// Deterministic auto-review policy for tool calls.
-    pub auto_review_policy: crate::tui::auto_review::AutoReviewPolicy,
-    /// Auto-compaction settings for long conversations.
-    pub compaction: CompactionConfig,
-    /// Shared Todo list state.
-    pub todos: SharedTodoList,
-    /// Shared Plan state.
-    pub plan_state: SharedPlanState,
-    /// Shared runtime goal state for model-visible goal tools.
-    pub goal_state: SharedGoalState,
-    /// Maximum sub-agent recursion depth (default 3). See
-    /// `SubAgentRuntime::max_spawn_depth`. Override via
-    /// `[subagents] max_depth = N` in `~/.mimofan/config.toml`.
-    pub max_spawn_depth: u32,
-    /// Optional aggregate token budget for each root sub-agent run.
-    /// Descendant agents inherit the root pool unless a child starts a new
-    /// budget scope with an explicit per-call override.
-    pub subagent_token_budget: Option<u64>,
-    /// Per-domain network policy decider (#135). Shared across the session so
-    /// session-scoped approvals (`/network allow <host>`) persist for the
-    /// remainder of the run.
-    pub network_policy: Option<crate::network_policy::NetworkPolicyDecider>,
-    /// Whether to take side-git workspace snapshots before/after each turn.
-    pub snapshots_enabled: bool,
-    /// Maximum workspace size (in bytes) before snapshots self-disable on
-    /// first init. `0` disables the cap. Resolved from
-    /// `[snapshots] max_workspace_gb` × 1 GB at engine construction.
-    pub snapshots_max_workspace_bytes: u64,
-    /// Post-edit LSP diagnostics injection (#136). When `None`, the engine
-    /// constructs a disabled manager so the field is always present.
-    pub lsp_config: Option<crate::lsp::LspConfig>,
-    /// Durable runtime services exposed to model-visible tools.
-    pub runtime_services: RuntimeToolServices,
-    /// Per-role/type sub-agent model overrides already resolved from config.
-    pub subagent_model_overrides: HashMap<String, String>,
-    /// Whether the user-memory feature is enabled (#489). When `true` the
-    /// engine reads `memory_path` on each prompt assembly and prepends a
-    /// `<user_memory>` block to the system prompt.
-    pub memory_enabled: bool,
-    /// Path to the user memory file (#489). Always populated; only
-    /// consulted when `memory_enabled` is `true`.
-    pub memory_path: PathBuf,
-    /// Default directory for Xiaomi MiMo speech/TTS tool outputs.
-    pub speech_output_dir: Option<PathBuf>,
-    pub vision_config: Option<crate::config::VisionModelConfig>,
-    pub goal_objective: Option<String>,
-    pub goal_token_budget: Option<u32>,
-    pub goal_status: GoalStatus,
-    /// Tool restriction from custom slash command frontmatter.
-    /// `None` means the current turn may use the normal tool set.
-    pub allowed_tools: Option<Vec<String>>,
-    /// Tool deny-list.  Deny always wins over allow (#3027).
-    /// `None` means no tools are explicitly denied.
-    pub disallowed_tools: Option<Vec<String>>,
-    /// Hook executor for control-plane hooks.
-    /// `ToolCallBefore` hooks may deny a tool call with exit code 2.
-    pub hook_executor: Option<std::sync::Arc<crate::hooks::HookExecutor>>,
-    /// Resolved BCP-47 locale tag (e.g. `"en"`, `"zh-Hans"`, `"ja"`)
-    /// for the `## Environment` block in the system prompt. The
-    /// caller resolves this from `Settings` once at engine
-    /// construction; the engine never touches disk for it.
-    pub locale_tag: String,
-    /// When true, force `tool_choice: "required"` and opt compatible function
-    /// schemas into DeepSeek beta strict mode.
-    pub strict_tool_mode: bool,
-    /// Workshop / large-tool-output routing (#548). `None` disables routing.
-    pub workshop: Option<crate::tools::large_output_router::WorkshopConfig>,
-    /// Which search backend `web_search` should use. Default: DuckDuckGo.
-    pub search_provider: crate::config::SearchProvider,
-    /// API key for Tavily, Bocha, Metaso, or Baidu. `None` for Bing or DuckDuckGo.
-    /// Metaso also falls back to `METASO_API_KEY` env var, then a built-in key.
-    /// Baidu also falls back to `BAIDU_SEARCH_API_KEY`.
-    pub search_api_key: Option<String>,
-    /// Optional DuckDuckGo-compatible HTML endpoint override.
-    pub search_base_url: Option<String>,
-    /// Per-step DeepSeek API timeout for sub-agent `create_message` requests.
-    /// Resolved from `[subagents] api_timeout_secs` (clamped to 1..=1800)
-    /// once at engine construction, then threaded onto every
-    /// `SubAgentRuntime` the engine builds (#1806, #1808).
-    pub subagent_api_timeout: Duration,
-    /// Per-SSE-chunk idle timeout for streamed model responses.
-    /// Resolved from `[tui].stream_chunk_timeout_secs` (or the legacy
-    /// `MIMOFAN_STREAM_IDLE_TIMEOUT_SECS`) and updated live by `/config`.
-    pub stream_chunk_timeout: Duration,
-    /// No-progress heartbeat timeout for live sub-agents. Used by the manager
-    /// and parent wait loop to auto-cancel stuck children before they exhaust
-    /// the sub-agent slot pool indefinitely (#2614).
-    pub subagent_heartbeat_timeout: Duration,
-    /// Native tools that should stay in the model-visible catalog even when
-    /// they are outside the small default core surface (#2076).
-    pub tools_always_load: HashSet<String>,
-    /// When true and `/usr/bin/bwrap` is present on Linux, route exec_shell
-    /// through bubblewrap instead of relying solely on Landlock (#2184).
-    pub prefer_bwrap: bool,
-    /// Tool override and plugin configuration (`[tools]` table in config.toml).
-    /// Applied to the per-turn tool registry after built-in tools are registered.
-    /// When `None`, no overrides or plugin loading occurs.
-    pub tools: Option<crate::config::ToolsConfig>,
-    /// Whether tools should follow symbolic links. When `true`, symlinked
-    /// directories are traversed by walk-based tools and symlinked paths
-    /// that resolve outside the workspace are still allowed (the symlink
-    /// itself must be inside the workspace). Mirrors the
-    /// `workspace_follow_symlinks` setting.
-    pub workspace_follow_symlinks: bool,
-    /// Ask-only permission rules loaded from sibling `permissions.toml`.
-    pub exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine,
-}
-
-impl Default for EngineConfig {
-    fn default() -> Self {
-        Self {
-            model: DEFAULT_TEXT_MODEL.to_string(),
-            active_route_limits: None,
-            workspace: PathBuf::from("."),
-            allow_shell: true,
-            trust_mode: false,
-            notes_path: PathBuf::from("notes.txt"),
-            mcp_config_path: PathBuf::from("mcp.json"),
-            skills_dir: crate::skills::default_skills_dir(),
-            skills_scan_mimofan_only: false,
-            instructions: Vec::new(),
-            project_context_pack_enabled: true,
-            translation_enabled: false,
-            show_thinking: true,
-            // High backstop rather than a working ceiling: the in-turn
-            // loop_guard that used to brake repetition is gone, so this only
-            // exists to terminate a pathological runaway turn via
-            // `at_max_steps()`. 1000 stays high enough to never gate real work
-            // while still guaranteeing the turn ends.
-            max_steps: 1000,
-            max_subagents: DEFAULT_MAX_SUBAGENTS,
-            max_admitted_subagents: DEFAULT_MAX_SUBAGENTS,
-            launch_concurrency: DEFAULT_MAX_SUBAGENTS,
-            subagents_enabled: true,
-            features: Features::with_defaults(),
-            auto_review_policy: crate::tui::auto_review::AutoReviewPolicy::default(),
-            compaction: CompactionConfig::default(),
-            todos: new_shared_todo_list(),
-            plan_state: new_shared_plan_state(),
-            goal_state: new_shared_goal_state(),
-            max_spawn_depth: crate::tools::subagent::DEFAULT_MAX_SPAWN_DEPTH,
-            subagent_token_budget: None,
-            network_policy: None,
-            snapshots_enabled: true,
-            snapshots_max_workspace_bytes:
-                crate::snapshot::DEFAULT_MAX_WORKSPACE_BYTES_FOR_SNAPSHOT,
-            lsp_config: None,
-            runtime_services: RuntimeToolServices::default(),
-            subagent_model_overrides: HashMap::new(),
-            memory_enabled: false,
-            memory_path: PathBuf::from("./memory.md"),
-            speech_output_dir: None,
-            vision_config: None,
-            strict_tool_mode: false,
-            goal_objective: None,
-            goal_token_budget: None,
-            goal_status: GoalStatus::Active,
-            allowed_tools: None,
-            disallowed_tools: None,
-            hook_executor: None,
-            locale_tag: "en".to_string(),
-            workshop: None,
-            search_provider: crate::config::SearchProvider::default(),
-            search_api_key: None,
-            search_base_url: None,
-            subagent_api_timeout: Duration::from_secs(
-                crate::config::DEFAULT_SUBAGENT_API_TIMEOUT_SECS,
-            ),
-            stream_chunk_timeout: Duration::from_secs(
-                crate::config::DEFAULT_STREAM_CHUNK_TIMEOUT_SECS,
-            ),
-            subagent_heartbeat_timeout: Duration::from_secs(
-                crate::config::DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
-            ),
-            tools_always_load: HashSet::new(),
-            prefer_bwrap: false,
-            verbosity: None,
-            tools: None,
-            workspace_follow_symlinks: false,
-            exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine::new(Vec::new(), Vec::new()),
-        }
-    }
-}
 
 /// Reason the active turn was cancelled. The token from `tokio_util`
 /// does not carry a cause, so the engine keeps a sibling latch for
@@ -3220,50 +2977,6 @@ impl Engine {
     }
 }
 
-fn default_plugin_tools_dir() -> PathBuf {
-    mimofan_config::mimofan_home()
-        .unwrap_or_else(|_| {
-            dirs::home_dir().map_or_else(|| PathBuf::from(".mimofan"), |h| h.join(".mimofan"))
-        })
-        .join("tools")
-}
-
-fn plugin_tools_dir(tools_config: Option<&crate::config::ToolsConfig>) -> PathBuf {
-    if let Some(tools_config) = tools_config
-        && let Some(custom_dir) = tools_config.plugin_dir.as_deref()
-    {
-        return PathBuf::from(shellexpand::tilde(custom_dir).as_ref());
-    }
-    default_plugin_tools_dir()
-}
-
-fn configure_plugin_tools(
-    tool_registry: &mut crate::tools::ToolRegistry,
-    tools_config: Option<&crate::config::ToolsConfig>,
-) -> std::collections::HashSet<String> {
-    let names_before: std::collections::HashSet<String> = tool_registry
-        .names()
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect();
-
-    let plugin_dir = plugin_tools_dir(tools_config);
-    tool_registry.load_plugins(&plugin_dir);
-
-    if let Some(tools_config) = tools_config
-        && let Some(ref overrides) = tools_config.overrides
-    {
-        tool_registry.apply_overrides(overrides, &plugin_dir);
-    }
-
-    let names_after: std::collections::HashSet<String> = tool_registry
-        .names()
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect();
-    &names_after - &names_before
-}
-
 fn system_prompt_hash(prompt: Option<&SystemPrompt>) -> u64 {
     let mut hasher = DefaultHasher::new();
     match prompt {
@@ -3286,357 +2999,6 @@ fn system_prompt_hash(prompt: Option<&SystemPrompt>) -> u64 {
         }
     }
     hasher.finish()
-}
-
-fn normalized_goal_objective(value: Option<&str>) -> Option<String> {
-    value
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-}
-
-fn sync_goal_state_from_host(
-    goal_state: &SharedGoalState,
-    objective: Option<&str>,
-    token_budget: Option<u32>,
-    status: GoalStatus,
-) {
-    match goal_state.lock() {
-        Ok(mut state) => state.sync_from_host_status(objective, token_budget, status),
-        Err(err) => tracing::warn!("goal state lock poisoned while syncing host goal: {err}"),
-    }
-}
-
-fn goal_objective_for_prompt(
-    configured_goal: Option<&str>,
-    goal_state: &SharedGoalState,
-) -> Option<String> {
-    match goal_state.lock() {
-        Ok(state) => {
-            if let Some(objective) = state.objective() {
-                // Preserve original behavior: return None (not fallback) when
-                // objective exists but goal is inactive.
-                return state.is_active().then(|| objective.to_string());
-            }
-        }
-        Err(err) => tracing::warn!("goal state lock poisoned while building prompt: {err}"),
-    }
-    normalized_goal_objective(configured_goal)
-}
-
-// ── Mode & approval prompts as request-time runtime metadata ─────────
-//
-// Mode contracts and approval policies are not persisted in the session
-// history and are not sent as extra system messages. Instead, each API
-// request projects a transient user-role runtime metadata message at the
-// tail. The stable system prompt remains byte-stable, stored history remains
-// byte-stable, and strict chat-template providers never see a system message
-// outside messages[0].
-
-#[derive(Debug, Clone)]
-struct EffectiveInputPolicy {
-    mode: AppMode,
-    allow_shell: bool,
-    trust_mode: bool,
-    auto_approve: bool,
-    approval_mode: crate::tui::approval::ApprovalMode,
-    dynamic_active_tools: Vec<&'static str>,
-    status: Option<String>,
-}
-
-fn effective_input_policy(
-    provenance: UserInputProvenance,
-    requested_mode: AppMode,
-    content: &str,
-    allow_shell: bool,
-    trust_mode: bool,
-    auto_approve: bool,
-    approval_mode: crate::tui::approval::ApprovalMode,
-) -> EffectiveInputPolicy {
-    let mut mode = requested_mode;
-    let mut trust_mode = trust_mode;
-    let mut auto_approve = auto_approve;
-    let mut approval_mode = approval_mode;
-    let mut dynamic_active_tools = Vec::new();
-    let mut status = None;
-
-    if !provenance.can_authorize_work() {
-        let had_auto_authority = matches!(mode, AppMode::Yolo)
-            || trust_mode
-            || auto_approve
-            || matches!(approval_mode, crate::tui::approval::ApprovalMode::Auto);
-        if matches!(mode, AppMode::Yolo) {
-            mode = AppMode::Agent;
-        }
-        trust_mode = false;
-        auto_approve = false;
-        if matches!(approval_mode, crate::tui::approval::ApprovalMode::Auto) {
-            approval_mode = crate::tui::approval::ApprovalMode::Suggest;
-        }
-        if had_auto_authority {
-            status = Some(format!(
-                "Input provenance '{}' is not external user input; continuing with approvals required.",
-                provenance.as_str()
-            ));
-        }
-    } else if is_review_only_user_intent(content) {
-        // Advisory only: never silently override an explicitly chosen mode
-        // or strip its tools. Surface the question modal dynamically so the
-        // model can ask focused follow-ups without inflating every tool prompt.
-        dynamic_active_tools.push(REQUEST_USER_INPUT_NAME);
-        status = Some(
-            "Review/inspection request detected; keeping the current mode and exposing request_user_input for focused follow-up questions.".to_string(),
-        );
-    }
-
-    EffectiveInputPolicy {
-        mode,
-        allow_shell,
-        trust_mode,
-        auto_approve,
-        approval_mode,
-        dynamic_active_tools,
-        status,
-    }
-}
-
-fn is_review_only_user_intent(content: &str) -> bool {
-    let lower = content.to_ascii_lowercase();
-    let asks_to_inspect = [
-        "look",
-        "check",
-        "review",
-        "inspect",
-        "scan",
-        "audit",
-        "看看",
-        "看一下",
-        "检查",
-        "审查",
-    ]
-    .iter()
-    .any(|needle| lower.contains(needle));
-    if !asks_to_inspect {
-        return false;
-    }
-
-    let explicit_write = [
-        "fix",
-        "change",
-        "update",
-        "implement",
-        "apply",
-        "patch",
-        "modify",
-        "edit",
-        "write",
-        "commit",
-        "修",
-        "改",
-        "补",
-        "提交",
-        "写",
-    ]
-    .iter()
-    .any(|needle| lower.contains(needle));
-
-    !explicit_write
-}
-
-fn agent_approval_mode_for_turn(
-    auto_approve: bool,
-    approval_mode: crate::tui::approval::ApprovalMode,
-) -> crate::tui::approval::ApprovalMode {
-    if auto_approve {
-        crate::tui::approval::ApprovalMode::Auto
-    } else {
-        approval_mode
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum ToolAskRuleDecision {
-    Prompt(String),
-    Block(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum AutoReviewPlanDecision {
-    NoChange,
-    ForcePrompt(String),
-    Block(String),
-}
-
-pub(super) fn auto_review_run_origin_for_plan(
-    detached_start: bool,
-) -> crate::tui::auto_review::RunOrigin {
-    if detached_start {
-        crate::tui::auto_review::RunOrigin::Background
-    } else {
-        crate::tui::auto_review::RunOrigin::Interactive
-    }
-}
-
-// The parameter list intentionally mirrors `AutoReviewContext::from_tool_call`,
-// which this thin wrapper builds; the 8 call sites (1 prod + tests) read clearer
-// passing the fields than constructing a context first.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn auto_review_plan_decision(
-    policy: &crate::tui::auto_review::AutoReviewPolicy,
-    tool_name: &str,
-    tool_input: &Value,
-    run_origin: crate::tui::auto_review::RunOrigin,
-    approval_mode: crate::tui::approval::ApprovalMode,
-    user_intent: Option<&str>,
-    workspace_trusted: bool,
-    dirty_worktree: bool,
-) -> (AutoReviewPlanDecision, Value) {
-    let context = crate::tui::auto_review::AutoReviewContext::from_tool_call(
-        tool_name,
-        tool_input,
-        run_origin,
-        approval_mode,
-        user_intent,
-        workspace_trusted,
-        dirty_worktree,
-    );
-    let decision = policy.evaluate(&context);
-    let audit_event = policy.audit_event(&context, &decision);
-    let plan_decision = match decision.action {
-        crate::tui::auto_review::AutoReviewAction::Allow
-        | crate::tui::auto_review::AutoReviewAction::AskUser => AutoReviewPlanDecision::NoChange,
-        crate::tui::auto_review::AutoReviewAction::HoldForReview => {
-            let reason = format!("Auto-review policy requires approval: {}", decision.reason);
-            if matches!(approval_mode, crate::tui::approval::ApprovalMode::Never) {
-                AutoReviewPlanDecision::Block(reason)
-            } else {
-                AutoReviewPlanDecision::ForcePrompt(reason)
-            }
-        }
-        crate::tui::auto_review::AutoReviewAction::Block => AutoReviewPlanDecision::Block(format!(
-            "Auto-review policy blocked tool '{tool_name}': {}",
-            decision.reason
-        )),
-    };
-    (plan_decision, audit_event)
-}
-
-pub(super) fn exec_shell_ask_rule_decision(
-    config: &EngineConfig,
-    tool_name: &str,
-    tool_input: &Value,
-    workspace: &Path,
-    approval_mode: crate::tui::approval::ApprovalMode,
-) -> Option<ToolAskRuleDecision> {
-    if tool_name != "exec_shell" {
-        return None;
-    }
-    let command = tool_input.get("command").and_then(Value::as_str)?;
-    tool_ask_rule_decision_for_context(config, tool_name, command, None, workspace, approval_mode)
-}
-
-pub(super) fn file_tool_ask_rule_decision(
-    config: &EngineConfig,
-    tool_name: &str,
-    tool_input: &Value,
-    workspace: &Path,
-    approval_mode: crate::tui::approval::ApprovalMode,
-) -> Option<ToolAskRuleDecision> {
-    let paths = file_tool_permission_paths(tool_name, tool_input)?;
-    if paths.is_empty() {
-        return tool_ask_rule_decision_for_context(
-            config,
-            tool_name,
-            "",
-            None,
-            workspace,
-            approval_mode,
-        );
-    }
-
-    let mut prompt: Option<String> = None;
-    for path in paths {
-        match tool_ask_rule_decision_for_context(
-            config,
-            tool_name,
-            "",
-            Some(&path),
-            workspace,
-            approval_mode,
-        ) {
-            Some(ToolAskRuleDecision::Block(reason)) => {
-                return Some(ToolAskRuleDecision::Block(reason));
-            }
-            Some(ToolAskRuleDecision::Prompt(reason)) => {
-                prompt.get_or_insert(reason);
-            }
-            None => {}
-        }
-    }
-    prompt.map(ToolAskRuleDecision::Prompt)
-}
-
-fn tool_ask_rule_decision_for_context(
-    config: &EngineConfig,
-    tool_name: &str,
-    command: &str,
-    path: Option<&str>,
-    workspace: &Path,
-    approval_mode: crate::tui::approval::ApprovalMode,
-) -> Option<ToolAskRuleDecision> {
-    let cwd = workspace.to_string_lossy();
-    let ask_for_approval = match approval_mode {
-        crate::tui::approval::ApprovalMode::Never => AskForApproval::Never,
-        crate::tui::approval::ApprovalMode::Auto | crate::tui::approval::ApprovalMode::Suggest => {
-            AskForApproval::OnFailure
-        }
-    };
-    let decision = config
-        .exec_policy_engine
-        .check(ExecPolicyContext {
-            command,
-            cwd: cwd.as_ref(),
-            tool: Some(tool_name),
-            path,
-            ask_for_approval,
-            sandbox_mode: None,
-        })
-        .ok()?;
-    if !decision.allow {
-        Some(ToolAskRuleDecision::Block(decision.reason().to_string()))
-    } else if decision.requires_approval {
-        Some(ToolAskRuleDecision::Prompt(decision.reason().to_string()))
-    } else {
-        None
-    }
-}
-
-fn file_tool_permission_paths(tool_name: &str, input: &Value) -> Option<Vec<String>> {
-    match tool_name {
-        "read_file" | "write_file" | "edit_file" | "file_search" | "grep_files" => {
-            Some(string_field(input, "path").into_iter().collect())
-        }
-        "list_dir" => Some(vec![
-            string_field(input, "path").unwrap_or_else(|| ".".to_string()),
-        ]),
-        "apply_patch" => Some(apply_patch_permission_paths(input)),
-        _ => None,
-    }
-}
-
-fn string_field(input: &Value, key: &str) -> Option<String> {
-    input
-        .get(key)
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_string)
-}
-
-fn apply_patch_permission_paths(input: &Value) -> Vec<String> {
-    crate::tools::apply_patch::preflight_apply_patch(input)
-        .map(|preflight| preflight.touched_files)
-        .unwrap_or_default()
 }
 
 /// Spawn the engine in a background task
@@ -3670,14 +3032,21 @@ pub(crate) enum MockApprovalEvent {
 }
 
 mod approval;
+mod catalog_filter;
 mod context;
+mod engine_config;
+mod goal;
 mod handle;
+mod plugin_tools;
+mod policy;
+
 pub(crate) use context::compact_tool_result_for_context;
 use context::{
     MAX_CONTEXT_RECOVERY_ATTEMPTS, MIN_RECENT_MESSAGES_TO_KEEP, context_input_budget_for_route,
     effective_max_output_tokens_for_route, extract_compaction_summary_prompt,
     is_context_length_error_message, summarize_text,
 };
+pub use engine_config::EngineConfig;
 
 mod dispatch;
 mod lsp_hooks;
@@ -3689,26 +3058,17 @@ mod tool_setup;
 mod turn_loop;
 pub(crate) use token_estimate_cache::TokenEstimateCache;
 
-pub(super) const MAX_PARALLEL_SHELL_EXEC: usize = 4;
-
-pub(crate) fn default_active_native_tool_names() -> &'static [&'static str] {
-    tool_catalog::DEFAULT_ACTIVE_NATIVE_TOOLS
-}
-
-/// Drop catalog entries the execution gates would reject (#3027): the model
-/// should never be advertised a tool it cannot call. Deny wins over allow.
-fn filter_tool_catalog_for_gates(
-    catalog: &mut Vec<Tool>,
-    allowed_tools: Option<&[String]>,
-    disallowed_tools: Option<&[String]>,
-) {
-    catalog.retain(|tool| {
-        !turn_loop::command_denies_tool(disallowed_tools, &tool.name)
-            && turn_loop::command_allows_tool(allowed_tools, &tool.name)
-    });
-}
+pub(super) use catalog_filter::MAX_PARALLEL_SHELL_EXEC;
+pub(crate) use catalog_filter::{default_active_native_tool_names, filter_tool_catalog_for_gates};
 
 use self::approval::{ApprovalDecision, ApprovalResult, UserInputDecision};
+use self::goal::{goal_objective_for_prompt, normalized_goal_objective, sync_goal_state_from_host};
+use self::plugin_tools::configure_plugin_tools;
+use self::policy::{
+    AutoReviewPlanDecision, ToolAskRuleDecision, agent_approval_mode_for_turn,
+    auto_review_plan_decision, auto_review_run_origin_for_plan, effective_input_policy,
+    exec_shell_ask_rule_decision, file_tool_ask_rule_decision,
+};
 
 use self::dispatch::{
     ParallelToolResult, ParallelToolResultEntry, ToolExecGuard, ToolExecOutcome,

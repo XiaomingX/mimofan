@@ -411,6 +411,3 @@ pub enum SandboxPolicyBehavior {
     /// Block execution entirely (unless YOLO+trust).
     Blocked,
 }
-
-#[cfg(test)]
-mod tests {}

@@ -939,6 +939,3 @@ pub fn spawn_scheduler(
         },
     )
 }
-
-#[cfg(test)]
-mod tests {}

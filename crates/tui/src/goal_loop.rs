@@ -144,6 +144,3 @@ pub fn decide_continuation(
     // 4. Keep going.
     ContinuationDecision::Continue
 }
-
-#[cfg(test)]
-mod tests {}

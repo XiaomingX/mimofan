@@ -194,6 +194,3 @@ impl Session {
             .rebuild_from_messages(&self.messages, &self.workspace);
     }
 }
-
-#[cfg(test)]
-mod tests {}

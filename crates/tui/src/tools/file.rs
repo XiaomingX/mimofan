@@ -998,6 +998,3 @@ fn list_dir_timeout(timeout: Duration) -> ToolError {
 }
 
 // === Unit Tests ===
-
-#[cfg(test)]
-mod tests {}

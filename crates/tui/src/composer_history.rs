@@ -274,6 +274,3 @@ fn write_history_atomic(path: &Path, payload: &[u8]) -> std::io::Result<()> {
 
     unreachable!("retry iterator always ends with a final write attempt")
 }
-
-#[cfg(test)]
-mod tests {}

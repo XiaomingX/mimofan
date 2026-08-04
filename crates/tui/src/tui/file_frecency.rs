@@ -196,6 +196,3 @@ pub fn rerank_by_frecency(candidates: Vec<String>) -> Vec<String> {
     });
     scored.into_iter().map(|(_, path, _)| path).collect()
 }
-
-#[cfg(test)]
-mod tests {}

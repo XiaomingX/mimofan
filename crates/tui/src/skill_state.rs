@@ -114,6 +114,3 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     fs::rename(&tmp, path).with_context(|| format!("rename tmp into {}", path.display()))?;
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {}

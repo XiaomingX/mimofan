@@ -585,6 +585,3 @@ fn string_vec_field(input: &serde_json::Value, field: &str) -> Vec<String> {
         })
         .unwrap_or_default()
 }
-
-#[cfg(test)]
-mod tests {}

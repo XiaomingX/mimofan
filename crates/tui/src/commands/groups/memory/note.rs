@@ -265,6 +265,3 @@ fn parse_note_index(rest: Option<&str>, note_count: usize, usage: &str) -> Resul
     }
     Ok(index - 1)
 }
-
-#[cfg(test)]
-mod tests {}

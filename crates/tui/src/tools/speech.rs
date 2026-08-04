@@ -456,6 +456,3 @@ fn check_network_policy(context: &ToolContext, base_url: &str) -> Result<(), Too
         ))),
     }
 }
-
-#[cfg(test)]
-mod tests {}

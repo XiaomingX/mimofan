@@ -651,6 +651,3 @@ pub fn run_local_skill_file(app: &mut App, args: Option<&str>) -> CommandResult 
         CommandResult::action(AppAction::SendMessage(arguments.to_string()))
     }
 }
-
-#[cfg(test)]
-mod tests {}

@@ -789,6 +789,3 @@ fn parse_pr_url(url: &str) -> Option<PullRequestRef> {
         number: (*number).to_string(),
     })
 }
-
-#[cfg(test)]
-mod tests {}

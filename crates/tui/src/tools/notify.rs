@@ -116,6 +116,3 @@ impl ToolSpec for NotifyTool {
         Ok(ToolResult::success(format!("notified: {title}")))
     }
 }
-
-#[cfg(test)]
-mod tests {}

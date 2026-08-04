@@ -977,6 +977,3 @@ fn format_age(dt: &DateTime<Utc>) -> String {
 }
 
 // === Unit Tests ===
-
-#[cfg(test)]
-mod tests {}

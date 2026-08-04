@@ -178,6 +178,3 @@ fn remove_anchor(app: &mut App, index_str: &str) -> CommandResult {
 
     CommandResult::message(format!("Removed anchor #{index}: {removed}"))
 }
-
-#[cfg(test)]
-mod tests {}

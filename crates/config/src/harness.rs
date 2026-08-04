@@ -18,8 +18,7 @@ use crate::ProviderKind;
 /// A posture names the runtime strategy mimofan should use for a
 /// provider/model route: how much context to preload, how aggressively to lean
 /// on sub-agents, and how to balance prompt-cache stability against quick
-/// exploration. Runtime selection is wired in later v0.9 slices; this config
-/// model intentionally keeps the policy data explicit first.
+/// exploration. This config model intentionally keeps the policy data explicit.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum HarnessPostureKind {

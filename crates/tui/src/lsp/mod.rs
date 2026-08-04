@@ -289,6 +289,3 @@ impl LspManager {
         )
     }
 }
-
-#[cfg(test)]
-mod tests {}

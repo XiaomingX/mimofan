@@ -537,6 +537,3 @@ pub fn voice_control(app: &mut App) -> CommandResult {
     };
     CommandResult::message(msg)
 }
-
-#[cfg(test)]
-mod tests {}

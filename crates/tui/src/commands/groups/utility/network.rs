@@ -264,6 +264,3 @@ fn display_list(values: &[String]) -> String {
         format!("[{}]", values.join(", "))
     }
 }
-
-#[cfg(test)]
-mod tests {}

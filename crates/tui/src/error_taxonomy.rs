@@ -498,6 +498,3 @@ impl fmt::Display for StreamError {
 }
 
 impl std::error::Error for StreamError {}
-
-#[cfg(test)]
-mod tests {}

@@ -265,6 +265,3 @@ pub(crate) fn retro_start_index(before: &str, retro_chars: usize) -> usize {
         .map(|(idx, _)| idx)
         .unwrap_or(0)
 }
-
-#[cfg(test)]
-mod tests {}

@@ -62,6 +62,3 @@ pub fn jobs(_app: &mut App, args: Option<&str>) -> CommandResult {
         ),
     }
 }
-
-#[cfg(test)]
-mod tests {}

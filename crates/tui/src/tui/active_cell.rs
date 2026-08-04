@@ -312,6 +312,3 @@ fn mark_running_as_interrupted(cell: &mut HistoryCell) {
         _ => {}
     }
 }
-
-#[cfg(test)]
-mod tests {}

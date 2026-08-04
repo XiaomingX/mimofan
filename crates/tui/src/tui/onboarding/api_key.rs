@@ -93,6 +93,3 @@ fn mask_key(input: &str) -> String {
         .collect();
     format!("{}{}", "*".repeat(len - 4), visible)
 }
-
-#[cfg(test)]
-mod tests {}

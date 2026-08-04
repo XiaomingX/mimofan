@@ -1,6 +1,6 @@
 # ============================================
 # mimofan AI 工具忽略文件
-# 策略：仅保留核心 Rust crates 源码，减少 token 消耗
+# 策略：仅保留核心 Rust crates 源码 + 必要架构文档
 # 同步更新：.claudeignore, .cursorignore, .windsurfignore
 # ============================================
 
@@ -8,7 +8,6 @@
 target/
 build/
 out/
-node_modules/
 *.rlib
 *.o
 *.d
@@ -18,6 +17,7 @@ node_modules/
 *.dll
 *.so
 *.dylib
+*.tar.gz
 
 # ── 非 Rust 代码 ──
 web/
@@ -34,13 +34,13 @@ package-lock.json
 flake.lock
 bun.lock
 
-# ── 大型生成/数据文件 ──
-crates/tui/assets/model_catalog.bundled.json
-crates/config/assets/models_dev.bundled.json
-config.example.toml
+# ── 数据/配置文件（排除所有 .json/.toml/.yaml/.yml，仅保留 Cargo.toml）──
 *.json
-!crates/*/Cargo.toml
+*.toml
+*.yaml
+*.yml
 !Cargo.toml
+!crates/*/Cargo.toml
 
 # ── 超大稳定模块（行数易变，不逐一标注；大文件索引见 ARCHITECTURE.md）──
 crates/tui/src/localization.rs
@@ -67,29 +67,19 @@ crates/*/tests/
 *_test.rs
 test_*.rs
 
-# ── 文档（核心信息已在根目录文档）──
-docs/examples/
-docs/rfcs/
-docs/skills/
-docs/evidence/
-docs/*HANDOFF*.md
-docs/*handoff*.md
-docs/*_PLAN.md
-!docs/archive/**
+# ── 文档（核心信息已在根目录 ARCHITECTURE.md / CLAUDE.md / README.md）──
+docs/
 CHANGELOG.md
 crates/tui/CHANGELOG.md
 *.md
 !README.md
 !ARCHITECTURE.md
 !CLAUDE.md
-!ARCHITECTURE-CN.md
-!USER-GUIDE-CN.md
 
 # ── AI 记忆文件与本地设置 ──
 **/CLAUDE.local.md
 settings.example.json
 .claude/
-.claude/**
 
 # ── AI 工具本地配置目录 ──
 .kilo/
@@ -99,10 +89,13 @@ settings.example.json
 .windsurf/
 .gemini/
 .antigravity/
+.aider/
+.cline/
+.roo/
+.workbuddy/
 .aiderignore
 .codeiumignore
 .clineignore
-.workbuddy/
 
 # ── Nix 配置 ──
 flake.nix
@@ -126,22 +119,21 @@ assets/
 *.gif
 *.ico
 *.svg
+*.pdf
 
 # ── 脚本 ──
 scripts/
-workflows/
 *.sh
 *.cmd
-!scripts/**
-!.github/scripts/**
-!benchmark/*.sh
 
-# ── Benchmark 结果 ──
+# ── 评估与基准测试 ──
+evals/
+benchmark/
 benchmark_results/
 results/
 
-# ── 评估 harness ──
-evals/
+# ── 报告与规划文档 ──
+report/
 
 # ── 非核心根文件 ──
 package.json
@@ -152,10 +144,9 @@ rust-toolchain.toml
 .env
 .env.*
 !.env.example
-
-# ── 根目录本地脚本与临时草稿 ──
-doctor.sh
-verify.sh
+LICENSE
+SUMMARY.md
+COMPLETION_REPORT.md
 IMPROVEMENT_PLAN.md
 ARCHITECTURE_PLAN.md
 ARCHITECTURE_REFORM.md
@@ -168,10 +159,12 @@ result.json
 count_deps.py
 project_overhaul_prompt.md
 test.txt
+doctor.sh
+verify.sh
+config/
 
 # ── 日志文件 ──
 *.log
-cron.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -207,3 +200,33 @@ bun/*/bin/downloads/
 .wrangler/
 .worktrees/
 .ace-tool/
+
+# ── IDE 配置 ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Python 产物 ──
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+.venv/
+*.egg-info/
+dist/
+
+# ── OS 文件 ──
+.DS_Store
+Thumbs.db
+
+# ── direnv ──
+.envrc
+.direnv
+
+# ── 工作目录 ──
+issues/
+logs/
+notes/

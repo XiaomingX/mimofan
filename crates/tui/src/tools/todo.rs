@@ -518,6 +518,3 @@ fn checklist_metadata(snapshot: &TodoListSnapshot) -> serde_json::Value {
         }
     })
 }
-
-#[cfg(test)]
-mod tests {}

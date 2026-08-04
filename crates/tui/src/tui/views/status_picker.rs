@@ -295,6 +295,3 @@ fn status_row_text(pointer: &str, mark: &str, item: &StatusItem, width: usize) -
     }
     text
 }
-
-#[cfg(test)]
-mod tests {}

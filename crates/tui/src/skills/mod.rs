@@ -766,6 +766,3 @@ fn truncate_for_prompt(value: &str, max_chars: usize) -> String {
     truncated.push('…');
     truncated
 }
-
-#[cfg(test)]
-mod tests {}

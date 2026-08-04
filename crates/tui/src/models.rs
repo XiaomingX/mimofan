@@ -573,6 +573,3 @@ pub struct MessageDelta {
     pub stop_reason: Option<String>,
     pub stop_sequence: Option<String>,
 }
-
-#[cfg(test)]
-mod tests {}

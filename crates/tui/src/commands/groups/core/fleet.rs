@@ -38,6 +38,3 @@ impl RegisterCommand for FleetCmd {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

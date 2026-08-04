@@ -495,6 +495,3 @@ pub fn split_interpreter_spec(spec: &str) -> (String, Vec<String>) {
     let args = parts.map(str::to_string).collect();
     (program, args)
 }
-
-#[cfg(test)]
-mod tests {}

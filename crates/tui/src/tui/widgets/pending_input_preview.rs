@@ -357,6 +357,3 @@ fn display_width(s: &str) -> usize {
         .map(|c| UnicodeWidthChar::width(c).unwrap_or(0))
         .sum()
 }
-
-#[cfg(test)]
-mod tests {}

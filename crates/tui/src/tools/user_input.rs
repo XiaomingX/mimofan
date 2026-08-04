@@ -180,6 +180,3 @@ impl ToolSpec for RequestUserInputTool {
         ))
     }
 }
-
-#[cfg(test)]
-mod tests {}

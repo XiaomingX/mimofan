@@ -434,6 +434,3 @@ impl SandboxManager {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

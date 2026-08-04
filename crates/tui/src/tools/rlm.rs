@@ -661,6 +661,3 @@ fn preview_output(text: &str) -> String {
 }
 
 fn _assert_var_handle_shape(_: Option<VarHandle>) {}
-
-#[cfg(test)]
-mod tests {}

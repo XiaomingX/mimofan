@@ -517,6 +517,3 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1]);
     horizontal[1]
 }
-
-#[cfg(test)]
-mod tests {}

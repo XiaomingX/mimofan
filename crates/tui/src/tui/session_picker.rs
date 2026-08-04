@@ -942,6 +942,3 @@ fn is_subsequence(needle: &str, haystack: &str) -> bool {
     }
     false
 }
-
-#[cfg(test)]
-mod tests {}

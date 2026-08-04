@@ -1143,6 +1143,3 @@ pub fn extract_primary_command(command: &str) -> Option<&str> {
 }
 
 // === Unit Tests ===
-
-#[cfg(test)]
-mod tests {}

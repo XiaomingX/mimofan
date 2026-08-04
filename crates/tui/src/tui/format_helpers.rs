@@ -73,6 +73,3 @@ pub(super) fn available_models_message(current_model: &str, models: &[String]) -
     }
     lines.join("\n")
 }
-
-#[cfg(test)]
-mod tests {}

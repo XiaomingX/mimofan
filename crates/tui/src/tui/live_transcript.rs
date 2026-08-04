@@ -566,6 +566,3 @@ impl ModalView for LiveTranscriptOverlay {
         crate::tui::osc8::append_frame_links(regions);
     }
 }
-
-#[cfg(test)]
-mod tests {}

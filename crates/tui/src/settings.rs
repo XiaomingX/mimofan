@@ -1271,6 +1271,3 @@ fn env_truthy(name: &str) -> bool {
         Err(_) => false,
     }
 }
-
-#[cfg(test)]
-mod tests {}

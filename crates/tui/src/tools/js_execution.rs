@@ -168,6 +168,3 @@ pub async fn execute_js_execution_tool(
         metadata: Some(payload),
     })
 }
-
-#[cfg(test)]
-mod tests {}

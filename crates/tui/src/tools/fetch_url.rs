@@ -560,6 +560,3 @@ async fn try_headless_browser_fetch(url: &str) -> Result<String, ToolError> {
     }
     Err(ToolError::execution_failed("Headless browser unavailable"))
 }
-
-#[cfg(test)]
-mod tests {}

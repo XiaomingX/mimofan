@@ -39,6 +39,3 @@ pub fn task(_app: &mut App, args: Option<&str>) -> CommandResult {
         _ => CommandResult::error("Usage: /task [add <prompt>|list|show <id>|cancel <id>]"),
     }
 }
-
-#[cfg(test)]
-mod tests {}

@@ -191,6 +191,3 @@ impl BacktrackState {
         self.phase = BacktrackPhase::Inactive;
     }
 }
-
-#[cfg(test)]
-mod tests {}

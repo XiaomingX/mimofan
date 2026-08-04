@@ -44,6 +44,3 @@ pub fn swarm(_app: &mut App, arg: Option<&str>) -> CommandResult {
         "/swarm is gated in v0.8.61: prompt-only agent fanout is disabled until the durable Train-3 worker/goal re-dispatch substrate lands. Use /goal for the persistent objective or /agent [N] <task> for one bounded sub-agent.",
     )
 }
-
-#[cfg(test)]
-mod tests {}

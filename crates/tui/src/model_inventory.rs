@@ -217,6 +217,3 @@ fn env_has_key_for(provider: ApiProvider) -> bool {
 fn env_keys_for_provider(provider: ApiProvider) -> &'static [&'static str] {
     provider.env_vars()
 }
-
-#[cfg(test)]
-mod tests {}

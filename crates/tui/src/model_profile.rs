@@ -294,6 +294,3 @@ fn display_name(model: &str) -> String {
         .unwrap_or(model)
         .to_string()
 }
-
-#[cfg(test)]
-mod tests {}

@@ -188,6 +188,3 @@ async fn upload_gist(path: &Path) -> Result<String, String> {
 
     Ok(stdout)
 }
-
-#[cfg(test)]
-mod tests {}

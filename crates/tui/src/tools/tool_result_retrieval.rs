@@ -665,6 +665,3 @@ fn truncate_line(line: &str, max_chars: usize) -> String {
 fn clamp_u64(value: u64, min: usize, max: usize) -> usize {
     (value as usize).clamp(min, max)
 }
-
-#[cfg(test)]
-mod tests {}

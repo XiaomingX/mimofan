@@ -587,6 +587,3 @@ struct RpcError {
     code: i64,
     message: String,
 }
-
-#[cfg(test)]
-mod tests {}

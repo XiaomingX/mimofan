@@ -970,6 +970,3 @@ impl McpServerConfig {
             .and_then(|oauth| oauth.client_id.as_deref())
     }
 }
-
-#[cfg(test)]
-mod tests {}

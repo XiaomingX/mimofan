@@ -266,9 +266,6 @@ pub(crate) fn footer_working_label_frame(now_ms: u64, fancy_animations: bool) ->
     if fancy_animations { now_ms / 400 } else { 0 }
 }
 
-#[cfg(test)]
-mod tests {}
-
 pub(crate) fn is_noisy_subagent_progress(status: &str) -> bool {
     let status = status.trim().to_ascii_lowercase();
     status.contains("requesting model response")

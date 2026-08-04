@@ -445,6 +445,3 @@ fn short_tool_id(id: &str) -> String {
         format!("{}...", &id[..8])
     }
 }
-
-#[cfg(test)]
-mod tests {}

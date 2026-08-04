@@ -84,6 +84,3 @@ pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
         )),
     }
 }
-
-#[cfg(test)]
-mod tests {}

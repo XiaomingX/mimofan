@@ -1394,6 +1394,3 @@ fn parse_env_lines(stdout: &str) -> HashMap<String, String> {
 }
 
 // === Unit Tests ===
-
-#[cfg(test)]
-mod tests {}

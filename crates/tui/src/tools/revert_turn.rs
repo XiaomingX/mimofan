@@ -129,6 +129,3 @@ impl ToolSpec for RevertTurnTool {
 fn short_sha(sha: &str) -> &str {
     &sha[..sha.len().min(8)]
 }
-
-#[cfg(test)]
-mod tests {}

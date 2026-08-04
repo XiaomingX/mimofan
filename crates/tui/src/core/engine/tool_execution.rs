@@ -399,6 +399,3 @@ impl Engine {
         outcome
     }
 }
-
-#[cfg(test)]
-mod tests {}

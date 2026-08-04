@@ -968,6 +968,3 @@ impl ModalView for CommandPaletteView {
             .render(popup_area, buf);
     }
 }
-
-#[cfg(test)]
-mod tests {}

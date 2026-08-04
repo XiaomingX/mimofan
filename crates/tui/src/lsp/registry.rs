@@ -105,6 +105,3 @@ pub fn server_for(lang: Language) -> Option<(&'static str, &'static [&'static st
         Language::Other => None,
     }
 }
-
-#[cfg(test)]
-mod tests {}

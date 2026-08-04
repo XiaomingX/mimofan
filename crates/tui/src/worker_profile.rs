@@ -234,6 +234,3 @@ impl Default for WorkerRuntimeProfile {
         Self::for_role(SubAgentType::General)
     }
 }
-
-#[cfg(test)]
-mod tests {}

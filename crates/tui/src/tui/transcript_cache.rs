@@ -109,6 +109,3 @@ impl TranscriptCache {
         self.insertion_order.push_back(key);
     }
 }
-
-#[cfg(test)]
-mod tests {}

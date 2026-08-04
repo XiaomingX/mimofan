@@ -295,6 +295,3 @@ pub const KEYBINDINGS: &[KeybindingEntry] = &[
         section: KeybindingSection::Help,
     },
 ];
-
-#[cfg(test)]
-mod tests {}

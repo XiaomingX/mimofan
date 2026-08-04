@@ -118,6 +118,3 @@ fn parse_scopes(parts: Vec<&str>) -> Vec<String> {
     }
     scopes
 }
-
-#[cfg(test)]
-mod tests {}

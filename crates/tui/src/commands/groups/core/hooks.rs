@@ -219,6 +219,3 @@ fn preview_command(command: &str, max_chars: usize) -> String {
     out.push('…');
     out
 }
-
-#[cfg(test)]
-mod tests {}

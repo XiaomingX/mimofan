@@ -577,6 +577,3 @@ fn truncate_spans_to_width(spans: Vec<Span<'static>>, max_width: usize) -> Vec<S
     }
     truncated
 }
-
-#[cfg(test)]
-mod tests {}

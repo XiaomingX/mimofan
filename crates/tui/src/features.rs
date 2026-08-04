@@ -254,6 +254,3 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: false,
     },
 ];
-
-#[cfg(test)]
-mod tests {}

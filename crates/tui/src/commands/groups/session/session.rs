@@ -437,6 +437,3 @@ fn line_to_string(line: ratatui::text::Line<'static>) -> String {
         .map(|span| span.content.to_string())
         .collect::<String>()
 }
-
-#[cfg(test)]
-mod tests {}

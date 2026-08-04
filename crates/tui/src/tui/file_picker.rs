@@ -547,6 +547,3 @@ pub fn score(query: &str, path: &str) -> Option<i32> {
 
     if qi == q.len() { Some(score) } else { None }
 }
-
-#[cfg(test)]
-mod tests {}

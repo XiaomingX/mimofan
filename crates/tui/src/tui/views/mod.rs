@@ -38,8 +38,6 @@ pub enum ModalKind {
     FleetSetup,
     FilePicker,
     StatusPicker,
-    FeedbackPicker,
-    ThemePicker,
     ContextMenu,
 }
 
@@ -2200,6 +2198,3 @@ fn truncate_view_text(text: &str, max_chars: usize) -> String {
         None => text.to_string(),
     }
 }
-
-#[cfg(test)]
-mod tests {}

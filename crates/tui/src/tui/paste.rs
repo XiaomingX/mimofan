@@ -133,6 +133,3 @@ fn apply_paste_burst_retro_capture(
 fn in_command_context(app: &App) -> bool {
     looks_like_slash_command_input(&app.input)
 }
-
-#[cfg(test)]
-mod tests {}

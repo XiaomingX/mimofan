@@ -212,6 +212,3 @@ fn char_display_width(ch: char) -> usize {
         UnicodeWidthChar::width(ch).unwrap_or(0).max(1)
     }
 }
-
-#[cfg(test)]
-mod tests {}

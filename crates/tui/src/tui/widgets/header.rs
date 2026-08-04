@@ -596,6 +596,3 @@ impl Renderable for HeaderWidget<'_> {
         1
     }
 }
-
-#[cfg(test)]
-mod tests {}

@@ -344,6 +344,3 @@ fn save_toml_preserving_comments(
         .with_context(|| format!("failed to write config at {}", path.display()))?;
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {}

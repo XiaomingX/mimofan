@@ -387,6 +387,3 @@ fn string_array(input: &Value, field: &str) -> Result<Vec<String>, ToolError> {
 fn optional_bool_value(input: &Value, field: &str) -> Option<bool> {
     input.get(field).and_then(Value::as_bool)
 }
-
-#[cfg(test)]
-mod tests {}

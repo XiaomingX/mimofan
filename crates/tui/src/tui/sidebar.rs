@@ -3004,6 +3004,3 @@ fn sidebar_hover_rows(
         })
         .collect()
 }
-
-#[cfg(test)]
-mod tests {}

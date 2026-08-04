@@ -1210,6 +1210,3 @@ impl ModalView for ProviderPickerView {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

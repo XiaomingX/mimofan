@@ -296,6 +296,3 @@ fn format_duration(total_seconds: u64) -> String {
     }
     out
 }
-
-#[cfg(test)]
-mod tests {}

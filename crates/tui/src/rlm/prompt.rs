@@ -12,6 +12,3 @@ pub fn rlm_system_prompt() -> SystemPrompt {
 }
 
 const RLM_SYSTEM_PROMPT: &str = include_str!("../prompts/rlm.md");
-
-#[cfg(test)]
-mod tests {}

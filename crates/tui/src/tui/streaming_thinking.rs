@@ -284,6 +284,3 @@ pub(super) fn finalize_active_entry(app: &mut App, duration: Option<f32>, remain
     app.bump_active_cell_revision();
     true
 }
-
-#[cfg(test)]
-mod tests {}

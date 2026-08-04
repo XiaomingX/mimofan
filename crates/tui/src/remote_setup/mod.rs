@@ -268,6 +268,3 @@ fn generate_runtime_token() -> String {
     let b = uuid::Uuid::new_v4().simple().to_string();
     format!("{a}{b}")
 }
-
-#[cfg(test)]
-mod tests {}

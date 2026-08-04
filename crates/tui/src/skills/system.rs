@@ -161,6 +161,3 @@ pub fn install_system_skills(skills_dir: &Path) -> std::io::Result<()> {
     }
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {}

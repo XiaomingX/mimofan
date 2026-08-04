@@ -128,6 +128,3 @@ fn to_hex(bytes: &[u8]) -> String {
     }
     out
 }
-
-#[cfg(test)]
-mod tests {}

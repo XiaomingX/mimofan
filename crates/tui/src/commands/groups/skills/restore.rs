@@ -188,6 +188,3 @@ fn format_snapshot_time(timestamp: i64) -> String {
 fn short_sha(sha: &str) -> &str {
     &sha[..sha.len().min(8)]
 }
-
-#[cfg(test)]
-mod tests {}

@@ -38,6 +38,3 @@ pub struct MimofanRoute {
     /// Longer description for tooltips / route receipts.
     pub description: &'static str,
 }
-
-#[cfg(test)]
-mod tests {}

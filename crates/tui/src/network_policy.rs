@@ -590,6 +590,3 @@ pub fn host_from_url(url: &str) -> Option<String> {
     let parsed = reqwest::Url::parse(url.trim()).ok()?;
     parsed.host_str().map(str::to_ascii_lowercase)
 }
-
-#[cfg(test)]
-mod tests {}

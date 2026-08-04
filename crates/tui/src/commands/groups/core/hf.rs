@@ -162,6 +162,3 @@ fn looks_like_hf_mcp_server(name: &str, server: &McpServerConfig) -> bool {
         url.contains("huggingface.co/mcp") || url.contains("huggingface.co/api/mcp")
     })
 }
-
-#[cfg(test)]
-mod tests {}

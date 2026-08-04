@@ -252,6 +252,3 @@ fn apply_offline_queue_request(manager: &SessionManager, request: &PendingOfflin
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

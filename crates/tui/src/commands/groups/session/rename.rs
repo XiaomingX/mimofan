@@ -87,6 +87,3 @@ fn rename_with_manager(
         Err(e) => CommandResult::error(format!("Could not save session: {e}")),
     }
 }
-
-#[cfg(test)]
-mod tests {}

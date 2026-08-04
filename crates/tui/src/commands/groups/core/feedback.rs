@@ -27,7 +27,7 @@ impl RegisterCommand for FeedbackCmd {
 pub fn feedback(_app: &mut App, arg: Option<&str>) -> CommandResult {
     let raw = arg.map(str::trim).unwrap_or("");
     if raw.is_empty() {
-        return CommandResult::action(AppAction::OpenFeedbackPicker);
+        return CommandResult::message(feedback_help());
     }
     if matches!(raw, "help" | "--help" | "-h") {
         return CommandResult::message(feedback_help());
@@ -157,6 +157,3 @@ fn parse_feedback_kind(input: &str) -> Option<FeedbackKind> {
         _ => return None,
     })
 }
-
-#[cfg(test)]
-mod tests {}

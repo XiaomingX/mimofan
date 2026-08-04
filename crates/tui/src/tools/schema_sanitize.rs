@@ -276,9 +276,6 @@ fn mark_nullable(schema: &mut Value) {
     }
 }
 
-#[cfg(test)]
-mod tests {}
-
 /// Normalize a tool's function schema for Kimi / Moonshot API compatibility.
 ///
 /// Kimi's API enforces stricter JSON Schema validation: when a schema uses

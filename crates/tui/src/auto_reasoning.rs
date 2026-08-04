@@ -72,6 +72,3 @@ const LOW_EFFORT_KEYWORDS: &[&str] = &[
     "\u{67e5}\u{8be2}", // 查询
     "\u{691c}\u{7d22}", // 検索
 ];
-
-#[cfg(test)]
-mod tests {}

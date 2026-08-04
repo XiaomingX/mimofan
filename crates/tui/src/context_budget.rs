@@ -241,6 +241,3 @@ fn percent_of(window_tokens: u64, percent: f64) -> u64 {
     // `as u64` saturates on overflow and floors; add 0.5 to round to nearest.
     (value + 0.5) as u64
 }
-
-#[cfg(test)]
-mod tests {}

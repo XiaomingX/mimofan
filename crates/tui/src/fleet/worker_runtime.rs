@@ -623,6 +623,3 @@ pub fn is_parallel_safe_read_only_tool(tool_name: &str) -> bool {
             | "tool_search"
     )
 }
-
-#[cfg(test)]
-mod tests {}

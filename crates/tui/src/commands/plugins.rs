@@ -299,6 +299,3 @@ pub fn plugin_test(_app: &mut App, args: Option<&str>) -> CommandResult {
 
     CommandResult::message(output)
 }
-
-#[cfg(test)]
-mod tests {}

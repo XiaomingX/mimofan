@@ -276,6 +276,3 @@ fn trimmed_non_empty(value: &str) -> Option<&str> {
     let trimmed = value.trim();
     (!trimmed.is_empty()).then_some(trimmed)
 }
-
-#[cfg(test)]
-mod tests {}

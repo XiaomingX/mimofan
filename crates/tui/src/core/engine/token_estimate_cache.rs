@@ -158,6 +158,3 @@ fn fingerprint_system_prompt(system: Option<&SystemPrompt>) -> u64 {
     }
     hasher.finish()
 }
-
-#[cfg(test)]
-mod tests {}

@@ -146,6 +146,3 @@ fn append_locked_line(policy_path: &Path, line: &str) -> Result<(), AmendError> 
 
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {}

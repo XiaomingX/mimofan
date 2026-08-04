@@ -405,6 +405,3 @@ fn compare_match(a: &FileSearchMatch, b: &FileSearchMatch) -> Ordering {
         .unwrap_or(Ordering::Equal)
         .then_with(|| a.path.cmp(&b.path))
 }
-
-#[cfg(test)]
-mod tests {}

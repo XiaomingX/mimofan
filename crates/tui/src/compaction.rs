@@ -1536,6 +1536,3 @@ pub fn merge_system_prompts(
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

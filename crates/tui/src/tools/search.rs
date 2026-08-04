@@ -575,6 +575,3 @@ fn matches_simple_glob(text: &str, pattern: &str) -> bool {
 }
 
 // === Unit Tests ===
-
-#[cfg(test)]
-mod tests {}

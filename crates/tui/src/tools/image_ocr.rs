@@ -257,6 +257,3 @@ mod macos_vision {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

@@ -165,6 +165,3 @@ fn write_trust_file_at(file: &TrustFile, path: &Path) -> Result<()> {
     write_atomic(path, json.as_bytes()).with_context(|| format!("write {}", path.display()))?;
     Ok(())
 }
-
-#[cfg(test)]
-mod tests {}

@@ -164,6 +164,3 @@ impl Theme {
 pub const fn active_theme() -> Theme {
     Theme::dark()
 }
-
-#[cfg(test)]
-mod tests {}

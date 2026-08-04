@@ -164,6 +164,3 @@ pub(crate) fn spawn_editor_for_input(
 
     result
 }
-
-#[cfg(test)]
-mod tests {}

@@ -900,6 +900,3 @@ fn default_picker_effort_idx(provider: ApiProvider, model_is_auto: bool) -> usiz
         .position(|effort| *effort == default_effort)
         .unwrap_or(0)
 }
-
-#[cfg(test)]
-mod tests {}

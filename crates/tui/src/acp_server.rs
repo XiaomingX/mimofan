@@ -482,6 +482,3 @@ fn jsonrpc_response_id(id: Value) -> Value {
         other => Value::String(other.to_string()),
     }
 }
-
-#[cfg(test)]
-mod tests {}

@@ -149,6 +149,3 @@ fn format_shell_job_detail(detail: &ShellJobDetail) -> String {
 pub(super) fn add_shell_job_message(app: &mut App, content: String) {
     app.add_message(HistoryCell::System { content });
 }
-
-#[cfg(test)]
-mod tests {}

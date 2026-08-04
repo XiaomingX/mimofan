@@ -400,6 +400,3 @@ pub fn detect_denial(exit_code: i32, stderr: &str) -> bool {
 
     denial_patterns.iter().any(|p| stderr.contains(p))
 }
-
-#[cfg(test)]
-mod tests {}

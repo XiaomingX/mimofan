@@ -436,6 +436,3 @@ fn path_from_uri(uri: &str) -> Option<PathBuf> {
     let stripped = uri.strip_prefix("file://")?;
     Some(PathBuf::from(stripped))
 }
-
-#[cfg(test)]
-mod tests {}

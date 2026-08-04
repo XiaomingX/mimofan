@@ -492,6 +492,3 @@ pub fn apply_to_fanout(card: &mut FanoutCard, msg: &MailboxMessage) -> bool {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

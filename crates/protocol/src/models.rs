@@ -1,0 +1,576 @@
+//! API request/response models for OpenAI-compatible endpoints.
+
+use serde::{Deserialize, Serialize};
+
+/// Context window for models without an explicit `*k` suffix.
+pub const DEEPSEEK_DEFAULT_CONTEXT_WINDOW: u32 = 128_000;
+pub const MIMOFAN_V4_CONTEXT_WINDOW_TOKENS: u32 = 1_000_000;
+/// Last-resort compaction trigger when [`context_window_for_model`] returns
+/// `None` (an unrecognised model id). 80% of `DEEPSEEK_DEFAULT_CONTEXT_WINDOW`.
+/// models inherit the same late-trigger discipline as V4 instead of paying
+/// the prefix-cache hit at 5% of the V4 window. Known models
+/// models resolve to their own scaled value via
+/// [`compaction_threshold_for_model`] (#664).
+pub const DEFAULT_COMPACTION_TOKEN_THRESHOLD: usize = 102_400;
+const COMPACTION_THRESHOLD_PERCENT: u32 = 80;
+// 1.1M to include GPT-5.5 (1.05M window) and similar large-window models
+pub const DEFAULT_AUTO_COMPACT_MAX_CONTEXT_WINDOW_TOKENS: u32 = 1_100_000;
+
+// === Core Message Types ===
+
+/// Request payload for sending a message to the API.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MessageRequest {
+    pub model: String,
+    pub messages: Vec<Message>,
+    pub max_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system: Option<SystemPrompt>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<Tool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<serde_json::Value>,
+    /// Reasoning-effort tier: "off" | "low" | "medium" | "high" | "max".
+    /// Translated by the client into's `reasoning_effort` + `thinking` fields.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    /// OpenAI-compatible `response_format` (e.g. `{"type":"json_object"}`).
+    /// Currently passed through for the OpenAI Chat Completions dialect
+    /// (`/v1/chat/completions`); the Anthropic Messages dialect does not
+    /// honour this field, so callers should pair it with a JSON-only system
+    /// prompt when targeting `…/anthropic`.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub response_format: Option<serde_json::Value>,
+}
+
+/// System prompt representation (plain text or structured blocks).
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum SystemPrompt {
+    Text(String),
+    Blocks(Vec<SystemBlock>),
+}
+
+/// A structured system prompt block.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct SystemBlock {
+    #[serde(rename = "type")]
+    pub block_type: String,
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+}
+
+/// OpenAI-compatible image URL payload inside a multimodal message.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ImageUrlContent {
+    pub url: String,
+}
+
+/// A chat message with role and content blocks.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Message {
+    pub role: String,
+    pub content: Vec<ContentBlock>,
+}
+
+/// A single content block inside a message.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(tag = "type")]
+pub enum ContentBlock {
+    #[serde(rename = "text")]
+    Text {
+        text: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControl>,
+    },
+    #[serde(rename = "image_url")]
+    ImageUrl { image_url: ImageUrlContent },
+    #[serde(rename = "thinking")]
+    Thinking {
+        thinking: String,
+        /// Anthropic signed-thinking signature (#3014). Only populated on the
+        /// native Messages dialect and serde-skipped when absent so OpenAI
+        /// dialects are unaffected. Anthropic rejects tool loops that drop or
+        /// modify signed thinking blocks, so replay this verbatim.
+        #[serde(skip_serializing_if = "Option::is_none", default)]
+        signature: Option<String>,
+    },
+    #[serde(rename = "tool_use")]
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        caller: Option<ToolCaller>,
+    },
+    #[serde(rename = "tool_result")]
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        is_error: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        content_blocks: Option<Vec<serde_json::Value>>,
+    },
+    #[serde(rename = "server_tool_use")]
+    ServerToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    #[serde(rename = "tool_search_tool_result")]
+    ToolSearchToolResult {
+        tool_use_id: String,
+        content: serde_json::Value,
+    },
+    #[serde(rename = "code_execution_tool_result")]
+    CodeExecutionToolResult {
+        tool_use_id: String,
+        content: serde_json::Value,
+    },
+}
+
+/// Cache control metadata for tool definitions and blocks.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct CacheControl {
+    #[serde(rename = "type")]
+    pub cache_type: String,
+}
+
+/// Metadata describing who invoked a tool call.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ToolCaller {
+    #[serde(rename = "type")]
+    pub caller_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_id: Option<String>,
+}
+
+/// Tool definition exposed to the model.
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct Tool {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub tool_type: Option<String>,
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub allowed_callers: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub defer_loading: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_examples: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub strict: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+}
+
+/// Container metadata for code-execution style server tools.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ContainerInfo {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+}
+
+/// Server-side tool usage counters.
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct ServerToolUsage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_execution_requests: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_search_requests: Option<u32>,
+}
+
+/// Response payload for a message request.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MessageResponse {
+    pub id: String,
+    pub r#type: String,
+    pub role: String,
+    pub content: Vec<ContentBlock>,
+    pub model: String,
+    pub stop_reason: Option<String>,
+    pub stop_sequence: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container: Option<ContainerInfo>,
+    pub usage: Usage,
+}
+
+/// Token usage metadata for a response.
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct Usage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_cache_hit_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_cache_miss_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_tokens: Option<u32>,
+    /// Approximate input tokens spent re-sending prior `reasoning_content`
+    /// across user-message boundaries in thinking-mode tool-calling
+    /// turns (V4 §5.1.1 "Interleaved Thinking"). Estimated client-side at
+    /// ~4 chars/token from the outgoing request body, before the model sees it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_replay_tokens: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_tool_use: Option<ServerToolUsage>,
+}
+
+/// Map known models to their approximate context window sizes.
+///
+/// Lookup order:
+/// 1. An explicit `_Nk` suffix in the model name, for **any** vendor. This
+///    lets self-hosted deployments advertise their window through the served
+///    model name (e.g. a vLLM `--served-model-name qwen3-32b-256k`), which is
+///    the only signal we have for non-Claude models. The 1000-token
+///    approximation is fine for compaction-threshold math.
+/// 2. Model-specific heuristics (V4 family -> 1M, legacy -> 128K).
+/// 3. Claude -> 200K.
+#[must_use]
+pub fn context_window_for_model(model: &str) -> Option<u32> {
+    if let Some(window) = super::model_catalog::resolved_context_window(model) {
+        return Some(window);
+    }
+    let lower = model.to_lowercase();
+    if let Some(explicit_window) = explicit_context_window_hint(&lower) {
+        return Some(explicit_window);
+    }
+    if lower.contains("deepseek") {
+        if lower.contains("v4") {
+            return Some(MIMOFAN_V4_CONTEXT_WINDOW_TOKENS);
+        }
+        return Some(DEEPSEEK_DEFAULT_CONTEXT_WINDOW);
+    }
+    if is_openai_gpt_55_api_model(&lower) {
+        return Some(1_050_000);
+    }
+    if is_openai_codex_model(&lower) {
+        return Some(400_000);
+    }
+    if let Some(window) = known_context_window_for_model(&lower) {
+        return Some(window);
+    }
+    if lower.contains("claude") {
+        return Some(200_000);
+    }
+    None
+}
+
+fn known_context_window_for_model(model_lower: &str) -> Option<u32> {
+    match model_lower {
+        // gpt-5-codex resolves from the unified catalog; the codex heuristic
+        // still covers gpt-5.3-codex before this fallback.
+        "gpt-5.3-codex" => Some(400_000),
+        // arcee-ai/... prefix variants not yet in the unified catalog.
+        "arcee-ai/trinity-large-thinking" | "trinity-large-preview" => Some(262_144),
+        "google/gemma-4-31b-it"
+        | "google/gemma-4-31b-it:free"
+        | "google/gemma-4-26b-a4b-it"
+        | "google/gemma-4-26b-a4b-it:free"
+        | "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        | "qwen/qwen3.6-35b-a3b"
+        | "qwen/qwen3.6-max-preview"
+        | "qwen/qwen3.6-27b"
+        | "tencent/hy3-preview"
+        | "moonshotai/kimi-k2.6"
+        | "moonshotai/kimi-k2.6:free"
+        | "kimi-for-coding" => Some(262_144),
+        "minimax/minimax-m2.7"
+        | "minimax-m2.7-highspeed"
+        | "minimax-m2.5"
+        | "minimax-m2.5-highspeed"
+        | "minimax-m2.1"
+        | "minimax-m2.1-highspeed"
+        | "minimax-m2" => Some(204_800),
+        "z-ai/glm-5.1" | "z-ai/glm-5v-turbo" | "glm-5v-turbo" => Some(202_752),
+        "z-ai/glm-5-turbo" | "glm-5-turbo" => Some(202_752),
+        "nvidia/nemotron-3-ultra-550b-a55b" | "nvidia/nemotron-3-ultra" => Some(1_000_000),
+        "xiaomi/mimo-v2.5-pro" | "xiaomi/mimo-v2.5" => Some(1_000_000),
+        "mimo-v2.5-asr"
+        | "mimo-v2.5-tts"
+        | "mimo-v2.5-tts-voicedesign"
+        | "mimo-v2.5-tts-voiceclone"
+        | "mimo-v2-tts" => Some(8_000),
+        _ => None,
+    }
+}
+
+#[must_use]
+pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
+    if let Some(max_output) = super::model_catalog::resolved_max_output(model) {
+        return Some(max_output);
+    }
+    let lower = model.to_lowercase();
+    if lower.contains("deepseek") && lower.contains("v4") {
+        return Some(384_000);
+    }
+    if is_openai_gpt_55_api_model(&lower) || is_openai_codex_model(&lower) {
+        return Some(128_000);
+    }
+    match lower.as_str() {
+        "gpt-5.3-codex" => Some(128_000),
+        "arcee-ai/trinity-large-thinking" | "moonshotai/kimi-k2.6" | "kimi-for-coding" => {
+            Some(262_144)
+        }
+        "qwen/qwen3.6-27b" => Some(262_140),
+        "qwen/qwen3.6-max-preview" => Some(65_536),
+        "z-ai/glm-5.1" | "z-ai/glm-5-turbo" | "glm-5-turbo" => Some(131_072),
+        "xiaomi/mimo-v2.5-pro" | "xiaomi/mimo-v2.5" => Some(131_072),
+        "mimo-v2.5-asr" => Some(2_048),
+        "mimo-v2.5-tts"
+        | "mimo-v2.5-tts-voicedesign"
+        | "mimo-v2.5-tts-voiceclone"
+        | "mimo-v2-tts" => Some(8_192),
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free" => Some(65_536),
+        "nvidia/nemotron-3-ultra-550b-a55b" => Some(16_384),
+        "nvidia/nemotron-3-ultra-550b-a55b:free" => Some(65_536),
+        "google/gemma-4-31b-it" => Some(16_384),
+        "google/gemma-4-31b-it:free" | "google/gemma-4-26b-a4b-it:free" => Some(32_768),
+        _ => None,
+    }
+}
+
+#[must_use]
+pub fn model_supports_reasoning(model: &str) -> bool {
+    if let Some(supports_reasoning) = super::model_catalog::resolved_supports_reasoning(model) {
+        return supports_reasoning;
+    }
+    let lower = model.to_lowercase();
+    if lower.contains("deepseek") && lower.contains("v4") {
+        return true;
+    }
+    // #3016 plus the 2026 Kimi Code K2.7 update: Moonshot-native Kimi IDs,
+    // including the stable `kimi-for-coding` coding route, emit
+    // reasoning_content that must stay out of answer prose.
+    if lower.starts_with("kimi-") {
+        return true;
+    }
+    matches!(
+        lower.as_str(),
+        "gpt-5.3-codex"
+            | "arcee-ai/trinity-large-thinking"
+            | "google/gemma-4-31b-it"
+            | "google/gemma-4-31b-it:free"
+            | "google/gemma-4-26b-a4b-it"
+            | "google/gemma-4-26b-a4b-it:free"
+            | "moonshotai/kimi-k2.6"
+            | "moonshotai/kimi-k2.6:free"
+            | "kimi-for-coding"
+            | "minimax/minimax-m2.7"
+            | "minimax-m2.7-highspeed"
+            | "minimax-m2.5"
+            | "minimax-m2.5-highspeed"
+            | "minimax-m2.1"
+            | "minimax-m2.1-highspeed"
+            | "minimax-m2"
+            | "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+            | "nvidia/nemotron-3-ultra-550b-a55b"
+            | "nvidia/nemotron-3-ultra-550b-a55b:free"
+            | "qwen/qwen3.6-max-preview"
+            | "qwen/qwen3.6-27b"
+            | "tencent/hy3-preview"
+            | "z-ai/glm-5.1"
+            | "z-ai/glm-5-turbo"
+            | "glm-5-turbo"
+    ) || is_openai_gpt_55_api_model(&lower)
+        || is_openai_codex_model(&lower)
+}
+
+#[allow(dead_code)]
+#[must_use]
+pub(crate) fn model_is_openai_reasoning_family(model: &str) -> bool {
+    let lower = model.to_lowercase();
+    is_openai_gpt_55_api_model(&lower) || is_openai_codex_model(&lower)
+}
+
+fn is_openai_gpt_55_api_model(model_lower: &str) -> bool {
+    matches!(model_lower, "gpt-5.5" | "gpt-5.5-pro")
+        || has_date_snapshot_suffix(model_lower, "gpt-5.5-")
+        || has_date_snapshot_suffix(model_lower, "gpt-5.5-pro-")
+}
+
+fn is_openai_codex_model(model_lower: &str) -> bool {
+    matches!(
+        model_lower,
+        "gpt-5-codex"
+            | "gpt-5.1-codex"
+            | "gpt-5.1-codex-mini"
+            | "gpt-5.1-codex-max"
+            | "gpt-5.2-codex"
+            | "gpt-5.3-codex"
+            | "codex-gpt-5.5"
+            | "chatgpt-gpt-5.5"
+            | "gpt-5.5-codex"
+            | "gpt-5.5-codex-preview"
+            | "codex-gpt-5.5-preview"
+            | "chatgpt-gpt-5.5-preview"
+    )
+}
+
+fn has_date_snapshot_suffix(model_lower: &str, prefix: &str) -> bool {
+    let Some(rest) = model_lower.strip_prefix(prefix) else {
+        return false;
+    };
+    let bytes = rest.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(idx, byte)| idx == 4 || idx == 7 || byte.is_ascii_digit())
+}
+
+/// Parse an explicit `_Nk` context-window hint from a model name (vendor
+/// agnostic). Returns the window in tokens for `N` in `8..=1024`.
+fn explicit_context_window_hint(model_lower: &str) -> Option<u32> {
+    let bytes = model_lower.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_digit() {
+            let start = i;
+            while i < bytes.len() && bytes[i].is_ascii_digit() {
+                i += 1;
+            }
+            if i >= bytes.len() || bytes[i] != b'k' {
+                continue;
+            }
+
+            let before_ok = start == 0 || !bytes[start - 1].is_ascii_alphanumeric();
+            let after_ok = i + 1 >= bytes.len() || !bytes[i + 1].is_ascii_alphanumeric();
+            if !before_ok || !after_ok {
+                continue;
+            }
+
+            if let Ok(kilo_tokens) = model_lower[start..i].parse::<u32>()
+                && (8..=1024).contains(&kilo_tokens)
+            {
+                return Some(kilo_tokens.saturating_mul(1000));
+            }
+        } else {
+            i += 1;
+        }
+    }
+    None
+}
+
+/// Derive a compaction token threshold from model context and a caller-supplied
+/// percentage.
+#[must_use]
+pub fn compaction_threshold_for_model_at_percent(model: &str, percent: f64) -> usize {
+    let Some(window) = context_window_for_model(model) else {
+        return DEFAULT_COMPACTION_TOKEN_THRESHOLD;
+    };
+
+    let percent = percent.clamp(10.0, 100.0);
+    let threshold = (f64::from(window) * percent / 100.0).round();
+    let threshold = if threshold.is_finite() && threshold > 0.0 {
+        threshold as u64
+    } else {
+        u64::from(window) * u64::from(COMPACTION_THRESHOLD_PERCENT) / 100
+    };
+    usize::try_from(threshold).unwrap_or(DEFAULT_COMPACTION_TOKEN_THRESHOLD)
+}
+
+/// Whether auto-compaction should be enabled when the user did not explicitly
+/// configure it. v0.8.64 defaults automatic continuity on for known model
+/// windows up to the V4 1M class while keeping unknown model ids opt-in.
+#[must_use]
+pub fn auto_compact_default_for_model(model: &str) -> bool {
+    context_window_for_model(model)
+        .is_some_and(|window| window <= DEFAULT_AUTO_COMPACT_MAX_CONTEXT_WINDOW_TOKENS)
+}
+
+// === Streaming Structures ===
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
+/// Streaming event types for SSE responses.
+pub enum StreamEvent {
+    #[serde(rename = "message_start")]
+    MessageStart { message: MessageResponse },
+    #[serde(rename = "content_block_start")]
+    ContentBlockStart {
+        index: u32,
+        content_block: ContentBlockStart,
+    },
+    #[serde(rename = "content_block_delta")]
+    ContentBlockDelta { index: u32, delta: Delta },
+    #[serde(rename = "content_block_stop")]
+    ContentBlockStop { index: u32 },
+    #[serde(rename = "message_delta")]
+    MessageDelta {
+        delta: MessageDelta,
+        usage: Option<Usage>,
+    },
+    #[serde(rename = "message_stop")]
+    MessageStop,
+    #[serde(rename = "ping")]
+    Ping,
+    /// Anthropic SSE error event (#3014).
+    #[serde(rename = "error")]
+    Error { error: serde_json::Value },
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
+/// Content block types used in streaming starts.
+pub enum ContentBlockStart {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "thinking")]
+    Thinking { thinking: String },
+    #[serde(rename = "tool_use")]
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value, // usually empty or partial
+        #[serde(skip_serializing_if = "Option::is_none")]
+        caller: Option<ToolCaller>,
+    },
+    #[serde(rename = "server_tool_use")]
+    ServerToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+}
+
+// Variant names match legacy streaming spec, suppressing style warning
+#[allow(clippy::enum_variant_names)]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(tag = "type")]
+/// Delta events emitted during streaming responses.
+pub enum Delta {
+    #[serde(rename = "text_delta")]
+    TextDelta { text: String },
+    #[serde(rename = "thinking_delta")]
+    ThinkingDelta { thinking: String },
+    #[serde(rename = "input_json_delta")]
+    InputJsonDelta { partial_json: String },
+    /// Anthropic signed-thinking signature delta (#3014); arrives at the end
+    /// of a thinking block on the native Messages stream.
+    #[serde(rename = "signature_delta")]
+    SignatureDelta { signature: String },
+}
+
+#[derive(Debug, Deserialize, Clone)]
+/// Delta payload for message-level updates.
+pub struct MessageDelta {
+    pub stop_reason: Option<String>,
+    pub stop_sequence: Option<String>,
+}

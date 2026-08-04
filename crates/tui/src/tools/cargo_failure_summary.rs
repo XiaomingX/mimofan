@@ -354,6 +354,3 @@ fn truncate_chars(text: &str, max_chars: usize) -> String {
         text.to_string()
     }
 }
-
-#[cfg(test)]
-mod tests {}

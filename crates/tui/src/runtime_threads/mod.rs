@@ -10,16 +10,17 @@
 #![deny(clippy::print_stdout)]
 #![deny(clippy::print_stderr)]
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
-use std::path::{Component, Path, PathBuf};
+pub mod requests;
+pub mod store;
+pub mod types;
+pub mod utils;
+
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::Utc;
 use serde_json::{Value, json};
 use tokio::sync::{Mutex, broadcast, oneshot};
 use tokio_util::sync::CancellationToken;
@@ -37,780 +38,44 @@ use crate::models::{
 use crate::tools::plan::new_shared_plan_state;
 use crate::tools::subagent::SubAgentStatus;
 use crate::tools::todo::new_shared_todo_list;
-use crate::tui::app::AppMode;
-use crate::utils::normalize_path_components;
 use mimofan_protocol::runtime::{
-    DynamicToolCallContent, DynamicToolCallParams, DynamicToolCallResult, DynamicToolSpec,
-    TurnEnvironmentParams,
+    DynamicToolCallContent, DynamicToolCallParams, DynamicToolCallResult,
+};
+
+pub use self::requests::{
+    CompactThreadRequest, CreateThreadRequest, RuntimeThreadManagerConfig, StartTurnRequest,
+    SteerTurnRequest, ThreadDetail, ThreadListFilter, UpdateThreadRequest, UsageBucket,
+    UsageGroupBy, UsageTotals, provider_label_for_model,
+};
+use self::store::{ActiveThreadState, ActiveThreads, ActiveTurnState, RuntimeThreadStore};
+pub use self::types::{
+    CURRENT_RUNTIME_SCHEMA_VERSION, RuntimeEventRecord, RuntimeTurnStatus, ThreadRecord,
+    TurnItemKind, TurnItemLifecycleStatus, TurnItemRecord, TurnRecord,
+};
+pub use self::utils::{
+    SUMMARY_LIMIT, duration_ms, enforce_lru_capacity, parse_mode, parse_mode_opt, summarize_text,
+    tool_kind_for_name, touch_lru,
 };
 
 const EVENT_CHANNEL_CAPACITY: usize = 1024;
-const MAX_ACTIVE_THREADS_DEFAULT: usize = 8;
-const SUMMARY_LIMIT: usize = 280;
-
-fn validated_record_id<'a>(id: &'a str, label: &str) -> Result<&'a str> {
-    let trimmed = id.trim();
-    if trimmed.is_empty() {
-        bail!("{label} cannot be empty");
-    }
-    if trimmed != id {
-        bail!("{label} cannot contain leading or trailing whitespace");
-    }
-    if !trimmed
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-    {
-        bail!("{label} contains unsupported characters");
-    }
-    Ok(trimmed)
-}
-
-fn sort_turn_items_by_start(items: &mut [TurnItemRecord]) {
-    let fallback = Utc::now();
-    items.sort_by(|a, b| {
-        let left = a.started_at.unwrap_or(fallback);
-        let right = b.started_at.unwrap_or(fallback);
-        left.cmp(&right)
-    });
-}
-
-/// Bumped to 2 for v0.6.6 after live engine semantics changed. The persisted
-/// thread/turn/item records did not change shape, but a v1 reader on a v2
-/// session should still fail closed rather than silently mis-replay.
-const CURRENT_RUNTIME_SCHEMA_VERSION: u32 = 2;
-const RUNTIME_RESTART_REASON: &str = "Interrupted by process restart";
-const EMPTY_TURN_REASON: &str = "Turn completed without engine output";
+pub(crate) const RUNTIME_RESTART_REASON: &str = "Interrupted by process restart";
+pub(crate) const EMPTY_TURN_REASON: &str = "Turn completed without engine output";
 const APPROVAL_DECISION_TIMEOUT: Duration = Duration::from_secs(300);
 
-const fn default_runtime_schema_version() -> u32 {
-    CURRENT_RUNTIME_SCHEMA_VERSION
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum RuntimeTurnStatus {
-    Queued,
-    InProgress,
-    Completed,
-    Failed,
-    Interrupted,
-    Canceled,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum TurnItemKind {
-    UserMessage,
-    AgentMessage,
-    AgentReasoning,
-    ToolCall,
-    FileChange,
-    CommandExecution,
-    ContextCompaction,
-    Status,
-    Error,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum TurnItemLifecycleStatus {
-    Queued,
-    InProgress,
-    Completed,
-    Failed,
-    Interrupted,
-    Canceled,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreadRecord {
-    #[serde(default = "default_runtime_schema_version")]
-    pub schema_version: u32,
-    pub id: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub model: String,
-    pub workspace: PathBuf,
-    pub mode: String,
-    pub allow_shell: bool,
-    pub trust_mode: bool,
-    pub auto_approve: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub latest_turn_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub latest_response_bookmark: Option<String>,
-    #[serde(default)]
-    pub archived: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub system_prompt: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_id: Option<String>,
-    /// User-set title for the thread. When `None`, consumers fall back to a
-    /// derived title (typically the latest turn's input summary). Added in
-    /// v0.8.10 (#562); old runtime records simply have no `title` and behave
-    /// as before. Schema version is not bumped because this field is purely
-    /// additive metadata — older readers ignore it without misinterpretation.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-    /// The session ID associated with this thread. When set, `ensure_engine_loaded`
-    /// loads the full message history (including thinking/tool blocks) from the
-    /// session file instead of reconstructing from turns (which loses process info).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TurnRecord {
-    #[serde(default = "default_runtime_schema_version")]
-    pub schema_version: u32,
-    pub id: String,
-    pub thread_id: String,
-    pub status: RuntimeTurnStatus,
-    pub input_summary: String,
-    pub created_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ended_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub duration_ms: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub usage: Option<Usage>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-    #[serde(default)]
-    pub item_ids: Vec<String>,
-    #[serde(default)]
-    pub steer_count: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TurnItemRecord {
-    #[serde(default = "default_runtime_schema_version")]
-    pub schema_version: u32,
-    pub id: String,
-    pub turn_id: String,
-    pub kind: TurnItemKind,
-    pub status: TurnItemLifecycleStatus,
-    pub summary: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub detail: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<Value>,
-    #[serde(default)]
-    pub artifact_refs: Vec<PathBuf>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub started_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ended_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuntimeEventRecord {
-    #[serde(default = "default_runtime_schema_version")]
-    pub schema_version: u32,
-    pub seq: u64,
-    pub timestamp: DateTime<Utc>,
-    pub thread_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub turn_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub item_id: Option<String>,
-    pub event: String,
-    pub payload: Value,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuntimeStoreState {
-    #[serde(default = "default_runtime_schema_version")]
-    schema_version: u32,
-    next_seq: u64,
-}
-
-impl Default for RuntimeStoreState {
-    fn default() -> Self {
-        Self {
-            schema_version: CURRENT_RUNTIME_SCHEMA_VERSION,
-            next_seq: 1,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RuntimeThreadStore {
-    threads_dir: PathBuf,
-    turns_dir: PathBuf,
-    items_dir: PathBuf,
-    events_dir: PathBuf,
-    state_path: PathBuf,
-    state: Arc<Mutex<RuntimeStoreState>>,
-}
-
-impl RuntimeThreadStore {
-    pub fn open(root: PathBuf) -> Result<Self> {
-        let root = checked_runtime_store_root(root)?;
-        let threads_dir = root.join("threads");
-        let turns_dir = root.join("turns");
-        let items_dir = root.join("items");
-        let events_dir = root.join("events");
-        ensure_runtime_store_dir(&threads_dir)?;
-        ensure_runtime_store_dir(&turns_dir)?;
-        ensure_runtime_store_dir(&items_dir)?;
-        ensure_runtime_store_dir(&events_dir)?;
-
-        let state_path = root.join("state.json");
-        reject_symlinked_store_file(&state_path)?;
-        let state = if state_path.exists() {
-            let raw = read_store_file(&state_path)?;
-            serde_json::from_str::<RuntimeStoreState>(&raw)
-                .with_context(|| format!("Failed to parse {}", state_path.display()))?
-        } else {
-            let default = RuntimeStoreState::default();
-            write_json_atomic(&state_path, &default)?;
-            default
-        };
-
-        Ok(Self {
-            threads_dir,
-            turns_dir,
-            items_dir,
-            events_dir,
-            state_path,
-            state: Arc::new(Mutex::new(state)),
-        })
-    }
-
-    fn record_path(base: &Path, id: &str, extension: &str, label: &str) -> Result<PathBuf> {
-        let id = validated_record_id(id, label)?;
-        Ok(base.join(format!("{id}.{extension}")))
-    }
-
-    fn thread_path(&self, thread_id: &str) -> Result<PathBuf> {
-        Self::record_path(&self.threads_dir, thread_id, "json", "thread id")
-    }
-
-    fn turn_path(&self, turn_id: &str) -> Result<PathBuf> {
-        Self::record_path(&self.turns_dir, turn_id, "json", "turn id")
-    }
-
-    fn item_path(&self, item_id: &str) -> Result<PathBuf> {
-        Self::record_path(&self.items_dir, item_id, "json", "item id")
-    }
-
-    fn events_path(&self, thread_id: &str) -> Result<PathBuf> {
-        Self::record_path(&self.events_dir, thread_id, "jsonl", "thread id")
-    }
-
-    pub fn save_thread(&self, thread: &ThreadRecord) -> Result<()> {
-        write_json_atomic(&self.thread_path(&thread.id)?, thread)
-    }
-
-    pub fn save_turn(&self, turn: &TurnRecord) -> Result<()> {
-        validated_record_id(&turn.thread_id, "thread id")?;
-        write_json_atomic(&self.turn_path(&turn.id)?, turn)
-    }
-
-    pub fn save_item(&self, item: &TurnItemRecord) -> Result<()> {
-        validated_record_id(&item.turn_id, "turn id")?;
-        write_json_atomic(&self.item_path(&item.id)?, item)
-    }
-
-    pub fn load_thread(&self, thread_id: &str) -> Result<ThreadRecord> {
-        let path = self.thread_path(thread_id)?;
-        let raw = read_store_file(&path)
-            .with_context(|| format!("Failed to read thread {}", path.display()))?;
-        let record: ThreadRecord = serde_json::from_str(&raw)
-            .with_context(|| format!("Failed to parse thread {}", path.display()))?;
-        if record.schema_version > CURRENT_RUNTIME_SCHEMA_VERSION {
-            bail!(
-                "Thread schema v{} is newer than supported v{}",
-                record.schema_version,
-                CURRENT_RUNTIME_SCHEMA_VERSION
-            );
-        }
-        Ok(record)
-    }
-
-    pub fn load_turn(&self, turn_id: &str) -> Result<TurnRecord> {
-        let path = self.turn_path(turn_id)?;
-        let raw = read_store_file(&path)
-            .with_context(|| format!("Failed to read turn {}", path.display()))?;
-        let record: TurnRecord = serde_json::from_str(&raw)
-            .with_context(|| format!("Failed to parse turn {}", path.display()))?;
-        if record.schema_version > CURRENT_RUNTIME_SCHEMA_VERSION {
-            bail!(
-                "Turn schema v{} is newer than supported v{}",
-                record.schema_version,
-                CURRENT_RUNTIME_SCHEMA_VERSION
-            );
-        }
-        Ok(record)
-    }
-
-    pub fn load_item(&self, item_id: &str) -> Result<TurnItemRecord> {
-        let path = self.item_path(item_id)?;
-        let raw = read_store_file(&path)
-            .with_context(|| format!("Failed to read item {}", path.display()))?;
-        let record: TurnItemRecord = serde_json::from_str(&raw)
-            .with_context(|| format!("Failed to parse item {}", path.display()))?;
-        if record.schema_version > CURRENT_RUNTIME_SCHEMA_VERSION {
-            bail!(
-                "Item schema v{} is newer than supported v{}",
-                record.schema_version,
-                CURRENT_RUNTIME_SCHEMA_VERSION
-            );
-        }
-        Ok(record)
-    }
-
-    pub fn list_threads(&self) -> Result<Vec<ThreadRecord>> {
-        let mut out = Vec::new();
-        let threads_dir = checked_existing_runtime_store_dir(&self.threads_dir)?;
-        for entry in fs::read_dir(&threads_dir)
-            .with_context(|| format!("Failed to read {}", threads_dir.display()))?
-        {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_none_or(|ext| ext != "json") {
-                continue;
-            }
-            let raw = read_store_file(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?;
-            let thread: ThreadRecord = serde_json::from_str(&raw)
-                .with_context(|| format!("Failed to parse {}", path.display()))?;
-            if thread.schema_version > CURRENT_RUNTIME_SCHEMA_VERSION {
-                bail!(
-                    "Thread schema v{} is newer than supported v{}",
-                    thread.schema_version,
-                    CURRENT_RUNTIME_SCHEMA_VERSION
-                );
-            }
-            out.push(thread);
-        }
-        out.sort_by_key(|t| std::cmp::Reverse(t.updated_at));
-        Ok(out)
-    }
-
-    pub fn list_turns_for_thread(&self, thread_id: &str) -> Result<Vec<TurnRecord>> {
-        validated_record_id(thread_id, "thread id")?;
-        let mut out = Vec::new();
-        let turns_dir = checked_existing_runtime_store_dir(&self.turns_dir)?;
-        for entry in fs::read_dir(&turns_dir)
-            .with_context(|| format!("Failed to read {}", turns_dir.display()))?
-        {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_none_or(|ext| ext != "json") {
-                continue;
-            }
-            let raw = read_store_file(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?;
-            let turn: TurnRecord = serde_json::from_str(&raw)
-                .with_context(|| format!("Failed to parse {}", path.display()))?;
-            if turn.schema_version > CURRENT_RUNTIME_SCHEMA_VERSION {
-                bail!(
-                    "Turn schema v{} is newer than supported v{}",
-                    turn.schema_version,
-                    CURRENT_RUNTIME_SCHEMA_VERSION
-                );
-            }
-            if turn.thread_id == thread_id {
-                out.push(turn);
-            }
-        }
-        out.sort_by_key(|a| a.created_at);
-        Ok(out)
-    }
-
-    pub fn list_items_for_turn(&self, turn_id: &str) -> Result<Vec<TurnItemRecord>> {
-        validated_record_id(turn_id, "turn id")?;
-        let mut out = Vec::new();
-        let items_dir = checked_existing_runtime_store_dir(&self.items_dir)?;
-        for entry in fs::read_dir(&items_dir)
-            .with_context(|| format!("Failed to read {}", items_dir.display()))?
-        {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_none_or(|ext| ext != "json") {
-                continue;
-            }
-            let raw = read_store_file(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?;
-            let item: TurnItemRecord = serde_json::from_str(&raw)
-                .with_context(|| format!("Failed to parse {}", path.display()))?;
-            if item.schema_version > CURRENT_RUNTIME_SCHEMA_VERSION {
-                bail!(
-                    "Item schema v{} is newer than supported v{}",
-                    item.schema_version,
-                    CURRENT_RUNTIME_SCHEMA_VERSION
-                );
-            }
-            if item.turn_id == turn_id {
-                out.push(item);
-            }
-        }
-        sort_turn_items_by_start(&mut out);
-        Ok(out)
-    }
-
-    pub fn list_items_for_turns_map(
-        &self,
-        turn_ids: &[String],
-    ) -> Result<HashMap<String, Vec<TurnItemRecord>>> {
-        if turn_ids.is_empty() {
-            return Ok(HashMap::new());
-        }
-
-        for turn_id in turn_ids {
-            validated_record_id(turn_id, "turn id")?;
-        }
-
-        let wanted: HashSet<&str> = turn_ids.iter().map(String::as_str).collect();
-        let mut out: HashMap<String, Vec<TurnItemRecord>> = HashMap::new();
-        let items_dir = checked_existing_runtime_store_dir(&self.items_dir)?;
-        for entry in fs::read_dir(&items_dir)
-            .with_context(|| format!("Failed to read {}", items_dir.display()))?
-        {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().is_none_or(|ext| ext != "json") {
-                continue;
-            }
-            let raw = read_store_file(&path)
-                .with_context(|| format!("Failed to read {}", path.display()))?;
-            let item: TurnItemRecord = serde_json::from_str(&raw)
-                .with_context(|| format!("Failed to parse {}", path.display()))?;
-            if item.schema_version > CURRENT_RUNTIME_SCHEMA_VERSION {
-                bail!(
-                    "Item schema v{} is newer than supported v{}",
-                    item.schema_version,
-                    CURRENT_RUNTIME_SCHEMA_VERSION
-                );
-            }
-            if wanted.contains(item.turn_id.as_str()) {
-                out.entry(item.turn_id.clone()).or_default().push(item);
-            }
-        }
-
-        for items in out.values_mut() {
-            sort_turn_items_by_start(items);
-        }
-        Ok(out)
-    }
-
-    pub async fn append_event(
-        &self,
-        thread_id: &str,
-        turn_id: Option<&str>,
-        item_id: Option<&str>,
-        event: impl Into<String>,
-        payload: Value,
-    ) -> Result<RuntimeEventRecord> {
-        validated_record_id(thread_id, "thread id")?;
-        if let Some(turn_id) = turn_id {
-            validated_record_id(turn_id, "turn id")?;
-        }
-        if let Some(item_id) = item_id {
-            validated_record_id(item_id, "item id")?;
-        }
-        let path = self.events_path(thread_id)?;
-        reject_symlinked_store_dir(&self.events_dir)?;
-        reject_symlinked_store_file(&path)?;
-
-        let mut state = self.state.lock().await;
-        let seq = state.next_seq;
-        state.next_seq = state.next_seq.saturating_add(1);
-        write_json_atomic(&self.state_path, &*state)?;
-        drop(state);
-
-        let record = RuntimeEventRecord {
-            schema_version: CURRENT_RUNTIME_SCHEMA_VERSION,
-            seq,
-            timestamp: Utc::now(),
-            thread_id: thread_id.to_string(),
-            turn_id: turn_id.map(ToString::to_string),
-            item_id: item_id.map(ToString::to_string),
-            event: event.into(),
-            payload,
-        };
-
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .with_context(|| format!("Failed to open {}", path.display()))?;
-        let line = serde_json::to_string(&record)?;
-        writeln!(file, "{line}").with_context(|| format!("Failed to append {}", path.display()))?;
-        file.flush()
-            .with_context(|| format!("Failed to flush {}", path.display()))?;
-        // Note: sync_all() intentionally omitted — flush() pushes to OS buffer
-        // which is sufficient for event logs. sync_all() would force a physical
-        // disk write on every event, creating a severe I/O bottleneck.
-        Ok(record)
-    }
-
-    pub fn events_since(
-        &self,
-        thread_id: &str,
-        since_seq: Option<u64>,
-    ) -> Result<Vec<RuntimeEventRecord>> {
-        let path = self.events_path(thread_id)?;
-        reject_symlinked_store_dir(&self.events_dir)?;
-        reject_symlinked_store_file(&path)?;
-        if !path.exists() {
-            return Ok(Vec::new());
-        }
-        let file =
-            File::open(&path).with_context(|| format!("Failed to open {}", path.display()))?;
-        let reader = BufReader::new(file);
-        let mut out = Vec::new();
-        for line in reader.lines() {
-            let line = line?;
-            if line.trim().is_empty() {
-                continue;
-            }
-            let event: RuntimeEventRecord = serde_json::from_str(&line)
-                .with_context(|| format!("Failed to parse event line in {}", path.display()))?;
-            if let Some(since) = since_seq
-                && event.seq <= since
-            {
-                continue;
-            }
-            out.push(event);
-        }
-        Ok(out)
-    }
-
-    pub async fn current_seq(&self) -> u64 {
-        let state = self.state.lock().await;
-        state.next_seq.saturating_sub(1)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RuntimeThreadManagerConfig {
-    pub data_dir: PathBuf,
-    pub task_data_dir: PathBuf,
-    pub max_active_threads: usize,
-}
-
-impl RuntimeThreadManagerConfig {
-    #[must_use]
-    pub fn from_task_data_dir(task_data_dir: PathBuf) -> Self {
-        let data_dir = if let Ok(override_dir) = std::env::var("MIMOFAN_RUNTIME_DIR") {
-            if override_dir.trim().is_empty() {
-                task_data_dir.join("runtime")
-            } else {
-                PathBuf::from(override_dir)
-            }
-        } else {
-            task_data_dir.join("runtime")
-        };
-        Self {
-            data_dir,
-            task_data_dir,
-            max_active_threads: MAX_ACTIVE_THREADS_DEFAULT,
-        }
-    }
-}
-
-/// Visibility filter for `list_threads`. Default is `ActiveOnly`. The runtime
-/// API exposes this as the combination of `include_archived` and
-/// `archived_only` query params (see `runtime_api.rs`); whalescale#260 / #563.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum ThreadListFilter {
-    /// Only `archived = false` threads. The original default.
-    #[default]
-    ActiveOnly,
-    /// Active and archived threads, sorted as the store returns them.
-    IncludeArchived,
-    /// Only `archived = true` threads.
-    ArchivedOnly,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CreateThreadRequest {
-    pub model: Option<String>,
-    pub workspace: Option<PathBuf>,
-    pub mode: Option<String>,
-    pub allow_shell: Option<bool>,
-    pub trust_mode: Option<bool>,
-    pub auto_approve: Option<bool>,
-    #[serde(default)]
-    pub archived: bool,
-    #[serde(default)]
-    pub system_prompt: Option<String>,
-    #[serde(default)]
-    pub task_id: Option<String>,
-    #[serde(default)]
-    pub dynamic_tools: Vec<DynamicToolSpec>,
-    #[serde(default)]
-    pub environments: Vec<TurnEnvironmentParams>,
-}
-
-/// Mutable fields accepted by `PATCH /v1/threads/{id}`.
-///
-/// Each field is optional — missing means "no change". Extended in v0.8.10
-/// (#562, whalescale#256) so the UI can flip persistent thread state without
-/// having to recreate a thread or pass per-turn overrides on every send.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct UpdateThreadRequest {
-    pub archived: Option<bool>,
-    pub allow_shell: Option<bool>,
-    pub trust_mode: Option<bool>,
-    pub auto_approve: Option<bool>,
-    pub model: Option<String>,
-    pub mode: Option<String>,
-    pub title: Option<String>,
-    pub system_prompt: Option<String>,
-    pub workspace: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct StartTurnRequest {
-    pub prompt: String,
-    #[serde(default)]
-    pub input_summary: Option<String>,
-    pub model: Option<String>,
-    pub mode: Option<String>,
-    pub allow_shell: Option<bool>,
-    pub trust_mode: Option<bool>,
-    pub auto_approve: Option<bool>,
-    #[serde(default)]
-    pub dynamic_tools: Vec<DynamicToolSpec>,
-    #[serde(default)]
-    pub environment_id: Option<String>,
-    /// OpenAI-compatible `response_format` (e.g.
-    /// `{"type":"json_object"}` for JSON mode). The Anthropic Messages
-    /// dialect ignores this field by design; the engine routes that
-    /// provider through `build_anthropic_body` instead.
-    #[serde(default)]
-    pub response_format: Option<serde_json::Value>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SteerTurnRequest {
-    pub prompt: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CompactThreadRequest {
-    #[serde(default)]
-    pub reason: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThreadDetail {
-    pub thread: ThreadRecord,
-    pub turns: Vec<TurnRecord>,
-    pub items: Vec<TurnItemRecord>,
-    pub latest_seq: u64,
-}
-
-/// Aggregation key for `aggregate_usage`. Mimofanscale#261 / #564.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UsageGroupBy {
-    Day,
-    Model,
-    Provider,
-    Thread,
+enum RuntimeApprovalDecision {
+    ApproveTool,
+    DenyTool,
+    RetryWithFullAccess,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct UsageTotals {
-    pub input_tokens: u64,
-    pub output_tokens: u64,
-    pub cached_tokens: u64,
-    pub reasoning_tokens: u64,
-    pub cost_usd: f64,
-    pub turns: u64,
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct UsageBucket {
-    pub key: String,
-    pub input_tokens: u64,
-    pub output_tokens: u64,
-    pub cached_tokens: u64,
-    pub reasoning_tokens: u64,
-    pub cost_usd: f64,
-    pub turns: u64,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct UsageAggregation {
-    pub since: Option<DateTime<Utc>>,
-    pub until: Option<DateTime<Utc>>,
-    pub group_by: String,
-    pub totals: UsageTotals,
-    pub buckets: Vec<UsageBucket>,
-}
-
-/// Best-effort provider classification from a model name. Used as a grouping
-/// key for `/v1/usage?group_by=provider`. Cost-tracking already runs the
-/// model→pricing→cost path; this only labels the bucket.
-fn provider_label_for_model(model: &str) -> &'static str {
-    if model.starts_with("deepseek-ai/") {
-        "nvidia-nim"
-    } else if model.starts_with("deepseek-") {
-        "deepseek"
-    } else if model.starts_with("openai/") || model.starts_with("anthropic/") {
-        "openrouter"
-    } else {
-        "unknown"
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ActiveTurnState {
-    turn_id: String,
-    interrupt_requested: bool,
-    auto_approve: bool,
-    trust_mode: bool,
-}
-
-#[derive(Clone)]
-struct ActiveThreadState {
-    engine: EngineHandle,
-    active_turn: Option<ActiveTurnState>,
-}
-
-#[derive(Default)]
-struct ActiveThreads {
-    engines: HashMap<String, ActiveThreadState>,
-    lru: VecDeque<String>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternalApprovalDecision {
+    Allow { remember: bool },
+    Deny { remember: bool },
 }
 
 pub type SharedRuntimeThreadManager = Arc<RuntimeThreadManager>;
-
-/// Manages active engine threads, lifecycle, and event persistence.
-///
-/// # Lock ordering invariant
-///
-/// Two `Mutex`es exist across this module:
-/// - `RuntimeThreadStore::state` — protects the monotonic event sequence counter.
-/// - `RuntimeThreadManager::active` — protects the set of loaded engine handles.
-///
-/// **No code path holds both locks simultaneously.** The `state` lock is only
-/// acquired inside `RuntimeThreadStore::append_event` (where it is explicitly
-/// dropped before any I/O) and `current_seq`. All `emit_event` calls (which
-/// call `append_event`) happen *after* `active` has been released. If you add
-/// new code that touches both, always acquire `state` before `active` to
-/// preserve a consistent ordering.
-#[derive(Clone)]
-pub struct RuntimeThreadManager {
-    config: Config,
-    workspace: PathBuf,
-    store: RuntimeThreadStore,
-    active: Arc<Mutex<ActiveThreads>>,
-    event_tx: broadcast::Sender<RuntimeEventRecord>,
-    manager_cfg: RuntimeThreadManagerConfig,
-    cancel_token: CancellationToken,
-    task_manager: Arc<StdMutex<Option<crate::task_manager::SharedTaskManager>>>,
-    automations: Arc<StdMutex<Option<crate::automation_manager::SharedAutomationManager>>>,
-    pending_approvals: Arc<StdMutex<HashMap<String, oneshot::Sender<ExternalApprovalDecision>>>>,
-    pending_dynamic_tools: Arc<StdMutex<HashMap<String, oneshot::Sender<DynamicToolCallResult>>>>,
-}
 
 /// Helper types for `seed_thread_from_messages` — intermediate representation
 /// of a turn being built from session messages before persisting as items.
@@ -838,23 +103,39 @@ struct TurnSeed {
     items: Vec<SeedItem>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RuntimeApprovalDecision {
-    ApproveTool,
-    DenyTool,
-    RetryWithFullAccess,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExternalApprovalDecision {
-    Allow { remember: bool },
-    Deny { remember: bool },
+/// Manages active engine threads, lifecycle, and event persistence.
+///
+/// # Lock ordering invariant
+///
+/// Two `Mutex`es exist across this module:
+/// - `RuntimeThreadStore::state` — protects the monotonic event sequence counter.
+/// - `RuntimeThreadManager::active` — protects the set of loaded engine handles.
+///
+/// **No code path holds both locks simultaneously.** The `state` lock is only
+/// acquired inside `RuntimeThreadStore::append_event` (where it is explicitly
+/// dropped before any I/O) and `current_seq`. All `emit_event` calls (which
+/// call `append_event`) happen *after* `active` has been released. If you add
+/// new code that touches both, always acquire `state` before `active` to
+/// preserve a consistent ordering.
+#[derive(Clone)]
+pub struct RuntimeThreadManager {
+    config: Config,
+    workspace: std::path::PathBuf,
+    store: RuntimeThreadStore,
+    active: Arc<Mutex<ActiveThreads>>,
+    event_tx: broadcast::Sender<RuntimeEventRecord>,
+    manager_cfg: RuntimeThreadManagerConfig,
+    cancel_token: CancellationToken,
+    task_manager: Arc<StdMutex<Option<crate::task_manager::SharedTaskManager>>>,
+    automations: Arc<StdMutex<Option<crate::automation_manager::SharedAutomationManager>>>,
+    pending_approvals: Arc<StdMutex<HashMap<String, oneshot::Sender<ExternalApprovalDecision>>>>,
+    pending_dynamic_tools: Arc<StdMutex<HashMap<String, oneshot::Sender<DynamicToolCallResult>>>>,
 }
 
 impl RuntimeThreadManager {
     pub fn open(
         config: Config,
-        workspace: PathBuf,
+        workspace: std::path::PathBuf,
         manager_cfg: RuntimeThreadManagerConfig,
     ) -> Result<Self> {
         let store = RuntimeThreadStore::open(manager_cfg.data_dir.clone())?;
@@ -1140,13 +421,13 @@ impl RuntimeThreadManager {
     /// ranges produce empty `buckets` (never an error).
     pub async fn aggregate_usage(
         &self,
-        since: Option<DateTime<Utc>>,
-        until: Option<DateTime<Utc>>,
+        since: Option<chrono::DateTime<Utc>>,
+        until: Option<chrono::DateTime<Utc>>,
         group_by: UsageGroupBy,
-    ) -> Result<UsageAggregation> {
+    ) -> Result<requests::UsageAggregation> {
         use std::collections::BTreeMap;
 
-        let mut buckets: BTreeMap<String, UsageBucket> = BTreeMap::new();
+        let mut buckets: BTreeMap<String, requests::UsageBucket> = BTreeMap::new();
         let mut totals = UsageTotals::default();
 
         for thread in self.store.list_threads()? {
@@ -1206,7 +487,7 @@ impl RuntimeThreadManager {
         }
         .to_string();
 
-        Ok(UsageAggregation {
+        Ok(requests::UsageAggregation {
             since,
             until,
             group_by: group_by_str,
@@ -3497,7 +2778,7 @@ impl RuntimeThreadManager {
         Some((turn.auto_approve, turn.trust_mode))
     }
 
-    async fn active_turn_id(&self, thread_id: &str) -> Option<String> {
+    pub(crate) async fn active_turn_id(&self, thread_id: &str) -> Option<String> {
         let active = self.active.lock().await;
         active
             .engines
@@ -3653,191 +2934,4 @@ impl crate::tools::spec::DynamicToolExecutor for RuntimeThreadManager {
             }
         }
     }
-}
-
-fn touch_lru(lru: &mut VecDeque<String>, thread_id: &str) {
-    if let Some(idx) = lru.iter().position(|id| id == thread_id) {
-        lru.remove(idx);
-    }
-    lru.push_back(thread_id.to_string());
-}
-
-fn enforce_lru_capacity(
-    active: &mut ActiveThreads,
-    max_active_threads: usize,
-) -> Vec<EngineHandle> {
-    let mut evicted = Vec::new();
-    if max_active_threads == 0 || active.engines.len() < max_active_threads {
-        return evicted;
-    }
-    let protected = active
-        .engines
-        .iter()
-        .filter_map(|(thread_id, state)| {
-            if state.active_turn.is_some() {
-                Some(thread_id.clone())
-            } else {
-                None
-            }
-        })
-        .collect::<HashSet<_>>();
-
-    let scan_limit = active.lru.len();
-    for _ in 0..scan_limit {
-        let Some(candidate) = active.lru.pop_front() else {
-            break;
-        };
-        if protected.contains(&candidate) {
-            active.lru.push_back(candidate);
-            continue;
-        }
-        if let Some(state) = active.engines.remove(&candidate) {
-            evicted.push(state.engine);
-        }
-        break;
-    }
-    evicted
-}
-
-/// Resolves only explicit mode tokens to an app mode. Free-form prompt text is
-/// never a valid mode token: `parse_mode_opt` returns `None` unless the input is
-/// exactly `agent`/`plan`/`yolo` or the numeric aliases `1`/`2`/`3`. Mode
-/// changes originate from the Tab cycle, `/mode`, the mode picker, or
-/// config/startup defaults, not from submitted natural-language prompt text.
-fn parse_mode_opt(mode: &str) -> Option<AppMode> {
-    match mode.trim().to_ascii_lowercase().as_str() {
-        "agent" | "1" => Some(AppMode::Agent),
-        "plan" | "2" => Some(AppMode::Plan),
-        "yolo" | "3" => Some(AppMode::Yolo),
-        _ => None,
-    }
-}
-
-fn parse_mode(mode: &str) -> AppMode {
-    parse_mode_opt(mode).unwrap_or(AppMode::Agent)
-}
-
-fn tool_kind_for_name(name: &str) -> TurnItemKind {
-    let lower = name.to_ascii_lowercase();
-    if lower == "exec_shell" || lower == "exec_shell_wait" || lower == "exec_shell_interact" {
-        return TurnItemKind::CommandExecution;
-    }
-    if lower.contains("patch") || lower.contains("write") || lower.contains("edit") {
-        return TurnItemKind::FileChange;
-    }
-    TurnItemKind::ToolCall
-}
-
-pub fn summarize_text(text: &str, limit: usize) -> String {
-    let take = limit.saturating_sub(3);
-    let mut count = 0;
-    let mut out = String::new();
-    for ch in text.chars() {
-        if count >= take {
-            out.push_str("...");
-            return out;
-        }
-        if ch.is_control() && ch != '\n' && ch != '\t' {
-            continue;
-        }
-        out.push(ch);
-        count += 1;
-    }
-    out
-}
-
-fn duration_ms(start: DateTime<Utc>, end: DateTime<Utc>) -> u64 {
-    let millis = (end - start).num_milliseconds();
-    if millis.is_negative() {
-        0
-    } else {
-        u64::try_from(millis).unwrap_or(u64::MAX)
-    }
-}
-
-fn checked_runtime_store_root(root: PathBuf) -> Result<PathBuf> {
-    if root.as_os_str().is_empty() {
-        bail!("Runtime store root cannot be empty");
-    }
-    if root
-        .components()
-        .any(|component| matches!(component, Component::ParentDir))
-    {
-        bail!("Runtime store root cannot contain '..' components");
-    }
-    let absolute = if root.is_absolute() {
-        root
-    } else {
-        std::env::current_dir()
-            .context("failed to resolve current directory for runtime store")?
-            .join(root)
-    };
-    match absolute.canonicalize() {
-        Ok(path) => Ok(path),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            Ok(normalize_path_components(&absolute))
-        }
-        Err(err) => Err(err).with_context(|| {
-            format!(
-                "Failed to resolve runtime store root {}",
-                absolute.display()
-            )
-        }),
-    }
-}
-
-fn checked_existing_runtime_store_dir(path: &Path) -> Result<PathBuf> {
-    reject_symlinked_store_dir(path)?;
-    path.canonicalize()
-        .with_context(|| format!("Failed to resolve {}", path.display()))
-}
-
-fn reject_symlinked_store_file(path: &Path) -> Result<()> {
-    let Ok(metadata) = fs::symlink_metadata(path) else {
-        return Ok(());
-    };
-    if metadata.file_type().is_symlink() {
-        bail!(
-            "Runtime store file must not be a symlink: {}",
-            path.display()
-        );
-    }
-    Ok(())
-}
-
-fn reject_symlinked_store_dir(path: &Path) -> Result<()> {
-    let Ok(metadata) = fs::symlink_metadata(path) else {
-        return Ok(());
-    };
-    if metadata.file_type().is_symlink() {
-        bail!(
-            "Runtime store directory must not be a symlink: {}",
-            path.display()
-        );
-    }
-    if !metadata.is_dir() {
-        bail!("Runtime store path must be a directory: {}", path.display());
-    }
-    Ok(())
-}
-
-fn ensure_runtime_store_dir(path: &Path) -> Result<()> {
-    fs::create_dir_all(path).with_context(|| format!("Failed to create {}", path.display()))?;
-    reject_symlinked_store_dir(path)
-}
-
-fn read_store_file(path: &Path) -> Result<String> {
-    reject_symlinked_store_file(path)?;
-    fs::read_to_string(path).with_context(|| format!("Failed to read {}", path.display()))
-}
-
-fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
-    }
-    reject_symlinked_store_file(path)?;
-    let payload = serde_json::to_string_pretty(value)?;
-    crate::utils::write_atomic(path, payload.as_bytes())
-        .with_context(|| format!("Failed to write {}", path.display()))
 }

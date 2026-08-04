@@ -79,6 +79,3 @@ impl ToolSpec for RememberTool {
         )))
     }
 }
-
-#[cfg(test)]
-mod tests {}

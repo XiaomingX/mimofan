@@ -297,6 +297,3 @@ fn next_contentful_version_after(lines: &[&str], mut pos: usize) -> Option<Strin
 
     None
 }
-
-#[cfg(test)]
-mod tests {}

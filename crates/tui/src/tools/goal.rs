@@ -589,6 +589,3 @@ impl ToolSpec for UpdateGoalTool {
         json_result(&snapshot)
     }
 }
-
-#[cfg(test)]
-mod tests {}

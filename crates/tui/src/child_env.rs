@@ -292,6 +292,3 @@ fn fill_windows_common_program_files(env: &mut Vec<(OsString, OsString)>) {
 fn normalize_key(key: &OsStr) -> String {
     key.to_string_lossy().to_ascii_uppercase()
 }
-
-#[cfg(test)]
-mod tests {}

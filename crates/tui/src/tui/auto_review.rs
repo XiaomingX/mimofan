@@ -543,6 +543,3 @@ fn risk_label(risk: RiskLevel) -> &'static str {
         RiskLevel::Destructive => "destructive",
     }
 }
-
-#[cfg(test)]
-mod tests {}

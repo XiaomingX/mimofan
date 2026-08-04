@@ -449,6 +449,3 @@ pub fn derive_session_name(source_hint: Option<&str>) -> String {
         out.to_string()
     }
 }
-
-#[cfg(test)]
-mod tests {}

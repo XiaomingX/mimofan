@@ -93,6 +93,3 @@ impl FrameRateLimiter {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

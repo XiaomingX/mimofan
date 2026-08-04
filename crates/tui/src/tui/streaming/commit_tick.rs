@@ -190,6 +190,3 @@ fn split_into_micro_chunks(text: &str) -> Vec<String> {
 
     out
 }
-
-#[cfg(test)]
-mod tests {}

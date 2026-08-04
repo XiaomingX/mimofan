@@ -175,6 +175,3 @@ fn char_boundary_index(text: &str, max_chars: usize) -> usize {
     }
     text.len()
 }
-
-#[cfg(test)]
-mod tests {}

@@ -26,6 +26,7 @@ mimofan-app-server = { path = "../app-server" }
 mimofan-config = { path = "../config" }
 mimofan-core = { path = "../core" }
 mimofan-execpolicy = { path = "../execpolicy" }
+mimofan-localization = { path = "../localization" }
 mimofan-mcp = { path = "../mcp" }
 mimofan-protocol = { path = "../protocol" }
 mimofan-release = { path = "../release" }

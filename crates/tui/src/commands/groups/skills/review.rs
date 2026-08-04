@@ -46,6 +46,3 @@ pub fn review(app: &mut App, args: Option<&str>) -> CommandResult {
 
     CommandResult::action(AppAction::SendMessage(target.to_string()))
 }
-
-#[cfg(test)]
-mod tests {}

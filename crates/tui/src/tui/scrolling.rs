@@ -288,6 +288,3 @@ impl MouseScrollState {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}

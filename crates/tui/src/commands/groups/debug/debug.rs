@@ -816,9 +816,6 @@ fn humanize_age(d: std::time::Duration) -> String {
     }
 }
 
-#[cfg(test)]
-mod tests {}
-
 /// Remove last message pair (user + assistant).
 ///
 /// This is the old `/undo` behaviour — it removes the most recent

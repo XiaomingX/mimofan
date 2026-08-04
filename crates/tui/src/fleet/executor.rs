@@ -379,6 +379,3 @@ impl FleetExecutor {
         !self.streams.is_empty() && self.streams.values().all(|s| s.terminal)
     }
 }
-
-#[cfg(test)]
-mod tests {}

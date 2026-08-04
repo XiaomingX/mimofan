@@ -59,6 +59,3 @@ fn media_kind(path: &Path) -> Option<&'static str> {
         _ => None,
     }
 }
-
-#[cfg(test)]
-mod tests {}

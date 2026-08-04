@@ -1104,6 +1104,3 @@ pub fn build_system_prompt(base: &str, project_context: Option<&ProjectContext>)
         };
     SystemPrompt::Text(full_prompt)
 }
-
-#[cfg(test)]
-mod tests {}

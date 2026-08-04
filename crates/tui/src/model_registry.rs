@@ -266,6 +266,3 @@ pub fn lookup(model: &str) -> Option<ModelMetadata> {
 pub fn seeded_model_ids() -> Vec<&'static str> {
     registry().keys().copied().collect()
 }
-
-#[cfg(test)]
-mod tests {}

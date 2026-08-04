@@ -101,6 +101,3 @@ fn root_base_url_belongs_to_non_deepseek_provider(base_url: &str) -> bool {
     .iter()
     .any(|needle| lower.contains(needle))
 }
-
-#[cfg(test)]
-mod tests {}

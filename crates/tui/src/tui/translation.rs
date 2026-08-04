@@ -113,6 +113,3 @@ pub enum TranslationStatus {
     /// Translation failed — original English displayed with fallback note.
     Failed,
 }
-
-#[cfg(test)]
-mod tests {}

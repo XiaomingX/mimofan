@@ -1125,6 +1125,3 @@ impl ToolSpec for McpToolAdapter {
 }
 
 // === Unit Tests ===
-
-#[cfg(test)]
-mod tests {}

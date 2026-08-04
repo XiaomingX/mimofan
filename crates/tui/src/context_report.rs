@@ -682,6 +682,3 @@ pub fn context_report_json(report: &PromptSourceMap) -> String {
         format!("{{\"error\":\"failed to serialize context report: {err}\"}}")
     })
 }
-
-#[cfg(test)]
-mod tests {}

@@ -601,6 +601,3 @@ struct ChartErrorBody {
     #[serde(default)]
     description: Option<String>,
 }
-
-#[cfg(test)]
-mod tests {}

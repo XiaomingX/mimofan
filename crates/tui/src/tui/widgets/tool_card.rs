@@ -247,6 +247,3 @@ pub fn rail_glyph(rail: CardRail) -> &'static str {
         CardRail::Single => "",
     }
 }
-
-#[cfg(test)]
-mod tests {}
