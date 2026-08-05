@@ -107,7 +107,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ## 5. 改进计划（只含真实待办）
 
-> 进度：Phase A–D 全部已决策闭环——分析类与澄清类均标 `[x]`；涉及安全/高风险的"合并/注入"经逐文件核查确认为命名撞车误判 / 互补机制 / 展示层正当职责，已澄清而非改造，**无悬挂 `[ ]`**。原两条"可选/低优先"尾巴（命名撞车注释、canonical_executable_form 重复）也已决策为"明确不做"。最后更新：2026-08-05。
+> 进度：Phase A–D 全部已决策闭环——分析类与澄清类均标 `[x]`；涉及安全/高风险的"合并/注入"经逐文件核查确认为命名撞车误判 / 互补机制 / 展示层正当职责，已澄清而非改造，**无悬挂 `[ ]`**。两条"可选/低优先"尾巴中：命名撞车注释（L122）维持"明确不做"；`canonical_executable_form` 重复项已按方案1实施（tui 改用 crate 的 lowercase 版，大小写不敏感，大写命令也能被 deny 拦住，见 issue #580）。最后更新：2026-08-05。
 
 ### Phase A：统一双重运行时（结论：无需合并，已符合最佳实践）
 
@@ -154,7 +154,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 - [x] 安全去重（已实施）：移除 `crates/tui/src/tools/shell.rs` 中 `use crate::execpolicy::{ExecPolicyDecision, load_default_policy};` **死导入**（仅 import 从未使用）。`cargo check -p mimofan` 通过，无破坏。
 - [x] 决策：**保留两份**（互补）。更深合并（让 crate 引擎也能消费 `execpolicy.toml`、删 tui-local 评估逻辑）会改变通配/基数匹配语义，属**用户可感知的行为变化**，需你显式拍板后再做，不在本次擅自执行。
-- [x] （已决策：保留两份）`tui/src/execpolicy/matcher.rs::canonical_executable_form` 与 crate `lib.rs::canonical_executable_form` 近乎逐字重复，**但语义不同**——tui 版保留大小写敏感（Case-preserving），crate 版先 `to_ascii_lowercase` 再处理（大小写不敏感）。合并会改变 `execpolicy.toml` deny/allow 的大小写匹配行为（安全相关、用户可感知），属 Phase C 已定的"保留互补、不做更深合并"范围。仅标注为已知重复项，待你显式拍板后再议。
+- [x] **（已实施：方案1，移除重复）** `tui/src/execpolicy/matcher.rs::canonical_executable_form` 先前与 crate `lib.rs::canonical_executable_form` 近乎逐字重复（tui 版 Case-preserving，crate 版 `to_ascii_lowercase`）。现已删除 tui 本地副本，改为 `pub use mimofan_execpolicy::canonical_executable_form;`，并在 `pattern_matches` 中对 pattern 一并 `to_ascii_lowercase`，使 tui 与 crate 引擎语义完全对齐为**大小写不敏感**。**行为变化（安全正向）**：`execpolicy.toml` 中 `deny = ["rm *"]` 如今也会拦住大写命令 `RM -rf /` / `SUDO RM -rf /`。回归测试 `deny_matches_uppercase_command_lowercased` 已覆盖；`cargo test -p mimofan` 全绿。详见 issue #580。
 
 **预期效果（本次已达成）**：清理了真实冗余（死导入），并澄清架构事实，避免盲目合并安全相关代码引入回归。
 

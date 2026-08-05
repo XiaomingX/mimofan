@@ -103,11 +103,21 @@ fn strip_heredoc_bodies(command: &str) -> String {
 ///
 /// Patterns support `*` wildcards that match any substring. The command is
 /// first reduced to its canonical executable form (stripping wrappers like
-/// `sudo` / `command` / `env FOO=`, and replacing the executable with its
-/// basename) so a `deny = ["rm *"]` rule also blocks `/bin/rm -rf /` or
-/// `sudo rm -rf /` without the caller having to canonicalise first.
+/// `sudo` / `command` / `env FOO=`, replacing the executable with its
+/// basename, and lowercasing) via the shared `mimofan-execpolicy` crate
+/// engine, so a `deny = ["rm *"]` rule also blocks `/bin/rm -rf /`,
+/// `sudo rm -rf /`, or an uppercase `RM -rf /`.
+///
+/// Matching is deliberately case-insensitive: both the pattern and the command
+/// are lowercased before comparison, mirroring `mimofan_execpolicy`'s
+/// `normalize_command`. This is a behaviour change relative to the earlier
+/// case-sensitive implementation — uppercase executables previously bypassed
+/// case-sensitive deny rules; now they are caught, which is strictly safer.
 pub fn pattern_matches(pattern: &str, command: &str) -> bool {
-    let pattern = normalize_command(pattern);
+    // Lowercase the pattern to stay symmetric with the crate engine, whose
+    // `normalize_command(rule)` also lowercases — command and rule are therefore
+    // matched case-insensitively.
+    let pattern = normalize_command(pattern).to_ascii_lowercase();
     let command = canonical_executable_form(&normalize_command(command));
 
     if pattern == "*" {
@@ -121,42 +131,11 @@ pub fn pattern_matches(pattern: &str, command: &str) -> bool {
     re.is_match(&command)
 }
 
-/// Reduce a command to a canonical executable form for deny-rule matching:
-/// strip common wrapper prefixes (`sudo`, `command`, `env VAR=`, …) and replace
-/// the executable with its filesystem basename, so a `deny = ["rm *"]` rule also
-/// blocks `/bin/rm -rf /` or `sudo rm -rf /`.
+/// Reduce a command to its canonical executable form for deny-rule matching.
 ///
-/// Case-preserving, matching the convention of [`normalize_command`] in this
-/// module. `bash -c "rm -rf /"` is intentionally *not* flattened — parsing the
-/// `-c` argument would risk mis-classifying unrelated commands.
-pub fn canonical_executable_form(command: &str) -> String {
-    let tokens: Vec<&str> = command.split_whitespace().collect();
-    let mut idx = 0;
-    while idx < tokens.len() {
-        let t = tokens[idx];
-        if matches!(
-            t,
-            "command" | "sudo" | "time" | "nohup" | "doas" | "setsid" | "env"
-        ) {
-            idx += 1;
-            continue;
-        }
-        if t.contains('=') && !t.starts_with('-') {
-            idx += 1;
-            continue;
-        }
-        break;
-    }
-    let positional: &[&str] = &tokens[idx..];
-    if positional.is_empty() {
-        return command.to_string();
-    }
-    let first = std::path::Path::new(positional[0])
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or(positional[0]);
-    let mut out: Vec<&str> = Vec::with_capacity(positional.len());
-    out.push(first);
-    out.extend_from_slice(&positional[1..]);
-    out.join(" ")
-}
+/// This now delegates to the shared `mimofan-execpolicy` crate engine
+/// ([`mimofan_execpolicy::canonical_executable_form`]) instead of a local
+/// copy, so the two implementations cannot drift. The crate version
+/// lowercases the command, giving case-insensitive deny matching (an
+/// uppercase executable is blocked by a lowercase `deny` rule).
+pub use mimofan_execpolicy::canonical_executable_form;
