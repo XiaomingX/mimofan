@@ -71,7 +71,7 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 
 ### 2.2 Crate 依赖关系
 
-整个项目拆成 14 个 Rust crate（可以理解为 14 个模块），每个 crate 负责一件事：
+整个项目拆成 15 个 Rust crate（可以理解为 15 个模块），每个 crate 负责一件事：
 
 ```
                      ┌────────────────────────────────┐
@@ -103,7 +103,7 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 
 **注意一个关键点：** `mimofan`（TUI+CLI）**不依赖** `mimofan-core`。TUI 自己实现了一套运行时逻辑，两者是并行的关系。
 
-### 14 个 Crate 干什么
+### 15 个 Crate 干什么
 
 | Crate | 干什么 | 一句话解释 |
 |-------|--------|-----------|
@@ -121,6 +121,9 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 | `mimofan-state` | 状态持久化 | SQLite 存会话历史和检查点 |
 | `mimofan-memory` | 记忆系统 | 向量记忆（暂未集成到主流程） |
 | `mimofan-release` | 发布工具 | 版本管理和发布 |
+| `mimofan-localization` | 国际化文本层 | 100+ UI 调用点的 `tr(MessageId)`，当前仅内置简体中文 |
+
+**关于 `tui` crate 的现状（重要）：** 它是最大的一块，约 20 万行，占全仓 85%+。其中 5 个最大的单文件（subagent、ui、shell、engine、config）已在 2026-08-04～05 按内聚性拆成子模块并合并（PR #567 / issue #566），文件变小了、可读性好了，但**所有子域仍在一个 crate 里**。更大的"按领域拆成独立 crate"属于战略级重构，不在本次范围内（详见 `ARCHITECTURE_IMPROVEMENT_PLAN.md`）。
 
 ---
 
@@ -290,9 +293,9 @@ reg.register(Box::new(MyTool));
 
 | 我想了解... | 去看这个文件 |
 |------------|------------|
-| CLI 命令解析 | `tui/src/cli.rs` |
-| TUI 界面渲染 | `tui/src/tui/ui.rs`、`tui/src/tui/widgets/` |
-| 对话轮次循环 | `tui/src/core/engine.rs` |
+| CLI 命令解析 | `tui/src/cli/mod.rs`（子命令在 `cli/` 各文件） |
+| TUI 界面渲染 | `tui/src/tui/mod.rs`、`tui/src/tui/ui/mod.rs`、`tui/src/tui/ui/ui_event_loop.rs` |
+| 对话轮次循环 | `tui/src/core/engine.rs`（消息 helper 在 `core/engine/`） |
 | LLM 配置 | `config/src/provider.rs`、`config/src/route/` |
 | 工具执行 | `tools/src/lib.rs`、`protocol/src/tool.rs` |
 | 子智能体管理 | `tui/src/tools/subagent/`、`tui/src/fleet/` |
@@ -318,4 +321,4 @@ reg.register(Box::new(MyTool));
 
 ---
 
-> 最后更新：2026-08-03
+> 最后更新：2026-08-05

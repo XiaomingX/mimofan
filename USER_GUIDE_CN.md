@@ -249,7 +249,7 @@ mimofan exec "用 Python 写一个简单的爬虫脚本，保存到 spider.py"
 ### 场景四：读文档回答问题
 
 ```
-> 读取根目录下的 ARCHITECTURE.md，告诉我 core 和 tui 的关系
+> 读取根目录下的 ARCHITECTURE_CN.md，告诉我 core 和 tui 的关系
 ```
 
 ### 场景五：Plan 模式（先规划再执行）
@@ -319,7 +319,7 @@ approval_policy = "never"
 直接在对话里说：
 
 ```
-读取根目录下的 ARCHITECTURE.md，然后回答：core 和 tui 是什么关系？
+读取根目录下的 ARCHITECTURE_CN.md，然后回答：core 和 tui 是什么关系？
 ```
 
 **Q: 支持哪些大模型？**
@@ -361,8 +361,8 @@ cost_currency = "usd"   # 显示美元
 
 | 文档 | 内容 |
 |------|------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | 系统架构设计与 DDD 改进计划 |
 | [ARCHITECTURE_CN.md](ARCHITECTURE_CN.md) | 中文架构说明 |
+| [ARCHITECTURE_IMPROVEMENT_PLAN.md](ARCHITECTURE_IMPROVEMENT_PLAN.md) | 系统架构设计与 DDD 改进计划 |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | 配置详解 |
 | [docs/MCP.md](docs/MCP.md) | MCP 工具集成 |
 | [docs/SUBAGENTS.md](docs/SUBAGENTS.md) | 子智能体系统 |

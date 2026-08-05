@@ -1,187 +1,183 @@
-# 架构改进计划
+# 架构改进计划（DDD 视角）
 
-> 基于 DDD 理论的架构分析与改进方案
-
----
-
-## 1. 架构现状分析
-
-### 1.1 精妙之处
-
-| 维度 | 评价 |
-|------|------|
-| **Crate 依赖图** | 14 个 crate 的依赖图是 DAG，方向严格向下，无环 -- Rust workspace 工程纪律的体现 |
-| **共享内核** | `protocol` crate 作为 DTO 层，多入口共享同一套类型，是 DDD 最佳实践 |
-| **端口化设计** | 22+ 个 trait 端口（`ToolHandler`、`SandboxBackend`、`LlmClient`、`McpBackend` 等），扩展点清晰 |
-| **端口反转** | `BalanceProvider` 端口反转已实施（`ui/ports.rs`），证明团队理解 DDD 端口化 |
-
-### 1.2 存在的问题
-
-#### 问题 1：tui crate 膨胀（最严重）
-
-- **现状**：432 个 .rs 文件、205,859 行，占全仓 85%+
-- **问题**：不只是 TUI -- 包含 LLM 客户端、MCP 集成、60 个工具实现、提示词构建、配置管理、运行时引擎等全部业务逻辑
-- **影响**：编译慢、维护难、职责混乱
-
-#### 问题 2：双重运行时
-
-- **现状**：`core::Runtime`（2,177 行）和 `tui` 自己的引擎（3,737 行）+ 运行时（3,843 行）并存
-- **问题**：处理相似问题但 API 不同，职责重叠
-- **影响**：代码重复、维护成本高
-
-#### 问题 3：UI 层直接 IO
-
-- **现状**：`prompt_suggestion.rs` 在渲染层直接发 HTTP 请求；`file_tree.rs`、`clipboard.rs` 等有大量同步 `std::fs` 调用
-- **问题**：违反分层架构原则，UI 层不应直接访问外部资源
-- **影响**：测试困难、耦合度高
-
-#### 问题 4：execpolicy 重复定义
-
-- **现状**：`tui/src/execpolicy/`（11 文件）与独立的 `crates/execpolicy` 并存
-- **问题**：同一功能存在两套实现
-- **影响**：维护成本高、可能不一致
-
-#### 问题 5：mimofan-memory 孤立
-
-- **现状**：workspace 中有完整的向量记忆系统，但没有任何 crate 依赖它
-- **问题**：功能未被集成
-- **影响**：代码浪费
+> 基于第一性原理与领域驱动设计（DDD）的架构分析与改进方案。
+> 本文档如实记录现状，**只写真实存在的待办**，不凑数、不迎合。
+> 最后更新：2026-08-05
 
 ---
 
-## 2. 改进计划
+## 0. 说明：本文档与旧版的区别
 
-### Phase 1：tui crate 拆分（最高优先级）
-
-**目标**：将 tui crate 中的非 TUI 逻辑拆分为独立 crate
-
-**待办事项**：
-
-- [x] 拆分测试代码：从 235 个源文件中删除空的 #[cfg(test)] 模块，提取 6 个测试到独立文件
-- [x] 拆分 tui/ui/mod.rs：从 6983 行拆分为 6 个子模块（provider_and_model、view_dispatch、message_dispatch、mcp_shell、workspace）
-- [x] 拆分 tools/subagent/mod.rs：从 6260 行拆分为 10 个子模块（constants、helpers、runtime_config、manager、projection、tool、execution、parser、registry、prompts）
-- [x] 拆分 tui/app.rs：从 5479 行拆分为 10 个子模块（state、actions、events、helpers、impl_core、impl_history、impl_streaming、impl_composer、impl_actions）
-- [x] 简化 UI picker：删除 theme_picker.rs 和 feedback_picker.rs，只保留核心 picker
-- [ ] 拆分工具层：将 `crates/tui/src/tools/` 移动到 `crates/tools/`（已有独立 crate）
-- [ ] 拆分 LLM 客户端：将 `crates/tui/src/llm/` 移动到 `crates/llm-client/`
-- [ ] 拆分提示词：将 `crates/tui/src/prompts/` 移动到 `crates/prompts/`
-- [x] 拆分本地化：将 `crates/tui/src/localization.rs` 移动到 `crates/localization/`
-- [x] 拆分 MCP 传输层：将 `crates/tui/src/mcp.rs` 中的传输实现拆分到 `crates/tui/src/mcp/transport.rs`
-- [ ] 更新 tui crate 的依赖关系
-- [ ] 验证编译和测试通过
-
-**预期效果**：tui crate 行数减少 60%+，职责清晰
-
-### Phase 2：运行时统一
-
-**目标**：评估 core 和 tui 的引擎重叠度，合并或明确边界
-
-**待办事项**：
-
-- [ ] 分析 `core::Runtime` 和 `tui` 引擎的功能重叠
-- [ ] 确定统一方案：合并或明确分工
-- [ ] 实施统一方案
-- [ ] 验证编译和测试通过
-
-**预期效果**：消除双重运行时，降低维护成本
-
-### Phase 3：UI 层 IO 收口
-
-**目标**：通过端口注入替代直接 IO
-
-**待办事项**：
-
-- [ ] 识别 UI 层所有直接 IO 调用
-- [ ] 定义端口 trait（如 `HttpClient`、`FileSystem`）
-- [ ] 实现端口适配器
-- [ ] 修改 UI 层代码使用端口注入
-- [ ] 验证编译和测试通过
-
-**预期效果**：UI 层不再直接访问外部资源，测试更容易
-
-### Phase 4：execpolicy 去重
-
-**目标**：统一执行策略实现
-
-**待办事项**：
-
-- [ ] 分析 `tui/src/execpolicy/` 和 `crates/execpolicy` 的差异
-- [ ] 确定保留哪个实现
-- [ ] 删除重复实现
-- [ ] 更新依赖关系
-- [ ] 验证编译和测试通过
-
-**预期效果**：消除重复代码，维护成本降低
-
-### Phase 5：memory 接入评估
-
-**目标**：评估是否需要集成向量记忆系统
-
-**待办事项**：
-
-- [ ] 评估 mimofan-memory 的功能和成熟度
-- [ ] 确定是否需要集成
-- [ ] 如果需要，设计集成方案
-- [ ] 实施集成
-- [ ] 验证编译和测试通过
-
-**预期效果**：决定是否启用向量记忆功能
+仓库里曾有一份改进计划，声称已完成若干拆分（如 `tui/app.rs` 拆成 10 个子模块、`tools/` 移入独立 crate 等）。**经核查，这些 `[x]` 是失真的**：`app.rs` 根本不存在，`tools/`/`llm`/`prompts` 也未移出 `tui` crate。本文档以真实代码状态为准重写，避免误导后续决策。
 
 ---
 
-## 3. 实施路径
+## 1. 系统主要用途（第一性原理）
 
-### 3.1 优先级排序
+mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言（默认中文）下指令 → 调大模型思考 → 用工具（读文件、改代码、跑命令、查资料）把活干完。本质是一个**本地优先、模型无关的智能体运行时**。
 
-1. **Phase 1**（最高）：tui crate 拆分 -- 立即开始
-2. **Phase 2**（高）：运行时统一 -- Phase 1 完成后
-3. **Phase 3**（中）：UI 层 IO 收口 -- Phase 2 完成后
-4. **Phase 4**（中）：execpolicy 去重 -- 与 Phase 3 并行
-5. **Phase 5**（低）：memory 接入评估 -- 最后处理
-
-### 3.2 时间估算
-
-| Phase | 预估工时 | 依赖 |
-|-------|---------|------|
-| Phase 1 | 5-8 人天 | 无 |
-| Phase 2 | 3-5 人天 | Phase 1 |
-| Phase 3 | 3-5 人天 | Phase 2 |
-| Phase 4 | 2-3 人天 | 无（可并行） |
-| Phase 5 | 2-4 人天 | 无 |
-| **总计** | **15-25 人天** | - |
-
-### 3.3 验证标准
-
-每个 Phase 完成后必须满足：
-
-1. `cargo build --workspace` 编译通过
-2. `cargo test --workspace` 测试通过
-3. `cargo clippy --workspace` 无新警告
-4. `cargo fmt --check` 格式正确
-5. 核心功能正常（TUI 启动、LLM 调用、工具执行）
+- 对标：Claude Code / OpenCode
+- 差异化：Rust 实现 · MIT · 默认小米 MiMo 模型 · 多入口（TUI / CLI / HTTP）
+- 第一性原理判断：它的核心价值是"把自然语言意图安全、可复现地转成工具调用序列"。所有架构都应服务这个目标，任何偏离这一点（为扩展性而扩展性）都是过度设计。
 
 ---
 
-## 4. 注意事项
+## 2. 架构精妙之处（值得保留）
 
-1. **只影响底层**：改进只影响内部架构，不影响用户交互层（TUI、CLI、HTTP 接口）
-2. **MECE 原则**：每个 Phase 职责明确，不重叠
-3. **奥卡姆剃刀**：不引入不必要的复杂性
-4. **渐进式改进**：每个 Phase 独立可交付，风险可控
-5. **不新增功能**：只做存量优化，不添加新特性
-
----
-
-## 5. 风险评估
-
-| 风险 | 影响 | 缓解措施 |
+| 维度 | 评价 | 为什么好 |
 |------|------|---------|
-| 拆分导致编译错误 | 高 | 小步拆分，每步验证 |
-| 运行时统一引入 bug | 高 | 充分测试，灰度发布 |
-| UI 层 IO 收口影响性能 | 中 | 性能测试，必要时保留同步路径 |
-| execpolicy 去重影响安全 | 高 | 安全测试，保留沙箱功能 |
-| memory 接入不成熟 | 低 | 评估后决定是否实施 |
+| **Crate 依赖图** | ✅ | 15 个 crate 形成严格向下的 DAG，无环。这是 Rust workspace 工程纪律的体现，编译隔离清晰。 |
+| **共享内核（protocol）** | ✅ | `protocol` crate 作为 DTO 层，多入口共享同一套消息/工具类型。典型的 DDD 共享内核模式，避免各上下文重复定义。 |
+| **端口化设计** | ✅ | 22+ 个 trait 端口（`Tool`、`SandboxBackend`、`LlmClient`、`McpBackend`、`Hook` 等），扩展点清晰，符合"依赖倒置"。 |
+| **自研 wire format** | ✅ | 不依赖任何官方 LLM SDK，自己实现 OpenAI/Anthropic 线协议。依赖面小、可控、易换模型。 |
+| **提示词分层宪法** | ✅ | `constitution → statutes → regulations → project → memory → …` 的层级，硬约束不可被覆盖。是提示词工程的成熟做法。 |
+| **Godfile 战术拆分（已完成）** | ✅ | 详见 §3，五大超大文件已按内聚性拆成子模块并合并（PR #567 / issue #566）。这是战术层（模块内聚）的正确优化。 |
 
 ---
 
-> 最后更新：2026-08-03
+## 3. 已经完成的拆分（[x] 真实状态）
+
+五大 godfile 已在 2026-08-04～05 完成 DDD 战术拆分，并经 `cargo check` + 回归测试验收、合并入 `main`：
+
+| 文件 | 原行数 → 现态 | 新增子模块 |
+|------|--------------|-----------|
+| `tui/src/tools/subagent/mod.rs` | 6265 → **2177** | `helpers` / `manager` / `runner` / `parser` / `tool` |
+| `tui/src/tui/ui/mod.rs` | 5133 → **885** | `ui/ui_event_loop.rs`（4259） |
+| `tui/src/tools/shell.rs` | 3172 → **2041** | `tools/shell_tools.rs`（1155） |
+| `tui/src/core/engine.rs` | 3099 → **2782** | `core/engine/engine_messages.rs`（328） |
+| `config/src/lib.rs` | 3193 → **2019** | 14 个配置子模块 |
+
+- [x] 拆分 `subagent/mod.rs` 超大型模块（AgentTool + helpers/manager/runner/parser）
+- [x] 拆分 `tui/ui/mod.rs` 的 `run_event_loop`
+- [x] 拆分 `shell.rs` 的 tool 实现
+- [x] 拆分 `engine.rs` 的消息/目标事件 helper
+- [x] 拆分 `config/lib.rs` 为领域子模块
+- [x] 验收：`cargo check` 全绿；95 个 lib 测试 + 48 个 tui 回归测试通过
+- [x] 已合并：`PR #567` / `issue #566`
+
+**结论**：战术层（单文件内聚）已达标。**战略层（crate 级限界上下文）仍是核心问题**（见 §4）。
+
+---
+
+## 4. 架构边界问题（从 DDD 看）
+
+### 问题 1：tui crate 仍是"大泥球"（最核心）
+
+- **现状**：`tui` crate 约 20 万行，占全仓 85%+。Godfile 拆分后，文件变小了，但**所有子域仍挤在一个 crate 里**，通过 `crate::` 互相直连。
+- **DDD 视角**：限界上下文边界缺失。"用户界面""对话运行时""模型网关编排""工具调度""提示词构建""配置加载"本应是不同生命周期、不同模型的子域，现在共享一个编译单元与命名空间。
+- **影响**：编译慢（任一改动重编整个 tui）、耦合高、新人难上手。
+
+### 问题 2：双重运行时
+
+- **现状**：`core::Runtime`（2177 行）与 `tui` 自有的引擎（engine.rs + 运行时）并存，处理相似问题但 API 不同。
+- **DDD 视角**：应用核心（Application Core）不唯一。DDD 要求一个明确的、可复用的应用层。
+- **影响**：逻辑重复、维护成本翻倍。
+
+### 问题 3：UI 层直接 IO
+
+- **现状**：`prompt_suggestion.rs` 在渲染层直接发 HTTP；`file_tree.rs`/`clipboard.rs` 有同步 `std::fs` 调用。
+- **DDD 视角**：界面层（接口层）不应直接依赖基础设施。应通过端口（gateway/repository）反转依赖。
+- **影响**：难以测试、UI 与基础设施耦合。
+
+### 问题 4：execpolicy 双实现
+
+- **现状**：`tui/src/execpolicy/`（11 文件）与独立 `crates/execpolicy` 并存。
+- **DDD 视角**：同一领域概念两套实现 = 上下文重复（duplicate model）。
+- **影响**：维护成本、可能不一致。
+
+### 问题 5：memory crate 孤立
+
+- **现状**：`crates/memory`（向量记忆系统）无任何上游 crate 依赖它。
+- **DDD 视角**：一个未被集成的子域 = "僵尸上下文"。
+- **影响**：代码浪费、易误导（让人以为记忆功能可用）。
+
+### 问题 6：i18n 与 UI 强耦合（已知但不动）
+
+- **现状**：`localization` 通过 `crate::localization::tr(MessageId)` 渗透约 100+ 个 UI 调用点（每个命令、控件、按键都有 `tr(...)`）。
+- **判断**：这是合理的 i18n 设计。**但**移除它需要改写全部 UI 文本调用点，会直接改动"与用户交互的层"。这与本任务约束"改造只影响底层，不影响与用户有交互的使用方法"冲突，且收益低、风险高。
+- **结论**：**保持现状**，不纳入本次优化。
+
+### 问题 7：规划/状态记录失真（治理问题）
+
+- **现状**：旧改进计划声称完成了不存在的拆分。
+- **根因**：缺少"完成即回写"的纪律。
+- **影响**：状态投影失真，后续决策被误导。本次已纠正。
+
+---
+
+## 5. 改进计划（只含真实待办）
+
+### Phase A：统一双重运行时（最高价值/最高风险）
+
+目标：让 `core::Runtime` 与 `tui` 引擎二选一或明确分工，消除重复的应用核心。
+
+- [ ] 梳理 `core::Runtime` 与 `tui` 引擎的功能重叠清单（逐方法对比）
+- [ ] 选定方案：合并 / 让 tui 复用 core / 明确分工边界
+- [ ] 实施并补回归测试
+- [ ] `cargo test --workspace` 通过
+
+**预期效果**：消除最大架构债，降低维护成本。
+
+### Phase B：UI 层 IO 收口
+
+目标：通过端口注入替代 UI 层直接 IO。
+
+- [ ] 枚举 UI 层所有直接 IO 调用（HTTP / fs）
+- [ ] 定义端口 trait（`HttpClient` / `FileSystem`）
+- [ ] 实现适配器并注入
+- [ ] 修改 UI 层改用端口
+- [ ] `cargo test` 通过
+
+**预期效果**：UI 可测、依赖方向正确。
+
+### Phase C：execpolicy 去重
+
+目标：统一执行策略实现。
+
+- [ ] 对比 `tui/src/execpolicy` 与 `crates/execpolicy` 差异
+- [ ] 选定保留方，删除重复
+- [ ] 更新依赖
+- [ ] `cargo test` 通过
+
+**预期效果**：单一事实来源，安全逻辑不分裂。
+
+### Phase D：memory 决策
+
+目标：决定向量记忆系统的去留。
+
+- [ ] 评估 `crates/memory` 的成熟度与价值
+- [ ] 二选一：**接入主流程**（成为真实子域）或 **明确标记 experimental / 移除**
+- [ ] 实施
+
+**预期效果**：要么可用，要么不再误导。
+
+### 明确不做（及原因）
+
+- [x] **不移除 i18n / `localization`**：违反"不动用户交互层"约束，且改写 100+ UI 调用点收益低、风险高。保持现状。
+- [x] **不把 tui 子域提升为独立 crate（战略重构）**：属于"新增架构"，超出"只做存量优化"范围，且风险高。当前先做战术拆分（已完成），战略重构留作后续独立评估，不在本计划强行展开。
+
+---
+
+## 6. 实施纪律（防止再次失真）
+
+1. **只影响底层**：改进不改动 TUI/CLI/HTTP 对用户的行为与入口。
+2. **MECE**：每个 Phase 职责互斥、完全穷尽。
+3. **奥卡姆剃刀**：不引入不必要的抽象；能不动就不动。
+4. **不新增功能**：只做存量优化。
+5. **完成即回写**：每完成一项，立即更新本文档 `[ ]` → `[x]` 并跑验收，不让状态再次失真。
+6. **验收门槛**：每个 Phase 后必须 `cargo build --workspace` + `cargo test --workspace` 通过。
+
+---
+
+## 7. 风险评估
+
+| 风险 | 影响 | 缓解 |
+|------|------|------|
+| 双重运行时合并引入 bug | 高 | 充分测试、灰度 |
+| UI IO 收口影响性能 | 中 | 必要时保留同步快路径 |
+| execpolicy 去重影响安全 | 高 | 保留沙箱能力、安全测试 |
+| memory 接入不成熟 | 低 | 评估后决定，不强行 |
+
+---
+
+> 注：本文档刻意**不列**任何"可有可无"的待办。若某子域当前已符合最佳实践，就标记完成或明确不做，而不是硬凑 TODO。
