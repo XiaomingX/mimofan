@@ -74,14 +74,13 @@ fn first_party_recent_provider_models_are_listed() {
     let registry = ModelRegistry::default();
     let models = registry.list();
 
-    for (provider, id) in [(ProviderKind::XiaomiMimo, "GLM-5.2")] {
-        assert!(
-            models
-                .iter()
-                .any(|model| model.provider == provider && model.id == id),
-            "expected {provider:?} model {id} in registry"
-        );
-    }
+    let (provider, id) = (ProviderKind::XiaomiMimo, "GLM-5.2");
+    assert!(
+        models
+            .iter()
+            .any(|model| model.provider == provider && model.id == id),
+        "expected {provider:?} model {id} in registry"
+    );
 }
 
 #[test]
@@ -91,15 +90,14 @@ fn zai_direct_models_resolve_when_provider_hinted() {
     // model_matches checks aliases too; openrouter entries like
     // "z-ai/glm-5.1" have lowercase aliases that match the
     // normalized request, and they appear before direct entries.
-    for (alias, expected) in [("GLM-5.2", "z-ai/glm-5.2")] {
-        let resolved = registry.resolve(Some(alias), Some(ProviderKind::XiaomiMimo));
+    let (alias, expected) = ("GLM-5.2", "z-ai/glm-5.2");
+    let resolved = registry.resolve(Some(alias), Some(ProviderKind::XiaomiMimo));
 
-        assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
-        assert_eq!(resolved.resolved.id, expected);
-        assert!(!resolved.used_fallback);
-        assert!(resolved.resolved.supports_tools);
-        assert!(resolved.resolved.supports_reasoning);
-    }
+    assert_eq!(resolved.resolved.provider, ProviderKind::XiaomiMimo);
+    assert_eq!(resolved.resolved.id, expected);
+    assert!(!resolved.used_fallback);
+    assert!(resolved.resolved.supports_tools);
+    assert!(resolved.resolved.supports_reasoning);
 }
 
 #[test]

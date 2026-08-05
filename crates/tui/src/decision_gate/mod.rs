@@ -146,6 +146,7 @@ impl DecisionGateManager {
     }
 
     /// Create a new decision gate.
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_gate(
         &self,
         gate_type: GateType,

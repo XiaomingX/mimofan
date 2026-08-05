@@ -122,6 +122,7 @@ impl EvidenceManager {
     }
 
     /// Record a new evidence.
+    #[allow(clippy::too_many_arguments)]
     pub async fn record_evidence(
         &self,
         thread_id: &str,

@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_subagent(
     runtime: &SubAgentRuntime,
     agent_id: String,

@@ -183,6 +183,7 @@ fn test_provider_config_creation() {
 }
 
 #[test]
+#[allow(clippy::field_reassign_with_default)]
 fn test_provider_config_is_openai_compatible() {
     use mimofan::config::ProviderConfig;
 
@@ -519,6 +520,7 @@ fn test_vec_operations() {
 // ── 集成测试：端到端流程 ──────────────────────────────────────
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_tool_execution_pipeline() {
     // 验证工具执行管道的基本流程
     let tool_name = "read_file";
@@ -548,6 +550,7 @@ model = "gpt-4"
 // ── 边界条件测试 ──────────────────────────────────────────────
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_empty_input_handling() {
     let empty_string = "";
     let empty_vec: Vec<String> = vec![];
@@ -559,6 +562,7 @@ fn test_empty_input_handling() {
 }
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_special_characters_handling() {
     let special_chars = "!@#$%^&*()_+-=[]{}|;':\",./<>?`~";
     assert!(!special_chars.is_empty());

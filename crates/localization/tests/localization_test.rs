@@ -96,7 +96,9 @@ fn test_tr_chinese_characters() {
     // 验证翻译包含中文字符
     let result = tr(Locale::ZhHans, MessageId::ConfigTitle);
     assert!(
-        result.chars().any(|c| c >= '\u{4e00}' && c <= '\u{9fff}'),
+        result
+            .chars()
+            .any(|c| ('\u{4e00}'..='\u{9fff}').contains(&c)),
         "翻译应包含中文字符: {}",
         result
     );

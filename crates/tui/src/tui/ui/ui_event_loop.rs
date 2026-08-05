@@ -6,7 +6,7 @@
 
 use super::*;
 
-#[allow(clippy::too_many_lines)]
+#[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub(crate) async fn run_event_loop(
     terminal: &mut AppTerminal,
     app: &mut App,

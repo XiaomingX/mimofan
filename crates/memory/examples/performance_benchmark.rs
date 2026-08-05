@@ -25,14 +25,14 @@ async fn main() {
         .map(|_| (0..384).map(|_| random_f32()).collect())
         .collect();
 
-    for i in 0..1000 {
+    for (i, emb) in embeddings.iter().enumerate().take(1000) {
         let obs = Observation::new(
             "benchmark-project".to_string(),
             ObservationKind::Discovery,
             format!("Benchmark observation {}", i),
         );
         observation_store
-            .store_observation(&obs, &embeddings[i])
+            .store_observation(&obs, emb)
             .expect("store observation");
     }
     println!("   Store 1000 observations: {:?}", start.elapsed());
