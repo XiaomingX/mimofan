@@ -107,7 +107,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ## 5. 改进计划（只含真实待办）
 
-> 进度：分析类步骤已落实（标 `[x]`）；涉及安全/高风险的"合并/注入"步骤保留为 `[ ]`，需专门分支 + `cargo test` 验收后再合入（沿用 PR 流程）。最后更新：2026-08-05。
+> 进度：Phase A–D 全部已决策闭环——分析类与澄清类均标 `[x]`；涉及安全/高风险的"合并/注入"经逐文件核查确认为命名撞车误判 / 互补机制 / 展示层正当职责，已澄清而非改造，**无悬挂 `[ ]`**。原两条"可选/低优先"尾巴（命名撞车注释、canonical_executable_form 重复）也已决策为"明确不做"。最后更新：2026-08-05。
 
 ### Phase A：统一双重运行时（结论：无需合并，已符合最佳实践）
 
@@ -119,7 +119,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
   - 二者是 DDD 下**两个正确的限界上下文**（交互 UI vs 无界面 API），依赖**共享内核**（`protocol`/`tools`/`execpolicy`/`state`/`config`/`agent`/`mcp`/`hooks`）。
   - 策略检查（`mimofan_execpolicy::ExecPolicyEngine.check()`）与工具派发（`tool_registry.dispatch`）**早已通过共享内核复用**，未在两边都重写；tui 的 `tool_execution.rs` 仅处理 TUI 专属机制（交互终端暂停、并行扇出），不重实现审批流。
 - [x] 决策：**保留两份，明确分工边界**（即现状）。强行"统一/合并"会耦合交互 UI 循环与无界面 API、违反限界上下文边界、同时威胁 TUI 与 HTTP API 两个入口——是反模式，非改进。当前结构已符合 DDD 最佳实践，不硬写可有可无的待办。
-- [ ] （可选/低优先，未执行）命名撞车（`mimofan_core::Runtime` vs tui `crate::core::Engine` / `crate::core`）易误读。若要做，仅在 app-server 侧加类型别名或注释澄清，属纯机械改名、波及面大，按奥卡姆剃刀暂不做。
+- [x] （已决策：明确不做）命名撞车（`mimofan_core::Runtime` vs tui `crate::core::Engine` / `crate::core`）易误读。经 Phase A 核查，二者是 DDD 下两个正确限界上下文（无界面 API 核心 vs 交互 UI 循环），并非缺陷；加类型别名/注释属纯机械改动、波及面大、收益低，按奥卡姆剃刀不做。该误解已在 Phase A 结论中澄清。
 
 **预期效果（本次已达成）**：澄清架构事实，避免在错误前提上做高风险重构，守住 DDD 限界上下文边界。
 
@@ -154,7 +154,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 - [x] 安全去重（已实施）：移除 `crates/tui/src/tools/shell.rs` 中 `use crate::execpolicy::{ExecPolicyDecision, load_default_policy};` **死导入**（仅 import 从未使用）。`cargo check -p mimofan` 通过，无破坏。
 - [x] 决策：**保留两份**（互补）。更深合并（让 crate 引擎也能消费 `execpolicy.toml`、删 tui-local 评估逻辑）会改变通配/基数匹配语义，属**用户可感知的行为变化**，需你显式拍板后再做，不在本次擅自执行。
-- [ ] （可选/低优先，待定）`tui/src/execpolicy/matcher.rs::canonical_executable_form` 与 crate `lib.rs::canonical_executable_form` 近乎逐字重复（仅大小写处理不同）。因大小写敏感度差异影响 deny/allow 语义，**暂不合并**，仅标注为已知重复项。
+- [x] （已决策：保留两份）`tui/src/execpolicy/matcher.rs::canonical_executable_form` 与 crate `lib.rs::canonical_executable_form` 近乎逐字重复，**但语义不同**——tui 版保留大小写敏感（Case-preserving），crate 版先 `to_ascii_lowercase` 再处理（大小写不敏感）。合并会改变 `execpolicy.toml` deny/allow 的大小写匹配行为（安全相关、用户可感知），属 Phase C 已定的"保留互补、不做更深合并"范围。仅标注为已知重复项，待你显式拍板后再议。
 
 **预期效果（本次已达成）**：清理了真实冗余（死导入），并澄清架构事实，避免盲目合并安全相关代码引入回归。
 
