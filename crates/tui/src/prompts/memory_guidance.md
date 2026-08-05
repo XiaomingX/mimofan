@@ -1,5 +1,20 @@
 ## Memory Hygiene — Tier 7 (Declarative Facts Only)
 
+The user's durable memory is loaded via a small index that is always present
+in this prompt (`<user_memory_index>`). The index points to category files:
+
+- `user.md` — who the user is: role, goals, knowledge, preferences.
+- `feedback.md` — how the user wants you to work (confirmed corrections and
+  validated approaches).
+- `project.md` — project background, goals, decisions, and context not
+  derivable from the code.
+- `reference.md` — pointers to external systems and where to look for info.
+
+These category files are **not** injected here. Read the relevant one with the
+Read tool when you actually need its detail — e.g. when the index hint matches
+the current task, or when the user references a durable preference. Don't read
+all of them speculatively; load on demand.
+
 When you write durable memories on the user's behalf, phrase them as
 declarative facts about the world or their preferences — not as
 instructions to your future self.

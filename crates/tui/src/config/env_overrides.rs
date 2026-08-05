@@ -276,6 +276,9 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
     if let Ok(value) = std::env::var("MIMOFAN_MEMORY_PATH") {
         config.memory_path = Some(value);
     }
+    if let Ok(value) = std::env::var("MIMOFAN_MEMORY_DIR") {
+        config.memory_dir = Some(value);
+    }
     if let Ok(value) = std::env::var("MIMOFAN_MEMORY") {
         let on = matches!(
             value.trim().to_ascii_lowercase().as_str(),

@@ -18,19 +18,19 @@
 
 它能做什么：
 
-- 📖 读懂项目结构，理解模块关系
-- ✍️ 生成符合规范的代码与测试
-- 🧪 写完自动跑验证，红了就修
-- 🔧 给报错信息就能定位到具体代码行
-- 🤫 不弹窗不打扰，只在需要你决策时才开口（每次危险操作都会先问「可以吗？」）
-- 🔒 Spec Freeze 冻结计划，防止 Agent 偏离
-- 📋 Issue Monitor 监控 GitHub Issue，自动关联 PR
+- 读懂项目结构，理解模块关系
+- 生成符合规范的代码与测试
+- 写完自动跑验证，红了就修
+- 给报错信息就能定位到具体代码行
+- 不弹窗不打扰，只在需要你决策时才开口（每次危险操作都会先问「可以吗？」）
+- Spec Freeze 冻结计划，防止 Agent 偏离
+- Issue Monitor 监控 GitHub Issue，自动关联 PR
 
 > 米谋不是一个替你写代码的工具，而是一个帮你把代码写好的搭档。谋定而后动，知止而有得。
 
 ---
 
-## ⚡ 30 秒极速上手 (零配置开箱即用)
+## 30 秒极速上手（零配置开箱即用）
 
 ### 1. 安装
 
@@ -55,11 +55,11 @@ mimofan
 # 在 ~/.mimofan/config.toml 中按下方「配置示例」填写后运行 mimofan
 ```
 
-> 💡 **提示**：若未设置环境变量，首次运行 `mimofan` 会自动启动交互式配置向导帮你完成配置。
+> **提示**：若未设置环境变量，首次运行 `mimofan` 会自动启动交互式配置向导帮你完成配置。
 
 ---
 
-## 💡 常用调用方式
+## 常用调用方式
 
 ```bash
 # 启动全屏 TUI 交互界面
@@ -74,7 +74,7 @@ mimofan doctor
 
 ---
 
-## 🎯 高频实用场景
+## 高频实用场景
 
 ### 场景一：快速修复 Bug
 
@@ -136,7 +136,7 @@ mimofan doctor
 
 ---
 
-## 🔧 核心能力
+## 核心能力
 
 ### AI 编程助手
 
@@ -163,7 +163,7 @@ mimofan doctor
 
 ---
 
-## ⌨️ TUI 操作指南
+## TUI 操作指南
 
 ### 基础按键
 
@@ -179,13 +179,14 @@ mimofan doctor
 ### 安全授权
 
 AI 执行命令时会弹出授权窗口：
+
 - `y`: 允许执行
 - `n`: 拒绝操作
 - `a`: 本次会话全部允许
 
 ---
 
-## 📋 斜杠指令大全
+## 斜杠指令大全
 
 ### 基础指令
 
@@ -236,7 +237,7 @@ AI 执行命令时会弹出授权窗口：
 
 ---
 
-## 🚀 进阶功能
+## 进阶功能
 
 ### Spec Freeze（计划冻结）
 
@@ -273,7 +274,7 @@ AI 执行命令时会弹出授权窗口：
 
 ---
 
-## 📦 配置示例
+## 配置示例
 
 ### Anthropic (Messages API)
 
@@ -286,7 +287,7 @@ base_url = "https://api.xiaomimimo.com/anthropic"
 default_text_model = "mimo-v2.5"
 ```
 
-> ⚠️ **重要**: base_url 必须以 `/anthropic` 结尾，mimofan 会自动检测并使用 Anthropic Messages API 协议。
+> **重要**: base_url 必须以 `/anthropic` 结尾，mimofan 会自动检测并使用 Anthropic Messages API 协议。
 > 如果 base_url 不以 `/anthropic` 结尾，将使用 OpenAI Chat Completions 协议。
 
 ### OpenAI Chat Completions (MiMo 模型)
@@ -320,7 +321,7 @@ default_text_model = "qwen-max"
 
 ---
 
-## ❓ 常见问题
+## 常见问题
 
 **Q: 启动时提示 Config not found 或连接超时？**
 
@@ -344,7 +345,7 @@ default_text_model = "qwen-max"
 
 ---
 
-## 📚 文档
+## 文档
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) -- 系统架构设计
 - [docs/MCP.md](docs/MCP.md) -- MCP 扩展服务
@@ -354,12 +355,12 @@ default_text_model = "qwen-max"
 
 ---
 
-## 🤝 贡献
+## 贡献
 
 欢迎贡献代码！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
 
 ---
 
-## 📄 开源许可
+## 开源许可
 
 本项目遵循 MIT License 开源协议。

@@ -2815,20 +2815,18 @@ fn render_context_panel(f: &mut Frame, area: Rect, app: &mut App) {
 
     // ── Memory ───────────────────────────────────────────────────
     if app.use_memory {
-        let size_hint = std::fs::metadata(&app.memory_path)
-            .map(|m| m.len())
-            .map(|bytes| {
-                if bytes >= 1024 * 1024 {
-                    format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-                } else if bytes >= 1024 {
-                    format!("{:.1} KB", bytes as f64 / 1024.0)
-                } else {
-                    format!("{bytes} B")
-                }
+        let category_count = crate::memory::CATEGORIES
+            .iter()
+            .filter(|cat| {
+                let p = crate::memory::category_path(&app.memory_dir, cat);
+                p.exists()
+                    && std::fs::read_to_string(&p)
+                        .map(|c| !c.trim().is_empty())
+                        .unwrap_or(false)
             })
-            .unwrap_or_else(|_| "—".to_string());
+            .count();
         lines.push(Line::from(Span::styled(
-            format!("memory: {} ({})", app.memory_path.display(), size_hint),
+            format!("memory: {} ({} categories)", app.memory_dir.display(), category_count),
             Style::default().fg(theme.text_muted),
         )));
     }

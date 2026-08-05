@@ -173,7 +173,7 @@ pub(crate) async fn run_interactive(
             use_mouse_capture,
             use_bracketed_paste,
             skills_dir,
-            memory_path: config.memory_path(),
+            memory_dir: config.memory_dir(),
             notes_path: config.notes_path(),
             mcp_config_path: config.mcp_config_path(),
             use_memory: config.memory_enabled(),

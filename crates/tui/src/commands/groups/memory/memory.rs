@@ -1,46 +1,60 @@
-//! `/memory` slash command — inspect and edit the user memory file.
+//! `/memory` slash command — inspect and manage the categorized memory store.
 //!
 //! When the user-memory feature is opted-in (`[memory] enabled = true` in
-//! config or `MIMOFAN_MEMORY=on` in the environment), `/memory` shows
-//! the current memory file path and contents inline. Subcommands let the
-//! user clear or open the file:
+//! config or `MIMOFAN_MEMORY=on` in the environment), memory lives in a
+//! directory (`~/.mimofan/memory/` by default) holding `MEMORY.md` (the
+//! always-injected index) plus one file per category
+//! (`user.md` / `feedback.md` / `project.md` / `reference.md`).
 //!
-//! - `/memory` — show path + content
-//! - `/memory show` — alias for the no-arg form
-//! - `/memory clear` — replace the file contents with an empty marker
-//! - `/memory path` — show only the resolved path
-//! - `/memory help` — show command-specific help and the resolved path
+//! Subcommands:
+//! - `/memory` — show the index (`MEMORY.md`) and available categories
+//! - `/memory show [category]` — show a category file (or all non-empty)
+//! - `/memory path` — show the memory directory
+//! - `/memory clear [category]` — clear a category (or the whole store)
+//! - `/memory edit [category]` — print an editor command for the index or a
+//!   category file
+//! - `/memory help` — this help
 //!
-//! Editor integration (`/memory edit`) is intentionally minimal: the
-//! command prints a copy-pasteable shell line to open the file in the
-//! user's `$VISUAL` / `$EDITOR`, since the in-process external editor
-//! plumbing requires terminal teardown that the slash-command handler
-//! doesn't have access to.
+//! Quick capture: `# foo` from the composer appends to the default category
+//! (`project`); `# user foo` routes to `user.md`. The `remember` tool writes
+//! with an explicit category.
 
 use std::fs;
-use std::path::Path;
 
 use super::CommandResult;
 use crate::tui::app::App;
+use crate::memory::{
+    CATEGORIES, category_path, index_path, is_category, load_index, read_category, write_index,
+};
 
-const MEMORY_USAGE: &str = "/memory [show|path|clear|edit|help]";
+const MEMORY_USAGE: &str = "/memory [show [category]|path|clear [category]|edit [category]|help]";
 
-fn memory_help(path: &Path) -> String {
+fn memory_help(dir: &std::path::Path) -> String {
     format!(
-        "Inspect or manage your persistent user-memory file.\n\n\
+        "Inspect or manage your categorized user memory.\n\n\
          Usage: {MEMORY_USAGE}\n\n\
-         Current path: {}\n\n\
+         Memory directory: {}\n\n\
          Subcommands:\n\
-           /memory          Show the resolved path and current contents\n\
-           /memory show     Alias for the no-arg form\n\
-           /memory path     Print just the resolved path\n\
-           /memory clear    Replace the file contents with an empty marker\n\
-           /memory edit     Print the editor command for this file\n\
-           /memory help     Show this help\n\n\
-         Quick capture: type `# foo` in the composer to append a timestamped\n\
-         bullet without firing a turn.",
-        path.display()
+           /memory                Show the index and available categories\n\
+           /memory show [cat]     Show a category file (or every non-empty one)\n\
+           /memory path           Print the memory directory\n\
+           /memory clear [cat]    Clear a category (or the whole store if omitted)\n\
+           /memory edit [cat]     Print an editor command for the index or a category\n\
+           /memory help           Show this help\n\n\
+         Categories: {}\n\
+         Quick capture: `# foo` appends to `project`; `# user foo` to `user`.",
+        dir.display(),
+        CATEGORIES.join(", "),
     )
+}
+
+/// Count categories that currently have non-empty content.
+fn populated_categories(dir: &std::path::Path) -> Vec<&'static str> {
+    CATEGORIES
+        .iter()
+        .copied()
+        .filter(|cat| read_category(dir, cat).is_some())
+        .collect()
 }
 
 pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
@@ -50,37 +64,121 @@ pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
         );
     }
 
-    let path = app.memory_path.clone();
+    let dir = app.memory_dir.clone();
     let sub = arg.unwrap_or("show").trim();
 
     match sub {
+        "path" => CommandResult::message(dir.display().to_string()),
+        "help" => CommandResult::message(memory_help(&dir)),
         "" | "show" => {
-            let body = match fs::read_to_string(&path) {
-                Ok(text) if text.trim().is_empty() => format!(
-                    "{}\n(empty — add via `# foo` from the composer or have the model use the `remember` tool)",
-                    path.display()
-                ),
-                Ok(text) => format!("{}\n\n{}", path.display(), text.trim_end()),
-                Err(_) => format!(
-                    "{}\n(file does not exist yet — add via `# foo` from the composer to create it)",
-                    path.display()
-                ),
-            };
+            let populated = populated_categories(&dir);
+            let index = load_index(&dir);
+            let mut body = format!("{}\n", dir.display());
+            if let Some(index) = index {
+                body.push_str("\n");
+                body.push_str(index.trim_end());
+                body.push('\n');
+            } else {
+                body.push_str("\n(index is empty — add via `# foo` or the `remember` tool)\n");
+            }
+            if populated.is_empty() {
+                body.push_str("\nNo populated categories yet.\n");
+            } else {
+                body.push_str(&format!(
+                    "\nPopulated categories: {}\n",
+                    populated.join(", ")
+                ));
+            }
             CommandResult::message(body)
         }
-        "path" => CommandResult::message(path.display().to_string()),
-        "clear" => match fs::write(&path, "") {
-            Ok(()) => CommandResult::message(format!("memory cleared: {}", path.display())),
-            Err(err) => CommandResult::error(format!("failed to clear {}: {err}", path.display())),
-        },
-        "edit" => CommandResult::message(format!(
-            "to edit your memory file, run:\n\n  ${{VISUAL:-${{EDITOR:-vi}}}} {}",
-            path.display()
-        )),
-        "help" => CommandResult::message(memory_help(&path)),
+        s if s.starts_with("show ") => {
+            let cat = s["show ".len()..].trim();
+            if cat.is_empty() {
+                // No category: show every non-empty category concatenated.
+                let populated = populated_categories(&dir);
+                if populated.is_empty() {
+                    return CommandResult::message(format!(
+                        "{}\n\n(no populated categories)",
+                        dir.display()
+                    ));
+                }
+                let mut body = String::new();
+                for c in populated {
+                    if let Some(content) = read_category(&dir, c) {
+                        body.push_str(&format!("=== {c}.md ===\n{content}\n"));
+                    }
+                }
+                CommandResult::message(body)
+            } else if is_category(cat) {
+                match read_category(&dir, cat) {
+                    Some(content) => CommandResult::message(format!(
+                        "{}\n\n{}",
+                        category_path(&dir, cat).display(),
+                        content.trim_end()
+                    )),
+                    None => CommandResult::message(format!(
+                        "{} is empty (no entries yet)",
+                        category_path(&dir, cat).display()
+                    )),
+                }
+            } else {
+                CommandResult::error(format!(
+                    "unknown category `{cat}`. Expected one of: {}",
+                    CATEGORIES.join(", ")
+                ))
+            }
+        }
+        s if s == "edit" || s.starts_with("edit ") => {
+            let cat = s.strip_prefix("edit").unwrap_or("").trim();
+            let target = if cat.is_empty() {
+                index_path(&dir)
+            } else if is_category(cat) {
+                category_path(&dir, cat)
+            } else {
+                return CommandResult::error(format!(
+                    "unknown category `{cat}`. Expected one of: {}",
+                    CATEGORIES.join(", ")
+                ));
+            };
+            CommandResult::message(format!(
+                "to edit, run:\n\n  ${{VISUAL:-${{EDITOR:-vi}}}} {}",
+                target.display()
+            ))
+        }
+        s if s.starts_with("clear") => {
+            let rest = s["clear".len()..].trim();
+            if rest.is_empty() {
+                // Clear the whole store: empty every category, then rebuild
+                // the (now-empty) index.
+                for cat in CATEGORIES {
+                    let _ = fs::write(category_path(&dir, cat), "");
+                }
+                let _ = write_index(&dir);
+                CommandResult::message(format!("memory cleared: {}", dir.display()))
+            } else if is_category(rest) {
+                match fs::write(category_path(&dir, rest), "") {
+                    Ok(()) => {
+                        let _ = write_index(&dir);
+                        CommandResult::message(format!(
+                            "cleared {}.md (index refreshed)",
+                            rest
+                        ))
+                    }
+                    Err(err) => CommandResult::error(format!(
+                        "failed to clear {}.md: {err}",
+                        rest
+                    )),
+                }
+            } else {
+                CommandResult::error(format!(
+                    "unknown category `{rest}`. Expected one of: {}",
+                    CATEGORIES.join(", ")
+                ))
+            }
+        }
         _ => CommandResult::error(format!(
             "unknown subcommand `{sub}`. Try `/memory help`.\n\n{}",
-            memory_help(&path)
+            memory_help(&dir)
         )),
     }
 }
