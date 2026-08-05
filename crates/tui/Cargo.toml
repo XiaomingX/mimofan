@@ -14,6 +14,9 @@ web = ["dep:schemaui", "schemaui/web", "json", "toml"]
 json = ["schemaui/json"]
 toml = ["schemaui/toml"]
 long-running-tests = []
+# 向量记忆（互补于 crate::memory 文件记忆）。默认关闭：需 --features vector-memory
+# 且运行时配置 MIMOFAN_MEMORY_API_KEY 等环境变量才启用，对默认构建零影响。
+vector-memory = ["dep:mimofan-memory"]
 
 [[bin]]
 name = "mimofan"
@@ -33,6 +36,7 @@ mimofan-release = { path = "../release" }
 mimofan-secrets = { path = "../secrets" }
 mimofan-state = { path = "../state" }
 mimofan-tools = { path = "../tools" }
+mimofan-memory = { path = "../memory", optional = true }
 schemaui = { version = "0.12.0", default-features = false, optional = true }
 async-stream = "0.3.6"
 async-trait.workspace = true

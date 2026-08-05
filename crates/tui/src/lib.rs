@@ -114,6 +114,8 @@ mod task_manager;
 mod tls;
 mod tool_output_receipts;
 pub mod tools;
+#[cfg(feature = "vector-memory")]
+pub mod vector_memory;
 mod tui;
 mod utils;
 mod vision;
