@@ -1686,7 +1686,6 @@ pub fn new_shared_shell_manager(workspace: PathBuf) -> SharedShellManager {
 use crate::command_safety::{
     SafetyLevel, analyze_command, extract_primary_command, is_parallel_readonly_command,
 };
-use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 use crate::features::Feature;
 use crate::tools::cargo_failure_summary::summarize_cargo_failure;
 use crate::tools::spec::{

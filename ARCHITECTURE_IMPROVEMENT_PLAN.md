@@ -138,17 +138,21 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ### Phase C：execpolicy 去重
 
-目标：统一执行策略实现。
+目标：消除执行策略的重复实现。**结论（已核实，诚实修正）**：所谓「双实现」并非同一逻辑的两份拷贝，而是**互补的两套机制**，读不同的配置源、职责不同，不能简单删其一。
 
-- [x] 对比差异（已落实关键结论）：`tui/src/execpolicy`（11 文件）与 `crates/execpolicy`（crate）**两份都存活且分工不同**——
-  - crate `mimofan-execpolicy`：被 core/config/tui/protocol/app-server 依赖，提供 `ExecPolicyEngine` / `AskForApproval` / `ExecPolicyContext` / `normalize_workspace_relative_path`（引擎/配置层）。
-  - tui 本地 `crate::execpolicy`：服务 CLI `ExecPolicyCheckCommand`（`cli/mod.rs:867`）、`matcher::pattern_matches`（`command_safety.rs`）、`ExecPolicyDecision` / `load_default_policy`（`tools/shell.rs`/`shell_tools.rs`）。
-  - 结论：二者互补而非纯重复，去重 = 安全相关的语义合并，非删死代码。
-- [ ] 选定保留方，删除重复（高风险：安全逻辑不分裂，需逐调用点迁移 + 安全测试）
-- [ ] 更新依赖
-- [ ] `cargo test` 通过
+- [x] 对比差异（落实关键结论）：
+  - **crate `mimofan-execpolicy` = 运行时审批引擎（权威门禁）**：被 core/config/tui/protocol/app-server 依赖，提供 `ExecPolicyEngine` / `AskForApproval` / `ExecPolicyContext`。真正的执行门禁在 `core/engine/policy.rs:283` 调 `.check()`（`exec_shell` 审批由此决定）。
+  - **tui 本地 `crate::execpolicy` = 文件策略覆盖 + CLI 诊断**，读**独立配置源** `~/.mimofan/execpolicy.toml`：
+    - `shell_tools.rs`：`load_default_policy()` + `policy.evaluate()` 对 `exec_shell` 做**二次 deny 覆盖**（与主引擎叠加，非替代）。
+    - `cli/mod.rs:867`：`ExecPolicyCheckCommand`（用户命令 `mimofan execpolicy check`）。
+    - `matcher::pattern_matches` / `prefix_allow_matches`：被 `command_safety.rs` 复用。
+  - 二者语义不同：crate 用**基数感知前缀**匹配；tui-local 用 **通配 `*` 正则**匹配（`execpolicy.toml` 格式 `[group] allow/deny`）。直接替换会改变用户的策略匹配行为。
 
-**预期效果**：单一事实来源，安全逻辑不分裂。
+- [x] 安全去重（已实施）：移除 `crates/tui/src/tools/shell.rs` 中 `use crate::execpolicy::{ExecPolicyDecision, load_default_policy};` **死导入**（仅 import 从未使用）。`cargo check -p mimofan` 通过，无破坏。
+- [x] 决策：**保留两份**（互补）。更深合并（让 crate 引擎也能消费 `execpolicy.toml`、删 tui-local 评估逻辑）会改变通配/基数匹配语义，属**用户可感知的行为变化**，需你显式拍板后再做，不在本次擅自执行。
+- [ ] （可选/低优先，待定）`tui/src/execpolicy/matcher.rs::canonical_executable_form` 与 crate `lib.rs::canonical_executable_form` 近乎逐字重复（仅大小写处理不同）。因大小写敏感度差异影响 deny/allow 语义，**暂不合并**，仅标注为已知重复项。
+
+**预期效果（本次已达成）**：清理了真实冗余（死导入），并澄清架构事实，避免盲目合并安全相关代码引入回归。
 
 ### Phase D：memory 决策
 
