@@ -632,11 +632,16 @@ impl Engine {
             config.notes_path.clone(),
             config.mcp_config_path.clone(),
         );
+        // One-time migration of any legacy single-file memory into the
+        // categorized directory layout (idempotent; no-op when absent).
+        let legacy_memory = config.memory_dir.with_file_name("memory.md");
+        let _ = crate::memory::migrate_legacy(&legacy_memory, &config.memory_dir);
+
         // Set up stable system prompt with project context (default to agent mode).
         // Per-turn working-set metadata is injected into the latest user
         // message at request time so file churn does not rewrite this prefix.
         let user_memory_block =
-            crate::memory::compose_block(config.memory_enabled, &config.memory_path);
+            crate::memory::compose_index_block(config.memory_enabled, &config.memory_dir);
         let prompt_goal_objective =
             goal_objective_for_prompt(config.goal_objective.as_deref(), &config.goal_state);
         let system_prompt =
@@ -2370,7 +2375,7 @@ impl Engine {
         // `remember` tool can append entries (#489). `None` when the
         // feature is disabled — tools short-circuit on that.
         if self.config.memory_enabled {
-            ctx.memory_path = Some(self.config.memory_path.clone());
+            ctx.memory_dir = Some(self.config.memory_dir.clone());
         }
 
         if let Some(decider) = self.config.network_policy.as_ref() {
@@ -2562,7 +2567,7 @@ impl Engine {
     /// Refresh the stable system prompt based on current non-mode context.
     fn refresh_system_prompt(&mut self) {
         let user_memory_block =
-            crate::memory::compose_block(self.config.memory_enabled, &self.config.memory_path);
+            crate::memory::compose_index_block(self.config.memory_enabled, &self.config.memory_dir);
         let prompt_goal_objective = goal_objective_for_prompt(
             self.config.goal_objective.as_deref(),
             &self.config.goal_state,

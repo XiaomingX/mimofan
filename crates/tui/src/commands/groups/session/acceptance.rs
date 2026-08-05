@@ -707,7 +707,7 @@ fn create_test_app_with_tmpdir(tmpdir: &TempDir) -> App {
         use_bracketed_paste: true,
         max_subagents: 1,
         skills_dir: tmpdir.path().join("skills"),
-        memory_path: tmpdir.path().join("memory.md"),
+        memory_dir: tmpdir.path().join("memory"),
         notes_path: tmpdir.path().join("notes.txt"),
         mcp_config_path: tmpdir.path().join("mcp.json"),
         use_memory: false,

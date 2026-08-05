@@ -104,12 +104,13 @@ pub struct EngineConfig {
     /// Per-role/type sub-agent model overrides already resolved from config.
     pub subagent_model_overrides: HashMap<String, String>,
     /// Whether the user-memory feature is enabled (#489). When `true` the
-    /// engine reads `memory_path` on each prompt assembly and prepends a
-    /// `<user_memory>` block to the system prompt.
+    /// engine reads the memory index from `memory_dir` on each prompt
+    /// assembly and prepends a `<user_memory_index>` block to the system
+    /// prompt.
     pub memory_enabled: bool,
-    /// Path to the user memory file (#489). Always populated; only
+    /// Path to the user memory directory (#489). Always populated; only
     /// consulted when `memory_enabled` is `true`.
-    pub memory_path: PathBuf,
+    pub memory_dir: PathBuf,
     /// Default directory for Xiaomi MiMo speech/TTS tool outputs.
     pub speech_output_dir: Option<PathBuf>,
     pub vision_config: Option<crate::config::VisionModelConfig>,
@@ -221,7 +222,7 @@ impl Default for EngineConfig {
             runtime_services: RuntimeToolServices::default(),
             subagent_model_overrides: HashMap::new(),
             memory_enabled: false,
-            memory_path: PathBuf::from("./memory.md"),
+            memory_dir: PathBuf::from("./memory"),
             speech_output_dir: None,
             vision_config: None,
             strict_tool_mode: false,

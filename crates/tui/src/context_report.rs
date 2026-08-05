@@ -212,14 +212,15 @@ pub fn build_headless_context_report(config: &Config, workspace: &Path) -> Promp
     let selected_skills_dir =
         crate::tui::app::resolve_skills_dir(workspace, &global_skills_dir, config);
     let mut builder = base_source_entries(&model, workspace, Some(&selected_skills_dir));
-    let memory_path = config.memory_path();
+    let memory_dir = config.memory_dir();
 
-    if let Some(memory_block) = crate::memory::compose_block(config.memory_enabled(), &memory_path)
+    if let Some(memory_block) =
+        crate::memory::compose_index_block(config.memory_enabled(), &memory_dir)
     {
         builder.push(SourceEntry::text(
             SourceKind::UserMemory,
             "User memory",
-            Some(memory_path.display().to_string()),
+            Some(memory_dir.display().to_string()),
             ActivationReason::ConfigEnabled,
             &memory_block,
             CountingConfidence::High,
@@ -229,7 +230,7 @@ pub fn build_headless_context_report(config: &Config, workspace: &Path) -> Promp
         builder.push(SourceEntry::omitted(
             SourceKind::UserMemory,
             "User memory",
-            Some(memory_path.display().to_string()),
+            Some(memory_dir.display().to_string()),
             Some(6),
             "disabled, missing, or empty",
         ));
@@ -391,11 +392,12 @@ fn add_app_runtime_entries(builder: &mut ReportBuilder, app: &App) {
         Some(4),
     ));
 
-    if let Some(memory_block) = crate::memory::compose_block(app.use_memory, &app.memory_path) {
+    if let Some(memory_block) = crate::memory::compose_index_block(app.use_memory, &app.memory_dir)
+    {
         builder.push(SourceEntry::text(
             SourceKind::UserMemory,
             "User memory",
-            Some(app.memory_path.display().to_string()),
+            Some(app.memory_dir.display().to_string()),
             ActivationReason::ConfigEnabled,
             &memory_block,
             CountingConfidence::High,
@@ -405,7 +407,7 @@ fn add_app_runtime_entries(builder: &mut ReportBuilder, app: &App) {
         builder.push(SourceEntry::omitted(
             SourceKind::UserMemory,
             "User memory",
-            Some(app.memory_path.display().to_string()),
+            Some(app.memory_dir.display().to_string()),
             Some(6),
             "disabled, missing, or empty",
         ));

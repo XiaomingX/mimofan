@@ -16,7 +16,7 @@ fn default_tui_options(tmp: &TempDir) -> TuiOptions {
         use_bracketed_paste: true,
         max_subagents: 1,
         skills_dir: tmp.path().join("skills"),
-        memory_path: tmp.path().join("memory.md"),
+        memory_dir: tmp.path().join("memory"),
         notes_path: tmp.path().join("notes.txt"),
         mcp_config_path: tmp.path().join("mcp.json"),
         use_memory: false,

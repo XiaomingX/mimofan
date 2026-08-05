@@ -516,7 +516,7 @@ pub struct TuiOptions {
     pub use_bracketed_paste: bool,
     pub max_subagents: usize,
     pub skills_dir: PathBuf,
-    pub memory_path: PathBuf,
+    pub memory_dir: PathBuf,
     pub notes_path: PathBuf,
     pub mcp_config_path: PathBuf,
     pub use_memory: bool,
@@ -741,9 +741,9 @@ pub struct App {
     pub mcp_config_path: PathBuf,
     pub skills_dir: PathBuf,
     pub skills_scan_mimofan_only: bool,
-    /// Path to the user-memory file (#489). Always populated; only
-    /// consulted when `use_memory` is `true`.
-    pub memory_path: PathBuf,
+    /// Path to the categorized user-memory directory (`~/.mimofan/memory/`).
+    /// Always populated; only consulted when `use_memory` is `true`.
+    pub memory_dir: PathBuf,
     /// Whether the user-memory feature is enabled (#489). Mirrors
     /// `Config::memory_enabled()` at app boot. Used by the `# foo`
     /// composer interception, the `/memory` slash command, and tool

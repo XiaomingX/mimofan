@@ -1086,7 +1086,7 @@ pub(crate) fn run_doctor_json(
     // on the memory-MVP branch (#518); this duplicates the same logic
     // until the two PRs land and it can be replaced with a single
     // method call.)
-    let memory_path = config.memory_path();
+    let memory_dir = config.memory_dir();
     let memory_enabled_env = std::env::var("MIMOFAN_MEMORY")
         .ok()
         .map(|raw| {
@@ -1096,12 +1096,25 @@ pub(crate) fn run_doctor_json(
             )
         })
         .unwrap_or(false);
+    let memory_index_present = crate::memory::index_path(&memory_dir).exists();
+    let memory_categories_present: Vec<String> = crate::memory::CATEGORIES
+        .iter()
+        .filter(|cat| {
+            let p = crate::memory::category_path(&memory_dir, cat);
+            p.exists()
+                && std::fs::read_to_string(&p)
+                    .map(|c| !c.trim().is_empty())
+                    .unwrap_or(false)
+        })
+        .map(|s| s.to_string())
+        .collect();
     let memory_summary = json!({
         // The MVP feature is opt-in by default; this defaults to false
         // on branches without the [memory] section in `Config`.
         "enabled": memory_enabled_env,
-        "path": memory_path.display().to_string(),
-        "file_present": memory_path.exists(),
+        "dir": memory_dir.display().to_string(),
+        "index_present": memory_index_present,
+        "categories_present": memory_categories_present,
     });
     let api_target = doctor_api_target(config);
     let strict_tool_mode = doctor_strict_tool_mode_status(config);
