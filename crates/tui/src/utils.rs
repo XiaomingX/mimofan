@@ -518,9 +518,6 @@ pub fn estimate_message_chars(messages: &[Message]) -> usize {
 // helper avoids the race entirely and makes the tests portable to Windows
 // without additional platform scaffolding.
 
-#[cfg(test)]
-mod atomic_write_tests {}
-
 /// Normalize a path by resolving `.` and `..` components without touching the
 /// filesystem. Returns `"."` for an empty result.
 pub fn normalize_path_components(path: &Path) -> PathBuf {
@@ -554,9 +551,3 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hasher.update(bytes);
     format!("{:x}", hasher.finalize())
 }
-
-#[cfg(test)]
-mod spawn_supervised_tests {}
-
-#[cfg(test)]
-mod project_mapping_tests {}

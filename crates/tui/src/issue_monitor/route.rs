@@ -127,8 +127,9 @@ impl RoutePinning {
                             "Issue #{} is not in the monitored scope {:?}",
                             issue_num, allowed
                         ),
-                        suggestion: "Confirm this issue should be included, or create a separate monitor."
-                            .to_string(),
+                        suggestion:
+                            "Confirm this issue should be included, or create a separate monitor."
+                                .to_string(),
                     }));
                 }
             }

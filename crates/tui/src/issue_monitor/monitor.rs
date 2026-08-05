@@ -56,10 +56,7 @@ pub enum WakeEventType {
         new_state: String,
     },
     /// Issue 新增评论
-    IssueCommentAdded {
-        issue_number: u64,
-        comment_id: u64,
-    },
+    IssueCommentAdded { issue_number: u64, comment_id: u64 },
     /// Issue 标签变化
     IssueLabelChange {
         issue_number: u64,
@@ -73,14 +70,9 @@ pub enum WakeEventType {
         new_state: String,
     },
     /// PR 评论
-    PrCommentAdded {
-        pr_number: u64,
-        comment_id: u64,
-    },
+    PrCommentAdded { pr_number: u64, comment_id: u64 },
     /// PR 合并
-    PrMerged {
-        pr_number: u64,
-    },
+    PrMerged { pr_number: u64 },
     /// 定时唤醒（兜底）
     ScheduledWake,
 }

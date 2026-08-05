@@ -376,6 +376,3 @@ pub fn sanitize_for_kimi_parameters(parameters: &mut serde_json::Value) {
         }
     }
 }
-
-#[cfg(test)]
-mod kimi_tests {}

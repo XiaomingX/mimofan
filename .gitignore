@@ -104,6 +104,7 @@ todo*.md
 result.json
 count_deps.py
 .codex/
+.loopx/
 .context/
 .wrangler/
 # Local runtime state

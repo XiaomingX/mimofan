@@ -109,21 +109,18 @@ fn handle_create(app: &mut App, args: &[&str]) -> CommandResult {
             .output()
             .ok()
             .and_then(|o| {
-                String::from_utf8(o.stdout)
-                    .ok()
-                    .and_then(|url| {
-                        let url = url.trim();
-                        if url.contains("github.com") {
-                            let parts: Vec<&str> = url.split('/').collect();
-                            if parts.len() >= 2 {
-                                let owner = parts[parts.len() - 2];
-                                let repo_name = parts[parts.len() - 1]
-                                    .trim_end_matches(".git");
-                                return Some(format!("{}/{}", owner, repo_name));
-                            }
+                String::from_utf8(o.stdout).ok().and_then(|url| {
+                    let url = url.trim();
+                    if url.contains("github.com") {
+                        let parts: Vec<&str> = url.split('/').collect();
+                        if parts.len() >= 2 {
+                            let owner = parts[parts.len() - 2];
+                            let repo_name = parts[parts.len() - 1].trim_end_matches(".git");
+                            return Some(format!("{}/{}", owner, repo_name));
                         }
-                        None
-                    })
+                    }
+                    None
+                })
             })
             .unwrap_or_else(|| "unknown/unknown".to_string())
     });
@@ -133,7 +130,11 @@ fn handle_create(app: &mut App, args: &[&str]) -> CommandResult {
             .args(["branch", "--show-current"])
             .output()
             .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string()))
+            .and_then(|o| {
+                String::from_utf8(o.stdout)
+                    .ok()
+                    .map(|s| s.trim().to_string())
+            })
             .unwrap_or_else(|| "main".to_string())
     });
 
@@ -163,38 +164,26 @@ fn handle_status(app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor status <id>".to_string());
     }
-    CommandResult::message(format!(
-        "Monitor {} 状态查询功能需要异步支持",
-        args[0]
-    ))
+    CommandResult::message(format!("Monitor {} 状态查询功能需要异步支持", args[0]))
 }
 
 fn handle_pause(app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor pause <id>".to_string());
     }
-    CommandResult::message(format!(
-        "Monitor {} 暂停功能需要异步支持",
-        args[0]
-    ))
+    CommandResult::message(format!("Monitor {} 暂停功能需要异步支持", args[0]))
 }
 
 fn handle_resume(app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor resume <id>".to_string());
     }
-    CommandResult::message(format!(
-        "Monitor {} 恢复功能需要异步支持",
-        args[0]
-    ))
+    CommandResult::message(format!("Monitor {} 恢复功能需要异步支持", args[0]))
 }
 
 fn handle_delete(app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor delete <id>".to_string());
     }
-    CommandResult::message(format!(
-        "Monitor {} 删除功能需要异步支持",
-        args[0]
-    ))
+    CommandResult::message(format!("Monitor {} 删除功能需要异步支持", args[0]))
 }

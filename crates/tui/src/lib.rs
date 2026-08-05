@@ -50,8 +50,8 @@ mod eval;
 pub mod evidence;
 pub mod execpolicy;
 pub(crate) mod features;
-pub mod issue_monitor;
 pub mod fleet;
+pub mod issue_monitor;
 mod mimofan_theme;
 /// Re-export observability types for integration tests and external consumers.
 pub use fleet::observability::{

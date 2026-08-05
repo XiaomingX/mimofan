@@ -152,9 +152,7 @@ impl IssueMonitorManager {
     /// 暂停 monitor
     pub async fn pause(&self, id: &str) -> Result<()> {
         let mut monitors = self.monitors.write().await;
-        let monitor = monitors
-            .get_mut(id)
-            .context("Monitor not found")?;
+        let monitor = monitors.get_mut(id).context("Monitor not found")?;
         monitor.status = MonitorStatus::Paused;
         monitor.updated_at = Utc::now();
         self.store.save(monitor).await?;
@@ -164,9 +162,7 @@ impl IssueMonitorManager {
     /// 恢复 monitor
     pub async fn resume(&self, id: &str) -> Result<()> {
         let mut monitors = self.monitors.write().await;
-        let monitor = monitors
-            .get_mut(id)
-            .context("Monitor not found")?;
+        let monitor = monitors.get_mut(id).context("Monitor not found")?;
         monitor.status = MonitorStatus::Active;
         monitor.updated_at = Utc::now();
         self.store.save(monitor).await?;
