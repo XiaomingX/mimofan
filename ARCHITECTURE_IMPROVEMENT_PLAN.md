@@ -123,21 +123,22 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 **预期效果（本次已达成）**：澄清架构事实，避免在错误前提上做高风险重构，守住 DDD 限界上下文边界。
 
-### Phase B：UI 层 IO 收口
+### Phase B：UI 层 IO 收口（结论：澄清，无需改造）
 
-目标：通过端口注入替代 UI 层直接 IO。
+目标原拟"通过端口注入替代 UI 层直接 IO"。经逐文件核查，**该目标的前提不成立**——下面 3 处 IO 都是 TUI **展示层（presentation）的正当职责**，不是应用核心/领域层越界，强行端口化属过度设计，违背奥卡姆剃刀与"不强行写可有可无的待办"的约束。
 
-- [x] 枚举 UI 层直接 IO（已定位，仅 3 处，范围远小于"全 tui 的 fs"）：
-  - `tui/src/tui/prompt_suggestion.rs:14` 渲染层直接用 `reqwest::Client` 发 HTTP
-  - `tui/src/tui/clipboard.rs:343/372` 渲染层同步 `std::fs`
-  - `tui/src/tui/file_tree.rs:202` 渲染层 `std::fs::read_dir`
+- [x] 枚举 UI 层直接 IO（仅 3 处，且均属展示层本身功能）：
+  - `tui/src/tui/prompt_suggestion.rs:14` 渲染层用静态 `reqwest::Client`（`OnceLock` 单例，非每请求建池）发 HTTP 取"建议追问"幽灵文本。该函数已是**纯函数式**：`api_key / base_url / model / recent_messages` 全部显式入参，无全局状态，失败即 `None`（best-effort）。**无需改造**。
+  - `tui/src/tui/clipboard.rs:343/372`（`std::fs::create_dir_all` / `metadata`）用于把粘贴的图片落盘。这是跨平台剪贴板模块（arboard / pbcopy / powershell / OSC52）固有 OS 操作；且**已为可测性暴露 seam** `save_image_as_png_in(dir, …)`，单测不写用户 home 目录。读取剪贴板还走 `pbcopy`/`wl-paste` 子进程——同样是平台 UI IO。
+  - `tui/src/tui/file_tree.rs:202`（`std::fs::read_dir`）用于**展示目录树**，读取文件系统就是该 widget 的功能本身；可用 tempdir 直接单测。
   - 注：其余 `std::fs`/`reqwest` 多在 `settings`/`snapshot`/`fleet`/`mcp` 等基础设施/领域模块，本就在底层，无需改造。
-- [ ] 定义端口 trait（`HttpClient` / `FileSystem`）
-- [ ] 实现适配器并注入（仅针对上述 3 处渲染层 IO）
-- [ ] 修改 UI 层改用端口
-- [ ] `cargo test` 通过
 
-**预期效果**：UI 可测、依赖方向正确。
+- [x] **决策：不执行端口注入**。理由（DDD 视角）：
+  - 端口/适配器模式的价值在**应用核心边界**（LLM Provider、沙箱、持久化等多实现、需脱离领域单测处）。TUI 展示层天然要执行 IO 才能渲染——读目录才能画树、碰剪贴板才能粘贴、取建议才能显示幽灵文本。
+  - 若强行为这 3 处引入 `FileSystem`/`HttpClient` trait + 具体实现 + 经 `App`（`tui/app/state.rs:637`）注入：①增加一层间接；②可测性收益趋近于零（widget 本就按渲染输出测试，fs/clipboard 已可 tempdir/真实或现成 seam 测试）；③违反"不要搞复杂的冗余的设计"。
+  - 这是与 Phase A（双运行时=命名撞车误判）、Phase C（双 execpolicy=互补不重复）同类的"澄清而非强行改造"结论：原计划的"定义端口 trait + 注入"本身是一条过度设计的待办，按你设定的奥卡姆剃刀原则予以纠正。
+
+**原预期效果（"UI 可测、依赖方向正确"）在现状下已满足**：3 处 IO 均已局部化、入参显式或已有测试 seam，未向领域层泄漏。Phase B 以"澄清 + 文档更正"收口，不引入风险重构。
 
 ### Phase C：execpolicy 去重
 
