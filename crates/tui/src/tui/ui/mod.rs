@@ -827,9 +827,7 @@ fn handle_memory_quick_add(app: &mut App, input: &str, config: &Config) {
             app.status_message = Some(format!("memory: appended to {category}.md"));
         }
         Err(err) => {
-            app.status_message = Some(format!(
-                "memory: failed to write {category}.md: {err}"
-            ));
+            app.status_message = Some(format!("memory: failed to write {category}.md: {err}"));
         }
     }
 }

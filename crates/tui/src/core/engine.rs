@@ -2663,7 +2663,7 @@ impl Engine {
         }
         self.vector_memory_injected = true;
 
-        let mem_dir = match self.config.memory_path.parent() {
+        let mem_dir = match self.config.memory_dir.parent() {
             Some(p) => p.to_path_buf(),
             None => return,
         };

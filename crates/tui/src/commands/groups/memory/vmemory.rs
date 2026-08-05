@@ -30,11 +30,11 @@ fn project_name(app: &App) -> String {
 }
 
 fn memory_dir(app: &App) -> std::path::PathBuf {
-    // `app.memory_path` is `<dir>/memory.md`; the vector store lives at `<dir>/vector`.
-    app.memory_path
+    // `app.memory_dir` is the memory directory; the vector store lives at `<dir>/vector`.
+    app.memory_dir
         .parent()
         .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| app.memory_path.clone())
+        .unwrap_or_else(|| app.memory_dir.clone())
 }
 
 fn configured_dimension() -> usize {

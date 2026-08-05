@@ -85,9 +85,7 @@ impl ToolSpec for RememberTool {
         })?;
 
         crate::memory::append_entry(dir, &category, note).map_err(|err| {
-            ToolError::execution_failed(format!(
-                "failed to append to {category}.md: {err}"
-            ))
+            ToolError::execution_failed(format!("failed to append to {category}.md: {err}"))
         })?;
 
         Ok(ToolResult::success(format!(

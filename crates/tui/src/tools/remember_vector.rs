@@ -70,7 +70,7 @@ impl ToolSpec for RememberVectorTool {
         let content = required_str(&input, "content")?;
 
         let mem_dir = context
-            .memory_path
+            .memory_dir
             .as_ref()
             .and_then(|p| p.parent())
             .map(|p| p.to_path_buf())

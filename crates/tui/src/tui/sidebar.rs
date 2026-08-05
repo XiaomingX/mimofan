@@ -2826,7 +2826,11 @@ fn render_context_panel(f: &mut Frame, area: Rect, app: &mut App) {
             })
             .count();
         lines.push(Line::from(Span::styled(
-            format!("memory: {} ({} categories)", app.memory_dir.display(), category_count),
+            format!(
+                "memory: {} ({} categories)",
+                app.memory_dir.display(),
+                category_count
+            ),
             Style::default().fg(theme.text_muted),
         )));
     }

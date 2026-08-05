@@ -1998,10 +1998,9 @@ impl Config {
 // the workspace-trust/config-load logic that stays in this file (#3311).
 mod paths;
 use paths::{
-    default_config_path, default_managed_config_path, default_mcp_config_path, default_memory_path,
-    default_memory_dir,
-    default_notes_path, default_requirements_path, default_skills_dir, env_config_path,
-    expand_pathbuf, home_config_path,
+    default_config_path, default_managed_config_path, default_mcp_config_path, default_memory_dir,
+    default_memory_path, default_notes_path, default_requirements_path, default_skills_dir,
+    env_config_path, expand_pathbuf, home_config_path,
 };
 pub(crate) use paths::{effective_home_dir, expand_path};
 

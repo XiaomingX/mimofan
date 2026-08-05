@@ -48,7 +48,7 @@ pub fn category_path(dir: &Path, category: &str) -> PathBuf {
 /// Whether `category` is a known memory category.
 #[must_use]
 pub fn is_category(category: &str) -> bool {
-    CATEGORIES.iter().any(|c| *c == category)
+    CATEGORIES.contains(&category)
 }
 
 /// Create the memory directory and the four (empty) category files when
@@ -153,7 +153,9 @@ pub fn compose_index_block(enabled: bool, dir: &Path) -> Option<String> {
         let cutoff = previous_char_boundary(&content, MAX_INDEX_SIZE);
         let omitted = content.len() - cutoff;
         let mut head = content[..cutoff].to_string();
-        head.push_str(&format!("\n<truncated bytes={omitted} source=\"{display}\">"));
+        head.push_str(&format!(
+            "\n<truncated bytes={omitted} source=\"{display}\">"
+        ));
         head
     } else {
         content
@@ -281,10 +283,7 @@ mod tests {
             parse_quick_add("# user I prefer Rust"),
             (Some("user"), "I prefer Rust".to_string())
         );
-        assert_eq!(
-            parse_quick_add("# note"),
-            (None, "note".to_string())
-        );
+        assert_eq!(parse_quick_add("# note"), (None, "note".to_string()));
         assert_eq!(
             parse_quick_add("# feedback  use tabs"),
             (Some("feedback"), "use tabs".to_string())
