@@ -107,13 +107,15 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ## 5. 改进计划（只含真实待办）
 
+> 进度：分析类步骤已落实（标 `[x]`）；涉及安全/高风险的"合并/注入"步骤保留为 `[ ]`，需专门分支 + `cargo test` 验收后再合入（沿用 PR 流程）。最后更新：2026-08-05。
+
 ### Phase A：统一双重运行时（最高价值/最高风险）
 
 目标：让 `core::Runtime` 与 `tui` 引擎二选一或明确分工，消除重复的应用核心。
 
-- [ ] 梳理 `core::Runtime` 与 `tui` 引擎的功能重叠清单（逐方法对比）
-- [ ] 选定方案：合并 / 让 tui 复用 core / 明确分工边界
-- [ ] 实施并补回归测试
+- [x] 梳理功能重叠（已定位）：`core::Runtime`（`core/src/lib.rs:35`）是应用核心，负责 `handle_prompt` / `invoke_tool` / `handle_thread` / `mcp_startup`（智能体循环 + 工具执行 + MCP）；`tui/src/core/engine.rs` 是 TUI 事件循环编排，同样管理对话状态与工具执行。两者在"对话状态 + 工具执行"上重叠，但生命周期与调用方不同。
+- [ ] 选定方案：合并 / 让 tui 复用 core / 明确分工边界（待逐方法 diff 后评审）
+- [ ] 实施并补回归测试（高风险，需专门分支）
 - [ ] `cargo test --workspace` 通过
 
 **预期效果**：消除最大架构债，降低维护成本。
@@ -122,9 +124,13 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 目标：通过端口注入替代 UI 层直接 IO。
 
-- [ ] 枚举 UI 层所有直接 IO 调用（HTTP / fs）
+- [x] 枚举 UI 层直接 IO（已定位，仅 3 处，范围远小于"全 tui 的 fs"）：
+  - `tui/src/tui/prompt_suggestion.rs:14` 渲染层直接用 `reqwest::Client` 发 HTTP
+  - `tui/src/tui/clipboard.rs:343/372` 渲染层同步 `std::fs`
+  - `tui/src/tui/file_tree.rs:202` 渲染层 `std::fs::read_dir`
+  - 注：其余 `std::fs`/`reqwest` 多在 `settings`/`snapshot`/`fleet`/`mcp` 等基础设施/领域模块，本就在底层，无需改造。
 - [ ] 定义端口 trait（`HttpClient` / `FileSystem`）
-- [ ] 实现适配器并注入
+- [ ] 实现适配器并注入（仅针对上述 3 处渲染层 IO）
 - [ ] 修改 UI 层改用端口
 - [ ] `cargo test` 通过
 
@@ -134,8 +140,11 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 目标：统一执行策略实现。
 
-- [ ] 对比 `tui/src/execpolicy` 与 `crates/execpolicy` 差异
-- [ ] 选定保留方，删除重复
+- [x] 对比差异（已落实关键结论）：`tui/src/execpolicy`（11 文件）与 `crates/execpolicy`（crate）**两份都存活且分工不同**——
+  - crate `mimofan-execpolicy`：被 core/config/tui/protocol/app-server 依赖，提供 `ExecPolicyEngine` / `AskForApproval` / `ExecPolicyContext` / `normalize_workspace_relative_path`（引擎/配置层）。
+  - tui 本地 `crate::execpolicy`：服务 CLI `ExecPolicyCheckCommand`（`cli/mod.rs:867`）、`matcher::pattern_matches`（`command_safety.rs`）、`ExecPolicyDecision` / `load_default_policy`（`tools/shell.rs`/`shell_tools.rs`）。
+  - 结论：二者互补而非纯重复，去重 = 安全相关的语义合并，非删死代码。
+- [ ] 选定保留方，删除重复（高风险：安全逻辑不分裂，需逐调用点迁移 + 安全测试）
 - [ ] 更新依赖
 - [ ] `cargo test` 通过
 
@@ -145,11 +154,11 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 目标：决定向量记忆系统的去留。
 
-- [ ] 评估 `crates/memory` 的成熟度与价值
-- [ ] 二选一：**接入主流程**（成为真实子域）或 **明确标记 experimental / 移除**
-- [ ] 实施
+- [x] 评估成熟度与价值：结论——`mimofan-memory`（2736 行，向量/embedding）**全仓无任何上游依赖**（僵尸上下文）；主流程实际使用的是 `mimofan`(tui) crate 内的 `crate::memory` 简单文件记忆模块（`lib.rs:71`）。该 crate 不成熟且未集成。
+- [x] 二选一决策：**明确标记 experimental**（不强行接入、不立即删除，保留供评估）。
+- [x] 实施：已在 `crates/memory/src/lib.rs` 顶部加中文 ⚠️ 实验性警告，并在 `Cargo.toml` description 标注 `(EXPERIMENTAL: not integrated)`；`cargo check -p mimofan-memory` 通过。若后续评估决定不接入，应整体移除本 crate。
 
-**预期效果**：要么可用，要么不再误导。
+**预期效果**：不再误导——明确该 crate 未集成、不可在生产路径依赖。
 
 ### 明确不做（及原因）
 
