@@ -23,7 +23,7 @@ const TOOL_USE_ARGS_CHARS: usize = 120;
 
 // ── Prompt instruction template ─────────────────────────────────────────────
 
-const PURGE_INSTRUCTIONS: &str = include_str!("prompts/purge_instructions.md");
+const PURGE_INSTRUCTIONS: &str = include_str!("../prompts/purge_instructions.md");
 
 // ── Purge operation types ───────────────────────────────────────────────────
 

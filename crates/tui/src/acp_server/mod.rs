@@ -249,7 +249,7 @@ impl AcpServer {
             messages: messages.to_vec(),
             max_tokens: 4096,
             system: Some(SystemPrompt::Text(
-                include_str!("prompts/acp_coding_assistant.md")
+                include_str!("../prompts/acp_coding_assistant.md")
                     .trim()
                     .to_string(),
             )),

@@ -325,7 +325,7 @@ fn load_handoff_block(workspace: &Path) -> Option<String> {
 /// context-management / compaction / authority-recap layers at runtime (see
 /// `system_prompt_for_mode_with_context_skills_and_session`). Edit this file
 /// directly; `constitution_md_carries_required_structure` guards its skeleton.
-pub const BASE_PROMPT: &str = include_str!("prompts/constitution.md");
+pub const BASE_PROMPT: &str = include_str!("constitution.md");
 
 // ── Embedder prompt overrides ──
 // Let an embedder replace these compile-time prompt constants at startup,
@@ -523,40 +523,40 @@ pub(crate) fn locale_reinforcement_closer(locale_tag: &str) -> Option<&'static s
     }
 }
 
-const LOCALE_PREAMBLE_ZH_HANS: &str = include_str!("prompts/locale_preamble_zh_hans.md");
+const LOCALE_PREAMBLE_ZH_HANS: &str = include_str!("locale_preamble_zh_hans.md");
 
 // ── Closing bookends (appended to the very end of the system prompt) ──
 
-const LOCALE_CLOSER_ZH_HANS: &str = include_str!("prompts/locale_closer_zh_hans.md");
+const LOCALE_CLOSER_ZH_HANS: &str = include_str!("locale_closer_zh_hans.md");
 
 /// Personality overlays — voice and tone.
-pub const CALM_PERSONALITY: &str = include_str!("prompts/personalities/calm.md");
-pub const PLAYFUL_PERSONALITY: &str = include_str!("prompts/personalities/playful.md");
+pub const CALM_PERSONALITY: &str = include_str!("personalities/calm.md");
+pub const PLAYFUL_PERSONALITY: &str = include_str!("personalities/playful.md");
 
 /// Mode deltas — permissions, workflow expectations, mode-specific rules.
-pub const AGENT_MODE: &str = include_str!("prompts/modes/agent.md");
-pub const PLAN_MODE: &str = include_str!("prompts/modes/plan.md");
-pub const YOLO_MODE: &str = include_str!("prompts/modes/yolo.md");
+pub const AGENT_MODE: &str = include_str!("modes/agent.md");
+pub const PLAN_MODE: &str = include_str!("modes/plan.md");
+pub const YOLO_MODE: &str = include_str!("modes/yolo.md");
 
 /// Approval-policy overlays — whether tool calls are auto-approved,
 /// require confirmation, or are blocked.
-pub const AUTO_APPROVAL: &str = include_str!("prompts/approvals/auto.md");
-pub const SUGGEST_APPROVAL: &str = include_str!("prompts/approvals/suggest.md");
-pub const NEVER_APPROVAL: &str = include_str!("prompts/approvals/never.md");
+pub const AUTO_APPROVAL: &str = include_str!("approvals/auto.md");
+pub const SUGGEST_APPROVAL: &str = include_str!("approvals/suggest.md");
+pub const NEVER_APPROVAL: &str = include_str!("approvals/never.md");
 
 /// Shell policy guidance for `allow_shell=false`. Referenced from the
 /// Runtime Policy Reference so the model can adapt without mutating the
 /// static system-prompt prefix (preserves DeepSeek prefix cache across
 /// shell-access toggles).
-pub const SHELL_POLICY_DISABLED: &str = include_str!("prompts/shell_policy_disabled.md");
+pub const SHELL_POLICY_DISABLED: &str = include_str!("shell_policy_disabled.md");
 
 /// Compaction relay template — written into the system prompt so the
 /// model knows the format to use when writing `.mimofan/handoff.md`.
-pub const COMPACT_TEMPLATE: &str = include_str!("prompts/compact.md");
+pub const COMPACT_TEMPLATE: &str = include_str!("compact.md");
 
 /// Goal continuation audit template — injected by the engine when a runtime
 /// goal is active and the assistant tries to end a turn without closing it.
-pub const GOAL_CONTINUATION_PROMPT: &str = include_str!("prompts/continuation.md");
+pub const GOAL_CONTINUATION_PROMPT: &str = include_str!("continuation.md");
 
 /// Memory hygiene guidance — appended to the system prompt only when the
 /// session has a non-empty user-memory block. Steers the model toward
@@ -564,7 +564,7 @@ pub const GOAL_CONTINUATION_PROMPT: &str = include_str!("prompts/continuation.md
 /// responses") rather than imperatives ("Always respond concisely"),
 /// because imperatives get re-read as directives in later sessions and
 /// can override the user's current request (#725).
-pub const MEMORY_GUIDANCE: &str = include_str!("prompts/memory_guidance.md");
+pub const MEMORY_GUIDANCE: &str = include_str!("memory_guidance.md");
 
 // ── Personality selection ─────────────────────────────────────────────
 
@@ -680,13 +680,12 @@ fn apply_model_template(
 
 /// Architecture self-management section injected for DeepSeek V4 model ids
 /// (the original hardcoded constitution.md section, now model-gated — #3025).
-const V4_MODEL_CHARACTERISTICS: &str = include_str!("prompts/v4_model_characteristics.md");
+const V4_MODEL_CHARACTERISTICS: &str = include_str!("v4_model_characteristics.md");
 
 /// Provider-neutral fallback for non-V4 models: only claims that hold across
 /// providers (prefix caching is widespread; parallel tool calls are harness
 /// behavior, not model behavior).
-const GENERIC_MODEL_CHARACTERISTICS: &str =
-    include_str!("prompts/generic_model_characteristics.md");
+const GENERIC_MODEL_CHARACTERISTICS: &str = include_str!("generic_model_characteristics.md");
 
 const TOOL_TAXONOMY_DISCOVERY: &[&str] = &["grep_files", "file_search"];
 const TOOL_TAXONOMY_GIT: &[&str] = &["git_status", "git_diff"];
@@ -747,7 +746,7 @@ fn render_core_tool_group(group: &[&str], core_tools: &[&str]) -> Option<String>
 /// this is the last thing the model reads before generating, so it
 /// reinforces the Constitutional hierarchy without occupying cache-stable
 /// prefix space.
-const AUTHORITY_RECAP: &str = include_str!("prompts/authority_recap.md");
+const AUTHORITY_RECAP: &str = include_str!("authority_recap.md");
 
 pub fn compose_prompt(personality: Personality) -> String {
     compose_prompt_with_approval_model_and_shell(personality, "mimofan")

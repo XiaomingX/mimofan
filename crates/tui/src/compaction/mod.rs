@@ -1381,7 +1381,7 @@ fn build_formatted_summary_request(
         }],
         max_tokens: limits.max_tokens,
         system: Some(SystemPrompt::Text(
-            include_str!("prompts/conversation_summary.md")
+            include_str!("../prompts/conversation_summary.md")
                 .trim()
                 .to_string(),
         )),

@@ -291,7 +291,7 @@ impl SeamManager {
             }],
             max_tokens,
             system: Some(SystemPrompt::Text(
-                include_str!("prompts/compaction_specialist.md")
+                include_str!("../prompts/compaction_specialist.md")
                     .trim()
                     .to_string(),
             )),
@@ -412,7 +412,7 @@ impl SeamManager {
             }],
             max_tokens,
             system: Some(SystemPrompt::Text(
-                include_str!("prompts/summarization_specialist.md")
+                include_str!("../prompts/summarization_specialist.md")
                     .trim()
                     .to_string(),
             )),
