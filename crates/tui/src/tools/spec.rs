@@ -214,11 +214,10 @@ pub struct ToolContext {
     /// When set, exec_shell routes commands through this instead of spawning
     /// a local process.
     pub sandbox_backend: Option<std::sync::Arc<dyn SandboxBackend>>,
-    /// Path to the user memory file. `None` when the user-memory feature
-    /// (#489) is disabled — tools that read or write the file should
-    /// short-circuit on `None` rather than fall back to a workspace-local
-    /// default.
-    pub memory_path: Option<PathBuf>,
+    /// Path to the user memory directory (`~/.mimofan/memory/`). `None` when
+    /// the user-memory feature (#489) is disabled — tools that read or write
+    /// memory should short-circuit on `None`.
+    pub memory_dir: Option<PathBuf>,
     /// LSP manager for post-edit diagnostics injection (#428). `None` when
     /// LSP is disabled or the context is constructed in a test that does not
     /// need diagnostics. Edit tools append a `<diagnostics>` block to their
@@ -284,7 +283,7 @@ impl ToolContext {
             session_objects: None,
             cancel_token: None,
             sandbox_backend: None,
-            memory_path: None,
+            memory_dir: None,
             lsp_manager: None,
             large_output_router: None,
             search_provider: crate::config::SearchProvider::default(),
@@ -328,7 +327,7 @@ impl ToolContext {
             session_objects: None,
             cancel_token: None,
             sandbox_backend: None,
-            memory_path: None,
+            memory_dir: None,
             lsp_manager: None,
             large_output_router: None,
             search_provider: crate::config::SearchProvider::default(),
@@ -373,7 +372,7 @@ impl ToolContext {
             session_objects: None,
             cancel_token: None,
             sandbox_backend: None,
-            memory_path: None,
+            memory_dir: None,
             lsp_manager: None,
             large_output_router: None,
             search_provider: crate::config::SearchProvider::default(),

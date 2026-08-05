@@ -342,7 +342,13 @@ pub struct Config {
     pub mcp_oauth_callback_port: Option<u16>,
     pub mcp_oauth_callback_url: Option<String>,
     pub notes_path: Option<String>,
+    /// Legacy single-file memory path (`~/.mimofan/memory.md`). Kept only for
+    /// one-time migration into the new directory layout; new code should use
+    /// `memory_dir` (see [`memory_dir`]).
     pub memory_path: Option<String>,
+    /// Directory holding the categorized memory (`MEMORY.md` index +
+    /// `user.md`/`feedback.md`/`project.md`/`reference.md` category files).
+    pub memory_dir: Option<String>,
     /// When true, set `tool_choice: "required"` and opt compatible function
     /// schemas into DeepSeek beta strict mode. Schemas with root alternatives
     /// stay non-strict to avoid changing optional/one-of tool semantics.
@@ -1506,7 +1512,7 @@ impl Config {
             .unwrap_or_else(|| PathBuf::from("./notes.txt"))
     }
 
-    /// Resolve the memory file path.
+    /// Resolve the legacy single-file memory path (for migration only).
     #[must_use]
     pub fn memory_path(&self) -> PathBuf {
         self.memory_path
@@ -1514,6 +1520,17 @@ impl Config {
             .map(expand_path)
             .or_else(default_memory_path)
             .unwrap_or_else(|| PathBuf::from("./memory.md"))
+    }
+
+    /// Resolve the categorized memory directory. Falls back to the default
+    /// `~/.mimofan/memory` when unset.
+    #[must_use]
+    pub fn memory_dir(&self) -> PathBuf {
+        self.memory_dir
+            .as_deref()
+            .map(expand_path)
+            .or_else(default_memory_dir)
+            .unwrap_or_else(|| PathBuf::from("./memory"))
     }
 
     /// Resolve the default speech/TTS output directory, if configured.
@@ -1982,6 +1999,7 @@ impl Config {
 mod paths;
 use paths::{
     default_config_path, default_managed_config_path, default_mcp_config_path, default_memory_path,
+    default_memory_dir,
     default_notes_path, default_requirements_path, default_skills_dir, env_config_path,
     expand_pathbuf, home_config_path,
 };
@@ -2193,6 +2211,7 @@ fn merge_config(base: Config, override_cfg: Config) -> Config {
             .or(base.mcp_oauth_callback_url),
         notes_path: override_cfg.notes_path.or(base.notes_path),
         memory_path: override_cfg.memory_path.or(base.memory_path),
+        memory_dir: override_cfg.memory_dir.or(base.memory_dir),
         vision_model: override_cfg.vision_model.or(base.vision_model),
         // #454: user-owned overlays such as profiles and managed config may
         // replace the instruction array. Project-scope config is filtered in

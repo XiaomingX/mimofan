@@ -130,3 +130,7 @@ pub(crate) fn default_notes_path() -> Option<PathBuf> {
 pub(crate) fn default_memory_path() -> Option<PathBuf> {
     mimofan_config::resolve_state_dir("memory.md").ok()
 }
+
+pub(crate) fn default_memory_dir() -> Option<PathBuf> {
+    mimofan_config::resolve_state_dir("memory").ok()
+}

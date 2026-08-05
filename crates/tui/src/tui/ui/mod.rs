@@ -811,20 +811,24 @@ fn is_memory_quick_add(input: &str) -> bool {
     !trimmed.trim_start_matches('#').trim().is_empty()
 }
 
-/// Persist a `# foo` quick-add to the memory file and surface a status
+/// Persist a `# foo` quick-add to the memory store and surface a status
 /// note to the user. Errors land in the same status channel so a missing
 /// memory directory becomes visible without crashing the composer.
+///
+/// An optional category prefix routes the note: `# user I prefer Rust`
+/// writes to `user.md`; a bare `# note` falls back to the default category
+/// (`project`).
 fn handle_memory_quick_add(app: &mut App, input: &str, config: &Config) {
-    let path = config.memory_path();
-    match crate::memory::append_entry(&path, input) {
+    let dir = config.memory_dir();
+    let (category, entry) = crate::memory::parse_quick_add(input);
+    let category = category.unwrap_or(crate::memory::DEFAULT_CATEGORY);
+    match crate::memory::append_entry(&dir, category, &entry) {
         Ok(()) => {
-            app.status_message = Some(format!("memory: appended to {}", path.display()));
+            app.status_message = Some(format!("memory: appended to {category}.md"));
         }
         Err(err) => {
             app.status_message = Some(format!(
-                "memory: failed to write {}: {}",
-                path.display(),
-                err
+                "memory: failed to write {category}.md: {err}"
             ));
         }
     }

@@ -641,7 +641,7 @@ pub(crate) async fn run_exec_agent(
         ),
         prefer_bwrap: execution_config.prefer_bwrap.unwrap_or(false),
         memory_enabled: execution_config.memory_enabled(),
-        memory_path: execution_config.memory_path(),
+        memory_dir: execution_config.memory_dir(),
         speech_output_dir: execution_config.speech_output_dir(),
         vision_config: execution_config.vision_model_config(),
         strict_tool_mode: execution_config.strict_tool_mode.unwrap_or(false),
