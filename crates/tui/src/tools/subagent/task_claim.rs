@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -221,7 +221,7 @@ impl TaskClaimManager {
         let mut claims = self.claims.write().await;
         let mut expired = Vec::new();
 
-        for (task_id, claim) in claims.iter_mut() {
+        for (_task_id, claim) in claims.iter_mut() {
             if claim.status == TaskClaimStatus::Active && claim.is_expired() {
                 claim.status = TaskClaimStatus::Expired;
                 expired.push(claim.clone());

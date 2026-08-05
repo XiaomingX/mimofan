@@ -1684,15 +1684,10 @@ pub fn new_shared_shell_manager(workspace: PathBuf) -> SharedShellManager {
 // === Tool implementation helpers ===
 
 use crate::command_safety::{
-    SafetyLevel, analyze_command, extract_primary_command, is_parallel_readonly_command,
+    extract_primary_command, is_parallel_readonly_command,
 };
-use crate::features::Feature;
 use crate::tools::cargo_failure_summary::summarize_cargo_failure;
-use crate::tools::spec::{
-    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
-    optional_bool, optional_u64, required_str,
-};
-use async_trait::async_trait;
+use crate::tools::spec::ToolContext;
 use serde_json::json;
 
 const FOREGROUND_TIMEOUT_RECOVERY_HINT: &str = "Foreground exec_shell is for bounded commands. \

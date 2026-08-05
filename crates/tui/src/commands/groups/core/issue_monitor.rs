@@ -53,7 +53,7 @@ impl RegisterCommand for MonitorCmd {
     }
 }
 
-fn handle_create(app: &mut App, args: &[&str]) -> CommandResult {
+fn handle_create(_app: &mut App, args: &[&str]) -> CommandResult {
     // 解析参数
     let mut name = None;
     let mut issues = Vec::new();
@@ -139,7 +139,7 @@ fn handle_create(app: &mut App, args: &[&str]) -> CommandResult {
     });
 
     // 创建路由约束
-    let constraints = vec![RouteConstraint::Issues(issues.clone())];
+    let _constraints = vec![RouteConstraint::Issues(issues.clone())];
 
     // 注意：这里需要异步调用，但 RegisterCommand 是同步的
     // 实际实现中需要通过 AppAction 来触发异步操作
@@ -155,33 +155,33 @@ fn handle_create(app: &mut App, args: &[&str]) -> CommandResult {
     CommandResult::message(text)
 }
 
-fn handle_list(app: &mut App) -> CommandResult {
+fn handle_list(_app: &mut App) -> CommandResult {
     // 暂时返回提示信息
     CommandResult::message("Issue Monitor 列表功能需要异步支持，将在后续版本完善".to_string())
 }
 
-fn handle_status(app: &mut App, args: &[&str]) -> CommandResult {
+fn handle_status(_app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor status <id>".to_string());
     }
     CommandResult::message(format!("Monitor {} 状态查询功能需要异步支持", args[0]))
 }
 
-fn handle_pause(app: &mut App, args: &[&str]) -> CommandResult {
+fn handle_pause(_app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor pause <id>".to_string());
     }
     CommandResult::message(format!("Monitor {} 暂停功能需要异步支持", args[0]))
 }
 
-fn handle_resume(app: &mut App, args: &[&str]) -> CommandResult {
+fn handle_resume(_app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor resume <id>".to_string());
     }
     CommandResult::message(format!("Monitor {} 恢复功能需要异步支持", args[0]))
 }
 
-fn handle_delete(app: &mut App, args: &[&str]) -> CommandResult {
+fn handle_delete(_app: &mut App, args: &[&str]) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message("用法: /monitor delete <id>".to_string());
     }

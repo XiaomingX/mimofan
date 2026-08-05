@@ -34,12 +34,10 @@ pub use surface_config::*;
 use crate::provider_config::{
     get_provider_config_display_value, get_provider_config_value, insert_provider_config_values,
     parse_provider_config_key, set_provider_config_value, unset_provider_config_value,
-    ProviderConfigField,
 };
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::ffi::{OsStr, OsString};
-use std::fmt;
 use std::fs;
 #[cfg(unix)]
 use std::io::Read;
@@ -50,7 +48,7 @@ use std::sync::OnceLock;
 use anyhow::{Context, Result, bail};
 pub use auth_source::{AuthSourceKind, ProviderAuthSourceToml};
 pub use mimofan_execpolicy::ToolAskRule;
-use mimofan_execpolicy::{ExecPolicyEngine, Ruleset};
+use mimofan_execpolicy::ExecPolicyEngine;
 use mimofan_secrets::SecretSource;
 pub use mimofan_secrets::Secrets;
 use serde::{Deserialize, Serialize};

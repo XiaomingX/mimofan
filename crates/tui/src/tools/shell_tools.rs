@@ -5,11 +5,10 @@
 
 use super::*;
 use crate::command_safety::{
-    SafetyLevel, analyze_command, extract_primary_command, is_parallel_readonly_command,
+    SafetyLevel, analyze_command,
 };
 use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 use crate::features::Feature;
-use crate::tools::cargo_failure_summary::summarize_cargo_failure;
 use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
     optional_bool, optional_u64, required_str,

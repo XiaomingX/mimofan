@@ -3,7 +3,7 @@
 //! 将 issue monitor 信息持久化到本地文件系统，
 //! 复用 mimofan 的数据目录结构。
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use chrono::Utc;

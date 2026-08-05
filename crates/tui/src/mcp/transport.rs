@@ -43,7 +43,7 @@ pub struct StdioTransport {
     /// Tail of stderr lines from the spawned MCP server. A background task
     /// drains the child's stderr into this buffer so a mid-run crash leaves
     /// some context behind instead of `Stdio::null` swallowing it.
-    pub stderr_tail: Arc<StderrTail>,
+    pub(super) stderr_tail: Arc<StderrTail>,
 }
 
 /// How long `StdioTransport::shutdown` waits for the child to exit on SIGTERM

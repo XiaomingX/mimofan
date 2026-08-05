@@ -165,13 +165,13 @@ impl SubAgentThinking {
 }
 
 #[derive(Debug, Clone)]
-struct SubAgentInput {
+pub(crate) struct SubAgentInput {
     text: String,
     interrupt: bool,
 }
 
 #[derive(Debug, Clone)]
-struct SpawnRequest {
+pub(crate) struct SpawnRequest {
     session_name: Option<String>,
     prompt: String,
     agent_type: SubAgentType,

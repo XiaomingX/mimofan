@@ -1,7 +1,6 @@
 //! Configuration loading and defaults for mimofan.
 
 use std::collections::HashMap;
-use std::fmt::Write;
 use std::fs;
 #[cfg(unix)]
 use std::io::Write as _;
@@ -49,15 +48,15 @@ pub use credential::*;
 
 // Workspace trust: config-level trust checking and saving.
 mod trust;
-pub use trust::*;
+pub(crate) use trust::*;
 
 // Environment variable overrides for configuration values.
 mod env_overrides;
-pub use env_overrides::*;
+pub(crate) use env_overrides::*;
 
 // Xiaomi MiMo specific base URL and API key resolution logic.
 mod xiaomi;
-pub use xiaomi::*;
+pub(crate) use xiaomi::*;
 
 // === Types ===
 
