@@ -42,21 +42,20 @@ bun.lock
 !Cargo.toml
 !crates/*/Cargo.toml
 
-# ── 超大稳定模块（行数易变，不逐一标注；大文件索引见 ARCHITECTURE.md）──
-crates/tui/src/localization.rs
+# ── 超大稳定模块（行数易变，不逐一标注；大文件索引见 ARCHITECTURE_CN.md）──
 crates/tui/src/prompts.rs
 crates/tui/src/tui/widgets/mod.rs
 crates/tui/src/tui/views/mod.rs
 crates/tui/src/tui/ui.rs
 crates/tui/src/lib.rs
 crates/tui/src/tools/subagent/mod.rs
-crates/tui/src/tui/app.rs
 crates/tui/src/config.rs
 crates/tui/src/runtime_threads.rs
 crates/tui/src/core/engine.rs
 crates/tui/src/runtime_api.rs
 crates/tui/src/tools/shell.rs
 crates/tui/src/mcp.rs
+crates/tui/src/tui/ui/ui_event_loop.rs
 
 # ── 测试文件 ──
 crates/*/tests/
@@ -67,13 +66,14 @@ crates/*/tests/
 *_test.rs
 test_*.rs
 
-# ── 文档（核心信息已在根目录 ARCHITECTURE.md / CLAUDE.md / README.md）──
+# ── 文档（核心信息已在根目录 ARCHITECTURE_CN.md / CLAUDE.md / README.md）──
 docs/
 CHANGELOG.md
 crates/tui/CHANGELOG.md
 *.md
 !README.md
-!ARCHITECTURE.md
+!ARCHITECTURE_CN.md
+!USER_GUIDE_CN.md
 !CLAUDE.md
 
 # ── AI 记忆文件与本地设置 ──
