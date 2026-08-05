@@ -2393,8 +2393,9 @@ pub(crate) async fn run_event_loop(
             // AltGr-typed chars (e.g. European layouts producing `@`, `\`,
             // `|`) as plain text rather than swallowing them as a modified
             // shortcut. `key_hint::has_ctrl_or_alt` filters AltGr out.
-            let has_ctrl_alt_or_super = crate::tui::widgets::key_hint::has_ctrl_or_alt(key.modifiers)
-                || key.modifiers.contains(KeyModifiers::SUPER);
+            let has_ctrl_alt_or_super =
+                crate::tui::widgets::key_hint::has_ctrl_or_alt(key.modifiers)
+                    || key.modifiers.contains(KeyModifiers::SUPER);
             let is_plain_char = matches!(key.code, KeyCode::Char(_)) && !has_ctrl_alt_or_super;
             let is_enter = matches!(key.code, KeyCode::Enter);
 
@@ -2410,7 +2411,9 @@ pub(crate) async fn run_event_loop(
                 app.insert_str(&pending);
             }
 
-            if (is_plain_char || is_enter) && crate::tui::paste::handle_paste_burst_key(app, &key, now) {
+            if (is_plain_char || is_enter)
+                && crate::tui::paste::handle_paste_burst_key(app, &key, now)
+            {
                 continue;
             }
 

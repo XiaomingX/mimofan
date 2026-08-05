@@ -4,9 +4,7 @@
 //! `BackgroundShell` / `ShellManager` infrastructure.
 
 use super::*;
-use crate::command_safety::{
-    SafetyLevel, analyze_command,
-};
+use crate::command_safety::{SafetyLevel, analyze_command};
 use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 use crate::features::Feature;
 use crate::tools::spec::{

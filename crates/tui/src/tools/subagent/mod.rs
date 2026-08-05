@@ -52,6 +52,7 @@ pub mod bus;
 pub mod custom_agents;
 pub mod decomposer;
 pub mod events;
+pub mod helpers;
 pub mod mailbox;
 pub mod naming;
 pub mod persistence;
@@ -59,7 +60,6 @@ pub mod runtime;
 pub mod task_claim;
 pub mod tool;
 pub mod types;
-pub mod helpers;
 #[allow(unused_imports)]
 pub(crate) use helpers::*;
 pub mod manager;
@@ -69,13 +69,13 @@ pub mod runner;
 #[allow(unused_imports)]
 pub(crate) use runner::*;
 pub mod parser;
-#[allow(unused_imports)]
-pub(crate) use parser::*;
 pub use bus::AgentBus;
 #[allow(unused_imports)]
 pub use custom_agents::CustomAgentRegistry;
 pub use mailbox::{Mailbox, MailboxMessage};
 pub use naming::{assign_unique_whale_name, whale_name_for_id};
+#[allow(unused_imports)]
+pub(crate) use parser::*;
 pub use task_claim::{
     ClaimResult, SharedTaskClaimManager, TaskClaim, TaskClaimManager, TaskClaimStatus,
     new_shared_task_claim_manager,
@@ -662,7 +662,6 @@ pub struct SubAgentManager {
     /// Shared agent bus for inter-agent communication.
     bus: Arc<AgentBus>,
 }
-
 
 /// Thread-safe wrapper for `SubAgentManager`.
 pub type SharedSubAgentManager = Arc<RwLock<SubAgentManager>>;
@@ -1752,8 +1751,6 @@ and distinguish that from evidence you personally verified.\n";
 }
 
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
-
-
 struct SubAgentToolRegistry {
     /// `None` → full inheritance (no allowlist filter applied). `Some(list)` →
     /// only the listed tools are visible to the model and callable.

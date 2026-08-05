@@ -104,17 +104,18 @@ impl TaskClaimManager {
         let mut claims = self.claims.write().await;
 
         // Check for existing active claim
-        if let Some(existing) = claims.get(task_id) {
-            if existing.status == TaskClaimStatus::Active && !existing.is_expired() {
-                return ClaimResult {
-                    success: false,
-                    claim: None,
-                    error: Some(format!(
-                        "Task '{}' is already claimed by '{}'. Use release_task first or wait for claim to expire.",
-                        task_id, existing.claimant_id
-                    )),
-                };
-            }
+        if let Some(existing) = claims.get(task_id)
+            && existing.status == TaskClaimStatus::Active
+            && !existing.is_expired()
+        {
+            return ClaimResult {
+                success: false,
+                claim: None,
+                error: Some(format!(
+                    "Task '{}' is already claimed by '{}'. Use release_task first or wait for claim to expire.",
+                    task_id, existing.claimant_id
+                )),
+            };
         }
 
         // Create new claim
@@ -221,7 +222,7 @@ impl TaskClaimManager {
         let mut claims = self.claims.write().await;
         let mut expired = Vec::new();
 
-        for (_task_id, claim) in claims.iter_mut() {
+        for claim in claims.values_mut() {
             if claim.status == TaskClaimStatus::Active && claim.is_expired() {
                 claim.status = TaskClaimStatus::Expired;
                 expired.push(claim.clone());

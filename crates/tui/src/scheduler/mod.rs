@@ -12,22 +12,19 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 /// Priority levels for scheduler hints.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub enum Priority {
     /// Low priority - can be deferred.
     Low = 0,
     /// Normal priority - default.
+    #[default]
     Normal = 1,
     /// High priority - should run soon.
     High = 2,
     /// Critical priority - must run immediately.
     Critical = 3,
-}
-
-impl Default for Priority {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 /// Scheduler hint for task coordination.
@@ -207,18 +204,18 @@ impl SchedulerManager {
                 }
 
                 // Check cooldown
-                if let Some(ready_at) = task.ready_at {
-                    if SystemTime::now() < ready_at {
-                        return false;
-                    }
+                if let Some(ready_at) = task.ready_at
+                    && SystemTime::now() < ready_at
+                {
+                    return false;
                 }
 
                 // Check dependencies
                 for dep_id in &task.hint.dependencies {
-                    if let Some(dep_task) = tasks.get(dep_id) {
-                        if dep_task.status != TaskStatus::Completed {
-                            return false;
-                        }
+                    if let Some(dep_task) = tasks.get(dep_id)
+                        && dep_task.status != TaskStatus::Completed
+                    {
+                        return false;
                     }
                 }
 
@@ -320,11 +317,9 @@ impl SchedulerManager {
                 };
 
                 // Set cooldown if specified
-                if success {
-                    if let Some(cooldown) = task.hint.cooldown {
-                        task.ready_at = Some(SystemTime::now() + cooldown);
-                        task.status = TaskStatus::CoolingDown;
-                    }
+                if success && let Some(cooldown) = task.hint.cooldown {
+                    task.ready_at = Some(SystemTime::now() + cooldown);
+                    task.status = TaskStatus::CoolingDown;
                 }
 
                 // Record execution
@@ -357,15 +352,15 @@ impl SchedulerManager {
         let mut ready = Vec::new();
 
         for task_id in tasks.keys() {
-            if Self::is_ready_internal(task_id, &tasks, &running) {
-                if let Some(task) = tasks.get(task_id) {
-                    ready.push(task.clone());
-                }
+            if Self::is_ready_internal(task_id, &tasks, &running)
+                && let Some(task) = tasks.get(task_id)
+            {
+                ready.push(task.clone());
             }
         }
 
         // Sort by priority
-        ready.sort_by(|a, b| b.hint.priority.cmp(&a.hint.priority));
+        ready.sort_by_key(|t| std::cmp::Reverse(t.hint.priority));
         ready
     }
 
@@ -410,7 +405,7 @@ impl SchedulerManager {
         match tasks.remove(task_id) {
             Some(task) => {
                 // Remove from dependents lists
-                for (_, other_task) in tasks.iter_mut() {
+                for other_task in tasks.values_mut() {
                     other_task.dependents.retain(|id| id != task_id);
                 }
 

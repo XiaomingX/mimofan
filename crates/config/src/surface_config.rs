@@ -127,4 +127,3 @@ pub struct LspConfigToml {
     /// Optional override for the `language -> [cmd, ...args]` table.
     pub servers: Option<BTreeMap<String, Vec<String>>>,
 }
-

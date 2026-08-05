@@ -1,6 +1,5 @@
 use super::*;
 
-
 pub(crate) fn optional_input_str<'a>(input: &'a Value, keys: &[&str]) -> Option<&'a str> {
     keys.iter()
         .filter_map(|key| input.get(*key).and_then(Value::as_str))
@@ -975,7 +974,9 @@ pub(crate) fn worker_status_from_subagent_result(result: &SubAgentResult) -> Age
     }
 }
 
-pub(crate) fn worker_progress_event_parts(message: &str) -> (AgentWorkerStatus, Option<u32>, Option<String>) {
+pub(crate) fn worker_progress_event_parts(
+    message: &str,
+) -> (AgentWorkerStatus, Option<u32>, Option<String>) {
     let step = parse_progress_step(message);
     let lower = message.to_ascii_lowercase();
     let status = if lower.contains("queued") {
@@ -1076,7 +1077,10 @@ pub(crate) fn emit_agent_progress(
 ///
 /// `custom` is governed by its explicit `allowed_tools` list, so the posture
 /// check permits it here (the allowlist is the authority for that role).
-pub(crate) fn role_posture_permits(agent_type: &SubAgentType, approval: ApprovalRequirement) -> bool {
+pub(crate) fn role_posture_permits(
+    agent_type: &SubAgentType,
+    approval: ApprovalRequirement,
+) -> bool {
     if matches!(agent_type, SubAgentType::Custom) {
         return true;
     }

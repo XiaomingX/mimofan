@@ -1,6 +1,5 @@
 use super::*;
 
-
 impl SubAgentManager {
     /// Create a new manager for sub-agents.
     #[must_use]
@@ -69,7 +68,7 @@ impl SubAgentManager {
     }
 
     #[must_use]
-    pub(crate) fn  with_state_path(mut self, path: PathBuf) -> Self {
+    pub(crate) fn with_state_path(mut self, path: PathBuf) -> Self {
         self.state_path = Some(path);
         self
     }
@@ -208,7 +207,7 @@ impl SubAgentManager {
         }
     }
 
-    pub(crate) fn  load_state(&mut self) -> Result<()> {
+    pub(crate) fn load_state(&mut self) -> Result<()> {
         let Some(path) = self.state_path.as_ref() else {
             return Ok(());
         };
@@ -442,7 +441,7 @@ impl SubAgentManager {
         }
     }
 
-    pub(crate) fn  record_worker_usage(&mut self, worker_id: &str, usage: &Usage) {
+    pub(crate) fn record_worker_usage(&mut self, worker_id: &str, usage: &Usage) {
         let now_ms = epoch_millis_now();
         let total_delta = usage_total_tokens(usage);
         let Some(record) = self.worker_records.get_mut(worker_id) else {
@@ -502,7 +501,7 @@ impl SubAgentManager {
         }
     }
 
-    pub(crate) fn  record_worker_event(
+    pub(crate) fn record_worker_event(
         &mut self,
         worker_id: &str,
         status: AgentWorkerStatus,
@@ -542,7 +541,7 @@ impl SubAgentManager {
         self.worker_records.insert(worker_id.to_string(), record);
     }
 
-    pub(crate) fn  record_worker_progress(&mut self, worker_id: &str, message: String) {
+    pub(crate) fn record_worker_progress(&mut self, worker_id: &str, message: String) {
         let (status, step, tool_name) = worker_progress_event_parts(&message);
         self.record_worker_event(worker_id, status, Some(message), step, tool_name);
     }
@@ -658,7 +657,7 @@ impl SubAgentManager {
         self.admitted_count().saturating_sub(self.queued_count())
     }
 
-    pub(crate) fn  check_admission_capacity(&self) -> Result<()> {
+    pub(crate) fn check_admission_capacity(&self) -> Result<()> {
         let admitted = self.admitted_count();
         if admitted >= self.max_admitted_agents {
             return Err(anyhow!(
@@ -1071,7 +1070,7 @@ impl SubAgentManager {
         auto_cancelled
     }
 
-    pub(crate) fn  update_from_result(&mut self, agent_id: &str, result: SubAgentResult) {
+    pub(crate) fn update_from_result(&mut self, agent_id: &str, result: SubAgentResult) {
         let mut changed = false;
         if let Some(agent) = self.agents.get_mut(agent_id) {
             agent.status = result.status.clone();
@@ -1092,7 +1091,7 @@ impl SubAgentManager {
         }
     }
 
-    pub(crate) fn  update_failed(&mut self, agent_id: &str, error: String) {
+    pub(crate) fn update_failed(&mut self, agent_id: &str, error: String) {
         let mut changed = false;
         if let Some(agent) = self.agents.get_mut(agent_id) {
             agent.status = SubAgentStatus::Failed(error.clone());
@@ -1107,7 +1106,11 @@ impl SubAgentManager {
         }
     }
 
-    pub(crate) fn  update_checkpoint(&mut self, agent_id: &str, checkpoint: SubAgentCheckpoint) -> bool {
+    pub(crate) fn update_checkpoint(
+        &mut self,
+        agent_id: &str,
+        checkpoint: SubAgentCheckpoint,
+    ) -> bool {
         let Some(agent) = self.agents.get_mut(agent_id) else {
             return false;
         };
@@ -1121,7 +1124,7 @@ impl SubAgentManager {
         true
     }
 
-    pub(crate) fn  interrupt_with_checkpoint(
+    pub(crate) fn interrupt_with_checkpoint(
         &mut self,
         agent_id: &str,
         reason: String,

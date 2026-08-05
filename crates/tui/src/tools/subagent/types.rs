@@ -59,6 +59,7 @@ pub enum SubAgentType {
 impl SubAgentType {
     /// Parse a sub-agent type from user input.
     #[must_use]
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "general" | "general-purpose" | "general_purpose" | "worker" | "default" => {
@@ -395,7 +396,7 @@ pub enum SubAgentThinking {
 }
 
 /// Checkpoint for sub-agent state.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SubAgentCheckpoint {
     pub checkpoint_id: String,
     pub agent_id: String,
@@ -406,22 +407,6 @@ pub struct SubAgentCheckpoint {
     pub message_count: usize,
     pub created_at_ms: u64,
     pub messages: Vec<Message>,
-}
-
-impl Default for SubAgentCheckpoint {
-    fn default() -> Self {
-        Self {
-            checkpoint_id: String::new(),
-            agent_id: String::new(),
-            continuation_handle: String::new(),
-            reason: String::new(),
-            continuable: false,
-            steps_taken: 0,
-            message_count: 0,
-            created_at_ms: 0,
-            messages: Vec::new(),
-        }
-    }
 }
 
 /// Error type for sub-agent operations.

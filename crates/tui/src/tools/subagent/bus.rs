@@ -69,6 +69,12 @@ impl Drop for BusSubscription {
     }
 }
 
+impl Default for AgentBus {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AgentBus {
     /// Create a new empty bus.
     pub fn new() -> Self {

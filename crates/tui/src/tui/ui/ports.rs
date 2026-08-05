@@ -4,7 +4,6 @@
 //! the abstraction. This module supplies the concrete `reqwest`-backed
 //! adapter used by the TUI.
 
-use std::future::Future;
 use std::time::Duration;
 
 use mimofan_core::BalanceProvider;
@@ -33,31 +32,25 @@ impl ReqwestBalanceProvider {
 impl BalanceProvider for ReqwestBalanceProvider {
     type Balance = BalanceInfo;
 
-    fn fetch_balance(
-        &self,
-        api_key: &str,
-        base_url: &str,
-    ) -> impl Future<Output = Option<BalanceInfo>> + Send {
-        async move {
-            let url = format!("{}/user/balance", base_url.trim_end_matches('/'));
-            let response = self
-                .client
-                .get(url)
-                .header("Authorization", format!("Bearer {api_key}"))
-                .send()
-                .await
-                .ok()?;
-            if !response.status().is_success() {
-                tracing::debug!(
-                    "balance API returned {}: {}",
-                    response.status().as_u16(),
-                    response.text().await.unwrap_or_default()
-                );
-                return None;
-            }
-            let body: BalanceResponse = response.json().await.ok()?;
-            // Return the first balance entry (typically the user's primary currency).
-            body.balance_infos.into_iter().next()
+    async fn fetch_balance(&self, api_key: &str, base_url: &str) -> Option<BalanceInfo> {
+        let url = format!("{}/user/balance", base_url.trim_end_matches('/'));
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", format!("Bearer {api_key}"))
+            .send()
+            .await
+            .ok()?;
+        if !response.status().is_success() {
+            tracing::debug!(
+                "balance API returned {}: {}",
+                response.status().as_u16(),
+                response.text().await.unwrap_or_default()
+            );
+            return None;
         }
+        let body: BalanceResponse = response.json().await.ok()?;
+        // Return the first balance entry (typically the user's primary currency).
+        body.balance_infos.into_iter().next()
     }
 }

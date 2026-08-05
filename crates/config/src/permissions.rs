@@ -2,8 +2,8 @@
 //!
 //! Extracted from `lib.rs` during the config crate split
 //! (CODE_STRUCTURE_ANALYSIS.md §3.3).
-use serde::{Deserialize, Serialize};
 use mimofan_execpolicy::{Ruleset, ToolAskRule};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]

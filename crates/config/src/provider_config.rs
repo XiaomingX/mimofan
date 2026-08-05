@@ -3,9 +3,9 @@
 //!
 //! Extracted from `lib.rs` during the config crate split
 //! (CODE_STRUCTURE_ANALYSIS.md §3.3).
-use std::collections::BTreeMap;
-use serde::{Deserialize, Serialize};
 use super::*;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProviderConfigToml {

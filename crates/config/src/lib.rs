@@ -47,8 +47,8 @@ use std::sync::OnceLock;
 
 use anyhow::{Context, Result, bail};
 pub use auth_source::{AuthSourceKind, ProviderAuthSourceToml};
-pub use mimofan_execpolicy::ToolAskRule;
 use mimofan_execpolicy::ExecPolicyEngine;
+pub use mimofan_execpolicy::ToolAskRule;
 use mimofan_secrets::SecretSource;
 pub use mimofan_secrets::Secrets;
 use serde::{Deserialize, Serialize};
@@ -59,13 +59,10 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 pub const CONFIG_FILE_NAME: &str = "config.toml";
 pub const PERMISSIONS_FILE_NAME: &str = "permissions.toml";
 
-
-
 /// Sibling `permissions.toml` schema.
 ///
 /// Each rule is a typed condition that means "ask before this tool invocation."
 /// Typed allow/deny records and UI actions are expected to land in follow-up PRs.
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ConfigToml {
@@ -2014,4 +2011,3 @@ impl EnvRuntimeOverrides {
         }
     }
 }
-

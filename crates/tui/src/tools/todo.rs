@@ -33,6 +33,7 @@ impl TodoStatus {
 
     /// Parse a string into a todo status.
     #[must_use]
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Option<Self> {
         match value.trim().to_lowercase().as_str() {
             "pending" => Some(TodoStatus::Pending),

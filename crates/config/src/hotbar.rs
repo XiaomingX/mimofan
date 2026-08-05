@@ -2,9 +2,9 @@
 //!
 //! Extracted from `lib.rs` during the config crate split
 //! (CODE_STRUCTURE_ANALYSIS.md §3.3).
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use serde::{Deserialize, Serialize};
 
 pub const HOTBAR_SLOT_COUNT: u8 = 8;
 
@@ -147,4 +147,3 @@ pub fn resolve_hotbar_bindings(
         warnings,
     }
 }
-

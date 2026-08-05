@@ -31,6 +31,7 @@ pub struct RuleSet {
 }
 
 impl ExecPolicyConfig {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(contents: &str) -> Result<Self> {
         toml::from_str(contents).context("failed to parse execpolicy.toml")
     }

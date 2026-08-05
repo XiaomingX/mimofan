@@ -76,7 +76,8 @@ pub(crate) const SUBAGENT_STATE_SCHEMA_VERSION: u32 = 1;
 pub(crate) const SUBAGENT_STATE_FILE: &str = "subagents.v1.json";
 pub(crate) const SUBAGENT_WORKTREE_ROOT_DIR: &str = ".mimofan-worktrees";
 pub(crate) const SUBAGENT_RESTART_REASON: &str = "Interrupted by process restart";
-pub(crate) const SUBAGENT_QUEUED_LAUNCH_REASON: &str = "queued: waiting for a sub-agent launch slot";
+pub(crate) const SUBAGENT_QUEUED_LAUNCH_REASON: &str =
+    "queued: waiting for a sub-agent launch slot";
 pub(crate) const SUBAGENT_MODEL_WAIT_REASON: &str = "waiting for model response";
 /// #freeze: minimum spacing between hot-path (per-step checkpoint) state
 /// persists. `update_checkpoint` fires on every step of every agent; at high
@@ -90,7 +91,8 @@ pub(crate) const SUBAGENT_PERSIST_DEBOUNCE: Duration = Duration::from_millis(150
 /// #freeze: lightweight perf counters for the sub-agent persist hot path,
 /// gated behind `MIMOFAN_SUBAGENT_PERF_TRACE=1`. The atomic increments are
 /// always cheap; only the structured `subagent_perf` log line is gated.
-pub(crate) static SUBAGENT_PERSIST_WRITES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub(crate) static SUBAGENT_PERSIST_WRITES: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
 pub(crate) static SUBAGENT_PERSIST_SKIPPED: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 
@@ -568,4 +570,3 @@ pub(crate) fn run_git(workspace: &Path, args: &[&str]) -> Option<String> {
         .success()
         .then(|| String::from_utf8_lossy(&output.stdout).to_string())
 }
-

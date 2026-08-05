@@ -314,11 +314,11 @@ impl DecisionGateManager {
         let mut expired = Vec::new();
 
         for gate_id in pending.clone() {
-            if let Some(gate) = gates.get_mut(&gate_id) {
-                if gate.is_expired() {
-                    gate.status = GateStatus::Expired;
-                    expired.push(gate.clone());
-                }
+            if let Some(gate) = gates.get_mut(&gate_id)
+                && gate.is_expired()
+            {
+                gate.status = GateStatus::Expired;
+                expired.push(gate.clone());
             }
         }
 

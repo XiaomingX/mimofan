@@ -1683,9 +1683,7 @@ pub fn new_shared_shell_manager(workspace: PathBuf) -> SharedShellManager {
 
 // === Tool implementation helpers ===
 
-use crate::command_safety::{
-    extract_primary_command, is_parallel_readonly_command,
-};
+use crate::command_safety::{extract_primary_command, is_parallel_readonly_command};
 use crate::tools::cargo_failure_summary::summarize_cargo_failure;
 use crate::tools::spec::ToolContext;
 use serde_json::json;

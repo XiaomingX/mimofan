@@ -1,6 +1,5 @@
 use super::*;
 
-
 pub(crate) async fn run_subagent(
     runtime: &SubAgentRuntime,
     agent_id: String,

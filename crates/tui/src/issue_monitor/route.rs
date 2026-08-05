@@ -58,6 +58,12 @@ pub struct RoutePinning {
     allowed_paths: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
+impl Default for RoutePinning {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RoutePinning {
     pub fn new() -> Self {
         Self {
@@ -119,19 +125,20 @@ impl RoutePinning {
         // 检查 issue 约束
         if let Some(issue_num) = event.related_issue() {
             let issues = self.allowed_issues.read().await;
-            if let Some(allowed) = issues.get(monitor_id) {
-                if !allowed.is_empty() && !allowed.contains(&issue_num) {
-                    return Ok(Some(RouteViolation {
-                        violation_type: "ISSUE_OUT_OF_SCOPE".to_string(),
-                        description: format!(
-                            "Issue #{} is not in the monitored scope {:?}",
-                            issue_num, allowed
-                        ),
-                        suggestion:
-                            "Confirm this issue should be included, or create a separate monitor."
-                                .to_string(),
-                    }));
-                }
+            if let Some(allowed) = issues.get(monitor_id)
+                && !allowed.is_empty()
+                && !allowed.contains(&issue_num)
+            {
+                return Ok(Some(RouteViolation {
+                    violation_type: "ISSUE_OUT_OF_SCOPE".to_string(),
+                    description: format!(
+                        "Issue #{} is not in the monitored scope {:?}",
+                        issue_num, allowed
+                    ),
+                    suggestion:
+                        "Confirm this issue should be included, or create a separate monitor."
+                            .to_string(),
+                }));
             }
         }
 
@@ -151,37 +158,38 @@ impl RoutePinning {
         file_path: &str,
     ) -> Result<Option<RouteViolation>> {
         let paths = self.allowed_paths.read().await;
-        if let Some(allowed) = paths.get(monitor_id) {
-            if !allowed.is_empty() {
-                let is_allowed = allowed.iter().any(|pattern| {
-                    // 简单的 glob 匹配（实际应该用 glob crate）
-                    if pattern.ends_with("/**") {
-                        let prefix = &pattern[..pattern.len() - 3];
-                        file_path.starts_with(prefix)
-                    } else if pattern.contains('*') {
-                        // 简化的通配符匹配
-                        let parts: Vec<&str> = pattern.split('*').collect();
-                        if parts.len() == 2 {
-                            file_path.starts_with(parts[0]) && file_path.ends_with(parts[1])
-                        } else {
-                            false
-                        }
+        if let Some(allowed) = paths.get(monitor_id)
+            && !allowed.is_empty()
+        {
+            let is_allowed = allowed.iter().any(|pattern| {
+                // 简单的 glob 匹配（实际应该用 glob crate）
+                if pattern.ends_with("/**") {
+                    let prefix = &pattern[..pattern.len() - 3];
+                    file_path.starts_with(prefix)
+                } else if pattern.contains('*') {
+                    // 简化的通配符匹配
+                    let parts: Vec<&str> = pattern.split('*').collect();
+                    if parts.len() == 2 {
+                        file_path.starts_with(parts[0]) && file_path.ends_with(parts[1])
                     } else {
-                        file_path == pattern
+                        false
                     }
-                });
-
-                if !is_allowed {
-                    return Ok(Some(RouteViolation {
-                        violation_type: "FILE_OUT_OF_SCOPE".to_string(),
-                        description: format!(
-                            "File '{}' is not in the allowed paths {:?}",
-                            file_path, allowed
-                        ),
-                        suggestion: "Confirm this file change is necessary, or update the monitor constraints."
-                            .to_string(),
-                    }));
+                } else {
+                    file_path == pattern
                 }
+            });
+
+            if !is_allowed {
+                return Ok(Some(RouteViolation {
+                    violation_type: "FILE_OUT_OF_SCOPE".to_string(),
+                    description: format!(
+                        "File '{}' is not in the allowed paths {:?}",
+                        file_path, allowed
+                    ),
+                    suggestion:
+                        "Confirm this file change is necessary, or update the monitor constraints."
+                            .to_string(),
+                }));
             }
         }
 

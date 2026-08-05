@@ -185,10 +185,10 @@ impl EvidenceManager {
                         thread_records.retain(|r| r != &id);
                     }
                     // Remove from goal index
-                    if let Some(ref goal_id) = record.goal_id {
-                        if let Some(goal_records) = by_goal.get_mut(goal_id) {
-                            goal_records.retain(|r| r != &id);
-                        }
+                    if let Some(ref goal_id) = record.goal_id
+                        && let Some(goal_records) = by_goal.get_mut(goal_id)
+                    {
+                        goal_records.retain(|r| r != &id);
                     }
                 }
             }
@@ -265,7 +265,7 @@ impl EvidenceManager {
         let records = self.records.read().await;
         let mut recent: Vec<_> = records.values().cloned().collect();
 
-        recent.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        recent.sort_by_key(|r| std::cmp::Reverse(r.timestamp));
         recent.into_iter().take(limit).collect()
     }
 

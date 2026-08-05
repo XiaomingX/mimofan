@@ -696,10 +696,10 @@ impl StreamableHttpTransport {
         }
 
         // Extract session ID from response headers if present
-        if let Some(session_id) = response.headers().get("mcp-session-id") {
-            if let Ok(id) = session_id.to_str() {
-                self.session_id = Some(id.to_string());
-            }
+        if let Some(session_id) = response.headers().get("mcp-session-id")
+            && let Ok(id) = session_id.to_str()
+        {
+            self.session_id = Some(id.to_string());
         }
 
         // Check if response is SSE or JSON

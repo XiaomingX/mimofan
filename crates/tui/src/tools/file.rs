@@ -738,7 +738,7 @@ impl ToolSpec for EditFileTool {
         let (updated, count, fuzz_kind) = if is_anchor_mode {
             // Anchor mode: find line by content hash
             let anchor = line_ref.unwrap();
-            let matches = find_all_lines_by_anchor(&contents, &anchor);
+            let matches = find_all_lines_by_anchor(&contents, anchor);
             match matches.as_slice() {
                 [] => {
                     return Err(ToolError::execution_failed(format!(
@@ -783,11 +783,11 @@ impl ToolSpec for EditFileTool {
             let count = contents.matches(&search).count();
             if count == 0 {
                 // First fallback: tolerate indentation differences.
-                let indent_matches = leading_whitespace_fuzzy_matches(&contents, &search);
+                let indent_matches = leading_whitespace_fuzzy_matches(&contents, search);
                 match indent_matches.as_slice() {
                     [(start, end)] => {
                         let mut updated = contents.clone();
-                        updated.replace_range(*start..*end, &replace);
+                        updated.replace_range(*start..*end, replace);
                         (updated, 1, Some("indentation"))
                     }
                     [] => {
@@ -796,7 +796,7 @@ impl ToolSpec for EditFileTool {
                         // copy-paste failure mode where a browser/chat client
                         // silently substituted Unicode punctuation in for the
                         // ASCII the file actually contains.
-                        let punct_matches = punctuation_normalized_matches(&contents, &search);
+                        let punct_matches = punctuation_normalized_matches(&contents, search);
                         match punct_matches.as_slice() {
                             [] => {
                                 return Err(ToolError::execution_failed(format!(
@@ -806,7 +806,7 @@ impl ToolSpec for EditFileTool {
                             }
                             [(start, end)] => {
                                 let mut updated = contents.clone();
-                                updated.replace_range(*start..*end, &replace);
+                                updated.replace_range(*start..*end, replace);
                                 (updated, 1, Some("punctuation"))
                             }
                             _ => {
@@ -833,7 +833,7 @@ impl ToolSpec for EditFileTool {
                     file_path.display()
                 )));
             } else {
-                (contents.replace(&search, &replace), count, None)
+                (contents.replace(search, replace), count, None)
             }
         };
 

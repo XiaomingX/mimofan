@@ -1507,7 +1507,6 @@ impl Engine {
         }
     }
 
-
     #[allow(clippy::too_many_arguments)]
     async fn handle_send_message(
         &mut self,
@@ -2718,8 +2717,8 @@ pub(crate) enum MockApprovalEvent {
 mod approval;
 mod catalog_filter;
 mod context;
-mod engine_messages;
 mod engine_config;
+mod engine_messages;
 mod goal;
 mod handle;
 mod plugin_tools;

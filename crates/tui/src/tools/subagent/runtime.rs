@@ -51,6 +51,12 @@ pub struct SubAgentRuntimeState {
     pub events: Vec<SubAgentEvent>,
 }
 
+impl Default for SubAgentRuntimeState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SubAgentRuntimeState {
     /// Create a new runtime state.
     #[must_use]

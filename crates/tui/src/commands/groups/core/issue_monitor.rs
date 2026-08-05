@@ -139,13 +139,13 @@ fn handle_create(_app: &mut App, args: &[&str]) -> CommandResult {
     });
 
     // 创建路由约束
-    let _constraints = vec![RouteConstraint::Issues(issues.clone())];
+    let _constraints = [RouteConstraint::Issues(issues.clone())];
 
     // 注意：这里需要异步调用，但 RegisterCommand 是同步的
     // 实际实现中需要通过 AppAction 来触发异步操作
     // 这里先返回一个提示信息
 
-    let mut text = format!("✅ Issue Monitor 创建请求已接收\n\n");
+    let mut text = "✅ Issue Monitor 创建请求已接收\n\n".to_string();
     text.push_str(&format!("**名称**: {}\n", name));
     text.push_str(&format!("**仓库**: {}\n", repo));
     text.push_str(&format!("**目标分支**: {}\n", branch));

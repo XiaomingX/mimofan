@@ -864,7 +864,6 @@ fn should_fetch_deepseek_balance(app: &App) -> bool {
         && matches!(app.api_provider, ApiProvider::XiaomiMimo)
 }
 
-
 // steer_user_message, queue_follow_up, submit_or_steer_message,
 // merge_pending_steers moved to message_dispatch.rs
 

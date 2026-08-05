@@ -81,14 +81,14 @@ impl MonitorStore {
             .context("Failed to read directory entry")?
         {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                if let Some(id) = path.file_stem().and_then(|s| s.to_str()) {
-                    match self.load(id).await {
-                        Ok(monitor) => monitors.push(monitor),
-                        Err(e) => {
-                            // 跳过损坏的文件，继续加载其他
-                            eprintln!("Warning: Failed to load monitor {}: {}", id, e);
-                        }
+            if path.extension().and_then(|e| e.to_str()) == Some("json")
+                && let Some(id) = path.file_stem().and_then(|s| s.to_str())
+            {
+                match self.load(id).await {
+                    Ok(monitor) => monitors.push(monitor),
+                    Err(e) => {
+                        // 跳过损坏的文件，继续加载其他
+                        eprintln!("Warning: Failed to load monitor {}: {}", id, e);
                     }
                 }
             }
@@ -128,10 +128,10 @@ impl MonitorStore {
             .context("Failed to read directory entry")?
         {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                if let Some(id) = path.file_stem().and_then(|s| s.to_str()) {
-                    ids.push(id.to_string());
-                }
+            if path.extension().and_then(|e| e.to_str()) == Some("json")
+                && let Some(id) = path.file_stem().and_then(|s| s.to_str())
+            {
+                ids.push(id.to_string());
             }
         }
 
@@ -202,21 +202,21 @@ impl WakeEventStore {
             .context("Failed to read directory entry")?
         {
             let path = entry.path();
-            if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
-                if filename.starts_with(&format!("{}_", monitor_id)) && filename.ends_with(".json")
-                {
-                    let json = fs::read_to_string(&path)
-                        .await
-                        .context("Failed to read event log")?;
-                    if let Ok(log) = serde_json::from_str::<WakeEventLog>(&json) {
-                        logs.push(log);
-                    }
+            if let Some(filename) = path.file_name().and_then(|s| s.to_str())
+                && filename.starts_with(&format!("{}_", monitor_id))
+                && filename.ends_with(".json")
+            {
+                let json = fs::read_to_string(&path)
+                    .await
+                    .context("Failed to read event log")?;
+                if let Ok(log) = serde_json::from_str::<WakeEventLog>(&json) {
+                    logs.push(log);
                 }
             }
         }
 
         // 按时间排序
-        logs.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        logs.sort_by_key(|a| a.timestamp);
         Ok(logs)
     }
 }
