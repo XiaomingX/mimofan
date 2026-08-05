@@ -43,8 +43,7 @@ impl MonitorStore {
     pub async fn save(&self, monitor: &IssueMonitor) -> Result<()> {
         self.ensure_dir().await?;
 
-        let json = serde_json::to_string_pretty(monitor)
-            .context("Failed to serialize monitor")?;
+        let json = serde_json::to_string_pretty(monitor).context("Failed to serialize monitor")?;
 
         let path = self.monitor_path(&monitor.id);
         fs::write(&path, json)
@@ -177,8 +176,7 @@ impl WakeEventStore {
 
         let filename = format!("{}_{}.json", log.monitor_id, log.id);
         let path = self.data_dir.join(&filename);
-        let json = serde_json::to_string_pretty(log)
-            .context("Failed to serialize event log")?;
+        let json = serde_json::to_string_pretty(log).context("Failed to serialize event log")?;
 
         fs::write(&path, json)
             .await
@@ -205,8 +203,7 @@ impl WakeEventStore {
         {
             let path = entry.path();
             if let Some(filename) = path.file_name().and_then(|s| s.to_str()) {
-                if filename.starts_with(&format!("{}_", monitor_id))
-                    && filename.ends_with(".json")
+                if filename.starts_with(&format!("{}_", monitor_id)) && filename.ends_with(".json")
                 {
                     let json = fs::read_to_string(&path)
                         .await

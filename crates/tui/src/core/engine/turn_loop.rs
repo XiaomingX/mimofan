@@ -2642,15 +2642,6 @@ fn interrupted_tool_result() -> ToolResult {
     ToolResult::error("Tool not executed: the request was cancelled before this tool ran.")
 }
 
-#[cfg(test)]
-mod cancel_batch_tests {}
-
-#[cfg(test)]
-mod pre_tool_snapshot_gate_tests {}
-
-#[cfg(test)]
-mod stream_timeout_tests {}
-
 pub(super) fn command_allows_tool(allowed_tools: Option<&[String]>, tool_name: &str) -> bool {
     let Some(allowed_tools) = allowed_tools else {
         return true;

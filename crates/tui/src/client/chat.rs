@@ -2799,19 +2799,4 @@ fn tool_name_or_fallback(name: Option<&str>, id: &str, source: &str) -> String {
 
 // === #103 Phase 1: stream-decode diagnostics ===================================
 
-#[cfg(test)]
-mod stream_diagnostics_tests {}
-
-#[cfg(test)]
-mod arcee_waf_message_encoding_tests {}
-
-#[cfg(test)]
-mod minimax_reasoning_replay_tests {}
-
 // === #103 Phase 4: SSE decoder behavior on canned chunk sequences ============
-
-#[cfg(test)]
-mod stream_decoder_tests {}
-
-#[cfg(test)]
-mod alias_thinking_detection_tests {}
