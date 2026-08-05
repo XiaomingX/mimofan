@@ -126,6 +126,14 @@ impl Engine {
             builder = builder.with_remember_tool();
         }
 
+        // Register the `remember_vector` tool only when the embedding backend
+        // is configured (#570). When unconfigured the tool would always fail
+        // with "vector-memory not configured"; surfacing it wastes a catalog slot.
+        #[cfg(feature = "vector-memory")]
+        if crate::vector_memory::VectorMemory::is_configured() {
+            builder = builder.with_remember_vector_tool();
+        }
+
         // Register image_analyze tool when vision_model is configured and feature enabled.
         if self.config.features.enabled(Feature::VisionModel)
             && let Some(ref vision_config) = self.config.vision_config

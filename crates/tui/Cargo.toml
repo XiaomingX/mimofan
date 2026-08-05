@@ -8,14 +8,15 @@ description = "MiMo 专属中文编码助手 TUI"
 default-run = "mimofan"
 
 [features]
-default = ["tui", "json", "toml"]
+default = ["tui", "json", "toml", "vector-memory"]
 tui = ["dep:schemaui", "schemaui/tui", "json", "toml"]
 web = ["dep:schemaui", "schemaui/web", "json", "toml"]
 json = ["schemaui/json"]
 toml = ["schemaui/toml"]
 long-running-tests = []
-# 向量记忆（互补于 crate::memory 文件记忆）。默认关闭：需 --features vector-memory
-# 且运行时配置 MIMOFAN_MEMORY_API_KEY 等环境变量才启用，对默认构建零影响。
+# 向量记忆（互补于 crate::memory 文件记忆）。默认开启：编译进默认二进制，但运行
+# 时若未配置 MIMOFAN_MEMORY_API_KEY 则优雅降级为"禁用"状态（inner=None，零 I/O、
+# 零报错），对未配置用户完全无副作用；配置后自动获得跨会话语义召回能力。
 vector-memory = ["dep:mimofan-memory"]
 
 [[bin]]

@@ -39,6 +39,8 @@ pub mod plugin;
 pub mod project;
 pub mod registry;
 pub mod remember;
+#[cfg(feature = "vector-memory")]
+pub mod remember_vector;
 pub mod revert_turn;
 pub mod review;
 pub mod rlm;
