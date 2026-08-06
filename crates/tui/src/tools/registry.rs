@@ -841,6 +841,17 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(RememberTool))
     }
 
+    /// Include the `remember_vector` tool — model-callable semantic memory
+    /// write into the vector store (#570). Complements `remember` (file-based).
+    /// Only registered when the embedding backend is configured
+    /// (`MIMOFAN_MEMORY_API_KEY`); without that the tool would always fail.
+    #[cfg(feature = "vector-memory")]
+    #[must_use]
+    pub fn with_remember_vector_tool(self) -> Self {
+        use super::remember_vector::RememberVectorTool;
+        self.with_tool(Arc::new(RememberVectorTool))
+    }
+
     /// Include the slop ledger tools (#2127) — durable tracking of
     /// unresolved architectural residue: append, query, update, export.
     /// Registered unconditionally; the ledger JSON file is auto-created

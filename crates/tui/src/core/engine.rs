@@ -31,8 +31,8 @@ use crate::llm_client::LlmClient;
 use crate::mcp::McpPool;
 
 use crate::models::{
-    ContentBlock, ContentBlockStart, Delta, Message, MessageRequest, StreamEvent, SystemPrompt,
-    Tool, Usage,
+    ContentBlock, ContentBlockStart, Delta, Message, MessageRequest, StreamEvent, SystemBlock,
+    SystemPrompt, Tool, Usage,
 };
 use crate::prompts;
 use crate::purge::{emit_purge_completed, emit_purge_failed, emit_purge_started, run_purge};
@@ -338,6 +338,15 @@ pub struct Engine {
     /// cache-hit behavior is audited.
     seam_manager: Option<SeamManager>,
     turn_counter: u64,
+    /// Latched once the vector-memory injection has been attempted on the
+    /// first turn, so we only do the (network) recall once per session.
+    #[cfg(feature = "vector-memory")]
+    vector_memory_injected: bool,
+    /// Recalled `<vector_memory>` block from the first-turn semantic recall.
+    /// Stored so `refresh_system_prompt` can re-append it after a context
+    /// refresh would otherwise drop the injected block.
+    #[cfg(feature = "vector-memory")]
+    vector_memory_block: Option<String>,
     /// Post-edit LSP diagnostics injection (#136). Populated unconditionally
     /// — when LSP is disabled in config, this is an inert manager that
     /// always returns `None` from `diagnostics_for`.
@@ -788,6 +797,10 @@ impl Engine {
             tool_exec_lock,
             seam_manager,
             turn_counter: 0,
+            #[cfg(feature = "vector-memory")]
+            vector_memory_injected: false,
+            #[cfg(feature = "vector-memory")]
+            vector_memory_block: None,
             lsp_manager,
             pending_lsp_blocks: Vec::new(),
             slop_ledger_gate_cache: None,
@@ -1572,6 +1585,15 @@ impl Engine {
                 turn_id: turn.id.clone(),
             })
             .await;
+
+        // First-turn vector-memory semantic recall → system-prompt injection
+        // (#570, complement to file-based `/memory`). Latched so the (network)
+        // embedding recall runs at most once per session; non-fatal on any error.
+        #[cfg(feature = "vector-memory")]
+        {
+            let query = content.clone();
+            self.maybe_inject_vector_memory(&query).await;
+        }
 
         // Snapshot the workspace BEFORE we touch a single tool. Run the git
         // work on the blocking pool so the async runtime stays responsive;
@@ -2609,6 +2631,16 @@ impl Engine {
             prompt_text.push_str(block);
         }
 
+        // Re-append the recalled vector-memory block (if any) so a context
+        // refresh doesn't silently drop the first-turn injection (#570).
+        #[cfg(feature = "vector-memory")]
+        if let Some(ref block) = self.vector_memory_block
+            && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
+        {
+            prompt_text.push_str("\n\n");
+            prompt_text.push_str(block);
+        }
+
         let stable_hash = system_prompt_hash(stable_prompt.as_ref());
         if self.session.system_prompt_override {
             return;
@@ -2616,6 +2648,83 @@ impl Engine {
         if self.session.last_system_prompt_hash != Some(stable_hash) {
             self.session.system_prompt = stable_prompt;
             self.session.last_system_prompt_hash = Some(stable_hash);
+        }
+    }
+
+    /// Attempt a one-time vector-memory semantic recall and inject the result
+    /// into the stable system prompt. Complements the file-based `/memory`
+    /// block (#570). Latched via `vector_memory_injected` so the embedding
+    /// network call runs at most once per session. Any failure is logged and
+    /// swallowed — vector memory is an enhancement, never a hard dependency.
+    #[cfg(feature = "vector-memory")]
+    pub(crate) async fn maybe_inject_vector_memory(&mut self, query: &str) {
+        if self.vector_memory_injected {
+            return;
+        }
+        self.vector_memory_injected = true;
+
+        let mem_dir = match self.config.memory_dir.parent() {
+            Some(p) => p.to_path_buf(),
+            None => return,
+        };
+        let mut vm = match crate::vector_memory::VectorMemory::open(&mem_dir) {
+            Ok(vm) => vm,
+            Err(err) => {
+                tracing::warn!("vector-memory open failed, skipping injection: {err}");
+                return;
+            }
+        };
+        if !vm.enabled() {
+            return;
+        }
+
+        let project = self
+            .session
+            .workspace
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("default")
+            .to_string();
+
+        // Hold only the Send embedding service across the await; the non-Send
+        // store is queried synchronously afterwards.
+        let embedder = match vm.take_embedder() {
+            Some(embedder) => embedder,
+            None => return,
+        };
+        let embedding = match embedder.embed_text(query).await {
+            Ok(embedding) => embedding,
+            Err(err) => {
+                tracing::warn!("vector-memory injection embed failed: {err}");
+                return;
+            }
+        };
+        let matches = match vm.search_embedded(&embedding, Some(&project), 8) {
+            Ok(matches) => matches,
+            Err(err) => {
+                tracing::warn!("vector-memory injection recall failed: {err}");
+                return;
+            }
+        };
+        let block =
+            match crate::vector_memory::VectorMemory::format_injection_block(&project, &matches) {
+                Some(block) => block,
+                None => return,
+            };
+
+        self.vector_memory_block = Some(block.clone());
+        if let Some(sp) = self.session.system_prompt.as_mut() {
+            match sp {
+                SystemPrompt::Text(text) => {
+                    text.push_str("\n\n");
+                    text.push_str(&block);
+                }
+                SystemPrompt::Blocks(blocks) => blocks.push(SystemBlock {
+                    block_type: "text".into(),
+                    text: block,
+                    cache_control: None,
+                }),
+            }
         }
     }
 

@@ -6,6 +6,8 @@
 #[allow(clippy::module_inception)]
 mod memory;
 mod note;
+#[cfg(feature = "vector-memory")]
+mod vmemory;
 
 use crate::commands::CommandResult;
 use crate::commands::traits::{Command, CommandGroup, CommandInfo, FunctionCommand};
@@ -16,10 +18,13 @@ pub struct MemoryCommands;
 
 impl CommandGroup for MemoryCommands {
     fn commands(&self) -> Vec<Box<dyn Command>> {
-        vec![
+        let mut cmds: Vec<Box<dyn Command>> = vec![
             Box::new(FunctionCommand::new(&NOTE_INFO, run_note)),
             Box::new(FunctionCommand::new(&MEMORY_INFO, run_memory)),
-        ]
+        ];
+        #[cfg(feature = "vector-memory")]
+        cmds.push(Box::new(FunctionCommand::new(&VMEMORY_INFO, run_vmemory)));
+        cmds
     }
 }
 
@@ -36,6 +41,14 @@ static MEMORY_INFO: CommandInfo = CommandInfo {
     description_id: MessageId::CmdMemoryDescription,
 };
 
+#[cfg(feature = "vector-memory")]
+static VMEMORY_INFO: CommandInfo = CommandInfo {
+    name: "vmemory",
+    aliases: &[],
+    usage: "/vmemory [status|remember <kind> <text>|query <text>|list|help]",
+    description_id: MessageId::CmdVectorMemoryDescription,
+};
+
 fn run_registered(app: &mut App, name: &str, arg: Option<&str>) -> CommandResult {
     dispatch(app, name, arg).expect("registered memory command should dispatch")
 }
@@ -47,6 +60,11 @@ fn run_memory(app: &mut App, arg: Option<&str>) -> CommandResult {
     run_registered(app, "memory", arg)
 }
 
+#[cfg(feature = "vector-memory")]
+fn run_vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "vmemory", arg)
+}
+
 pub(in crate::commands) fn dispatch(
     app: &mut App,
     command: &str,
@@ -55,6 +73,8 @@ pub(in crate::commands) fn dispatch(
     let result = match command {
         "memory" => memory::memory(app, arg),
         "note" => note::note(app, arg),
+        #[cfg(feature = "vector-memory")]
+        "vmemory" => vmemory::vmemory(app, arg),
         _ => return None,
     };
     Some(result)

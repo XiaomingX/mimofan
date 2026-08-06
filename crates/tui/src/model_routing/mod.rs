@@ -489,7 +489,7 @@ async fn auto_route_inventory_recommendation(
 
 fn inventory_auto_router_system_prompt(inventory: &ModelInventory) -> String {
     format!(
-        include_str!("prompts/inventory_router_classifier.md"),
+        include_str!("../prompts/inventory_router_classifier.md"),
         inventory = inventory.router_context_json()
     )
 }

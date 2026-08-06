@@ -116,6 +116,8 @@ mod tool_output_receipts;
 pub mod tools;
 mod tui;
 mod utils;
+#[cfg(feature = "vector-memory")]
+pub mod vector_memory;
 mod vision;
 mod worker_profile;
 mod working_set;
