@@ -159,14 +159,15 @@ impl VectorMemory {
             .collect())
     }
 
-    /// 列出某项目最近的 observation（同步）。
+    /// 列出某项目最近的 observation（同步，按写入时间倒序）。
     ///
-    /// 注：向量库按相似度检索，无原生"按时间列出"接口；此处用零向量近似召回
-    /// 最近写入的条目（实验实现，结果不保证严格时间序）。
+    /// 直接走向量库的 `created_at` 索引确定性排序，不依赖相似度检索，
+    /// 因此返回结果严格按时间倒序（最新在前）。
     pub fn list_recent(&self, project: Option<&str>, limit: usize) -> Result<Vec<Observation>> {
-        let zero = vec![0.0f32; self.dimension];
-        let matches = self.search_embedded(&zero, project, limit)?;
-        Ok(matches.into_iter().map(|m| m.0).collect())
+        let store = self.store.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("vector-memory 未启用：请配置 MIMOFAN_MEMORY_API_KEY 后重启")
+        })?;
+        Ok(store.list_recent(project, limit)?)
     }
 
     /// 为系统提示生成 `<vector_memory>` 注入块（已启用且有召回结果时返回 `Some`）。
@@ -208,3 +209,62 @@ pub fn parse_observation_kind(s: &str) -> Result<ObservationKind> {
     s.parse::<ObservationKind>()
         .map_err(|e| anyhow::anyhow!("无效的 observation kind `{s}`: {e}"))
 }
+
+#[cfg(all(test, feature = "vector-memory"))]
+mod tests {
+    use super::*;
+    use mimofan_memory::{Observation, ObservationKind};
+
+    fn obs(kind: ObservationKind, content: &str) -> Observation {
+        Observation {
+            id: 0,
+            content: content.to_string(),
+            kind,
+            project: Some("demo".to_string()),
+            files_read: Vec::new(),
+            files_modified: Vec::new(),
+            concepts: Vec::new(),
+            created_at: 0,
+        }
+    }
+
+    #[test]
+    fn is_configured_false_without_api_key() {
+        // Ensure the key is unset for this assertion; tests run in a clean
+        // environment, but guard against CI leaking it.
+        unsafe { std::env::remove_var("MIMOFAN_MEMORY_API_KEY"); };
+        assert!(!VectorMemory::is_configured());
+    }
+
+    #[test]
+    fn open_without_backend_is_disabled_and_safe() {
+        unsafe { std::env::remove_var("MIMOFAN_MEMORY_API_KEY"); };
+        let vm = VectorMemory::open(std::path::Path::new("/tmp/__vm_test_none")).unwrap();
+        assert!(!vm.enabled());
+    }
+
+    #[test]
+    fn parse_observation_kind_roundtrip() {
+        assert_eq!(
+            parse_observation_kind("Decision").unwrap(),
+            ObservationKind::Decision
+        );
+        assert!(parse_observation_kind("Nonsense").is_err());
+    }
+
+    #[test]
+    fn injection_block_none_when_empty() {
+        assert!(VectorMemory::format_injection_block("demo", &[]).is_none());
+    }
+
+    #[test]
+    fn injection_block_renders_project_and_entries() {
+        let matches = vec![(obs(ObservationKind::Change, "renamed module"), 0.91)];
+        let block = VectorMemory::format_injection_block("demo", &matches).unwrap();
+        assert!(block.starts_with("<vector_memory project=\"demo\">"));
+        assert!(block.contains("[change] renamed module"));
+        assert!(block.contains("score 0.91"));
+        assert!(block.trim_end().ends_with("</vector_memory>"));
+    }
+}
+

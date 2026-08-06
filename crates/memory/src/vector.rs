@@ -339,6 +339,68 @@ impl VectorStore {
         Ok(matches)
     }
 
+    /// List the most recent observations for a project, ordered by creation
+    /// time (newest first). Bypasses the HNSW similarity index — this is a
+    /// deterministic time-ordered listing backed by the `created_at` column
+    /// and its `idx_observations_created_at` index, unlike `search` which uses
+    /// a zero-vector approximation and yields no strict time order.
+    ///
+    /// `project` filters by project name; pass `None` to list across all
+    /// projects. Returns at most `limit` rows.
+    /// Map a SQLite row to an `Observation` (shared by `list_recent`).
+    fn row_mapper() -> impl FnMut(&rusqlite::Row) -> rusqlite::Result<Observation> {
+        |row| {
+            let kind_str: String = row.get(2)?;
+            let files_read_json: String = row.get(4)?;
+            let files_modified_json: String = row.get(5)?;
+            let concepts_json: String = row.get(6)?;
+            Ok(Observation {
+                id: row.get(0)?,
+                content: row.get(1)?,
+                kind: kind_str.parse().unwrap_or(ObservationKind::Manual),
+                project: row.get(3)?,
+                files_read: serde_json::from_str(&files_read_json).unwrap_or_default(),
+                files_modified: serde_json::from_str(&files_modified_json).unwrap_or_default(),
+                concepts: serde_json::from_str(&concepts_json).unwrap_or_default(),
+                created_at: row.get(7)?,
+            })
+        }
+    }
+
+    pub fn list_recent(
+        &self,
+        project: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<Observation>> {
+        let sql = match project {
+            Some(_) => r#"
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at
+                FROM observations
+                WHERE project = ?1
+                ORDER BY created_at DESC
+                LIMIT ?2
+                "#,
+            None => r#"
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at
+                FROM observations
+                ORDER BY created_at DESC
+                LIMIT ?1
+                "#,
+        };
+        let mut stmt = self.sqlite.prepare(sql)?;
+        let mapped = match project {
+            Some(p) => stmt.query_map(rusqlite::params![p, limit as i64], Self::row_mapper())?,
+            None => stmt.query_map(rusqlite::params![limit as i64], Self::row_mapper())?,
+        };
+
+        let mut out = Vec::new();
+        for row in mapped {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
+
     /// Load an observation by ID
     pub fn load_observation(&self, id: i64) -> Result<Option<Observation>> {
         let mut stmt = self.sqlite.prepare(
