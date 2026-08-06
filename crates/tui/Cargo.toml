@@ -58,6 +58,9 @@ rmcp = { version = "2.2.0", default-features = false, features = ["auth", "clien
 rustls.workspace = true
 qrcode = { version = "0.14", default-features = false }
 similar = "3"
+# 差分渲染语法高亮：仅启用内置语法/主题，避免拖入 onig（正则引擎）与 assets 下载
+# 差分渲染语法高亮：纯 Rust 正则引擎（regex-fancy），避免拖入 onig C 依赖
+syntect = { version = "5", default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 semver.workspace = true

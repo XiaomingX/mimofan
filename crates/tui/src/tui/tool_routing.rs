@@ -1100,6 +1100,7 @@ pub(super) fn maybe_add_patch_preview(app: &mut App, input: &serde_json::Value) 
         app.add_message(HistoryCell::Tool(ToolCell::DiffPreview(DiffPreviewCell {
             title: "Patch Preview".to_string(),
             diff: patch.to_string(),
+            path: None,
         })));
         app.mark_history_updated();
         return;
@@ -1111,6 +1112,7 @@ pub(super) fn maybe_add_patch_preview(app: &mut App, input: &serde_json::Value) 
             app.add_message(HistoryCell::Tool(ToolCell::DiffPreview(DiffPreviewCell {
                 title: "Changes Preview".to_string(),
                 diff: preview,
+                path: None,
             })));
             app.mark_history_updated();
         }

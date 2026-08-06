@@ -3162,6 +3162,7 @@ dependencies = [
  "shlex",
  "similar",
  "starlark",
+ "syntect",
  "tar",
  "tempfile",
  "thiserror 2.0.19",
@@ -5584,6 +5585,24 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "syntect"
+version = "5.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "656b45c05d95a5704399aeef6bd0ddec7b2b3531b7c9e900abbf7c4d2190c925"
+dependencies = [
+ "bincode",
+ "fancy-regex 0.16.2",
+ "flate2",
+ "fnv",
+ "once_cell",
+ "regex-syntax",
+ "serde",
+ "serde_derive",
+ "thiserror 2.0.19",
+ "walkdir",
 ]
 
 [[package]]

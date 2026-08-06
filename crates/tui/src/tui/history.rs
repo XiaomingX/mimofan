@@ -1050,6 +1050,9 @@ impl ReviewCell {
 pub struct DiffPreviewCell {
     pub title: String,
     pub diff: String,
+    /// Originating file path, used for syntax highlighting. `None` when the
+    /// preview has no single associated file (e.g. a multi-file patch).
+    pub path: Option<String>,
 }
 
 impl DiffPreviewCell {
@@ -1070,7 +1073,11 @@ impl DiffPreviewCell {
             tool_value_style(),
             width,
         ));
-        lines.extend(diff_render::render_diff(&self.diff, width));
+        lines.extend(diff_render::render_diff_auto(
+            &self.diff,
+            width,
+            self.path.as_deref(),
+        ));
         lines
     }
 }
@@ -1354,7 +1361,7 @@ impl GenericToolCell {
                     None,
                     low_motion,
                 ));
-                lines.extend(diff_render::render_diff(output, width));
+                lines.extend(diff_render::render_diff_auto(output, width, None));
             } else {
                 lines.extend(render_tool_output_mode(
                     output,
