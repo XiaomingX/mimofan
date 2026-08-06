@@ -9,11 +9,11 @@
 
 use mimofan_memory::compressor::ObservationCompressor;
 use mimofan_memory::optimization::{BatchProcessor, LongTaskManager, RateLimiter, SearchCache};
-use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, VectorStore};
+use mimofan_memory::vector::{Observation, SearchFilters, VectorStore};
 use std::time::Duration;
 
 /// Helper to create test observation
-fn create_observation(project: &str, kind: ObservationKind, content: &str) -> Observation {
+fn create_observation(project: &str, kind: &str, content: &str) -> Observation {
     Observation::new(project.to_string(), kind, content.to_string())
 }
 
@@ -41,7 +41,7 @@ async fn main() {
     let mut obs_store = mimofan_memory::optimization::ObservationStore::new(store);
 
     // Store observation
-    let obs = create_observation("test", ObservationKind::Discovery, "Test discovery");
+    let obs = create_observation("test", "project", "Test discovery");
     let embedding = generate_embedding(1);
     let id = obs_store
         .store_observation(&obs, &embedding)
@@ -80,7 +80,7 @@ async fn main() {
 
     // Enqueue
     for i in 0..10 {
-        let obs = create_observation("batch", ObservationKind::Change, &format!("Item {}", i));
+        let obs = create_observation("batch", "project", &format!("Item {}", i));
         batch.enqueue(obs).expect("enqueue observation");
     }
     assert_eq!(batch.queue_size(), 10);
@@ -136,7 +136,7 @@ async fn main() {
         .map(|i| {
             create_observation(
                 "compress",
-                ObservationKind::Discovery,
+                "project",
                 &format!("Discovery {}", i),
             )
         })
@@ -160,7 +160,7 @@ async fn main() {
 
     // Insert
     let data = vec![mimofan_memory::VectorMatch {
-        observation: create_observation("cache", ObservationKind::Discovery, "Cached item"),
+        observation: create_observation("cache", "project", "Cached item"),
         score: 0.95,
     }];
     cache.insert("query-1".to_string(), data.clone());

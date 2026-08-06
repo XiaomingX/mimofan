@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 use super::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, required_str,
 };
-use crate::vector_memory::{VectorMemory, parse_observation_kind};
+use crate::vector_memory::{VectorMemory, parse_memory_category};
 
 /// Tool that stores one typed observation into the user's vector memory store.
 pub struct RememberVectorTool;
@@ -44,7 +44,7 @@ impl ToolSpec for RememberVectorTool {
             "properties": {
                 "kind": {
                     "type": "string",
-                    "description": "Observation kind: one of Decision, Change, Feature, Fact, Question, Bug, Note."
+                    "description": "Memory category: one of user, feedback, project, reference (shared with the file-based memory system)."
                 },
                 "content": {
                     "type": "string",
@@ -92,8 +92,9 @@ impl ToolSpec for RememberVectorTool {
             ));
         }
 
-        let obs_kind = parse_observation_kind(kind)
+        let obs_kind = parse_memory_category(kind)
             .map_err(|err| ToolError::execution_failed(err.to_string()))?;
+        let kind_str = obs_kind.as_str();
         let project = context
             .workspace
             .file_name()
@@ -111,11 +112,11 @@ impl ToolSpec for RememberVectorTool {
             .await
             .map_err(|err| ToolError::execution_failed(format!("embedding failed: {err}")))?;
         let id = vm
-            .store_observation(&project, obs_kind, content, &embedding)
+            .store_observation(&project, kind_str, content, &embedding)
             .map_err(|err| ToolError::execution_failed(format!("failed to store: {err}")))?;
 
         Ok(ToolResult::success(format!(
-            "remembered (vector id {id}): [{kind}] {content}"
+            "remembered (vector id {id}): [{kind_str}] {content}"
         )))
     }
 }

@@ -31,8 +31,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 #[cfg(feature = "vector-memory")]
 use mimofan_memory::{
-    EmbeddingConfig, EmbeddingService, Observation, ObservationKind, SearchFilters, VectorStore,
+    EmbeddingConfig, EmbeddingService, Observation, SearchFilters, VectorStore,
 };
+#[cfg(feature = "vector-memory")]
+use crate::memory::MemoryCategory;
 
 /// 向量记忆后端：持有 embedding 服务与向量库，提供 remember/recall/list/inject 的
 /// 构建块。
@@ -127,14 +129,14 @@ impl VectorMemory {
     pub fn store_observation(
         &self,
         project: &str,
-        kind: ObservationKind,
+        kind: &str,
         content: &str,
         embedding: &[f32],
     ) -> Result<i64> {
         let store = self.store.as_ref().ok_or_else(|| {
             anyhow::anyhow!("vector-memory 未启用：请配置 MIMOFAN_MEMORY_API_KEY 后重启")
         })?;
-        let obs = Observation::new(project.to_string(), kind, content.to_string());
+        let obs = Observation::new(project.to_string(), kind.to_string(), content.to_string());
         Ok(store.store_observation(&obs, embedding)?)
     }
 
@@ -172,8 +174,9 @@ impl VectorMemory {
 
     /// 为系统提示生成 `<vector_memory>` 注入块（已启用且有召回结果时返回 `Some`）。
     ///
-    /// 互补于 `crate::memory` 的文件记忆块：语义召回更适合"跨会话想起相关决策/
-    /// 改动"，而文件记忆适合确定性偏好。二者并列出现在系统提示中，互不影响。
+    /// 与 `crate::memory` 的文件记忆共用同一套 [`MemoryCategory`] 四分类
+    /// （user/feedback/project/reference）：语义召回更适合"跨会话想起相关项目
+    /// 背景/偏好"，而文件记忆适合确定性偏好。二者并列出现在系统提示中，互不影响。
     ///
     /// 调用方负责取出 embedder 并跨 await 完成嵌入，再传入本同步方法。
     pub fn format_injection_block(project: &str, matches: &[(Observation, f32)]) -> Option<String> {
@@ -203,23 +206,25 @@ impl VectorMemory {
     }
 }
 
-/// 解析 observation kind 字符串（供 `/vmemory` 命令与工具使用）。
+/// 解析记忆分类字符串（供 `/vmemory` 命令与工具使用），复用文件记忆的唯一
+/// 权威分类 [`MemoryCategory`]。
 #[cfg(feature = "vector-memory")]
-pub fn parse_observation_kind(s: &str) -> Result<ObservationKind> {
-    s.parse::<ObservationKind>()
-        .map_err(|e| anyhow::anyhow!("无效的 observation kind `{s}`: {e}"))
+pub fn parse_memory_category(s: &str) -> Result<MemoryCategory> {
+    MemoryCategory::from_str(s)
+        .ok_or_else(|| anyhow::anyhow!("无效的记忆分类 `{s}`，应为 user/feedback/project/reference 之一"))
 }
 
 #[cfg(all(test, feature = "vector-memory"))]
 mod tests {
     use super::*;
-    use mimofan_memory::{Observation, ObservationKind};
+    use crate::memory::MemoryCategory;
+    use mimofan_memory::Observation;
 
-    fn obs(kind: ObservationKind, content: &str) -> Observation {
+    fn obs(kind: &str, content: &str) -> Observation {
         Observation {
             id: 0,
             content: content.to_string(),
-            kind,
+            kind: kind.to_string(),
             project: Some("demo".to_string()),
             files_read: Vec::new(),
             files_modified: Vec::new(),
@@ -244,12 +249,16 @@ mod tests {
     }
 
     #[test]
-    fn parse_observation_kind_roundtrip() {
+    fn parse_memory_category_roundtrip() {
         assert_eq!(
-            parse_observation_kind("Decision").unwrap(),
-            ObservationKind::Decision
+            parse_memory_category("project").unwrap(),
+            MemoryCategory::Project
         );
-        assert!(parse_observation_kind("Nonsense").is_err());
+        assert_eq!(
+            parse_memory_category("FEEDBACK").unwrap(),
+            MemoryCategory::Feedback
+        );
+        assert!(parse_memory_category("Nonsense").is_err());
     }
 
     #[test]
@@ -259,10 +268,10 @@ mod tests {
 
     #[test]
     fn injection_block_renders_project_and_entries() {
-        let matches = vec![(obs(ObservationKind::Change, "renamed module"), 0.91)];
+        let matches = vec![(obs("project", "renamed module"), 0.91)];
         let block = VectorMemory::format_injection_block("demo", &matches).unwrap();
         assert!(block.starts_with("<vector_memory project=\"demo\">"));
-        assert!(block.contains("[change] renamed module"));
+        assert!(block.contains("[project] renamed module"));
         assert!(block.contains("score 0.91"));
         assert!(block.trim_end().ends_with("</vector_memory>"));
     }

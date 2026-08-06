@@ -29,7 +29,7 @@ pub use knowledge::{CorpusAnswer, CorpusSource, KnowledgeAgent, KnowledgeCorpus}
 pub use optimization::{
     BatchProcessor, LongTaskManager, LongTaskResult, ObservationStore, RateLimiter, SearchCache,
 };
-pub use vector::{Observation, ObservationKind, SearchFilters, VectorMatch, VectorStore};
+pub use vector::{Observation, SearchFilters, VectorMatch, VectorStore};
 
 /// Result type for memory operations
 pub type Result<T> = std::result::Result<T, MemoryError>;

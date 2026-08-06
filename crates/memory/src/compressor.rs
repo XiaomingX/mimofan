@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::Result;
 use crate::error::MemoryError;
-use crate::vector::{Observation, ObservationKind};
+use crate::vector::Observation;
 
 /// Compression strategy for observations
 #[derive(Debug, Clone)]
@@ -185,13 +185,13 @@ impl ObservationCompressor {
         let mut summaries = Vec::new();
 
         for obs in observations {
-            let summary = match obs.kind {
-                ObservationKind::Bugfix => format!("Fixed: {}", obs.content),
-                ObservationKind::Feature => format!("Added: {}", obs.content),
-                ObservationKind::Decision => format!("Decided: {}", obs.content),
-                ObservationKind::Discovery => format!("Discovered: {}", obs.content),
-                ObservationKind::Change => format!("Changed: {}", obs.content),
-                ObservationKind::Manual => obs.content.clone(),
+            let summary = match obs.kind.as_str() {
+                "project" => format!("Project: {}", obs.content),
+                "feedback" => format!("Feedback: {}", obs.content),
+                "user" => format!("User: {}", obs.content),
+                "reference" => format!("Reference: {}", obs.content),
+                // 旧库遗留的未知 kind（如 bugfix/feature）按原文保留，避免崩溃。
+                other => format!("[{other}] {}", obs.content),
             };
             summaries.push(summary);
         }
@@ -214,10 +214,10 @@ impl ObservationCompressor {
         let start_time = observations.iter().map(|o| o.created_at).min().unwrap_or(0);
         let end_time = observations.iter().map(|o| o.created_at).max().unwrap_or(0);
 
-        // Extract key decisions
+        // Extract key project decisions/background
         let key_decisions: Vec<String> = observations
             .iter()
-            .filter(|o| o.kind == ObservationKind::Decision)
+            .filter(|o| o.kind == "project")
             .map(|o| o.content.clone())
             .collect();
 
@@ -246,37 +246,37 @@ impl ObservationCompressor {
 
     /// Generate a summary for the session
     fn generate_session_summary(&self, observations: &[Observation]) -> String {
-        let bugfix_count = observations
+        let user_count = observations
             .iter()
-            .filter(|o| o.kind == ObservationKind::Bugfix)
+            .filter(|o| o.kind == "user")
             .count();
-        let feature_count = observations
+        let feedback_count = observations
             .iter()
-            .filter(|o| o.kind == ObservationKind::Feature)
+            .filter(|o| o.kind == "feedback")
             .count();
-        let decision_count = observations
+        let project_count = observations
             .iter()
-            .filter(|o| o.kind == ObservationKind::Decision)
+            .filter(|o| o.kind == "project")
             .count();
-        let change_count = observations
+        let reference_count = observations
             .iter()
-            .filter(|o| o.kind == ObservationKind::Change)
+            .filter(|o| o.kind == "reference")
             .count();
 
         let mut summary = format!("Session with {} observations: ", observations.len());
 
         let mut parts = Vec::new();
-        if bugfix_count > 0 {
-            parts.push(format!("{} bug fixes", bugfix_count));
+        if user_count > 0 {
+            parts.push(format!("{} user notes", user_count));
         }
-        if feature_count > 0 {
-            parts.push(format!("{} features", feature_count));
+        if feedback_count > 0 {
+            parts.push(format!("{} feedback notes", feedback_count));
         }
-        if decision_count > 0 {
-            parts.push(format!("{} decisions", decision_count));
+        if project_count > 0 {
+            parts.push(format!("{} project notes", project_count));
         }
-        if change_count > 0 {
-            parts.push(format!("{} changes", change_count));
+        if reference_count > 0 {
+            parts.push(format!("{} reference notes", reference_count));
         }
 
         if parts.is_empty() {

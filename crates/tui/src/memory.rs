@@ -23,10 +23,59 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 
-/// Fixed memory categories, mirroring CodeBuddy's classification.
+/// 唯一权威记忆分类（对齐 CodeBuddy Typed Memory）。
+///
+/// 文件记忆与向量记忆共用同一套分类，避免两套并存的命名体系。
+/// 字符串值固定为小写：`user` / `feedback` / `project` / `reference`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemoryCategory {
+    /// 用户的角色、目标、偏好与知识背景。
+    User,
+    /// 用户对协作方式的纠正与指导（已确认的偏好 / 验证过的方法）。
+    Feedback,
+    /// 项目进行中的工作、目标与决策（无法从代码直接推导的背景）。
+    Project,
+    /// 外部系统与资源的指引（去哪里查信息）。
+    Reference,
+}
+
+impl MemoryCategory {
+    /// 所有分类，按注入/展示的稳定顺序排列。
+    pub const ALL: &'static [MemoryCategory] = &[
+        MemoryCategory::User,
+        MemoryCategory::Feedback,
+        MemoryCategory::Project,
+        MemoryCategory::Reference,
+    ];
+
+    /// 返回分类的小写字符串形式。
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MemoryCategory::User => "user",
+            MemoryCategory::Feedback => "feedback",
+            MemoryCategory::Project => "project",
+            MemoryCategory::Reference => "reference",
+        }
+    }
+
+    /// 从字符串解析分类（大小写不敏感）。
+    #[must_use]
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "user" => Some(MemoryCategory::User),
+            "feedback" => Some(MemoryCategory::Feedback),
+            "project" => Some(MemoryCategory::Project),
+            "reference" => Some(MemoryCategory::Reference),
+            _ => None,
+        }
+    }
+}
+
+/// 兼容旧调用点的分类名列表（由 [`MemoryCategory`] 派生）。
 pub const CATEGORIES: &[&str] = &["user", "feedback", "project", "reference"];
 
-/// Default category used when a `# foo` quick-add carries no explicit prefix.
+/// 默认分类：当 `# foo` 快速捕获未带显式前缀时使用。
 pub const DEFAULT_CATEGORY: &str = "project";
 
 /// Cap on the injected index size. Indexes stay tiny, but we still truncate
@@ -48,7 +97,7 @@ pub fn category_path(dir: &Path, category: &str) -> PathBuf {
 /// Whether `category` is a known memory category.
 #[must_use]
 pub fn is_category(category: &str) -> bool {
-    CATEGORIES.contains(&category)
+    MemoryCategory::from_str(category).is_some()
 }
 
 /// Create the memory directory and the four (empty) category files when
@@ -301,5 +350,20 @@ mod tests {
         assert!(load_index(&dir).is_some());
         let _ = fs::remove_dir_all(&dir);
         let _ = fs::remove_file(&legacy);
+    }
+
+    #[test]
+    fn memory_category_parsing() {
+        use MemoryCategory::*;
+        assert_eq!(MemoryCategory::from_str("user"), Some(User));
+        assert_eq!(MemoryCategory::from_str("FEEDBACK"), Some(Feedback));
+        assert_eq!(MemoryCategory::from_str("Project"), Some(Project));
+        assert_eq!(MemoryCategory::from_str("reference"), Some(Reference));
+        assert_eq!(MemoryCategory::from_str("bogus"), None);
+        assert_eq!(MemoryCategory::from_str(""), None);
+        for cat in MemoryCategory::ALL {
+            assert_eq!(MemoryCategory::from_str(cat.as_str()), Some(*cat));
+            assert_eq!(cat.as_str(), cat.as_str().to_ascii_lowercase().as_str());
+        }
     }
 }

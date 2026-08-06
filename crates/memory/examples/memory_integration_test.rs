@@ -3,7 +3,7 @@
 //! Test complete workflow: store → compress → inject → knowledge
 
 use mimofan_memory::compressor::ObservationCompressor;
-use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, VectorStore};
+use mimofan_memory::vector::{Observation, SearchFilters, VectorStore};
 
 /// Generate embedding
 fn generate_embedding(seed: u64) -> Vec<f32> {
@@ -37,11 +37,11 @@ async fn main() {
     // Store 100 observations
     for i in 0..100 {
         let kind = match i % 5 {
-            0 => ObservationKind::Bugfix,
-            1 => ObservationKind::Feature,
-            2 => ObservationKind::Decision,
-            3 => ObservationKind::Discovery,
-            _ => ObservationKind::Change,
+            0 => "project",
+            1 => "user",
+            2 => "project",
+            3 => "project",
+            _ => "project",
         };
         let obs = Observation::new(
             "integration-project".to_string(),
@@ -59,7 +59,7 @@ async fn main() {
     let query = generate_embedding(0);
     let filters = SearchFilters {
         project: Some("integration-project".to_string()),
-        kind: Some(ObservationKind::Discovery),
+        kind: Some("project".to_string()),
         ..Default::default()
     };
     let results = obs_store
@@ -73,7 +73,7 @@ async fn main() {
         .map(|i| {
             Observation::new(
                 "integration-project".to_string(),
-                ObservationKind::Discovery,
+                "project",
                 format!("Observation {}", i),
             )
         })

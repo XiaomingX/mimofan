@@ -56,7 +56,7 @@ fn vmemory_help(enabled: bool, root: &Path, dimension: usize) -> String {
            /vmemory status                 Alias for the no-arg form\n\
            /vmemory remember <kind> <text>\n\
                                         Store an observation. <kind> is one of:\n\
-                                        Decision, Change, Feature, Fact, Question, Bug, Note\n\
+                                        user, feedback, project, reference\n\
            /vmemory query <text>           Semantic recall of related observations\n\
            /vmemory list                   List recently stored observations\n\
            /vmemory help                   Show this help\n\n\
@@ -117,8 +117,9 @@ pub fn vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
                         Some((k, c)) if !c.trim().is_empty() => (k.trim(), c.trim()),
                         _ => return Err("usage: /vmemory remember <kind> <text>".to_string()),
                     };
-                    let obs_kind = crate::vector_memory::parse_observation_kind(kind)
+                    let obs_kind = crate::vector_memory::parse_memory_category(kind)
                         .map_err(|e| e.to_string())?;
+                    let kind_str = obs_kind.as_str();
                     let embedder = vm
                         .take_embedder()
                         .ok_or_else(|| "vector-memory embedder unavailable".to_string())?;
@@ -127,9 +128,9 @@ pub fn vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
                         .await
                         .map_err(|e| format!("embedding failed: {e}"))?;
                     let id = vm
-                        .store_observation(&project, obs_kind, content, &embedding)
+                        .store_observation(&project, kind_str, content, &embedding)
                         .map_err(|e| format!("failed to store: {e}"))?;
-                    Ok(format!("remembered (vector id {id}): [{kind}] {content}"))
+                    Ok(format!("remembered (vector id {id}): [{kind_str}] {content}"))
                 }
                 Some("query") => {
                     let q = sub.trim_start_matches("query").trim();

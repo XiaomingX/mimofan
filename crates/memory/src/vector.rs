@@ -10,55 +10,6 @@ use tracing::{debug, info};
 use crate::Result;
 use crate::error::MemoryError;
 
-/// Types of observations that can be stored
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum ObservationKind {
-    /// Bug fix
-    Bugfix,
-    /// Feature implementation
-    Feature,
-    /// Architecture/design decision
-    Decision,
-    /// Code discovery/pattern
-    Discovery,
-    /// Code change/refactor
-    Change,
-    /// Manual observation
-    Manual,
-}
-
-impl std::fmt::Display for ObservationKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ObservationKind::Bugfix => write!(f, "bugfix"),
-            ObservationKind::Feature => write!(f, "feature"),
-            ObservationKind::Decision => write!(f, "decision"),
-            ObservationKind::Discovery => write!(f, "discovery"),
-            ObservationKind::Change => write!(f, "change"),
-            ObservationKind::Manual => write!(f, "manual"),
-        }
-    }
-}
-
-impl std::str::FromStr for ObservationKind {
-    type Err = MemoryError;
-
-    fn from_str(s: &str) -> Result<Self> {
-        match s.to_lowercase().as_str() {
-            "bugfix" => Ok(ObservationKind::Bugfix),
-            "feature" => Ok(ObservationKind::Feature),
-            "decision" => Ok(ObservationKind::Decision),
-            "discovery" => Ok(ObservationKind::Discovery),
-            "change" => Ok(ObservationKind::Change),
-            "manual" => Ok(ObservationKind::Manual),
-            _ => Err(MemoryError::InvalidConfig(format!(
-                "Unknown observation kind: {}",
-                s
-            ))),
-        }
-    }
-}
-
 /// An observation with its metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Observation {
@@ -66,8 +17,10 @@ pub struct Observation {
     pub id: i64,
     /// Text content
     pub content: String,
-    /// Type of observation
-    pub kind: ObservationKind,
+    /// Memory category (`user` / `feedback` / `project` / `reference`).
+    /// Stored as a lowercase string; the only authoritative classification
+    /// shared with the file-based memory system.
+    pub kind: String,
     /// Project name
     pub project: Option<String>,
     /// Files read during this observation
@@ -82,11 +35,11 @@ pub struct Observation {
 
 impl Observation {
     /// Create a new observation
-    pub fn new(project: String, kind: ObservationKind, content: String) -> Self {
+    pub fn new(project: String, kind: &str, content: String) -> Self {
         Self {
             id: 0, // Will be set by the storage layer
             content,
-            kind,
+            kind: kind.to_string(),
             project: Some(project),
             files_read: Vec::new(),
             files_modified: Vec::new(),
@@ -101,8 +54,8 @@ impl Observation {
 pub struct SearchFilters {
     /// Filter by project name
     pub project: Option<String>,
-    /// Filter by observation kind
-    pub kind: Option<ObservationKind>,
+    /// Filter by memory category (`user` / `feedback` / `project` / `reference`)
+    pub kind: Option<String>,
     /// Filter by files (match any)
     pub files: Vec<String>,
     /// Filter by concepts (match any)
@@ -357,7 +310,7 @@ impl VectorStore {
             Ok(Observation {
                 id: row.get(0)?,
                 content: row.get(1)?,
-                kind: kind_str.parse().unwrap_or(ObservationKind::Manual),
+                kind: kind_str.to_string(),
                 project: row.get(3)?,
                 files_read: serde_json::from_str(&files_read_json).unwrap_or_default(),
                 files_modified: serde_json::from_str(&files_modified_json).unwrap_or_default(),
@@ -420,7 +373,7 @@ impl VectorStore {
             Ok(Observation {
                 id: row.get(0)?,
                 content: row.get(1)?,
-                kind: kind_str.parse().unwrap_or(ObservationKind::Manual),
+                kind: kind_str.to_string(),
                 project: row.get(3)?,
                 files_read: serde_json::from_str(&files_read_json).unwrap_or_default(),
                 files_modified: serde_json::from_str(&files_modified_json).unwrap_or_default(),

@@ -7,7 +7,7 @@ fn test_observations() -> Vec<Observation> {
         Observation {
             id: 1,
             content: "Fixed authentication bug".to_string(),
-            kind: ObservationKind::Bugfix,
+            kind: "feedback".to_string(),
             project: Some("test-project".to_string()),
             files_read: vec!["src/auth.rs".to_string()],
             files_modified: vec!["src/auth.rs".to_string()],
@@ -17,7 +17,7 @@ fn test_observations() -> Vec<Observation> {
         Observation {
             id: 2,
             content: "Added login feature".to_string(),
-            kind: ObservationKind::Feature,
+            kind: "user".to_string(),
             project: Some("test-project".to_string()),
             files_read: vec!["src/login.rs".to_string()],
             files_modified: vec!["src/login.rs".to_string()],
@@ -27,7 +27,7 @@ fn test_observations() -> Vec<Observation> {
         Observation {
             id: 3,
             content: "Decided to use JWT".to_string(),
-            kind: ObservationKind::Decision,
+            kind: "project".to_string(),
             project: Some("test-project".to_string()),
             files_read: vec![],
             files_modified: vec![],

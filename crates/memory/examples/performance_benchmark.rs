@@ -3,7 +3,7 @@
 use mimofan_memory::optimization::{
     BatchProcessor, LongTaskManager, ObservationStore, RateLimiter,
 };
-use mimofan_memory::vector::{Observation, ObservationKind, VectorStore};
+use mimofan_memory::vector::{Observation, VectorStore};
 use std::time::Duration;
 
 #[tokio::main]
@@ -28,7 +28,7 @@ async fn main() {
     for (i, emb) in embeddings.iter().enumerate().take(1000) {
         let obs = Observation::new(
             "benchmark-project".to_string(),
-            ObservationKind::Discovery,
+            "project",
             format!("Benchmark observation {}", i),
         );
         observation_store
@@ -55,7 +55,7 @@ async fn main() {
     for i in 0..10_000 {
         let obs = Observation::new(
             "batch-project".to_string(),
-            ObservationKind::Change,
+            "project",
             format!("Batch observation {}", i),
         );
         batch_proc.enqueue(obs).expect("enqueue observation");

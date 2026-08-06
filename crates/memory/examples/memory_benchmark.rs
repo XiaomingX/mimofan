@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 use mimofan_memory::compressor::ObservationCompressor;
 use mimofan_memory::optimization::{BatchProcessor, LongTaskManager, RateLimiter};
-use mimofan_memory::vector::{Observation, ObservationKind, SearchFilters, VectorStore};
+use mimofan_memory::vector::{Observation, SearchFilters, VectorStore};
 
 /// Benchmark results
 struct BenchmarkResult {
@@ -67,7 +67,7 @@ fn benchmark_vector_store() {
     for i in 0..iterations {
         let obs = Observation::new(
             "bench-project".to_string(),
-            ObservationKind::Discovery,
+            "project",
             format!("Benchmark observation {}", i),
         );
         let embedding = generate_embedding(i as u64);
@@ -91,7 +91,7 @@ fn benchmark_vector_store() {
     // Benchmark: Search with filters
     let filters = SearchFilters {
         project: Some("bench-project".to_string()),
-        kind: Some(ObservationKind::Discovery),
+        kind: Some("project".to_string()),
         ..Default::default()
     };
     let iterations = 100_usize;
@@ -116,7 +116,7 @@ fn benchmark_batch_processor() {
     for i in 0..iterations {
         let obs = Observation::new(
             "batch-project".to_string(),
-            ObservationKind::Change,
+            "project",
             format!("Batch observation {}", i),
         );
         processor.enqueue(obs).expect("enqueue observation");
@@ -186,7 +186,7 @@ fn benchmark_compressor() {
         .map(|i| {
             Observation::new(
                 "compress-project".to_string(),
-                ObservationKind::Discovery,
+                "project",
                 format!("Compression test observation {}", i),
             )
         })

@@ -5,7 +5,7 @@ fn test_observation() -> Observation {
     Observation {
         id: 1,
         content: "Test observation".to_string(),
-        kind: ObservationKind::Bugfix,
+        kind: "project".to_string(),
         project: Some("test-project".to_string()),
         files_read: vec!["src/main.rs".to_string()],
         files_modified: vec!["src/lib.rs".to_string()],

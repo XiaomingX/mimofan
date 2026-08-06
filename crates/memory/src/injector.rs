@@ -135,15 +135,17 @@ impl MemoryInjector {
         for m in matches {
             let obs = &m.observation;
 
-            // Add to appropriate category
-            match obs.kind {
-                crate::vector::ObservationKind::Decision => {
+            // Add to appropriate category. The four shared categories map to
+            // the existing injection buckets:
+            // - `project`  → key decisions / project background (was Decision + changes)
+            // - `feedback` → recent changes (collaboration preferences as context)
+            // - `user` / `reference` → recent changes (related context, flattened)
+            match obs.kind.as_str() {
+                "project" => {
                     key_decisions.push(obs.content.clone());
                     estimated_tokens += self.estimate_tokens(&obs.content);
                 }
-                crate::vector::ObservationKind::Bugfix
-                | crate::vector::ObservationKind::Feature
-                | crate::vector::ObservationKind::Change => {
+                "user" | "feedback" | "reference" => {
                     recent_changes.push(obs.content.clone());
                     estimated_tokens += self.estimate_tokens(&obs.content);
                 }
