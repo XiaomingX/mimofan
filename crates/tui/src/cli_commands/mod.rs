@@ -24,53 +24,23 @@ use mimofan_state::{StateStore, ThreadListFilters};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum ProviderArg {
-    Deepseek,
-    NvidiaNim,
-    Openai,
-    Volcengine,
-    Openrouter,
-    XiaomiMimo,
-    Novita,
-    Fireworks,
-    Siliconflow,
-    #[value(
-        alias = "silicon-flow-cn",
-        alias = "siliconflow-CN",
-        alias = "silicon_flow_cn",
-        alias = "siliconflow_cn",
-        alias = "siliconflow-china",
-        alias = "siliconflow_china"
-    )]
-    SiliconflowCn,
-    Arcee,
-    Moonshot,
-    Huggingface,
-    Together,
-    OpenaiCodex,
-    Anthropic,
-    Minimax,
+    /// OpenAI-compatible `/v1/chat/completions` endpoint.
+    #[value(alias = "openai", alias = "openai-compatible", alias = "custom")]
+    OpenAiCompatible,
+    /// Anthropic Messages API compatible endpoint.
+    #[value(alias = "anthropic", alias = "anthropic-compatible")]
+    AnthropicCompatible,
+    /// Google Gemini compatible endpoint.
+    #[value(alias = "gemini", alias = "gemini-compatible", alias = "google")]
+    GeminiCompatible,
 }
 
 impl From<ProviderArg> for ProviderKind {
     fn from(value: ProviderArg) -> Self {
         match value {
-            ProviderArg::Deepseek => ProviderKind::XiaomiMimo,
-            ProviderArg::NvidiaNim => ProviderKind::XiaomiMimo,
-            ProviderArg::Openai => ProviderKind::XiaomiMimo,
-            ProviderArg::Volcengine => ProviderKind::XiaomiMimo,
-            ProviderArg::Openrouter => ProviderKind::XiaomiMimo,
-            ProviderArg::XiaomiMimo => ProviderKind::XiaomiMimo,
-            ProviderArg::Novita => ProviderKind::XiaomiMimo,
-            ProviderArg::Fireworks => ProviderKind::XiaomiMimo,
-            ProviderArg::Siliconflow => ProviderKind::XiaomiMimo,
-            ProviderArg::SiliconflowCn => ProviderKind::XiaomiMimo,
-            ProviderArg::Arcee => ProviderKind::XiaomiMimo,
-            ProviderArg::Moonshot => ProviderKind::XiaomiMimo,
-            ProviderArg::Huggingface => ProviderKind::XiaomiMimo,
-            ProviderArg::Together => ProviderKind::XiaomiMimo,
-            ProviderArg::OpenaiCodex => ProviderKind::XiaomiMimo,
-            ProviderArg::Anthropic => ProviderKind::XiaomiMimo,
-            ProviderArg::Minimax => ProviderKind::XiaomiMimo,
+            ProviderArg::OpenAiCompatible => ProviderKind::OpenAiCompatible,
+            ProviderArg::AnthropicCompatible => ProviderKind::AnthropicCompatible,
+            ProviderArg::GeminiCompatible => ProviderKind::GeminiCompatible,
         }
     }
 }
@@ -399,28 +369,17 @@ pub(crate) fn auth_status_all_providers(store: &ConfigStore, secrets: &Secrets) 
         let config_key = provider_config_api_key(store, provider);
         let keyring_key = provider_keyring_api_key(secrets, provider);
         let env_key = provider_env_value(provider);
-        let oauth_file_present = provider_oauth_file_path(provider).is_some_and(|p| p.exists());
 
         let config_status = config_key.map(|_| "set").unwrap_or("-");
         let keyring_status = keyring_key.as_ref().map(|_| "set").unwrap_or("-");
         let env_status = env_key.as_ref().map(|_| "set").unwrap_or("-");
 
-        let source = if provider == ProviderKind::XiaomiMimo {
-            if env_key.is_some() {
-                "env"
-            } else if oauth_file_present {
-                "oauth file"
-            } else {
-                "unset"
-            }
-        } else if config_key.is_some() {
+        let source = if config_key.is_some() {
             "config"
         } else if keyring_key.is_some() {
             "keyring"
         } else if env_key.is_some() {
             "env"
-        } else if oauth_file_present {
-            "oauth file"
         } else {
             "unset"
         };
@@ -456,18 +415,8 @@ pub(crate) fn auth_status_lines_for_provider(
     let config_key = provider_config_api_key(store, provider);
     let keyring_key = provider_keyring_api_key(secrets, provider);
     let env_key = provider_env_value(provider);
-    let oauth_file = provider_oauth_file_path(provider);
-    let oauth_file_present = oauth_file.as_ref().is_some_and(|path| path.exists());
 
-    let active_source = if provider == ProviderKind::XiaomiMimo {
-        if env_key.is_some() {
-            "env"
-        } else if oauth_file_present {
-            "Codex OAuth file"
-        } else {
-            "missing"
-        }
-    } else if config_key.is_some() {
+    let active_source = if config_key.is_some() {
         "config"
     } else if keyring_key.is_some() {
         "secret store"
@@ -476,14 +425,10 @@ pub(crate) fn auth_status_lines_for_provider(
     } else {
         "missing"
     };
-    let active_last4 = if provider == ProviderKind::XiaomiMimo {
-        env_key.as_ref().map(|(_, value)| last4_label(value))
-    } else {
-        config_key
-            .map(last4_label)
-            .or_else(|| keyring_key.as_deref().map(last4_label))
-            .or_else(|| env_key.as_ref().map(|(_, value)| last4_label(value)))
-    };
+    let active_last4 = config_key
+        .map(last4_label)
+        .or_else(|| keyring_key.as_deref().map(last4_label))
+        .or_else(|| env_key.as_ref().map(|(_, value)| last4_label(value)));
     let active_label = active_last4
         .map(|last4| format!("{active_source} (last4: {last4})"))
         .unwrap_or_else(|| active_source.to_string());
@@ -504,18 +449,10 @@ pub(crate) fn auth_status_lines_for_provider(
     let base_url = provider_cfg.base_url.as_deref().unwrap_or("(default)");
     let model = provider_cfg.model.as_deref().unwrap_or("(default)");
 
-    let lookup_order = if provider == ProviderKind::XiaomiMimo {
-        "lookup order: env -> Codex OAuth file".to_string()
-    } else {
-        "lookup order: config -> secret store -> env".to_string()
-    };
-    let auth_mode = if provider == ProviderKind::XiaomiMimo {
-        "codex_oauth"
-    } else {
-        store.config.auth_mode.as_deref().unwrap_or("api_key")
-    };
+    let lookup_order = "lookup order: config -> secret store -> env".to_string();
+    let auth_mode = store.config.auth_mode.as_deref().unwrap_or("api_key");
 
-    let mut lines = vec![
+    let lines = vec![
         format!("provider: {}{}", provider.as_str(), active_marker),
         format!("route: {}", base_url),
         format!("model: {}", model),
@@ -534,10 +471,6 @@ pub(crate) fn auth_status_lines_for_provider(
         ),
         format!("env var: {env_var_label} ({env_status})"),
     ];
-    if let Some(path) = oauth_file {
-        let status = if path.exists() { "present" } else { "missing" };
-        lines.push(format!("Codex OAuth file: {} ({status})", path.display()));
-    }
     lines
 }
 
@@ -837,7 +770,7 @@ pub(crate) fn run_login_command_with_secrets(
     args: LoginArgs,
     secrets: &Secrets,
 ) -> Result<()> {
-    let provider: ProviderKind = args.provider.unwrap_or(ProviderArg::Deepseek).into();
+    let provider: ProviderKind = args.provider.unwrap_or(ProviderArg::OpenAiCompatible).into();
     store.config.provider = provider;
 
     let api_key = match args.api_key {
@@ -852,14 +785,10 @@ pub(crate) fn run_login_command_with_secrets(
     } else {
         store.path().display().to_string()
     };
-    if provider == ProviderKind::XiaomiMimo {
-        println!("logged in using API key mode (deepseek); saved key to {destination}");
-    } else {
-        println!(
-            "logged in using API key mode ({}); saved key to {destination}",
-            provider.as_str(),
-        );
-    }
+    println!(
+        "logged in using API key mode ({}); saved key to {destination}",
+        provider.as_str(),
+    );
     Ok(())
 }
 
@@ -911,10 +840,7 @@ pub(crate) fn generate_completions_from_cli(shell: Shell) {
 // ── Helper functions ────────────────────────────────────────────────────────
 
 pub(crate) fn provider_slot(provider: ProviderKind) -> &'static str {
-    match provider {
-        ProviderKind::XiaomiMimo => "siliconflow",
-        _ => provider.provider().id(),
-    }
+    provider.provider().id()
 }
 
 pub(crate) fn write_provider_api_key_to_config(
@@ -924,27 +850,10 @@ pub(crate) fn write_provider_api_key_to_config(
 ) {
     store.config.auth_mode = Some("api_key".to_string());
     store.config.providers.for_provider_mut(provider).api_key = Some(api_key.to_string());
-    if provider == ProviderKind::XiaomiMimo {
-        store.config.api_key = Some(api_key.to_string());
-        if store.config.default_text_model.is_none() {
-            store.config.default_text_model = Some(
-                store
-                    .config
-                    .providers
-                    .xiaomi_mimo
-                    .model
-                    .clone()
-                    .unwrap_or_else(|| "mimo-v2-pro".to_string()),
-            );
-        }
-    }
 }
 
 pub(crate) fn clear_provider_api_key_from_config(store: &mut ConfigStore, provider: ProviderKind) {
     store.config.providers.for_provider_mut(provider).api_key = None;
-    if provider == ProviderKind::XiaomiMimo {
-        store.config.api_key = None;
-    }
 }
 
 pub(crate) fn provider_env_set(provider: ProviderKind) -> bool {
@@ -964,39 +873,14 @@ pub(crate) fn provider_env_value(provider: ProviderKind) -> Option<(&'static str
     })
 }
 
-pub(crate) fn openai_codex_auth_file_path() -> PathBuf {
-    if let Ok(path) = std::env::var("OPENAI_CODEX_AUTH_FILE") {
-        let path = PathBuf::from(path);
-        if !path.as_os_str().is_empty() {
-            return path;
-        }
-    }
-
-    let codex_home = std::env::var("CODEX_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join(".codex")
-        });
-    codex_home.join("auth.json")
-}
-
-pub(crate) fn provider_oauth_file_path(provider: ProviderKind) -> Option<PathBuf> {
-    (provider == ProviderKind::XiaomiMimo).then(openai_codex_auth_file_path)
-}
-
 pub(crate) fn provider_config_api_key(store: &ConfigStore, provider: ProviderKind) -> Option<&str> {
-    let slot = store
+    store
         .config
         .providers
         .for_provider(provider)
         .api_key
-        .as_deref();
-    let root = (provider == ProviderKind::XiaomiMimo)
-        .then_some(store.config.api_key.as_deref())
-        .flatten();
-    slot.or(root).filter(|v| !v.trim().is_empty())
+        .as_deref()
+        .filter(|v| !v.trim().is_empty())
 }
 
 pub(crate) fn provider_config_set(store: &ConfigStore, provider: ProviderKind) -> bool {
@@ -1082,18 +966,13 @@ pub(crate) fn run_auth_migrate(
 
     for provider in ProviderKind::ALL {
         let slot = provider_slot(provider);
-        let from_provider_block = store
+        let value = store
             .config
             .providers
             .for_provider(provider)
             .api_key
             .clone()
             .filter(|v| !v.trim().is_empty());
-        let from_root = (provider == ProviderKind::XiaomiMimo)
-            .then(|| store.config.api_key.clone())
-            .flatten()
-            .filter(|v| !v.trim().is_empty());
-        let value = from_provider_block.or(from_root);
         let Some(value) = value else { continue };
 
         if let Ok(Some(existing)) = secrets.get(slot)
@@ -1111,9 +990,6 @@ pub(crate) fn run_auth_migrate(
         }
         if !dry_run {
             store.config.providers.for_provider_mut(provider).api_key = None;
-            if provider == ProviderKind::XiaomiMimo {
-                store.config.api_key = None;
-            }
         }
         migrated.push((provider, slot));
     }

@@ -140,7 +140,7 @@ async fn build_state_loads_permissions_into_runtime_policy() {
     .expect("write permissions");
 
     let state = build_state(Some(config_path), None).expect("state");
-    let runtime = state.runtime.lock().await;
+    let runtime = state.runtime.write().await;
     let decision = runtime
         .exec_policy
         .check(mimofan_execpolicy::ExecPolicyContext {

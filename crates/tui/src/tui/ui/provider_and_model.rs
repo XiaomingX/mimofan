@@ -145,7 +145,7 @@ pub(crate) async fn apply_model_picker_choice(
     let persist_result = (|| -> anyhow::Result<()> {
         let mut settings = crate::settings::Settings::load()?;
         if model_changed {
-            if matches!(app.api_provider, ApiProvider::XiaomiMimo) {
+            if matches!(app.api_provider, ApiProvider::OpenAiCompatible) {
                 settings.set("default_model", &resolved_model)?;
             }
             settings.set_model_for_provider(app.api_provider.as_str(), &resolved_model);
@@ -374,7 +374,7 @@ pub(crate) async fn switch_provider(
         settings.default_provider = Some(target.as_str().to_string());
         if model_override.is_some() {
             settings.set_model_for_provider(target.as_str(), &new_model);
-            if matches!(target, ApiProvider::XiaomiMimo) {
+            if matches!(target, ApiProvider::OpenAiCompatible) {
                 settings.set("default_model", &new_model)?;
             }
         }

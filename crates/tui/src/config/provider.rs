@@ -2,23 +2,24 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::models::*;
-
-/// Supported API providers.
+/// Supported wire-protocol compat modes.
+///
+/// 与 `mimofan_config::ProviderKind` 一一对应，仅描述 LLM 网关所说的线协议。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApiProvider {
-    XiaomiMimo,
-    /// Anthropic Messages API compatible endpoint for Xiaomi MiMo.
-    Anthropic,
-    /// User-defined OpenAI-compatible endpoint (#1519).
-    Custom,
+    /// OpenAI-compatible `/v1/chat/completions` endpoint.
+    OpenAiCompatible,
+    /// Anthropic Messages API compatible endpoint (`/v1/messages`).
+    AnthropicCompatible,
+    /// Google Gemini compatible endpoint.
+    GeminiCompatible,
 }
 
 impl ApiProvider {
     #[must_use]
     pub fn names_hint() -> String {
-        "xiaomi_mimo, anthropic, custom".to_string()
+        "openai-compatible, anthropic-compatible, gemini-compatible".to_string()
     }
 
     #[must_use]
@@ -37,9 +38,9 @@ impl ApiProvider {
     #[must_use]
     pub fn display_name(self) -> &'static str {
         match self {
-            Self::XiaomiMimo => "Xiaomi MiMo",
-            Self::Anthropic => "Xiaomi MiMo (Anthropic)",
-            Self::Custom => "Custom",
+            Self::OpenAiCompatible => "OpenAI Compatible",
+            Self::AnthropicCompatible => "Anthropic Compatible",
+            Self::GeminiCompatible => "Gemini Compatible",
         }
     }
 
@@ -52,12 +53,8 @@ impl ApiProvider {
     /// Environment variable candidates for this provider's API key.
     #[must_use]
     pub fn env_vars(self) -> &'static [&'static str] {
-        self.metadata().map_or(
-            mimofan_config::ProviderKind::XiaomiMimo
-                .provider()
-                .env_vars(),
-            |provider| provider.env_vars(),
-        )
+        self.metadata()
+            .map_or(&["MIMOFAN_API_KEY"][..], |provider| provider.env_vars())
     }
 
     /// Environment variable candidates formatted for UI copy.
@@ -86,10 +83,13 @@ impl ApiProvider {
     /// Official provider page for creating or locating credentials.
     #[must_use]
     pub fn credential_url(self) -> Option<&'static str> {
-        Some(match self {
-            Self::XiaomiMimo | Self::Anthropic => "https://platform.xiaomimimo.com/token-plan",
-            Self::Custom => return None,
-        })
+        match self {
+            Self::OpenAiCompatible => Some("https://platform.openai.com/api-keys"),
+            Self::AnthropicCompatible => Some("https://console.anthropic.com/settings/keys"),
+            Self::GeminiCompatible => {
+                Some("https://aistudio.google.com/app/apikey")
+            }
+        }
     }
 
     /// All providers in stable `ProviderKind::ALL` order.
@@ -99,15 +99,19 @@ impl ApiProvider {
     }
 
     /// `ProviderKind` discriminant → `ApiProvider` lookup.
-    const FROM_KIND_LOOKUP: [Self; 3] = [Self::XiaomiMimo, Self::Anthropic, Self::Custom];
+    const FROM_KIND_LOOKUP: [Self; 3] = [
+        Self::OpenAiCompatible,
+        Self::AnthropicCompatible,
+        Self::GeminiCompatible,
+    ];
 
     /// Map to the config-level `ProviderKind`.
     #[must_use]
     pub fn kind(self) -> Option<mimofan_config::ProviderKind> {
         match self {
-            Self::XiaomiMimo => Some(mimofan_config::ProviderKind::XiaomiMimo),
-            Self::Anthropic => Some(mimofan_config::ProviderKind::Anthropic),
-            Self::Custom => Some(mimofan_config::ProviderKind::Custom),
+            Self::OpenAiCompatible => Some(mimofan_config::ProviderKind::OpenAiCompatible),
+            Self::AnthropicCompatible => Some(mimofan_config::ProviderKind::AnthropicCompatible),
+            Self::GeminiCompatible => Some(mimofan_config::ProviderKind::GeminiCompatible),
         }
     }
 
@@ -115,9 +119,9 @@ impl ApiProvider {
     #[must_use]
     pub fn from_kind(kind: mimofan_config::ProviderKind) -> Self {
         match kind {
-            mimofan_config::ProviderKind::XiaomiMimo => Self::XiaomiMimo,
-            mimofan_config::ProviderKind::Anthropic => Self::Anthropic,
-            mimofan_config::ProviderKind::Custom => Self::Custom,
+            mimofan_config::ProviderKind::OpenAiCompatible => Self::OpenAiCompatible,
+            mimofan_config::ProviderKind::AnthropicCompatible => Self::AnthropicCompatible,
+            mimofan_config::ProviderKind::GeminiCompatible => Self::GeminiCompatible,
         }
     }
 
@@ -151,11 +155,16 @@ pub(crate) fn subagent_provider_key_matches(key: &str, provider: ApiProvider) ->
     }
 
     match provider {
-        ApiProvider::XiaomiMimo | ApiProvider::Anthropic => matches!(
+        ApiProvider::OpenAiCompatible => matches!(
             normalized.as_str(),
-            "xiaomi_mimo" | "xiaomi" | "mimo" | "xiaomimimo" | "anthropic"
+            "openai" | "openai_compatible" | "openai-compatible" | "custom"
         ),
-        ApiProvider::Custom => false,
+        ApiProvider::AnthropicCompatible => {
+            matches!(normalized.as_str(), "anthropic" | "anthropic_compatible" | "anthropic-compatible")
+        }
+        ApiProvider::GeminiCompatible => {
+            matches!(normalized.as_str(), "gemini" | "gemini_compatible" | "gemini-compatible" | "google")
+        }
     }
 }
 
@@ -200,15 +209,20 @@ pub struct ModelAliasDeprecation {
 pub enum RequestPayloadMode {
     /// Standard OpenAI-compatible `/v1/chat/completions` payload.
     ChatCompletions,
-    /// OpenAI Responses API payload.
-    Responses,
-    /// Native Anthropic Messages API `/v1/messages` payload (#3014).
+    /// Native Anthropic Messages API `/v1/messages` payload.
     AnthropicMessages,
+    /// Google Gemini `generativelanguage` payload.
+    Gemini,
 }
 
 /// Resolve the provider capability for a given [`ApiProvider`] and resolved model string.
 #[must_use]
 pub fn provider_capability(provider: ApiProvider, resolved_model: &str) -> ProviderCapability {
+    let request_payload_mode = match provider {
+        ApiProvider::OpenAiCompatible => RequestPayloadMode::ChatCompletions,
+        ApiProvider::AnthropicCompatible => RequestPayloadMode::AnthropicMessages,
+        ApiProvider::GeminiCompatible => RequestPayloadMode::Gemini,
+    };
     ProviderCapability {
         provider,
         resolved_model: resolved_model.to_string(),
@@ -217,7 +231,7 @@ pub fn provider_capability(provider: ApiProvider, resolved_model: &str) -> Provi
         max_output: crate::models::max_output_tokens_for_model(resolved_model).unwrap_or(4096),
         thinking_supported: crate::models::model_supports_reasoning(resolved_model),
         cache_telemetry_supported: false,
-        request_payload_mode: RequestPayloadMode::ChatCompletions,
+        request_payload_mode,
         alias_deprecation: None,
     }
 }
@@ -271,17 +285,13 @@ pub fn requested_model_for_provider(_provider: ApiProvider, model: &str) -> Opti
 }
 
 /// Resolve a user-entered model id to the canonical family id a provider understands.
+///
+/// mimofan 不再绑定产品专属模型别名，模型名原样透传。
 #[must_use]
-pub fn canonical_model_id_for_provider(provider: ApiProvider, model: &str) -> Option<String> {
+pub fn canonical_model_id_for_provider(_provider: ApiProvider, model: &str) -> Option<String> {
     let trimmed = model.trim();
     if trimmed.is_empty() || trimmed.chars().any(char::is_control) {
         return None;
-    }
-
-    if let ApiProvider::XiaomiMimo = provider
-        && let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(trimmed)
-    {
-        return Some(canonical.to_string());
     }
 
     Some(trimmed.to_string())
@@ -303,12 +313,6 @@ pub fn wire_model_for_provider(provider: ApiProvider, model: &str) -> String {
 }
 
 #[must_use]
-pub fn model_completion_names_for_provider(provider: ApiProvider) -> Vec<&'static str> {
-    match provider {
-        ApiProvider::XiaomiMimo | ApiProvider::Anthropic => vec![
-            DEFAULT_XIAOMI_MIMO_MODEL,
-            XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL,
-        ],
-        ApiProvider::Custom => Vec::new(),
-    }
+pub fn model_completion_names_for_provider(_provider: ApiProvider) -> Vec<&'static str> {
+    Vec::new()
 }

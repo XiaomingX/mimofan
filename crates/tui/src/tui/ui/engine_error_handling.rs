@@ -132,7 +132,7 @@ pub(crate) fn rollback_provider_after_auth_failure(
             previous_provider.as_str(),
             &app.model_selection_for_persistence(),
         );
-        if matches!(previous_provider, ApiProvider::XiaomiMimo) {
+        if matches!(previous_provider, ApiProvider::OpenAiCompatible) {
             settings.set("default_model", &app.model_selection_for_persistence())?;
         }
         settings.save()?;

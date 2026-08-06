@@ -219,7 +219,7 @@ impl App {
             .or_else(|| {
                 // default_model is a DeepSeek-centric setting; other providers
                 // get their model from config.toml / env (e.g. OPENAI_MODEL).
-                if matches!(provider, ApiProvider::XiaomiMimo) {
+                if matches!(provider, ApiProvider::OpenAiCompatible) {
                     settings.default_model.clone()
                 } else {
                     None

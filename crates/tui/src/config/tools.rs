@@ -205,9 +205,9 @@ impl StatusItem {
     #[must_use]
     pub fn is_available_for(self, provider: ApiProvider) -> bool {
         match self {
-            StatusItem::Balance => matches!(provider, ApiProvider::XiaomiMimo),
+            StatusItem::Balance => matches!(provider, ApiProvider::OpenAiCompatible),
             StatusItem::RateLimit => {
-                matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::Custom)
+                matches!(provider, ApiProvider::OpenAiCompatible)
             }
             _ => true,
         }

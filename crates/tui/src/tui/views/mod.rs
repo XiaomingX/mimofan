@@ -1148,7 +1148,7 @@ impl ConfigView {
 }
 
 fn config_base_url_row_key(provider: ApiProvider) -> &'static str {
-    if matches!(provider, ApiProvider::XiaomiMimo) {
+    if matches!(provider, ApiProvider::OpenAiCompatible) {
         "base_url"
     } else {
         "provider_url"

@@ -94,10 +94,10 @@ fn app_with_mock_upstream_with_provider_extra(
     let config_path = tmp.path().join("config.toml");
     let config_content = format!(
         r#"
-provider = "custom"
+provider = "openai-compatible"
 api_key = "sk-deepseek-secret"
 
-[providers.custom]
+[providers.openai_compatible]
 base_url = "{mock_base_url}"
 model = "my-custom-model"
 api_key = "arcee-configured-key"
@@ -391,32 +391,32 @@ async fn non_chat_completions_provider_rejected() {
     // Use the test to verify WireFormat checks work for non-ChatCompletions providers.
     // Anthropic's wire format is AnthropicMessages; OpenaiCodex is Responses.
     let endpoint = ResolvedModelEndpoint {
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         base_url: "https://api.anthropic.com".to_string(),
         model: "claude-sonnet-4-20250514".to_string(),
         api_key: Some("sk-ant-test".to_string()),
         http_headers: BTreeMap::new(),
         path_suffix: None,
         insecure_skip_tls_verify: false,
-        wire_format: WireFormat::AnthropicMessages,
+        wire_format: WireFormat::AnthropicCompatible,
     };
 
-    assert_ne!(endpoint.wire_format, WireFormat::ChatCompletions);
+    assert_ne!(endpoint.wire_format, WireFormat::OpenAiCompatible);
     // The handler would reject this; we verify the wire format here.
-    assert_eq!(endpoint.wire_format, WireFormat::AnthropicMessages);
+    assert_eq!(endpoint.wire_format, WireFormat::AnthropicCompatible);
 }
 
 #[test]
 fn upstream_url_defaults_to_v1_chat_completions() {
     let endpoint = ResolvedModelEndpoint {
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         base_url: "https://api.arcee.ai".to_string(),
         model: "trinity".to_string(),
         api_key: None,
         http_headers: BTreeMap::new(),
         path_suffix: None,
         insecure_skip_tls_verify: false,
-        wire_format: WireFormat::ChatCompletions,
+        wire_format: WireFormat::OpenAiCompatible,
     };
     assert_eq!(
         upstream_url(&endpoint),
@@ -427,14 +427,14 @@ fn upstream_url_defaults_to_v1_chat_completions() {
 #[test]
 fn upstream_url_preserves_arcee_api_v1_base() {
     let endpoint = ResolvedModelEndpoint {
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         base_url: "https://api.arcee.ai/api/v1".to_string(),
         model: "trinity".to_string(),
         api_key: None,
         http_headers: BTreeMap::new(),
         path_suffix: None,
         insecure_skip_tls_verify: false,
-        wire_format: WireFormat::ChatCompletions,
+        wire_format: WireFormat::OpenAiCompatible,
     };
     assert_eq!(
         upstream_url(&endpoint),
@@ -445,14 +445,14 @@ fn upstream_url_preserves_arcee_api_v1_base() {
 #[test]
 fn upstream_url_respects_path_suffix() {
     let endpoint = ResolvedModelEndpoint {
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         base_url: "https://openrouter.ai/api/v1".to_string(),
         model: "deepseek/deepseek-v4-pro".to_string(),
         api_key: None,
         http_headers: BTreeMap::new(),
         path_suffix: Some("/chat/completions".to_string()),
         insecure_skip_tls_verify: false,
-        wire_format: WireFormat::ChatCompletions,
+        wire_format: WireFormat::OpenAiCompatible,
     };
     assert_eq!(
         upstream_url(&endpoint),
@@ -463,14 +463,14 @@ fn upstream_url_respects_path_suffix() {
 #[test]
 fn upstream_url_beta_base_uses_standard_v1_chat_completions() {
     let endpoint = ResolvedModelEndpoint {
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         base_url: "https://api.deepseek.com/beta".to_string(),
         model: "deepseek-chat".to_string(),
         api_key: None,
         http_headers: BTreeMap::new(),
         path_suffix: None,
         insecure_skip_tls_verify: false,
-        wire_format: WireFormat::ChatCompletions,
+        wire_format: WireFormat::OpenAiCompatible,
     };
     assert_eq!(
         upstream_url(&endpoint),
@@ -481,14 +481,14 @@ fn upstream_url_beta_base_uses_standard_v1_chat_completions() {
 #[test]
 fn upstream_url_strips_trailing_slash() {
     let endpoint = ResolvedModelEndpoint {
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         base_url: "https://api.deepseek.com/".to_string(),
         model: "deepseek-chat".to_string(),
         api_key: None,
         http_headers: BTreeMap::new(),
         path_suffix: None,
         insecure_skip_tls_verify: false,
-        wire_format: WireFormat::ChatCompletions,
+        wire_format: WireFormat::OpenAiCompatible,
     };
     assert_eq!(
         upstream_url(&endpoint),

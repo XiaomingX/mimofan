@@ -42,17 +42,21 @@ fn display_order_is_complete_and_unique() {
 }
 
 #[test]
-fn xiaomi_mimo_and_custom_present() {
+fn three_compat_modes_present() {
     let providers = all_providers();
     assert!(
         providers
             .iter()
-            .any(|p| p.kind() == ProviderKind::XiaomiMimo)
+            .any(|p| p.kind() == ProviderKind::OpenAiCompatible)
     );
     assert!(
         providers
             .iter()
-            .any(|p| p.kind() == ProviderKind::Anthropic)
+            .any(|p| p.kind() == ProviderKind::AnthropicCompatible)
     );
-    assert!(providers.iter().any(|p| p.kind() == ProviderKind::Custom));
+    assert!(
+        providers
+            .iter()
+            .any(|p| p.kind() == ProviderKind::GeminiCompatible)
+    );
 }

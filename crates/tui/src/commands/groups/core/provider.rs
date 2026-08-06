@@ -148,7 +148,7 @@ fn provider_fallback(app: &mut App, subcommand: Option<&str>) -> CommandResult {
 fn expand_model_alias_for_provider(provider: ApiProvider, name: &str) -> String {
     let trimmed = name.trim();
     let lower = trimmed.to_ascii_lowercase();
-    if matches!(provider, ApiProvider::XiaomiMimo) {
+    if matches!(provider, ApiProvider::OpenAiCompatible) {
         return match lower.as_str() {
             "pro" | "mimo" => "mimo-v2.5-pro".to_string(),
             "ultraspeed" | "pro-ultraspeed" => "mimo-v2.5-pro-ultraspeed".to_string(),

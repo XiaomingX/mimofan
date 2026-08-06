@@ -30,109 +30,57 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
         config.provider = Some(value);
     }
     if let Ok(value) = env_nonempty("MIMOFAN_BASE_URL") {
-        match config.api_provider() {
-            ApiProvider::XiaomiMimo => {
-                config
-                    .providers
-                    .get_or_insert_with(ProvidersConfig::default)
-                    .xiaomi_mimo
-                    .base_url = Some(value);
-            }
-            ApiProvider::Anthropic => {
-                config
-                    .providers
-                    .get_or_insert_with(ProvidersConfig::default)
-                    .anthropic
-                    .base_url = Some(value);
-            }
-            ApiProvider::Custom => {
-                config.provider_config_for_mut(ApiProvider::Custom).base_url = Some(value);
+        config.provider_config_for_mut(config.api_provider()).base_url = Some(value);
+    }
+    // 各厂商专用 env 变量统一归入对应线协议槽位（不再绑定具体产品）。
+    let set_base_url = |config: &mut Config, field: &str, value: String| {
+        let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
+        match field {
+            "openai_compatible" => providers.openai_compatible.base_url = Some(value),
+            "anthropic_compatible" => providers.anthropic_compatible.base_url = Some(value),
+            "gemini_compatible" => providers.gemini_compatible.base_url = Some(value),
+            name => {
+                providers.custom.entry(name.to_string()).or_default().base_url = Some(value);
             }
         }
+    };
+    let set_model = |config: &mut Config, field: &str, value: String| {
+        let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
+        match field {
+            "openai_compatible" => providers.openai_compatible.model = Some(value),
+            "anthropic_compatible" => providers.anthropic_compatible.model = Some(value),
+            "gemini_compatible" => providers.gemini_compatible.model = Some(value),
+            name => {
+                providers.custom.entry(name.to_string()).or_default().model = Some(value);
+            }
+        }
+    };
+    if let Some(value) = std::env::var("OPENAI_BASE_URL").ok().filter(|v| !v.trim().is_empty()) {
+        set_base_url(config, "openai_compatible", value);
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("NVIDIA_NIM_BASE_URL")
-            .or_else(|_| std::env::var("NIM_BASE_URL"))
-            .or_else(|_| std::env::var("NVIDIA_BASE_URL"))
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .nvidia_nim
-            .base_url = Some(value);
+    if let Some(value) = std::env::var("ANTHROPIC_BASE_URL").ok().filter(|v| !v.trim().is_empty()) {
+        set_base_url(config, "anthropic_compatible", value);
     }
-    // OpenAI-compatible and non-DeepSeek hosted providers are scoped only on
-    // their own provider entry -- the legacy root `base_url` keeps DeepSeek-only
-    // semantics.
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("OPENAI_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .openai
-            .base_url = Some(value);
+    if let Some(value) = std::env::var("GEMINI_BASE_URL").ok().filter(|v| !v.trim().is_empty()) {
+        set_base_url(config, "gemini_compatible", value);
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("OPENROUTER_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .openrouter
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("XIAOMI_MIMO_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .xiaomi_mimo
-            .base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("XIAOMI_MIMO_MODE")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .xiaomi_mimo
-            .mode = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("VOLCENGINE_BASE_URL")
-            .or_else(|_| std::env::var("VOLCENGINE_ARK_BASE_URL"))
-            .or_else(|_| std::env::var("ARK_BASE_URL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .volcengine
-            .base_url = Some(value);
-    }
-    let active_provider = config.api_provider();
-    if matches!(active_provider, ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("SILICONFLOW_BASE_URL")
-        && !value.trim().is_empty()
-    {
-        config.provider_config_for_mut(active_provider).base_url = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) =
-            std::env::var("MOONSHOT_BASE_URL").or_else(|_| std::env::var("KIMI_BASE_URL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .moonshot
-            .base_url = Some(value);
+    // 其余历史厂商 endpoint 变量按 OpenAI 兼容自定义端点收口。
+    for (env_var, slot) in [
+        ("NVIDIA_NIM_BASE_URL", "nvidia_nim"),
+        ("NIM_BASE_URL", "nvidia_nim"),
+        ("NVIDIA_BASE_URL", "nvidia_nim"),
+        ("OPENROUTER_BASE_URL", "openrouter"),
+        ("VOLCENGINE_BASE_URL", "volcengine"),
+        ("VOLCENGINE_ARK_BASE_URL", "volcengine"),
+        ("ARK_BASE_URL", "volcengine"),
+        ("MOONSHOT_BASE_URL", "moonshot"),
+        ("KIMI_BASE_URL", "moonshot"),
+        ("SILICONFLOW_BASE_URL", "siliconflow"),
+        ("XIAOMI_MIMO_BASE_URL", "openai_compatible"),
+    ] {
+        if let Some(value) = std::env::var(env_var).ok().filter(|v| !v.trim().is_empty()) {
+            set_base_url(config, slot, value);
+        }
     }
     if let Ok(value) = std::env::var("MIMOFAN_HTTP_HEADERS")
         && let Ok(headers) = parse_http_headers(&value)
@@ -143,129 +91,63 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
         config.http_headers = Some(root_headers);
 
         let provider = config.api_provider();
-        // Capture the custom entry key (the selected provider name) before the
-        // mutable borrow of `providers` below (#1519).
-        let custom_key = (provider == ApiProvider::Custom).then(|| {
-            config
-                .provider
-                .clone()
-                .unwrap_or_else(|| "__custom__".to_string())
-        });
-        let providers = config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default);
+        let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
         let entry = match provider {
-            ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-            ApiProvider::Anthropic => &mut providers.anthropic,
-            ApiProvider::Custom => providers
-                .custom
-                .entry(custom_key.expect("custom key captured for custom provider"))
-                .or_default(),
+            ApiProvider::OpenAiCompatible => &mut providers.openai_compatible,
+            ApiProvider::AnthropicCompatible => &mut providers.anthropic_compatible,
+            ApiProvider::GeminiCompatible => &mut providers.gemini_compatible,
         };
         let mut provider_headers = entry.http_headers.clone().unwrap_or_default();
         provider_headers.extend(headers);
         entry.http_headers = Some(provider_headers);
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("OPENAI_MODEL")
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .openai
-            .model = Some(value);
+    if let Ok(value) = std::env::var("OPENAI_MODEL") {
+        set_model(config, "openai_compatible", value);
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("XIAOMI_MIMO_MODEL")
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .xiaomi_mimo
-            .model = Some(value);
+    if let Ok(value) = std::env::var("ANTHROPIC_MODEL") {
+        set_model(config, "anthropic_compatible", value);
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("OPENROUTER_MODEL")
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .openrouter
-            .model = Some(value);
+    if let Ok(value) = std::env::var("GEMINI_MODEL") {
+        set_model(config, "gemini_compatible", value);
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) =
-            std::env::var("VOLCENGINE_MODEL").or_else(|_| std::env::var("VOLCENGINE_ARK_MODEL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .volcengine
-            .model = Some(value);
-    }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("MOONSHOT_MODEL")
-            .or_else(|_| std::env::var("KIMI_MODEL_NAME"))
-            .or_else(|_| std::env::var("KIMI_MODEL"))
-        && !value.trim().is_empty()
-    {
-        config
-            .providers
-            .get_or_insert_with(ProvidersConfig::default)
-            .moonshot
-            .model = Some(value);
-    }
-    let active_provider = config.api_provider();
-    if matches!(active_provider, ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("SILICONFLOW_MODEL")
-        && !value.trim().is_empty()
-    {
-        config.provider_config_for_mut(active_provider).model = Some(value);
-    }
-    if let Some(value) = env_nonempty("MIMOFAN_MODEL").ok().or_else(|| {
-        std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL")
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    }) {
-        // The CLI `--model` handoff always sets MIMOFAN_MODEL, never the
-        // provider-specific *_MODEL var. The legacy root `default_text_model`
-        // is a DeepSeek-only slot (the validator rejects non-DeepSeek IDs
-        // there). For a non-DeepSeek provider the explicit model must land in
-        // the provider-scoped slot instead so the verbatim-passthrough path
-        // honors it rather than falling back to a DeepSeek/provider default
-        // (issue #1714). Mirror the OPENAI_MODEL branch above for every
-        // non-DeepSeek provider.
-        let provider = config.api_provider();
-        // Capture the custom entry key before the mutable borrow below (#1519).
-        let custom_key = (provider == ApiProvider::Custom).then(|| {
-            config
-                .provider
-                .clone()
-                .unwrap_or_else(|| "__custom__".to_string())
-        });
-        if matches!(provider, ApiProvider::XiaomiMimo) {
-            config.default_text_model = Some(value);
-        } else {
-            let providers = config
-                .providers
-                .get_or_insert_with(ProvidersConfig::default);
-            let entry = match provider {
-                ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-                ApiProvider::Anthropic => &mut providers.anthropic,
-                ApiProvider::Custom => providers
-                    .custom
-                    .entry(custom_key.expect("custom key captured for custom provider"))
-                    .or_default(),
-            };
-            entry.model = Some(value);
+    for (env_var, slot) in [
+        ("OPENROUTER_MODEL", "openrouter"),
+        ("VOLCENGINE_MODEL", "volcengine"),
+        ("VOLCENGINE_ARK_MODEL", "volcengine"),
+        ("MOONSHOT_MODEL", "moonshot"),
+        ("KIMI_MODEL_NAME", "moonshot"),
+        ("KIMI_MODEL", "moonshot"),
+        ("SILICONFLOW_MODEL", "siliconflow"),
+        ("XIAOMI_MIMO_MODEL", "openai_compatible"),
+    ] {
+        if let Some(value) = std::env::var(env_var).ok().filter(|v| !v.trim().is_empty()) {
+            set_model(config, slot, value);
         }
     }
-    if matches!(config.api_provider(), ApiProvider::XiaomiMimo)
-        && let Ok(value) = std::env::var("NVIDIA_NIM_MODEL")
+    if let Some(value) = env_nonempty("MIMOFAN_MODEL")
+        .ok()
+        .or_else(|| {
+            std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        })
     {
-        config.default_text_model = Some(value);
+        let provider = config.api_provider();
+        match provider {
+            ApiProvider::OpenAiCompatible => {
+                let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
+                if let Some(name) = config.provider.clone()
+                    && providers.custom.contains_key(&name)
+                {
+                    providers.custom.entry(name).or_default().model = Some(value);
+                } else {
+                    config.default_text_model = Some(value);
+                }
+            }
+            other => {
+                config.provider_config_for_mut(other).model = Some(value);
+            }
+        }
     }
     if let Ok(value) = std::env::var("MIMOFAN_SKILLS_DIR") {
         config.skills_dir = Some(value);

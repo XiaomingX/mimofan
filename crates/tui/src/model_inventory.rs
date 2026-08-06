@@ -104,9 +104,9 @@ impl ModelInventory {
 
         Self {
             active_provider,
-            router_provider: ApiProvider::XiaomiMimo,
+            router_provider: ApiProvider::OpenAiCompatible,
             router_model: "deepseek-v4-flash",
-            router_available: has_api_key_for(config, ApiProvider::XiaomiMimo),
+            router_available: has_api_key_for(config, ApiProvider::OpenAiCompatible),
             candidates,
         }
     }
@@ -197,7 +197,7 @@ fn auth_source_for_provider(config: &Config, provider: ApiProvider) -> Option<Mo
 
 fn provider_uses_oauth_cli(config: &Config, provider: ApiProvider) -> bool {
     match provider {
-        ApiProvider::XiaomiMimo => config
+        ApiProvider::OpenAiCompatible => config
             .provider_config_for(provider)
             .and_then(|entry| entry.auth_mode.as_deref())
             .is_some_and(|mode| {

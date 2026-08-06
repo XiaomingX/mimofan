@@ -32,7 +32,7 @@ pub(crate) fn arcee_passthrough_model(requested: &str) -> Option<ModelInfo> {
 
     Some(ModelInfo {
         id: requested.to_string(),
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         aliases: Vec::new(),
         supports_tools: true,
         supports_reasoning,
@@ -47,7 +47,7 @@ pub(crate) fn xiaomi_mimo_passthrough_model(requested: &str) -> Option<ModelInfo
 
     Some(ModelInfo {
         id: requested.to_string(),
-        provider: ProviderKind::XiaomiMimo,
+        provider: ProviderKind::OpenAiCompatible,
         aliases: Vec::new(),
         supports_tools: true,
         supports_reasoning: true,

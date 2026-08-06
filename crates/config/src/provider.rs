@@ -1,29 +1,25 @@
-//! Built-in provider metadata.
+//! Built-in provider metadata, keyed by wire-protocol compat mode.
 //!
-//! This module is a metadata foundation for collapsing provider drift over
-//! time. It deliberately does not mutate request bodies or choose fallback
-//! providers; runtime routing remains in `ConfigToml::resolve_runtime_options`.
-//!
-//! mimofan 仅内置 XiaomiMiMo provider，以及 Custom 用于用户自定义 OpenAI-compatible endpoint。
+//! mimofan 只区分 LLM 网关「说哪种线协议」，不绑定任何具体产品。
+//! 每种 [`ProviderKind`] 对应一个 [`WireFormat`]，元数据（默认
+//! base_url / model / env var）仅作占位与兜底；真实端点全部来自配置。
 
-use super::{
-    DEFAULT_XIAOMI_MIMO_BASE_URL, DEFAULT_XIAOMI_MIMO_MODEL, ProviderKind,
-    XIAOMI_MIMO_ANTHROPIC_BASE_URL,
-};
+use super::ProviderKind;
 
-/// Wire protocol spoken by a provider.
+/// Wire protocol spoken by an endpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "kebab-case")]
 pub enum WireFormat {
-    /// OpenAI-compatible `/v1/chat/completions` style payloads.
-    ChatCompletions,
-    /// OpenAI Responses API (`/responses`).
-    Responses,
+    /// OpenAI-compatible `/v1/chat/completions` payloads.
+    OpenAiCompatible,
     /// Native Anthropic Messages API (`/v1/messages`).
-    AnthropicMessages,
+    AnthropicCompatible,
+    /// Google Gemini `generativelanguage` protocol
+    /// (`/v1beta/models/<model>:generateContent`).
+    GeminiCompatible,
 }
 
-/// Static metadata for a built-in model provider.
+/// Static metadata for a built-in compat mode.
 pub trait Provider: Send + Sync {
     /// Provider enum variant represented by this entry.
     fn kind(&self) -> ProviderKind;
@@ -33,7 +29,7 @@ pub trait Provider: Send + Sync {
         self.kind().as_str()
     }
 
-    /// Human-readable provider label for UIs and diagnostics.
+    /// Human-readable label for UIs and diagnostics.
     fn display_name(&self) -> &'static str;
 
     /// Default base URL used when no config/env/CLI override is present.
@@ -42,7 +38,7 @@ pub trait Provider: Send + Sync {
     /// Default model used when no config/env/CLI override is present.
     fn default_model(&self) -> &'static str;
 
-    /// Environment variable candidates used for this provider's API key.
+    /// Environment variable candidates used for this mode's API key.
     fn env_vars(&self) -> &'static [&'static str];
 
     /// TOML table key under `[providers.<key>]`.
@@ -53,9 +49,9 @@ pub trait Provider: Send + Sync {
         &[]
     }
 
-    /// Wire format used by the provider.
+    /// Wire protocol used by the endpoint.
     fn wire(&self) -> WireFormat {
-        WireFormat::ChatCompletions
+        WireFormat::OpenAiCompatible
     }
 }
 
@@ -65,13 +61,14 @@ macro_rules! provider {
         $kind:ident,
         $id:literal,
         $display_name:literal,
-        $base_url:ident,
-        $model:ident,
+        $base_url:literal,
+        $model:literal,
         [$($env_var:literal),* $(,)?],
         $config_key:literal,
+        $wire:expr,
         aliases: [$($alias:literal),* $(,)?]
     ) => {
-        /// Zero-sized metadata entry for this built-in provider.
+        /// Zero-sized metadata entry for this compat mode.
         pub struct $struct_name;
 
         impl Provider for $struct_name {
@@ -106,131 +103,66 @@ macro_rules! provider {
             fn aliases(&self) -> &'static [&'static str] {
                 &[$($alias),*]
             }
+
+            fn wire(&self) -> WireFormat {
+                $wire
+            }
         }
     };
 }
 
+// OpenAI-compatible `/v1/chat/completions` endpoint.
+//
+// 涵盖所有兼容 OpenAI Chat Completions 协议的自建/第三方网关。
+// 默认占位为 loopback，强制用户在配置中显式给出真实 base_url，
+// 避免误打到公共主机。
 provider!(
-    XiaomiMimo,
-    XiaomiMimo,
-    "xiaomi-mimo",
-    "Xiaomi MiMo",
-    DEFAULT_XIAOMI_MIMO_BASE_URL,
-    DEFAULT_XIAOMI_MIMO_MODEL,
-    [
-        "XIAOMI_MIMO_TOKEN_PLAN_API_KEY",
-        "XIAOMI_MIMO_API_KEY",
-        "ANTHROPIC_API_KEY",
-    ],
-    "xiaomi_mimo",
-    aliases: ["xiaomi_mimo", "xiaomimimo", "mimo", "xiaomi"]
+    OpenAiCompatibleProvider,
+    OpenAiCompatible,
+    "openai-compatible",
+    "OpenAI Compatible",
+    "http://localhost/v1",
+    "gpt-4o",
+    ["OPENAI_API_KEY", "MIMOFAN_API_KEY"],
+    "openai_compatible",
+    WireFormat::OpenAiCompatible,
+    aliases: ["openai", "openai-compatible", "custom", "xiaomi-mimo", "mimo"]
 );
 
-/// Anthropic Messages API compatible endpoint for Xiaomi MiMo.
-///
-/// Uses the native Anthropic wire format (`/v1/messages`) for providers
-/// that support both OpenAI and Anthropic protocols.
-pub struct AnthropicProvider;
+// Anthropic Messages API compatible endpoint (`/v1/messages`).
+provider!(
+    AnthropicCompatibleProvider,
+    AnthropicCompatible,
+    "anthropic-compatible",
+    "Anthropic Compatible",
+    "https://api.anthropic.com/v1",
+    "claude-sonnet-4-0",
+    ["ANTHROPIC_API_KEY", "MIMOFAN_API_KEY"],
+    "anthropic_compatible",
+    WireFormat::AnthropicCompatible,
+    aliases: ["anthropic", "anthropic-compatible"]
+);
 
-impl Provider for AnthropicProvider {
-    fn id(&self) -> &'static str {
-        "anthropic"
-    }
+// Google Gemini compatible endpoint (`generativelanguage` protocol).
+provider!(
+    GeminiCompatibleProvider,
+    GeminiCompatible,
+    "gemini-compatible",
+    "Gemini Compatible",
+    "https://generativelanguage.googleapis.com/v1beta",
+    "gemini-2.0-flash",
+    ["GEMINI_API_KEY", "GOOGLE_API_KEY", "MIMOFAN_API_KEY"],
+    "gemini_compatible",
+    WireFormat::GeminiCompatible,
+    aliases: ["gemini", "gemini-compatible", "google"]
+);
 
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::Anthropic
-    }
+static OPENAI_PROVIDER: OpenAiCompatibleProvider = OpenAiCompatibleProvider;
+static ANTHROPIC_PROVIDER: AnthropicCompatibleProvider = AnthropicCompatibleProvider;
+static GEMINI_PROVIDER: GeminiCompatibleProvider = GeminiCompatibleProvider;
 
-    fn display_name(&self) -> &'static str {
-        "Xiaomi MiMo (Anthropic)"
-    }
-
-    fn default_base_url(&self) -> &'static str {
-        XIAOMI_MIMO_ANTHROPIC_BASE_URL
-    }
-
-    fn default_model(&self) -> &'static str {
-        DEFAULT_XIAOMI_MIMO_MODEL
-    }
-
-    fn env_vars(&self) -> &'static [&'static str] {
-        &["XIAOMI_MIMO_API_KEY", "ANTHROPIC_API_KEY"]
-    }
-
-    fn provider_config_key(&self) -> &'static str {
-        "anthropic"
-    }
-
-    fn aliases(&self) -> &'static [&'static str] {
-        &["anthropic"]
-    }
-
-    fn wire(&self) -> WireFormat {
-        WireFormat::AnthropicMessages
-    }
-}
-
-/// User-defined OpenAI-compatible endpoint (#1519).
-///
-/// A single dynamic provider identity for arbitrary `[providers.<name>]
-/// kind="openai-compatible"` config entries. Unlike the built-in providers it
-/// carries no real default base URL/model/env var: the concrete endpoint, model
-/// id, and auth env var all arrive from the named `[providers.<name>]` config
-/// table at route time. The placeholder base URL/model here exist only so the
-/// descriptor stays well-formed (non-empty) for conformance; runtime routing
-/// always supplies a `base_url_override` and a wire model id, so these
-/// placeholders are never used to reach the network.
-pub struct Custom;
-
-impl Provider for Custom {
-    fn id(&self) -> &'static str {
-        "custom"
-    }
-
-    fn kind(&self) -> ProviderKind {
-        ProviderKind::Custom
-    }
-
-    fn display_name(&self) -> &'static str {
-        "Custom (OpenAI-compatible)"
-    }
-
-    fn default_base_url(&self) -> &'static str {
-        // Placeholder only; the real endpoint comes from the named config table
-        // via the route's base_url_override. Loopback so a misconfigured custom
-        // provider fails closed locally rather than reaching a public host.
-        "http://localhost/v1"
-    }
-
-    fn default_model(&self) -> &'static str {
-        // Placeholder only; the real model id comes from config and is preserved
-        // verbatim as the wire model id.
-        "custom-model"
-    }
-
-    fn env_vars(&self) -> &'static [&'static str] {
-        &[
-            "OPENAI_API_KEY",
-            "MIMOFAN_API_KEY",
-            "DASHSCOPE_API_KEY",
-            "QWEN_API_KEY",
-        ]
-    }
-
-    fn provider_config_key(&self) -> &'static str {
-        "custom"
-    }
-
-    fn wire(&self) -> WireFormat {
-        WireFormat::ChatCompletions
-    }
-}
-
-static XIAOMI_MIMO: XiaomiMimo = XiaomiMimo;
-static ANTHROPIC_PROVIDER: AnthropicProvider = AnthropicProvider;
-static CUSTOM: Custom = Custom;
-
-static PROVIDER_REGISTRY: [&dyn Provider; 3] = [&XIAOMI_MIMO, &ANTHROPIC_PROVIDER, &CUSTOM];
+static PROVIDER_REGISTRY: [&dyn Provider; 3] =
+    [&OPENAI_PROVIDER, &ANTHROPIC_PROVIDER, &GEMINI_PROVIDER];
 
 /// Return all built-in provider metadata entries in `ProviderKind::ALL` order.
 ///

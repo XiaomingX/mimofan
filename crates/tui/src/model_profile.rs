@@ -281,7 +281,7 @@ pub fn tool_surface_for_window(context_window: Option<u32>) -> ToolSurfaceBudget
 fn native_tool_support_for_payload(mode: RequestPayloadMode) -> SupportState {
     match mode {
         RequestPayloadMode::ChatCompletions
-        | RequestPayloadMode::Responses
+        | RequestPayloadMode::Gemini
         | RequestPayloadMode::AnthropicMessages => SupportState::Supported,
     }
 }

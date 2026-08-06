@@ -323,13 +323,11 @@ enum ProviderClass {
 /// through, so the resolver stays permissive by default.
 fn classify(kind: ProviderKind) -> ProviderClass {
     match kind {
-        // Custom OpenAI-compatible endpoints: pass-through.
-        ProviderKind::Custom => ProviderClass::LocalOrCustom,
-        // XiaomiMiMo (and anything else) is treated as an aggregator-style
-        // pass-through.
-        ProviderKind::XiaomiMimo => ProviderClass::Aggregator,
-        // Anthropic Messages API endpoint: pass-through (same as aggregator).
-        ProviderKind::Anthropic => ProviderClass::Aggregator,
+        // OpenAI-compatible endpoints: pass-through.
+        ProviderKind::OpenAiCompatible => ProviderClass::LocalOrCustom,
+        // Anthropic / Gemini compatible endpoints: aggregator-style pass-through.
+        ProviderKind::AnthropicCompatible => ProviderClass::Aggregator,
+        ProviderKind::GeminiCompatible => ProviderClass::Aggregator,
     }
 }
 

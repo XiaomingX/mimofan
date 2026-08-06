@@ -213,7 +213,7 @@ pub(crate) fn resolve_fleet_route(
     // default provider scope (mirrors `ProviderKind::default()`). The resolver
     // is fully offline/hermetic and never reads secrets, env, or config.
     let candidate =
-        resolve_route_candidate(ApiProvider::XiaomiMimo, model_selector, None, None).ok()?;
+        resolve_route_candidate(ApiProvider::OpenAiCompatible, model_selector, None, None).ok()?;
 
     Some(FleetResolvedRoute {
         provider_id: candidate.provider_id.as_str().to_string(),
@@ -234,9 +234,9 @@ pub(crate) fn resolve_fleet_route(
 fn route_protocol_label(protocol: mimofan_config::route::RequestProtocol) -> &'static str {
     use mimofan_config::route::RequestProtocol;
     match protocol {
-        RequestProtocol::ChatCompletions => "chat_completions",
-        RequestProtocol::Responses => "responses",
-        RequestProtocol::AnthropicMessages => "anthropic_messages",
+        RequestProtocol::OpenAiCompatible => "openai_compatible",
+        RequestProtocol::AnthropicCompatible => "anthropic_messages",
+        RequestProtocol::GeminiCompatible => "gemini_compatible",
     }
 }
 

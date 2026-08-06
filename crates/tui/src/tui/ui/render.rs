@@ -126,9 +126,9 @@ pub(crate) fn render(f: &mut Frame, app: &mut App) {
         let model_label = app.model_display_label();
         let effort_label = app.reasoning_effort_display_label();
         let provider_label = match app.api_provider {
-            crate::config::ApiProvider::XiaomiMimo => Some("MiMo"),
-            crate::config::ApiProvider::Anthropic => Some("MiMo (Anthropic)"),
-            crate::config::ApiProvider::Custom => Some("Custom"),
+            crate::config::ApiProvider::OpenAiCompatible => Some("OpenAI Compatible"),
+            crate::config::ApiProvider::AnthropicCompatible => Some("Anthropic Compatible"),
+            crate::config::ApiProvider::GeminiCompatible => Some("Gemini Compatible"),
         };
         let status_indicator_started_at = if app.low_motion {
             None

@@ -29,8 +29,8 @@ pub(crate) struct RouterCandidates {
 impl RouterCandidates {
     pub(crate) fn deepseek() -> Self {
         Self {
-            big: mimofan_config::DEFAULT_MIMOFAN_MODEL.to_string(),
-            cheap: Some(mimofan_config::DEFAULT_MIMOFAN_FLASH_MODEL.to_string()),
+            big: mimofan_config::DEFAULT_OPENAI_COMPATIBLE_MODEL.to_string(),
+            cheap: Some(mimofan_config::DEFAULT_GEMINI_COMPATIBLE_MODEL.to_string()),
         }
     }
 
@@ -53,7 +53,7 @@ pub(crate) fn provider_router_candidates(
     current_model: &str,
 ) -> RouterCandidates {
     use crate::config::ApiProvider;
-    if provider == ApiProvider::XiaomiMimo {
+    if provider == ApiProvider::OpenAiCompatible {
         let normalized = crate::config::normalize_model_name_for_provider(provider, current_model)
             .unwrap_or_else(|| current_model.to_string());
         return RouterCandidates {
@@ -69,7 +69,7 @@ pub(crate) fn provider_router_candidates(
         };
     }
 
-    if provider == ApiProvider::XiaomiMimo
+    if provider == ApiProvider::OpenAiCompatible
         && let Some(normalized) =
             crate::config::normalize_model_name_for_provider(provider, current_model)
         && matches!(
@@ -90,7 +90,7 @@ pub(crate) fn provider_router_candidates(
     }
 
     match provider {
-        ApiProvider::XiaomiMimo => RouterCandidates::deepseek(),
+        ApiProvider::OpenAiCompatible => RouterCandidates::deepseek(),
         _ => RouterCandidates {
             big: current_model.to_string(),
             cheap: None,
@@ -260,7 +260,7 @@ fn parse_auto_route_reasoning_effort(effort: &str) -> Option<ReasoningEffort> {
 
 #[must_use]
 pub(crate) fn normalize_auto_route_effort(effort: ReasoningEffort) -> ReasoningEffort {
-    normalize_auto_route_effort_for_provider(ApiProvider::XiaomiMimo, effort)
+    normalize_auto_route_effort_for_provider(ApiProvider::OpenAiCompatible, effort)
 }
 
 #[must_use]
@@ -268,7 +268,7 @@ pub(crate) fn normalize_auto_route_effort_for_provider(
     provider: ApiProvider,
     effort: ReasoningEffort,
 ) -> ReasoningEffort {
-    if provider == ApiProvider::XiaomiMimo {
+    if provider == ApiProvider::OpenAiCompatible {
         return effort.normalize_for_provider(provider);
     }
     match effort {
@@ -447,7 +447,7 @@ async fn auto_route_inventory_recommendation(
     selected_thinking_mode: &str,
 ) -> Result<Option<InventoryAutoRouteRecommendation>> {
     let mut router_config = config.clone();
-    router_config.provider = Some(ApiProvider::XiaomiMimo.as_str().to_string());
+    router_config.provider = Some(ApiProvider::OpenAiCompatible.as_str().to_string());
     router_config.default_text_model = Some(inventory.router_model.to_string());
 
     let client = ApiClient::new(&router_config)?;

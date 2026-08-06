@@ -290,12 +290,12 @@ impl ReasoningEffort {
         self.as_setting()
     }
 
-    /// Normalize effort for a specific provider. Non-XiaomiMimo providers
-    /// collapse `Low`/`Medium` into `High` since they only distinguish
-    /// on/off/maximum.
+    /// Normalize effort for a specific provider. OpenAI-compatible providers
+    /// keep all tiers; other compat modes collapse `Low`/`Medium` into `High`
+    /// since they only distinguish on/off/maximum.
     #[must_use]
     pub fn normalize_for_provider(self, provider: ApiProvider) -> Self {
-        if provider == ApiProvider::XiaomiMimo {
+        if provider == ApiProvider::OpenAiCompatible {
             return self;
         }
         match self {
@@ -310,7 +310,7 @@ impl ReasoningEffort {
     #[must_use]
     pub fn api_value_for_provider(self, provider: ApiProvider) -> Option<&'static str> {
         match provider {
-            ApiProvider::XiaomiMimo => Some(match self {
+            ApiProvider::OpenAiCompatible => Some(match self {
                 Self::Off => "off",
                 Self::Low => "low",
                 Self::Medium => "medium",
@@ -334,7 +334,7 @@ impl ReasoningEffort {
     #[must_use]
     pub fn display_label_for_provider(self, provider: ApiProvider) -> &'static str {
         match provider {
-            ApiProvider::XiaomiMimo => match self {
+            ApiProvider::OpenAiCompatible => match self {
                 Self::Off => "Off",
                 Self::Low => "Low",
                 Self::Medium => "Medium",
@@ -355,7 +355,7 @@ impl ReasoningEffort {
 
     /// Cycle to the next effort tier supported by the given provider.
     ///
-    /// DeepSeek (XiaomiMimo): Off -> High -> Max -> Off
+    /// OpenAI-compatible: Off -> High -> Max -> Off
     /// Other providers: Off -> High -> Max -> Off
     #[must_use]
     pub fn cycle_next_for_provider(self, _provider: ApiProvider) -> Self {

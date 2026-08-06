@@ -2,9 +2,9 @@
 
 use super::CommandResult;
 use crate::config::{
-    ApiProvider, COMMON_MIMOFAN_MODELS, Config, DEFAULT_STREAM_CHUNK_TIMEOUT_SECS,
+    ApiProvider, COMMON_MODELS, Config, DEFAULT_STREAM_CHUNK_TIMEOUT_SECS,
     DEFAULT_SUBAGENT_API_TIMEOUT_SECS, DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
-    DEFAULT_XIAOMI_MIMO_BASE_URL, LimitsConfig, MAX_STREAM_CHUNK_TIMEOUT_SECS,
+    LimitsConfig, MAX_STREAM_CHUNK_TIMEOUT_SECS,
     MAX_SUBAGENT_API_TIMEOUT_SECS, MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, MAX_SUBAGENTS,
     MIN_STREAM_CHUNK_TIMEOUT_SECS, MIN_SUBAGENT_API_TIMEOUT_SECS,
     MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, SubagentsConfig, clear_active_provider_api_key,
@@ -474,28 +474,14 @@ fn sidebar_status_message(app: &mut App) -> String {
     }
 }
 
-fn resolve_provider_url_value(provider: ApiProvider, value: &str) -> Result<String, String> {
+fn resolve_provider_url_value(_provider: ApiProvider, value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return Err("provider_url cannot be empty".to_string());
     }
 
-    if provider == ApiProvider::XiaomiMimo {
-        match trimmed.to_ascii_lowercase().as_str() {
-            "token" | "token-plan" | "token_plan" | "token-plan-sgp" | "sgp" => {
-                return Ok(DEFAULT_XIAOMI_MIMO_BASE_URL.to_string());
-            }
-            "payg" | "pay-go" | "paygo" | "pay-as-you-go" | "pay_as_you_go" | "api" => {
-                return Ok(mimofan_config::XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string());
-            }
-            _ => {}
-        }
-    }
-
     if trimmed.contains("://") {
         Ok(trimmed.to_string())
-    } else if provider == ApiProvider::XiaomiMimo {
-        Err("provider_url for Xiaomi MiMo must be token-plan, pay-as-you-go, or a URL".to_string())
     } else {
         Err("provider_url must be a URL".to_string())
     }
@@ -1201,7 +1187,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
             let Some(model) = normalize_model_name_for_provider(app.api_provider, value) else {
                 return CommandResult::error(format!(
                     "Invalid model '{value}'. Expected a DeepSeek model ID. Common models: {}",
-                    COMMON_MIMOFAN_MODELS.join(", ")
+                    COMMON_MODELS.join(", ")
                 ));
             };
             app.set_model_selection(model.clone());
@@ -1335,19 +1321,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
                 Ok(value) => value,
                 Err(err) => return CommandResult::error(err),
             };
-            if matches!(app.api_provider, ApiProvider::XiaomiMimo) {
-                if persist {
-                    match persist_root_string_key(app.config_path.as_deref(), "base_url", &value) {
-                        Ok(path) => {
-                            return CommandResult::message(format!(
-                                "provider_url = {value} (saved to {}; restart required)",
-                                path.display()
-                            ));
-                        }
-                        Err(err) => return CommandResult::error(format!("Failed to save: {err}")),
-                    }
-                }
-            } else if persist {
+            if persist {
                 match persist_provider_base_url_key(
                     app.config_path.as_deref(),
                     app.api_provider,

@@ -962,7 +962,7 @@ impl Settings {
         self.set_model_for_provider(provider.as_str(), model);
         if persist_as_default {
             self.default_provider = Some(provider.as_str().to_string());
-            if matches!(provider, ApiProvider::XiaomiMimo) {
+            if matches!(provider, ApiProvider::OpenAiCompatible) {
                 self.set("default_model", model)?;
             }
         }

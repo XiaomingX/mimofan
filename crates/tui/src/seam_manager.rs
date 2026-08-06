@@ -41,7 +41,7 @@ use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
 
 /// Default seam model — Flash is cheap and fast, ideal for summarization.
-pub use mimofan_config::DEFAULT_MIMOFAN_FLASH_MODEL as DEFAULT_SEAM_MODEL;
+pub use mimofan_config::DEFAULT_GEMINI_COMPATIBLE_MODEL as DEFAULT_SEAM_MODEL;
 
 /// Default thresholds based on the active request input estimate.
 pub const DEFAULT_L1_THRESHOLD: usize = 192_000;

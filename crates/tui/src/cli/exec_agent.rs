@@ -217,7 +217,7 @@ pub(crate) fn config_for_cli_route(config: &Config, route: &CliAutoRoute) -> Con
     execution_config
         .provider_config_for_mut(route.provider)
         .model = Some(route.model.clone());
-    if matches!(route.provider, crate::config::ApiProvider::XiaomiMimo) {
+    if matches!(route.provider, crate::config::ApiProvider::OpenAiCompatible) {
         execution_config.default_text_model = Some(route.model.clone());
     }
     execution_config
