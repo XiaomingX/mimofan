@@ -1831,8 +1831,13 @@ impl Engine {
 
                 if parallel_allowed {
                     let mut tool_tasks = FuturesUnordered::new();
-                    let shell_permits =
-                        Arc::new(tokio::sync::Semaphore::new(MAX_PARALLEL_SHELL_EXEC));
+                    let shell_permits = Arc::new(tokio::sync::Semaphore::new(
+                        self.api_config
+                            .limits
+                            .as_ref()
+                            .and_then(|cfg| cfg.max_parallel_shell_exec)
+                            .unwrap_or(MAX_PARALLEL_SHELL_EXEC),
+                    ));
                     for plan in plans {
                         if let Some(result) = plan.guard_result.clone() {
                             let result = Ok(result);

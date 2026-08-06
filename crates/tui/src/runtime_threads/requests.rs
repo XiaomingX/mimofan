@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use mimofan_protocol::runtime::{DynamicToolSpec, TurnEnvironmentParams};
 
 use super::types::{ThreadRecord, TurnItemRecord, TurnRecord};
-use super::utils::MAX_ACTIVE_THREADS_DEFAULT;
+use crate::config::MAX_ACTIVE_THREADS_DEFAULT;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeThreadManagerConfig {

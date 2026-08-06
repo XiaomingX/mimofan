@@ -29,7 +29,7 @@ const CHILD_TIMEOUT_SECS: u64 = 120;
 /// Default `max_tokens` for one-shot child completions.
 const DEFAULT_CHILD_MAX_TOKENS: u32 = 4096;
 /// Hard cap on prompts per batch RPC.
-pub const MAX_BATCH: usize = 16;
+use crate::config::MAX_RLM_BATCH as MAX_BATCH;
 
 /// Object-safe slice of the LLM client interface that the RLM bridge needs.
 ///

@@ -187,7 +187,13 @@ impl Engine {
 
         let result_count = calls.len();
         let mut tasks = FuturesUnordered::new();
-        let shell_permits = Arc::new(tokio::sync::Semaphore::new(MAX_PARALLEL_SHELL_EXEC));
+        let shell_permits = Arc::new(tokio::sync::Semaphore::new(
+            self.api_config
+                .limits
+                .as_ref()
+                .and_then(|cfg| cfg.max_parallel_shell_exec)
+                .unwrap_or(MAX_PARALLEL_SHELL_EXEC),
+        ));
         for (index, (tool_name, tool_input)) in calls.into_iter().enumerate() {
             if tool_name == MULTI_TOOL_PARALLEL_NAME {
                 return Err(ToolError::invalid_input(

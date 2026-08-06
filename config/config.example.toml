@@ -213,6 +213,43 @@ deepseek_v4_flash_prior = 4.2
 fallback_default_prior = 3.8
 
 # ─────────────────────────────────────────────────────────────────────────────────
+# 并发 / 超时 / 队列统一配置区 (Unified Limits)
+# ─────────────────────────────────────────────────────────────────────────────────
+# 所有并发度、并行度、超时与队列上限的单一来源。省略某项即使用其默认常量；
+# 任何值都会被钳制到对应硬上限（见下方注释），不会因配置放大而失控。
+[limits]
+# 最大并发子代理数（硬上限 60）。默认 8。
+# max_subagents = 16
+# 会话内允许排队 + 运行的子代理总数上限（默认 200）。
+# max_admitted_subagents = 200
+# 直接并发启动（depth-1）的子代理数，超过则排队等待启动槽（默认 = max_subagents）。
+# launch_concurrency = 8
+# 单轮引擎内并行 shell 执行数（硬上限 4）。默认 4。
+# max_parallel_shell_exec = 4
+# 活跃运行时线程数（默认 8）。
+# max_active_threads = 8
+# 任务管理器 worker 数（硬上限 8）。默认 8。
+# max_task_workers = 8
+# RLM 批量桥接单次最大 prompt 数（硬上限 16）。默认 16。
+# max_rlm_batch = 16
+# 子代理单步 API 超时（秒，1..=1800）。默认 120。
+# api_timeout_secs = 120
+# 无进度的运行中子代理心跳超时（秒，30..=3600）。默认 300。
+# heartbeat_timeout_secs = 300
+# 每 SSE chunk 空闲超时（秒，1..=3600）。默认 300。
+# stream_chunk_timeout_secs = 300
+# 流内容最大字节数（默认 10 MiB）。
+# stream_max_content_bytes = 10485760
+# 流最大时长（秒，默认 1800）。
+# stream_max_duration_secs = 1800
+# 连续可恢复流错误上限（默认 5）。
+# max_stream_errors_before_fail = 5
+# 透明流重试上限（默认 2）。
+# max_transparent_stream_retries = 2
+# 流重试上限（默认 3）。
+# max_stream_retries = 3
+
+# ─────────────────────────────────────────────────────────────────────────────────
 # 多环境 Profile 配置示例 (Profile Example)
 # ─────────────────────────────────────────────────────────────────────────────────
 # 通过 `mimofan --profile <name>` 或 `MIMOFAN_PROFILE=<name>` 来快速切换环境配置。

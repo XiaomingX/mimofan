@@ -82,6 +82,11 @@ struct McpServer {
     require_approval: bool,
     /// Thread-based conversation state for deepseek/mimofan-reply tools.
     /// Maps thread_id -> ordered list of messages in the conversation.
+    ///
+    /// 使用 `std::sync::Mutex` 是有意为之：`threads` 仅在同步 `handle_api_call`
+    /// 内被读写（见 :380/:431），锁在同步段内持有、不跨 `.await`，且已做中毒恢复
+    /// `unwrap_or_else(|e| e.into_inner())`。⚠️ 若将来 `handle_api_call` 改为 async
+    /// 并在持锁期间 await，应整体换为 `tokio::sync::Mutex`。详见 ARCHITECTURE_STABILITY.md §8.3。
     threads: Arc<Mutex<HashMap<String, Vec<Message>>>>,
     /// Monotonic request counter for notification correlation.
     next_notification_id: u64,

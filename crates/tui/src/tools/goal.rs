@@ -24,6 +24,13 @@ use crate::tools::spec::{
 pub const MAX_GOAL_CONTINUATIONS_PER_TURN: u32 = 3;
 
 /// Shared reference to the current runtime goal.
+///
+/// 使用 `std::sync::Mutex` 是有意为之：目标状态的读写**全部发生在同步代码块内**
+/// （见各 `execute` 方法，守卫在 `{}` 块内即 drop，绝不跨 `.await`）。
+/// ⚠️ 红线：此守卫**绝不能**在持有期间跨 `.await`——`std` 锁跨 await 会阻塞整个
+/// tokio worker 线程。若未来需在 async 上下文长持锁，应整体换为 `tokio::sync::Mutex`
+/// （届时需要把所有 `.lock()` 同步调用点改为 `.lock().await`，涉及 engine_messages/
+/// turn_loop/goal.rs 等多处，属独立评估项）。详见 ARCHITECTURE_STABILITY.md §8.3。
 pub type SharedGoalState = Arc<Mutex<GoalState>>;
 
 /// Create an empty shared goal state.

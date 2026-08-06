@@ -2747,7 +2747,7 @@ mod tool_setup;
 mod turn_loop;
 pub(crate) use token_estimate_cache::TokenEstimateCache;
 
-pub(super) use catalog_filter::MAX_PARALLEL_SHELL_EXEC;
+pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;
 pub(crate) use catalog_filter::{default_active_native_tool_names, filter_tool_catalog_for_gates};
 
 use self::approval::{ApprovalDecision, ApprovalResult, UserInputDecision};

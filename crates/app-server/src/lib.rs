@@ -24,7 +24,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
@@ -68,7 +68,11 @@ impl std::fmt::Debug for AppServerOptions {
 pub struct AppState {
     pub config_path: Option<PathBuf>,
     pub config: Arc<RwLock<mimofan_config::ConfigToml>>,
-    pub runtime: Arc<Mutex<Runtime>>,
+    /// `Runtime` 内部同时存在 `&mut self` 方法（`handle_thread`/`handle_prompt`，需独占写锁）
+    /// 与 `&self` 方法（`invoke_tool`/`app_status`/`mcp_startup`，可并发读锁）。
+    /// 用 `RwLock` 替代原 `Mutex`：读锁路径（工具调用/任务状态/MCP 启动）可并发执行，
+    /// 消除单一长任务对所有 HTTP 请求的队头阻塞（见 ARCHITECTURE_STABILITY.md §8.1）。
+    pub runtime: Arc<RwLock<Runtime>>,
     registry: ModelRegistry,
     auth_token: Option<String>,
 }
@@ -240,7 +244,7 @@ async fn thread_handler(
     State(state): State<AppState>,
     Json(req): Json<ThreadRequest>,
 ) -> Json<ThreadResponse> {
-    let mut runtime = state.runtime.lock().await;
+    let mut runtime = state.runtime.write().await;
     match runtime.handle_thread(req).await {
         Ok(res) => Json(res),
         Err(err) => Json(ThreadResponse {
@@ -264,7 +268,7 @@ async fn prompt_handler(
     State(state): State<AppState>,
     Json(req): Json<PromptRequest>,
 ) -> Json<PromptResponse> {
-    let mut runtime = state.runtime.lock().await;
+    let mut runtime = state.runtime.write().await;
     let overrides = CliRuntimeOverrides::default();
     match runtime.handle_prompt(req, &overrides).await {
         Ok(res) => Json(res),
@@ -280,7 +284,7 @@ async fn tool_handler(
     State(state): State<AppState>,
     Json(req): Json<ToolCallRequest>,
 ) -> Json<Value> {
-    let runtime = state.runtime.lock().await;
+    let runtime = state.runtime.read().await;
     let cwd = req
         .cwd
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
@@ -303,12 +307,12 @@ async fn tool_handler(
 }
 
 async fn jobs_handler(State(state): State<AppState>) -> Json<AppResponse> {
-    let runtime = state.runtime.lock().await;
+    let runtime = state.runtime.read().await;
     Json(runtime.app_status())
 }
 
 async fn mcp_startup_handler(State(state): State<AppState>) -> Json<Value> {
-    let runtime = state.runtime.lock().await;
+    let runtime = state.runtime.read().await;
     let summary = runtime.mcp_startup().await;
     Json(json!({
         "ok": true,
@@ -366,7 +370,7 @@ pub fn build_state(config_path: Option<PathBuf>, auth_token: Option<String>) -> 
     Ok(AppState {
         config_path,
         config: Arc::new(RwLock::new(config)),
-        runtime: Arc::new(Mutex::new(runtime)),
+        runtime: Arc::new(RwLock::new(runtime)),
         registry,
         auth_token,
     })
@@ -544,7 +548,7 @@ async fn handle_thread_request(
     state: &AppState,
     req: ThreadRequest,
 ) -> std::result::Result<ThreadResponse, JsonRpcError> {
-    let mut runtime = state.runtime.lock().await;
+    let mut runtime = state.runtime.write().await;
     runtime
         .handle_thread(req)
         .await
@@ -555,7 +559,7 @@ async fn handle_prompt_request(
     state: &AppState,
     req: PromptRequest,
 ) -> std::result::Result<PromptResponse, JsonRpcError> {
-    let mut runtime = state.runtime.lock().await;
+    let mut runtime = state.runtime.write().await;
     runtime
         .handle_prompt(req, &CliRuntimeOverrides::default())
         .await
@@ -985,7 +989,7 @@ pub async fn process_app_request(
             events: Vec::new(),
         },
         AppRequest::ThreadLoadedList => {
-            let mut runtime = state.runtime.lock().await;
+            let mut runtime = state.runtime.write().await;
             let response = runtime
                 .handle_thread(mimofan_protocol::ThreadRequest::List(
                     mimofan_protocol::ThreadListParams {

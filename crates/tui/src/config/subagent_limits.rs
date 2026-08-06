@@ -1,43 +1,20 @@
-//! Sub-agent concurrency/timeout limits and their clamp resolvers.
+//! Sub-agent concurrency/timeout clamps and their resolvers.
 //!
-//! Pure numeric/string limit constants plus the two private clamp helpers that
-//! operate solely on them. Extracted verbatim from `config.rs`; the constants
-//! are re-exported via `pub use subagent_limits::*;` (preserving each item's
-//! `pub`/`pub(crate)` visibility) and the resolvers are pulled back into
-//! `config.rs` with a private `use`, so no new external surface is created
-//! (#3311).
+//! The numeric constants now live in the unified `limits` module (single
+//! source of truth for all concurrency/timeout knobs). This module re-exports
+//! the sub-agent-relevant subset so the historical `crate::config::<CONST>`
+//! paths keep resolving unchanged, and keeps the two private clamp helpers
+//! that operate on them (#3311).
 
-pub const DEFAULT_MAX_SUBAGENTS: usize = 8;
-pub const MAX_SUBAGENTS: usize = 20;
-/// Upper bound for queued + running sub-agent admissions. This is deliberately
-/// higher than the instantaneous concurrency cap so Workflow-style fanout can
-/// opt into large bounded populations without unbounded queue growth.
-pub const MAX_SUBAGENT_ADMISSION: usize = 200;
-/// Default per-step DeepSeek API timeout for sub-agent requests, in seconds.
-/// Matches the legacy hardcoded value so existing configs keep their old
-/// behavior when `[subagents] api_timeout_secs` is unset (#1806, #1808).
-pub const DEFAULT_SUBAGENT_API_TIMEOUT_SECS: u64 = 120;
-/// Minimum accepted `[subagents] api_timeout_secs`. Anything lower (including
-/// `0`, which would otherwise produce an immediate timeout footgun) clamps
-/// up to this value before the runtime sees it.
-pub const MIN_SUBAGENT_API_TIMEOUT_SECS: u64 = 1;
-/// Maximum accepted `[subagents] api_timeout_secs` (30 minutes). The cap
-/// keeps a misconfigured per-step timeout from masking real model/network
-/// hangs forever.
-pub const MAX_SUBAGENT_API_TIMEOUT_SECS: u64 = 1800;
-/// Default wall-clock interval without manager-visible sub-agent progress
-/// before a running child can be auto-cancelled to release its slot (#2614).
-pub const DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS: u64 = 300;
-/// Minimum accepted `[subagents] heartbeat_timeout_secs`.
-pub const MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS: u64 = 30;
-/// Maximum accepted `[subagents] heartbeat_timeout_secs` (1 hour).
-pub const MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS: u64 = 3600;
-/// Default per-SSE-chunk idle timeout, in seconds.
-pub const DEFAULT_STREAM_CHUNK_TIMEOUT_SECS: u64 = 300;
-/// Minimum accepted stream chunk timeout.
-pub const MIN_STREAM_CHUNK_TIMEOUT_SECS: u64 = 1;
-/// Maximum accepted stream chunk timeout.
-pub const MAX_STREAM_CHUNK_TIMEOUT_SECS: u64 = 3600;
+pub use crate::config::limits::{
+    DEFAULT_SUBAGENT_API_TIMEOUT_SECS, DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
+    MAX_SUBAGENT_API_TIMEOUT_SECS, MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
+    MIN_SUBAGENT_API_TIMEOUT_SECS, MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
+};
+// `MAX_SUBAGENTS` 已统一到 `limits` 模块；此处 re-export 保持
+// `crate::config::MAX_SUBAGENTS` / `super::subagent_limits::MAX_SUBAGENTS`
+// 历史路径不变（如 env_overrides.rs 的引用），单一真源仍在 limits.rs。
+pub use crate::config::limits::MAX_SUBAGENTS;
 pub(crate) const STREAM_CHUNK_TIMEOUT_ENV: &str = "MIMOFAN_STREAM_IDLE_TIMEOUT_SECS";
 
 pub(crate) fn resolve_subagent_api_timeout_secs(raw: Option<u64>) -> u64 {

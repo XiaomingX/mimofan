@@ -15,11 +15,16 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use crate::features::{Feature, Features, FeaturesToml, is_known_feature_key};
 use crate::hooks::HooksConfig;
 
-// Sub-agent concurrency/timeout limit constants and their clamp resolvers live
-// in the `subagent_limits` leaf module. The constants are re-exported (keeping
-// each item's visibility) so `crate::config::<CONST>` paths resolve unchanged;
-// the private resolvers are pulled back in without widening external surface
-// (#3311).
+// Unified `[limits]` configuration region: single source of truth for
+// concurrency / parallelism / timeout / queue knobs. Constants and the
+// `LimitsConfig` struct live here and are re-exported so `crate::config::*`
+// paths resolve unchanged (#limits-region).
+mod limits;
+pub use limits::*;
+
+// Sub-agent concurrency/timeout clamp resolvers re-export the relevant
+// constants from `limits` so the historical `crate::config::<CONST>` paths
+// keep resolving unchanged (#3311).
 mod subagent_limits;
 pub use subagent_limits::*;
 use subagent_limits::{resolve_subagent_api_timeout_secs, resolve_subagent_heartbeat_timeout_secs};
@@ -194,10 +199,6 @@ pub struct SubagentsConfig {
     pub custom_model: Option<String>,
     #[serde(default)]
     pub models: Option<HashMap<String, String>>,
-    /// Maximum concurrent sub-agents. Overrides the top-level max_subagents
-    /// setting. Clamped to [1, MAX_SUBAGENTS].
-    #[serde(default)]
-    pub max_concurrent: Option<usize>,
     /// How many levels of nested sub-agents the interactive `agent` tool may
     /// spawn. `0` blocks the model-facing `agent` tool at this runtime depth;
     /// use `[subagents] enabled = false` for the clearer durable off switch.
@@ -208,36 +209,11 @@ pub struct SubagentsConfig {
     /// same default and ceiling so the limit cannot drift.
     #[serde(default)]
     pub max_depth: Option<u32>,
-    /// Number of direct (depth-1) sub-agents that may execute concurrently
-    /// before further launches queue for a launch slot (#3095). When unset,
-    /// defaults to the full resolved `max_subagents()` (no artificial
-    /// throttle); explicit values are clamped to [1, max_subagents].
-    #[serde(default)]
-    pub launch_concurrency: Option<usize>,
-    /// Maximum queued + running sub-agents admitted for one session. Defaults
-    /// to a large bounded queue while `launch_concurrency` keeps instantaneous
-    /// execution bounded.
-    #[serde(default, alias = "max_total", alias = "admission_limit")]
-    pub max_admitted: Option<usize>,
     /// Optional aggregate token budget shared by a root `agent` run and its
     /// descendants. When unset or 0, sub-agents keep legacy unlimited spend
     /// behavior unless an individual `agent` call supplies a per-run override.
     #[serde(default)]
     pub token_budget: Option<u64>,
-    /// Per-step API timeout for sub-agent requests, in seconds. The
-    /// timeout wraps `client.create_message` so a stuck single step cannot
-    /// pin the parent's parent-completion wakeup channel indefinitely.
-    /// Defaults to `DEFAULT_SUBAGENT_API_TIMEOUT_SECS` (120) and is clamped
-    /// to `MIN_SUBAGENT_API_TIMEOUT_SECS..=MAX_SUBAGENT_API_TIMEOUT_SECS`
-    /// (1..=1800). Zero or unset uses the legacy 120s default (#1806, #1808).
-    #[serde(default)]
-    pub api_timeout_secs: Option<u64>,
-    /// Wall-clock timeout for a running sub-agent that stops making
-    /// manager-visible progress. Defaults to 5 minutes and is kept above the
-    /// per-step API timeout so slow but legitimate model calls are not
-    /// cancelled before their request timeout can fire (#2614).
-    #[serde(default)]
-    pub heartbeat_timeout_secs: Option<u64>,
     /// Per-provider overrides for sub-agent fanout and budget knobs. Keys are
     /// provider names such as `deepseek`, `zai`, `openrouter`, or `anthropic`.
     #[serde(default)]
@@ -486,6 +462,11 @@ pub struct Config {
     /// Sub-agent model overrides.
     #[serde(default)]
     pub subagents: Option<SubagentsConfig>,
+
+    /// Unified concurrency / parallelism / timeout / queue tunables. When
+    /// absent, every knob falls back to its documented default.
+    #[serde(default)]
+    pub limits: Option<LimitsConfig>,
 
     /// Runtime API server tuning (`mimofan serve --http`). Currently only
     /// hosts the CORS allow-list extension (whalescale#255 / #561). When the
@@ -1608,18 +1589,15 @@ impl Config {
     }
 
     /// Return the maximum number of concurrent sub-agents.
-    /// Checks `[subagents] max_concurrent` first, then top-level `max_subagents`,
-    /// then falls back to `DEFAULT_MAX_SUBAGENTS`.
+    /// Reads `[limits] max_subagents` first, then the legacy top-level
+    /// `max_subagents`, then falls back to `DEFAULT_MAX_SUBAGENTS`. Both are
+    /// clamped to `[1, MAX_SUBAGENTS]`.
     #[must_use]
     pub fn max_subagents(&self) -> usize {
-        // Check [subagents] max_concurrent first
-        if let Some(subagents_cfg) = self.subagents.as_ref()
-            && let Some(max) = subagents_cfg.max_concurrent
-        {
-            return max.clamp(1, MAX_SUBAGENTS);
-        }
-        // Fall back to top-level max_subagents
-        self.max_subagents
+        self.limits
+            .as_ref()
+            .and_then(|cfg| cfg.max_subagents)
+            .or(self.max_subagents)
             .unwrap_or(DEFAULT_MAX_SUBAGENTS)
             .clamp(1, MAX_SUBAGENTS)
     }
@@ -1664,15 +1642,16 @@ impl Config {
         if !self.features().enabled(Feature::Subagents) {
             return Some("features.subagents=false");
         }
-        let subagents_cfg = self.subagents.as_ref()?;
-        if subagents_cfg.enabled == Some(false) {
-            return Some("subagents.enabled=false");
+        if let Some(subagents_cfg) = self.subagents.as_ref() {
+            if subagents_cfg.enabled == Some(false) {
+                return Some("subagents.enabled=false");
+            }
+            if subagents_cfg.max_depth == Some(0) {
+                return Some("subagents.max_depth=0");
+            }
         }
-        if subagents_cfg.max_concurrent == Some(0) {
-            return Some("subagents.max_concurrent=0");
-        }
-        if subagents_cfg.max_depth == Some(0) {
-            return Some("subagents.max_depth=0");
+        if self.limits.as_ref().and_then(|cfg| cfg.max_subagents) == Some(0) {
+            return Some("limits.max_subagents=0");
         }
         None
     }
@@ -1710,7 +1689,7 @@ impl Config {
     #[must_use]
     pub fn launch_concurrency(&self) -> usize {
         let max = self.max_subagents();
-        self.subagents
+        self.limits
             .as_ref()
             .and_then(|cfg| cfg.launch_concurrency)
             .unwrap_or(max)
@@ -1724,11 +1703,7 @@ impl Config {
         let max = self.max_subagents_for_provider(provider);
         self.subagent_provider_config(provider)
             .and_then(|cfg| cfg.launch_concurrency)
-            .or_else(|| {
-                self.subagents
-                    .as_ref()
-                    .and_then(|cfg| cfg.launch_concurrency)
-            })
+            .or_else(|| self.limits.as_ref().and_then(|cfg| cfg.launch_concurrency))
             .unwrap_or(max)
             .clamp(1, max)
     }
@@ -1742,9 +1717,9 @@ impl Config {
     #[must_use]
     pub fn max_admitted_subagents(&self) -> usize {
         let max_concurrent = self.max_subagents();
-        self.subagents
+        self.limits
             .as_ref()
-            .and_then(|cfg| cfg.max_admitted)
+            .and_then(|cfg| cfg.max_admitted_subagents)
             .unwrap_or(MAX_SUBAGENT_ADMISSION)
             .clamp(max_concurrent, MAX_SUBAGENT_ADMISSION)
     }
@@ -1755,7 +1730,11 @@ impl Config {
         let max_concurrent = self.max_subagents_for_provider(provider);
         self.subagent_provider_config(provider)
             .and_then(|cfg| cfg.max_admitted)
-            .or_else(|| self.subagents.as_ref().and_then(|cfg| cfg.max_admitted))
+            .or_else(|| {
+                self.limits
+                    .as_ref()
+                    .and_then(|cfg| cfg.max_admitted_subagents)
+            })
             .unwrap_or(MAX_SUBAGENT_ADMISSION)
             .clamp(max_concurrent, MAX_SUBAGENT_ADMISSION)
     }
@@ -1792,9 +1771,7 @@ impl Config {
     /// fail-fast tests, not production (#1806, #1808).
     #[must_use]
     pub fn subagent_api_timeout_secs(&self) -> u64 {
-        resolve_subagent_api_timeout_secs(
-            self.subagents.as_ref().and_then(|cfg| cfg.api_timeout_secs),
-        )
+        resolve_subagent_api_timeout_secs(self.limits.as_ref().and_then(|cfg| cfg.api_timeout_secs))
     }
 
     /// Return the provider-specific per-step API timeout for sub-agents.
@@ -1803,13 +1780,13 @@ impl Config {
         resolve_subagent_api_timeout_secs(
             self.subagent_provider_config(provider)
                 .and_then(|cfg| cfg.api_timeout_secs)
-                .or_else(|| self.subagents.as_ref().and_then(|cfg| cfg.api_timeout_secs)),
+                .or_else(|| self.limits.as_ref().and_then(|cfg| cfg.api_timeout_secs)),
         )
     }
 
     /// Resolved no-progress heartbeat timeout for running sub-agents.
     ///
-    /// Reads `[subagents] heartbeat_timeout_secs` and clamps to
+    /// Reads `[limits] heartbeat_timeout_secs` and clamps to
     /// `[MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS]`.
     /// `None` or `0` resolve to the default 300 seconds. The final value is
     /// also kept at least 30 seconds above `subagent_api_timeout_secs()` so a
@@ -1817,7 +1794,7 @@ impl Config {
     #[must_use]
     pub fn subagent_heartbeat_timeout_secs(&self) -> u64 {
         resolve_subagent_heartbeat_timeout_secs(
-            self.subagents
+            self.limits
                 .as_ref()
                 .and_then(|cfg| cfg.heartbeat_timeout_secs),
             self.subagent_api_timeout_secs(),
@@ -1832,7 +1809,7 @@ impl Config {
             self.subagent_provider_config(provider)
                 .and_then(|cfg| cfg.heartbeat_timeout_secs)
                 .or_else(|| {
-                    self.subagents
+                    self.limits
                         .as_ref()
                         .and_then(|cfg| cfg.heartbeat_timeout_secs)
                 }),
@@ -1998,10 +1975,9 @@ impl Config {
 // the workspace-trust/config-load logic that stays in this file (#3311).
 mod paths;
 use paths::{
-    default_config_path, default_managed_config_path, default_mcp_config_path, default_memory_path,
-    default_memory_dir,
-    default_notes_path, default_requirements_path, default_skills_dir, env_config_path,
-    expand_pathbuf, home_config_path,
+    default_config_path, default_managed_config_path, default_mcp_config_path, default_memory_dir,
+    default_memory_path, default_notes_path, default_requirements_path, default_skills_dir,
+    env_config_path, expand_pathbuf, home_config_path,
 };
 pub(crate) use paths::{effective_home_dir, expand_path};
 
@@ -2280,6 +2256,7 @@ fn merge_config(base: Config, override_cfg: Config) -> Config {
         },
         fleet: override_cfg.fleet.or(base.fleet),
         subagents: override_cfg.subagents.or(base.subagents),
+        limits: override_cfg.limits.or(base.limits),
         strict_tool_mode: override_cfg.strict_tool_mode.or(base.strict_tool_mode),
         runtime_api: override_cfg.runtime_api.or(base.runtime_api),
         workshop: override_cfg.workshop.or(base.workshop),

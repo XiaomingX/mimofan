@@ -321,4 +321,13 @@ reg.register(Box::new(MyTool));
 
 ---
 
-> 最后更新：2026-08-05
+## 9. 并发与稳定性（一句话版）
+
+- **工具并发门禁** `ToolCallRuntime`（`crates/tools/src/lib.rs:417`）用 `tokio::sync::RwLock` + 重入保护，是规范写法，**不会死锁**。
+- **app-server** 目前用一把 `Arc<Mutex<Runtime>>` 把外部 HTTP 请求串行化（队头阻塞风险），属于可扩展性优化项，详见 `ARCHITECTURE_STABILITY.md`。
+- **没有发现**活死锁或内存泄漏；长生命周期对象均有清理机制（spillover 7 天清理、SQLite 索引等）。
+- 完整核实报告见 **`ARCHITECTURE_STABILITY.md`**；未来演进路线见 **`EVOLUTION_CRAWLER.md`**；DDD 优化清单见 **`ARCHITECTURE_IMPROVEMENT_PLAN.md`**。
+
+---
+
+> 最后更新：2026-08-06

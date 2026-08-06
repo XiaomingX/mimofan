@@ -27,8 +27,9 @@ use crate::runtime_threads::{
 };
 use crate::utils::spawn_supervised;
 
+use crate::config::MAX_TASK_WORKERS as MAX_WORKERS;
+
 const DEFAULT_WORKERS: usize = 2;
-const MAX_WORKERS: usize = 8;
 const TIMELINE_SUMMARY_LIMIT: usize = 240;
 const ARTIFACT_THRESHOLD: usize = 1200;
 const CURRENT_TASK_SCHEMA_VERSION: u32 = 2;

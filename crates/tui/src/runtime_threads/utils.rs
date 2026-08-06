@@ -13,7 +13,6 @@ use crate::utils::normalize_path_components;
 use super::types::CURRENT_RUNTIME_SCHEMA_VERSION;
 use super::types::{TurnItemKind, TurnItemRecord, sort_turn_items_by_start};
 
-pub const MAX_ACTIVE_THREADS_DEFAULT: usize = 8;
 pub const SUMMARY_LIMIT: usize = 280;
 
 pub fn validated_record_id<'a>(id: &'a str, label: &str) -> Result<&'a str> {

@@ -22,10 +22,10 @@
 use std::fs;
 
 use super::CommandResult;
-use crate::tui::app::App;
 use crate::memory::{
     CATEGORIES, category_path, index_path, is_category, load_index, read_category, write_index,
 };
+use crate::tui::app::App;
 
 const MEMORY_USAGE: &str = "/memory [show [category]|path|clear [category]|edit [category]|help]";
 
@@ -75,7 +75,7 @@ pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
             let index = load_index(&dir);
             let mut body = format!("{}\n", dir.display());
             if let Some(index) = index {
-                body.push_str("\n");
+                body.push('\n');
                 body.push_str(index.trim_end());
                 body.push('\n');
             } else {
@@ -159,15 +159,9 @@ pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
                 match fs::write(category_path(&dir, rest), "") {
                     Ok(()) => {
                         let _ = write_index(&dir);
-                        CommandResult::message(format!(
-                            "cleared {}.md (index refreshed)",
-                            rest
-                        ))
+                        CommandResult::message(format!("cleared {}.md (index refreshed)", rest))
                     }
-                    Err(err) => CommandResult::error(format!(
-                        "failed to clear {}.md: {err}",
-                        rest
-                    )),
+                    Err(err) => CommandResult::error(format!("failed to clear {}.md: {err}", rest)),
                 }
             } else {
                 CommandResult::error(format!(

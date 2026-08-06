@@ -3,7 +3,10 @@
 use anyhow::Result;
 
 use super::subagent_limits::MAX_SUBAGENTS;
-use super::{ApiProvider, Config, MemoryConfig, ProvidersConfig, SearchConfig, parse_http_headers};
+use super::{
+    ApiProvider, Config, LimitsConfig, MemoryConfig, ProvidersConfig, SearchConfig,
+    parse_http_headers,
+};
 
 /// Read the `MIMO_BASE_URL` / `MIMOFAN_BASE_URL` env var that the CLI
 /// dispatcher forwards from `--base-url`.  Returns `None` when the var is
@@ -336,6 +339,9 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
     if let Ok(value) = std::env::var("MIMOFAN_MAX_SUBAGENTS")
         && let Ok(parsed) = value.parse::<usize>()
     {
-        config.max_subagents = Some(parsed.clamp(1, MAX_SUBAGENTS));
+        config
+            .limits
+            .get_or_insert_with(LimitsConfig::default)
+            .max_subagents = Some(parsed.clamp(1, MAX_SUBAGENTS));
     }
 }

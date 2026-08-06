@@ -4,14 +4,16 @@ use super::CommandResult;
 use crate::config::{
     ApiProvider, COMMON_MIMOFAN_MODELS, Config, DEFAULT_STREAM_CHUNK_TIMEOUT_SECS,
     DEFAULT_SUBAGENT_API_TIMEOUT_SECS, DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS,
-    DEFAULT_XIAOMI_MIMO_BASE_URL, MAX_STREAM_CHUNK_TIMEOUT_SECS, MAX_SUBAGENT_API_TIMEOUT_SECS,
-    MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, MAX_SUBAGENTS, MIN_STREAM_CHUNK_TIMEOUT_SECS,
-    MIN_SUBAGENT_API_TIMEOUT_SECS, MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, SubagentsConfig,
-    clear_active_provider_api_key, normalize_model_name_for_provider,
+    DEFAULT_XIAOMI_MIMO_BASE_URL, LimitsConfig, MAX_STREAM_CHUNK_TIMEOUT_SECS,
+    MAX_SUBAGENT_API_TIMEOUT_SECS, MAX_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, MAX_SUBAGENTS,
+    MIN_STREAM_CHUNK_TIMEOUT_SECS, MIN_SUBAGENT_API_TIMEOUT_SECS,
+    MIN_SUBAGENT_HEARTBEAT_TIMEOUT_SECS, SubagentsConfig, clear_active_provider_api_key,
+    normalize_model_name_for_provider,
 };
 use crate::config_persistence::{
-    persist_provider_base_url_key, persist_root_bool_key, persist_root_string_key,
-    persist_subagents_bool_key, persist_subagents_integer_key, persist_tui_integer_key,
+    persist_limits_integer_key, persist_provider_base_url_key, persist_root_bool_key,
+    persist_root_string_key, persist_subagents_bool_key, persist_subagents_integer_key,
+    persist_tui_integer_key,
 };
 use crate::config_ui::{ConfigUiMode, parse_mode};
 use crate::localization::resolve_locale;
@@ -582,7 +584,7 @@ fn config_editability_audit(app: &App) -> CommandResult {
             subagents_config_display_value(&config, "max_concurrent"),
             "runtime+persisted",
             "/config subagents max_concurrent <n> --save",
-            "Clamped with Config::max_subagents and written to [subagents].max_concurrent.",
+            "Clamped with Config::max_subagents and written to [limits].max_subagents.",
         ),
         (
             "subagents.max_depth",
@@ -759,11 +761,12 @@ fn subagents_status(app: &App) -> CommandResult {
     let subagents = config.subagents.as_ref();
     let provider_subagents = config.subagent_provider_config(active_provider);
     let explicit_enabled = subagents.and_then(|cfg| cfg.enabled);
-    let raw_max_concurrent = subagents.and_then(|cfg| cfg.max_concurrent);
+    let limits = config.limits.as_ref();
+    let raw_max_concurrent = limits.and_then(|cfg| cfg.max_subagents);
     let raw_max_depth = subagents.and_then(|cfg| cfg.max_depth);
-    let raw_launch = subagents.and_then(|cfg| cfg.launch_concurrency);
-    let raw_api = subagents.and_then(|cfg| cfg.api_timeout_secs);
-    let raw_heartbeat = subagents.and_then(|cfg| cfg.heartbeat_timeout_secs);
+    let raw_launch = limits.and_then(|cfg| cfg.launch_concurrency);
+    let raw_api = limits.and_then(|cfg| cfg.api_timeout_secs);
+    let raw_heartbeat = limits.and_then(|cfg| cfg.heartbeat_timeout_secs);
     let mut lines = Vec::new();
     lines.push(format!(
         "Sub-agents: {}",
@@ -784,7 +787,7 @@ fn subagents_status(app: &App) -> CommandResult {
             .unwrap_or_else(|| "default true".to_string())
     ));
     lines.push(format!(
-        "subagents.max_concurrent = {} (resolved global {}; active provider {})",
+        "limits.max_subagents = {} (resolved global {}; active provider {})",
         option_display(raw_max_concurrent),
         config.max_subagents(),
         config.max_subagents_for_provider(active_provider)
@@ -796,19 +799,19 @@ fn subagents_status(app: &App) -> CommandResult {
         config.subagent_max_spawn_depth_for_provider(active_provider)
     ));
     lines.push(format!(
-        "subagents.launch_concurrency = {} (resolved global {}; active provider {})",
+        "limits.launch_concurrency = {} (resolved global {}; active provider {})",
         option_display(raw_launch),
         config.launch_concurrency(),
         config.launch_concurrency_for_provider(active_provider)
     ));
     lines.push(format!(
-        "subagents.api_timeout_secs = {} (resolved global {}; active provider {})",
+        "limits.api_timeout_secs = {} (resolved global {}; active provider {})",
         option_display(raw_api),
         config.subagent_api_timeout_secs(),
         config.subagent_api_timeout_secs_for_provider(active_provider)
     ));
     lines.push(format!(
-        "subagents.heartbeat_timeout_secs = {} (resolved global {}; active provider {})",
+        "limits.heartbeat_timeout_secs = {} (resolved global {}; active provider {})",
         option_display(raw_heartbeat),
         config.subagent_heartbeat_timeout_secs(),
         config.subagent_heartbeat_timeout_secs_for_provider(active_provider)
@@ -863,6 +866,7 @@ fn show_subagents_setting(app: &App, key: &str) -> CommandResult {
     };
     let active_provider = app.api_provider;
     let subagents = config.subagents.as_ref();
+    let limits = config.limits.as_ref();
     let value = match key {
         "enabled" => subagents
             .and_then(|cfg| cfg.enabled)
@@ -870,7 +874,7 @@ fn show_subagents_setting(app: &App, key: &str) -> CommandResult {
             .unwrap_or_else(|| "default true".to_string()),
         "max_concurrent" => format!(
             "{} (resolved global {}; active provider {})",
-            option_display(subagents.and_then(|cfg| cfg.max_concurrent)),
+            option_display(limits.and_then(|cfg| cfg.max_subagents)),
             config.max_subagents(),
             config.max_subagents_for_provider(active_provider)
         ),
@@ -882,25 +886,25 @@ fn show_subagents_setting(app: &App, key: &str) -> CommandResult {
         ),
         "launch_concurrency" => format!(
             "{} (resolved global {}; active provider {})",
-            option_display(subagents.and_then(|cfg| cfg.launch_concurrency)),
+            option_display(limits.and_then(|cfg| cfg.launch_concurrency)),
             config.launch_concurrency(),
             config.launch_concurrency_for_provider(active_provider)
         ),
         "api_timeout_secs" => format!(
             "{} (resolved global {}; active provider {})",
-            option_display(subagents.and_then(|cfg| cfg.api_timeout_secs)),
+            option_display(limits.and_then(|cfg| cfg.api_timeout_secs)),
             config.subagent_api_timeout_secs(),
             config.subagent_api_timeout_secs_for_provider(active_provider)
         ),
         "heartbeat_timeout_secs" => format!(
             "{} (resolved global {}; active provider {})",
-            option_display(subagents.and_then(|cfg| cfg.heartbeat_timeout_secs)),
+            option_display(limits.and_then(|cfg| cfg.heartbeat_timeout_secs)),
             config.subagent_heartbeat_timeout_secs(),
             config.subagent_heartbeat_timeout_secs_for_provider(active_provider)
         ),
         _ => unreachable!("canonical subagent key"),
     };
-    CommandResult::message(format!("subagents.{key} = {value}"))
+    CommandResult::message(format!("limits.{key} = {value}"))
 }
 
 fn option_display<T: std::fmt::Display>(value: Option<T>) -> String {
@@ -946,6 +950,7 @@ fn set_subagents_config_value(
     let subagents = config
         .subagents
         .get_or_insert_with(SubagentsConfig::default);
+    let limits = config.limits.get_or_insert_with(LimitsConfig::default);
 
     let mut note = None;
     let save_result = match key {
@@ -974,11 +979,11 @@ fn set_subagents_config_value(
             if clamped != raw {
                 note = Some(format!("clamped from {raw} to {clamped}"));
             }
-            subagents.max_concurrent = Some(clamped as usize);
+            limits.max_subagents = Some(clamped as usize);
             if persist {
-                Some(persist_subagents_integer_key(
+                Some(persist_limits_integer_key(
                     app.config_path.as_deref(),
-                    "max_concurrent",
+                    "max_subagents",
                     clamped,
                 ))
             } else {
@@ -1015,9 +1020,9 @@ fn set_subagents_config_value(
             if clamped != raw {
                 note = Some(format!("clamped from {raw} to {clamped}"));
             }
-            subagents.launch_concurrency = Some(clamped as usize);
+            limits.launch_concurrency = Some(clamped as usize);
             if persist {
-                Some(persist_subagents_integer_key(
+                Some(persist_limits_integer_key(
                     app.config_path.as_deref(),
                     "launch_concurrency",
                     clamped,
@@ -1039,9 +1044,9 @@ fn set_subagents_config_value(
             if stored != raw {
                 note = Some(format!("clamped from {raw} to {stored}"));
             }
-            subagents.api_timeout_secs = Some(stored);
+            limits.api_timeout_secs = Some(stored);
             if persist {
-                Some(persist_subagents_integer_key(
+                Some(persist_limits_integer_key(
                     app.config_path.as_deref(),
                     "api_timeout_secs",
                     stored,
@@ -1066,9 +1071,9 @@ fn set_subagents_config_value(
             if stored != raw {
                 note = Some(format!("clamped from {raw} to {stored}"));
             }
-            subagents.heartbeat_timeout_secs = Some(stored);
+            limits.heartbeat_timeout_secs = Some(stored);
             if persist {
-                Some(persist_subagents_integer_key(
+                Some(persist_limits_integer_key(
                     app.config_path.as_deref(),
                     "heartbeat_timeout_secs",
                     stored,
@@ -1117,7 +1122,7 @@ fn subagents_config_display_value(config: &Config, key: &str) -> String {
             .map(|value| value.to_string())
             .unwrap_or_else(|| "default true".to_string()),
         "max_concurrent" => {
-            if subagents.and_then(|cfg| cfg.max_concurrent) == Some(0) {
+            if config.limits.as_ref().and_then(|cfg| cfg.max_subagents) == Some(0) {
                 "0 (disabled)".to_string()
             } else {
                 config.max_subagents().to_string()
@@ -1132,7 +1137,7 @@ fn subagents_config_display_value(config: &Config, key: &str) -> String {
         }
         "launch_concurrency" => config.launch_concurrency().to_string(),
         "api_timeout_secs" => {
-            let raw = subagents.and_then(|cfg| cfg.api_timeout_secs);
+            let raw = config.limits.as_ref().and_then(|cfg| cfg.api_timeout_secs);
             if raw == Some(0) {
                 format!("0 (default {DEFAULT_SUBAGENT_API_TIMEOUT_SECS})")
             } else {
@@ -1140,7 +1145,10 @@ fn subagents_config_display_value(config: &Config, key: &str) -> String {
             }
         }
         "heartbeat_timeout_secs" => {
-            let raw = subagents.and_then(|cfg| cfg.heartbeat_timeout_secs);
+            let raw = config
+                .limits
+                .as_ref()
+                .and_then(|cfg| cfg.heartbeat_timeout_secs);
             if raw == Some(0) {
                 format!("0 (default {DEFAULT_SUBAGENT_HEARTBEAT_TIMEOUT_SECS})")
             } else {

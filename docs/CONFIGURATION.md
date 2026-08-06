@@ -27,7 +27,7 @@ mimofan 从 TOML 配置文件 + 环境变量读取配置。启动时也会加载
 | `reasoning_effort` | 强制推理等级 |
 | `approval_policy` | 收紧审批策略 |
 | `sandbox_mode` | 收紧沙箱策略 |
-| `max_subagents` | 限制子 agent 并发数 |
+| `max_subagents` | 限制子 agent 并发数（写入 `[limits].max_subagents`） |
 | `allow_shell` | `false` 可禁用 shell |
 
 ## Profile 配置
@@ -60,8 +60,35 @@ api_key = "YOUR_KEY"
 | `allow_shell` | bool | 是否允许执行 shell 命令（默认 `false`） |
 | `approval_policy` | string | 审批策略：`on-request` / `untrusted` / `never` |
 | `sandbox_mode` | string | 沙箱模式：`read-only` / `workspace-write` / `danger-full-access` |
-| `max_subagents` | int | 最大子 agent 数（1-20） |
+| `max_subagents` | int | 最大子 agent 数（1-60），等价于 `[limits].max_subagents` |
 | `reasoning_effort` | string | 推理等级：`off` / `low` / `medium` / `high` / `max` |
+
+### `[limits]` 统一并发 / 超时 / 队列配置区
+
+所有并发度、并行度、超时与队列上限集中在 `[limits]` 表，是这些旋钮的单一来源。
+省略某项即使用其默认常量；任何显式值都会被钳制到对应硬上限，不会因配置放大而失控。
+
+| 字段 | 类型 | 默认 | 硬上限 | 说明 |
+|------|------|------|--------|------|
+| `max_subagents` | int | 8 | 60 | 最大并发子 agent 数 |
+| `max_admitted_subagents` | int | 200 | 200 | 会话内排队 + 运行子 agent 总数 |
+| `launch_concurrency` | int | = max_subagents | max_subagents | 直接并发启动的 depth-1 子 agent 数 |
+| `max_parallel_shell_exec` | int | 4 | 4 | 单轮引擎内并行 shell 执行数 |
+| `max_active_threads` | int | 8 | — | 活跃运行时线程数 |
+| `max_task_workers` | int | 8 | 8 | 任务管理器 worker 数 |
+| `max_rlm_batch` | int | 16 | 16 | RLM 批量桥接单次最大 prompt 数 |
+| `api_timeout_secs` | int | 120 | 1800 | 子 agent 单步 API 超时（秒） |
+| `heartbeat_timeout_secs` | int | 300 | 3600 | 无进度的运行中子 agent 心跳超时（秒） |
+| `stream_chunk_timeout_secs` | int | 300 | 3600 | 每 SSE chunk 空闲超时（秒） |
+| `stream_max_content_bytes` | int | 10485760 | — | 流内容最大字节数 |
+| `stream_max_duration_secs` | int | 1800 | — | 流最大时长（秒） |
+| `max_stream_errors_before_fail` | int | 5 | — | 连续可恢复流错误上限 |
+| `max_transparent_stream_retries` | int | 2 | — | 透明流重试上限 |
+| `max_stream_retries` | int | 3 | — | 流重试上限 |
+
+> 子 agent 的模型覆盖、provider 覆盖、spawn depth 等仍位于 `[subagents]` 表；
+> 仅并发 / 超时数字旋钮已统一到 `[limits]`。环境变量 `MIMOFAN_MAX_SUBAGENTS`
+> 与项目级 `max_subagents` 覆盖均写入 `[limits].max_subagents`。
 
 ## 环境变量
 
