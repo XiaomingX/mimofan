@@ -66,21 +66,21 @@ impl Default for ModelRegistry {
         let models = vec![
             ModelInfo {
                 id: "deepseek-v4-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-v4-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["deepseek-chat".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-ai/deepseek-v4-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "nvidia-deepseek-v4-pro".to_string(),
@@ -91,7 +91,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek-ai/deepseek-v4-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
@@ -104,35 +104,35 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek-v4-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["openai-compatible-deepseek-v4-pro".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-v4-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["openai-compatible-deepseek-v4-flash".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-ai/deepseek-v4-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["deepseek-v4-flash".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-ai/deepseek-v4-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["deepseek-v4-pro".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "DeepSeek-V4-Pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "volcengine-deepseek-v4-pro".to_string(),
@@ -143,7 +143,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "DeepSeek-V4-Flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
@@ -155,7 +155,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek/deepseek-v4-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "openrouter-deepseek-v4-pro".to_string(),
@@ -165,7 +165,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek/deepseek-v4-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
@@ -177,7 +177,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "arcee-ai/trinity-large-thinking".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "trinity".to_string(),
                     "trinity-large-thinking".to_string(),
@@ -188,7 +188,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "xiaomi/mimo-v2.5-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "openrouter-mimo-v2.5-pro".to_string(),
                     "openrouter-xiaomi-mimo-v2.5-pro".to_string(),
@@ -198,7 +198,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "xiaomi/mimo-v2.5".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "openrouter-mimo-v2.5".to_string(),
                     "openrouter-xiaomi-mimo-v2.5".to_string(),
@@ -208,14 +208,14 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "qwen/qwen3.6-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["qwen3.6-flash".to_string(), "qwen-3.6-flash".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "qwen/qwen3.6-35b-a3b".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "qwen3.6-35b-a3b".to_string(),
                     "qwen-3.6-35b-a3b".to_string(),
@@ -225,7 +225,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "qwen/qwen3.6-max-preview".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "qwen3.6-max-preview".to_string(),
                     "qwen-3.6-max-preview".to_string(),
@@ -236,21 +236,21 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "qwen/qwen3.6-27b".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["qwen3.6-27b".to_string(), "qwen-3.6-27b".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "qwen/qwen3.6-plus".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["qwen3.6-plus".to_string(), "qwen-3.6-plus".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "moonshotai/kimi-k2.7-code".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "kimi-k2.7-code".to_string(),
                     "openrouter-kimi-k2.7-code".to_string(),
@@ -260,21 +260,21 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "minimax/minimax-m3".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["openrouter-minimax-m3".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "z-ai/glm-5.2".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["glm-5.2".to_string(), "zai-glm-5.2".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "GLM-5.2".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "glm-5.2".to_string(),
                     "glm-5-2".to_string(),
@@ -286,7 +286,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "GLM-5-Turbo".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "glm-5-turbo".to_string(),
                     "glm-5turbo".to_string(),
@@ -297,21 +297,21 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "tencent/hy3-preview".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["hy3-preview".to_string(), "tencent-hy3-preview".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "mimo-v2.5-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["mimo".to_string(), "pro".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "mimo-v2.5".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "omni".to_string(),
                     "mimo-omni".to_string(),
@@ -323,7 +323,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "mimo-v2.5-asr".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "asr".to_string(),
                     "speech-to-text".to_string(),
@@ -334,7 +334,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "mimo-v2.5-tts".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "tts".to_string(),
                     "speech".to_string(),
@@ -345,7 +345,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "mimo-v2.5-tts-voicedesign".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "voicedesign".to_string(),
                     "voice-design".to_string(),
@@ -356,7 +356,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "mimo-v2.5-tts-voiceclone".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "voiceclone".to_string(),
                     "voice-clone".to_string(),
@@ -367,14 +367,14 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "mimo-v2-tts".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["mimo-v2-speech".to_string()],
                 supports_tools: false,
                 supports_reasoning: false,
             },
             ModelInfo {
                 id: "deepseek/deepseek-v4-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "novita-deepseek-v4-pro".to_string(),
@@ -384,7 +384,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek/deepseek-v4-flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
@@ -396,7 +396,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "accounts/fireworks/models/deepseek-v4-pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "fireworks-deepseek-v4-pro".to_string(),
@@ -406,7 +406,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "deepseek-reasoner".to_string(),
@@ -417,7 +417,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
@@ -428,7 +428,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "kimi-k2.7-code".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "kimi".to_string(),
                     "kimi-k2.7".to_string(),
@@ -440,14 +440,14 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "kimi-k2.6".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["kimi-k2.6".to_string(), "moonshot-kimi-k2.6".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "hf-deepseek-v4-pro".to_string(),
@@ -457,7 +457,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
@@ -470,7 +470,7 @@ impl Default for ModelRegistry {
             // Together AI provider models
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-pro".to_string(),
                     "together-deepseek-v4-pro".to_string(),
@@ -480,7 +480,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "deepseek-chat".to_string(),
@@ -492,7 +492,7 @@ impl Default for ModelRegistry {
             // Qwen 3.7 Max (OpenRouter)
             ModelInfo {
                 id: "qwen/qwen3.7-max".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["qwen3.7-max".to_string(), "qwen-3.7-max".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
@@ -500,7 +500,7 @@ impl Default for ModelRegistry {
             // OpenAI Codex (ChatGPT OAuth) models
             ModelInfo {
                 id: "gpt-5.5".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["codex-gpt-5.5".to_string(), "chatgpt-gpt-5.5".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
@@ -508,21 +508,21 @@ impl Default for ModelRegistry {
             // Anthropic native Messages API models (#3014)
             ModelInfo {
                 id: "claude-opus-4-8".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["opus".to_string(), "claude-opus".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "claude-sonnet-4-6".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["sonnet".to_string(), "claude-sonnet".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "claude-haiku-4-5".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["haiku".to_string(), "claude-haiku".to_string()],
                 supports_tools: true,
                 supports_reasoning: false,
@@ -530,7 +530,7 @@ impl Default for ModelRegistry {
             // MiniMax 2.7 (OpenRouter)
             ModelInfo {
                 id: "minimax/minimax-m2.7".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax-2.7".to_string(),
                     "minimax-2-7".to_string(),
@@ -541,7 +541,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M3".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax".to_string(),
                     "minimax-m3".to_string(),
@@ -552,7 +552,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M2.7".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax-m2.7".to_string(),
                     "minimax-m2-7".to_string(),
@@ -564,7 +564,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M2.7-highspeed".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax-m2.7-highspeed".to_string(),
                     "minimax-m2-7-highspeed".to_string(),
@@ -576,7 +576,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M2.5".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax-m2.5".to_string(),
                     "minimax-m2-5".to_string(),
@@ -588,7 +588,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M2.5-highspeed".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax-m2.5-highspeed".to_string(),
                     "minimax-m2-5-highspeed".to_string(),
@@ -600,7 +600,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M2.1".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax-m2.1".to_string(),
                     "minimax-m2-1".to_string(),
@@ -612,7 +612,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M2.1-highspeed".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "minimax-m2.1-highspeed".to_string(),
                     "minimax-m2-1-highspeed".to_string(),
@@ -624,7 +624,7 @@ impl Default for ModelRegistry {
             },
             ModelInfo {
                 id: "MiniMax-M2".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["minimax-m2".to_string(), "minimax-m-2".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
@@ -632,7 +632,7 @@ impl Default for ModelRegistry {
             // NVIDIA Nemotron 3 Ultra (OpenRouter)
             ModelInfo {
                 id: "nvidia/nemotron-3-ultra-550b-a55b".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "nvidia/nemotron-3-ultra".to_string(),
                     "nemotron-3-ultra".to_string(),
@@ -646,14 +646,14 @@ impl Default for ModelRegistry {
             // DeepInfra (https://deepinfra.com)
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Pro".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec!["deepseek-v4-pro".to_string()],
                 supports_tools: true,
                 supports_reasoning: true,
             },
             ModelInfo {
                 id: "deepseek-ai/DeepSeek-V4-Flash".to_string(),
-                provider: ProviderKind::XiaomiMimo,
+                provider: ProviderKind::OpenAiCompatible,
                 aliases: vec![
                     "deepseek-v4-flash".to_string(),
                     "di-deepseek-v4-flash".to_string(),
@@ -723,7 +723,7 @@ impl ModelRegistry {
                     fallback_chain,
                 };
             }
-            if provider_hint == Some(ProviderKind::XiaomiMimo) {
+            if provider_hint == Some(ProviderKind::OpenAiCompatible) {
                 if let Some(model) = arcee_passthrough_model(name) {
                     return ModelResolution {
                         requested: Some(name.to_string()),
@@ -751,7 +751,7 @@ impl ModelRegistry {
             }
         }
 
-        let provider = provider_hint.unwrap_or(ProviderKind::XiaomiMimo);
+        let provider = provider_hint.unwrap_or(ProviderKind::OpenAiCompatible);
         fallback_chain.push(format!("provider_default:{}", provider.as_str()));
         if let Some(model) = self.models.iter().find(|m| m.provider == provider).cloned() {
             return ModelResolution {
@@ -764,7 +764,7 @@ impl ModelRegistry {
 
         let final_fallback = self.models.first().cloned().unwrap_or(ModelInfo {
             id: "deepseek-v4-pro".to_string(),
-            provider: ProviderKind::XiaomiMimo,
+            provider: ProviderKind::OpenAiCompatible,
             aliases: Vec::new(),
             supports_tools: true,
             supports_reasoning: true,

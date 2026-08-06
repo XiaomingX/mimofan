@@ -67,8 +67,6 @@ pub enum ModelProvider {
     Qwen,
     /// Arcee Trinity models.
     Arcee,
-    /// Xiaomi MiMo models.
-    XiaomiMimo,
     /// Anything not otherwise classified (still gets real metadata via the
     /// `models.rs` heuristics where possible).
     Other,
@@ -78,17 +76,16 @@ pub enum ModelProvider {
 #[must_use]
 pub fn serving_provider(provider: ModelProvider) -> crate::config::ApiProvider {
     match provider {
-        ModelProvider::DeepSeek => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Anthropic => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::OpenAi => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::OpenAiCodex => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Moonshot => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Zai => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Minimax => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Qwen => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Arcee => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::XiaomiMimo => crate::config::ApiProvider::XiaomiMimo,
-        ModelProvider::Other => crate::config::ApiProvider::XiaomiMimo,
+        ModelProvider::DeepSeek => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::Anthropic => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::OpenAi => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::OpenAiCodex => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::Moonshot => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::Zai => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::Minimax => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::Qwen => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::Arcee => crate::config::ApiProvider::OpenAiCompatible,
+        ModelProvider::Other => crate::config::ApiProvider::OpenAiCompatible,
     }
 }
 
@@ -157,7 +154,6 @@ fn classify_model_provider(model_id: &str, catalog_provider: Option<&str>) -> Mo
         "minimax" => ModelProvider::Minimax,
         "alibaba" | "qwen" => ModelProvider::Qwen,
         "arcee" => ModelProvider::Arcee,
-        "xiaomi" => ModelProvider::XiaomiMimo,
         _ => ModelProvider::Other,
     }
 }

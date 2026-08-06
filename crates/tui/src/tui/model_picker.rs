@@ -836,7 +836,7 @@ impl ModelPickerView {
                     ReasoningEffort::Medium => "balanced reasoning".to_string(),
                     ReasoningEffort::High => "deeper reasoning".to_string(),
                     ReasoningEffort::Max => {
-                        if effort_provider == ApiProvider::XiaomiMimo {
+                        if effort_provider == ApiProvider::OpenAiCompatible {
                             "extra-high reasoning".to_string()
                         } else {
                             "maximum reasoning".to_string()
@@ -865,7 +865,7 @@ fn picker_efforts_for_provider(
         return AUTO_MODEL_PICKER_EFFORTS;
     }
     match provider {
-        ApiProvider::XiaomiMimo => CODEX_PICKER_EFFORTS,
+        ApiProvider::OpenAiCompatible => CODEX_PICKER_EFFORTS,
         _ => DEFAULT_PICKER_EFFORTS,
     }
 }
@@ -878,7 +878,7 @@ fn normalize_picker_effort(
     if model_is_auto {
         return ReasoningEffort::Auto;
     }
-    if provider == ApiProvider::XiaomiMimo {
+    if provider == ApiProvider::OpenAiCompatible {
         return effort.normalize_for_provider(provider);
     }
     match effort {
@@ -890,7 +890,7 @@ fn normalize_picker_effort(
 fn default_picker_effort_idx(provider: ApiProvider, model_is_auto: bool) -> usize {
     let default_effort = if model_is_auto {
         ReasoningEffort::Auto
-    } else if provider == ApiProvider::XiaomiMimo {
+    } else if provider == ApiProvider::OpenAiCompatible {
         ReasoningEffort::Medium
     } else {
         ReasoningEffort::High

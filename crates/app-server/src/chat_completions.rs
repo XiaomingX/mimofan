@@ -5,7 +5,7 @@
 //! body upstream.  It does **not** import or call any DeepSeek-named client
 //! APIs — routing stays in neutral config/provider types.
 //!
-//! Only providers whose [`WireFormat`] is [`WireFormat::ChatCompletions`] are
+//! Only providers whose [`WireFormat`] is [`WireFormat::OpenAiCompatible`] are
 //! served.  Streaming requests are explicitly rejected for now.
 
 use std::collections::BTreeMap;
@@ -200,7 +200,7 @@ pub(crate) async fn chat_completions_handler(
     let endpoint = resolve_endpoint(&config, &state.registry, request_model);
 
     // Only ChatCompletions providers are supported.
-    if endpoint.wire_format != WireFormat::ChatCompletions {
+    if endpoint.wire_format != WireFormat::OpenAiCompatible {
         return (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({

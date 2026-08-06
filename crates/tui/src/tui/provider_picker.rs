@@ -123,7 +123,7 @@ impl ProviderMaturity {
     /// OpenAI Codex bridge is experimental today; everything else is supported.
     fn for_provider(provider: ApiProvider) -> Self {
         match provider {
-            ApiProvider::XiaomiMimo => Self::Experimental,
+            ApiProvider::OpenAiCompatible => Self::Experimental,
             _ => Self::Supported,
         }
     }
@@ -153,7 +153,7 @@ impl ProviderModelOrigin {
     fn for_provider(provider: ApiProvider, has_saved_model: bool) -> Self {
         if has_saved_model {
             Self::Saved
-        } else if provider == ApiProvider::Custom {
+        } else if provider == ApiProvider::OpenAiCompatible {
             Self::Custom
         } else {
             Self::Default
@@ -293,7 +293,7 @@ impl ProviderDashboardRow {
                     .unwrap_or_else(|| provider.default_base_url().to_string()),
                 auth_status: ProviderAuthStatus::Legacy,
                 catalog_status: ProviderCatalogStatus::Legacy,
-                supported_protocols: vec![protocol_label(WireFormat::ChatCompletions).to_string()],
+                supported_protocols: vec![protocol_label(WireFormat::OpenAiCompatible).to_string()],
                 available_model_count: 0,
                 default_route: ProviderDefaultRoute {
                     logical_model: configured_model
@@ -359,7 +359,7 @@ impl ProviderDashboardRow {
                             .metadata()
                             .map(|metadata| protocol_label(metadata.wire()).to_string())
                             .unwrap_or_else(|| {
-                                protocol_label(WireFormat::ChatCompletions).to_string()
+                                protocol_label(WireFormat::OpenAiCompatible).to_string()
                             }),
                     ],
                     ProviderDefaultRoute {
@@ -454,7 +454,7 @@ impl ProviderDashboardRow {
 
 impl ProviderReasoningSummary {
     fn for_route(provider: ApiProvider, route: &ProviderDefaultRoute, config: &Config) -> Self {
-        if provider == ApiProvider::XiaomiMimo {
+        if provider == ApiProvider::OpenAiCompatible {
             return Self {
                 support: ProviderReasoningSupport::Supported,
                 controls: codex_reasoning_controls(),
@@ -592,7 +592,7 @@ fn codex_reasoning_controls() -> Vec<String> {
     .iter()
     .map(|effort| {
         effort
-            .display_label_for_provider(ApiProvider::XiaomiMimo)
+            .display_label_for_provider(ApiProvider::OpenAiCompatible)
             .to_string()
     })
     .collect()
@@ -674,7 +674,7 @@ fn parse_reasoning_stream_visibility(value: &str) -> Option<ProviderReasoningStr
 
 fn default_reasoning_stream_visibility(provider: ApiProvider) -> ProviderReasoningStreamVisibility {
     match provider {
-        ApiProvider::XiaomiMimo => ProviderReasoningStreamVisibility::StructuredThinking,
+        ApiProvider::OpenAiCompatible => ProviderReasoningStreamVisibility::StructuredThinking,
         _ => ProviderReasoningStreamVisibility::Unknown,
     }
 }
@@ -684,14 +684,14 @@ fn auth_status_for(
     has_key: bool,
     configured: Option<&crate::config::ProviderConfig>,
 ) -> ProviderAuthStatus {
-    if provider == ApiProvider::XiaomiMimo && configured.is_some_and(config_uses_kimi_oauth) {
+    if provider == ApiProvider::OpenAiCompatible && configured.is_some_and(config_uses_kimi_oauth) {
         return if has_key {
             ProviderAuthStatus::OAuthReady
         } else {
             ProviderAuthStatus::OAuthMissing
         };
     }
-    if provider == ApiProvider::XiaomiMimo {
+    if provider == ApiProvider::OpenAiCompatible {
         return if has_key {
             ProviderAuthStatus::OAuthReady
         } else {
@@ -735,7 +735,7 @@ fn readiness_for(
 
 fn usage_meter_for(provider: ApiProvider) -> String {
     match provider {
-        ApiProvider::XiaomiMimo => "cost: token-plan".to_string(),
+        ApiProvider::OpenAiCompatible => "cost: token-plan".to_string(),
         _ => "cost: unknown".to_string(),
     }
 }
@@ -764,9 +764,9 @@ fn pricing_label(provider: ApiProvider, pricing: Option<&PricingSku>) -> String 
 
 fn protocol_label(protocol: RequestProtocol) -> &'static str {
     match protocol {
-        WireFormat::ChatCompletions => "chat",
-        WireFormat::Responses => "responses",
-        WireFormat::AnthropicMessages => "anthropic",
+        WireFormat::OpenAiCompatible => "openai-compatible",
+        WireFormat::AnthropicCompatible => "anthropic-compatible",
+        WireFormat::GeminiCompatible => "gemini-compatible",
     }
 }
 
@@ -1106,7 +1106,7 @@ impl ModalView for ProviderPickerView {
                     let provider = self.selected_provider();
                     if self.selected_has_key() {
                         ViewAction::EmitAndClose(ViewEvent::ProviderPickerApplied { provider })
-                    } else if provider == ApiProvider::XiaomiMimo && kimi_cli_credentials_present()
+                    } else if provider == ApiProvider::OpenAiCompatible && kimi_cli_credentials_present()
                     {
                         ViewAction::EmitAndClose(ViewEvent::ProviderPickerKimiOAuthEnabled {
                             provider,

@@ -375,7 +375,7 @@ pub(crate) fn normalize_requested_subagent_model(
 
 fn provider_name_for_error(provider: crate::config::ApiProvider) -> &'static str {
     match provider {
-        crate::config::ApiProvider::XiaomiMimo => "Xiaomi MiMo",
+        crate::config::ApiProvider::OpenAiCompatible => "OpenAI Compatible",
         _ => "this provider",
     }
 }
@@ -525,7 +525,7 @@ fn subagent_reasoning_effort_for_request(
             // emitting an off that is silently rewritten. Explicit thinking
             // passed by the caller already won via the arms above.
             let provider = runtime.client.api_provider();
-            let effort = if matches!(provider, crate::config::ApiProvider::XiaomiMimo) {
+            let effort = if matches!(provider, crate::config::ApiProvider::OpenAiCompatible) {
                 ReasoningEffort::Low
             } else {
                 ReasoningEffort::Off

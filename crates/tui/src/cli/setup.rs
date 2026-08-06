@@ -312,7 +312,7 @@ pub(crate) fn resolve_api_key_source(config: &Config) -> ApiKeySource {
         .provider_config()
         .and_then(|entry| entry.api_key.as_ref())
         .is_some_and(|k| !k.trim().is_empty());
-    let root_deepseek_key = matches!(provider, crate::config::ApiProvider::XiaomiMimo)
+    let root_deepseek_key = matches!(provider, crate::config::ApiProvider::OpenAiCompatible)
         && config
             .api_key
             .as_ref()
@@ -357,7 +357,7 @@ pub(crate) fn provider_config_table_key(provider: crate::config::ApiProvider) ->
 }
 
 pub(crate) fn provider_auth_hint(provider: crate::config::ApiProvider) -> String {
-    if provider == crate::config::ApiProvider::XiaomiMimo {
+    if provider == crate::config::ApiProvider::OpenAiCompatible {
         "see docs/PROVIDERS.md for ChatGPT/Codex OAuth setup".to_string()
     } else {
         format!(

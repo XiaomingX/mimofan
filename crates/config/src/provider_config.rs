@@ -24,35 +24,32 @@ pub struct ProviderConfigToml {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProvidersToml {
+    /// OpenAI-compatible `/v1/chat/completions` endpoint config.
     #[serde(default)]
-    pub xiaomi_mimo: ProviderConfigToml,
-    /// Anthropic Messages API compatible endpoint for Xiaomi MiMo.
+    pub openai_compatible: ProviderConfigToml,
+    /// Anthropic Messages API compatible endpoint (`/v1/messages`).
     #[serde(default)]
-    pub anthropic: ProviderConfigToml,
-    /// Catch-all table for the dynamic OpenAI-compatible custom provider
-    /// identity (#1519). Arbitrary `[providers.<name>]` tables are handled by
-    /// the tui-side flatten map; this named slot keeps the canonical
-    /// `ProviderKind::Custom` lookups total without leaking into another
-    /// provider's config.
+    pub anthropic_compatible: ProviderConfigToml,
+    /// Google Gemini compatible endpoint config.
     #[serde(default)]
-    pub custom: ProviderConfigToml,
+    pub gemini_compatible: ProviderConfigToml,
 }
 
 impl ProvidersToml {
     #[must_use]
     pub fn for_provider(&self, provider: ProviderKind) -> &ProviderConfigToml {
         match provider {
-            ProviderKind::XiaomiMimo => &self.xiaomi_mimo,
-            ProviderKind::Anthropic => &self.anthropic,
-            ProviderKind::Custom => &self.custom,
+            ProviderKind::OpenAiCompatible => &self.openai_compatible,
+            ProviderKind::AnthropicCompatible => &self.anthropic_compatible,
+            ProviderKind::GeminiCompatible => &self.gemini_compatible,
         }
     }
 
     pub fn for_provider_mut(&mut self, provider: ProviderKind) -> &mut ProviderConfigToml {
         match provider {
-            ProviderKind::XiaomiMimo => &mut self.xiaomi_mimo,
-            ProviderKind::Anthropic => &mut self.anthropic,
-            ProviderKind::Custom => &mut self.custom,
+            ProviderKind::OpenAiCompatible => &mut self.openai_compatible,
+            ProviderKind::AnthropicCompatible => &mut self.anthropic_compatible,
+            ProviderKind::GeminiCompatible => &mut self.gemini_compatible,
         }
     }
 }
@@ -158,21 +155,21 @@ pub(crate) fn set_provider_config_value(
         ProviderConfigField::ApiKey => {
             let value = value.to_string();
             config.providers.for_provider_mut(provider).api_key = Some(value.clone());
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.api_key = Some(value);
             }
         }
         ProviderConfigField::BaseUrl => {
             let value = value.to_string();
             config.providers.for_provider_mut(provider).base_url = Some(value.clone());
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.base_url = Some(value);
             }
         }
         ProviderConfigField::Model => {
             let value = value.to_string();
             config.providers.for_provider_mut(provider).model = Some(value.clone());
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.default_text_model = Some(value);
             }
         }
@@ -191,7 +188,7 @@ pub(crate) fn set_provider_config_value(
         ProviderConfigField::HttpHeaders => {
             let headers = parse_http_headers(value)?;
             config.providers.for_provider_mut(provider).http_headers = headers.clone();
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.http_headers = headers;
             }
         }
@@ -210,19 +207,19 @@ pub(crate) fn unset_provider_config_value(
     match field {
         ProviderConfigField::ApiKey => {
             config.providers.for_provider_mut(provider).api_key = None;
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.api_key = None;
             }
         }
         ProviderConfigField::BaseUrl => {
             config.providers.for_provider_mut(provider).base_url = None;
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.base_url = None;
             }
         }
         ProviderConfigField::Model => {
             config.providers.for_provider_mut(provider).model = None;
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.default_text_model = None;
             }
         }
@@ -244,7 +241,7 @@ pub(crate) fn unset_provider_config_value(
                 .for_provider_mut(provider)
                 .http_headers
                 .clear();
-            if provider == ProviderKind::XiaomiMimo {
+            if provider == ProviderKind::OpenAiCompatible {
                 config.http_headers.clear();
             }
         }

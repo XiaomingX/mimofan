@@ -863,7 +863,7 @@ async fn fetch_deepseek_balance(
 
 fn should_fetch_deepseek_balance(app: &App) -> bool {
     app.status_items.contains(&StatusItem::Balance)
-        && matches!(app.api_provider, ApiProvider::XiaomiMimo)
+        && matches!(app.api_provider, ApiProvider::OpenAiCompatible)
 }
 
 // steer_user_message, queue_follow_up, submit_or_steer_message,

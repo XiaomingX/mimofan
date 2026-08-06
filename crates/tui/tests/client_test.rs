@@ -7,62 +7,29 @@ use serde_json::json;
 use mimofan::config::ApiProvider;
 
 #[test]
-fn xiaomi_mimo_anthropic_base_url_picks_messages_protocol() {
-    // ~/.mimofan/config.toml providers.xiaomi_mimo.base_url =
-    // `https://api.xiaomimimo.com/anthropic` must dispatch to the
-    // Anthropic Messages client, not the Responses client.
+fn anthropic_compatible_provider_uses_messages_protocol() {
+    // Anthropic-compatible mode always dispatches to the Anthropic Messages client.
     assert!(api_provider_uses_anthropic_messages(
-        ApiProvider::XiaomiMimo,
-        "https://api.xiaomimimo.com/anthropic"
+        ApiProvider::AnthropicCompatible,
+        "https://api.anthropic.com/v1"
     ));
 }
 
 #[test]
-fn xiaomi_mimo_anthropic_base_url_with_trailing_slash() {
-    assert!(api_provider_uses_anthropic_messages(
-        ApiProvider::XiaomiMimo,
-        "https://api.xiaomimimo.com/anthropic/"
-    ));
-}
-
-#[test]
-fn xiaomi_mimo_token_plan_base_url_uses_chat_completions_dialect() {
-    // Pay-as-you-go token-plan endpoint keeps the OpenAI Chat
-    // Completions dialect. The Codex Responses API in
-    // `client/responses.rs` is *not* served by the XiaomiMiMo
-    // gateway — dispatch must fall through to the Chat path instead.
+fn openai_compatible_provider_uses_chat_completions() {
+    // OpenAI-compatible mode never dispatches to the Anthropic Messages client,
+    // regardless of the configured base URL.
     assert!(!api_provider_uses_anthropic_messages(
-        ApiProvider::XiaomiMimo,
-        "https://token-plan-sgp.xiaomimimo.com/v1"
+        ApiProvider::OpenAiCompatible,
+        "https://api.anthropic.com/v1"
     ));
 }
 
 #[test]
-fn custom_provider_with_anthropic_url_uses_messages_api() {
-    // Custom providers with /anthropic base URL should use Anthropic Messages API.
-    let provider = ApiProvider::Custom;
-    assert!(
-        api_provider_uses_anthropic_messages(provider, "https://api.xiaomimimo.com/anthropic"),
-        "{provider:?} with /anthropic URL should dispatch through Anthropic Messages"
-    );
-}
-
-#[test]
-fn custom_provider_with_v1_url_uses_chat_completions() {
-    // Custom providers with /v1 base URL should use OpenAI Chat Completions API.
-    let provider = ApiProvider::Custom;
-    assert!(
-        !api_provider_uses_anthropic_messages(provider, "https://api.xiaomimimo.com/v1"),
-        "{provider:?} with /v1 URL should NOT dispatch through Anthropic Messages"
-    );
-}
-
-#[test]
-fn xiaomi_mimo_with_v1_url_uses_chat_completions() {
-    // XiaomiMimo with /v1 base URL should use OpenAI Chat Completions API.
+fn gemini_compatible_provider_uses_chat_completions() {
     assert!(!api_provider_uses_anthropic_messages(
-        ApiProvider::XiaomiMimo,
-        "https://api.xiaomimimo.com/v1"
+        ApiProvider::GeminiCompatible,
+        "https://generativelanguage.googleapis.com/v1beta"
     ));
 }
 

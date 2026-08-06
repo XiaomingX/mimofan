@@ -67,8 +67,8 @@ fn apply_provider_token_limit(
     model: &str,
     max_tokens: u32,
 ) {
-    let use_max_completion_tokens = provider == ApiProvider::XiaomiMimo
-        || (provider == ApiProvider::Custom && model_is_openai_reasoning_family(model));
+    let use_max_completion_tokens = provider == ApiProvider::OpenAiCompatible
+        || (provider == ApiProvider::OpenAiCompatible && model_is_openai_reasoning_family(model));
     if !use_max_completion_tokens {
         return;
     }
@@ -85,7 +85,7 @@ fn apply_openai_reasoning_effort(
     model: &str,
     effort: Option<&str>,
 ) {
-    if provider != ApiProvider::XiaomiMimo || !model_is_openai_reasoning_family(model) {
+    if provider != ApiProvider::OpenAiCompatible || !model_is_openai_reasoning_family(model) {
         return;
     }
     let Some(effort) = effort.and_then(openai_chat_reasoning_effort) else {
@@ -132,7 +132,7 @@ fn mirror_minimax_reasoning_details_for_messages(messages: &mut [Value]) {
 }
 
 fn mirror_minimax_reasoning_details_for_body(body: &mut Value, provider: ApiProvider) {
-    if provider != ApiProvider::XiaomiMimo {
+    if provider != ApiProvider::OpenAiCompatible {
         return;
     }
     let Some(messages) = body.get_mut("messages").and_then(Value::as_array_mut) else {
@@ -176,7 +176,7 @@ impl ApiClient {
                 .collect();
             // Kimi / Moonshot enforces stricter JSON Schema: `type` must be
             // inside `anyOf` / `oneOf` items, not on the parent (#2438).
-            if matches!(self.api_provider, crate::config::ApiProvider::XiaomiMimo) {
+            if matches!(self.api_provider, crate::config::ApiProvider::OpenAiCompatible) {
                 for t in &mut chat_tools {
                     if let Some(fn_obj) = t
                         .as_object_mut()
@@ -314,7 +314,7 @@ impl ApiClient {
                 .collect();
             // Kimi / Moonshot enforces stricter JSON Schema: `type` must be
             // inside `anyOf` / `oneOf` items, not on the parent (#2438).
-            if matches!(self.api_provider, crate::config::ApiProvider::XiaomiMimo) {
+            if matches!(self.api_provider, crate::config::ApiProvider::OpenAiCompatible) {
                 for t in &mut chat_tools {
                     if let Some(fn_obj) = t
                         .as_object_mut()
@@ -629,10 +629,10 @@ impl<'a> PromptBuilder<'a> {
             false,
         );
         dump_system_prompt_if_requested(&messages);
-        if provider == ApiProvider::XiaomiMimo {
+        if provider == ApiProvider::OpenAiCompatible {
             apply_arcee_waf_safe_message_encoding(&mut messages);
         }
-        if provider == ApiProvider::XiaomiMimo {
+        if provider == ApiProvider::OpenAiCompatible {
             mirror_minimax_reasoning_details_for_messages(&mut messages);
         }
         messages
@@ -1883,7 +1883,7 @@ fn map_tool_choice_for_chat(choice: &Value) -> Option<Value> {
 }
 
 fn should_send_tool_choice_for_chat(provider: ApiProvider, effort: Option<&str>) -> bool {
-    if !matches!(provider, ApiProvider::XiaomiMimo) {
+    if !matches!(provider, ApiProvider::OpenAiCompatible) {
         return true;
     }
     !reasoning_effort_enables_thinking(effort)
@@ -2155,7 +2155,7 @@ fn parse_reasoning_stream_style(value: &str) -> Option<ReasoningStreamStyle> {
 /// raw XML inside its thinking ("xml_in_reasoning" pitfall). Do not remove Arcee
 /// here without new live evidence — see docs.arcee.ai/capabilities/reasoning-traces.
 fn provider_accepts_reasoning_content(provider: ApiProvider) -> bool {
-    matches!(provider, ApiProvider::XiaomiMimo)
+    matches!(provider, ApiProvider::OpenAiCompatible)
 }
 
 fn has_deepseek_r_series_marker(model_lower: &str) -> bool {

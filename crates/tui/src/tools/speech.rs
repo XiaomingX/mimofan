@@ -25,7 +25,7 @@ pub(crate) const DEFAULT_VOICE: &str = "mimo_default";
 const VOICE_CLONE_BASE64_MAX_BYTES: usize = 10 * 1024 * 1024;
 pub(crate) const SUPPORTED_SPEECH_FORMATS: &[&str] = &["wav", "mp3", "pcm16"];
 
-pub const SUPPORTED_XIAOMI_MIMO_SPEECH_MODELS: &[&str] = &[
+pub const SUPPORTED_OPENAI_COMPATIBLE_SPEECH_MODELS: &[&str] = &[
     "mimo-v2.5-tts-voiceclone",
     "mimo-v2.5-tts-voicedesign",
     "mimo-v2.5-tts",
@@ -287,7 +287,7 @@ impl ToolSpec for SpeechTool {
             "voice": response.voice.as_deref().map(describe_speech_voice),
             "transcript": response.transcript,
             "supported_formats": SUPPORTED_SPEECH_FORMATS,
-            "supported_xiaomi_mimo_models": SUPPORTED_XIAOMI_MIMO_SPEECH_MODELS,
+            "supported_xiaomi_mimo_models": SUPPORTED_OPENAI_COMPATIBLE_SPEECH_MODELS,
         });
         ToolResult::json(&result).map_err(|err| {
             ToolError::execution_failed(format!("failed to serialize result: {err}"))
@@ -301,7 +301,7 @@ pub(crate) fn infer_speech_model(
     has_voice_prompt: bool,
 ) -> String {
     match model.map(str::trim).filter(|value| !value.is_empty()) {
-        Some(value) => normalize_model_name_for_provider(ApiProvider::XiaomiMimo, value)
+        Some(value) => normalize_model_name_for_provider(ApiProvider::OpenAiCompatible, value)
             .unwrap_or_else(|| value.into()),
         None if has_clone_voice => "mimo-v2.5-tts-voiceclone".to_string(),
         None if has_voice_prompt => "mimo-v2.5-tts-voicedesign".to_string(),

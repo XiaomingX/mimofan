@@ -56,7 +56,7 @@ pub(crate) async fn run_speech(config: &Config, args: SpeechArgs) -> Result<()> 
         json: json_output,
     } = args;
 
-    if config.api_provider() != ApiProvider::XiaomiMimo {
+    if config.api_provider() != ApiProvider::OpenAiCompatible {
         bail!(
             "`speech` requires provider = \"xiaomi-mimo\" (current: {}). Run with `--provider xiaomi-mimo` or set it in config.",
             config.api_provider().as_str()

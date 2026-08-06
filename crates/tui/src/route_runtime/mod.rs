@@ -65,10 +65,10 @@ fn prepared_route_config(
     // key into the `[providers.<name>]` flatten map, so it must be preserved —
     // overwriting it with the literal "custom" id would break base_url/model
     // resolution and silently misroute.
-    if provider != ApiProvider::Custom {
+    if provider != ApiProvider::OpenAiCompatible {
         route_config.provider = Some(provider.as_str().to_string());
     }
-    if matches!(provider, ApiProvider::XiaomiMimo)
+    if matches!(provider, ApiProvider::OpenAiCompatible)
         && route_config
             .base_url
             .as_deref()

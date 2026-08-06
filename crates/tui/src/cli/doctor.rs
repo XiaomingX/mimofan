@@ -43,7 +43,7 @@ pub(crate) fn resolve_api_key_source(config: &Config) -> ApiKeySource {
         .provider_config()
         .and_then(|entry| entry.api_key.as_ref())
         .is_some_and(|k| !k.trim().is_empty());
-    let root_deepseek_key = matches!(provider, crate::config::ApiProvider::XiaomiMimo)
+    let root_deepseek_key = matches!(provider, crate::config::ApiProvider::OpenAiCompatible)
         && config
             .api_key
             .as_ref()
@@ -88,7 +88,7 @@ pub(crate) fn provider_config_table_key(provider: crate::config::ApiProvider) ->
 }
 
 pub(crate) fn provider_auth_hint(provider: crate::config::ApiProvider) -> String {
-    if provider == crate::config::ApiProvider::XiaomiMimo {
+    if provider == crate::config::ApiProvider::OpenAiCompatible {
         "see docs/PROVIDERS.md for ChatGPT/Codex OAuth setup".to_string()
     } else {
         format!(
@@ -247,7 +247,7 @@ pub(crate) async fn run_doctor(
             .provider_config_for(provider)
             .and_then(|entry| entry.api_key.as_ref())
             .is_some_and(|v| !v.trim().is_empty())
-            || (matches!(provider, crate::config::ApiProvider::XiaomiMimo)
+            || (matches!(provider, crate::config::ApiProvider::OpenAiCompatible)
                 && !injected_runtime_key
                 && config
                     .api_key
@@ -1309,11 +1309,11 @@ pub(crate) fn doctor_wire_protocol(provider: crate::config::ApiProvider) -> &'st
     match provider
         .metadata()
         .map(|metadata| metadata.wire())
-        .unwrap_or(mimofan_config::provider::WireFormat::ChatCompletions)
+        .unwrap_or(mimofan_config::provider::WireFormat::OpenAiCompatible)
     {
-        mimofan_config::provider::WireFormat::ChatCompletions => "chat_completions",
-        mimofan_config::provider::WireFormat::Responses => "responses",
-        mimofan_config::provider::WireFormat::AnthropicMessages => "anthropic_messages",
+        mimofan_config::provider::WireFormat::OpenAiCompatible => "openai_compatible",
+        mimofan_config::provider::WireFormat::AnthropicCompatible => "anthropic_messages",
+        mimofan_config::provider::WireFormat::GeminiCompatible => "gemini_compatible",
     }
 }
 
@@ -1341,31 +1341,11 @@ pub(crate) fn doctor_base_url_class(
 }
 
 pub(crate) fn doctor_auth_scheme(config: &Config) -> &'static str {
-    let provider = config.api_provider();
-    if provider == crate::config::ApiProvider::XiaomiMimo {
-        if doctor_xiaomi_mimo_base_url_uses_token_plan(&config.api_base_url())
-            || config
-                .api_key()
-                .ok()
-                .is_some_and(|key| key.trim_start().starts_with("tp-"))
-        {
-            "api-key"
-        } else {
-            "x-api-key"
-        }
-    } else {
-        "bearer"
+    match config.api_provider() {
+        crate::config::ApiProvider::AnthropicCompatible => "x-api-key",
+        crate::config::ApiProvider::GeminiCompatible => "bearer",
+        crate::config::ApiProvider::OpenAiCompatible => "x-api-key",
     }
-}
-
-pub(crate) fn doctor_xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
-    let normalized = base_url.trim_end_matches('/').to_ascii_lowercase();
-    [
-        crate::config::XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL,
-        crate::config::DEFAULT_XIAOMI_MIMO_BASE_URL,
-    ]
-    .iter()
-    .any(|candidate| normalized == candidate.trim_end_matches('/').to_ascii_lowercase())
 }
 
 pub(crate) fn doctor_api_key_source_label(source: ApiKeySource) -> &'static str {
@@ -1522,8 +1502,8 @@ pub(crate) fn known_api_base_url_kind(base_url: &str) -> Option<BaseUrlKind> {
     }
 }
 
-pub(crate) fn recommended_strict_base_url(_config: &Config, _base_url: &str) -> &'static str {
-    crate::config::DEFAULT_MIMO_BASE_URL
+pub(crate) fn recommended_strict_base_url(config: &Config, _base_url: &str) -> &'static str {
+    config.api_provider().default_base_url()
 }
 
 pub(crate) fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
@@ -1534,7 +1514,7 @@ pub(crate) fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
     )];
 
     match config.api_provider() {
-        crate::config::ApiProvider::XiaomiMimo
+        crate::config::ApiProvider::OpenAiCompatible
             if target.base_url.contains("api.deepseek.com")
                 && !target.base_url.contains("api.deepseeki.com") =>
         {
@@ -1543,7 +1523,7 @@ pub(crate) fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
                     .to_string(),
             );
         }
-        crate::config::ApiProvider::XiaomiMimo => {
+        crate::config::ApiProvider::OpenAiCompatible => {
             lines.push(
                 "If this is a custom DeepSeek-compatible endpoint, confirm it serves `/v1/models` and `/v1/chat/completions` over HTTPS."
                     .to_string(),

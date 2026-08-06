@@ -59,10 +59,6 @@ pub(crate) use trust::*;
 mod env_overrides;
 pub(crate) use env_overrides::*;
 
-// Xiaomi MiMo specific base URL and API key resolution logic.
-mod xiaomi;
-pub(crate) use xiaomi::*;
-
 // === Types ===
 
 /// Raw retry configuration loaded from config files.
@@ -878,68 +874,21 @@ impl ProviderConfig {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ProvidersConfig {
+    /// OpenAI-compatible `/v1/chat/completions` endpoint config.
     #[serde(default)]
-    pub deepseek: ProviderConfig,
+    pub openai_compatible: ProviderConfig,
+    /// Anthropic Messages API compatible endpoint (`/v1/messages`).
     #[serde(default)]
-    pub cn: ProviderConfig,
+    pub anthropic_compatible: ProviderConfig,
+    /// Google Gemini compatible endpoint config.
     #[serde(default)]
-    pub deepseek_claude: ProviderConfig,
-    #[serde(default, alias = "nvidiaNim")]
-    pub nvidia_nim: ProviderConfig,
-    #[serde(default)]
-    pub openai: ProviderConfig,
-    #[serde(default)]
-    pub volcengine: ProviderConfig,
-    #[serde(default)]
-    pub openrouter: ProviderConfig,
-    #[serde(default, alias = "mimo")]
-    pub xiaomi_mimo: ProviderConfig,
-    #[serde(default)]
-    pub siliconflow: ProviderConfig,
-    #[serde(
-        default,
-        alias = "siliconflow-CN",
-        alias = "siliconflow-cn",
-        alias = "siliconflowCn"
-    )]
-    pub siliconflow_cn: ProviderConfig,
-    #[serde(default)]
-    pub moonshot: ProviderConfig,
-    #[serde(
-        default,
-        alias = "baidu-qianfan",
-        alias = "baidu_qianfan",
-        alias = "baidu"
-    )]
-    pub qianfan: ProviderConfig,
-    #[serde(
-        default,
-        alias = "openai-codex",
-        alias = "openaiCodex",
-        alias = "codex",
-        alias = "chatgpt"
-    )]
-    pub openai_codex: ProviderConfig,
-    #[serde(default, alias = "claude")]
-    pub anthropic: ProviderConfig,
-    #[serde(
-        default,
-        alias = "zhipu",
-        alias = "zhipuai",
-        alias = "bigmodel",
-        alias = "big-model"
-    )]
-    pub zai: ProviderConfig,
-    #[serde(default)]
-    pub stepfun: ProviderConfig,
-    #[serde(default)]
-    pub minimax: ProviderConfig,
+    pub gemini_compatible: ProviderConfig,
     /// Arbitrary user-named custom providers (#1519).
     ///
-    /// Captures every `[providers.<name>]` table whose key is not one of the
-    /// built-in providers above. Each entry is an OpenAI-compatible custom
-    /// endpoint selected via `provider = "<name>"`; routing reads its
-    /// `base_url` / `model` / `api_key_env` through [`ApiProvider::Custom`].
+    /// Captures every `[providers.<name>]` table. Each entry is an
+    /// OpenAI-compatible custom endpoint selected via `provider = "<name>"`;
+    /// routing reads its `base_url` / `model` / `api_key_env` through
+    /// [`ApiProvider::OpenAiCompatible`].
     #[serde(flatten, default)]
     pub custom: HashMap<String, ProviderConfig>,
 }
@@ -1074,11 +1023,9 @@ impl Config {
     }
 
     /// Surface a one-line warning when the user has set the legacy root
-    /// `base_url` field but their active provider is not DeepSeek (the only
-    /// provider that actually reads that field, plus an NvidiaNim back-compat
-    /// sniff). Common confusion: users add `base_url = "..."` at the top of
-    /// `~/.mimofan/config.toml` for openai-compat servers
-    /// and wonder why it's silently ignored (#1308).
+    /// `base_url` field. The active base URL is always resolved from the
+    /// per-provider `[providers.<mode>]` table (or the matching `*_BASE_URL`
+    /// env var / runtime override); a top-level `base_url` is ignored (#1308).
     fn warn_on_misplaced_root_base_url(&self) {
         let Some(root_base) = self.base_url.as_deref().map(str::trim) else {
             return;
@@ -1087,9 +1034,6 @@ impl Config {
             return;
         }
         let provider = self.api_provider();
-        if matches!(provider, ApiProvider::XiaomiMimo) {
-            return;
-        }
         // Only warn if the per-provider table doesn't have an explicit
         // `base_url`, because if it does, the per-provider one wins and the
         // root field is just dead config — no behavior surprise.
@@ -1135,11 +1079,11 @@ impl Config {
         if let Some(model) = self.default_text_model.as_deref()
             && !model.trim().eq_ignore_ascii_case("auto")
             && !provider_passes_model_through(self.api_provider())
-            && !self.active_provider_preserves_custom_base_url_model()
             && normalize_model_name(model).is_none()
         {
             anyhow::bail!(
-                "Invalid default_text_model '{model}': expected auto or a DeepSeek model ID (for example: deepseek-v4-pro, deepseek-v4-flash, deepseek-ai/deepseek-v4-pro)."
+                "Invalid default_text_model '{model}': expected auto or a model ID supported by the {provider} provider.",
+                provider = self.api_provider().as_str()
             );
         }
         if let Some(policy) = self.approval_policy.as_deref() {
@@ -1198,23 +1142,23 @@ impl Config {
                 .and_then(|providers| providers.custom_provider_config(name))
                 .is_some()
         {
-            return ApiProvider::Custom;
+            return ApiProvider::OpenAiCompatible;
         }
-        ApiProvider::XiaomiMimo
+        ApiProvider::OpenAiCompatible
     }
 
     pub(crate) fn provider_config_for(&self, provider: ApiProvider) -> Option<&ProviderConfig> {
         let providers = self.providers.as_ref()?;
-        if provider == ApiProvider::Custom {
-            return self
-                .provider
-                .as_deref()
-                .and_then(|name| providers.custom_provider_config(name));
+        if provider == ApiProvider::OpenAiCompatible
+            && let Some(name) = self.provider.as_deref()
+            && providers.custom.contains_key(name)
+        {
+            return providers.custom_provider_config(name);
         }
         Some(match provider {
-            ApiProvider::XiaomiMimo => &providers.xiaomi_mimo,
-            ApiProvider::Anthropic => &providers.anthropic,
-            ApiProvider::Custom => unreachable!("custom provider resolved by name above"),
+            ApiProvider::OpenAiCompatible => &providers.openai_compatible,
+            ApiProvider::AnthropicCompatible => &providers.anthropic_compatible,
+            ApiProvider::GeminiCompatible => &providers.gemini_compatible,
         })
     }
 
@@ -1229,19 +1173,18 @@ impl Config {
     }
 
     pub(crate) fn provider_config_for_mut(&mut self, provider: ApiProvider) -> &mut ProviderConfig {
-        let custom_key = (provider == ApiProvider::Custom).then(|| {
-            self.provider
-                .clone()
-                .unwrap_or_else(|| "__custom__".to_string())
-        });
         let providers = self.providers.get_or_insert_with(ProvidersConfig::default);
-        if let Some(key) = custom_key {
-            return providers.custom.entry(key).or_default();
-        }
         match provider {
-            ApiProvider::XiaomiMimo => &mut providers.xiaomi_mimo,
-            ApiProvider::Anthropic => &mut providers.anthropic,
-            ApiProvider::Custom => unreachable!("custom provider resolved by name above"),
+            ApiProvider::OpenAiCompatible => {
+                if let Some(name) = self.provider.clone()
+                    && providers.custom.contains_key(&name)
+                {
+                    return providers.custom.entry(name).or_default();
+                }
+                &mut providers.openai_compatible
+            }
+            ApiProvider::AnthropicCompatible => &mut providers.anthropic_compatible,
+            ApiProvider::GeminiCompatible => &mut providers.gemini_compatible,
         }
     }
 
@@ -1304,15 +1247,6 @@ impl Config {
         {
             return "auto".to_string();
         }
-        if provider == ApiProvider::XiaomiMimo
-            && let Some(model) = self.default_text_model.as_deref()
-            && let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(model)
-        {
-            return canonical.to_string();
-        }
-        if provider == ApiProvider::XiaomiMimo {
-            return DEFAULT_XIAOMI_MIMO_MODEL.to_string();
-        }
         if let Some(model) = self.default_text_model.as_deref()
             && (provider_passes_model_through(provider)
                 || self.active_provider_preserves_custom_base_url_model())
@@ -1325,13 +1259,10 @@ impl Config {
             return normalized;
         }
 
-        match provider {
-            ApiProvider::XiaomiMimo | ApiProvider::Anthropic => DEFAULT_XIAOMI_MIMO_MODEL,
-            ApiProvider::Custom => mimofan_config::ProviderKind::Custom
-                .provider()
-                .default_model(),
-        }
-        .to_string()
+        provider
+            .kind()
+            .map(|kind| kind.provider().default_model().to_string())
+            .unwrap_or_else(|| DEFAULT_TEXT_MODEL.to_string())
     }
 
     /// Return the configured API base URL (normalized).
@@ -1341,31 +1272,9 @@ impl Config {
         let provider_base = self
             .provider_config_string_with_runtime_fallback(provider, |entry| entry.base_url.clone());
         let configured_base_url = provider_base;
-        let base = if provider == ApiProvider::XiaomiMimo {
-            let config_api_key = self
-                .provider_config_for(provider)
-                .and_then(|provider| provider.api_key.as_deref());
-            let mode = self
-                .provider_config_for(provider)
-                .and_then(|provider| provider.mode.as_deref());
-            let env_api_key =
-                xiaomi_mimo_env_api_key_for_runtime(mode, configured_base_url.as_deref());
-            let api_key = config_api_key.or(env_api_key.as_deref());
-            resolve_xiaomi_mimo_base_url(configured_base_url, api_key, mode)
-        } else {
-            configured_base_url
-                .or_else(env_base_url_override)
-                .unwrap_or_else(|| {
-                    match provider {
-                        ApiProvider::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL,
-                        ApiProvider::Anthropic => XIAOMI_MIMO_ANTHROPIC_BASE_URL,
-                        ApiProvider::Custom => mimofan_config::ProviderKind::Custom
-                            .provider()
-                            .default_base_url(),
-                    }
-                    .to_string()
-                })
-        };
+        let base = configured_base_url
+            .or_else(env_base_url_override)
+            .unwrap_or_else(|| default_base_url_for_provider(provider).to_string());
         normalize_base_url(&base)
     }
 
@@ -1400,12 +1309,18 @@ impl Config {
             return Ok(configured);
         }
 
-        // 1b. Custom providers (#1519) name their auth env var per-entry via
-        // `[providers.<name>] api_key_env = "..."`. Resolve it before the
-        // generic env step, since the custom identity declares no built-in env
-        // var. The env var NAME is read from config; the secret value is read
-        // from the process environment and never persisted.
-        if provider == ApiProvider::Custom
+        // 1b. Custom (named OpenAI-compatible) providers (#1519) name their
+        // auth env var per-entry via `[providers.<name>] api_key_env = "..."`.
+        // Resolve it before the generic env step, since the custom identity
+        // declares no built-in env var. The env var NAME is read from config;
+        // the secret value is read from the process environment and never
+        // persisted.
+        if provider == ApiProvider::OpenAiCompatible
+            && let Some(name) = self.provider.clone()
+            && self
+                .providers
+                .as_ref()
+                .is_some_and(|providers| providers.custom.contains_key(&name))
             && let Some(env_name) = self
                 .provider_config_for(provider)
                 .and_then(|entry| entry.api_key_env.as_deref())
@@ -1419,17 +1334,6 @@ impl Config {
 
         // 2. Environment variables. Do not query platform credential stores
         // here; routine startup and doctor checks must stay prompt-free.
-        if provider == ApiProvider::XiaomiMimo {
-            let mode = self
-                .provider_config_for(provider)
-                .and_then(|provider| provider.mode.as_deref());
-            if let Some(value) =
-                xiaomi_mimo_env_api_key_for_runtime(mode, Some(&self.api_base_url()))
-                && !value.trim().is_empty()
-            {
-                return Ok(value);
-            }
-        }
         if let Some(value) = provider_env_api_key(provider) {
             return Ok(value);
         }
@@ -1439,25 +1343,32 @@ impl Config {
         }
 
         match provider {
-            ApiProvider::Custom => {
+            ApiProvider::OpenAiCompatible => {
                 let provider_name = self.provider.as_deref().unwrap_or("<name>");
-                match self
-                    .provider_config_for(provider)
-                    .and_then(|entry| entry.api_key_env.as_deref())
-                    .map(str::trim)
-                    .filter(|name| !name.is_empty())
+                if self
+                    .providers
+                    .as_ref()
+                    .is_some_and(|providers| providers.custom.contains_key(provider_name))
                 {
-                    Some(env_name) => anyhow::bail!(
-                        "Custom provider '{provider_name}' API key not found.\n\
-                         Set the environment variable {env_name} to your key, \
-                         or add api_key to [providers.{provider_name}]."
-                    ),
-                    None => anyhow::bail!(
-                        "Custom provider '{provider_name}' has no auth configured.\n\
-                         Add api_key_env = \"YOUR_ENV_VAR\" (or api_key) to \
-                         [providers.{provider_name}] in ~/.mimofan/config.toml."
-                    ),
+                    match self
+                        .provider_config_for(provider)
+                        .and_then(|entry| entry.api_key_env.as_deref())
+                        .map(str::trim)
+                        .filter(|name| !name.is_empty())
+                    {
+                        Some(env_name) => anyhow::bail!(
+                            "Custom provider '{provider_name}' API key not found.\n\
+                             Set the environment variable {env_name} to your key, \
+                             or add api_key to [providers.{provider_name}]."
+                        ),
+                        None => anyhow::bail!(
+                            "Custom provider '{provider_name}' has no auth configured.\n\
+                             Add api_key_env = \"YOUR_ENV_VAR\" (or api_key) to \
+                             [providers.{provider_name}] in ~/.mimofan/config.toml."
+                        ),
+                    }
                 }
+                anyhow::bail!("{}", missing_provider_api_key_message(provider)?)
             }
             _ => anyhow::bail!("{}", missing_provider_api_key_message(provider)?),
         }
@@ -1517,7 +1428,7 @@ impl Config {
     /// Resolve the default speech/TTS output directory, if configured.
     #[must_use]
     pub fn speech_output_dir(&self) -> Option<PathBuf> {
-        std::env::var("XIAOMI_MIMO_SPEECH_OUTPUT_DIR")
+        std::env::var("MIMOFAN_SPEECH_OUTPUT_DIR")
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty())
@@ -2046,11 +1957,6 @@ check_for_updates = true
 }
 
 fn normalize_model_for_provider(provider: ApiProvider, model: &str) -> Option<String> {
-    if matches!(provider, ApiProvider::XiaomiMimo)
-        && let Some(canonical) = mimofan_config::canonical_xiaomi_mimo_model_id(model)
-    {
-        return Some(canonical.to_string());
-    }
     if provider_passes_model_through(provider) {
         return None;
     }
@@ -2058,7 +1964,7 @@ fn normalize_model_for_provider(provider: ApiProvider, model: &str) -> Option<St
 }
 
 pub(crate) fn provider_passes_model_through(provider: ApiProvider) -> bool {
-    matches!(provider, ApiProvider::XiaomiMimo | ApiProvider::Custom)
+    matches!(provider, ApiProvider::OpenAiCompatible)
 }
 
 fn default_base_url_for_provider(provider: ApiProvider) -> &'static str {
@@ -2070,12 +1976,6 @@ fn default_base_url_for_provider(provider: ApiProvider) -> &'static str {
 }
 
 fn base_url_is_custom_for_provider(provider: ApiProvider, base_url: &str) -> bool {
-    if provider == ApiProvider::XiaomiMimo
-        && (xiaomi_mimo_base_url_uses_token_plan(base_url)
-            || xiaomi_mimo_base_url_is_pay_as_you_go(base_url))
-    {
-        return false;
-    }
     normalize_base_url(base_url) != normalize_base_url(default_base_url_for_provider(provider))
 }
 
@@ -2357,27 +2257,19 @@ fn merge_providers(
         (Some(base), None) => Some(base),
         (None, Some(override_cfg)) => Some(override_cfg),
         (Some(base), Some(override_cfg)) => Some(ProvidersConfig {
-            deepseek: merge_provider_config(base.deepseek, override_cfg.deepseek),
-            cn: merge_provider_config(base.cn, override_cfg.cn),
-            deepseek_claude: merge_provider_config(
-                base.deepseek_claude,
-                override_cfg.deepseek_claude,
+            openai_compatible: merge_provider_config(
+                base.openai_compatible,
+                override_cfg.openai_compatible,
             ),
-            nvidia_nim: merge_provider_config(base.nvidia_nim, override_cfg.nvidia_nim),
-            openai: merge_provider_config(base.openai, override_cfg.openai),
-            anthropic: merge_provider_config(base.anthropic, override_cfg.anthropic),
-            openrouter: merge_provider_config(base.openrouter, override_cfg.openrouter),
-            xiaomi_mimo: merge_provider_config(base.xiaomi_mimo, override_cfg.xiaomi_mimo),
-            siliconflow: merge_provider_config(base.siliconflow, override_cfg.siliconflow),
-            siliconflow_cn: merge_provider_config(base.siliconflow_cn, override_cfg.siliconflow_cn),
-            moonshot: merge_provider_config(base.moonshot, override_cfg.moonshot),
-            volcengine: merge_provider_config(base.volcengine, override_cfg.volcengine),
-            openai_codex: merge_provider_config(base.openai_codex, override_cfg.openai_codex),
-            minimax: merge_provider_config(base.minimax, override_cfg.minimax),
+            anthropic_compatible: merge_provider_config(
+                base.anthropic_compatible,
+                override_cfg.anthropic_compatible,
+            ),
+            gemini_compatible: merge_provider_config(
+                base.gemini_compatible,
+                override_cfg.gemini_compatible,
+            ),
             custom: merge_custom_providers(base.custom, override_cfg.custom),
-            qianfan: merge_provider_config(base.qianfan, override_cfg.qianfan),
-            zai: merge_provider_config(base.zai, override_cfg.zai),
-            stepfun: merge_provider_config(base.stepfun, override_cfg.stepfun),
         }),
     }
 }

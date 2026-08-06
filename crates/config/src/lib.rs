@@ -278,7 +278,7 @@ impl ConfigToml {
         }
 
         match key {
-            "provider" => self.provider = ProviderKind::XiaomiMimo,
+            "provider" => self.provider = ProviderKind::OpenAiCompatible,
             "api_key" => self.api_key = None,
             "base_url" => self.base_url = None,
             "http_headers" => self.http_headers.clear(),
@@ -401,71 +401,31 @@ impl ConfigToml {
                 ProviderSource::Env(env.provider_source.unwrap_or("MIMOFAN_PROVIDER")),
             )
         } else if env.custom_base_url.is_some() {
-            (ProviderKind::Custom, ProviderSource::Env("CUSTOM_BASE_URL"))
+            (ProviderKind::OpenAiCompatible, ProviderSource::Env("CUSTOM_BASE_URL"))
         } else {
             (self.provider, ProviderSource::Config)
         };
 
         let provider_cfg = self.providers.for_provider(provider).clone();
-        let root_xiaomi_mimo_api_key = (provider == ProviderKind::XiaomiMimo)
-            .then(|| self.api_key.clone())
-            .flatten();
-        let root_xiaomi_mimo_base_url = (provider == ProviderKind::XiaomiMimo)
-            .then(|| self.base_url.clone())
-            .flatten();
-        let root_xiaomi_mimo_model = (provider == ProviderKind::XiaomiMimo)
-            .then(|| self.default_text_model.clone())
-            .flatten();
         let auth_mode = cli
             .auth_mode
             .clone()
             .or_else(|| env.auth_mode.clone())
             .or_else(|| provider_cfg.auth_mode.clone())
             .or_else(|| self.auth_mode.clone());
-        let from_file = provider_cfg.api_key.clone().or(root_xiaomi_mimo_api_key);
+        let from_file = provider_cfg.api_key.clone().or(self.api_key.clone());
         let configured_base_url = cli
             .base_url
             .clone()
             .or_else(|| env.base_url_for(provider))
             .or_else(|| provider_cfg.base_url.clone())
-            .or(root_xiaomi_mimo_base_url);
-        let xiaomi_mimo_mode = if provider == ProviderKind::XiaomiMimo {
-            env.xiaomi_mimo_mode
-                .clone()
-                .or_else(|| provider_cfg.mode.clone())
-        } else {
-            None
-        };
-        let xiaomi_mimo_env_api_key = if provider == ProviderKind::XiaomiMimo {
-            xiaomi_mimo_env_api_key_for_runtime(
-                xiaomi_mimo_mode.as_deref(),
-                configured_base_url.as_deref(),
-            )
-        } else {
-            None
-        };
+            .or(self.base_url.clone());
         let env_api_key = env_api_key_for_provider(provider);
-        let explicit_api_key_for_endpoint = cli
-            .api_key
-            .as_deref()
-            .or(xiaomi_mimo_env_api_key.as_deref())
-            .or(env_api_key.as_deref())
-            .or(from_file.as_deref());
-        let base_url = if provider == ProviderKind::XiaomiMimo {
-            resolve_xiaomi_mimo_base_url(
-                configured_base_url,
-                explicit_api_key_for_endpoint,
-                xiaomi_mimo_mode.as_deref(),
-            )
-        } else {
-            configured_base_url
-                .unwrap_or_else(|| default_base_url_for_provider(provider).to_string())
-        };
+        let base_url = configured_base_url
+            .unwrap_or_else(|| default_base_url_for_provider(provider).to_string());
         // API-key precedence is **CLI flag → environment → config-file → secret store**.
         let (api_key, api_key_source) = if let Some(value) = cli.api_key.clone() {
             (Some(value), Some(RuntimeApiKeySource::Cli))
-        } else if let Some(value) = xiaomi_mimo_env_api_key.filter(|v| !v.trim().is_empty()) {
-            (Some(value), Some(RuntimeApiKeySource::Env))
         } else if let Some(value) = env_api_key.filter(|v| !v.trim().is_empty()) {
             (Some(value), Some(RuntimeApiKeySource::Env))
         } else if let Some(value) = from_file.filter(|v| !v.trim().is_empty()) {
@@ -490,7 +450,7 @@ impl ConfigToml {
             || env.model.is_some()
             || env_provider_model.is_some()
             || provider_cfg.model.is_some()
-            || root_xiaomi_mimo_model.is_some()
+            || self.default_text_model.is_some()
             || self.model.is_some();
         let model = cli
             .model
@@ -498,7 +458,7 @@ impl ConfigToml {
             .or_else(|| env.model.clone())
             .or(env_provider_model)
             .or_else(|| provider_cfg.model.clone())
-            .or(root_xiaomi_mimo_model)
+            .or(self.default_text_model.clone())
             .or_else(|| self.model.clone())
             .unwrap_or_else(|| default_model_for_provider(provider).to_string());
         let model =
@@ -652,67 +612,9 @@ fn project_config_candidate_exists(path: &Path) -> bool {
     })
 }
 
-fn normalize_model_for_provider(provider: ProviderKind, model: &str) -> String {
-    if matches!(provider, ProviderKind::XiaomiMimo) {
-        if let Some(canonical) = canonical_xiaomi_mimo_model_id(model) {
-            return canonical.to_string();
-        }
-        return model.to_string();
-    }
-    // Custom provider: pass model through verbatim
+fn normalize_model_for_provider(_provider: ProviderKind, model: &str) -> String {
+    // 模型名原样透传：具体别名归一化由对应网关负责，mimofan 不再绑定产品专属模型。
     model.to_string()
-}
-
-pub fn canonical_xiaomi_mimo_model_id(model: &str) -> Option<&'static str> {
-    let normalized = model.trim().to_ascii_lowercase();
-    let normalized = normalized.replace(['_', ' '], "-");
-    match normalized.as_str() {
-        "mimo"
-        | DEFAULT_XIAOMI_MIMO_MODEL
-        | "mimo-v2-5-pro"
-        | "xiaomi-mimo-v2.5-pro"
-        | "xiaomi-mimo-v2-5-pro" => Some(DEFAULT_XIAOMI_MIMO_MODEL),
-        XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL
-        | "mimo-v2-5-pro-ultraspeed"
-        | "xiaomi-mimo-v2.5-pro-ultraspeed"
-        | "xiaomi-mimo-v2-5-pro-ultraspeed"
-        | "ultraspeed"
-        | "pro-ultraspeed" => Some(XIAOMI_MIMO_V2_5_PRO_ULTRASPEED_MODEL),
-        "omni"
-        | "mimo-omni"
-        | "v2.5-omni"
-        | "v25-omni"
-        | "mimo-v2.5"
-        | "mimo-v25"
-        | "mimo-v2-5"
-        | "mimo-v2.5-omni"
-        | "mimo-v25-omni"
-        | "mimo-v2-5-omni"
-        | "xiaomi-mimo-v2.5"
-        | "xiaomi-mimo-v2-5"
-        | "xiaomi-mimo-v2.5-omni"
-        | "xiaomi-mimo-v2-5-omni" => Some("mimo-v2.5"),
-        "asr" | "mimo-asr" | "mimo-v2.5-asr" | "speech-to-text" | "transcribe" => {
-            Some(XIAOMI_MIMO_ASR_MODEL)
-        }
-        "mimo-tts" | "mimo-v25-tts" | "mimo-v2.5-tts" | "tts" | "speech" => {
-            Some(XIAOMI_MIMO_TTS_MODEL)
-        }
-        "mimo-tts-voicedesign"
-        | "mimo-voice-design"
-        | "mimo-v25-tts-voicedesign"
-        | "mimo-v2.5-tts-voicedesign"
-        | "voicedesign"
-        | "voice-design" => Some(XIAOMI_MIMO_TTS_VOICE_DESIGN_MODEL),
-        "mimo-tts-voiceclone"
-        | "mimo-voice-clone"
-        | "mimo-v25-tts-voiceclone"
-        | "mimo-v2.5-tts-voiceclone"
-        | "voiceclone"
-        | "voice-clone" => Some(XIAOMI_MIMO_TTS_VOICE_CLONE_MODEL),
-        "mimo-v2-tts" => Some(XIAOMI_MIMO_V2_TTS_MODEL),
-        _ => None,
-    }
 }
 
 /// Canonicalize compact DeepSeek model aliases to stable IDs.
@@ -731,149 +633,14 @@ pub fn canonical_model_name(model: &str) -> Option<&'static str> {
 }
 
 fn default_model_for_provider(provider: ProviderKind) -> &'static str {
-    match provider {
-        ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_MODEL,
-        ProviderKind::Anthropic => DEFAULT_XIAOMI_MIMO_MODEL,
-        // No built-in default model; the registry placeholder keeps this total.
-        ProviderKind::Custom => provider.provider().default_model(),
-    }
+    provider.provider().default_model()
 }
 
 pub fn default_base_url_for_provider(provider: ProviderKind) -> &'static str {
-    match provider {
-        ProviderKind::XiaomiMimo => DEFAULT_XIAOMI_MIMO_BASE_URL,
-        ProviderKind::Anthropic => XIAOMI_MIMO_ANTHROPIC_BASE_URL,
-        // No built-in default base URL; the registry placeholder keeps this total.
-        ProviderKind::Custom => provider.provider().default_base_url(),
-    }
-}
-
-pub fn xiaomi_mimo_base_url_for_mode(mode: &str) -> Option<&'static str> {
-    let normalized = mode.trim().to_ascii_lowercase().replace(['_', ' '], "-");
-    if normalized.is_empty() || xiaomi_mimo_mode_uses_standard_endpoint(&normalized) {
-        return None;
-    }
-    Some(match normalized.as_str() {
-        "token-plan" | "tokenplan" | "subscription" | "subscribed" | "plan" => {
-            DEFAULT_XIAOMI_MIMO_BASE_URL
-        }
-        "token-plan-cn"
-        | "token-plan-china"
-        | "token-plan-mainland"
-        | "token-plan-mainland-china"
-        | "cn"
-        | "china" => XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL,
-        "token-plan-sgp"
-        | "token-plan-sg"
-        | "token-plan-singapore"
-        | "sgp"
-        | "sg"
-        | "singapore" => DEFAULT_XIAOMI_MIMO_BASE_URL,
-        _ => DEFAULT_XIAOMI_MIMO_BASE_URL,
-    })
-}
-
-pub fn xiaomi_mimo_mode_uses_standard_endpoint(normalized_mode: &str) -> bool {
-    matches!(
-        normalized_mode,
-        "standard" | "default" | "payg" | "paygo" | "pay-as-you-go" | "pay-as-go"
-    )
-}
-
-fn xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
-    let normalized = base_url.trim_end_matches('/').to_ascii_lowercase();
-    normalized == XIAOMI_MIMO_TOKEN_PLAN_CN_BASE_URL || normalized == DEFAULT_XIAOMI_MIMO_BASE_URL
-}
-
-fn xiaomi_mimo_env_var(candidates: &[&str]) -> Option<String> {
-    candidates.iter().find_map(|name| {
-        std::env::var(name)
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-    })
-}
-
-fn xiaomi_mimo_env_api_key_for_runtime(
-    mode: Option<&str>,
-    base_url: Option<&str>,
-) -> Option<String> {
-    let normalized_mode =
-        mode.map(|value| value.trim().to_ascii_lowercase().replace(['_', ' '], "-"));
-    let standard_selected = normalized_mode
-        .as_deref()
-        .is_some_and(xiaomi_mimo_mode_uses_standard_endpoint)
-        || base_url.is_some_and(xiaomi_mimo_base_url_is_pay_as_you_go);
-    if standard_selected {
-        return xiaomi_mimo_env_var(XIAOMI_MIMO_STANDARD_ENV_VARS);
-    }
-
-    let token_plan_selected = normalized_mode
-        .as_deref()
-        .and_then(xiaomi_mimo_base_url_for_mode)
-        .is_some()
-        || base_url.is_some_and(xiaomi_mimo_base_url_uses_token_plan);
-    if token_plan_selected {
-        return xiaomi_mimo_env_var(XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS);
-    }
-
-    xiaomi_mimo_env_var(XIAOMI_MIMO_TOKEN_PLAN_ENV_VARS)
-        .or_else(|| xiaomi_mimo_env_var(XIAOMI_MIMO_STANDARD_ENV_VARS))
-}
-
-fn resolve_xiaomi_mimo_base_url(
-    configured: Option<String>,
-    api_key: Option<&str>,
-    mode: Option<&str>,
-) -> String {
-    let normalized_mode =
-        mode.map(|value| value.trim().to_ascii_lowercase().replace(['_', ' '], "-"));
-    let uses_standard_mode = normalized_mode
-        .as_deref()
-        .is_some_and(xiaomi_mimo_mode_uses_standard_endpoint);
-    let mode_base_url = normalized_mode
-        .as_deref()
-        .and_then(xiaomi_mimo_base_url_for_mode);
-    let uses_token_plan = xiaomi_mimo_api_key_uses_token_plan(api_key);
-    match configured {
-        Some(base_url) if uses_standard_mode => base_url,
-        Some(base_url) if uses_token_plan && xiaomi_mimo_base_url_is_pay_as_you_go(&base_url) => {
-            mode_base_url
-                .unwrap_or(DEFAULT_XIAOMI_MIMO_BASE_URL)
-                .to_string()
-        }
-        Some(base_url) => base_url,
-        None => {
-            if let Some(base_url) = mode_base_url {
-                base_url.to_string()
-            } else if uses_standard_mode {
-                XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string()
-            } else if uses_token_plan || api_key.is_none() {
-                DEFAULT_XIAOMI_MIMO_BASE_URL.to_string()
-            } else {
-                XIAOMI_MIMO_PAY_AS_YOU_GO_BASE_URL.to_string()
-            }
-        }
-    }
-}
-
-fn xiaomi_mimo_api_key_uses_token_plan(api_key: Option<&str>) -> bool {
-    api_key.is_some_and(|key| key.trim_start().starts_with("tp-"))
-}
-
-fn xiaomi_mimo_base_url_is_pay_as_you_go(base_url: &str) -> bool {
-    matches!(
-        base_url.trim_end_matches('/').to_ascii_lowercase().as_str(),
-        "https://api.xiaomimimo.com" | "https://api.xiaomimimo.com/v1"
-    )
+    provider.provider().default_base_url()
 }
 
 fn base_url_is_custom_for_provider(provider: ProviderKind, base_url: &str) -> bool {
-    if provider == ProviderKind::XiaomiMimo
-        && (xiaomi_mimo_base_url_uses_token_plan(base_url)
-            || xiaomi_mimo_base_url_is_pay_as_you_go(base_url))
-    {
-        return false;
-    }
     let actual = base_url.trim_end_matches('/');
     let default = default_base_url_for_provider(provider).trim_end_matches('/');
     actual != default
@@ -1889,8 +1656,7 @@ struct EnvRuntimeOverrides {
     provider: Option<ProviderKind>,
     provider_source: Option<&'static str>,
     model: Option<String>,
-    xiaomi_mimo_model: Option<String>,
-    xiaomi_mimo_mode: Option<String>,
+    openai_compatible_model: Option<String>,
     output_mode: Option<String>,
     auth_mode: Option<String>,
     log_level: Option<String>,
@@ -1900,7 +1666,7 @@ struct EnvRuntimeOverrides {
     yolo: Option<bool>,
     verbosity: Option<String>,
     http_headers: Option<BTreeMap<String, String>>,
-    xiaomi_mimo_base_url: Option<String>,
+    openai_compatible_base_url: Option<String>,
     custom_base_url: Option<String>,
 }
 
@@ -1915,10 +1681,7 @@ impl EnvRuntimeOverrides {
                 .or_else(|_| std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
-            xiaomi_mimo_model: std::env::var("XIAOMI_MIMO_MODEL")
-                .ok()
-                .filter(|v| !v.trim().is_empty()),
-            xiaomi_mimo_mode: std::env::var("XIAOMI_MIMO_MODE")
+            openai_compatible_model: std::env::var("XIAOMI_MIMO_MODEL")
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             verbosity: std::env::var("MIMOFAN_VERBOSITY")
@@ -1957,7 +1720,7 @@ impl EnvRuntimeOverrides {
                     }
                 })
                 .filter(|headers| !headers.is_empty()),
-            xiaomi_mimo_base_url: std::env::var("XIAOMI_MIMO_BASE_URL")
+            openai_compatible_base_url: std::env::var("XIAOMI_MIMO_BASE_URL")
                 .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
@@ -1979,7 +1742,7 @@ impl EnvRuntimeOverrides {
             || std::env::var("OPENAI_BASE_URL").is_ok()
             || std::env::var("MIMOFAN_BASE_URL").is_ok()
         {
-            return (Some(ProviderKind::Custom), Some("CUSTOM_BASE_URL"));
+            return (Some(ProviderKind::OpenAiCompatible), Some("CUSTOM_BASE_URL"));
         }
 
         (None, None)
@@ -1989,18 +1752,18 @@ impl EnvRuntimeOverrides {
         // Defaults belong in the resolver's final fallback so config-file
         // values (`providers.<name>.base_url`) still win when env is unset.
         match provider {
-            ProviderKind::XiaomiMimo => self.xiaomi_mimo_base_url.clone(),
-            ProviderKind::Anthropic => self.xiaomi_mimo_base_url.clone(),
-            ProviderKind::Custom => self
+            ProviderKind::OpenAiCompatible => self
                 .custom_base_url
                 .clone()
-                .or_else(|| self.xiaomi_mimo_base_url.clone()),
+                .or_else(|| self.openai_compatible_base_url.clone()),
+            ProviderKind::AnthropicCompatible => self.openai_compatible_base_url.clone(),
+            ProviderKind::GeminiCompatible => self.openai_compatible_base_url.clone(),
         }
     }
 
     fn model_for(&self, provider: ProviderKind, base_url: &str) -> Option<String> {
         let model = match provider {
-            ProviderKind::XiaomiMimo => self.xiaomi_mimo_model.clone(),
+            ProviderKind::OpenAiCompatible => self.openai_compatible_model.clone(),
             _ => None,
         }?;
 

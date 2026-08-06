@@ -762,7 +762,7 @@ impl ApiClient {
         // The ChatGPT Codex backend sits behind Cloudflare bot protection that
         // only admits the Codex CLI's user agent; present a codex_cli_rs UA on
         // that path so the request is handled like the official client.
-        let user_agent: &str = if api_provider == ApiProvider::XiaomiMimo {
+        let user_agent: &str = if api_provider == ApiProvider::OpenAiCompatible {
             concat!(
                 "codex_cli_rs/0.137.0 (mimofan ",
                 env!("CARGO_PKG_VERSION"),
@@ -817,12 +817,6 @@ fn build_default_headers(
     let auth_header_name =
         if !api_key.is_empty() && api_provider_uses_anthropic_messages(api_provider, base_url) {
             Some(HeaderName::from_static("x-api-key"))
-        } else if !api_key.is_empty()
-            && api_provider == ApiProvider::XiaomiMimo
-            && (xiaomi_mimo_base_url_uses_token_plan(base_url)
-                || xiaomi_mimo_api_key_uses_token_plan(api_key))
-        {
-            Some(HeaderName::from_static("api-key"))
         } else if !api_key.is_empty() {
             Some(AUTHORIZATION)
         } else {
@@ -861,24 +855,13 @@ fn is_auth_dialect_header(header_name: &HeaderName) -> bool {
         || header_name == HeaderName::from_static("x-api-key")
 }
 
-pub fn api_provider_uses_anthropic_messages(api_provider: ApiProvider, base_url: &str) -> bool {
-    // XiaomiMiMo serves two protocol dialects from different paths. When the
-    // configured base URL ends in `/anthropic` (e.g.
-    // `https://api.xiaomimimo.com/anthropic`) the gateway expects the native
-    // Anthropic Messages wire format. Other base URLs (token-plan pay-as-you-
-    // go, local proxies, custom gateways) keep using the Responses dialect.
-    //
-    // For Custom providers, also detect Anthropic Messages API if the base_url
-    // ends with `/anthropic`. This enables custom providers to work with
-    // Anthropic-compatible API endpoints.
-    if matches!(api_provider, ApiProvider::XiaomiMimo | ApiProvider::Custom) {
-        return base_url.trim_end_matches('/').ends_with("/anthropic");
-    }
-    false
+pub fn api_provider_uses_anthropic_messages(api_provider: ApiProvider, _base_url: &str) -> bool {
+    // 协议由 provider 模式决定，而非 base_url 后缀。
+    matches!(api_provider, ApiProvider::AnthropicCompatible)
 }
 
 fn api_provider_skips_models_probe(api_provider: ApiProvider) -> bool {
-    matches!(api_provider, ApiProvider::XiaomiMimo)
+    matches!(api_provider, ApiProvider::OpenAiCompatible)
 }
 
 fn translation_system_prompt(target_language: &str) -> String {
@@ -930,24 +913,6 @@ fn translation_text_from_response(response: &MessageResponse) -> Result<String> 
         bail!("translate: Anthropic Messages response did not contain text content");
     }
     Ok(translated)
-}
-
-fn xiaomi_mimo_base_url_uses_token_plan(base_url: &str) -> bool {
-    let normalized = base_url.trim().to_ascii_lowercase();
-    let without_scheme = normalized
-        .strip_prefix("https://")
-        .or_else(|| normalized.strip_prefix("http://"))
-        .unwrap_or(&normalized);
-    let host = without_scheme
-        .split(['/', '?', '#'])
-        .next()
-        .unwrap_or_default();
-    let host = host.split(':').next().unwrap_or(host);
-    host.starts_with("token-plan-") && host.ends_with(".xiaomimimo.com")
-}
-
-fn xiaomi_mimo_api_key_uses_token_plan(api_key: &str) -> bool {
-    api_key.trim_start().starts_with("tp-")
 }
 
 impl ApiClient {
@@ -1161,17 +1126,17 @@ impl ApiClient {
 
     /// Generate speech with Xiaomi MiMo TTS models.
     ///
-    /// The spoken text is placed in an `assistant` message because Xiaomi
-    /// MiMo's TTS chat-completions surface expects that shape. The optional
+    /// The spoken text is placed in an `assistant` message because OpenAI
+    /// chat-completions TTS surfaces expect that shape. The optional
     /// `instruction` is a `user` message that controls style, voice design, or
     /// voice-clone performance and is not spoken verbatim.
     pub async fn synthesize_speech(
         &self,
         request: SpeechSynthesisRequest,
     ) -> Result<SpeechSynthesisResponse> {
-        if self.api_provider != crate::config::ApiProvider::XiaomiMimo {
+        if self.api_provider != crate::config::ApiProvider::OpenAiCompatible {
             anyhow::bail!(
-                "speech synthesis requires provider 'xiaomi-mimo' (current: {})",
+                "speech synthesis requires an OpenAI-compatible provider (current: {})",
                 self.api_provider.as_str()
             );
         }
@@ -1537,78 +1502,44 @@ pub(super) fn apply_reasoning_effort(
     provider: ApiProvider,
     model: &str,
 ) {
-    if matches!(provider, ApiProvider::XiaomiMimo) {
-        // MiniMax's OpenAI-compatible API keeps thinking inside `content`
-        // unless reasoning_split is enabled. Always request the split shape
-        // so private thinking renders as Thinking cells rather than answer
-        // prose.
-        body["reasoning_split"] = json!(true);
-    }
     let Some(effort) = effort else {
         return;
     };
     let normalized = effort.trim().to_ascii_lowercase();
     // Models with reasoning (detected by name) support reasoning_effort on any
-    // OpenAI-compatible endpoint, including the official API via Custom.
+    // OpenAI-compatible endpoint.
     let is_reasoning_model = chat::requires_reasoning_content(model);
+    let effort_value = match normalized.as_str() {
+        "low" | "minimal" => "low",
+        "medium" | "mid" => "medium",
+        "high" | "" => "high",
+        "xhigh" | "max" | "highest" | "ultracode" => "max",
+        _ => return,
+    };
     match normalized.as_str() {
         "off" | "disabled" | "none" | "false" => match provider {
-            ApiProvider::XiaomiMimo => {
+            ApiProvider::AnthropicCompatible => {
                 body["thinking"] = json!({ "type": "disabled" });
             }
-            ApiProvider::Anthropic => {
-                // Anthropic uses budget_tokens for thinking control
-                body["thinking"] = json!({ "type": "disabled" });
-            }
-            ApiProvider::Custom if is_reasoning_model => {
+            ApiProvider::OpenAiCompatible | ApiProvider::GeminiCompatible
+                if is_reasoning_model =>
+            {
                 body["reasoning_effort"] = json!("none");
             }
-            ApiProvider::Custom => {}
+            _ => {}
         },
-        "low" | "minimal" | "medium" | "mid" | "high" | "" => match provider {
-            ApiProvider::XiaomiMimo => {
-                let value = match normalized.as_str() {
-                    "low" | "minimal" => "low",
-                    "medium" | "mid" => "medium",
-                    _ => "high",
-                };
-                body["reasoning_effort"] = json!(value);
+        _ => match provider {
+            ApiProvider::AnthropicCompatible => {
+                body["reasoning_effort"] = json!(effort_value);
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::Anthropic => {
-                let value = match normalized.as_str() {
-                    "low" | "minimal" => "low",
-                    "medium" | "mid" => "medium",
-                    _ => "high",
-                };
-                body["reasoning_effort"] = json!(value);
-                body["thinking"] = json!({ "type": "enabled" });
+            ApiProvider::OpenAiCompatible | ApiProvider::GeminiCompatible
+                if is_reasoning_model =>
+            {
+                body["reasoning_effort"] = json!(effort_value);
             }
-            ApiProvider::Custom if is_reasoning_model => {
-                let value = match normalized.as_str() {
-                    "low" | "minimal" => "low",
-                    "medium" | "mid" => "medium",
-                    _ => "high",
-                };
-                body["reasoning_effort"] = json!(value);
-            }
-            ApiProvider::Custom => {}
+            _ => {}
         },
-        "xhigh" | "max" | "highest" | "ultracode" => match provider {
-            ApiProvider::XiaomiMimo => {
-                body["reasoning_effort"] = json!("max");
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::Anthropic => {
-                body["reasoning_effort"] = json!("max");
-                body["thinking"] = json!({ "type": "enabled" });
-            }
-            ApiProvider::Custom if is_reasoning_model => {
-                body["reasoning_effort"] = json!("high");
-            }
-            ApiProvider::Custom => {}
-        },
-        _ => {}
     }
 }
 
