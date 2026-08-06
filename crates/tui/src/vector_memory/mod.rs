@@ -136,7 +136,7 @@ impl VectorMemory {
         let store = self.store.as_ref().ok_or_else(|| {
             anyhow::anyhow!("vector-memory 未启用：请配置 MIMOFAN_MEMORY_API_KEY 后重启")
         })?;
-        let obs = Observation::new(project.to_string(), kind.to_string(), content.to_string());
+        let obs = Observation::new(project.to_string(), kind, content.to_string());
         Ok(store.store_observation(&obs, embedding)?)
     }
 

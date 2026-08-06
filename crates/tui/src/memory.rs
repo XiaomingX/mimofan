@@ -20,8 +20,10 @@
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use chrono::Utc;
+use regex::Regex;
 
 /// 唯一权威记忆分类（对齐 CodeBuddy Typed Memory）。
 ///
@@ -188,11 +190,110 @@ pub fn write_index(dir: &Path) -> io::Result<()> {
     fs::write(index_path(dir), build_index(dir))
 }
 
+/// Inline `<!-- paths: ... -->` tag on a memory bullet line. When present,
+/// the bullet is only injected when the session's active file paths match one
+/// of the globs (see [`paths_match`]). Returns the cleaned bullet text and the
+/// optional glob list.
+///
+/// `# foo` quick-adds strip only a leading `#`; a trailing paths tag is kept
+/// verbatim so callers can opt into conditional injection.
+#[must_use]
+pub fn split_paths_tag(line: &str) -> (String, Option<Vec<String>>) {
+    let re = paths_tag_regex();
+    if let Some(m) = re.find(line) {
+        let tag = &line[m.start()..m.end()];
+        // Extract the comma/space separated globs inside `<!-- paths: ... -->`.
+        let inner = tag
+            .trim_start_matches("<!--")
+            .trim_end_matches("-->")
+            .trim()
+            .trim_start_matches("paths:")
+            .trim();
+        let globs: Vec<String> = inner
+            .split([',', '\n'])
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let text = format!("{}{}", &line[..m.start()], &line[m.end()..]).trim().to_string();
+        let globs = if globs.is_empty() { None } else { Some(globs) };
+        (text, globs)
+    } else {
+        (line.trim().to_string(), None)
+    }
+}
+
+/// Whether any of `active` paths matches any of the `globs` (case-insensitive).
+/// Globs use `*` (and `**`) as a wildcard matched as an ordered-substring
+/// pattern, so both `src/api/*.ts` and `src/api/**/*.ts` work without a
+/// dedicated glob crate. Returns `true` when `globs` is empty (always-apply
+/// default).
+#[must_use]
+pub fn paths_match(globs: &[String], active: &[String]) -> bool {
+    if globs.is_empty() {
+        return true;
+    }
+    active.iter().any(|p| {
+        let path = p.to_ascii_lowercase();
+        globs.iter().any(|g| glob_matches(&path, g))
+    })
+}
+
+/// Ordered-substring glob match: split the glob on `*` and require each
+/// literal segment to appear in the path in order. `**` is normalized to `*`.
+fn glob_matches(path: &str, glob: &str) -> bool {
+    let norm_glob = glob.replace("**", "*");
+    let parts: Vec<&str> = norm_glob.split('*').collect();
+    if parts.len() == 1 {
+        return path.contains(parts[0]);
+    }
+    let mut cursor = 0;
+    for part in parts.iter().filter(|p| !p.is_empty()) {
+        match path[cursor..].find(part) {
+            Some(idx) => cursor += idx + part.len(),
+            None => return false,
+        }
+    }
+    true
+}
+
+fn paths_tag_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"(?i)<!--\s*paths:\s*[^>]*-->").expect("paths tag regex should compile")
+    })
+}
+
+/// Strip a leading `(timestamp)` prefix from a bullet body, leaving the
+/// declarative content. Used when inlining path-scoped bullets so the model
+/// sees the fact, not the bookkeeping.
+fn strip_timestamp(body: &str) -> String {
+    let re = timestamp_regex();
+    re.replace(body, "").trim().to_string()
+}
+
+fn timestamp_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r"^\([^)]*\)\s*").expect("timestamp regex should compile")
+    })
+}
+
 /// Compose the `<user_memory_index>` block for the system prompt, honouring
 /// the opt-in toggle. Returns `None` when disabled, the directory is missing,
 /// or the index is empty — so callers don't need to check both conditions.
+///
+/// When `active_paths` is provided, bullets carrying a `<!-- paths: ... -->`
+/// tag whose globs match one of the active paths are inlined into a
+/// `<memory_paths_matches>` segment, so path-relevant memory surfaces without
+/// the model having to Read the category file. Bullets without a tag are not
+/// inlined (still read on demand). Passing `None` keeps the historic behaviour
+/// (index pointers only), preserving the stable KV-cache prefix.
 #[must_use]
-pub fn compose_index_block(enabled: bool, dir: &Path) -> Option<String> {
+pub fn compose_index_block(
+    enabled: bool,
+    dir: &Path,
+    active_paths: Option<&[String]>,
+) -> Option<String> {
     if !enabled {
         return None;
     }
@@ -209,9 +310,43 @@ pub fn compose_index_block(enabled: bool, dir: &Path) -> Option<String> {
     } else {
         content
     };
-    Some(format!(
-        "<user_memory_index source=\"{display}\">\n{payload}\n</user_memory_index>"
-    ))
+
+    let mut block = format!(
+        "<user_memory_index source=\"{display}\">\n{payload}"
+    );
+
+    // Conditionally inline path-scoped bullets when we know the active paths.
+    if let Some(active) = active_paths {
+        if !active.is_empty() {
+            let mut matches_lines = Vec::new();
+            for cat in CATEGORIES {
+                let Some(file_content) = read_category(dir, cat) else {
+                    continue;
+                };
+                for line in file_content.lines() {
+                    let line = line.trim();
+                    if !line.starts_with("- ") {
+                        continue;
+                    }
+                    let (text, paths) = split_paths_tag(line);
+                    if let Some(globs) = paths {
+                        if paths_match(&globs, active) {
+                            let body = strip_timestamp(text.trim_start_matches("- ").trim());
+                            matches_lines.push(format!("- [{cat}] {body}"));
+                        }
+                    }
+                }
+            }
+            if !matches_lines.is_empty() {
+                block.push_str("\n\n<memory_paths_matches>\n");
+                block.push_str(&matches_lines.join("\n"));
+                block.push_str("\n</memory_paths_matches>");
+            }
+        }
+    }
+
+    block.push_str("\n</user_memory_index>");
+    Some(block)
 }
 
 /// Append `entry` to the given category file (creating the dir + file),
@@ -365,5 +500,97 @@ mod tests {
             assert_eq!(MemoryCategory::from_str(cat.as_str()), Some(*cat));
             assert_eq!(cat.as_str(), cat.as_str().to_ascii_lowercase().as_str());
         }
+    }
+
+    #[test]
+    fn split_paths_tag_parses() {
+        let (text, paths) =
+            split_paths_tag("- (2026-01-01) API auth uses Bearer <!-- paths: src/api/**/*.ts -->");
+        assert_eq!(text, "- (2026-01-01) API auth uses Bearer");
+        assert_eq!(paths, Some(vec!["src/api/**/*.ts".to_string()]));
+
+        let (text2, paths2) = split_paths_tag("- plain note");
+        assert_eq!(text2, "- plain note");
+        assert!(paths2.is_none());
+
+        let (text3, paths3) = split_paths_tag(
+            "- (ts) multi <!-- paths: src/api/*.ts, **/auth*.ts --> trailing",
+        );
+        assert!(text3.contains("multi"));
+        assert!(text3.contains("trailing"));
+        assert_eq!(
+            paths3,
+            Some(vec!["src/api/*.ts".to_string(), "**/auth*.ts".to_string()])
+        );
+    }
+
+    #[test]
+    fn paths_match_behaviour() {
+        let active = vec!["src/api/v1/login.ts".to_string(), "README.md".to_string()];
+        // `src/api/**/*.ts` should match a file under src/api.
+        assert!(paths_match(
+            &["src/api/**/*.ts".to_string()],
+            &active
+        ));
+        // `**/auth*.ts` should NOT match the active set (no auth file present).
+        assert!(!paths_match(
+            &["**/auth*.ts".to_string()],
+            &active
+        ));
+        // Non-matching glob.
+        assert!(!paths_match(
+            &["tests/**/*.rs".to_string()],
+            &active
+        ));
+        // Empty globs => always apply.
+        assert!(paths_match(&[], &active));
+        // Empty active => nothing matches (unless always-apply).
+        assert!(!paths_match(
+            &["src/api/**/*.ts".to_string()],
+            &[]
+        ));
+    }
+
+    #[test]
+    fn compose_index_block_inlines_paths_matches() {
+        let dir = tmp_memory_dir();
+        ensure_dir(&dir);
+        append_entry(&dir, "project", "always-on project note").unwrap();
+        append_entry(
+            &dir,
+            "project",
+            "API auth uses Bearer <!-- paths: src/api/**/*.ts -->",
+        )
+        .unwrap();
+        append_entry(
+            &dir,
+            "reference",
+            "deploy runbook <!-- paths: deploy/** -->",
+        )
+        .unwrap();
+
+        // No active paths => only index pointers, no <memory_paths_matches>.
+        let block_none =
+            compose_index_block(true, &dir, None).expect("block built");
+        assert!(block_none.contains("- [project](project.md)"));
+        assert!(!block_none.contains("<memory_paths_matches>"));
+
+        // Active path matches the API glob => its bullet inlined (and only
+        // the matched one — the deploy runbook is excluded).
+        let active = vec!["src/api/v1/login.ts".to_string()];
+        let block = compose_index_block(true, &dir, Some(&active)).expect("block built");
+        assert!(block.contains("<memory_paths_matches>"));
+        let matches_seg = block
+            .split("<memory_paths_matches>")
+            .nth(1)
+            .unwrap()
+            .split("</memory_paths_matches>")
+            .next()
+            .unwrap();
+        assert!(matches_seg.contains("[project] API auth uses Bearer"));
+        assert!(!matches_seg.contains("[reference] deploy runbook"));
+        assert!(!matches_seg.contains("<!-- paths:"));
+        // The always-on bullet has no paths tag, so it is NOT inlined.
+        assert!(!matches_seg.contains("always-on project note"));
     }
 }

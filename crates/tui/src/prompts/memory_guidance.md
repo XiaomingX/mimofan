@@ -15,6 +15,12 @@ Read tool when you actually need its detail — e.g. when the index hint matches
 the current task, or when the user references a durable preference. Don't read
 all of them speculatively; load on demand.
 
+A bullet may carry an optional inline `<!-- paths: <glob>[, <glob>...] -->` tag
+(e.g. `- (2026-...) API auth uses Bearer <!-- paths: src/api/**/*.ts -->`). When
+the session is working on files that match one of the globs, that bullet is
+automatically inlined into the `<memory_paths_matches>` segment of the index
+block — no Read needed. Bullets without the tag stay load-on-demand.
+
 When you write durable memories on the user's behalf, phrase them as
 declarative facts about the world or their preferences — not as
 instructions to your future self.

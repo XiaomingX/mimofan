@@ -215,7 +215,7 @@ pub fn build_headless_context_report(config: &Config, workspace: &Path) -> Promp
     let memory_dir = config.memory_dir();
 
     if let Some(memory_block) =
-        crate::memory::compose_index_block(config.memory_enabled(), &memory_dir)
+        crate::memory::compose_index_block(config.memory_enabled(), &memory_dir, None)
     {
         builder.push(SourceEntry::text(
             SourceKind::UserMemory,
@@ -392,7 +392,8 @@ fn add_app_runtime_entries(builder: &mut ReportBuilder, app: &App) {
         Some(4),
     ));
 
-    if let Some(memory_block) = crate::memory::compose_index_block(app.use_memory, &app.memory_dir)
+    if let Some(memory_block) =
+        crate::memory::compose_index_block(app.use_memory, &app.memory_dir, None)
     {
         builder.push(SourceEntry::text(
             SourceKind::UserMemory,
