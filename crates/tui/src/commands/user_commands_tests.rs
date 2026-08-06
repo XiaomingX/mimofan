@@ -306,3 +306,46 @@ fn test_make_plan_and_do_commands() {
         _ => panic!("Expected SendMessage action"),
     }
 }
+
+#[test]
+fn test_exit_plan_from_plan_mode() {
+    let tmp = TempDir::new().expect("create temp dir");
+    let mut app = App::new(default_tui_options(&tmp), &Config::default());
+
+    // Enter Plan mode first.
+    let res = crate::commands::execute("/plan", &mut app);
+    assert!(!res.is_error);
+    assert_eq!(app.mode, AppMode::Plan);
+
+    // /exit_plan (and aliases) should emit a ModeChanged(Agent) action.
+    // The actual mode switch is applied by the caller that processes the
+    // action, so we verify the action rather than `app.mode` here.
+    for cmd in ["/exit_plan", "/leave_plan", "/tuichu_plan"] {
+        let res = crate::commands::execute(cmd, &mut app);
+        assert!(!res.is_error, "command failed: {cmd}");
+        let action = res.action.expect("command result action");
+        match action {
+            crate::tui::app::AppAction::ModeChanged(mode) => {
+                assert_eq!(mode, AppMode::Agent, "wrong target mode from {cmd}");
+            }
+            _ => panic!("Expected ModeChanged action from {cmd}"),
+        }
+    }
+}
+
+#[test]
+fn test_exit_plan_outside_plan_mode_is_noop() {
+    let tmp = TempDir::new().expect("create temp dir");
+    let mut app = App::new(default_tui_options(&tmp), &Config::default());
+
+    // Already in Agent mode.
+    assert_eq!(app.mode, AppMode::Agent);
+
+    let res = crate::commands::execute("/exit_plan", &mut app);
+    // No mode change action, no error — just an informational message.
+    assert!(!res.is_error);
+    assert!(res.action.is_none(), "should not emit a mode-change action");
+    let msg = res.message.expect("command result message");
+    assert!(msg.contains("不在 Plan 模式"));
+    assert_eq!(app.mode, AppMode::Agent);
+}

@@ -11,6 +11,7 @@ mod clear;
 #[allow(clippy::module_inception)]
 mod core;
 mod exit;
+mod exit_plan;
 mod fast;
 mod feedback;
 mod fleet;
@@ -132,6 +133,10 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 plan::PlanCmd::info(),
                 plan::PlanCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                exit_plan::ExitPlanCmd::info(),
+                exit_plan::ExitPlanCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 yolo::YoloCmd::info(),
