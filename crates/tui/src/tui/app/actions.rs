@@ -48,10 +48,13 @@ pub enum AppAction {
     SendMessage(String),
     /// Update the runtime goal status (`/goal pause|resume|clear|…`) without
     /// dispatching a model turn. The UI layer translates this into
-    /// `Op::SetGoalStatus`.
+    /// `Op::SetGoalStatus`. `loop_config`, when `Some`, carries `/loop`-specific
+    /// fields (stop condition, round cap, per-round checkpoint) written into the
+    /// engine's `SharedGoalState` when the goal is (re)created.
     SetGoalStatus {
         status: crate::tools::goal::GoalStatus,
         clear: bool,
+        loop_config: Option<crate::tools::goal::LoopConfig>,
     },
     ListSubAgents,
     FetchModels,

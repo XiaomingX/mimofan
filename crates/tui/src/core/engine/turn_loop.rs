@@ -2631,7 +2631,10 @@ impl Engine {
             crate::goal_loop::GoalBudget {
                 token_budget: snapshot.token_budget.map(u64::from),
                 time_budget_seconds: snapshot.time_budget_seconds,
-                max_continuations: Some(crate::goal_loop::DEFAULT_MAX_CONTINUATIONS),
+                // `/loop --max N` overrides the default safety cap.
+                max_continuations: snapshot
+                    .max_rounds
+                    .or(Some(crate::goal_loop::DEFAULT_MAX_CONTINUATIONS)),
                 no_progress_rounds: None,
                 repeated_error_rounds: None,
             }
@@ -2675,6 +2678,25 @@ impl Engine {
                 tracing::warn!("goal state lock poisoned while recording continuation: {err}")
             }
         }
+
+        // `/loop --checkpoint`: snapshot the workspace before this continuation
+        // round so the user can `/rewind` to a specific loop iteration.
+        if snapshot.checkpoint_each_round {
+            let ck_workspace = self.session.workspace.clone();
+            let ck_cap = self.config.snapshots_max_workspace_bytes;
+            let ck_round = snapshot.continuation_count;
+            let ck_conv = self.session.messages.len();
+            let _ = tokio::task::spawn_blocking(move || {
+                crate::core::turn::loop_round_snapshot(
+                    &ck_workspace,
+                    ck_round,
+                    ck_cap,
+                    ck_conv,
+                )
+            })
+            .await;
+        }
+
         let _ = self
             .tx_event
             .send(Event::status(format!(
@@ -2686,6 +2708,7 @@ impl Engine {
         Some(crate::tools::goal::render_continuation_prompt(
             &snapshot,
             snapshot.continuation_count,
+            snapshot.stop_condition.as_deref(),
         ))
     }
 

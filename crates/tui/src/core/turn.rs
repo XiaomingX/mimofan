@@ -179,6 +179,25 @@ pub fn pre_tool_snapshot(workspace: &Path, call_id: &str, cap_bytes: u64) -> Opt
     snapshot_with_label(workspace, &format!("tool:{call_id}"), cap_bytes, 0)
 }
 
+/// Take a `loop-round:<n>` workspace snapshot before a `/loop` continuation
+/// round, so the user can `/rewind` to a specific loop iteration. Enabled by
+/// the `/loop --checkpoint` flag (surfaced via `GoalSnapshot::checkpoint_each_round`).
+///
+/// Returns the snapshot SHA on success, `None` on any error (non-fatal).
+pub fn loop_round_snapshot(
+    workspace: &Path,
+    round: u32,
+    cap_bytes: u64,
+    conversation_len: usize,
+) -> Option<String> {
+    snapshot_with_label(
+        workspace,
+        &format!("loop-round-{round}"),
+        cap_bytes,
+        conversation_len,
+    )
+}
+
 /// Take a `post-turn:<seq>` workspace snapshot. Same failure model as
 /// [`pre_turn_snapshot`].
 pub fn post_turn_snapshot(

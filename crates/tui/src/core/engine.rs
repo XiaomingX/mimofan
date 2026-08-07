@@ -1198,8 +1198,12 @@ impl Engine {
                         )
                         .await;
                     }
-                    Op::SetGoalStatus { status, clear } => {
-                        self.handle_set_goal_status(status, clear).await;
+                    Op::SetGoalStatus {
+                        status,
+                        clear,
+                        loop_config,
+                    } => {
+                        self.handle_set_goal_status(status, clear, loop_config).await;
                     }
                     Op::CancelRequest => {
                         self.cancel_token.cancel();

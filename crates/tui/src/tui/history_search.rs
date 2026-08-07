@@ -74,4 +74,17 @@ pub struct HuntState {
     pub continuation_count: u32,
     pub started_at: Option<Instant>,
     pub verdict: HuntVerdict,
+    /// User-defined natural-language stop condition for `/loop` (Claude Code
+    /// `/loop` parity). The model self-judges it each round. `None` for a plain
+    /// `/goal` (which has no user stop predicate).
+    pub stop_condition: Option<String>,
+    /// Explicit round cap for `/loop`, overriding the default safety cap.
+    /// Mirrors into `GoalState::max_rounds` (engine truth).
+    pub max_rounds: Option<u32>,
+    /// When true, each loop round snapshots the workspace via side-git so the
+    /// user can `/rewind` to a specific round.
+    pub checkpoint_each_round: bool,
+    /// True when this hunt was started via `/loop` (vs `/goal`), for UI/help
+    /// disambiguation.
+    pub is_loop: bool,
 }

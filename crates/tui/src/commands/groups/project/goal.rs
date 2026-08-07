@@ -23,6 +23,7 @@ pub fn hunt(app: &mut App, arg: Option<&str>) -> CommandResult {
                 AppAction::SetGoalStatus {
                     status: GoalStatus::Active,
                     clear: true,
+                    loop_config: None,
                 },
             )
         }
@@ -129,6 +130,7 @@ fn close_hunt(app: &mut App, verdict: HuntVerdict, status: GoalStatus) -> Comman
     let action = AppAction::SetGoalStatus {
         status,
         clear: false,
+        loop_config: None,
     };
 
     match verdict {

@@ -60,6 +60,20 @@ pub enum GoalStatus {
     Blocked,
 }
 
+/// `/loop`-specific configuration carried from the `/loop` command into the
+/// engine's `SharedGoalState`. `None` fields mean "not a loop / use defaults".
+/// This is the wire type between the UI (`AppAction::SetGoalStatus`) and the
+/// engine (`Op::SetGoalStatus`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LoopConfig {
+    /// User-defined natural-language stop condition (Claude Code `/loop` parity).
+    pub stop_condition: Option<String>,
+    /// Explicit round cap, overriding `DEFAULT_MAX_CONTINUATIONS`.
+    pub max_rounds: Option<u32>,
+    /// Snapshot the workspace before each continuation round for `/rewind`.
+    pub checkpoint_each_round: bool,
+}
+
 impl GoalStatus {
     #[must_use]
     pub fn as_str(self) -> &'static str {
@@ -117,6 +131,20 @@ pub struct GoalState {
     repeated_error_rounds: u32,
     /// Optional wall-clock budget in seconds (wired into `decide_continuation`).
     time_budget_seconds: Option<u64>,
+    /// User-defined natural-language stop condition for `/loop` (Claude Code
+    /// `/loop` parity). The model self-judges it each round; `None` for a plain
+    /// `/goal`. Injected into the continuation prompt by `render_continuation_prompt`.
+    stop_condition: Option<String>,
+    /// Explicit round cap for `/loop`, overriding the default safety cap in
+    /// `decide_continuation`. `None` falls back to `DEFAULT_MAX_CONTINUATIONS`.
+    max_rounds: Option<u32>,
+    /// When true, each loop round snapshots the workspace via side-git so the
+    /// user can `/rewind` to a specific round.
+    checkpoint_each_round: bool,
+    /// Loop config staged by `/loop` before the model has created the objective
+    /// via `create_goal`. Applied (and cleared) once the objective exists, so a
+    /// `SetGoalStatus{loop_config}` arriving before the first turn is not lost.
+    pub(crate) pending_loop_config: Option<LoopConfig>,
 }
 
 impl GoalState {
@@ -173,6 +201,14 @@ impl GoalState {
                     self.last_tool_error_fingerprint = None;
                     self.repeated_error_rounds = 0;
                     self.time_budget_seconds = None;
+                    // `/goal` carries no loop-specific fields; reset them so a
+                    // previous `/loop` does not leak into a subsequent `/goal`.
+                    self.stop_condition = None;
+                    self.max_rounds = None;
+                    self.checkpoint_each_round = false;
+                    // Drop any staged `/loop` config — a fresh `/goal` objective
+                    // is not a loop.
+                    self.pending_loop_config = None;
                 } else if self.token_budget != token_budget {
                     self.token_budget = token_budget;
                 }
@@ -207,6 +243,42 @@ impl GoalState {
         self.last_tool_error_fingerprint = None;
         self.repeated_error_rounds = 0;
         self.time_budget_seconds = None;
+        self.stop_condition = None;
+        self.max_rounds = None;
+        self.checkpoint_each_round = false;
+    }
+
+    /// Configure `/loop`-specific fields. Called by the `/loop` command after
+    /// the objective is created/activated. Must run inside a synchronous block
+    /// (never hold the `Mutex` guard across an `.await`).
+    pub fn configure_loop(
+        &mut self,
+        stop_condition: Option<String>,
+        max_rounds: Option<u32>,
+        checkpoint_each_round: bool,
+    ) {
+        self.stop_condition = stop_condition.filter(|value| !value.trim().is_empty());
+        self.max_rounds = max_rounds;
+        self.checkpoint_each_round = checkpoint_each_round;
+    }
+
+    /// Override continuation cap for `decide_continuation` — `None` means the
+    /// caller should fall back to `DEFAULT_MAX_CONTINUATIONS`.
+    #[must_use]
+    pub fn max_continuations_override(&self) -> Option<u32> {
+        self.max_rounds
+    }
+
+    /// Whether to snapshot the workspace before each continuation round.
+    #[must_use]
+    pub fn checkpoint_each_round(&self) -> bool {
+        self.checkpoint_each_round
+    }
+
+    /// The user-defined stop condition, if any.
+    #[must_use]
+    pub fn stop_condition(&self) -> Option<&str> {
+        self.stop_condition.as_deref()
     }
 
     /// Set or clear the progress checklist shown in the goal contract.
@@ -333,6 +405,9 @@ impl GoalState {
             no_progress_rounds: self.no_progress_rounds,
             repeated_error_rounds: self.repeated_error_rounds,
             time_budget_seconds: self.time_budget_seconds,
+            stop_condition: self.stop_condition.clone(),
+            max_rounds: self.max_rounds,
+            checkpoint_each_round: self.checkpoint_each_round,
         }
     }
 }
@@ -354,6 +429,12 @@ pub struct GoalSnapshot {
     pub no_progress_rounds: u32,
     pub repeated_error_rounds: u32,
     pub time_budget_seconds: Option<u64>,
+    /// User-defined stop condition for `/loop`, if set.
+    pub stop_condition: Option<String>,
+    /// Explicit round cap for `/loop` (`None` = default safety cap).
+    pub max_rounds: Option<u32>,
+    /// Whether to snapshot the workspace before each continuation round.
+    pub checkpoint_each_round: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -390,6 +471,9 @@ impl GoalSnapshot {
             no_progress_rounds: 0,
             repeated_error_rounds: 0,
             time_budget_seconds: None,
+            stop_condition: None,
+            max_rounds: None,
+            checkpoint_each_round: false,
         }
     }
 }
@@ -409,14 +493,35 @@ pub fn thread_goal_status_as_goal_status(status: mimofan_protocol::ThreadGoalSta
 /// Render the continuation prompt injected when a goal is still active after a
 /// turn. There is no run-level cap, so this shows progress (turn count, tokens)
 /// rather than a "N/max" meter — the loop runs until done, blocked, or paused.
+///
+/// `stop_condition` carries a user-defined natural-language stop predicate for
+/// `/loop` (Claude Code `/loop` parity). When `Some`, the model self-judges it
+/// each round and stops the loop by calling `update_goal` with `status: "complete"`.
 #[must_use]
-pub fn render_continuation_prompt(snapshot: &GoalSnapshot, continuation_index: u32) -> String {
+pub fn render_continuation_prompt(
+    snapshot: &GoalSnapshot,
+    continuation_index: u32,
+    stop_condition: Option<&str>,
+) -> String {
     let goal_json = serde_json::to_string_pretty(snapshot).unwrap_or_else(|_| "{}".to_string());
+    let stop_section = match stop_condition {
+        Some(cond) if !cond.trim().is_empty() => format!(
+            "\n\n## Stop Condition (user-defined)\n\n\"{}\"\n\nWhen this condition is met, call `update_goal` with `status: \"complete\"`, concrete evidence that the condition holds, and `verification: {{\"status\":\"passed\",\"check\":\"...\",\"summary\":\"...\"}}` to end the loop. Otherwise continue making progress toward the objective.",
+            cond.trim()
+        ),
+        _ => String::new(),
+    };
     format!(
-        "{}\n\n## Active Goal State\n\n```json\n{}\n```\n\nContinuation pass #{}.\nIf the goal is complete, first run or cite a concrete verifier/check, then call `update_goal` with `status: \"complete\"`, concrete evidence, and `verification: {{\"status\":\"passed\",\"check\":\"...\",\"summary\":\"...\"}}`. If it is blocked, call `update_goal` with `status: \"blocked\"` and the blocker. Otherwise continue making progress toward the objective.",
+        "{}\n\n## Active Goal State\n\n```json\n{}\n```\n\nContinuation pass #{}.{}{}",
         crate::prompts::GOAL_CONTINUATION_PROMPT.trim(),
         goal_json,
         continuation_index,
+        stop_section,
+        if stop_condition.is_none() || stop_condition.is_some_and(|c| c.trim().is_empty()) {
+            "If the goal is complete, first run or cite a concrete verifier/check, then call `update_goal` with `status: \"complete\"`, concrete evidence, and `verification: {\"status\":\"passed\",\"check\":\"...\",\"summary\":\"...\"}`. If it is blocked, call `update_goal` with `status: \"blocked\"` and the blocker. Otherwise continue making progress toward the objective."
+        } else {
+            ""
+        },
     )
 }
 
@@ -532,6 +637,11 @@ impl ToolSpec for CreateGoalTool {
         let snapshot = {
             let mut state = lock_goal_state(&self.goal_state)?;
             state.create(objective, token_budget);
+            // Apply any `/loop` config staged by `SetGoalStatus{loop_config}` that
+            // arrived before this first turn created the objective.
+            if let Some(cfg) = state.pending_loop_config.take() {
+                state.configure_loop(cfg.stop_condition, cfg.max_rounds, cfg.checkpoint_each_round);
+            }
             state.snapshot()
         };
         json_result(&snapshot)
@@ -765,5 +875,45 @@ mod tests {
             fingerprint: "E1".to_string(),
         });
         assert_eq!(s.no_progress_rounds(), 1);
+    }
+
+    #[test]
+    fn configure_loop_sets_fields() {
+        let mut s = active_state();
+        s.configure_loop(Some("all tests pass".to_string()), Some(7), true);
+        assert_eq!(s.stop_condition(), Some("all tests pass"));
+        assert_eq!(s.max_continuations_override(), Some(7));
+        assert!(s.checkpoint_each_round());
+        // Empty stop condition is normalized to None.
+        s.configure_loop(Some("   ".to_string()), None, false);
+        assert_eq!(s.stop_condition(), None);
+    }
+
+    #[test]
+    fn continuation_prompt_injects_stop_condition() {
+        let mut s = active_state();
+        s.configure_loop(Some("build is green".to_string()), None, false);
+        let snap = s.snapshot();
+        let prompt = render_continuation_prompt(&snap, 1, snap.stop_condition.as_deref());
+        assert!(prompt.contains("build is green"), "stop condition must appear in prompt");
+        assert!(prompt.contains("Stop Condition"), "stop section header expected");
+    }
+
+    #[test]
+    fn continuation_prompt_omits_stop_section_without_condition() {
+        let s = active_state();
+        let snap = s.snapshot();
+        let prompt = render_continuation_prompt(&snap, 1, snap.stop_condition.as_deref());
+        assert!(!prompt.contains("Stop Condition"), "no stop section for plain goal");
+    }
+
+    #[test]
+    fn snapshot_round_trips_loop_fields() {
+        let mut s = active_state();
+        s.configure_loop(Some("done".to_string()), Some(3), true);
+        let snap = s.snapshot();
+        assert_eq!(snap.stop_condition.as_deref(), Some("done"));
+        assert_eq!(snap.max_rounds, Some(3));
+        assert!(snap.checkpoint_each_round);
     }
 }

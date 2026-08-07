@@ -283,4 +283,47 @@ mod tests {
         );
         assert_eq!(decision, ContinuationDecision::Continue);
     }
+
+    #[test]
+    fn stops_on_continuation_limit() {
+        // `/loop --max N` overrides the default cap; exhaustion stops the loop.
+        let decision = decide_continuation(
+            GoalRunStatus::Active,
+            GoalProgress {
+                continuations: 5,
+                ..Default::default()
+            },
+            GoalBudget {
+                token_budget: None,
+                time_budget_seconds: None,
+                max_continuations: Some(5),
+                no_progress_rounds: None,
+                repeated_error_rounds: None,
+            },
+        );
+        assert_eq!(
+            decision,
+            ContinuationDecision::Stop(StopReason::ContinuationLimit)
+        );
+    }
+
+    #[test]
+    fn continues_under_max_rounds() {
+        // Below the explicit cap, the loop keeps going.
+        let decision = decide_continuation(
+            GoalRunStatus::Active,
+            GoalProgress {
+                continuations: 3,
+                ..Default::default()
+            },
+            GoalBudget {
+                token_budget: None,
+                time_budget_seconds: None,
+                max_continuations: Some(10),
+                no_progress_rounds: None,
+                repeated_error_rounds: None,
+            },
+        );
+        assert_eq!(decision, ContinuationDecision::Continue);
+    }
 }

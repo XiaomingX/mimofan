@@ -125,11 +125,16 @@ pub enum Op {
     /// Set the runtime goal status without dispatching a model turn. Used by
     /// `/goal pause`, `/goal resume`, `/goal clear`, etc. so the engine's
     /// `SharedGoalState` learns the new status immediately and a queued
-    /// continuation doesn't overwrite it back to Active.
+    /// continuation doesn't overwrite it back to Active. `loop_config`, when
+    /// `Some`, carries `/loop`-specific fields written into the goal state when
+    /// the objective is (re)created.
     SetGoalStatus {
         status: GoalStatus,
         /// When `true`, clear the objective entirely (`/goal clear`).
         clear: bool,
+        /// `/loop` config to apply when the goal is (re)created. `None` for
+        /// plain `/goal`.
+        loop_config: Option<crate::tools::goal::LoopConfig>,
     },
 
     /// Cancel the current request
