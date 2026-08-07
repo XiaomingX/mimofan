@@ -1575,8 +1575,14 @@ pub fn load_config(path: &Path) -> Result<McpConfig> {
     let Some(contents) = read_mcp_config_file(path)? else {
         return Ok(McpConfig::default());
     };
-    serde_json::from_str(&contents)
-        .with_context(|| format!("Failed to parse MCP config {}", path.display()))
+    let mut cfg: McpConfig = serde_json::from_str(&contents)
+        .with_context(|| format!("Failed to parse MCP config {}", path.display()))?;
+    // Expand `${VAR}` / `${VAR:-default}` references so downstream consumers
+    // see resolved command/args/env/url/headers/cwd values.
+    for server in cfg.servers.values_mut() {
+        *server = server.expand_env_vars();
+    }
+    Ok(cfg)
 }
 
 fn read_mcp_config_file(path: &Path) -> Result<Option<String>> {
