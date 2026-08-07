@@ -23,6 +23,7 @@ mod home;
 mod hooks;
 mod issue_monitor;
 mod links;
+mod loop_cmd;
 mod model;
 mod models;
 mod plan;
@@ -149,6 +150,10 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 links::LinksCmd::info(),
                 links::LinksCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                loop_cmd::LoopCmd::info(),
+                loop_cmd::LoopCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 feedback::FeedbackCmd::info(),

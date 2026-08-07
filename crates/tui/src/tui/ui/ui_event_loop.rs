@@ -3745,9 +3745,17 @@ pub(crate) async fn apply_command_result(
                 let queued = build_queued_message(app, content);
                 submit_or_steer_message(app, config, engine_handle, queued).await?;
             }
-            AppAction::SetGoalStatus { status, clear } => {
+            AppAction::SetGoalStatus {
+                status,
+                clear,
+                loop_config,
+            } => {
                 let _ = engine_handle
-                    .send(Op::SetGoalStatus { status, clear })
+                    .send(Op::SetGoalStatus {
+                        status,
+                        clear,
+                        loop_config,
+                    })
                     .await;
             }
             AppAction::VoiceCapture => {

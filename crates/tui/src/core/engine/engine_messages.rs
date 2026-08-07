@@ -268,7 +268,10 @@ impl Engine {
             crate::goal_loop::GoalBudget {
                 token_budget: snapshot.token_budget.map(u64::from),
                 time_budget_seconds: snapshot.time_budget_seconds,
-                max_continuations: Some(crate::goal_loop::DEFAULT_MAX_CONTINUATIONS),
+                // `/loop --max N` overrides the default safety cap.
+                max_continuations: snapshot
+                    .max_rounds
+                    .or(Some(crate::goal_loop::DEFAULT_MAX_CONTINUATIONS)),
                 no_progress_rounds: None,
                 repeated_error_rounds: None,
             }
@@ -283,6 +286,7 @@ impl Engine {
                 Some(crate::tools::goal::render_continuation_prompt(
                     &snapshot,
                     snapshot.continuation_count,
+                    snapshot.stop_condition.as_deref(),
                 ))
             }
             // All stop reasons → no continuation. The caller (the async turn
@@ -294,10 +298,18 @@ impl Engine {
         }
     }
 
-    /// Handle `/goal pause|resume|clear|complete|blocked` by writing the new
-    /// status to `SharedGoalState` so the cross-turn continuation loop respects
-    /// it. This does NOT dispatch a model turn — it's a control-plane update.
-    pub(crate) async fn handle_set_goal_status(&mut self, status: GoalStatus, clear: bool) {
+    /// Handle `/goal pause|resume|clear|complete|blocked` (and `/loop` start)
+    /// by writing the new status to `SharedGoalState` so the cross-turn
+    /// continuation loop respects it. This does NOT dispatch a model turn —
+    /// it's a control-plane update. When `loop_config` is `Some`, the `/loop`-
+    /// specific fields are applied (or staged if the objective does not exist
+    /// yet and will be created by `create_goal` on the first turn).
+    pub(crate) async fn handle_set_goal_status(
+        &mut self,
+        status: GoalStatus,
+        clear: bool,
+        loop_config: Option<crate::tools::goal::LoopConfig>,
+    ) {
         match self.config.goal_state.lock() {
             Ok(mut state) => {
                 if clear {
@@ -311,6 +323,19 @@ impl Engine {
                     let objective = state.objective().map(str::to_string);
                     let budget = state.token_budget();
                     state.sync_from_host_status(objective.as_deref(), budget, status);
+                }
+                // `/loop` config: apply now if the objective exists, otherwise
+                // stage it so `create_goal` applies it once the objective is made.
+                if let Some(cfg) = loop_config {
+                    if state.objective().is_some() {
+                        state.configure_loop(
+                            cfg.stop_condition,
+                            cfg.max_rounds,
+                            cfg.checkpoint_each_round,
+                        );
+                    } else {
+                        state.pending_loop_config = Some(cfg);
+                    }
                 }
             }
             Err(err) => {
