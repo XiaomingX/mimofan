@@ -371,6 +371,11 @@ impl ThreadManager {
         thread: &Thread,
         rollout_path: Option<PathBuf>,
     ) -> Result<()> {
+        // Default the transcript path (a structured JSONL copy of the
+        // conversation) next to the state DB when none is supplied, so every
+        // persisted thread gets one without callers opting in.
+        let rollout_path = rollout_path
+            .or_else(|| self.store.default_rollout_path(&thread.id));
         self.store.upsert_thread(&ThreadMetadata {
             id: thread.id.clone(),
             rollout_path,

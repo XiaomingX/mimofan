@@ -586,6 +586,14 @@ impl StateStore {
     /// or [`set_current_leaf_id`](Self::set_current_leaf_id) for that.
     pub fn upsert_thread(&self, thread: &ThreadMetadata) -> Result<()> {
         let conn = self.conn()?;
+        // Auto-assign a default JSONL transcript path when the caller didn't
+        // supply one, so every persisted thread gets a structured copy. This
+        // is additive: existing threads already stored with `None` keep their
+        // behavior (their `append_message` simply skips mirroring).
+        let effective_rollout_path = thread
+            .rollout_path
+            .clone()
+            .or_else(|| self.default_rollout_path(&thread.id));
         conn.execute(
             r#"
             INSERT INTO threads (
@@ -621,7 +629,7 @@ impl StateStore {
             "#,
             params![
                 thread.id,
-                path_to_opt_string(thread.rollout_path.as_deref()),
+                path_to_opt_string(effective_rollout_path.as_deref()),
                 thread.preview,
                 bool_to_i64(thread.ephemeral),
                 thread.model_provider,
@@ -649,7 +657,7 @@ impl StateStore {
             &thread.id,
             thread.name.clone(),
             thread.updated_at,
-            thread.rollout_path.clone(),
+            effective_rollout_path.clone(),
         )?;
         Ok(())
     }
@@ -1086,7 +1094,83 @@ impl StateStore {
         tx.commit()
             .context("failed to commit append message transaction")?;
 
+        // Mirror the message into the thread's JSONL transcript (a structured
+        // file copy of the conversation, independent of the SQLite row model).
+        // Pure additive: the SQLite `messages` table remains the source of
+        // truth for in-app loading, so this never affects replay/read paths.
+        self.persist_transcript_line(thread_id, role, content, item_json.as_deref(), created_at)
+            .ok(); // best-effort: a transcript write failure must not fail the turn
+
         Ok(next_leaf_id)
+    }
+
+    /// Append one message as a single JSON line to the thread's rollout
+    /// (JSONL transcript) file, if the thread has a `rollout_path` set.
+    ///
+    /// This is additive and best-effort: transcript I/O errors are swallowed
+    /// by the caller (`persist_transcript_line(...).ok()`) so a disk/permission
+    /// issue can never abort a model turn. The `item` payload (when present)
+    /// carries the full structured content (tool calls, content blocks), while
+    /// `content` is the flat human-readable fallback.
+    fn persist_transcript_line(
+        &self,
+        thread_id: &str,
+        role: &str,
+        content: &str,
+        item_json: Option<&str>,
+        created_at: i64,
+    ) -> Result<()> {
+        let rollout_path = match self.find_rollout_path_by_id(thread_id)? {
+            Some(path) => path,
+            None => return Ok(()), // no transcript configured for this thread
+        };
+        if let Some(parent) = rollout_path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create rollout dir {}", parent.display()))?;
+        }
+        let line = serde_json::json!({
+            "ts": created_at,
+            "thread_id": thread_id,
+            "role": role,
+            "content": content,
+            "item": item_json.and_then(|s| serde_json::from_str::<Value>(s).ok()),
+        });
+        let encoded = serde_json::to_string(&line).context("failed to serialize transcript line")?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&rollout_path)
+            .with_context(|| format!("failed to open rollout {}", rollout_path.display()))?;
+        writeln!(file, "{encoded}").context("failed to append transcript line")?;
+        Ok(())
+    }
+
+    /// Read a thread's JSONL transcript back into structured records.
+    ///
+    /// Returns `None` when the thread has no `rollout_path` (e.g. threads
+    /// created before transcript mirroring existed). Each line is parsed as a
+    /// JSON object; malformed lines are skipped so a single corrupt row can't
+    /// sink the whole replay. This is an additive read path alongside the
+    /// SQLite `list_messages` source of truth.
+    pub fn read_transcript(&self, thread_id: &str) -> Result<Option<Vec<Value>>> {
+        let Some(path) = self.find_rollout_path_by_id(thread_id)? else {
+            return Ok(None);
+        };
+        if !path.exists() {
+            return Ok(None);
+        }
+        let content = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read rollout {}", path.display()))?;
+        let mut lines = Vec::new();
+        for line in content.lines().filter(|l| !l.trim().is_empty()) {
+            match serde_json::from_str::<Value>(line) {
+                Ok(value) => lines.push(value),
+                Err(err) => {
+                    tracing::warn!(?err, "skipping malformed transcript line in {}", path.display());
+                }
+            }
+        }
+        Ok(Some(lines))
     }
 
     /// List messages in the current conversation branch, walking backwards from
@@ -1475,6 +1559,16 @@ impl StateStore {
         .map(|opt| opt.flatten().map(PathBuf::from))
     }
 
+    /// Default on-disk location for a thread's JSONL transcript, derived from
+    /// the state DB location: `<state_dir>/rollouts/<thread_id>.jsonl`.
+    ///
+    /// Used when a thread is created without an explicit `rollout_path`, so
+    /// every persisted thread gets a structured transcript copy.
+    pub fn default_rollout_path(&self, thread_id: &str) -> Option<PathBuf> {
+        let dir = self.db_path.parent()?;
+        Some(dir.join("rollouts").join(format!("{thread_id}.jsonl")))
+    }
+
     /// Append an entry to the JSONL session index file.
     ///
     /// The session index is an append-only log that maps thread IDs to their names,
@@ -1744,4 +1838,108 @@ fn row_to_thread_goal(row: &rusqlite::Row<'_>) -> rusqlite::Result<ThreadGoalRec
         created_at: row.get(8)?,
         updated_at: row.get(9)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tmp_db_path() -> PathBuf {
+        // Unique per-call name without pulling in a uuid dependency.
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!(
+            "mimofan_state_test_{}_{}_{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
+            n
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.join("state.db")
+    }
+
+    fn sample_thread(id: &str) -> ThreadMetadata {
+        let now = chrono::Utc::now().timestamp();
+        ThreadMetadata {
+            id: id.to_string(),
+            rollout_path: None, // let the store assign the default
+            preview: "test".to_string(),
+            ephemeral: false,
+            model_provider: "openai".to_string(),
+            created_at: now,
+            updated_at: now,
+            status: ThreadStatus::Running,
+            path: None,
+            cwd: PathBuf::from("."),
+            cli_version: "test".to_string(),
+            source: SessionSource::Interactive,
+            name: None,
+            sandbox_policy: None,
+            approval_mode: None,
+            archived: false,
+            archived_at: None,
+            git_sha: None,
+            git_branch: None,
+            git_origin_url: None,
+            memory_mode: None,
+            current_leaf_id: None,
+        }
+    }
+
+    #[test]
+    fn new_thread_gets_default_rollout_path() {
+        let db = tmp_db_path();
+        let store = StateStore::open(Some(db.clone())).unwrap();
+        store.upsert_thread(&sample_thread("thread-abc")).unwrap();
+        let path = store.find_rollout_path_by_id("thread-abc").unwrap();
+        assert!(path.is_some(), "rollout_path should be auto-assigned");
+        let p = path.unwrap();
+        assert!(p.to_string_lossy().ends_with("thread-abc.jsonl"));
+        let _ = std::fs::remove_dir_all(db.parent().unwrap());
+    }
+
+    #[test]
+    fn append_message_writes_jsonl_transcript() {
+        let db = tmp_db_path();
+        let store = StateStore::open(Some(db.clone())).unwrap();
+        store.upsert_thread(&sample_thread("thread-xyz")).unwrap();
+
+        store
+            .append_message("thread-xyz", "user", "hello", None)
+            .unwrap();
+        store
+            .append_message(
+                "thread-xyz",
+                "assistant",
+                "hi there",
+                Some(serde_json::json!({"kind": "text"})),
+            )
+            .unwrap();
+
+        // read_transcript should return both lines as valid JSON.
+        let transcript = store.read_transcript("thread-xyz").unwrap();
+        let lines = transcript.expect("transcript should exist");
+        assert_eq!(lines.len(), 2, "two messages -> two transcript lines");
+        assert_eq!(lines[0]["role"], "user");
+        assert_eq!(lines[0]["content"], "hello");
+        assert_eq!(lines[1]["role"], "assistant");
+        assert_eq!(lines[1]["item"]["kind"], "text");
+
+        // The raw file must be valid newline-delimited JSON.
+        let path = store.find_rollout_path_by_id("thread-xyz").unwrap().unwrap();
+        let raw = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(raw.lines().count(), 2);
+        for line in raw.lines() {
+            serde_json::from_str::<serde_json::Value>(line).unwrap();
+        }
+        let _ = std::fs::remove_dir_all(db.parent().unwrap());
+    }
+
+    #[test]
+    fn read_transcript_returns_none_for_unknown_thread() {
+        let db = tmp_db_path();
+        let store = StateStore::open(Some(db.clone())).unwrap();
+        assert!(store.read_transcript("nope").unwrap().is_none());
+        let _ = std::fs::remove_dir_all(db.parent().unwrap());
+    }
 }
