@@ -145,27 +145,14 @@ pub(crate) fn normalize_subagent_provider_key(value: &str) -> String {
 }
 
 pub(crate) fn subagent_provider_key_matches(key: &str, provider: ApiProvider) -> bool {
+    // 仅认规范 kebab-case 名（如 openai-compatible / anthropic-compatible /
+    // gemini-compatible）。历史产品别名（openai/custom/mimo/anthropic/gemini/
+    // google 等）已移除，符合 MECE：模式只有三种，名称唯一。
     if ApiProvider::parse(key).is_some_and(|candidate| candidate == provider) {
         return true;
     }
 
-    let normalized = normalize_subagent_provider_key(key);
-    if normalized == normalize_subagent_provider_key(provider.as_str()) {
-        return true;
-    }
-
-    match provider {
-        ApiProvider::OpenAiCompatible => matches!(
-            normalized.as_str(),
-            "openai" | "openai_compatible" | "openai-compatible" | "custom"
-        ),
-        ApiProvider::AnthropicCompatible => {
-            matches!(normalized.as_str(), "anthropic" | "anthropic_compatible" | "anthropic-compatible")
-        }
-        ApiProvider::GeminiCompatible => {
-            matches!(normalized.as_str(), "gemini" | "gemini_compatible" | "gemini-compatible" | "google")
-        }
-    }
+    normalize_subagent_provider_key(key) == normalize_subagent_provider_key(provider.as_str())
 }
 
 // ============================================================================

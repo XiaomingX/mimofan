@@ -146,13 +146,15 @@ mimofan doctor
 
 ### 多模型支持
 
-| 服务商 | 模型示例 | 配置 |
+| 服务商 | 模型示例 | 配置（`provider` 字段） |
 |--------|----------|------|
-| 小米 MiMo | mimo-v2.5-pro | 默认 |
-| Anthropic (Messages API) | mimo-v2.5 | `provider = "custom"` + `/anthropic` base_url |
-| DeepSeek | deepseek-chat | `provider = "custom"` |
-| 通义千问 | qwen-max | `provider = "custom"` |
-| OpenAI | gpt-4 | `provider = "custom"` |
+| 小米 MiMo | mimo-v2.5-pro | 默认（`openai-compatible`） |
+| Anthropic (Messages API) | claude 系列 | `provider = "anthropic-compatible"` + `/anthropic` 结尾的 base_url |
+| DeepSeek | deepseek-v4-pro / deepseek-v4-flash | `provider = "openai-compatible"` |
+| 通义千问 | qwen-max | `provider = "openai-compatible"` + dashscope base_url |
+| OpenAI | gpt-4 系列 | `provider = "openai-compatible"` |
+
+> 模式只有三种：`openai-compatible` / `anthropic-compatible` / `gemini-compatible`（kebab-case 规范名，无历史别名）。
 
 ### 操作模式
 
@@ -281,7 +283,7 @@ AI 执行命令时会弹出授权窗口：
 使用 Anthropic 原生 Messages API 协议，需要将 base_url 设置为以 `/anthropic` 结尾：
 
 ```toml
-provider = "custom"
+provider = "anthropic-compatible"
 api_key = "你的_ANTHROPIC_API_KEY"
 base_url = "https://api.xiaomimimo.com/anthropic"
 default_text_model = "mimo-v2.5"
@@ -295,7 +297,7 @@ default_text_model = "mimo-v2.5"
 MiMo 模型兼容 OpenAI Chat Completions 接口：
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 api_key = "你的_XIAOMI_MIMO_API_KEY"
 base_url = "https://api.xiaomimimo.com/v1"
 default_text_model = "mimo-v2.5"
@@ -304,7 +306,7 @@ default_text_model = "mimo-v2.5"
 ### DeepSeek
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 api_key = "你的_DEEPSEEK_API_KEY"
 base_url = "https://api.deepseek.com/v1"
 default_text_model = "deepseek-chat"
@@ -313,7 +315,7 @@ default_text_model = "deepseek-chat"
 ### 通义千问
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 api_key = "你的_DASHSCOPE_API_KEY"
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 default_text_model = "qwen-max"

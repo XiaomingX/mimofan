@@ -97,7 +97,7 @@ mimofan doctor    # 自动诊断配置和环境问题
 只需要填 API Key 就能用：
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 api_key = "你的_API_KEY"
 base_url = "https://api.deepseek.com/beta"
 default_text_model = "deepseek-v4-pro"
@@ -120,27 +120,27 @@ mimofan
 配置示例（`~/.mimofan/config.toml`）：
 
 ```toml
-# 默认用 MiMo
-provider = "xiaomi-mimo"
+# 默认用 MiMo（OpenAI 兼容协议）
+provider = "openai-compatible"
 api_key = "YOUR_KEY"
 default_text_model = "mimo-v2.5-pro"
 
 # DeepSeek profile
 [profiles.deepseek]
-provider = "custom"
+provider = "openai-compatible"
 api_key = "YOUR_DEEPSEEK_KEY"
 default_text_model = "deepseek-v4-pro"
 
 # 通义千问 profile
 [profiles.qwen]
-provider = "custom"
+provider = "openai-compatible"
 api_key = "YOUR_DASHSCOPE_KEY"
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 default_text_model = "qwen-max"
 
 # Anthropic Messages API
 [profiles.anthropic]
-provider = "custom"
+provider = "anthropic-compatible"
 api_key = "YOUR_ANTHROPIC_KEY"
 base_url = "https://api.xiaomimimo.com/anthropic"  # 必须以 /anthropic 结尾
 default_text_model = "mimo-v2.5"
@@ -324,13 +324,20 @@ approval_policy = "never"
 
 **Q: 支持哪些大模型？**
 
-| 服务商 | 模型示例 | 配置方式 |
+> 项目不绑定具体产品，只要对方说 OpenAI / Anthropic / Gemini 三种兼容线协议之一即可接入。内置了大量模型别名，下面只列常用的。
+
+| 服务商 | 模型示例 | 配置方式（`provider` 字段） |
 |--------|----------|---------|
-| 小米 MiMo | mimo-v2.5-pro | 默认 |
-| DeepSeek | deepseek-chat / deepseek-v4-pro | `provider = "custom"` |
-| 通义千问 | qwen-max | `provider = "custom"` + dashscope base_url |
-| OpenAI | gpt-4 | `provider = "custom"` |
-| Anthropic | claude-3.5-sonnet | `provider = "custom"` + `/anthropic` base_url |
+| 小米 MiMo | mimo-v2.5-pro（模型别名 `mimo`/`pro`）、mimo-v2.5（别名 `omni`） | 默认 `openai-compatible` |
+| DeepSeek | deepseek-v4-pro / deepseek-v4-flash | `openai-compatible` |
+| 通义千问 | qwen-max | `openai-compatible` + dashscope base_url |
+| OpenAI | gpt-4 系列 | `openai-compatible` |
+| Anthropic | claude-opus-4 / claude-sonnet-4 系列 | `anthropic-compatible` + 以 `/anthropic` 结尾的 base_url |
+| Kimi / GLM / MiniMax / 腾讯混元 等 | 各厂商模型 | `openai-compatible` + 对应 base_url |
+
+> 模式规范名只有三种：`openai-compatible` / `anthropic-compatible` / `gemini-compatible`（kebab-case，无历史别名）。模型名里的 `mimo`/`deepseek` 等是模型标识，不是模式。
+
+> 想看完整模型清单，搜 `crates/agent/src/lib.rs` 里的 `ModelRegistry`。
 
 **Q: 编译报错 "package requires rustc 1.88+"？**
 
@@ -361,8 +368,9 @@ cost_currency = "usd"   # 显示美元
 
 | 文档 | 内容 |
 |------|------|
-| [ARCHITECTURE_CN.md](ARCHITECTURE_CN.md) | 中文架构说明 |
-| [ARCHITECTURE_IMPROVEMENT_PLAN.md](ARCHITECTURE_IMPROVEMENT_PLAN.md) | 系统架构设计与 DDD 改进计划 |
+| [ARCHITECTURE_CN.md](ARCHITECTURE_CN.md) | 中文架构说明（分层图/依赖/提示词/入口/用例） |
+| [ARCHITECTURE_IMPROVEMENT_PLAN.md](ARCHITECTURE_IMPROVEMENT_PLAN.md) | 系统架构设计与 DDD 改进计划（含待办清单 [ ]/[x]） |
+| [ARCHITECTURE_STABILITY.md](ARCHITECTURE_STABILITY.md) | 稳定性/性能/可扩展性专项报告（内存/死锁/并发风险） |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | 配置详解 |
 | [docs/MCP.md](docs/MCP.md) | MCP 工具集成 |
 | [docs/SUBAGENTS.md](docs/SUBAGENTS.md) | 子智能体系统 |
@@ -372,4 +380,4 @@ cost_currency = "usd"   # 显示美元
 
 ---
 
-> 最后更新：2026-08-03
+> 最后更新：2026-08-07

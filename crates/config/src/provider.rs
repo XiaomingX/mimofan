@@ -126,7 +126,7 @@ provider!(
     ["OPENAI_API_KEY", "MIMOFAN_API_KEY"],
     "openai_compatible",
     WireFormat::OpenAiCompatible,
-    aliases: ["openai", "openai-compatible", "custom", "xiaomi-mimo", "mimo"]
+    aliases: []
 );
 
 // Anthropic Messages API compatible endpoint (`/v1/messages`).
@@ -140,7 +140,7 @@ provider!(
     ["ANTHROPIC_API_KEY", "MIMOFAN_API_KEY"],
     "anthropic_compatible",
     WireFormat::AnthropicCompatible,
-    aliases: ["anthropic", "anthropic-compatible"]
+    aliases: []
 );
 
 // Google Gemini compatible endpoint (`generativelanguage` protocol).
@@ -154,7 +154,7 @@ provider!(
     ["GEMINI_API_KEY", "GOOGLE_API_KEY", "MIMOFAN_API_KEY"],
     "gemini_compatible",
     WireFormat::GeminiCompatible,
-    aliases: ["gemini", "gemini-compatible", "google"]
+    aliases: []
 );
 
 static OPENAI_PROVIDER: OpenAiCompatibleProvider = OpenAiCompatibleProvider;

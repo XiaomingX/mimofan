@@ -1,6 +1,8 @@
 # mimofan 架构说明
 
 > 面向中国开发者的架构文档。说人话，不堆术语。
+>
+> 配套文档：`ARCHITECTURE_IMPROVEMENT_PLAN.md`（DDD 分析与改进待办）、`ARCHITECTURE_STABILITY.md`（稳定性/性能/可扩展性）、`USER_GUIDE_CN.md`（使用说明）。
 
 ---
 
@@ -119,11 +121,17 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 | `mimofan-execpolicy` | 执行策略 | 安全沙箱，控制哪些命令能跑 |
 | `mimofan-secrets` | 密钥管理 | API Key 安全存储（keyring + 文件） |
 | `mimofan-state` | 状态持久化 | SQLite 存会话历史和检查点 |
-| `mimofan-memory` | 记忆系统 | 向量记忆（暂未集成到主流程） |
+| `mimofan-memory` | 记忆系统 | 向量记忆（已默认编译，经 `vector_memory` 接入主流程作语义召回互补层；运行时按 `MIMOFAN_MEMORY_API_KEY` 优雅降级，仍 experimental） |
 | `mimofan-release` | 发布工具 | 版本管理和发布 |
 | `mimofan-localization` | 国际化文本层 | 100+ UI 调用点的 `tr(MessageId)`，当前仅内置简体中文 |
 
-**关于 `tui` crate 的现状（重要）：** 它是最大的一块，约 20 万行，占全仓 85%+。其中 5 个最大的单文件（subagent、ui、shell、engine、config）已在 2026-08-04～05 按内聚性拆成子模块并合并（PR #567 / issue #566），文件变小了、可读性好了，但**所有子域仍在一个 crate 里**。更大的"按领域拆成独立 crate"属于战略级重构，不在本次范围内（详见 `ARCHITECTURE_IMPROVEMENT_PLAN.md`）。
+**关于 `tui` crate 的现状（重要）：** 它是最大的一块，约 20 万行，占全仓 85%+。其中 5 个最大的单文件（subagent、ui、shell、engine、config）已在 2026-08-04～05 按内聚性拆成子模块并合并（PR #567 / issue #566），文件变小了、可读性好了，但**所有子域仍在一个 crate 里**。"按领域拆成独立 crate"属于战略级重构，不在本次范围内（详见 `ARCHITECTURE_IMPROVEMENT_PLAN.md` §4.8 的 DDD 重构总纲）。
+
+**一句话理解分层（说人话版）：**
+- **你摸得到的**：终端界面（TUI）、命令行（CLI）、HTTP 接口（给外部系统调）——这层是对外契约，用法恒定。
+- **大脑**：两套"应用核心"——`Engine`（管交互式对话循环）和 `Runtime`（管无界面 API 编排）。两者是 DDD 下两个正确的限界上下文，共享底层能力。
+- **手脚**：工具、模型网关、执行策略、记忆、持久化等子域，各管一摊。
+- **地基**：协议类型、SQLite、密钥、配置等基础设施。
 
 ---
 
@@ -330,4 +338,4 @@ reg.register(Box::new(MyTool));
 
 ---
 
-> 最后更新：2026-08-06
+> 最后更新：2026-08-07

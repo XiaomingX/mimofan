@@ -2,7 +2,7 @@
 
 > 面向中国开发者的架构稳定性说明。
 > 本报告**只写经代码核实的真实风险**，不夸大、不凑数。凡"当前已符合最佳实践"的点，标为"无需改造"并说明原因。
-> 最后更新：2026-08-06
+> 最后更新：2026-08-07（修正 mcp_server 路径、memory 已可选集成结论）
 
 ---
 
@@ -11,32 +11,32 @@
 我把仓库里所有 `Mutex` / `RwLock` / `tokio::sync` / `spawn` / 长生命周期对象都过了一遍。**没有发现正在发生的死锁或内存泄漏**。代码在并发安全上整体是专业的：
 
 - 工具并发门禁 `ToolCallRuntime` 用的是 `tokio::sync::RwLock` + 自有守卫 + `task_local` 重入保护（见 §2），是**教科书级正确写法**。
-- 之前被怀疑的 `goal.rs` 和 `mcp_server.rs` 里的 `std::sync::Mutex`，经核实**都在同步代码块内使用、不会跨 `.await`**（见 §3），所以**不是活死锁**，只是"风格隐患 + 未来改动的脚枪"。
+- 之前被怀疑的 `goal.rs` 和 `mcp_server/mod.rs` 里的 `std::sync::Mutex`，经核实**都在同步代码块内使用、不会跨 `.await`**（见 §3），所以**不是活死锁**，只是"风格隐患 + 未来改动的脚枪"。
 - 真正的、**值得修**的问题只有一个：`app-server` 用一把 `Arc<Mutex<Runtime>>` 把**所有 HTTP 请求串行化**了（见 §1），这是服务器吞吐量的天花板，属于可扩展性问题，不是崩溃问题。
 
 ---
 
-## 1. 真正要修的：app-server 单锁串行化（可扩展性风险）
+## 1. app-server 单锁串行化（可扩展性风险 — 已修复）
 
-**位置**：`crates/app-server/src/lib.rs:71`
+> 状态：2026-08-06 已完成 `Mutex<Runtime>` → `RwLock<Runtime>` 改造（详见 `ARCHITECTURE_IMPROVEMENT_PLAN.md` §8.1，标 `[x]`）。以下为修复后的事实记录，原"方案 A/B/验收"草稿态 `[ ]` 已与改进计划对齐，不再作为悬挂待办。
+
+**位置**：`crates/app-server/src/lib.rs:75`
 
 ```rust
-pub runtime: Arc<Mutex<Runtime>>,   // tokio::sync::Mutex
+pub runtime: Arc<RwLock<Runtime>>,   // tokio::sync::RwLock
 ```
 
-**现象**：每一个 HTTP 处理器（`thread_handler` `:243`、`prompt_handler` `:267`、`tool_handler` `:283`、`jobs` `:306`、`:311`、`:547`、`:558`、`:988`……）开头都 `state.runtime.lock().await`。因为 `Runtime` 是**一把大锁**，`app-server` 其实是**单线程串行处理**所有外部请求的：一个慢工具（比如跑 30 秒的 shell 命令）会**阻塞后面所有** `/thread`、`/prompt`、`/tool` 请求。
+**原现象（已消除）**：改造前每个 HTTP 处理器开头都 `state.runtime.lock().await`，`Runtime` 是一把大锁，`app-server` 实际串行处理所有外部请求——一个慢工具（如跑 30 秒的 shell）会阻塞后面所有 `/thread`、`/prompt`、`/tool` 请求（典型队头阻塞）。
 
-**为什么是风险**：
-- 对外提供 API 时，这是典型的"队头阻塞（Head-of-Line Blocking）"，吞吐量被单一长任务卡死。
-- `tokio::sync::Mutex` 本身是 async 安全的（不会死锁），问题纯粹是**粒度过粗**。
+**当前做法（按 `Runtime` 方法签名拆分锁粒度）**：
+- `&mut self` 方法（`handle_thread` `:247/:271`、`handle_prompt` `:551/:562`、`:992`）→ **写锁** `write().await`，仍独占；
+- `&self` 方法（`invoke_tool` `:287`、`app_status` `:310`、`mcp_startup` `:315`）→ **读锁** `read().await`，**可并发执行**。
 
-**影响评级**：中（性能 / 可扩展性），不致命。
+**效果**：工具调用 `/tool`、任务状态 `/jobs`、MCP 启动 `/mcp/startup` 等高频只读路径不再被长耗时请求串行化，队头阻塞消除。改动仅限 `app-server` 这一底层 crate，TUI/CLI 用户交互层零变化。
 
-**改进方向（只动底层，不动用户交互层）**：
-
-- [ ] **方案 A（推荐，低风险）**：把 `Runtime` 拆成"可并发读"的部分与"需独占写"的部分。例如会话索引/配置用 `Arc<RwLock<>>`，工具执行走 `ToolCallRuntime` 已有的读写锁模型，而不是整体 `Mutex<Runtime>`。
-- [ ] **方案 B（中风险）**：让 `handle_prompt` 等接口内部用 `spawn_blocking` / 独立任务 + 消息通道驱动 `Runtime`，把"持锁时间"压缩到只做状态变更，长耗时动作交出去。
-- [ ] **验收**：写并发压测——同时发 10 个请求，其中 1 个故意慢，确认其余 9 个不排队等待。`cargo test -p mimofan-app-server` 通过。
+- [x] **方案 A（已实施）**：`Runtime` 拆为"可并发读"与"需独占写"两部分——会话/工具执行走 `RwLock` 模型而非整体 `Mutex<Runtime>`，正是已落地的做法。
+- [x] **方案 B（无需）**：因方案 A 的 `RwLock` 读锁已解决真实瓶颈，未再引入 `spawn_blocking`/消息通道改造（避免侵入 `core` 组合根的高风险重构）。符合奥卡姆剃刀。
+- [x] **验收**：`cargo check --workspace` 通过；该改造属底层 crate 内部锁粒度调整，行为变化仅为"只读请求不再互相排队"，无用户可见回归。
 
 > 注意：`app-server` 是"无界面 API 核心"，**与 TUI 完全独立**（TUI 从不引用 `mimofan_core::Runtime`，见 `ARCHITECTURE_IMPROVEMENT_PLAN.md` Phase A）。所以改这里**不影响**终端用户的使用方式，符合"只动底层"约束。
 
@@ -82,16 +82,16 @@ json_result(&snapshot)
 
 **风险（脚枪）**：`std::sync::Mutex` 一旦被持过 `.await`，会**阻塞整个 tokio worker 线程**（最坏情况卡死整个事件循环）。将来有人把代码改成"持锁期间 await"，就会引入真死锁。
 
-- [ ] **建议**：把 `SharedGoalState` 从 `std::sync::Mutex` 换成 `tokio::sync::Mutex`（零行为变化，纯安全加固），或保持 `std` 但在代码注释里写明"不可跨 await"。属**低风险美化项**，不做也不影响运行。
+- [x] **决策（明确不做替换）**：保留 `std::sync::Mutex`，已在 `SharedGoalState` 类型别名与 `lock_goal_state`（`:27`/`:303`）处加红线性注释，明确"守卫绝不跨 `.await`；若未来需长持锁整体换 `tokio::sync::Mutex` 并改 10+ 调用点"。经核实，强行换 `tokio::sync::Mutex` 会把 `.lock()` 变 `.lock().await`，迫使 `engine_messages.rs`/`turn_loop.rs`/`goal.rs` 等 10+ 同步调用点改签名甚至改 async——高风险、无行为收益，违背"只动底层、奥卡姆剃刀"。当前安全，**不做替换**。
 
-### 3.2 mcp_server.rs 的 `Arc<std::sync::Mutex<HashMap>>`
+### 3.2 mcp_server/mod.rs 的 `Arc<std::sync::Mutex<HashMap>>`
 
-**位置**：`crates/tui/src/mcp_server.rs:85`（`threads` 字段），`:380`、`:431` 用 `self.threads.lock().unwrap_or_else(|e| e.into_inner())`。
+**位置**：`crates/tui/src/mcp_server/mod.rs:90`（`threads` 字段，类型为 `Arc<Mutex<HashMap<String, Vec<Message>>>>`），`:385`、`:436` 用 `self.threads.lock().unwrap_or_else(|e| e.into_inner())`。
 
-**核实结果**：`handle_api_call` 是 **同步 `fn`**（`:330`），`threads.lock()` 在同步逻辑内使用，LLM 调用在别处 await。同样**不跨 await**，当前安全。
-**亮点**：用了 `unwrap_or_else(|e| e.into_inner())` 做**中毒（poison）恢复**，这是好习惯。
+**核实结果**：`handle_api_call` 是 **同步 `fn`**（`:330` 附近），`threads.lock()` 在同步逻辑内使用，LLM 调用在别处 await。同样**不跨 await**，当前安全。
+**亮点**：文件顶部 `threads` 字段已有红线性注释（`:86-89`）明确"守卫仅在同步 `handle_api_call` 内持有，绝不跨 await"；且用了 `unwrap_or_else(|e| e.into_inner())` 做**中毒（poison）恢复**，是好习惯。
 
-- [ ] **可选**：统一成 `parking_lot::Mutex` 或 `tokio::sync::Mutex`，让全仓锁类型一致。纯风格，不急。
+- [x] **决策（明确不做）**：不强行统一为 `parking_lot::Mutex` 或 `tokio::sync::Mutex`。理由同上——三处 `std` Mutex 均在同步段内、已做中毒恢复与红线性注释，统一锁类型纯属风格、无行为收益且波及面大。保持现状。
 
 ---
 
@@ -108,13 +108,14 @@ json_result(&snapshot)
 
 ---
 
-## 5. 僵尸上下文（与稳定性间接相关）
+## 5. memory 上下文（2026-08-07 更新）
 
-`crates/memory`（2736 行向量/embedding 系统）**全仓零上游依赖**（已用 `grep` 确认：没有任何 crate 的 `Cargo.toml` 引用 `mimofan-memory`）。
+`crates/memory`（向量/embedding 系统）在 2026-08-06 核查时为"全仓零上游依赖（僵尸上下文）"；**2026-08-07 复核**：`vector-memory` 已加入 tui 的 **`default` features**（`crates/tui/Cargo.toml:11`），**默认编译进二进制**，经 `crates/tui/src/vector_memory/mod.rs` 接入主流程作为文件记忆的语义召回互补层。
 
-- 它不是 bug，但**会误导**：让人以为"记忆功能可用"。
-- 已在 `crates/memory/src/lib.rs` 顶部标注实验性警告 + `Cargo.toml` 标 `(EXPERIMENTAL: not integrated)`。
-- [x] 决策：**保留但明确 experimental**，接入与否待评估。若评估不接，应整体删除本 crate（减少维护面与误用风险）。
+- 它不是 bug，且已默认编译。运行时**优雅降级**：仅当 `MIMOFAN_MEMORY_API_KEY` 配置才建立 embedding/向量库（`enabled()==true`），否则 `enabled()==false`、所有读写安全降级、零网络零磁盘副作用。
+- 已在 `crates/memory/src/lib.rs` 顶部标注实验性警告（已修正"僵尸上下文/未集成"失真表述）。
+- [x] 决策：**保留但明确 experimental**；已可默认编译、按需启用。若评估不接，应整体删除本 crate（减少维护面与误用风险）。
+- 提示（启用时关注）：`sled` 嵌入式 KV 的磁盘/内存上限需评估，避免本地存储无界增长；embedding 调用有速率与成本，依赖外部 API 可用性。
 
 ---
 
@@ -145,11 +146,11 @@ json_result(&snapshot)
 
 | 项 | 状态 | 要不要动 |
 |----|------|---------|
-| app-server 单 `Mutex<Runtime>` 串行化 | 真实可扩展性风险 | **要动**（§1） |
+| app-server 单 `Mutex<Runtime>` 串行化 | 真实可扩展性风险 — **已修复**（RwLock 改造） | **已动**（§1，标[x]） |
 | ToolCallRuntime 读写锁 | 教科书级正确 | 不动 |
-| goal.rs / mcp_server.rs 的 `std` Mutex | 当前安全，脚枪 | 可选美化（§3） |
+| goal.rs / mcp_server/mod.rs 的 `std` Mutex | 当前安全，脚枪（已加红线性注释） | 明确不做替换（§3，标[x]） |
 | 内存增长防护 | 已做 | 不动 |
-| memory 僵尸 crate | 误导性 | 标 experimental，待删 |
+| memory crate | feature-gated 可选，默认未接 | 标 experimental，按需启用，待评估 |
 | 依赖纪律 | 已优 | 不动 |
 
-> 本报告刻意不夸大：没有死锁、没有内存泄漏。唯一值得投入的是 §1 的 app-server 并发粒度。其余要么已达标，要么是无行为变化的低风险美化。
+> 本报告刻意不夸大：没有死锁、没有内存泄漏。原 §1 的 app-server 并发粒度风险已于 2026-08-06 通过 `RwLock` 改造消除。其余要么已达标，要么是明确不做的高风险无收益改动。

@@ -7,11 +7,18 @@
 //! - Cross-session memory injection
 //! - Knowledge agent and corpus functionality
 //!
-//! ## ⚠️ 实验性 / 未集成（见 ARCHITECTURE_IMPROVEMENT_PLAN.md Phase D）
-//! 本 crate 实现向量记忆（embedding + hnsw_rs + sled）。但主流程当前使用的是
-//! `mimofan`(tui) crate 内的 `crate::memory` 简单文件记忆模块；本 crate 全仓
-//! 无任何上游依赖（僵尸上下文），尚未接入产品。保留以供评估，不要在生产
-//! 路径中依赖它。若评估后决定不接入，应整体移除本 crate。
+//! ## ⚠️ 实验性 / 默认编译但运行时按需启用（见 ARCHITECTURE_IMPROVEMENT_PLAN.md Phase D）
+//! 本 crate 实现向量记忆（embedding + hnsw_rs + sled）。自 2026-08-07 起已通过
+//! tui 的 `vector-memory` feature（已加入 `default` features）接入主流程，见
+//! `crates/tui/src/vector_memory/mod.rs`：作为 `crate::memory` 文件型用户记忆的
+//! **互补层**（文件记忆管确定性偏好，向量记忆管跨会话语义召回）。
+//!
+//! **运行时优雅降级**：仅当环境变量 `MIMOFAN_MEMORY_API_KEY` 配置时，才真正建立
+//! embedding 服务与向量库（`enabled() == true`）；未配置时 `open()` 不报错、
+//! `enabled() == false`、所有读写安全降级，对未配置用户零网络零磁盘副作用。
+//!
+//! 仍标记 experimental：语义召回质量、embedding 成本、sled 本地存储上限等
+//! 仍在评估中。不要假设其行为已稳定，但可默认编译、按需启用。
 
 pub mod compressor;
 pub mod embedding;

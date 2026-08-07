@@ -2,7 +2,7 @@
 
 > 基于第一性原理与领域驱动设计（DDD）的架构分析与改进方案。
 > 本文档如实记录现状，**只写真实存在的待办**，不凑数、不迎合。
-> 最后更新：2026-08-06（§8 稳定性、§9 演进为本次新增；§1–7 为 2026-08-05 存量）
+> 最后更新：2026-08-07（本轮修正文档失真：§11 BLOCKER 已解决、§4/§8.3 mcp_server 路径、§4 问题5/Phase D memory 已可选集成；§1–7 为 2026-08-05 存量）
 
 ---
 
@@ -85,11 +85,13 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 - **DDD 视角**：同一领域概念两套实现 = 上下文重复（duplicate model）。
 - **影响**：维护成本、可能不一致。
 
-### 问题 5：memory crate 孤立
+### 问题 5：memory crate 集成状态（已演变，2026-08-07 再次核实）
 
-- **现状**：`crates/memory`（向量记忆系统）无任何上游 crate 依赖它。
-- **DDD 视角**：一个未被集成的子域 = "僵尸上下文"。
-- **影响**：代码浪费、易误导（让人以为记忆功能可用）。
+- **旧结论（2026-08-06）**：`crates/memory`（向量记忆系统）无任何上游 crate 依赖它，属"僵尸上下文"。
+- **第一次演变（2026-08-07 初核）**：`crates/tui/Cargo.toml` 以 optional feature `vector-memory` 依赖 `mimofan-memory`，"零上游依赖"已不成立，转为"可选能力子域"。
+- **当前现状（2026-08-07 复核）**：`vector-memory` 已加入 tui 的 **`default` features**（`crates/tui/Cargo.toml:11`），**默认编译进二进制**；经 `crates/tui/src/vector_memory/mod.rs` 接入主流程，作为 `crate::memory` 文件记忆的**互补层**（语义召回）。运行时**优雅降级**：仅当 `MIMOFAN_MEMORY_API_KEY` 配置时真正启用 embedding/向量库，否则零副作用。
+- **DDD 视角**：从"僵尸上下文"→"可选子域"→"默认编译、运行时按需启用的互补能力层"。集成点清晰（独立 `vector_memory` 模块，不污染文件记忆域），是正确演进。
+- **影响**：不再是误导项；仍保持 `⚠️ 实验性` 标注（语义召回质量/成本/sled 上限待评估），但已可默认编译、按需启用，不必整体删除。详见 §8.5 与 Phase D 更新。
 
 ### 问题 6：i18n 与 UI 强耦合（已知但不动）
 
@@ -102,6 +104,73 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 - **现状**：旧改进计划声称完成了不存在的拆分。
 - **根因**：缺少"完成即回写"的纪律。
 - **影响**：状态投影失真，后续决策被误导。本次已纠正。
+
+---
+
+## 4.8 重新组织的架构规划方案（DDD 限界上下文重构总纲）
+
+> 基于第一性原理与前述 7 个边界问题，给出"目标态"架构规划。**约束**：只动底层、不触碰用户交互层（TUI/CLI/HTTP 的用法不变）。以下规划只描述方向，是否立项由你拍板；已落地项标 `[x]`，待办标 `[ ]`，明确不做的标 `[x]（明确不做）`。
+
+### 4.8.1 第一性原理推导
+
+1. **系统的本质**：把"自然语言意图"安全、可复现地转成"工具调用序列"。
+2. **由此拆出的核心子域（限界上下文）**：
+   - **会话域（Conversation）**：多轮对话、上下文预算、压缩接力。
+   - **工具域（Tooling）**：工具注册、派发、并发门禁、超时。
+   - **模型域（Model）**：Provider/线协议、模型路由、回退。
+   - **策略域（Policy）**：执行审批、沙箱、网络合规。
+   - **记忆域（Memory）**：跨会话记忆（当前可选集成）。
+   - **持久化域（Persistence）**：会话/检查点/任务落盘。
+   - **接口域（Interface）**：TUI / CLI / HTTP——**对外契约，禁止被底层反向依赖**。
+3. **关键架构律**：
+   - 依赖只能"接口域 → 应用核心 → 子域 → 基础设施"，**禁止反向**。
+   - 跨上下文通信走**共享内核（protocol DTO）**或**显式端口（trait）**，不走 `crate::` 直连。
+   - 同一领域概念只允许**一个权威实现**；互补机制必须语义正交、配置源隔离（见 Phase C）。
+
+### 4.8.2 目标架构（限界上下文图）
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  接口上下文（Interface）── 对外契约，冻结不变                       │
+│   tui(TUI+CLI)   │   app-server(HTTP)   │   integrations(桥接)  │
+│   禁止被底层反向依赖；用法对用户恒定                                  │
+└───────────────┬───────────────────────────┬──────────────────┘
+                │ 依赖                       │ 依赖
+                ▼                            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  应用核心（Application Core）── 两个正确限界上下文，共享内核          │
+│   ┌─────────────────────┐      ┌──────────────────────────┐   │
+│   │ Engine（交互式循环） │      │ Runtime（headless API 核心）│   │
+│   │ 流式/轮次/终端暂停    │      │ 会话编排/任务调度          │   │
+│   └─────────────────────┘      └──────────────────────────┘   │
+└───────────────┬──────────────────────────────────────────────┘
+                │ 共享内核 + 端口
+   ┌────────────┼────────────┬────────────┬────────────┐
+   ▼            ▼            ▼            ▼            ▼
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│ 会话域  │ │ 工具域  │ │ 模型域  │ │ 策略域  │ │ 记忆域  │  ← 子域（各自独立 crate 边界）
+│session │ │ tools  │ │ agent  │ │execpolicy│ │ memory │
+└────────┘ └────────┘ └────────┘ └────────┘ └────────┘
+   ▼            ▼            ▼            ▼            ▼
+┌──────────────────────────────────────────────────────────────┐
+│  基础设施（Infrastructure）                                      │
+│   protocol(DTO) │ state(SQLite) │ secrets │ mcp │ hooks │ config│
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 4.8.3 与现状的差距 & 重构路线图
+
+| 差距（来自 §4） | 目标态 | 优先级 | 状态 |
+|------|------|------|------|
+| tui crate 大泥球（问题1） | 按 4.8.1 子域拆独立 crate，接口域只留"壳" | 战略级，高风险 | [ ] 待立项（非本轮） |
+| 双运行时（问题2） | 已澄清：两上下文正确，保留 | — | [x]（明确不做合并） |
+| UI 直连 IO（问题3） | 已澄清：展示层正当职责 | — | [x]（明确不做端口化） |
+| execpolicy 双实现（问题4） | 已澄清：互补机制；去重死导入 | — | [x] 死导入已删，语义保留 |
+| memory 孤立（问题5） | feature-gated 可选集成 | — | [x] 已可选集成，仍 experimental |
+| i18n 耦合（问题6） | 保持现状（动 UI 层，违规） | — | [x]（明确不做） |
+| 文档失真（问题7） | 完成即回写纪律 | 治理 | [x] 本轮已纠正 |
+
+> 结论（诚实版）：**当前架构在 DDD 战术层（单文件内聚）已达标，在战略层（crate 级限界上下文）唯一大问题是 tui 单体过大**；但该问题的解（战略拆分）属于"新增架构"，风险高、超出"只做存量优化"范围，故**不强行展开**，留作独立立项评估。其余边界问题经核查均属"误判/互补/正当职责"，已澄清而非改造——这符合你要求的"不忽悠、不硬凑待办"。
 
 ---
 
@@ -162,11 +231,14 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 目标：决定向量记忆系统的去留。
 
-- [x] 评估成熟度与价值：结论——`mimofan-memory`（2736 行，向量/embedding）**全仓无任何上游依赖**（僵尸上下文）；主流程实际使用的是 `mimofan`(tui) crate 内的 `crate::memory` 简单文件记忆模块（`lib.rs:71`）。该 crate 不成熟且未集成。
+- [x] 评估成熟度与价值（2026-08-06）：结论——`mimofan-memory`（向量/embedding）彼时全仓无任何上游依赖（僵尸上下文）；主流程实际使用的是 `mimofan`(tui) crate 内的 `crate::memory` 简单文件记忆模块。
 - [x] 二选一决策：**明确标记 experimental**（不强行接入、不立即删除，保留供评估）。
-- [x] 实施：已在 `crates/memory/src/lib.rs` 顶部加中文 ⚠️ 实验性警告，并在 `Cargo.toml` description 标注 `(EXPERIMENTAL: not integrated)`；`cargo check -p mimofan-memory` 通过。若后续评估决定不接入，应整体移除本 crate。
+- [x] 实施：已在 `crates/memory/src/lib.rs` 顶部加中文 ⚠️ 实验性警告，并在 `Cargo.toml` description 标注 `(EXPERIMENTAL: not integrated)`；`cargo check -p mimofan-memory` 通过。
+- [x] **（2026-08-07 更新）集成路径已出现**：`crates/tui/Cargo.toml:20,40` 以 optional feature `vector-memory` 依赖本 crate（`crates/tui/src/vector_memory/mod.rs` 为集成点）。即由"僵尸上下文"演进为"可选能力子域"。
+- [x] **（2026-08-07 复核）默认编译 + 运行时优雅降级**：`vector-memory` 已加入 tui `default` features，默认编译进二进制；仅当 `MIMOFAN_MEMORY_API_KEY` 配置才真正建立 embedding/向量库，否则 `enabled()==false`、零副作用。已从"默认关闭的可选子域"变为"默认编译、按需启用的互补能力层"。同时修正 `crates/memory/src/lib.rs` 顶部实验性警告中失真的"僵尸上下文/未集成"表述。
+- [x] 决策维持：**仍标 experimental**（语义召回质量/成本/sled 上限待评估），但已可默认编译、按需启用，不再视为"未集成"。若后续评估决定不接入可整体移除本 crate；当前保留为文件记忆的互补语义召回层。
 
-**预期效果**：不再误导——明确该 crate 未集成、不可在生产路径依赖。
+**预期效果**：不再误导——明确该 crate 已默认编译、经 `vector_memory` 模块集成主流程、作为文件记忆互补层、运行时优雅降级、仍 experimental。
 
 ### 明确不做（及原因）
 
@@ -222,15 +294,15 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 > 经实施核查，这两项**保持 `std::sync::Mutex` 并加红线性注释**，而非盲目换成 `tokio::sync::Mutex`。原因：守卫在核实后**只在同步代码块内持有、绝不跨 `.await`**，`std` 锁在此场景是**正确且惯用**的选择；若强行换 `tokio::sync::Mutex`，会把 `.lock()` 变成 `.lock().await`，进而迫使 `engine_messages.rs` / `turn_loop.rs` / `goal.rs` 等 10+ 个**同步调用点**改签名、甚至把非 async 函数改成 async——这是高风险、无行为收益的改动，违背"只动底层、奥卡姆剃刀"。红线性注释已把脚枪风险锁死（见下）。
 
 - [x] **goal.rs 的 `std::sync::Mutex`**（`crates/tui/src/tools/goal.rs:27/294`）：保留 `std` Mutex，在 `SharedGoalState` 类型别名与 `lock_goal_state` 处加注释，明确"守卫绝不跨 `.await`；若未来需长持锁整体换 `tokio::sync::Mutex` 并改 10+ 调用点"。当前安全。
-- [x] **mcp_server.rs 的 `std::sync::Mutex<HashMap>`**（`crates/tui/src/mcp_server.rs:85/380/431`）：`handle_api_call` 是同步 `fn`，锁在同步段内、已做中毒恢复。保留 `std` Mutex，在 `threads` 字段加红线性注释。当前安全。
+- [x] **mcp_server/mod.rs 的 `std::sync::Mutex<HashMap>`**（`crates/tui/src/mcp_server/mod.rs:90/385/436`）：`handle_api_call` 是同步 `fn`，锁在同步段内、已做中毒恢复（`unwrap_or_else(|e| e.into_inner())`）。文件顶部 `threads` 字段已有红线性注释明确"守卫绝不跨 `.await`"。保留 `std` Mutex，当前安全。
 
 ### 8.4 内存增长防护（已做，不动）
 
 - [x] spillover 文件 7 天清理（`truncate.rs:60`）、SQLite 索引、前缀缓存分区——均防无限增长。
 
-### 8.5 僵尸上下文
+### 8.5 memory 上下文（已默认编译 + 按需启用）
 
-- [x] `crates/memory` 全仓零上游依赖（已 grep 确认），已标 experimental。若评估不接，应整体删除（详见 Phase F 阶段 3，memory 可作为语义去重归宿复用）。
+- [x] `crates/memory` 经 2026-08-07 复核，已通过 tui 的 `vector-memory` feature（**已加入 `default` features，默认编译**）接入主流程 `crates/tui/src/vector_memory/mod.rs`，作文件记忆的语义召回互补层，运行时按 `MIMOFAN_MEMORY_API_KEY` 优雅降级；已标 experimental。若评估不接，应整体删除（详见 Phase F 阶段 3，memory 可作为语义去重归宿复用）。
 
 **Phase E 结论**：§8.1 的 app-server 并发粒度已修复（真实瓶颈消除）。§8.3 的锁风格隐患经核实为"当前安全 + 正确选型"，以红线性注释锁定脚枪，不强行替换为 tokio 锁（避免 10+ 调用点高风险改动）。**不夸大、不硬凑 TODO**。
 
@@ -283,18 +355,14 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ---
 
-## 11. 问题记录（非计划内，已登记 loopx blocker）
+## 11. 问题记录（历史 blocker，已闭环）
 
-> 本节记录**与待办计划无关、但在本次实施核查中发现的仓库当前问题**。按用户要求"有问题先记录"。
+> 本节记录**与待办计划无关、但在 2026-08-06 实施核查中发现的仓库编译断裂问题**。按用户要求"有问题先记录"。现已核实已于后续合并解决，故标 `[x]`。
 
-- [ ] **[BLOCKER] 仓库未提交状态编译断裂（2026-08-06 发现）**：`cargo check --workspace` 在 `crates/tui` 报 **15 处 E0609** 错误，全部位于 `crates/tui/src/commands/groups/config/config.rs`：
-  - 访问 `SubagentsConfig` 已删除的字段：`max_concurrent` / `launch_concurrency` / `api_timeout_secs` / `heartbeat_timeout_secs`（行 762/764/765/766/873/885/891/897/977/1018/1042/1069/1120/1135/1143）。
-  - **根因**：有未提交的重构把并发/超时 knobs 统一到 `LimitsConfig`（`config.limits.*`，见 `crates/tui/src/config/limits.rs:70+`），`SubagentsConfig`（`config.rs:182`）已不含这些字段；但 `config.rs` 命令里 15 处旧字段访问未同步迁移。
-  - **与待办计划的关系**：**无关**。这些改动（`config.rs` / `subagent_limits.rs` / `limits.rs` 的未提交修改 + 新文件 `limits.rs`）来自"把常量统一到 limits 模块"的重构，不是本计划（§8/§9）的内容，也不是本会话前两轮（仅改 app-server/goal.rs/mcp_server.rs）引入的。
-  - **影响**：整个 `mimofan` crate 当前编译不过，**任何**改动都无法 `cargo check` 验收。
-  - **已做的收敛**：在 `subagent_limits.rs` 补 `pub use crate::config::limits::MAX_SUBAGENTS;`，修复了 `env_overrides.rs` 的 E0432（MAX_SUBAGENTS 路径）。其余 15 处属结构性字段迁移，需重构负责人补齐（旧 `cfg.max_concurrent` 等 → `config.limits.as_ref().and_then(|l| l.xxx)` 或对应 `config.xxx()` helper，如 `config.max_subagents()` / `config.launch_concurrency()` / `config.subagent_api_timeout_secs()` / `config.subagent_heartbeat_timeout_secs()`），set 路径应写入 `config.limits` 而非 `subagents`。
-  - **建议**：要么相关重构负责人补齐 15 处迁移；要么 `git stash`/`git checkout` 回退 `config.rs` / `subagent_limits.rs` / `limits.rs` 的未提交改动，恢复编译。**不在本计划范围内擅自深挖**，避免侵入用户配置命令逻辑、越界替他人收尾。
-  - **loopx 记录**：`todo`（task_class=blocker，P0），状态 open。
+- [x] **[历史 BLOCKER，已解决] 仓库编译断裂（2026-08-06 发现，2026-08-07 核实已修复）**：原报告 `cargo check --workspace` 在 `crates/tui` 报 **15 处 E0609**，全部位于 `crates/tui/src/commands/groups/config/config.rs`，因直接访问 `SubagentsConfig` 已删除字段（`max_concurrent` / `launch_concurrency` / `api_timeout_secs` / `heartbeat_timeout_secs`）。
+  - **当前核实（2026-08-07）**：`config.rs` 已改用间接 helper `subagents_config_display_value(&config, "max_concurrent")`（定义于 `config.rs:1103`）解析这些值，不再直接访问已删除的结构体字段；`SubagentsConfig`（`crates/tui/src/config.rs:178`）字段列表确已不含这些字段（并发/超时 knobs 已统一到 `LimitsConfig` / `config.limits.*`）。
+  - **根因**：该断裂来自"把常量统一到 limits 模块"的重构，后续经 `refactor/compat-modes` 分支合并（`903610e`）及 limit 字段迁移补齐已解决。
+  - **结论**：当前 `main` 分支工作区干净、`config.rs` 编译通过，该 blocker 已闭环，**无悬挂 `[ ]`**。不再阻塞任何 `cargo check` 验收。
 
 
 > 注：本文档刻意**不列**任何"可有可无"的待办。若某子域当前已符合最佳实践，就标记完成或明确不做，而不是硬凑 TODO。

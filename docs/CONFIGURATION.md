@@ -43,7 +43,7 @@ api_key = "WORK_KEY"
 base_url = "https://api.deepseek.com/beta"
 
 [profiles.xiaomi]
-provider = "xiaomi-mimo"
+provider = "openai-compatible"
 api_key = "YOUR_KEY"
 ```
 
@@ -53,7 +53,7 @@ api_key = "YOUR_KEY"
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `provider` | string | 服务商 ID（`xiaomi-mimo`, `custom` 等） |
+| `provider` | string | 线协议模式，仅 `openai-compatible` / `anthropic-compatible` / `gemini-compatible` 三种 |
 | `api_key` | string | API 密钥 |
 | `base_url` | string | API 地址 |
 | `default_text_model` | string | 默认模型 |
@@ -96,7 +96,7 @@ api_key = "YOUR_KEY"
 
 | 变量 | 说明 |
 |------|------|
-| `MIMOFAN_PROVIDER` | 服务商 ID |
+| `MIMOFAN_PROVIDER` | 线协议模式，仅 `openai-compatible` / `anthropic-compatible` / `gemini-compatible` |
 | `MIMOFAN_MODEL` | 默认模型 |
 | `MIMOFAN_BASE_URL` | API 地址 |
 | `DEEPSEEK_API_KEY` | API 密钥 |
@@ -126,7 +126,7 @@ api_key = "YOUR_KEY"
 ## 自定义 OpenAI 兼容网关
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 default_text_model = "your-model-id"
 
 [providers.openai]
@@ -137,7 +137,7 @@ base_url = "https://your-gateway.example/v1"
 阿里云百炼 / DashScope：
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 [providers.openai]
 api_key = "YOUR_DASHSCOPE_API_KEY"
 base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"

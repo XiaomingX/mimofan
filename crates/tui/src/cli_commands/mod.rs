@@ -25,13 +25,10 @@ use mimofan_state::{StateStore, ThreadListFilters};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub(crate) enum ProviderArg {
     /// OpenAI-compatible `/v1/chat/completions` endpoint.
-    #[value(alias = "openai", alias = "openai-compatible", alias = "custom")]
     OpenAiCompatible,
     /// Anthropic Messages API compatible endpoint.
-    #[value(alias = "anthropic", alias = "anthropic-compatible")]
     AnthropicCompatible,
     /// Google Gemini compatible endpoint.
-    #[value(alias = "gemini", alias = "gemini-compatible", alias = "google")]
     GeminiCompatible,
 }
 

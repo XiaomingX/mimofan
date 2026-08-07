@@ -19,17 +19,13 @@ use crate::provider;
 pub enum ProviderKind {
     /// OpenAI-compatible `/v1/chat/completions` endpoint.
     ///
-    /// 涵盖所有兼容 OpenAI Chat Completions 协议的自建/第三方网关
-    ///（原 Xiaomi MiMo、原 Custom 等均归于此，统一为一种模式）。
+    /// 涵盖所有兼容 OpenAI Chat Completions 协议的自建/第三方网关。
     #[default]
-    #[serde(alias = "openai", alias = "openai-compatible", alias = "custom", alias = "xiaomi-mimo", alias = "mimo")]
     OpenAiCompatible,
     /// Anthropic Messages API compatible endpoint (`/v1/messages`).
-    #[serde(alias = "anthropic", alias = "anthropic-compatible")]
     AnthropicCompatible,
     /// Google Gemini compatible endpoint
     /// (`generativelanguage.googleapis.com/v1beta/models/...:generateContent`).
-    #[serde(alias = "gemini", alias = "gemini-compatible", alias = "google")]
     GeminiCompatible,
 }
 

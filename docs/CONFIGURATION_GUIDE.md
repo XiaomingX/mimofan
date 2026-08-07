@@ -50,7 +50,7 @@ cp config/config.example.toml ~/.mimofan/config.toml
 最简配置（使用 DeepSeek）：
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 api_key = "YOUR_DEEPSEEK_API_KEY"
 base_url = "https://api.deepseek.com/beta"
 default_text_model = "deepseek-v4-pro"
@@ -83,7 +83,7 @@ mimofan doctor --json   # JSON 输出，适合 CI
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `provider` | string | `custom` | 服务商 ID，如 `custom` / `xiaomi-mimo` / `deepseek-cn` / `anthropic` / `openai` 等 |
+| `provider` | string | `openai-compatible` | 线协议模式，仅 `openai-compatible` / `anthropic-compatible` / `gemini-compatible` 三种（kebab-case 规范名，无历史别名） |
 | `api_key` | string | 必填非空 | API 密钥 |
 | `base_url` | string | 依 provider | 服务商 API 地址 |
 | `http_headers` | map | `{}` | 兼容 OpenAI 协议的网关自定义请求头，如 `{ "X-Model-Provider-Id" = "..." }` |
@@ -233,12 +233,12 @@ mimofan doctor --json   # JSON 输出，适合 CI
 
 ```toml
 [profiles.mimo]
-provider = "xiaomi-mimo"
+provider = "openai-compatible"
 api_key = "YOUR_XIAOMI_KEY"
 default_text_model = "mimo-v2.5-pro"
 
 [profiles.deepseek]
-provider = "custom"
+provider = "openai-compatible"
 api_key = "YOUR_DEEPSEEK_API_KEY"
 default_text_model = "deepseek-v4-pro"
 ```
@@ -333,7 +333,7 @@ condition = { type = "tool_name", name = "exec_shell" }
 ### 3.25 自定义 OpenAI 兼容网关
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 default_text_model = "your-model-id"
 
 [providers.openai]
@@ -344,7 +344,7 @@ base_url = "https://your-gateway.example/v1"
 阿里云百炼 / DashScope：
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 [providers.openai]
 api_key = "YOUR_DASHSCOPE_API_KEY"
 base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
@@ -461,7 +461,7 @@ TUI 中可用 `/mcp` 查看状态。MCP 工具名格式：`mcp__<server>__<tool>
 
 | 变量 | 说明 |
 |------|------|
-| `MIMOFAN_PROVIDER` | 服务商 ID |
+| `MIMOFAN_PROVIDER` | 线协议模式，仅 `openai-compatible` / `anthropic-compatible` / `gemini-compatible` |
 | `MIMOFAN_MODEL` | 默认模型 |
 | `MIMOFAN_BASE_URL` | API 地址 |
 | `DEEPSEEK_API_KEY` | 默认 API 密钥 |
@@ -533,7 +533,7 @@ mimofan doctor --json   # JSON 输出，适合 CI
 ### 例 1：只用 DeepSeek，最强推理
 
 ```toml
-provider = "custom"
+provider = "openai-compatible"
 api_key = "YOUR_DEEPSEEK_API_KEY"
 base_url = "https://api.deepseek.com/beta"
 default_text_model = "deepseek-v4-pro"
@@ -569,12 +569,12 @@ name = "exec_shell"
 
 ```toml
 [profiles.work]
-provider = "custom"
+provider = "openai-compatible"
 api_key = "WORK_KEY"
 base_url = "https://api.deepseek.com/beta"
 
 [profiles.xiaomi]
-provider = "xiaomi-mimo"
+provider = "openai-compatible"
 api_key = "YOUR_KEY"
 default_text_model = "mimo-v2.5-pro"
 ```
