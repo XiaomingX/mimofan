@@ -9,9 +9,11 @@
 //! safety net.
 
 use super::CommandResult;
-use crate::snapshot::{Snapshot, SnapshotRepo};
+use crate::snapshot::{NameStatus, Snapshot, SnapshotRepo};
 use crate::tui::app::App;
+use crate::tui::history::history_cells_from_message;
 use chrono::TimeZone;
+use std::path::PathBuf;
 
 const DEFAULT_LIST_LIMIT: usize = 20;
 const MAX_LIST_LIMIT: usize = 100;
@@ -96,15 +98,47 @@ pub fn restore(app: &mut App, arg: Option<&str>) -> CommandResult {
     }
 
     let target = &snapshots[n - 1];
+
+    // Pre-rollback diff preview (matches CodeBuddy's "see what will change"
+    // step) so the user isn't blindsided by a silent file revert.
+    let preview = match repo.diff_name_status(&target.id) {
+        Ok(changes) if !changes.is_empty() => format_preview(&changes),
+        Ok(_) => String::new(),
+        Err(e) => format!("(could not compute diff preview: {e})\n"),
+    };
+
     if let Err(e) = repo.restore(&target.id) {
         return CommandResult::error(format!("Restore failed: {e}"));
     }
 
-    CommandResult::message(format!(
-        "Restored snapshot #{n} ('{}', {}). Workspace files have been reverted; conversation history is unchanged.",
+    // Roll back the conversation too when the snapshot recorded a conversation
+    // length (combined code+chat revert, matching CodeBuddy's third mode).
+    let conversation_reverted = if target.conversation_len > 0
+        && target.conversation_len <= app.api_messages.len()
+    {
+        revert_conversation_to(app, target.conversation_len);
+        true
+    } else {
+        false
+    };
+
+    let mut msg = String::new();
+    if !preview.is_empty() {
+        msg.push_str(&preview);
+        msg.push('\n');
+    }
+    msg.push_str(&format!(
+        "Restored snapshot #{n} ('{}', {}).",
         target.label,
         short_sha(target.id.as_str()),
-    ))
+    ));
+    if conversation_reverted {
+        msg.push_str(" Workspace files and conversation history reverted.");
+    } else {
+        msg.push_str(" Workspace files have been reverted; conversation history is unchanged.");
+    }
+
+    CommandResult::message(msg)
 }
 
 /// Entry point for `/rewind [N|list [N]|chat]`.
@@ -160,6 +194,61 @@ fn no_snapshots_message() -> CommandResult {
     CommandResult::message(
         "No snapshots yet. Send a message to create the first pre-turn snapshot.",
     )
+}
+
+/// Render a concise file-change preview (modified / added / deleted counts
+/// plus the path list) for a snapshot rollback.
+fn format_preview(changes: &[(NameStatus, PathBuf)]) -> String {
+    let mut modified = 0;
+    let mut added = 0;
+    let mut deleted = 0;
+    for (status, _) in changes {
+        match status {
+            NameStatus::Modified => modified += 1,
+            NameStatus::Added => added += 1,
+            NameStatus::Deleted => deleted += 1,
+        }
+    }
+    let mut out = format!(
+        "Will change {} file(s): {} modified, {} added, {} deleted",
+        changes.len(),
+        modified,
+        added,
+        deleted,
+    );
+    // Keep the inline preview readable; list every path for small changes,
+    // cap the listing for large ones.
+    let listed = changes.len().min(50);
+    for (status, path) in changes.iter().take(listed) {
+        out.push_str(&format!(
+            "\n  [{}] {}",
+            status.as_str(),
+            path.display()
+        ));
+    }
+    if changes.len() > listed {
+        out.push_str(&format!("\n  … and {} more", changes.len() - listed));
+    }
+    out
+}
+
+/// Roll the conversation back to `len` api messages, rebuilding the transcript
+/// history from the truncated message list. Must keep `app.api_messages` and
+/// the rendered history in lockstep so the next turn sends a consistent
+/// context to the engine (same contract `apply_backtrack` relies on).
+fn revert_conversation_to(app: &mut App, len: usize) {
+    if len >= app.api_messages.len() {
+        return;
+    }
+    app.api_messages.truncate(len);
+    app.clear_history();
+    let messages: Vec<_> = app.api_messages.clone();
+    for msg in &messages {
+        app.extend_history(history_cells_from_message(msg));
+    }
+    app.mark_history_updated();
+    app.scroll_to_bottom();
+    app.needs_redraw = true;
 }
 
 fn format_listing(snapshots: &[Snapshot]) -> String {

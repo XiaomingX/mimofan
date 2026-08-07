@@ -42,6 +42,34 @@ pub struct Snapshot {
     pub label: String,
     /// Author timestamp (Unix seconds).
     pub timestamp: i64,
+    /// Number of `api_messages` in the conversation at snapshot time. When
+    /// non-zero, `/rewind N` can roll back *both* workspace files and the
+    /// conversation to this point (matching CodeBuddy's combined revert).
+    /// Older snapshots stored before this field existed report `0`, which
+    /// means "files only" — the historical behaviour.
+    pub conversation_len: usize,
+}
+
+/// Change classification for a path as reported by `git diff --name-status`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NameStatus {
+    /// Path content will change (modified).
+    Modified,
+    /// Path will be (re)added — present in the target snapshot, absent now.
+    Added,
+    /// Path will be deleted — present now, absent in the target snapshot.
+    Deleted,
+}
+
+impl NameStatus {
+    /// Human-readable label for previews.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            NameStatus::Modified => "modified",
+            NameStatus::Added => "added",
+            NameStatus::Deleted => "deleted",
+        }
+    }
 }
 
 /// Wrapper around the per-workspace side-git repo.
@@ -304,7 +332,12 @@ impl SnapshotRepo {
     /// [`MAX_SNAPSHOT_SIZE_MB`] and prunes the oldest snapshots if it does.
     ///
     /// Returns the snapshot's commit SHA.
-    pub fn snapshot(&self, label: &str) -> io::Result<SnapshotId> {
+    ///
+    /// `conversation_len` is the number of `api_messages` in the conversation
+    /// at snapshot time; it is recorded in the commit body so `/rewind N` can
+    /// roll back the conversation alongside the workspace files. Pass `0` when
+    /// the caller does not track conversation state.
+    pub fn snapshot(&self, label: &str, conversation_len: usize) -> io::Result<SnapshotId> {
         // Guard against disk blowup (#1112): if the snapshot directory has
         // grown beyond the limit, prune aggressively before adding more.
         if let Ok(current_mb) = dir_size_mb(&self.git_dir)
@@ -384,7 +417,10 @@ impl SnapshotRepo {
             args.push(parent);
         }
         args.push("-m".to_string());
-        args.push(label.to_string());
+        // Encode the conversation length in the commit body so it survives
+        // across list() reloads and is backwards-compatible with snapshots
+        // created before this field existed (their body is empty → 0).
+        args.push(format!("{label}\n\nconv_len={conversation_len}"));
         let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
 
         // `commit-tree` creates marker commits even when the tree matches its
@@ -434,6 +470,51 @@ impl SnapshotRepo {
         }
         self.remove_paths_missing_from_target(&current_paths, &target_paths)?;
         Ok(())
+    }
+
+    /// Preview the file-level changes that [`SnapshotRepo::restore`] would
+    /// apply for `id`, without mutating the workspace.
+    ///
+    /// Returns one entry per path whose content or presence differs between
+    /// the target snapshot and the current working tree, classified as
+    /// modified / added / deleted. Used by `/rewind N` to show a diff summary
+    /// before reverting (matching CodeBuddy's "see what will change" step).
+    pub fn diff_name_status(&self, id: &SnapshotId) -> io::Result<Vec<(NameStatus, PathBuf)>> {
+        let diff = run_git(
+            &self.git_dir,
+            &self.work_tree,
+            &["diff", "--name-status", id.as_str(), "--", ":/"],
+        )?;
+        if !diff.status.success() {
+            return Err(io_other(format!(
+                "git diff --name-status failed: {}",
+                String::from_utf8_lossy(&diff.stderr).trim()
+            )));
+        }
+        let mut out = Vec::new();
+        for line in String::from_utf8_lossy(&diff.stdout).lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            // `git diff --name-status` emits "X\tpath" where X is one or two
+            // letters; the first letter is the status we care about.
+            let mut parts = line.splitn(2, '\t');
+            let status = parts.next().unwrap_or("").chars().next().unwrap_or(' ');
+            let path = match parts.next() {
+                Some(p) if !p.is_empty() => p.to_string(),
+                _ => continue,
+            };
+            let status = match status {
+                'M' => NameStatus::Modified,
+                'A' => NameStatus::Added,
+                'D' => NameStatus::Deleted,
+                // Renames/copies/type-changes: report as modified for preview.
+                _ => NameStatus::Modified,
+            };
+            out.push((status, PathBuf::from(path)));
+        }
+        Ok(out)
     }
 
     /// Return whether the current workspace matches the given snapshot's
@@ -535,12 +616,40 @@ impl SnapshotRepo {
                 continue;
             }
             out.push(Snapshot {
-                id: SnapshotId(sha),
-                label: subject,
+                id: SnapshotId(sha.clone()),
+                label: subject.clone(),
                 timestamp: ts,
+                conversation_len: self.read_conversation_len(&sha),
             });
         }
         Ok(out)
+    }
+
+    /// Parse the `conversation_len` recorded in a snapshot commit's body.
+    ///
+    /// Returns `0` when the field is absent (snapshots created before this
+    /// field existed, or manually crafted commits) — those revert files only.
+    fn read_conversation_len(&self, sha: &str) -> usize {
+        let body = run_git(
+            &self.git_dir,
+            &self.work_tree,
+            &["log", "-1", "--pretty=%b", sha],
+        );
+        let Ok(body) = body else {
+            return 0;
+        };
+        if !body.status.success() {
+            return 0;
+        }
+        for line in String::from_utf8_lossy(&body.stdout).lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix("conv_len=") {
+                if let Ok(n) = rest.trim().parse::<usize>() {
+                    return n;
+                }
+            }
+        }
+        0
     }
 
     /// Drop snapshots older than `max_age`, returning the count removed.
@@ -932,4 +1041,72 @@ fn is_safe_relative_path(path: &Path) -> bool {
         && path
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
+}
+
+#[cfg(test)]
+mod rewind_enhance_tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn write_file(dir: &std::path::Path, name: &str, content: &str) {
+        std::fs::write(dir.join(name), content).expect("write test file");
+    }
+
+    #[test]
+    fn snapshot_records_and_lists_conversation_len() {
+        let tmp = TempDir::new().unwrap();
+        let repo = SnapshotRepo::open_or_init_with_cap(tmp.path(), 0).unwrap();
+
+        write_file(tmp.path(), "a.txt", "v1");
+        let s1 = repo.snapshot("pre", 5).unwrap();
+
+        write_file(tmp.path(), "a.txt", "v2");
+        write_file(tmp.path(), "b.txt", "new");
+        let _s2 = repo.snapshot("post", 7).unwrap();
+
+        // diff_name_status against s1: a modified, b added.
+        let changes = repo.diff_name_status(&s1).unwrap();
+        let mut modified = 0;
+        let mut added = 0;
+        for (status, path) in &changes {
+            if path.ends_with("a.txt") && *status == NameStatus::Modified {
+                modified += 1;
+            }
+            if path.ends_with("b.txt") && *status == NameStatus::Added {
+                added += 1;
+            }
+        }
+        assert_eq!(modified, 1, "a.txt should be modified vs s1");
+        assert_eq!(added, 1, "b.txt should be added vs s1");
+
+        // list() must surface conversation_len recorded in each commit body.
+        let snapshots = repo.list(10).unwrap();
+        assert!(snapshots.len() >= 2);
+        // Newest first: s2 (conv 7) then s1 (conv 5).
+        assert_eq!(snapshots[0].conversation_len, 7);
+        assert_eq!(snapshots[1].conversation_len, 5);
+    }
+
+    #[test]
+    fn diff_name_status_reports_deleted_file() {
+        let tmp = TempDir::new().unwrap();
+        let repo = SnapshotRepo::open_or_init_with_cap(tmp.path(), 0).unwrap();
+
+        write_file(tmp.path(), "keep.txt", "x");
+        write_file(tmp.path(), "gone.txt", "y");
+        let s1 = repo.snapshot("with-gone", 3).unwrap();
+
+        // Remove gone.txt so restoring s1 would re-add it (current lacks it).
+        std::fs::remove_file(tmp.path().join("gone.txt")).unwrap();
+        let _s2 = repo.snapshot("without-gone", 4).unwrap();
+
+        // diff s1 vs current: gone.txt is reported Deleted (present in s1,
+        // absent now — restoring s1 would re-add it).
+        let changes = repo.diff_name_status(&s1).unwrap();
+        let deleted = changes
+            .iter()
+            .filter(|(s, p)| *s == NameStatus::Deleted && p.ends_with("gone.txt"))
+            .count();
+        assert_eq!(deleted, 1);
+    }
 }

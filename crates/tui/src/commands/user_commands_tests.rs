@@ -349,3 +349,85 @@ fn test_exit_plan_outside_plan_mode_is_noop() {
     assert!(msg.contains("不在 Plan 模式"));
     assert_eq!(app.mode, AppMode::Agent);
 }
+
+#[test]
+fn test_rewind_shows_diff_preview_and_reverts_conversation() {
+    use crate::snapshot::SnapshotRepo;
+
+    let tmp = TempDir::new().expect("create temp dir");
+    let mut app = App::new(default_tui_options(&tmp), &Config::default());
+
+    // Seed two user messages so conversation_len tracking is meaningful.
+    app.api_messages.push(crate::models::Message {
+        role: "user".to_string(),
+        content: vec![crate::models::ContentBlock::Text {
+            text: "first".to_string(),
+            cache_control: None,
+        }],
+    });
+    app.api_messages.push(crate::models::Message {
+        role: "user".to_string(),
+        content: vec![crate::models::ContentBlock::Text {
+            text: "second".to_string(),
+            cache_control: None,
+        }],
+    });
+    let conv_len_before = app.api_messages.len();
+
+    // Create a workspace file and snapshot it at the current conversation length.
+    std::fs::write(tmp.path().join("file.txt"), "v1").unwrap();
+    let repo = SnapshotRepo::open_or_init(&app.workspace).unwrap();
+    repo.snapshot("snapshot-at-conv", conv_len_before).unwrap();
+
+    // Mutate the file so a rollback has something to revert.
+    std::fs::write(tmp.path().join("file.txt"), "v2-changed").unwrap();
+
+    // Enter trusted mode so /rewind may mutate files.
+    app.trust_mode = true;
+
+    // /rewind 1 should show a diff preview and roll back BOTH files and chat.
+    let res = crate::commands::execute("/rewind 1", &mut app);
+    assert!(!res.is_error, "rewind should succeed: {:?}", res.message);
+    let msg = res.message.expect("command result message");
+    assert!(
+        msg.contains("Will change"),
+        "expected diff preview, got: {msg}"
+    );
+    assert!(
+        msg.contains("conversation history reverted"),
+        "expected combined revert, got: {msg}"
+    );
+
+    // File reverted.
+    let restored = std::fs::read_to_string(tmp.path().join("file.txt")).unwrap();
+    assert_eq!(restored, "v1");
+
+    // Conversation truncated to the snapshot's recorded length (<= before).
+    assert!(
+        app.api_messages.len() <= conv_len_before,
+        "conversation should be truncated, got {} (was {conv_len_before})",
+        app.api_messages.len()
+    );
+}
+
+#[test]
+fn test_rewind_cross_session_can_read_prior_snapshot() {
+    use crate::snapshot::SnapshotRepo;
+
+    let tmp = TempDir::new().expect("create temp dir");
+    let app = App::new(default_tui_options(&tmp), &Config::default());
+
+    // Simulate a prior session: a file + snapshot on the same workspace.
+    std::fs::write(tmp.path().join("prior.txt"), "original").unwrap();
+    let repo = SnapshotRepo::open_or_init(&app.workspace).unwrap();
+    repo.snapshot("prior-session", 0).unwrap();
+
+    // A "resumed" session on the SAME workspace must see the prior snapshot
+    // (CodeBuddy exposes checkpoints across resumed sessions).
+    let resumed = SnapshotRepo::open_or_init(&app.workspace).unwrap();
+    let snapshots = resumed.list(10).unwrap();
+    assert!(
+        snapshots.iter().any(|s| s.label == "prior-session"),
+        "resumed session could not read prior snapshot"
+    );
+}
