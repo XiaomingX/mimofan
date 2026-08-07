@@ -129,7 +129,11 @@ pub(crate) async fn dispatch_user_message(
     // Offloaded to the persistence actor.
     if let Ok(manager) = SessionManager::default_location() {
         let session = build_session_snapshot(app, &manager);
-        persistence_actor::persist(PersistRequest::Checkpoint(session));
+        persistence_actor::persist(PersistRequest::Checkpoint(session.clone()));
+        persistence_actor::persist_plan_state(
+            session.metadata.id.clone(),
+            app.current_plan_and_todo(),
+        );
     }
 
     let effective_model = if app.auto_model {

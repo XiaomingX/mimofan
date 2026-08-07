@@ -205,6 +205,21 @@ pub struct SavedSession {
     pub artifacts: Vec<ArtifactRecord>,
 }
 
+/// Persisted plan and todo (checklist) state for a session, stored separately
+/// from the conversation in `<sessions_dir>/<id>.plan.json`. This gives plan
+/// mode cross-session recovery (matching CodeBuddy's plan persistence) without
+/// bloating `SavedSession` or touching its many construction sites.
+///
+/// All fields default/omit so sessions saved before this existed load
+/// unchanged (the plan file simply won't be present).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PlanAndTodoState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan: Option<crate::tools::plan::PlanSnapshot>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub todos: Option<crate::tools::todo::TodoListSnapshot>,
+}
+
 /// Manager for session persistence operations
 #[derive(Debug)]
 pub struct SessionManager {
@@ -306,6 +321,45 @@ impl SessionManager {
             fs::remove_file(path)?;
         }
         Ok(())
+    }
+
+    /// Resolved path for a session's plan/todo state file. Shares the session
+    /// id validation rules with [`SessionManager::validated_session_path`].
+    pub fn plan_path(&self, id: &str) -> std::io::Result<PathBuf> {
+        let session_path = self.validated_session_path(id)?;
+        Ok(session_path.with_extension("plan.json"))
+    }
+
+    /// Persist a session's plan and todo (checklist) state to disk.
+    pub fn save_plan_state(&self, id: &str, state: &PlanAndTodoState) -> std::io::Result<PathBuf> {
+        let path = self.plan_path(id)?;
+        let content = serde_json::to_string_pretty(state)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        write_atomic(&path, content.as_bytes())?;
+        Ok(path)
+    }
+
+    /// Load a session's persisted plan and todo state, if any.
+    ///
+    /// Returns `Ok(None)` when the file is absent, and `Ok(None)` (with a
+    /// warning) when it is present but unparseable — session loading must never
+    /// be blocked by a corrupt plan file.
+    pub fn load_plan_state(&self, id: &str) -> std::io::Result<Option<PlanAndTodoState>> {
+        let path = self.plan_path(id)?;
+        if !path.exists() {
+            return Ok(None);
+        }
+        let content = fs::read_to_string(&path).map_err(|e| {
+            tracing::warn!("failed to read plan state {path:?}: {e}");
+            e
+        })?;
+        match serde_json::from_str::<PlanAndTodoState>(&content) {
+            Ok(state) => Ok(Some(state)),
+            Err(e) => {
+                tracing::warn!("failed to parse plan state {path:?}, skipping: {e}");
+                Ok(None)
+            }
+        }
     }
 
     /// Save offline queue state (queued + draft messages).
@@ -977,3 +1031,98 @@ fn format_age(dt: &DateTime<Utc>) -> String {
 }
 
 // === Unit Tests ===
+
+#[cfg(test)]
+mod plan_persist_tests {
+    use super::*;
+    use crate::tools::plan::{PlanItemArg, PlanSnapshot, StepStatus};
+    use crate::tools::todo::{TodoItem, TodoListSnapshot, TodoStatus};
+    use tempfile::TempDir;
+
+    fn sample_state() -> PlanAndTodoState {
+        PlanAndTodoState {
+            plan: Some(PlanSnapshot {
+                title: Some("Plan title".to_string()),
+                objective: Some("Objective".to_string()),
+                ..Default::default()
+            }),
+            todos: Some(TodoListSnapshot {
+                items: vec![TodoItem {
+                    id: 1,
+                    content: "first".to_string(),
+                    status: TodoStatus::Completed,
+                }],
+                completion_pct: 100,
+                in_progress_id: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn plan_state_round_trips_through_disk() {
+        let temp = TempDir::new().unwrap();
+        let manager = SessionManager::new(temp.path().to_path_buf()).unwrap();
+        let state = sample_state();
+
+        let path = manager.save_plan_state("sess-1", &state).unwrap();
+        assert!(path.exists());
+
+        let loaded = manager.load_plan_state("sess-1").unwrap();
+        let loaded = loaded.expect("plan state should be present");
+        assert_eq!(loaded.plan.unwrap().title.as_deref(), Some("Plan title"));
+        assert_eq!(loaded.todos.unwrap().items[0].content, "first");
+    }
+
+    #[test]
+    fn missing_plan_file_returns_none() {
+        let temp = TempDir::new().unwrap();
+        let manager = SessionManager::new(temp.path().to_path_buf()).unwrap();
+        assert!(manager.load_plan_state("never-saved").unwrap().is_none());
+    }
+
+    #[test]
+    fn corrupt_plan_file_returns_none_without_panic() {
+        let temp = TempDir::new().unwrap();
+        let manager = SessionManager::new(temp.path().to_path_buf()).unwrap();
+        let path = manager.plan_path("sess-x").unwrap();
+        std::fs::write(&path, "not valid json {{{").unwrap();
+        // Must not propagate the parse error; loading continues.
+        assert!(manager.load_plan_state("sess-x").unwrap().is_none());
+    }
+
+    #[test]
+    fn empty_plan_and_todo_state_serializes_without_fields() {
+        // Default (empty) state should omit both fields, so a brand-new
+        // session that saves an empty plan writes a minimal file.
+        let state = PlanAndTodoState::default();
+        let json = serde_json::to_string(&state).unwrap();
+        assert!(!json.contains("plan"));
+        assert!(!json.contains("todos"));
+        // Round-trips back to default.
+        let back: PlanAndTodoState = serde_json::from_str(&json).unwrap();
+        assert!(back.plan.is_none());
+        assert!(back.todos.is_none());
+    }
+
+    #[test]
+    fn plan_items_with_status_survive_round_trip() {
+        let snap = PlanSnapshot {
+            items: vec![
+                PlanItemArg {
+                    step: "do a".to_string(),
+                    status: StepStatus::Completed,
+                },
+                PlanItemArg {
+                    step: "do b".to_string(),
+                    status: StepStatus::Pending,
+                },
+            ],
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&snap).unwrap();
+        let back: PlanSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.items.len(), 2);
+        assert_eq!(back.items[0].status, StepStatus::Completed);
+        assert_eq!(back.items[1].status, StepStatus::Pending);
+    }
+}

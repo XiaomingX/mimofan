@@ -915,7 +915,11 @@ pub(crate) async fn run_event_loop(
                         if let Ok(manager) = SessionManager::default_location() {
                             let session = build_session_snapshot(app, &manager);
                             app.current_session_id = Some(session.metadata.id.clone());
-                            persistence_actor::persist(PersistRequest::SessionSnapshot(session));
+                            persistence_actor::persist(PersistRequest::SessionSnapshot(session.clone()));
+                            persistence_actor::persist_plan_state(
+                                session.metadata.id.clone(),
+                                app.current_plan_and_todo(),
+                            );
                         }
                         persistence_actor::persist(PersistRequest::ClearCheckpoint);
 
@@ -1041,7 +1045,11 @@ pub(crate) async fn run_event_loop(
                         {
                             let session = build_session_snapshot(app, &manager);
                             app.session_title = Some(session.metadata.title.clone());
-                            persistence_actor::persist(PersistRequest::Checkpoint(session));
+                            persistence_actor::persist(PersistRequest::Checkpoint(session.clone()));
+                            persistence_actor::persist_plan_state(
+                                session.metadata.id.clone(),
+                                app.current_plan_and_todo(),
+                            );
                         } else if app.session_title.is_none() {
                             // First turn on a brand-new session: persist hasn't fired yet so
                             // read the title from the session file if it already exists,
@@ -3709,7 +3717,11 @@ pub(crate) async fn apply_command_result(
                     if let Ok(manager) = SessionManager::default_location() {
                         let session = build_session_snapshot(app, &manager);
                         app.current_session_id = Some(session.metadata.id.clone());
-                        persistence_actor::persist(PersistRequest::SessionSnapshot(session));
+                        persistence_actor::persist(PersistRequest::SessionSnapshot(session.clone()));
+                        persistence_actor::persist_plan_state(
+                            session.metadata.id.clone(),
+                            app.current_plan_and_todo(),
+                        );
                     }
                     persistence_actor::persist(PersistRequest::ClearCheckpoint);
                 }

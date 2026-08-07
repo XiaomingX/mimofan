@@ -28,7 +28,9 @@ use std::sync::OnceLock;
 
 use tokio::sync::mpsc;
 
-use crate::session_manager::{OfflineQueueState, SavedSession, SessionManager};
+use crate::session_manager::{
+    OfflineQueueState, PlanAndTodoState, SavedSession, SessionManager,
+};
 use crate::utils::spawn_supervised;
 
 // ---------------------------------------------------------------------------
@@ -51,6 +53,14 @@ pub enum PersistRequest {
     ClearOfflineQueue,
     /// Remove the crash-recovery checkpoint file.
     ClearCheckpoint,
+    /// Persist a session's plan and todo (checklist) state to its own file,
+    /// enabling cross-session recovery of plan mode (matching CodeBuddy).
+    PlanState {
+        /// Session id the plan state is associated with.
+        id: String,
+        /// Snapshot of plan + todo state (fields are `Option`, omitted when empty).
+        state: PlanAndTodoState,
+    },
     /// Graceful shutdown — flush pending writes, then exit the actor loop.
     Shutdown,
 }
@@ -103,6 +113,13 @@ pub fn persist(request: PersistRequest) {
     }
 }
 
+/// Queue a plan/todo state save for the given session id. Convenience wrapper
+/// around [`PersistRequest::PlanState`]; silently dropped if the actor is not
+/// yet initialised.
+pub fn persist_plan_state(id: String, state: PlanAndTodoState) {
+    persist(PersistRequest::PlanState { id, state });
+}
+
 // ---------------------------------------------------------------------------
 // Actor spawn
 // ---------------------------------------------------------------------------
@@ -123,6 +140,7 @@ pub fn spawn_persistence_actor(manager: SessionManager) -> PersistActorHandle {
             let mut latest_checkpoint: Option<SavedSession> = None;
             let mut latest_session: Option<SavedSession> = None;
             let mut latest_offline_queue: Option<PendingOfflineQueue> = None;
+            let mut latest_plan: Option<(String, PlanAndTodoState)> = None;
             let mut should_clear: bool = false;
 
             loop {
@@ -142,6 +160,9 @@ pub fn spawn_persistence_actor(manager: SessionManager) -> PersistActorHandle {
                         PersistRequest::ClearOfflineQueue => {
                             latest_offline_queue = Some(PendingOfflineQueue::Clear);
                         }
+                        PersistRequest::PlanState { id, state } => {
+                            latest_plan = Some((id, state));
+                        }
                         PersistRequest::ClearCheckpoint => {
                             should_clear = true;
                         }
@@ -151,6 +172,7 @@ pub fn spawn_persistence_actor(manager: SessionManager) -> PersistActorHandle {
                                 latest_checkpoint.as_ref(),
                                 latest_session.as_ref(),
                                 latest_offline_queue.as_ref(),
+                                latest_plan.as_ref(),
                                 should_clear,
                             );
                             return;
@@ -172,6 +194,9 @@ pub fn spawn_persistence_actor(manager: SessionManager) -> PersistActorHandle {
                 if let Some(ref request) = latest_offline_queue.take() {
                     apply_offline_queue_request(&manager, request);
                 }
+                if let Some((ref id, ref state)) = latest_plan.take() {
+                    let _ = manager.save_plan_state(id, state);
+                }
 
                 // Block until the next request arrives.
                 match rx.recv().await {
@@ -188,6 +213,9 @@ pub fn spawn_persistence_actor(manager: SessionManager) -> PersistActorHandle {
                     Some(PersistRequest::ClearOfflineQueue) => {
                         latest_offline_queue = Some(PendingOfflineQueue::Clear);
                     }
+                    Some(PersistRequest::PlanState { id, state }) => {
+                        latest_plan = Some((id, state));
+                    }
                     Some(PersistRequest::ClearCheckpoint) => {
                         should_clear = true;
                     }
@@ -197,6 +225,7 @@ pub fn spawn_persistence_actor(manager: SessionManager) -> PersistActorHandle {
                             latest_checkpoint.as_ref(),
                             latest_session.as_ref(),
                             latest_offline_queue.as_ref(),
+                            latest_plan.as_ref(),
                             should_clear,
                         );
                         return;
@@ -208,6 +237,7 @@ pub fn spawn_persistence_actor(manager: SessionManager) -> PersistActorHandle {
                             latest_checkpoint.as_ref(),
                             latest_session.as_ref(),
                             latest_offline_queue.as_ref(),
+                            latest_plan.as_ref(),
                             should_clear,
                         );
                         return;
@@ -226,6 +256,7 @@ fn flush_inner(
     checkpoint: Option<&SavedSession>,
     session: Option<&SavedSession>,
     offline_queue: Option<&PendingOfflineQueue>,
+    plan: Option<&(String, PlanAndTodoState)>,
     should_clear: bool,
 ) {
     if should_clear {
@@ -239,6 +270,9 @@ fn flush_inner(
     }
     if let Some(request) = offline_queue {
         apply_offline_queue_request(manager, request);
+    }
+    if let Some((id, state)) = plan {
+        let _ = manager.save_plan_state(id, state);
     }
 }
 

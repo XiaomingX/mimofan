@@ -1,5 +1,6 @@
 //! session loading 子系统（从 ui 上帝文件切片）
 use super::*;
+use crate::session_manager::SessionManager;
 
 pub(crate) fn apply_loaded_session(app: &mut App, config: &Config, session: &SavedSession) -> bool {
     let (messages, recovered_draft) = recover_interrupted_user_tail(&session.messages);
@@ -102,8 +103,34 @@ pub(crate) fn apply_loaded_session(app: &mut App, config: &Config, session: &Sav
     } else {
         false
     };
+    restore_plan_and_todo_state(app, &session.metadata.id);
     app.scroll_to_bottom();
     recovered
+}
+
+/// Restore persisted plan + todo (checklist) state for a resumed session.
+///
+/// Reads `<sessions_dir>/<id>.plan.json` and replays it into `app.plan_state`
+/// / `app.todos`. Synchronous (`std::sync::Mutex::lock`) — never call across
+/// an `.await` (ARCHITECTURE_STABILITY.md §8.3). Missing or corrupt plan files
+/// are silently ignored so session loading is never blocked.
+fn restore_plan_and_todo_state(app: &mut App, session_id: &str) {
+    let Ok(manager) = SessionManager::default_location() else {
+        return;
+    };
+    let Ok(Some(state)) = manager.load_plan_state(session_id) else {
+        return;
+    };
+    if let Some(plan) = state.plan {
+        if let Ok(mut guard) = app.plan_state.try_lock() {
+            guard.apply_snapshot(plan);
+        }
+    }
+    if let Some(todos) = state.todos {
+        if let Ok(mut guard) = app.todos.try_lock() {
+            guard.apply_snapshot(todos);
+        }
+    }
 }
 
 /// Derive a short display title from the API message list.
