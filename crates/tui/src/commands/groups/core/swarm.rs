@@ -35,12 +35,19 @@ pub fn swarm(_app: &mut App, arg: Option<&str>) -> CommandResult {
     if !matches!(task.map(str::trim), Some(task) if !task.is_empty()) {
         return CommandResult::error(
             "Usage: /swarm [N] <task>\n\n\
-             /swarm is currently gated. Use /goal for a persistent objective \
-             or /agent for a single sub-agent while durable Fleet-backed \
-             swarm workers are still landing.",
+             /swarm is currently gated (durable Fleet/Train-3 workers are still landing). \
+             In the meantime, fan out your work with the tools that are live:\n\
+             - /make-plan -x <task>  plan + autonomously execute the whole task in one shot\n\
+             - /do auto              run every pending checklist step end-to-end\n\
+             - /agent [N] <task>     spawn one bounded sub-agent for a single task",
         );
     }
     CommandResult::error(
-        "/swarm is gated in v0.8.61: prompt-only agent fanout is disabled until the durable Train-3 worker/goal re-dispatch substrate lands. Use /goal for the persistent objective or /agent [N] <task> for one bounded sub-agent.",
+        "/swarm is gated: prompt-only agent fanout is disabled until the durable Train-3 worker/goal \
+         re-dispatch substrate lands. Today you can fan out with the live tools instead:\n\
+         - /make-plan -x <task>  one-click plan + autonomous execution\n\
+         - /do auto              drive an existing checklist to completion\n\
+         - /agent [N] <task>     a single bounded sub-agent\n\
+         Use /goal for a persistent objective that re-dispatches across turns.",
     )
 }

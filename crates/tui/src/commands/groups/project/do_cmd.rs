@@ -4,12 +4,12 @@ use crate::commands::CommandResult;
 use crate::commands::traits::{CommandInfo, RegisterCommand};
 use crate::localization::MessageId;
 use crate::tools::todo::TodoStatus;
-use crate::tui::app::{App, AppAction, AppMode};
+use crate::tui::app::{App, AppAction, AppMode, HuntVerdict};
 
 pub(in crate::commands) const COMMAND_INFO: CommandInfo = CommandInfo {
     name: "do",
-    aliases: &[],
-    usage: "/do [step_id|all|next]",
+    aliases: &["run"],
+    usage: "/do [step_id|all|next|auto]",
     description_id: MessageId::CmdDoDescription,
 };
 
@@ -65,6 +65,67 @@ impl RegisterCommand for DoCmd {
 
             CommandResult::with_message_and_action(
                 "Switched to Agent mode. Executing all pending steps...".to_string(),
+                AppAction::SendMessage(prompt),
+            )
+        } else if target == "auto" {
+            // `/do auto` — autonomous end-to-end execution of the whole plan.
+            //
+            // Reuses the existing `/goal` continuation pipeline: the model first
+            // calls `create_goal` to stand up a persistent objective ("execute
+            // the plan"), then works through every pending checklist step, and
+            // finally calls `update_goal` with `status: "complete"` once all
+            // steps are done. The engine's goal continuation re-dispatches turns
+            // automatically between steps — no manual `/do next` needed. This is
+            // the parity path for CodeBuddy's one-click "make plan + do it".
+            let pending_items: Vec<_> = snapshot
+                .items
+                .iter()
+                .filter(|item| item.status != TodoStatus::Completed)
+                .collect();
+            if pending_items.is_empty() {
+                return CommandResult::message("All checklist steps are already completed!");
+            }
+
+            // Seed the UI-side hunt state so status surfaces and the loop/goal
+            // controls stay consistent; the engine truth (GoalState) is created
+            // by the model's `create_goal` call on the first turn.
+            let objective = "Execute the full plan: work through every pending checklist step until all are complete.".to_string();
+            app.hunt.quarry = Some(objective.clone());
+            app.hunt.token_budget = None;
+            app.hunt.tokens_used = 0;
+            app.hunt.time_used_seconds = 0;
+            app.hunt.continuation_count = 0;
+            app.hunt.started_at = Some(std::time::Instant::now());
+            app.hunt.verdict = HuntVerdict::Hunting;
+            app.hunt.stop_condition = None;
+            app.hunt.max_rounds = None;
+            app.hunt.checkpoint_each_round = false;
+            app.hunt.is_loop = false;
+
+            let pending_summary: String = pending_items
+                .iter()
+                .map(|item| format!("  - [{}] {}", item.id, item.content))
+                .collect::<Vec<_>>()
+                .join("\n");
+            // `snapshot` (and thus `pending_items`) is owned data, so the todo
+            // guard can be released before we mutate `app` for the mode switch.
+            drop(todos_guard);
+
+            app.set_mode(AppMode::Agent);
+
+            let prompt = format!(
+                "You are now in Agent mode and running the plan autonomously. \
+                 First call `create_goal` with objective \"{}\" to stand up a persistent goal. \
+                 Then execute every pending checklist step in order, updating each step's status to completed via checklist_write as you finish it.\n\n\
+                 Pending steps:\n{}\n\n\
+                 When ALL steps are completed, call `update_goal` with `status: \"complete\"`, \
+                 concrete evidence of completion, and `verification: {{\"status\":\"passed\",\"check\":\"all steps done\",\"summary\":\"...\"}}` to end the run. \
+                 If you hit a real blocker, call `update_goal` with `status: \"blocked\"` and the blocker instead.",
+                objective, pending_summary
+            );
+
+            CommandResult::with_message_and_action(
+                "Switched to Agent mode. Autonomous plan execution started (create_goal → run all steps → update_goal complete).".to_string(),
                 AppAction::SendMessage(prompt),
             )
         } else if target == "next" {
