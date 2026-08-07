@@ -46,6 +46,22 @@ fn registered_tool_requires_non_bypassable_approval(tool_name: &str) -> bool {
     matches!(tool_name, "rlm_eval")
 }
 
+/// Build a structured self-heal hint appended to a failed tool result so the
+/// model retries (or pivots) *within the same step* instead of waiting for the
+/// next turn. Mirrors Claude Code's "on error, analyze and retry" behavior.
+///
+/// `category` is the `ErrorEnvelope::category` label (or `"tool"` for an
+/// `Ok` result that reported `success: false`). It is surfaced so the model
+/// can decide between retrying the same call and switching approaches.
+fn self_heal_hint(tool_name: &str, category: &str) -> String {
+    format!(
+        "[Self-heal] Tool '{tool_name}' failed (category: {category}). Before issuing the next tool call, do NOT blindly repeat the identical call. Instead:\n\
+         - Read the error above carefully; identify the root cause (e.g. missing path, wrong argument, non-zero command exit).\n\
+         - If it names a missing file/path, verify it exists or correct the path; if it is a command failure, inspect the output and fix the underlying cause.\n\
+         - Prefer a smaller, verifiable step, or choose a different tool/approach if the current one cannot succeed."
+    )
+}
+
 impl Engine {
     fn drain_shell_completion_events(&self) -> Vec<crate::tools::shell::ShellCompletionEvent> {
         self.shell_manager
@@ -2266,6 +2282,9 @@ impl Engine {
             // denial that should not.
             let mut step_error_categories: Vec<ErrorCategory> = Vec::new();
             let mut stop_after_plan_tool = false;
+            // Tool-use self-heal: ensures we append the recovery hint at most
+            // once per tool call per step, preventing an infinite append loop.
+            let mut self_healed_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
 
             for outcome in outcomes.into_iter().flatten() {
                 let tool_input = outcome.input.clone();
@@ -2299,6 +2318,20 @@ impl Engine {
                             && Self::is_file_write_tool(&outcome.name)
                         {
                             turn_had_write = true;
+                        }
+                        // Self-heal: a tool that executed but reported
+                        // `success: false` (e.g. non-zero command exit, missing
+                        // file) gets a recovery hint so the model retries within
+                        // the same step. Capped at one hint per tool call.
+                        let mut output_for_context = output_for_context;
+                        if !output.success
+                            && tool_was_executed
+                            && self_healed_ids.insert(outcome.id.clone())
+                        {
+                            output_for_context
+                                .push_str("\n\n");
+                            output_for_context
+                                .push_str(&self_heal_hint(&outcome.name, "tool"));
                         }
                         self.session.working_set.observe_tool_call(
                             &tool_name_for_ws,
@@ -2357,11 +2390,25 @@ impl Engine {
                             Some(&error),
                             &self.session.workspace,
                         );
+                        // Self-heal: append a recovery hint for recoverable
+                        // errors (e.g. execution failures, timeouts, invalid
+                        // input) so the model can retry within the same step.
+                        // Permission/availability errors are not recoverable by
+                        // retrying, so they are left as-is. Capped at one hint
+                        // per tool call via `self_healed_ids`.
+                        let mut error_content = format!("Error: {error}");
+                        if envelope.recoverable && self_healed_ids.insert(outcome.id.clone()) {
+                            error_content.push_str("\n\n");
+                            error_content.push_str(&self_heal_hint(
+                                &outcome.name,
+                                &envelope.category.to_string(),
+                            ));
+                        }
                         self.add_session_message(Message {
                             role: "user".to_string(),
                             content: vec![ContentBlock::ToolResult {
                                 tool_use_id: outcome.id,
-                                content: format!("Error: {error}"),
+                                content: error_content,
                                 is_error: Some(true),
                                 content_blocks: None,
                             }],
@@ -2993,4 +3040,32 @@ fn resolve_auto_effort(
 
 fn is_turn_metadata_text(text: &str) -> bool {
     text.trim_start().starts_with("<turn_meta>")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::self_heal_hint;
+
+    #[test]
+    fn self_heal_hint_mentions_tool_name_and_category() {
+        let hint = self_heal_hint("exec_shell", "tool");
+        assert!(hint.contains("exec_shell"), "hint must name the tool");
+        assert!(hint.contains("tool"), "hint must surface the category");
+        assert!(hint.contains("[Self-heal]"), "hint must be tagged");
+        assert!(
+            hint.contains("do NOT blindly repeat"),
+            "hint must warn against blind retry"
+        );
+    }
+
+    #[test]
+    fn self_heal_hint_distinct_per_category() {
+        let a = self_heal_hint("read_file", "invalid_input");
+        let b = self_heal_hint("read_file", "timeout");
+        // Same tool, different category should still be valid hints; the
+        // category string is embedded so they differ in content.
+        assert_ne!(a, b);
+        assert!(a.contains("invalid_input"));
+        assert!(b.contains("timeout"));
+    }
 }
