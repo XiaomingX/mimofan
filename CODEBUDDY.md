@@ -40,3 +40,10 @@ mimofan 是一个 Rust 终端 AI 编码助手，原生支持 Xiaomi MiMo & DeepS
 - 每个会话只能管理一个团队，清理后才能建新团队。
 - 不支持嵌套团队；领导角色固定、不可转让。
 - 无会话恢复：`/resume`、`/rewind` 不会恢复成员，需让领导重新生成。
+
+## 分支与 Worktree 约定
+
+- **大重构用 worktree**：涉及多文件、多 crate 的收敛/重构类任务（如 Provider 模式收敛），应在独立 git worktree 中开发（例如 `git worktree add ../agent-mimofan-worktree -b refactor/xxx`），避免污染主工作区。
+- **合并前先验证**：worktree 内确保 `cargo build`（零 warning）与 `cargo test`（全 workspace 零失败）通过，再合并回主干。
+- **合并在主仓库执行**：在**主仓库**中 `git merge <worktree 分支>` 到 `main`（worktree 不持有 `main`），确认无冲突且构建/测试仍绿后 `git push origin main`。
+- **合并后删除过时分支**：合并到主干后，必须清理该分支——本地 `git branch -d <branch>`、远程 `git push origin --delete <branch>`，并用 `git worktree remove <path> --force` 删除 worktree 目录。不要长期保留已合并的特性分支。

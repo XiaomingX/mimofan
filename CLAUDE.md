@@ -349,6 +349,13 @@ pub async fn start_task(&self, task_id: &str) -> Result {
 - 对 `main` 干净的 PR 不一定对发布分支干净。在称为合并就绪之前，针对将实际接收工作的分支测试可合并性。
 - 对于已批准的 PR，将批准视为强优先级信号。在登陆前仍检查差异、评论、检查结果和发布分支冲突。
 
+## Worktree 开发约定
+
+- 大型重构或多模式收敛类任务，应在独立 git worktree 中进行（例如 `git worktree add ../agent-mimofan-worktree -b refactor/xxx`），避免污染主工作区、便于并行验证。
+- worktree 内的开发完成后，先在 worktree 中确保 `cargo build`（零 warning）与 `cargo test`（全 workspace 零失败）通过，再合并回主干。
+- 合并方式：在**主仓库**中 `git merge <worktree 分支>` 到 `main`（worktree 本身不持有 `main`，合并必须在主工作区执行）。确认无冲突且构建/测试仍绿后，再 `git push origin main`。
+- **合并到主干后，必须删除该 worktree 分支**（本地 + 远程均过期即清理）：本地 `git branch -d <branch>`，远程 `git push origin --delete <branch>`；对应 worktree 目录用 `git worktree remove <path> --force` 清理。不要长期保留已合并的特性分支，避免分支堆积与混淆。
+
 ## 当前发布工作
 
 - 从最新交接和 `git branch --show-current` 确认当前发布通道的活动分支；最近的工作通过小 PR 在 `main` 上登陆，而非长期存在的 `codex/...` 集成分支。此仓库存在于多设备，因此不要硬编码检出路径；在你拥有的本地检出中工作，并在编辑前确认分支。
