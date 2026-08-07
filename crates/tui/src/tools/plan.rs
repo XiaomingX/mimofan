@@ -338,6 +338,29 @@ impl PlanState {
         }
     }
 
+    /// Rebuild the plan state from a previously persisted [`PlanSnapshot`]
+    /// (e.g. restored from a saved session). Step timing is intentionally not
+    /// restored — only text and status are durable in the snapshot.
+    pub fn apply_snapshot(&mut self, snap: PlanSnapshot) {
+        self.title = snap.title;
+        self.objective = snap.objective;
+        self.context_summary = snap.context_summary;
+        self.explanation = snap.explanation;
+        self.sources_used = snap.sources_used;
+        self.critical_files = snap.critical_files;
+        self.constraints = snap.constraints;
+        self.recommended_approach = snap.recommended_approach;
+        self.verification_plan = snap.verification_plan;
+        self.risks_and_unknowns = snap.risks_and_unknowns;
+        self.handoff_packet = snap.handoff_packet;
+        self.steps = snap
+            .items
+            .into_iter()
+            .filter(|item| !item.step.trim().is_empty())
+            .map(|item| PlanStep::new(item.step, item.status))
+            .collect();
+    }
+
     pub fn explanation(&self) -> Option<&str> {
         self.explanation.as_deref()
     }
@@ -585,4 +608,57 @@ fn string_vec_field(input: &serde_json::Value, field: &str) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod plan_persist_tests {
+    use super::*;
+
+    #[test]
+    fn plan_state_apply_snapshot_restores_fields_and_steps() {
+        let mut state = PlanState::default();
+        state.update(UpdatePlanArgs {
+            title: Some("My Plan".to_string()),
+            objective: Some("Ship it".to_string()),
+            plan: vec![
+                PlanItemArg {
+                    step: "first".to_string(),
+                    status: StepStatus::Completed,
+                },
+                PlanItemArg {
+                    step: "second".to_string(),
+                    status: StepStatus::InProgress,
+                },
+            ],
+            ..Default::default()
+        });
+
+        let snap = state.snapshot();
+        // Serialize + deserialize to prove Deserialize is wired up on PlanSnapshot.
+        let json = serde_json::to_string(&snap).unwrap();
+        let snap: PlanSnapshot = serde_json::from_str(&json).unwrap();
+
+        let mut restored = PlanState::default();
+        restored.apply_snapshot(snap);
+
+        assert_eq!(restored.snapshot().title.as_deref(), Some("My Plan"));
+        assert_eq!(restored.snapshot().objective.as_deref(), Some("Ship it"));
+        assert_eq!(restored.steps().len(), 2);
+        assert_eq!(restored.steps()[0].status, StepStatus::Completed);
+        assert_eq!(restored.steps()[1].status, StepStatus::InProgress);
+    }
+
+    #[test]
+    fn plan_snapshot_empty_steps_are_dropped_on_apply() {
+        let snap = PlanSnapshot {
+            items: vec![PlanItemArg {
+                step: "   ".to_string(),
+                status: StepStatus::Pending,
+            }],
+            ..Default::default()
+        };
+        let mut state = PlanState::default();
+        state.apply_snapshot(snap);
+        assert!(state.steps().is_empty());
+    }
 }

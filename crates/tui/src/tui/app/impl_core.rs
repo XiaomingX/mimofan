@@ -12,6 +12,7 @@ use crate::models::{auto_compact_default_for_model, compaction_threshold_for_mod
 use crate::palette;
 use crate::pricing::{CostCurrency, CostEstimate};
 use crate::settings::Settings;
+use crate::session_manager::PlanAndTodoState;
 use crate::tools::plan::new_shared_plan_state;
 use crate::tools::shell::new_shared_shell_manager;
 use crate::tools::spec::RuntimeToolServices;
@@ -57,6 +58,27 @@ impl App {
         self.session.turn_cache_history.push_back(record);
         while self.session.turn_cache_history.len() > Self::TURN_CACHE_HISTORY_CAP {
             self.session.turn_cache_history.pop_front();
+        }
+    }
+
+    /// Capture the current plan and todo (checklist) state for persistence.
+    ///
+    /// `plan_state`/`todos` are `tokio::sync::Mutex`, so this uses
+    /// [`tokio::sync::Mutex::try_lock`] (non-blocking) to stay safe inside both
+    /// synchronous and `.await`-ing callers — callers must never hold either
+    /// guard across an `.await` (ARCHITECTURE_STABILITY.md §8.3). If either lock
+    /// is momentarily contended, that field is omitted (best-effort capture;
+    /// the next save will include it).
+    pub fn current_plan_and_todo(&self) -> PlanAndTodoState {
+        let plan = self
+            .plan_state
+            .try_lock()
+            .ok()
+            .map(|guard| guard.snapshot());
+        let todos = self.todos.try_lock().ok().map(|guard| guard.snapshot());
+        PlanAndTodoState {
+            plan: plan.filter(|p| !p.is_empty()),
+            todos: todos.filter(|t| !t.items.is_empty()),
         }
     }
 

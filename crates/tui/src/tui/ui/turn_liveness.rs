@@ -135,7 +135,11 @@ pub(crate) fn persist_recovery_snapshot(app: &mut App) {
         if app.current_session_id.is_none() {
             app.current_session_id = Some(session.metadata.id.clone());
         }
-        persistence_actor::persist(PersistRequest::SessionSnapshot(session));
+        persistence_actor::persist(PersistRequest::SessionSnapshot(session.clone()));
+        persistence_actor::persist_plan_state(
+            session.metadata.id.clone(),
+            app.current_plan_and_todo(),
+        );
     }
 }
 

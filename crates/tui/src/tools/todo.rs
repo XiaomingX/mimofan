@@ -53,7 +53,7 @@ pub struct TodoItem {
 }
 
 /// Snapshot of a todo list for display or serialization.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TodoListSnapshot {
     pub items: Vec<TodoItem>,
     pub completion_pct: u8,
@@ -153,6 +153,20 @@ impl TodoList {
     pub fn clear(&mut self) {
         self.items.clear();
         self.next_id = 1;
+    }
+
+    /// Rebuild the list from a previously persisted [`TodoListSnapshot`]
+    /// (e.g. restored from a saved session). Item ids and statuses are
+    /// preserved; `next_id` is advanced past the highest restored id.
+    pub fn apply_snapshot(&mut self, snap: TodoListSnapshot) {
+        self.items = snap.items;
+        self.next_id = self
+            .items
+            .iter()
+            .map(|item| item.id)
+            .max()
+            .map(|max_id| max_id + 1)
+            .unwrap_or(1);
     }
 
     fn set_single_in_progress(&mut self, allow_id: Option<u32>) {
@@ -518,4 +532,48 @@ fn checklist_metadata(snapshot: &TodoListSnapshot) -> serde_json::Value {
             }
         }
     })
+}
+
+#[cfg(test)]
+mod plan_persist_tests {
+    use super::*;
+
+    #[test]
+    fn todo_list_snapshot_round_trips_via_apply() {
+        let mut original = TodoList::new();
+        original.add("one".to_string(), TodoStatus::Completed);
+        original.add("two".to_string(), TodoStatus::InProgress);
+        let snap = original.snapshot();
+
+        // Serialize + deserialize to prove Deserialize is wired up.
+        let json = serde_json::to_string(&snap).unwrap();
+        let snap: TodoListSnapshot = serde_json::from_str(&json).unwrap();
+
+        let mut restored = TodoList::new();
+        restored.apply_snapshot(snap);
+
+        assert_eq!(restored.snapshot().items.len(), 2);
+        assert_eq!(restored.snapshot().items[0].content, "one");
+        assert_eq!(restored.snapshot().items[0].status, TodoStatus::Completed);
+        // next_id must advance past the highest restored id (2 -> 3).
+        let mut next = TodoList::new();
+        next.apply_snapshot(restored.snapshot());
+        let added = next.add("three".to_string(), TodoStatus::Pending);
+        assert_eq!(added.id, 3);
+    }
+
+    #[test]
+    fn empty_todo_snapshot_restores_empty_list() {
+        let snap = TodoListSnapshot {
+            items: vec![],
+            completion_pct: 0,
+            in_progress_id: None,
+        };
+        let mut list = TodoList::new();
+        list.apply_snapshot(snap);
+        assert!(list.snapshot().items.is_empty());
+        // next_id resets to 1 for an empty restore.
+        let added = list.add("x".to_string(), TodoStatus::Pending);
+        assert_eq!(added.id, 1);
+    }
 }
