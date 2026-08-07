@@ -202,6 +202,16 @@ impl AppendLog {
         Self { messages }
     }
 
+    /// Number of messages currently in the log.
+    pub fn len(&self) -> usize {
+        self.messages.len()
+    }
+
+    /// Whether the log holds no messages.
+    pub fn is_empty(&self) -> bool {
+        self.messages.is_empty()
+    }
+
     /// Append a message to the log. A single-message push is the cheapest
     /// mutation for prefix-cache stability — it extends the byte sequence
     /// without disturbing earlier turns.

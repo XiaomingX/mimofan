@@ -155,11 +155,13 @@ pub fn pre_turn_snapshot(
     turn_seq: u64,
     cap_bytes: u64,
     user_prompt: Option<&str>,
+    conversation_len: usize,
 ) -> Option<String> {
     snapshot_with_label(
         workspace,
         &format_snapshot_label("pre-turn", turn_seq, user_prompt),
         cap_bytes,
+        conversation_len,
     )
 }
 
@@ -172,7 +174,9 @@ pub fn pre_turn_snapshot(
 /// Returns the snapshot SHA on success, `None` on any error. Errors are
 /// logged at WARN and are non-fatal.
 pub fn pre_tool_snapshot(workspace: &Path, call_id: &str, cap_bytes: u64) -> Option<String> {
-    snapshot_with_label(workspace, &format!("tool:{call_id}"), cap_bytes)
+    // Tool-level snapshots revert files only; they are not tied to a
+    // conversation turn, so conversation_len is left at 0.
+    snapshot_with_label(workspace, &format!("tool:{call_id}"), cap_bytes, 0)
 }
 
 /// Take a `post-turn:<seq>` workspace snapshot. Same failure model as
@@ -182,18 +186,25 @@ pub fn post_turn_snapshot(
     turn_seq: u64,
     cap_bytes: u64,
     user_prompt: Option<&str>,
+    conversation_len: usize,
 ) -> Option<String> {
     snapshot_with_label(
         workspace,
         &format_snapshot_label("post-turn", turn_seq, user_prompt),
         cap_bytes,
+        conversation_len,
     )
 }
 
-fn snapshot_with_label(workspace: &Path, label: &str, cap_bytes: u64) -> Option<String> {
+fn snapshot_with_label(
+    workspace: &Path,
+    label: &str,
+    cap_bytes: u64,
+    conversation_len: usize,
+) -> Option<String> {
     match SnapshotRepo::open_or_init_with_cap(workspace, cap_bytes) {
         Ok(repo) => {
-            let id = match repo.snapshot(label) {
+            let id = match repo.snapshot(label, conversation_len) {
                 Ok(id) => Some(id.0),
                 Err(e) => {
                     tracing::warn!(target: "snapshot", "snapshot '{label}' failed: {e}");
