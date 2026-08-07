@@ -72,6 +72,25 @@ impl GoalStatus {
     }
 }
 
+/// Signal reported by the engine at the end of each turn, used to drive the
+/// anti-drift guardrails (no-progress / repeated-error circuit breakers).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProgressSignal {
+    /// At least one file changed during the turn — forward progress.
+    FileChanged,
+    /// No file changes this turn (and no tool error worth counting).
+    NoChange,
+    /// A tool errored; `fingerprint` is a stable hash-ish key (e.g. the
+    /// error message trimmed to a bounded length) used to detect repeats.
+    ToolError { fingerprint: String },
+}
+
+/// Default circuit-breaker thresholds (kept loose so normal long tasks are
+/// not interrupted). Tunable via env `MIMOFAN_GOAL_NO_PROGRESS_ROUNDS` /
+/// `MIMOFAN_GOAL_REPEATED_ERROR_ROUNDS`.
+pub const DEFAULT_NO_PROGRESS_ROUNDS: u32 = 8;
+pub const DEFAULT_REPEATED_ERROR_ROUNDS: u32 = 5;
+
 /// Session-local goal state. `Instant` stays runtime-only; snapshots expose
 /// elapsed seconds so tool output remains serializable and stable.
 #[derive(Debug, Clone, Default)]
@@ -87,12 +106,35 @@ pub struct GoalState {
     evidence: Option<String>,
     blocker: Option<String>,
     completion_verification: Option<GoalCompletionVerification>,
+    /// Human-readable progress checklist (done / todo lines) shown in the
+    /// goal contract injected into the system prompt.
+    progress_checklist: Option<String>,
+    /// Consecutive turns with no file changes — feeds the no-progress breaker.
+    no_progress_rounds: u32,
+    /// Last tool-error fingerprint; `None` resets the repeated-error counter.
+    last_tool_error_fingerprint: Option<String>,
+    /// Consecutive turns ending on the *same* tool-error fingerprint.
+    repeated_error_rounds: u32,
+    /// Optional wall-clock budget in seconds (wired into `decide_continuation`).
+    time_budget_seconds: Option<u64>,
 }
 
 impl GoalState {
     #[must_use]
     pub fn objective(&self) -> Option<&str> {
         self.objective.as_deref()
+    }
+
+    /// The completion verification attached to the goal, if any.
+    #[must_use]
+    pub fn completion_verification(&self) -> Option<&GoalCompletionVerification> {
+        self.completion_verification.as_ref()
+    }
+
+    /// The progress checklist, if set.
+    #[must_use]
+    pub fn progress_checklist(&self) -> Option<&str> {
+        self.progress_checklist.as_deref()
     }
 
     #[must_use]
@@ -126,6 +168,11 @@ impl GoalState {
                     self.evidence = None;
                     self.blocker = None;
                     self.completion_verification = None;
+                    self.progress_checklist = None;
+                    self.no_progress_rounds = 0;
+                    self.last_tool_error_fingerprint = None;
+                    self.repeated_error_rounds = 0;
+                    self.time_budget_seconds = None;
                 } else if self.token_budget != token_budget {
                     self.token_budget = token_budget;
                 }
@@ -155,6 +202,69 @@ impl GoalState {
         self.evidence = None;
         self.blocker = None;
         self.completion_verification = None;
+        self.progress_checklist = None;
+        self.no_progress_rounds = 0;
+        self.last_tool_error_fingerprint = None;
+        self.repeated_error_rounds = 0;
+        self.time_budget_seconds = None;
+    }
+
+    /// Set or clear the progress checklist shown in the goal contract.
+    pub fn set_progress_checklist(&mut self, checklist: Option<String>) {
+        self.progress_checklist = checklist.filter(|value| !value.trim().is_empty());
+    }
+
+    /// Set the wall-clock budget in seconds (wired into `decide_continuation`).
+    pub fn set_time_budget_seconds(&mut self, seconds: Option<u64>) {
+        self.time_budget_seconds = seconds;
+    }
+
+    /// Apply a per-turn progress signal to the circuit-breaker counters.
+    ///
+    /// Must be called inside a synchronous block — never hold the `Mutex`
+    /// guard across an `.await` (see `ARCHITECTURE_STABILITY.md` §8.3).
+    pub fn record_progress_signal(&mut self, signal: &ProgressSignal) {
+        if !self.is_active() {
+            return;
+        }
+        match signal {
+            ProgressSignal::FileChanged => {
+                self.no_progress_rounds = 0;
+                self.last_tool_error_fingerprint = None;
+                self.repeated_error_rounds = 0;
+            }
+            ProgressSignal::NoChange => {
+                self.no_progress_rounds = self.no_progress_rounds.saturating_add(1);
+            }
+            ProgressSignal::ToolError { fingerprint } => {
+                if self.last_tool_error_fingerprint.as_deref() == Some(fingerprint.as_str()) {
+                    self.repeated_error_rounds = self.repeated_error_rounds.saturating_add(1);
+                } else {
+                    self.repeated_error_rounds = 1;
+                    self.last_tool_error_fingerprint = Some(fingerprint.clone());
+                }
+                // A tool error still counts as a turn that made no file progress.
+                self.no_progress_rounds = self.no_progress_rounds.saturating_add(1);
+            }
+        }
+    }
+
+    /// Consecutive no-progress turns (exposed for `decide_continuation`).
+    #[must_use]
+    pub fn no_progress_rounds(&self) -> u32 {
+        self.no_progress_rounds
+    }
+
+    /// Consecutive repeated same-error turns (exposed for `decide_continuation`).
+    #[must_use]
+    pub fn repeated_error_rounds(&self) -> u32 {
+        self.repeated_error_rounds
+    }
+
+    /// Wall-clock budget in seconds, if set (exposed for `decide_continuation`).
+    #[must_use]
+    pub fn time_budget_seconds(&self) -> Option<u64> {
+        self.time_budget_seconds
     }
 
     pub fn record_usage(&mut self, token_delta: u64, time_delta_seconds: u64) {
@@ -219,6 +329,10 @@ impl GoalState {
             evidence: self.evidence.clone(),
             blocker: self.blocker.clone(),
             completion_verification: self.completion_verification.clone(),
+            progress_checklist: self.progress_checklist.clone(),
+            no_progress_rounds: self.no_progress_rounds,
+            repeated_error_rounds: self.repeated_error_rounds,
+            time_budget_seconds: self.time_budget_seconds,
         }
     }
 }
@@ -236,6 +350,10 @@ pub struct GoalSnapshot {
     pub evidence: Option<String>,
     pub blocker: Option<String>,
     pub completion_verification: Option<GoalCompletionVerification>,
+    pub progress_checklist: Option<String>,
+    pub no_progress_rounds: u32,
+    pub repeated_error_rounds: u32,
+    pub time_budget_seconds: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -268,6 +386,10 @@ impl GoalSnapshot {
             evidence: None,
             blocker: None,
             completion_verification: None,
+            progress_checklist: None,
+            no_progress_rounds: 0,
+            repeated_error_rounds: 0,
+            time_budget_seconds: None,
         }
     }
 }
@@ -594,5 +716,54 @@ impl ToolSpec for UpdateGoalTool {
             state.snapshot()
         };
         json_result(&snapshot)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn active_state() -> GoalState {
+        let mut s = GoalState::default();
+        s.create("ship the refactor".to_string(), None);
+        s
+    }
+
+    #[test]
+    fn file_changed_resets_counters() {
+        let mut s = active_state();
+        s.record_progress_signal(&ProgressSignal::NoChange);
+        s.record_progress_signal(&ProgressSignal::NoChange);
+        assert_eq!(s.no_progress_rounds(), 2);
+        s.record_progress_signal(&ProgressSignal::FileChanged);
+        assert_eq!(s.no_progress_rounds(), 0);
+        assert_eq!(s.repeated_error_rounds(), 0);
+    }
+
+    #[test]
+    fn repeated_same_error_counts_then_resets_on_new() {
+        let mut s = active_state();
+        s.record_progress_signal(&ProgressSignal::ToolError {
+            fingerprint: "E1".to_string(),
+        });
+        s.record_progress_signal(&ProgressSignal::ToolError {
+            fingerprint: "E1".to_string(),
+        });
+        assert_eq!(s.repeated_error_rounds(), 2);
+        // A different error resets the repeat counter to 1.
+        s.record_progress_signal(&ProgressSignal::ToolError {
+            fingerprint: "E2".to_string(),
+        });
+        assert_eq!(s.repeated_error_rounds(), 1);
+        assert_eq!(s.last_tool_error_fingerprint.as_deref(), Some("E2"));
+    }
+
+    #[test]
+    fn no_progress_also_increments_on_error() {
+        let mut s = active_state();
+        s.record_progress_signal(&ProgressSignal::ToolError {
+            fingerprint: "E1".to_string(),
+        });
+        assert_eq!(s.no_progress_rounds(), 1);
     }
 }

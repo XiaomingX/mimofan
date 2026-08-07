@@ -262,12 +262,20 @@ impl Engine {
                 tokens_used: snapshot.tokens_used,
                 time_used_seconds: snapshot.time_used_seconds,
                 continuations: snapshot.continuation_count,
+                no_progress_rounds: snapshot.no_progress_rounds,
+                repeated_error_rounds: snapshot.repeated_error_rounds,
             },
             crate::goal_loop::GoalBudget {
                 token_budget: snapshot.token_budget.map(u64::from),
-                time_budget_seconds: None,
+                time_budget_seconds: snapshot.time_budget_seconds,
                 max_continuations: Some(crate::goal_loop::DEFAULT_MAX_CONTINUATIONS),
-            },
+                no_progress_rounds: None,
+                repeated_error_rounds: None,
+            }
+            .with_guardrails(
+                Some(crate::tools::goal::DEFAULT_NO_PROGRESS_ROUNDS),
+                Some(crate::tools::goal::DEFAULT_REPEATED_ERROR_ROUNDS),
+            ),
         );
 
         match decision {

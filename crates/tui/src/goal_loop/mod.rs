@@ -50,6 +50,10 @@ pub enum StopReason {
     /// continuation cap, so this variant is not constructed by
     /// `decide_continuation`.
     ContinuationLimit,
+    /// Anti-drift: too many consecutive turns made no file changes.
+    NoProgress,
+    /// Anti-drift: the same tool error repeated too many consecutive turns.
+    RepeatedError,
 }
 
 /// Accumulated, durable progress for a goal run. Mirrors the fields wired by
@@ -60,6 +64,10 @@ pub struct GoalProgress {
     pub tokens_used: u64,
     pub time_used_seconds: u64,
     pub continuations: u32,
+    /// Consecutive no-file-change turns (anti-drift NoProgress breaker).
+    pub no_progress_rounds: u32,
+    /// Consecutive identical tool-error turns (anti-drift RepeatedError breaker).
+    pub repeated_error_rounds: u32,
 }
 
 /// The bound on a goal run. `None` fields mean unbounded.
@@ -71,6 +79,12 @@ pub struct GoalBudget {
     /// unbounded — the loop runs until the model self-reports complete/blocked,
     /// the user pauses/clears, or an optional budget is exhausted.
     pub max_continuations: Option<u32>,
+    /// Anti-drift: stop after this many consecutive no-file-change turns.
+    /// `None` disables the no-progress breaker.
+    pub no_progress_rounds: Option<u32>,
+    /// Anti-drift: stop after this many consecutive identical tool errors.
+    /// `None` disables the repeated-error breaker.
+    pub repeated_error_rounds: Option<u32>,
 }
 
 impl GoalBudget {
@@ -80,6 +94,8 @@ impl GoalBudget {
             token_budget: None,
             time_budget_seconds: None,
             max_continuations: Some(DEFAULT_MAX_CONTINUATIONS),
+            no_progress_rounds: None,
+            repeated_error_rounds: None,
         }
     }
 
@@ -89,7 +105,20 @@ impl GoalBudget {
             token_budget: Some(token_budget),
             time_budget_seconds: None,
             max_continuations: Some(DEFAULT_MAX_CONTINUATIONS),
+            no_progress_rounds: None,
+            repeated_error_rounds: None,
         }
+    }
+
+    /// Enable the anti-drift circuit breakers with explicit thresholds.
+    pub const fn with_guardrails(
+        mut self,
+        no_progress_rounds: Option<u32>,
+        repeated_error_rounds: Option<u32>,
+    ) -> Self {
+        self.no_progress_rounds = no_progress_rounds;
+        self.repeated_error_rounds = repeated_error_rounds;
+        self
     }
 }
 
@@ -108,7 +137,9 @@ pub enum ContinuationDecision {
 /// 1. A terminal model status (Completed / Blocked) ends the run.
 /// 2. An optional continuation cap, if exhausted, ends the run.
 /// 3. An optional token or time budget, if exhausted, ends the run.
-/// 4. Otherwise continue.
+/// 4. Anti-drift circuit breakers trip when drift is detected
+///    (NoProgress / RepeatedError).
+/// 5. Otherwise continue.
 #[must_use]
 pub fn decide_continuation(
     status: GoalRunStatus,
@@ -141,6 +172,115 @@ pub fn decide_continuation(
         return ContinuationDecision::Stop(StopReason::TimeBudget);
     }
 
-    // 4. Keep going.
+    // 4. Anti-drift circuit breakers.
+    if let Some(max) = budget.no_progress_rounds
+        && progress.no_progress_rounds >= max
+    {
+        return ContinuationDecision::Stop(StopReason::NoProgress);
+    }
+    if let Some(max) = budget.repeated_error_rounds
+        && progress.repeated_error_rounds >= max
+    {
+        return ContinuationDecision::Stop(StopReason::RepeatedError);
+    }
+
+    // 5. Keep going.
     ContinuationDecision::Continue
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn budget(no_progress: Option<u32>, repeated: Option<u32>) -> GoalBudget {
+        GoalBudget {
+            token_budget: None,
+            time_budget_seconds: None,
+            max_continuations: Some(DEFAULT_MAX_CONTINUATIONS),
+            no_progress_rounds: no_progress,
+            repeated_error_rounds: repeated,
+        }
+    }
+
+    #[test]
+    fn continues_when_under_thresholds() {
+        let decision = decide_continuation(
+            GoalRunStatus::Active,
+            GoalProgress {
+                no_progress_rounds: 3,
+                repeated_error_rounds: 1,
+                ..Default::default()
+            },
+            budget(Some(8), Some(5)),
+        );
+        assert_eq!(decision, ContinuationDecision::Continue);
+    }
+
+    #[test]
+    fn stops_on_no_progress_breaker() {
+        let decision = decide_continuation(
+            GoalRunStatus::Active,
+            GoalProgress {
+                no_progress_rounds: 8,
+                ..Default::default()
+            },
+            budget(Some(8), Some(5)),
+        );
+        assert_eq!(
+            decision,
+            ContinuationDecision::Stop(StopReason::NoProgress)
+        );
+    }
+
+    #[test]
+    fn stops_on_repeated_error_breaker() {
+        let decision = decide_continuation(
+            GoalRunStatus::Active,
+            GoalProgress {
+                repeated_error_rounds: 5,
+                ..Default::default()
+            },
+            budget(Some(8), Some(5)),
+        );
+        assert_eq!(
+            decision,
+            ContinuationDecision::Stop(StopReason::RepeatedError)
+        );
+    }
+
+    #[test]
+    fn stops_on_time_budget_when_wired() {
+        let decision = decide_continuation(
+            GoalRunStatus::Active,
+            GoalProgress {
+                time_used_seconds: 100,
+                ..Default::default()
+            },
+            GoalBudget {
+                token_budget: None,
+                time_budget_seconds: Some(100),
+                max_continuations: Some(DEFAULT_MAX_CONTINUATIONS),
+                no_progress_rounds: None,
+                repeated_error_rounds: None,
+            },
+        );
+        assert_eq!(
+            decision,
+            ContinuationDecision::Stop(StopReason::TimeBudget)
+        );
+    }
+
+    #[test]
+    fn breakers_disabled_when_none() {
+        // With no_progress_rounds = None, even 99 no-progress rounds continue.
+        let decision = decide_continuation(
+            GoalRunStatus::Active,
+            GoalProgress {
+                no_progress_rounds: 99,
+                ..Default::default()
+            },
+            budget(None, None),
+        );
+        assert_eq!(decision, ContinuationDecision::Continue);
+    }
 }

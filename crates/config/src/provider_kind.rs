@@ -21,6 +21,7 @@ pub enum ProviderKind {
     ///
     /// 涵盖所有兼容 OpenAI Chat Completions 协议的自建/第三方网关。
     #[default]
+    #[serde(rename = "openai-compatible")]
     OpenAiCompatible,
     /// Anthropic Messages API compatible endpoint (`/v1/messages`).
     AnthropicCompatible,

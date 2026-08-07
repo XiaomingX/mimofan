@@ -653,6 +653,7 @@ impl Engine {
             crate::memory::compose_index_block(config.memory_enabled, &config.memory_dir, None);
         let prompt_goal_objective =
             goal_objective_for_prompt(config.goal_objective.as_deref(), &config.goal_state);
+        let goal_contract = crate::core::engine::goal::goal_contract_for_prompt(&config.goal_state);
         let system_prompt =
             prompts::system_prompt_for_mode_with_context_skills_session_and_approval(
                 &config.workspace,
@@ -662,6 +663,8 @@ impl Engine {
                 prompts::PromptSessionContext {
                     user_memory_block: user_memory_block.as_deref(),
                     goal_objective: prompt_goal_objective.as_deref(),
+                    goal_completion_check: goal_contract.as_ref().and_then(|c| c.completion_check.as_deref()),
+                    goal_progress_checklist: goal_contract.as_ref().and_then(|c| c.progress_checklist.as_deref()),
                     project_context_pack_enabled: config.project_context_pack_enabled,
                     locale_tag: &config.locale_tag,
                     translation_enabled: config.translation_enabled,
@@ -2598,6 +2601,7 @@ impl Engine {
             self.config.goal_objective.as_deref(),
             &self.config.goal_state,
         );
+        let goal_contract = crate::core::engine::goal::goal_contract_for_prompt(&self.config.goal_state);
         let base = prompts::system_prompt_for_mode_with_context_skills_session_and_approval(
             &self.config.workspace,
             None,
@@ -2606,6 +2610,8 @@ impl Engine {
             prompts::PromptSessionContext {
                 user_memory_block: user_memory_block.as_deref(),
                 goal_objective: prompt_goal_objective.as_deref(),
+                goal_completion_check: goal_contract.as_ref().and_then(|c| c.completion_check.as_deref()),
+                goal_progress_checklist: goal_contract.as_ref().and_then(|c| c.progress_checklist.as_deref()),
                 project_context_pack_enabled: self.config.project_context_pack_enabled,
                 locale_tag: &self.config.locale_tag,
                 translation_enabled: self.config.translation_enabled,

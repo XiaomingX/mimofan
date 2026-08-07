@@ -110,6 +110,8 @@ pub(crate) fn build_app_system_prompt(app: &App, config: &Config) -> SystemPromp
         prompts::PromptSessionContext {
             user_memory_block: None,
             goal_objective: app.hunt.quarry.as_deref(),
+            goal_completion_check: None,
+            goal_progress_checklist: None,
             project_context_pack_enabled: config.project_context_pack_enabled(),
             locale_tag: app.ui_locale.tag(),
             translation_enabled: app.translation_enabled,

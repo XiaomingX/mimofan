@@ -124,6 +124,14 @@ impl Engine {
 
         let mut consecutive_tool_error_steps = 0u32;
         let mut turn_error: Option<String> = None;
+        // Tracks whether this turn produced a successful file-write tool call,
+        // used to feed the goal anti-drift (NoProgress) circuit breaker.
+        let mut turn_had_write = false;
+        // Last tool-error text in this step, used as a stable fingerprint for
+        // the repeated-error circuit breaker.
+        let mut last_tool_error_text = String::new();
+        // De-duplicates auto-captured memory signals within a single turn.
+        let mut seen_auto_memory: std::collections::HashSet<String> = std::collections::HashSet::new();
         let mut context_recovery_attempts = 0u8;
         let mut tool_catalog = tools.unwrap_or_default();
         if !tool_catalog.is_empty() {
@@ -2284,6 +2292,14 @@ impl Engine {
                             .and_then(|metadata| metadata.get("executed"))
                             .and_then(serde_json::Value::as_bool)
                             .unwrap_or(true);
+                        // Feed the goal anti-drift breaker: a successful
+                        // file-write counts as forward progress.
+                        if output.success
+                            && tool_was_executed
+                            && Self::is_file_write_tool(&outcome.name)
+                        {
+                            turn_had_write = true;
+                        }
                         self.session.working_set.observe_tool_call(
                             &tool_name_for_ws,
                             &tool_input,
@@ -2334,6 +2350,7 @@ impl Engine {
                         step_error_count += 1;
                         step_error_categories.push(envelope.category);
                         let error = format_tool_error(&e, &outcome.name);
+                        last_tool_error_text = error.clone();
                         self.session.working_set.observe_tool_call(
                             &tool_name_for_ws,
                             &tool_input,
@@ -2376,7 +2393,6 @@ impl Engine {
             } else {
                 consecutive_tool_error_steps = 0;
             }
-
             // After 3+ consecutive tool errors, inject a system hint to help
             // the model break out of a potential error loop.
             if consecutive_tool_error_steps >= 3 {
@@ -2390,6 +2406,12 @@ impl Engine {
                 consecutive_tool_error_steps = 0;
             }
 
+            // Anti-drift + automatic memory capture at the end of each step.
+            // Runs inside the synchronous post-step region (no `.await` in the
+            // goal-state lock guard) to respect the std::Mutex red line.
+            self.record_goal_progress_signal(turn_had_write, step_error_count, &last_tool_error_text);
+            self.auto_capture_memory(&mut seen_auto_memory).await;
+
             turn.next_step();
         }
 
@@ -2400,6 +2422,116 @@ impl Engine {
             return (TurnOutcomeStatus::Failed, Some(err));
         }
         (TurnOutcomeStatus::Completed, None)
+    }
+
+    /// Whether a tool name denotes a file-writing operation (counts as forward
+    /// progress for the goal NoProgress circuit breaker).
+    fn is_file_write_tool(name: &str) -> bool {
+        matches!(
+            name,
+            "Write" | "Edit" | "MultiEdit" | "NotebookEdit" | "write" | "edit" | "multi_edit"
+        )
+    }
+
+    /// Feed a per-step progress signal into the active goal's circuit breakers.
+    ///
+    /// Must be called synchronously — the `SharedGoalState` guard is never held
+    /// across an `.await` (see `ARCHITECTURE_STABILITY.md` §8.3).
+    fn record_goal_progress_signal(
+        &self,
+        turn_had_write: bool,
+        step_error_count: usize,
+        last_tool_error_text: &str,
+    ) {
+        use crate::tools::goal::{ProgressSignal, SharedGoalState};
+        let state: &SharedGoalState = &self.config.goal_state;
+        let signal = if step_error_count > 0 {
+            // Bound the fingerprint so the breaker keys on the error class,
+            // not unbounded text growth.
+            let fingerprint = last_tool_error_text.trim().chars().take(120).collect::<String>();
+            ProgressSignal::ToolError { fingerprint }
+        } else if turn_had_write {
+            ProgressSignal::FileChanged
+        } else {
+            ProgressSignal::NoChange
+        };
+        match state.lock() {
+            Ok(mut goal) => goal.record_progress_signal(&signal),
+            Err(err) => tracing::warn!("goal state lock poisoned while recording progress: {err}"),
+        }
+    }
+
+    /// Lightweight automatic memory capture at the end of each step.
+    ///
+    /// Extracts durable signals from the turn transcript (no extra LLM call)
+    /// and persists them when a memory backend is enabled:
+    /// - file memory (`[memory] enabled`) → append to the category file;
+    /// - vector memory (`MIMOFAN_MEMORY_API_KEY` set) → embed + store observation.
+    ///
+    /// Honors the std::Mutex / Send red lines: file writes are fully
+    /// synchronous; the embedding future is awaited only after extracting the
+    /// `Send` embedder, and the non-`Send` `VectorMemory` is never held across
+    /// an `.await`.
+    async fn auto_capture_memory(&mut self, seen: &mut std::collections::HashSet<String>) {
+        let signals = crate::turn_memory::extract_signals(&self.session.messages);
+        if signals.is_empty() {
+            return;
+        }
+
+        // File memory (opt-in).
+        if self.config.memory_enabled {
+            for signal in &signals {
+                let key = format!("{}/{}", signal.category.as_str(), signal.content);
+                if !seen.insert(key) {
+                    continue; // de-dupe within this turn
+                }
+                if let Err(err) =
+                    crate::memory::append_entry(&self.config.memory_dir, signal.category.as_str(), &signal.content)
+                {
+                    tracing::warn!(?err, "auto memory: failed to append entry");
+                }
+            }
+        }
+
+        // Vector memory (configured).
+        if crate::vector_memory::VectorMemory::is_configured() {
+            let mem_dir = self.config.memory_dir.clone();
+            let project = self.config.workspace.display().to_string();
+            let to_store: Vec<(String, String)> = signals
+                .iter()
+                .filter(|s| seen.insert(format!("vec/{}/{}", s.category.as_str(), s.content)))
+                .map(|s| (s.category.as_str().to_string(), s.content.clone()))
+                .collect();
+            if !to_store.is_empty() {
+                // Open is cheap and synchronous; the store itself is non-Send,
+                // so we take the Send embedder, await the embedding, then store
+                // synchronously.
+                match crate::vector_memory::VectorMemory::open(&mem_dir) {
+                    Ok(mut vm) => {
+                        if let Some(embedder) = vm.take_embedder() {
+                            for (kind, content) in to_store {
+                                match embedder.embed_text(&content).await {
+                                    Ok(embedding) => {
+                                        if let Err(err) = vm.store_observation(
+                                            &project,
+                                            &kind,
+                                            &content,
+                                            &embedding,
+                                        ) {
+                                            tracing::warn!(?err, "auto memory: vector store failed");
+                                        }
+                                    }
+                                    Err(err) => {
+                                        tracing::warn!(?err, "auto memory: embedding failed");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => tracing::warn!(?err, "auto memory: vector open failed"),
+                }
+            }
+        }
     }
 
     async fn goal_continuation_message_if_needed(
@@ -2446,12 +2578,20 @@ impl Engine {
                 tokens_used: snapshot.tokens_used,
                 time_used_seconds: snapshot.time_used_seconds,
                 continuations: snapshot.continuation_count,
+                no_progress_rounds: snapshot.no_progress_rounds,
+                repeated_error_rounds: snapshot.repeated_error_rounds,
             },
             crate::goal_loop::GoalBudget {
                 token_budget: snapshot.token_budget.map(u64::from),
-                time_budget_seconds: None,
+                time_budget_seconds: snapshot.time_budget_seconds,
                 max_continuations: Some(crate::goal_loop::DEFAULT_MAX_CONTINUATIONS),
-            },
+                no_progress_rounds: None,
+                repeated_error_rounds: None,
+            }
+            .with_guardrails(
+                Some(crate::tools::goal::DEFAULT_NO_PROGRESS_ROUNDS),
+                Some(crate::tools::goal::DEFAULT_REPEATED_ERROR_ROUNDS),
+            ),
         );
         if let crate::goal_loop::ContinuationDecision::Stop(reason) = decision {
             let message = match reason {
@@ -2459,6 +2599,14 @@ impl Engine {
                     "Goal token budget reached ({} / {} tokens); ending continuation.",
                     snapshot.tokens_used,
                     snapshot.token_budget.unwrap_or_default()
+                ),
+                crate::goal_loop::StopReason::NoProgress => format!(
+                    "Goal stopped by anti-drift circuit breaker: {} consecutive turns made no file changes. The objective may be stuck or complete; review and resume if needed.",
+                    snapshot.no_progress_rounds
+                ),
+                crate::goal_loop::StopReason::RepeatedError => format!(
+                    "Goal stopped by anti-drift circuit breaker: the same tool error repeated {} consecutive turns. Fix the root cause before resuming.",
+                    snapshot.repeated_error_rounds
                 ),
                 crate::goal_loop::StopReason::ContinuationLimit => format!(
                     "Goal continuation limit reached ({} continuations); ending to prevent unbounded loop.",

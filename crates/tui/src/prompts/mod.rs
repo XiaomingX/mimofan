@@ -16,6 +16,12 @@ use std::path::{Path, PathBuf};
 pub struct PromptSessionContext<'a> {
     pub user_memory_block: Option<&'a str>,
     pub goal_objective: Option<&'a str>,
+    /// Goal completion criteria (the verifier/check that must pass before the
+    /// goal is complete). Injected as part of the `## Current Goal` contract.
+    pub goal_completion_check: Option<&'a str>,
+    /// Goal progress checklist (done / todo lines) shown in the contract so the
+    /// agent stays anchored to the original objective across long runs.
+    pub goal_progress_checklist: Option<&'a str>,
     pub project_context_pack_enabled: bool,
     /// Resolved BCP-47 locale tag for the `## Environment` block in
     /// the system prompt (e.g. `"en"`, `"zh-Hans"`, `"ja"`). The
@@ -56,6 +62,8 @@ impl Default for PromptSessionContext<'_> {
         Self {
             user_memory_block: None,
             goal_objective: None,
+            goal_completion_check: None,
+            goal_progress_checklist: None,
             project_context_pack_enabled: true,
             locale_tag: "en",
             translation_enabled: false,
@@ -833,6 +841,8 @@ pub fn system_prompt_for_mode_with_context_and_skills(
         PromptSessionContext {
             user_memory_block,
             goal_objective: None,
+            goal_completion_check: None,
+            goal_progress_checklist: None,
             project_context_pack_enabled: true,
             locale_tag: "en",
             translation_enabled: false,
@@ -1051,14 +1061,34 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
 
     // 6e. Current session goal. Also volatile: users set / change goals
     // during a session via `/goal`. Placed below the boundary for the
-    // same reason as memory.
+    // same reason as memory. The goal is injected as a structured contract
+    // (objective + completion criteria + progress + anti-drift guardrails)
+    // so the agent stays anchored to the original intent across long runs.
     if let Some(goal_objective) = session_context.goal_objective
         && !goal_objective.trim().is_empty()
     {
-        full_prompt = format!(
+        let mut block = format!(
             "{full_prompt}\n\n## Current Goal\n\n<session_goal>\n{}\n</session_goal>",
             goal_objective.trim()
         );
+        if let Some(check) = session_context.goal_completion_check
+            && !check.trim().is_empty()
+        {
+            block = format!(
+                "{block}\n\n## Completion Criteria\n\nBefore reporting the goal complete, this check MUST pass:\n{check}"
+            );
+        }
+        if let Some(progress) = session_context.goal_progress_checklist
+            && !progress.trim().is_empty()
+        {
+            block = format!("{block}\n\n## Progress\n\n{progress}");
+        }
+        block = format!(
+            "{block}\n\n## Guardrails (anti-drift)\n\n- Stay scoped to the objective above. Do not expand scope or start unrelated work.\n- You will be stopped automatically if {} consecutive turns make no file changes, or if the same tool error repeats {} consecutive turns.\n- Report progress against the checklist each turn; when the Completion Criteria pass, call `update_goal` with `status: \"complete\"` and a concrete verifier result.",
+            crate::tools::goal::DEFAULT_NO_PROGRESS_ROUNDS,
+            crate::tools::goal::DEFAULT_REPEATED_ERROR_ROUNDS,
+        );
+        full_prompt = block;
     }
 
     // 6f. Frozen spec constraint (#557). When a spec/plan is frozen via
