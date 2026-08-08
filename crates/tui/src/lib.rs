@@ -70,7 +70,6 @@ mod mcp_server;
 mod mcp_server_backend;
 mod memory;
 mod turn_memory;
-mod model_catalog;
 mod model_inventory;
 mod model_profile;
 mod model_registry;

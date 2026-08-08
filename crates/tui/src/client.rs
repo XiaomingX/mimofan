@@ -26,7 +26,7 @@ use crate::llm_client::{
     sanitize_http_error_body, with_retry,
 };
 use crate::logging;
-use crate::model_catalog::resolved_supports_image;
+use mimofan_protocol::model_catalog::resolved_supports_image;
 use crate::models::{
     ContentBlock, Message, MessageRequest, MessageResponse, ServerToolUsage, SystemPrompt, Usage,
 };

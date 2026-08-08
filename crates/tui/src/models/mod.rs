@@ -242,7 +242,7 @@ pub struct Usage {
 /// 3. Claude -> 200K.
 #[must_use]
 pub fn context_window_for_model(model: &str) -> Option<u32> {
-    if let Some(window) = crate::model_catalog::resolved_context_window(model) {
+    if let Some(window) = mimofan_protocol::model_catalog::resolved_context_window(model) {
         return Some(window);
     }
     let lower = model.to_lowercase();
@@ -311,7 +311,7 @@ fn known_context_window_for_model(model_lower: &str) -> Option<u32> {
 
 #[must_use]
 pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
-    if let Some(max_output) = crate::model_catalog::resolved_max_output(model) {
+    if let Some(max_output) = mimofan_protocol::model_catalog::resolved_max_output(model) {
         return Some(max_output);
     }
     let lower = model.to_lowercase();
@@ -346,7 +346,7 @@ pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
 
 #[must_use]
 pub fn model_supports_reasoning(model: &str) -> bool {
-    if let Some(supports_reasoning) = crate::model_catalog::resolved_supports_reasoning(model) {
+    if let Some(supports_reasoning) = mimofan_protocol::model_catalog::resolved_supports_reasoning(model) {
         return supports_reasoning;
     }
     let lower = model.to_lowercase();
