@@ -11,6 +11,8 @@
 //! - `/memory show [category]` — show a category file (or all non-empty)
 //! - `/memory path` — show the memory directory
 //! - `/memory clear [category]` — clear a category (or the whole store)
+//! - `/memory delete <category> <substring>` — delete the first bullet in a
+//!   category whose text contains `<substring>`
 //! - `/memory edit [category]` — print an editor command for the index or a
 //!   category file
 //! - `/memory help` — this help
@@ -23,11 +25,13 @@ use std::fs;
 
 use super::CommandResult;
 use crate::memory::{
-    CATEGORIES, category_path, index_path, is_category, load_index, read_category, write_index,
+    CATEGORIES, category_path, index_path, is_category, load_index, read_category, remove_entry,
+    write_index,
 };
 use crate::tui::app::App;
 
-const MEMORY_USAGE: &str = "/memory [show [category]|path|clear [category]|edit [category]|help]";
+const MEMORY_USAGE: &str =
+    "/memory [show [category]|path|clear [category]|delete <category> <substring>|edit [category]|help]";
 
 fn memory_help(dir: &std::path::Path) -> String {
     format!(
@@ -39,6 +43,8 @@ fn memory_help(dir: &std::path::Path) -> String {
            /memory show [cat]     Show a category file (or every non-empty one)\n\
            /memory path           Print the memory directory\n\
            /memory clear [cat]    Clear a category (or the whole store if omitted)\n\
+           /memory delete <cat> <substring>\n\
+                                 Delete the first bullet in <cat> containing <substring>\n\
            /memory edit [cat]     Print an editor command for the index or a category\n\
            /memory help           Show this help\n\n\
          Categories: {}\n\
@@ -168,6 +174,37 @@ pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
                     "unknown category `{rest}`. Expected one of: {}",
                     CATEGORIES.join(", ")
                 ))
+            }
+        }
+        s if s.starts_with("delete ") => {
+            let rest = s["delete ".len()..].trim();
+            let mut parts = rest.splitn(2, char::is_whitespace);
+            let cat = parts.next().unwrap_or("").trim();
+            let needle = parts.next().unwrap_or("").trim();
+            if cat.is_empty() || needle.is_empty() {
+                return CommandResult::error(
+                    "usage: /memory delete <category> <substring>",
+                );
+            }
+            if !is_category(cat) {
+                return CommandResult::error(format!(
+                    "unknown category `{cat}`. Expected one of: {}",
+                    CATEGORIES.join(", ")
+                ));
+            }
+            match remove_entry(&dir, cat, needle) {
+                Ok(true) => CommandResult::message(format!(
+                    "deleted a bullet from {}.md matching `{needle}` (index refreshed)",
+                    cat
+                )),
+                Ok(false) => CommandResult::message(format!(
+                    "no bullet in {}.md matched `{needle}`",
+                    cat
+                )),
+                Err(err) => CommandResult::error(format!(
+                    "failed to delete from {}.md: {err}",
+                    cat
+                )),
             }
         }
         _ => CommandResult::error(format!(
