@@ -41,6 +41,9 @@ pub(super) const DEFAULT_ACTIVE_NATIVE_TOOLS: &[&str] = &[
     "exec_shell",
     "exec_shell_interact",
     "exec_shell_wait",
+    // Registered in Plan mode only, but must stay eager there: a deferred
+    // approval tool the model cannot see is a plan it can never hand off.
+    "exit_plan_mode",
     "fetch_url",
     "file_search",
     "git_diff",
@@ -1026,9 +1029,10 @@ pub(super) async fn execute_code_execution_tool(
 
 #[cfg(test)]
 mod bm25_tests {
-    use super::discover_tools_with_bm25_like;
+    use super::{discover_tools_with_bm25_like, should_default_defer_tool};
     use crate::models::Tool;
     use serde_json::json;
+    use std::collections::HashSet;
 
     fn tool(name: &str, description: &str) -> Tool {
         Tool {
@@ -1068,6 +1072,18 @@ mod bm25_tests {
         let results = discover_tools_with_bm25_like(&catalog, "request", 10);
         // request_info contains the term in its name -> should lead.
         assert_eq!(results[0], "request_info");
+    }
+
+    #[test]
+    fn exit_plan_mode_is_never_deferred() {
+        // Plan mode's only handoff tool must stay in the model-visible
+        // catalog; if it is deferred the model cannot request approval and
+        // Plan mode becomes a dead end.
+        let always_load = HashSet::new();
+        assert!(!should_default_defer_tool(
+            "exit_plan_mode",
+            &always_load
+        ));
     }
 
     #[test]

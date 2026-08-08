@@ -231,9 +231,24 @@ pub struct PlanState {
     risks_and_unknowns: Option<String>,
     handoff_packet: Option<String>,
     steps: Vec<PlanStep>,
+    /// Plan text the user explicitly approved via `exit_plan_mode`, if any.
+    /// Recorded so later turns can tell an approved plan apart from a draft
+    /// the user never signed off on.
+    approved_plan: Option<String>,
 }
 
 impl PlanState {
+    /// Record the plan text the user approved when leaving Plan mode.
+    pub fn set_approved_plan(&mut self, plan: String) {
+        self.approved_plan = Some(plan);
+    }
+
+    /// The plan the user approved, if they have approved one.
+    #[must_use]
+    pub fn approved_plan(&self) -> Option<&str> {
+        self.approved_plan.as_deref()
+    }
+
     /// Check whether the plan is empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -590,6 +605,86 @@ impl ToolSpec for UpdatePlanTool {
     }
 }
 
+// === ExitPlanModeTool ===
+
+/// Name of the plan-approval tool, shared with the engine interception path.
+pub const EXIT_PLAN_MODE_NAME: &str = "exit_plan_mode";
+
+/// Tool that lets the agent hand a finished plan to the user and ask for
+/// approval before implementation starts.
+///
+/// Plan mode is read-only, so previously the *only* way out was the user
+/// manually typing `/exit_plan`. The agent had no way to say "the plan is
+/// ready, may I proceed?", and nothing recorded *what* the user agreed to.
+/// This tool closes that loop: the engine intercepts it (like
+/// `request_user_input`), shows the plan for approval, and on approval
+/// switches to Agent mode while stamping the approved snapshot onto the plan
+/// state.
+///
+/// Execution lives in the engine, so [`ToolSpec::execute`] is unreachable and
+/// only exists to satisfy the trait.
+pub struct ExitPlanModeTool;
+
+#[async_trait]
+impl ToolSpec for ExitPlanModeTool {
+    fn name(&self) -> &'static str {
+        EXIT_PLAN_MODE_NAME
+    }
+
+    fn description(&self) -> &'static str {
+        "Present the finished implementation plan to the user and ask for approval to start implementing. \
+         Only use this in Plan mode, and only after the plan is complete and grounded in the codebase. \
+         On approval the session leaves Plan mode and implementation may begin; if the user rejects, \
+         revise the plan and ask again. Do not use this for pure research or questions that need no code changes."
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "plan": {
+                    "type": "string",
+                    "description": "The plan to present for approval, as concise markdown. Should cover what will change and how it will be verified."
+                }
+            },
+            "required": ["plan"]
+        })
+    }
+
+    fn capabilities(&self) -> Vec<ToolCapability> {
+        vec![ToolCapability::ReadOnly]
+    }
+
+    fn approval_requirement(&self) -> ApprovalRequirement {
+        ApprovalRequirement::Auto
+    }
+
+    async fn execute(
+        &self,
+        _input: serde_json::Value,
+        _context: &ToolContext,
+    ) -> Result<ToolResult, ToolError> {
+        Err(ToolError::execution_failed(
+            "exit_plan_mode must be handled by the engine",
+        ))
+    }
+}
+
+/// Extract and validate the `plan` argument of an `exit_plan_mode` call.
+pub fn exit_plan_mode_plan_text(input: &serde_json::Value) -> Result<String, ToolError> {
+    let plan = input
+        .get("plan")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .unwrap_or("");
+    if plan.is_empty() {
+        return Err(ToolError::invalid_input(
+            "exit_plan_mode requires a non-empty 'plan'",
+        ));
+    }
+    Ok(plan.to_string())
+}
+
 fn string_field(input: &serde_json::Value, field: &str) -> Option<String> {
     input
         .get(field)
@@ -660,5 +755,40 @@ mod plan_persist_tests {
         let mut state = PlanState::default();
         state.apply_snapshot(snap);
         assert!(state.steps().is_empty());
+    }
+
+    #[test]
+    fn exit_plan_mode_plan_text_extracts_and_trims() {
+        let input = json!({ "plan": "  Step 1: do the thing  " });
+        assert_eq!(
+            exit_plan_mode_plan_text(&input).unwrap(),
+            "Step 1: do the thing"
+        );
+    }
+
+    #[test]
+    fn exit_plan_mode_plan_text_rejects_missing_or_blank() {
+        // A blank plan would drop the user into Agent mode with nothing to
+        // review, which defeats the point of the approval gate.
+        assert!(exit_plan_mode_plan_text(&json!({})).is_err());
+        assert!(exit_plan_mode_plan_text(&json!({ "plan": "" })).is_err());
+        assert!(exit_plan_mode_plan_text(&json!({ "plan": "   " })).is_err());
+        assert!(exit_plan_mode_plan_text(&json!({ "plan": 42 })).is_err());
+    }
+
+    #[test]
+    fn plan_state_records_approved_plan() {
+        let mut state = PlanState::default();
+        assert_eq!(state.approved_plan(), None);
+        state.set_approved_plan("ship the feature".to_string());
+        assert_eq!(state.approved_plan(), Some("ship the feature"));
+    }
+
+    #[test]
+    fn exit_plan_mode_tool_requires_plan_argument() {
+        let tool = ExitPlanModeTool;
+        assert_eq!(tool.name(), EXIT_PLAN_MODE_NAME);
+        let schema = tool.input_schema();
+        assert_eq!(schema["required"], json!(["plan"]));
     }
 }
