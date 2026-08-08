@@ -19,6 +19,87 @@ use std::process::{Command, Stdio};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+/// Byte-level formatting traits of a file that must survive an edit.
+///
+/// Editing one line of a CRLF file must not rewrite every other line ending,
+/// and a UTF-8 BOM must not silently disappear — either would produce a huge
+/// spurious diff that buries the real change in review.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct FileFidelity {
+    /// File began with a UTF-8 BOM (EF BB BF).
+    bom: bool,
+    /// CRLF is the dominant line ending, so edits should be written back
+    /// with CRLF.
+    crlf: bool,
+}
+
+/// UTF-8 byte order mark, as it appears once decoded to `str`.
+const UTF8_BOM: char = '\u{feff}';
+
+impl FileFidelity {
+    /// Split raw file contents into their formatting traits and a normalized
+    /// body (no BOM, LF-only) that search/replace logic can operate on.
+    fn detect(raw: &str) -> (Self, String) {
+        let (bom, without_bom) = match raw.strip_prefix(UTF8_BOM) {
+            Some(rest) => (true, rest),
+            None => (false, raw),
+        };
+
+        let crlf_count = without_bom.matches("\r\n").count();
+        // Bare LF = total LF minus those that are part of a CRLF pair.
+        let lf_count = without_bom.matches('\n').count() - crlf_count;
+        // Ties favor CRLF: a mixed file that is majority-CRLF (or evenly
+        // split) is treated as a CRLF file so edits stay consistent with it.
+        let crlf = crlf_count > 0 && crlf_count >= lf_count;
+
+        let normalized = if crlf_count > 0 {
+            without_bom.replace("\r\n", "\n")
+        } else {
+            without_bom.to_string()
+        };
+
+        (Self { bom, crlf }, normalized)
+    }
+
+    /// Re-apply the original formatting to edited, normalized content.
+    fn restore(self, normalized: &str) -> String {
+        let mut out = if self.crlf {
+            // Guard against pre-existing CR in the replacement text so we
+            // never emit CRCRLF.
+            normalized.replace("\r\n", "\n").replace('\n', "\r\n")
+        } else {
+            normalized.to_string()
+        };
+        if self.bom {
+            out.insert(0, UTF8_BOM);
+        }
+        out
+    }
+}
+
+/// Map a byte range within `contents` to the 1-based inclusive line numbers
+/// it spans, so read-coverage can be checked against what `read_file` showed.
+fn line_span_for_byte_range(contents: &str, start: usize, end: usize) -> (usize, usize) {
+    let start = start.min(contents.len());
+    let end = end.clamp(start, contents.len());
+    let first = contents[..start].matches('\n').count() + 1;
+    // A range ending exactly at a newline covers only the lines before it.
+    let inner = contents[start..end].trim_end_matches('\n');
+    let last = first + inner.matches('\n').count();
+    (first, last)
+}
+
+/// Byte ranges of every non-overlapping occurrence of `needle` in `haystack`.
+fn match_byte_ranges(haystack: &str, needle: &str) -> Vec<(usize, usize)> {
+    if needle.is_empty() {
+        return Vec::new();
+    }
+    haystack
+        .match_indices(needle)
+        .map(|(idx, m)| (idx, idx + m.len()))
+        .collect()
+}
+
 /// Compute a short content hash for a line (6 hex chars).
 /// Based on trimmed line content (without leading whitespace) for stability
 /// across indentation changes.
@@ -158,7 +239,6 @@ impl ToolSpec for ReadFileTool {
         let contents = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
             ToolError::execution_failed(format!("Failed to read {}: {}", file_path.display(), e))
         })?;
-        context.note_file_read(&file_path);
 
         let total_lines = contents.lines().count();
         let total_bytes = contents.len();
@@ -171,6 +251,8 @@ impl ToolSpec for ReadFileTool {
         // explicit range — otherwise an explicit `start_line = 5` on a
         // tiny file would silently ignore the request.
         if !explicit_range && total_lines <= SMALL_FILE_LINES && total_bytes <= SMALL_FILE_BYTES {
+            // Whole file was returned verbatim: full coverage.
+            context.note_file_read(&file_path);
             return Ok(ToolResult::success(contents));
         }
 
@@ -266,6 +348,19 @@ impl ToolSpec for ReadFileTool {
             );
         }
         output.push_str("</file>");
+
+        // Record only the lines actually delivered to the caller. When the
+        // render was cut off by the byte cap, the trailing partial line was
+        // not fully shown, so coverage stops at the last complete line.
+        let covered_last = if truncated_by_bytes {
+            let complete_lines = shown_content.matches('\n').count();
+            shown_first + complete_lines.saturating_sub(1)
+        } else {
+            shown_last
+        };
+        if covered_last >= shown_first {
+            context.note_file_read_range(&file_path, shown_first, covered_last);
+        }
 
         Ok(ToolResult::success(output))
     }
@@ -653,7 +748,7 @@ impl ToolSpec for EditFileTool {
     }
 
     fn description(&self) -> &'static str {
-        "Replace text in a single file via exact search/replace after the file has been read with `read_file` in this session. Use this instead of `sed -i` in `exec_shell` for one unambiguous in-place edit. Returns a compact unified diff, not the full file. For structural, multi-block, or cross-file changes, use `apply_patch` or `write_file` instead.\n\nTwo editing modes:\n1. **Anchor mode** (token-efficient): Use `line_ref` from `read_file` output + `replace` with the new line content. No need to retype the full old line.\n2. **Search mode** (legacy): Use `search` + `replace` for exact text matching. Supports automatic fuzzy matching for indentation and punctuation differences."
+        "Replace text in a single file via exact search/replace after the file has been read with `read_file` in this session. Use this instead of `sed -i` in `exec_shell` for one unambiguous in-place edit. Returns a compact unified diff, not the full file. For structural, multi-block, or cross-file changes, use `apply_patch` or `write_file` instead.\n\nTwo editing modes:\n1. **Anchor mode** (token-efficient): Use `line_ref` from `read_file` output + `replace` with the new line content. No need to retype the full old line.\n2. **Search mode** (legacy): Use `search` + `replace` for exact text matching. Supports automatic fuzzy matching for indentation and punctuation differences. Set `replace_all=true` to rewrite every occurrence in one call (rename-style edits); otherwise the search must match exactly once.\n\nThe file's original BOM and CRLF/LF line endings are preserved."
     }
 
     fn input_schema(&self) -> Value {
@@ -675,6 +770,10 @@ impl ToolSpec for EditFileTool {
                 "replace": {
                     "type": "string",
                     "description": "Text to replace with (required)"
+                },
+                "replace_all": {
+                    "type": "boolean",
+                    "description": "Replace every occurrence of `search` instead of requiring a unique match (default false). Use for rename-style edits where one symbol changes in many places. Ignored in anchor mode."
                 },
                 "fuzz": {
                     "type": "boolean",
@@ -706,6 +805,7 @@ impl ToolSpec for EditFileTool {
         let replace = required_str(&input, "replace")?;
         let line_ref = optional_str(&input, "line_ref");
         let search = optional_str(&input, "search");
+        let replace_all = optional_bool(&input, "replace_all", false);
         let _fuzz = optional_bool(&input, "fuzz", false);
 
         // Validate: must have either line_ref or search
@@ -733,9 +833,13 @@ impl ToolSpec for EditFileTool {
         let file_path = context.resolve_path(path_str)?;
         context.require_fresh_file_read(&file_path, path_str)?;
 
-        let contents = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
+        let raw_contents = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
             ToolError::execution_failed(format!("Failed to read {}: {}", file_path.display(), e))
         })?;
+        // Match against a normalized (BOM-stripped, LF-only) body so search
+        // strings written with plain \n still match CRLF files; the original
+        // byte formatting is restored before writing.
+        let (fidelity, contents) = FileFidelity::detect(&raw_contents);
 
         let (updated, count, fuzz_kind) = if is_anchor_mode {
             // Anchor mode: find line by content hash
@@ -750,6 +854,8 @@ impl ToolSpec for EditFileTool {
                     )));
                 }
                 [(start, end)] => {
+                    let (first, last) = line_span_for_byte_range(&contents, *start, *end);
+                    context.require_read_coverage(&file_path, path_str, first, last)?;
                     let mut updated = contents.clone();
                     // Replace the entire line. User provides line content without
                     // trailing newline; we add it back if the original had one.
@@ -788,6 +894,8 @@ impl ToolSpec for EditFileTool {
                 let indent_matches = leading_whitespace_fuzzy_matches(&contents, search);
                 match indent_matches.as_slice() {
                     [(start, end)] => {
+                        let (first, last) = line_span_for_byte_range(&contents, *start, *end);
+                        context.require_read_coverage(&file_path, path_str, first, last)?;
                         let mut updated = contents.clone();
                         updated.replace_range(*start..*end, replace);
                         (updated, 1, Some("indentation"))
@@ -807,6 +915,9 @@ impl ToolSpec for EditFileTool {
                                 )));
                             }
                             [(start, end)] => {
+                                let (first, last) =
+                                    line_span_for_byte_range(&contents, *start, *end);
+                                context.require_read_coverage(&file_path, path_str, first, last)?;
                                 let mut updated = contents.clone();
                                 updated.replace_range(*start..*end, replace);
                                 (updated, 1, Some("punctuation"))
@@ -828,18 +939,28 @@ impl ToolSpec for EditFileTool {
                         )));
                     }
                 }
-            } else if count > 1 {
+            } else if count > 1 && !replace_all {
                 return Err(ToolError::execution_failed(format!(
                     "edit_file search is non-unique: matched {count} locations in {}. \
-                     Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
+                     Recovery: either retry with surrounding lines that make the search match exactly once, \
+                     or pass replace_all=true to replace all {count} occurrences in a single call.",
                     file_path.display()
                 )));
             } else {
+                // Every match site must have been read, otherwise a
+                // replace_all could rewrite regions the model never saw.
+                for (start, end) in match_byte_ranges(&contents, search) {
+                    let (first, last) = line_span_for_byte_range(&contents, start, end);
+                    context.require_read_coverage(&file_path, path_str, first, last)?;
+                }
                 (contents.replace(search, replace), count, None)
             }
         };
 
-        tokio::fs::write(&file_path, &updated).await.map_err(|e| {
+        // Restore the original BOM and line-ending style so untouched lines
+        // keep their exact original bytes.
+        let to_write = fidelity.restore(&updated);
+        tokio::fs::write(&file_path, &to_write).await.map_err(|e| {
             ToolError::execution_failed(format!("Failed to write {}: {}", file_path.display(), e))
         })?;
         context.note_file_read(&file_path);
@@ -855,7 +976,8 @@ impl ToolSpec for EditFileTool {
             Some(other) => other,
             None => "",
         };
-        let summary = format!("Replaced {count} occurrence in {display}{fuzz_note}");
+        let plural = if count == 1 { "" } else { "s" };
+        let summary = format!("Replaced {count} occurrence{plural} in {display}{fuzz_note}");
         let body = if diff.is_empty() {
             format!("{summary}\n(no textual changes)")
         } else {
@@ -1137,3 +1259,329 @@ fn list_dir_timeout(timeout: Duration) -> ToolError {
 }
 
 // === Unit Tests ===
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use tempfile::TempDir;
+
+    fn ctx(dir: &TempDir) -> ToolContext {
+        ToolContext::new(dir.path().to_path_buf())
+    }
+
+    async fn read_all(ctx: &ToolContext, name: &str) {
+        ReadFileTool
+            .execute(json!({ "path": name }), ctx)
+            .await
+            .expect("read_file should succeed");
+    }
+
+    async fn edit(ctx: &ToolContext, input: Value) -> Result<ToolResult, ToolError> {
+        EditFileTool.execute(input, ctx).await
+    }
+
+    // --- 1. Partial reads must not authorize whole-file edits ---
+
+    #[test]
+    fn line_span_maps_byte_ranges_to_line_numbers() {
+        let text = "one\ntwo\nthree\nfour\n";
+        // "one" occupies line 1.
+        assert_eq!(line_span_for_byte_range(text, 0, 3), (1, 1));
+        // "three" is on line 3.
+        let idx = text.find("three").unwrap();
+        assert_eq!(line_span_for_byte_range(text, idx, idx + 5), (3, 3));
+        // A range spanning two lines reports both.
+        let idx = text.find("two").unwrap();
+        assert_eq!(line_span_for_byte_range(text, idx, idx + "two\nthree".len()), (2, 3));
+        // A trailing newline does not pull in the following line.
+        assert_eq!(line_span_for_byte_range(text, 0, 4), (1, 1));
+    }
+
+    #[tokio::test]
+    async fn partial_read_rejects_edit_outside_observed_range() {
+        let dir = TempDir::new().unwrap();
+        // 400 distinct lines so the read is windowed rather than whole-file.
+        let body: String = (1..=400).map(|i| format!("line {i}\n")).collect();
+        std::fs::write(dir.path().join("big.txt"), &body).unwrap();
+        let ctx = ctx(&dir);
+
+        // Read only the first 200 lines.
+        ReadFileTool
+            .execute(
+                json!({ "path": "big.txt", "start_line": 1, "max_lines": 200 }),
+                &ctx,
+            )
+            .await
+            .unwrap();
+
+        // Editing line 300 was never observed and must be refused.
+        let err = edit(
+            &ctx,
+            json!({ "path": "big.txt", "search": "line 300", "replace": "line 300 edited" }),
+        )
+        .await
+        .expect_err("edit outside the read range must fail");
+        let msg = err.to_string();
+        assert!(msg.contains("never read"), "unexpected error: {msg}");
+        // The error must be directly actionable: it names the exact recovery call.
+        assert!(msg.contains("start_line=300"), "missing recovery hint: {msg}");
+        assert!(msg.contains("1-200"), "should report observed range: {msg}");
+        // File must be untouched.
+        let after = std::fs::read_to_string(dir.path().join("big.txt")).unwrap();
+        assert_eq!(after, body);
+    }
+
+    #[tokio::test]
+    async fn edit_inside_observed_range_is_allowed() {
+        let dir = TempDir::new().unwrap();
+        let body: String = (1..=400).map(|i| format!("line {i}\n")).collect();
+        std::fs::write(dir.path().join("big.txt"), &body).unwrap();
+        let ctx = ctx(&dir);
+
+        ReadFileTool
+            .execute(
+                json!({ "path": "big.txt", "start_line": 1, "max_lines": 200 }),
+                &ctx,
+            )
+            .await
+            .unwrap();
+
+        edit(
+            &ctx,
+            json!({ "path": "big.txt", "search": "line 150", "replace": "line 150 edited" }),
+        )
+        .await
+        .expect("edit within the observed range should succeed");
+
+        let after = std::fs::read_to_string(dir.path().join("big.txt")).unwrap();
+        assert!(after.contains("line 150 edited"));
+    }
+
+    #[tokio::test]
+    async fn successive_reads_accumulate_coverage() {
+        let dir = TempDir::new().unwrap();
+        let body: String = (1..=400).map(|i| format!("line {i}\n")).collect();
+        std::fs::write(dir.path().join("big.txt"), &body).unwrap();
+        let ctx = ctx(&dir);
+
+        // Page through the file in two reads covering disjoint windows.
+        for start in [1, 201] {
+            ReadFileTool
+                .execute(
+                    json!({ "path": "big.txt", "start_line": start, "max_lines": 200 }),
+                    &ctx,
+                )
+                .await
+                .unwrap();
+        }
+
+        // Line 300 is now covered by the second read.
+        edit(
+            &ctx,
+            json!({ "path": "big.txt", "search": "line 300", "replace": "line 300 edited" }),
+        )
+        .await
+        .expect("edit should be allowed once the range has been read");
+
+        let after = std::fs::read_to_string(dir.path().join("big.txt")).unwrap();
+        assert!(after.contains("line 300 edited"));
+    }
+
+    #[tokio::test]
+    async fn small_file_read_grants_full_coverage() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("small.txt"), "alpha\nbeta\ngamma\n").unwrap();
+        let ctx = ctx(&dir);
+
+        // Whole-file read: any line may be edited.
+        read_all(&ctx, "small.txt").await;
+        edit(
+            &ctx,
+            json!({ "path": "small.txt", "search": "gamma", "replace": "delta" }),
+        )
+        .await
+        .expect("whole-file read should authorize any edit");
+
+        let after = std::fs::read_to_string(dir.path().join("small.txt")).unwrap();
+        assert_eq!(after, "alpha\nbeta\ndelta\n");
+    }
+
+    // --- 2. replace_all semantics ---
+
+    #[tokio::test]
+    async fn single_match_replaces_without_replace_all() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("a.txt"), "keep\ntarget\nkeep\n").unwrap();
+        let ctx = ctx(&dir);
+        read_all(&ctx, "a.txt").await;
+
+        let result = edit(
+            &ctx,
+            json!({ "path": "a.txt", "search": "target", "replace": "changed" }),
+        )
+        .await
+        .expect("unique match should succeed");
+
+        assert!(result.content.contains("Replaced 1 occurrence in"));
+        let after = std::fs::read_to_string(dir.path().join("a.txt")).unwrap();
+        assert_eq!(after, "keep\nchanged\nkeep\n");
+    }
+
+    #[tokio::test]
+    async fn multi_match_without_replace_all_reports_count_and_suggests_flag() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("a.txt"), "old\nmid\nold\nend\nold\n").unwrap();
+        let ctx = ctx(&dir);
+        read_all(&ctx, "a.txt").await;
+
+        let err = edit(
+            &ctx,
+            json!({ "path": "a.txt", "search": "old", "replace": "new" }),
+        )
+        .await
+        .expect_err("non-unique match must fail without replace_all");
+
+        let msg = err.to_string();
+        assert!(msg.contains("matched 3 locations"), "missing count: {msg}");
+        assert!(msg.contains("replace_all=true"), "missing suggestion: {msg}");
+        // Nothing should have been written.
+        let after = std::fs::read_to_string(dir.path().join("a.txt")).unwrap();
+        assert_eq!(after, "old\nmid\nold\nend\nold\n");
+    }
+
+    #[tokio::test]
+    async fn multi_match_with_replace_all_rewrites_every_occurrence() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("a.txt"), "old\nmid\nold\nend\nold\n").unwrap();
+        let ctx = ctx(&dir);
+        read_all(&ctx, "a.txt").await;
+
+        let result = edit(
+            &ctx,
+            json!({ "path": "a.txt", "search": "old", "replace": "new", "replace_all": true }),
+        )
+        .await
+        .expect("replace_all should succeed on multiple matches");
+
+        assert!(result.content.contains("Replaced 3 occurrences in"));
+        let after = std::fs::read_to_string(dir.path().join("a.txt")).unwrap();
+        assert_eq!(after, "new\nmid\nnew\nend\nnew\n");
+    }
+
+    #[tokio::test]
+    async fn replace_all_defaults_to_false_preserving_legacy_behavior() {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("a.txt"), "dup\ndup\n").unwrap();
+        let ctx = ctx(&dir);
+        read_all(&ctx, "a.txt").await;
+
+        // Explicit false and omitted must behave identically.
+        let omitted = edit(
+            &ctx,
+            json!({ "path": "a.txt", "search": "dup", "replace": "x" }),
+        )
+        .await;
+        let explicit = edit(
+            &ctx,
+            json!({ "path": "a.txt", "search": "dup", "replace": "x", "replace_all": false }),
+        )
+        .await;
+        assert!(omitted.is_err() && explicit.is_err());
+    }
+
+    // --- 3. BOM / CRLF fidelity ---
+
+    #[test]
+    fn detect_splits_bom_and_crlf_from_body() {
+        let (f, body) = FileFidelity::detect("\u{feff}a\r\nb\r\n");
+        assert!(f.bom && f.crlf);
+        assert_eq!(body, "a\nb\n");
+
+        let (f, body) = FileFidelity::detect("a\nb\n");
+        assert!(!f.bom && !f.crlf);
+        assert_eq!(body, "a\nb\n");
+    }
+
+    #[test]
+    fn restore_is_inverse_of_detect() {
+        for original in ["a\r\nb\r\n", "\u{feff}a\r\nb\r\n", "a\nb\n", "\u{feff}x\ny\n"] {
+            let (f, body) = FileFidelity::detect(original);
+            assert_eq!(f.restore(&body), original, "roundtrip failed for {original:?}");
+        }
+    }
+
+    #[test]
+    fn restore_does_not_double_convert_crlf_in_replacement() {
+        let f = FileFidelity {
+            bom: false,
+            crlf: true,
+        };
+        // Replacement text that already contains CRLF must not become CRCRLF.
+        assert_eq!(f.restore("a\r\nb"), "a\r\nb");
+    }
+
+    #[tokio::test]
+    async fn crlf_file_stays_crlf_after_edit() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("crlf.txt");
+        std::fs::write(&path, "alpha\r\nbeta\r\ngamma\r\n").unwrap();
+        let ctx = ctx(&dir);
+        read_all(&ctx, "crlf.txt").await;
+
+        edit(
+            &ctx,
+            json!({ "path": "crlf.txt", "search": "beta", "replace": "BETA" }),
+        )
+        .await
+        .expect("edit should succeed");
+
+        let after = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(after, "alpha\r\nBETA\r\ngamma\r\n");
+        // No stray bare LF was introduced anywhere.
+        assert_eq!(after.matches('\n').count(), after.matches("\r\n").count());
+    }
+
+    #[tokio::test]
+    async fn bom_is_preserved_after_edit() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("bom.txt");
+        std::fs::write(&path, "\u{feff}alpha\nbeta\n").unwrap();
+        let ctx = ctx(&dir);
+        read_all(&ctx, "bom.txt").await;
+
+        edit(
+            &ctx,
+            json!({ "path": "bom.txt", "search": "beta", "replace": "BETA" }),
+        )
+        .await
+        .expect("edit should succeed");
+
+        let bytes = std::fs::read(&path).unwrap();
+        assert_eq!(&bytes[..3], &[0xEF, 0xBB, 0xBF], "BOM must be preserved");
+        assert_eq!(String::from_utf8(bytes).unwrap(), "\u{feff}alpha\nBETA\n");
+    }
+
+    #[tokio::test]
+    async fn crlf_edit_touches_only_the_edited_line() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("many.txt");
+        let before: String = (1..=50).map(|i| format!("line {i}\r\n")).collect();
+        std::fs::write(&path, &before).unwrap();
+        let ctx = ctx(&dir);
+        read_all(&ctx, "many.txt").await;
+
+        edit(
+            &ctx,
+            json!({ "path": "many.txt", "search": "line 25", "replace": "line 25 edited" }),
+        )
+        .await
+        .expect("edit should succeed");
+
+        let after = std::fs::read_to_string(&path).unwrap();
+        let expected = before.replace("line 25\r\n", "line 25 edited\r\n");
+        // Byte-for-byte identical apart from the single edited line: no
+        // whole-file line-ending churn.
+        assert_eq!(after, expected);
+    }
+}

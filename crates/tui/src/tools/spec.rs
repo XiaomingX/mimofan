@@ -107,10 +107,101 @@ impl std::fmt::Debug for RuntimeToolServices {
     }
 }
 
+/// Identity of a file's on-disk state, used to detect edits made against
+/// stale content. Deliberately excludes observed line ranges so that
+/// freshness and coverage can be compared independently.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct FileReadSnapshot {
+struct FileIdentity {
     len: u64,
     modified: Option<SystemTime>,
+}
+
+/// A single inclusive, 1-based range of lines the caller has actually seen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LineRange {
+    start: usize,
+    end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FileReadSnapshot {
+    identity: FileIdentity,
+    /// Inclusive 1-based line ranges observed so far, kept sorted and
+    /// coalesced. `None` means the whole file was observed, which is the
+    /// case for unranged reads and for writes that produced the content.
+    observed: Option<Vec<LineRange>>,
+}
+
+impl FileReadSnapshot {
+    fn full(identity: FileIdentity) -> Self {
+        Self {
+            identity,
+            observed: None,
+        }
+    }
+
+    fn ranged(identity: FileIdentity, start: usize, end: usize) -> Self {
+        Self {
+            identity,
+            observed: Some(vec![LineRange { start, end }]),
+        }
+    }
+
+    fn covers(&self, start: usize, end: usize) -> bool {
+        let Some(ranges) = &self.observed else {
+            return true;
+        };
+        // Every line in start..=end must fall inside some observed range.
+        // Ranges are sorted and coalesced, so a single walk suffices.
+        let mut cursor = start;
+        for range in ranges {
+            if range.start > cursor {
+                return false;
+            }
+            if range.end >= cursor {
+                cursor = range.end + 1;
+            }
+            if cursor > end {
+                return true;
+            }
+        }
+        cursor > end
+    }
+
+    /// Merge a newly observed range into this snapshot, coalescing adjacent
+    /// and overlapping spans so repeated paging reads accumulate coverage.
+    fn add_range(&mut self, start: usize, end: usize) {
+        let Some(ranges) = &mut self.observed else {
+            return; // already full coverage
+        };
+        ranges.push(LineRange { start, end });
+        ranges.sort_by_key(|r| r.start);
+        let mut merged: Vec<LineRange> = Vec::with_capacity(ranges.len());
+        for range in ranges.iter() {
+            match merged.last_mut() {
+                // `start <= end + 1` also coalesces exactly-adjacent ranges
+                // (e.g. 1-200 followed by 201-400) into one span.
+                Some(last) if range.start <= last.end.saturating_add(1) => {
+                    last.end = last.end.max(range.end);
+                }
+                _ => merged.push(*range),
+            }
+        }
+        *ranges = merged;
+    }
+
+    /// Render observed ranges for error messages, e.g. `1-200, 401-600`.
+    fn describe_observed(&self) -> String {
+        match &self.observed {
+            None => "the entire file".to_string(),
+            Some(ranges) if ranges.is_empty() => "no lines".to_string(),
+            Some(ranges) => ranges
+                .iter()
+                .map(|r| format!("{}-{}", r.start, r.end))
+                .collect::<Vec<_>>()
+                .join(", "),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -124,11 +215,11 @@ fn new_shared_file_read_tracker() -> SharedFileReadTracker {
     Arc::new(Mutex::new(FileReadTracker::default()))
 }
 
-fn file_read_snapshot(path: &Path) -> Result<FileReadSnapshot, ToolError> {
+fn file_identity(path: &Path) -> Result<FileIdentity, ToolError> {
     let metadata = fs::metadata(path).map_err(|e| {
         ToolError::execution_failed(format!("Failed to inspect {}: {e}", path.display()))
     })?;
-    Ok(FileReadSnapshot {
+    Ok(FileIdentity {
         len: metadata.len(),
         modified: metadata.modified().ok(),
     })
@@ -483,13 +574,45 @@ impl ToolContext {
     /// not fail after completing only because a post-operation metadata lookup
     /// raced with filesystem changes.
     pub fn note_file_read(&self, path: &Path) {
-        let Ok(snapshot) = file_read_snapshot(path) else {
+        let Ok(identity) = file_identity(path) else {
             return;
         };
         let Ok(mut tracker) = self.file_read_tracker.lock() else {
             return;
         };
-        tracker.reads.insert(path.to_path_buf(), snapshot);
+        tracker
+            .reads
+            .insert(path.to_path_buf(), FileReadSnapshot::full(identity));
+    }
+
+    /// Remember that the caller observed only lines `start..=end` (1-based,
+    /// inclusive) of a file. Repeated ranged reads of the same unchanged file
+    /// accumulate, so paging through a file eventually grants full coverage.
+    ///
+    /// If the file changed since the previous snapshot, prior ranges are
+    /// discarded — line numbers from the old content no longer describe what
+    /// is on disk now.
+    pub fn note_file_read_range(&self, path: &Path, start: usize, end: usize) {
+        let Ok(identity) = file_identity(path) else {
+            return;
+        };
+        let Ok(mut tracker) = self.file_read_tracker.lock() else {
+            return;
+        };
+        match tracker.reads.get_mut(path) {
+            Some(existing) if existing.identity == identity => {
+                existing.add_range(start, end);
+            }
+            slot => {
+                let fresh = FileReadSnapshot::ranged(identity, start, end);
+                match slot {
+                    Some(existing) => *existing = fresh,
+                    None => {
+                        tracker.reads.insert(path.to_path_buf(), fresh);
+                    }
+                }
+            }
+        }
     }
 
     /// Require a successful, still-fresh `read_file` snapshot before a narrow
@@ -518,7 +641,7 @@ impl ToolContext {
             )));
         };
 
-        let current = file_read_snapshot(path).map_err(|e| {
+        let current = file_identity(path).map_err(|e| {
             ToolError::execution_failed(format!(
                 "Refusing edit_file for {} because the file could not be checked for staleness ({e}). \
                  Recovery: call read_file with path=\"{requested_path}\" again, then retry edit_file.",
@@ -526,7 +649,7 @@ impl ToolContext {
             ))
         })?;
 
-        if current != prior {
+        if current != prior.identity {
             return Err(ToolError::execution_failed(format!(
                 "Refusing edit_file for {} because it changed since the last read_file call. \
                  Recovery: call read_file with path=\"{requested_path}\" again and retry with the current contents.",
@@ -535,6 +658,54 @@ impl ToolContext {
         }
 
         Ok(())
+    }
+
+    /// Require that the lines being edited were actually observed by a prior
+    /// `read_file`. A partial read of lines 1-200 must not authorize a blind
+    /// edit of line 800: the model has never seen that content.
+    ///
+    /// `start` and `end` are 1-based inclusive line numbers of the edit
+    /// target. Callers must have already passed `require_fresh_file_read`.
+    pub fn require_read_coverage(
+        &self,
+        path: &Path,
+        requested_path: &str,
+        start: usize,
+        end: usize,
+    ) -> Result<(), ToolError> {
+        let prior = {
+            let tracker = self.file_read_tracker.lock().map_err(|_| {
+                ToolError::execution_failed(
+                    "Failed to check read-before-edit state: tracker lock poisoned".to_string(),
+                )
+            })?;
+            tracker.reads.get(path).cloned()
+        };
+
+        // Absence is handled by `require_fresh_file_read`; don't double-report.
+        let Some(prior) = prior else {
+            return Ok(());
+        };
+
+        if prior.covers(start, end) {
+            return Ok(());
+        }
+
+        let target = if start == end {
+            format!("line {start}")
+        } else {
+            format!("lines {start}-{end}")
+        };
+        let span = end.saturating_sub(start).saturating_add(1);
+        let suggested_max = span.max(50);
+        Err(ToolError::execution_failed(format!(
+            "Refusing edit_file for {} because {target} was never read in this session. \
+             Only these lines have been read: {}. Editing unread lines risks overwriting content you have not seen. \
+             Recovery: call read_file with path=\"{requested_path}\" start_line={start} max_lines={suggested_max} \
+             to inspect the target region, then retry the same edit_file call.",
+            path.display(),
+            prior.describe_observed(),
+        )))
     }
 
     /// Resolve a path relative to workspace, validating it doesn't escape.
@@ -929,3 +1100,125 @@ pub trait ToolSpec: Send + Sync {
 }
 
 // === Unit Tests ===
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn identity() -> FileIdentity {
+        FileIdentity {
+            len: 42,
+            modified: None,
+        }
+    }
+
+    #[test]
+    fn full_snapshot_covers_every_line() {
+        let snap = FileReadSnapshot::full(identity());
+        assert!(snap.covers(1, 1));
+        assert!(snap.covers(900, 1000));
+    }
+
+    #[test]
+    fn ranged_snapshot_covers_only_observed_lines() {
+        let snap = FileReadSnapshot::ranged(identity(), 1, 200);
+        assert!(snap.covers(1, 200));
+        assert!(snap.covers(150, 200));
+        // Straddling the boundary is not covered.
+        assert!(!snap.covers(200, 201));
+        assert!(!snap.covers(800, 800));
+    }
+
+    #[test]
+    fn adjacent_ranges_coalesce_into_one_span() {
+        let mut snap = FileReadSnapshot::ranged(identity(), 1, 200);
+        snap.add_range(201, 400);
+        // 1-200 and 201-400 are adjacent, so 1-400 is now fully covered.
+        assert!(snap.covers(1, 400));
+        assert_eq!(snap.describe_observed(), "1-400");
+    }
+
+    #[test]
+    fn disjoint_ranges_leave_a_hole() {
+        let mut snap = FileReadSnapshot::ranged(identity(), 1, 100);
+        snap.add_range(300, 400);
+        assert!(snap.covers(1, 100));
+        assert!(snap.covers(300, 400));
+        // The gap between them is still unread.
+        assert!(!snap.covers(200, 200));
+        // A span crossing the hole is not covered.
+        assert!(!snap.covers(100, 300));
+        assert_eq!(snap.describe_observed(), "1-100, 300-400");
+    }
+
+    #[test]
+    fn overlapping_ranges_merge() {
+        let mut snap = FileReadSnapshot::ranged(identity(), 1, 100);
+        snap.add_range(50, 150);
+        assert!(snap.covers(1, 150));
+        assert_eq!(snap.describe_observed(), "1-150");
+    }
+
+    #[test]
+    fn out_of_order_ranges_still_coalesce() {
+        let mut snap = FileReadSnapshot::ranged(identity(), 201, 400);
+        snap.add_range(1, 200);
+        assert!(snap.covers(1, 400));
+        assert_eq!(snap.describe_observed(), "1-400");
+    }
+
+    #[test]
+    fn adding_range_to_full_snapshot_keeps_full_coverage() {
+        let mut snap = FileReadSnapshot::full(identity());
+        snap.add_range(1, 10);
+        assert!(snap.covers(5000, 5001));
+        assert_eq!(snap.describe_observed(), "the entire file");
+    }
+
+    #[test]
+    fn ranged_read_after_file_change_discards_stale_ranges() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "a\nb\nc\n").unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+
+        ctx.note_file_read_range(&path, 1, 3);
+        // Rewrite with different length so the identity changes.
+        std::fs::write(&path, "a\nb\nc\nd\ne\nf\ng\n").unwrap();
+        ctx.note_file_read_range(&path, 5, 7);
+
+        // Line 1 was only observed against the *old* content, so its
+        // coverage must not carry over.
+        let err = ctx.require_read_coverage(&path, "f.txt", 1, 1);
+        assert!(err.is_err(), "stale ranges must be discarded on change");
+        assert!(ctx.require_read_coverage(&path, "f.txt", 5, 7).is_ok());
+    }
+
+    #[test]
+    fn coverage_error_names_the_recovery_call() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "x\n".repeat(500)).unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+        ctx.note_file_read_range(&path, 1, 200);
+
+        let err = ctx
+            .require_read_coverage(&path, "f.txt", 300, 300)
+            .expect_err("line 300 is unread");
+        let msg = err.to_string();
+        assert!(msg.contains("line 300"), "{msg}");
+        assert!(msg.contains("start_line=300"), "{msg}");
+        assert!(msg.contains("1-200"), "{msg}");
+    }
+
+    #[test]
+    fn unread_file_defers_to_freshness_check() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "x\n").unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+        // No snapshot recorded: coverage stays silent so the caller's
+        // read-before-edit error is the one the model sees.
+        assert!(ctx.require_read_coverage(&path, "f.txt", 1, 1).is_ok());
+    }
+}
