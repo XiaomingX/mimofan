@@ -72,6 +72,7 @@ impl Engine {
                 .with_runtime_read_only_task_tools()
                 .with_todo_tool(todo_list)
                 .with_plan_tool(plan_state)
+                .with_exit_plan_mode_tool()
                 .with_goal_tools(self.config.goal_state.clone());
             if shell_policy.allows_shell() {
                 builder.with_shell_tools().with_runtime_task_shell_tools()

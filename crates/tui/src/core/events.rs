@@ -205,6 +205,16 @@ pub enum Event {
         request: UserInputRequest,
     },
 
+    /// The user approved an `exit_plan_mode` handoff, so the session should
+    /// leave Plan mode and allow implementation to begin.
+    ///
+    /// Emitted only after the approval prompt resolves affirmatively; a
+    /// rejection keeps the session in Plan mode and emits nothing.
+    PlanModeApproved {
+        /// The plan text the user signed off on.
+        plan: String,
+    },
+
     /// Authoritative API conversation state from the engine session.
     ///
     /// The UI receives granular display events, but those are not always a

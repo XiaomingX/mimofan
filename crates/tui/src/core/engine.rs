@@ -2967,4 +2967,5 @@ use self::tool_catalog::{
 
 use self::tool_execution::emit_tool_audit;
 use self::tool_setup::{sandbox_policy_for_mode, shell_policy_for_mode};
+use crate::tools::plan::EXIT_PLAN_MODE_NAME;
 use crate::tools::js_execution::execute_js_execution_tool;

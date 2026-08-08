@@ -1536,7 +1536,10 @@ impl Engine {
                         .get("interactive")
                         .and_then(serde_json::Value::as_bool)
                         == Some(true))
-                    || tool_name == REQUEST_USER_INPUT_NAME;
+                    || tool_name == REQUEST_USER_INPUT_NAME
+                    // Blocks on the user's approval decision, so it must run
+                    // serially like any other interactive prompt.
+                    || tool_name == EXIT_PLAN_MODE_NAME;
 
                 let mut approval_required = false;
                 let mut approval_description = "Tool execution requires approval".to_string();
@@ -2127,6 +2130,31 @@ impl Engine {
                                 &tool_catalog,
                                 &mut active_tool_names,
                             );
+
+                            let _ = self
+                                .tx_event
+                                .send(Event::ToolCallComplete {
+                                    id: tool_id.clone(),
+                                    name: tool_name.clone(),
+                                    result: result.clone(),
+                                })
+                                .await;
+
+                            outcomes[plan.index] = Some(ToolExecOutcome {
+                                index: plan.index,
+                                id: tool_id,
+                                name: tool_name,
+                                input: tool_input,
+                                started_at,
+                                result,
+                            });
+                            continue;
+                        }
+
+                        if tool_name == EXIT_PLAN_MODE_NAME {
+                            let started_at = Instant::now();
+                            let result =
+                                self.await_plan_approval(&tool_id, &tool_input, mode).await;
 
                             let _ = self
                                 .tx_event

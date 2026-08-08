@@ -1425,6 +1425,14 @@ pub(crate) async fn run_event_loop(
                                 .to_string(),
                         );
                     }
+                    EngineEvent::PlanModeApproved { .. } => {
+                        // The approval prompt already resolved affirmatively in
+                        // the engine; all that is left is to drop the read-only
+                        // Plan restrictions so implementation can start.
+                        app.mode = AppMode::Agent;
+                        app.status_message =
+                            Some("计划已批准，已退出 Plan 模式，开始实施。".to_string());
+                    }
                     EngineEvent::ElevationRequired {
                         tool_id,
                         tool_name,

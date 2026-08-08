@@ -8,8 +8,12 @@
 use std::time::Duration;
 
 use crate::core::events::Event;
-use crate::tools::spec::ToolError;
-use crate::tools::user_input::{UserInputRequest, UserInputResponse};
+use crate::tools::plan::exit_plan_mode_plan_text;
+use crate::tools::spec::{ToolError, ToolResult};
+use crate::tools::user_input::{
+    UserInputOption, UserInputQuestion, UserInputRequest, UserInputResponse,
+};
+use crate::tui::app::AppMode;
 
 const USER_INPUT_TIMEOUT: Duration = Duration::from_secs(300);
 
@@ -103,6 +107,83 @@ impl Engine {
                     }
                 }
             }
+        }
+    }
+
+    /// Present a finished plan to the user and block until they approve or
+    /// reject it.
+    ///
+    /// On approval the plan is recorded on the shared `PlanState` and a
+    /// [`Event::PlanModeApproved`] is emitted so the UI can drop out of Plan
+    /// mode. On rejection the session stays in Plan mode and the model is told
+    /// to revise — this is a normal outcome, not an error, so the turn can
+    /// continue.
+    pub(super) async fn await_plan_approval(
+        &mut self,
+        tool_id: &str,
+        tool_input: &serde_json::Value,
+        mode: AppMode,
+    ) -> Result<ToolResult, ToolError> {
+        if mode != AppMode::Plan {
+            return Err(ToolError::invalid_input(
+                "exit_plan_mode is only available in Plan mode",
+            ));
+        }
+
+        let plan = exit_plan_mode_plan_text(tool_input)?;
+
+        let request = UserInputRequest {
+            questions: vec![UserInputQuestion {
+                header: "计划审批".to_string(),
+                id: "exit_plan_mode".to_string(),
+                question: "计划已就绪，是否批准并开始实施？".to_string(),
+                options: vec![
+                    UserInputOption {
+                        label: "批准并开始实施".to_string(),
+                        description: "退出 Plan 模式，按此计划开始修改代码".to_string(),
+                    },
+                    UserInputOption {
+                        label: "继续完善计划".to_string(),
+                        description: "保持 Plan 模式，根据反馈修订计划".to_string(),
+                    },
+                ],
+                allow_free_text: true,
+                multi_select: false,
+            }],
+        };
+
+        let response = self.await_user_input(tool_id, request).await?;
+        let answer = response
+            .answers
+            .first()
+            .ok_or_else(|| ToolError::execution_failed("Plan approval returned no answer"))?;
+
+        // The modal's free-text escape hatch means the label is not guaranteed
+        // to be one of the two options; treat only an explicit approval as
+        // approval and route anything else back into plan revision, carrying
+        // the user's wording so the model can act on it.
+        if answer.label == "批准并开始实施" {
+            {
+                let mut state = self.config.plan_state.lock().await;
+                state.set_approved_plan(plan.clone());
+            }
+            let _ = self
+                .tx_event
+                .send(Event::PlanModeApproved { plan })
+                .await;
+            Ok(ToolResult::success(
+                "用户已批准计划，已退出 Plan 模式，可以开始实施。".to_string(),
+            ))
+        } else {
+            let feedback = answer.value.trim();
+            let detail = if feedback.is_empty() || feedback == answer.label {
+                String::new()
+            } else {
+                format!("用户反馈：{feedback}")
+            };
+            Ok(ToolResult::success(format!(
+                "用户未批准计划，仍处于 Plan 模式。请根据反馈修订计划后再次请求批准。{detail}"
+            )))
         }
     }
 

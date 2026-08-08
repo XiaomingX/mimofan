@@ -172,6 +172,10 @@ pub(crate) fn suppress_engine_event_after_local_cancel(event: &EngineEvent) -> b
             | EngineEvent::ToolCallComplete { .. }
             | EngineEvent::ApprovalRequired { .. }
             | EngineEvent::UserInputRequired { .. }
+            // Leaving Plan mode is a privilege escalation (read-only ->
+            // writable). If the user cancelled the turn, honour the cancel
+            // rather than dropping them into Agent mode.
+            | EngineEvent::PlanModeApproved { .. }
             | EngineEvent::ElevationRequired { .. }
             | EngineEvent::SessionUpdated { .. }
     )

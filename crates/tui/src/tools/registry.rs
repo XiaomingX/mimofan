@@ -1020,6 +1020,17 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(UpdatePlanTool::new(plan_state)))
     }
 
+    /// Include the `exit_plan_mode` approval tool.
+    ///
+    /// Plan-mode only: outside Plan mode there is nothing to exit, and exposing
+    /// it would invite the model to "approve" its way into work the user never
+    /// gated.
+    #[must_use]
+    pub fn with_exit_plan_mode_tool(self) -> Self {
+        use super::plan::ExitPlanModeTool;
+        self.with_tool(Arc::new(ExitPlanModeTool))
+    }
+
     /// Include runtime goal tools (`create_goal`, `get_goal`, `update_goal`).
     #[must_use]
     pub fn with_goal_tools(self, goal_state: super::goal::SharedGoalState) -> Self {
