@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source": "bundled",
   "fetched_at": "2026-06-14T00:00:00Z",
-  "ttl_secs": 315360000,
+  "ttl_secs": 86400,
   "entries": {
     "deepseek-v4-pro": {
       "id": "deepseek-v4-pro",
