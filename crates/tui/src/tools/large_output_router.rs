@@ -22,11 +22,6 @@ use crate::tools::spec::ToolResult;
 /// workshop. Matches the issue spec of 4 096 tokens.
 pub const DEFAULT_LARGE_OUTPUT_THRESHOLD_TOKENS: usize = 4_096;
 
-/// Approximate characters-per-token ratio used for the heuristic estimate.
-/// We intentionally choose a conservative value (3 chars/token) so we err
-/// on the side of routing rather than dumping raw data into the parent.
-const CHARS_PER_TOKEN_ESTIMATE: usize = 3;
-
 /// Workshop variable name where the raw tool output is stored.
 pub const WORKSHOP_LAST_TOOL_RESULT_VAR: &str = "last_tool_result";
 
@@ -66,13 +61,12 @@ impl WorkshopConfig {
 /// Estimate the number of tokens in `text` using a character-count heuristic.
 ///
 /// This avoids a real tokeniser dependency; the estimate is deliberately
-/// conservative (under-counts tokens) so we route aggressively rather than
-/// letting a 5K-token blob slip through.
+/// conservative (over-reports tokens for English prose) so we route
+/// aggressively rather than letting a 5K-token blob slip through. Delegates to
+/// the shared estimator so the ratio lives in exactly one place.
 #[must_use]
 pub fn estimate_tokens(text: &str) -> usize {
-    let chars = text.chars().count();
-    // Round up: partial last token still costs a token.
-    chars.div_ceil(CHARS_PER_TOKEN_ESTIMATE)
+    crate::context_budget::estimate_tokens_conservative(text)
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────

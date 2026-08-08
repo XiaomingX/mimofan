@@ -227,7 +227,23 @@ impl Engine {
                 .pinned_message_indices(&self.session.messages, &self.session.workspace);
             let compaction_paths = self.session.working_set.top_paths(24);
 
-            if self.config.compaction.enabled
+            // Compaction gate. `ContextBudget` owns the *budget* question
+            // ("is the window full enough to warrant compacting?"), using the
+            // same configured threshold the UI renders its percentage against.
+            // `compaction::should_compact` still owns the *structural*
+            // question ("is there actually a summarizable span, once pins and
+            // the keep-recent window are accounted for?"). Both must agree, so
+            // a full window with nothing safe to summarize does not spin.
+            let compaction_enabled = self.config.compaction.enabled;
+            let budget_says_compact = compaction_enabled
+                && self
+                    .route_compaction_budget()
+                    .and_then(|budget| {
+                        crate::context_budget::compaction_decision(&budget, compaction_enabled)
+                    })
+                    .is_some();
+
+            if budget_says_compact
                 && should_compact(
                     &self.session.messages,
                     &self.config.compaction,
