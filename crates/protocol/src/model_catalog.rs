@@ -11,7 +11,7 @@
 //! projects that into the offline metadata layer that the legacy match tables
 //! in `models.rs` / `pricing.rs` now delegate to.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{OnceLock, RwLock};
 
@@ -21,8 +21,10 @@ use serde::{Deserialize, Serialize};
 
 use mimofan_config::models_dev::{ModelsDevCost, ModelsDevLimit, ModelsDevModalities};
 
-/// The single source of truth for model facts is the unified
-/// `models_dev.bundled.json` catalog shipped by the config crate. The legacy
+/// File name of the on-disk catalog cache, under the `catalog` state directory.
+///
+/// The name is historical (the cache originally held OpenRouter rows); it now
+/// stores the refresh result for whichever provider last wrote it, as JSON.
 const OPENROUTER_CACHE_FILE: &str = "openrouter.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -241,7 +243,7 @@ pub fn bundled_catalog() -> CatalogCache {
         schema_version: 1,
         source: "bundled".to_string(),
         fetched_at: Utc::now(),
-        ttl_secs: 315360000,
+        ttl_secs: 86400,
         entries,
     }
 }
