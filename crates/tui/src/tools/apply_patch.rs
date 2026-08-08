@@ -4,7 +4,6 @@
 //! supporting multi-hunk patches and fuzzy matching.
 
 use std::collections::HashSet;
-use std::fs;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
@@ -241,8 +240,9 @@ impl ToolSpec for ApplyPatchTool {
         let preflight = preflight_apply_patch_plan(&input)?;
 
         if let Some(changes_value) = input.get("changes") {
-            let (pending, stats) = build_pending_writes_from_changes(changes_value, context)?;
-            apply_pending_writes(&pending)?;
+            let (pending, stats) =
+                build_pending_writes_from_changes(changes_value, context).await?;
+            apply_pending_writes(&pending).await?;
             // Resolve absolute paths for LSP diagnostics query.
             let abs_paths: Vec<PathBuf> = pending.iter().map(|p| p.path.clone()).collect();
             let diag_block = lsp_diagnostics_for_paths(context, &abs_paths).await;
@@ -282,9 +282,10 @@ impl ToolSpec for ApplyPatchTool {
             ApplyPatchPreflightKind::FilePatches(file_patches) => file_patches,
         };
 
-        let (pending, mut stats) = build_pending_writes_from_patches(file_patches, context, fuzz)?;
+        let (pending, mut stats) =
+            build_pending_writes_from_patches(file_patches, context, fuzz).await?;
         stats.header_path_mismatch = preflight.summary.header_path_mismatch.clone();
-        apply_pending_writes(&pending)?;
+        apply_pending_writes(&pending).await?;
         // Resolve absolute paths for LSP diagnostics query.
         let abs_paths: Vec<PathBuf> = pending
             .iter()
@@ -780,7 +781,7 @@ fn push_unique(target: &mut Vec<String>, value: String) {
     }
 }
 
-fn build_pending_writes_from_changes(
+async fn build_pending_writes_from_changes(
     changes_value: &Value,
     context: &ToolContext,
 ) -> Result<(Vec<PendingWrite>, PatchStatsExt), ToolError> {
@@ -805,7 +806,7 @@ fn build_pending_writes_from_changes(
 
         let resolved = context.resolve_path(path)?;
         let original = if resolved.exists() {
-            Some(read_file_content(&resolved)?)
+            Some(read_file_content(&resolved).await?)
         } else {
             None
         };
@@ -834,7 +835,7 @@ fn build_pending_writes_from_changes(
     Ok((pending, stats))
 }
 
-fn build_pending_writes_from_patches(
+async fn build_pending_writes_from_patches(
     file_patches: Vec<FilePatch>,
     context: &ToolContext,
     fuzz: usize,
@@ -853,7 +854,7 @@ fn build_pending_writes_from_patches(
 
         let resolved = context.resolve_path(&file_patch.path)?;
         let original = if resolved.exists() {
-            Some(read_file_content(&resolved)?)
+            Some(read_file_content(&resolved).await?)
         } else {
             None
         };
@@ -918,34 +919,29 @@ fn build_pending_writes_from_patches(
     Ok((pending, stats))
 }
 
-fn apply_pending_writes(pending: &[PendingWrite]) -> Result<(), ToolError> {
+async fn apply_pending_writes(pending: &[PendingWrite]) -> Result<(), ToolError> {
     let mut applied = Vec::new();
 
     for entry in pending {
         let result = if let Some(content) = entry.content.as_ref() {
-            let parent_result = if let Some(parent) = entry.path.parent() {
-                fs::create_dir_all(parent).map_err(|e| {
+            if let Some(parent) = entry.path.parent() {
+                tokio::fs::create_dir_all(parent).await.map_err(|e| {
                     ToolError::execution_failed(format!(
                         "Failed to create directory {}: {}",
                         parent.display(),
                         e
                     ))
-                })
-            } else {
-                Ok(())
-            };
-
-            parent_result.and_then(|()| {
-                fs::write(&entry.path, content).map_err(|e| {
-                    ToolError::execution_failed(format!(
-                        "Failed to write {}: {}",
-                        entry.path.display(),
-                        e
-                    ))
-                })
+                })?;
+            }
+            tokio::fs::write(&entry.path, content).await.map_err(|e| {
+                ToolError::execution_failed(format!(
+                    "Failed to write {}: {}",
+                    entry.path.display(),
+                    e
+                ))
             })
         } else if entry.path.exists() {
-            fs::remove_file(&entry.path).map_err(|e| {
+            tokio::fs::remove_file(&entry.path).await.map_err(|e| {
                 ToolError::execution_failed(format!(
                     "Failed to delete {}: {}",
                     entry.path.display(),
@@ -957,7 +953,7 @@ fn apply_pending_writes(pending: &[PendingWrite]) -> Result<(), ToolError> {
         };
 
         if let Err(err) = result {
-            rollback_pending_writes(&applied);
+            rollback_pending_writes(&applied).await;
             return Err(err);
         }
 
@@ -967,21 +963,21 @@ fn apply_pending_writes(pending: &[PendingWrite]) -> Result<(), ToolError> {
     Ok(())
 }
 
-fn rollback_pending_writes(applied: &[PendingWrite]) {
+async fn rollback_pending_writes(applied: &[PendingWrite]) {
     for entry in applied.iter().rev() {
         match entry.original.as_ref() {
             Some(content) => {
-                let _ = fs::write(&entry.path, content);
+                let _ = tokio::fs::write(&entry.path, content).await;
             }
             None => {
-                let _ = fs::remove_file(&entry.path);
+                let _ = tokio::fs::remove_file(&entry.path).await;
             }
         }
     }
 }
 
-fn read_file_content(path: &PathBuf) -> Result<String, ToolError> {
-    fs::read_to_string(path).map_err(|e| {
+async fn read_file_content(path: &PathBuf) -> Result<String, ToolError> {
+    tokio::fs::read_to_string(path).await.map_err(|e| {
         ToolError::execution_failed(format!("Failed to read {}: {}", path.display(), e))
     })
 }

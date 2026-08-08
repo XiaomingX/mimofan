@@ -155,7 +155,7 @@ impl ToolSpec for ReadFileTool {
             return read_image_via_ocr(&file_path, path_str);
         }
 
-        let contents = fs::read_to_string(&file_path).map_err(|e| {
+        let contents = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
             ToolError::execution_failed(format!("Failed to read {}: {}", file_path.display(), e))
         })?;
         context.note_file_read(&file_path);
@@ -593,14 +593,16 @@ impl ToolSpec for WriteFileTool {
         // to render an inline diff in the tool result.
         let existed_before = file_path.exists();
         let prior_contents = if existed_before {
-            fs::read_to_string(&file_path).unwrap_or_default()
+            tokio::fs::read_to_string(&file_path)
+                .await
+                .unwrap_or_default()
         } else {
             String::new()
         };
 
         // Create parent directories if needed
         if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| {
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
                 ToolError::execution_failed(format!(
                     "Failed to create directory {}: {}",
                     parent.display(),
@@ -609,7 +611,7 @@ impl ToolSpec for WriteFileTool {
             })?;
         }
 
-        fs::write(&file_path, file_content).map_err(|e| {
+        tokio::fs::write(&file_path, file_content).await.map_err(|e| {
             ToolError::execution_failed(format!("Failed to write {}: {}", file_path.display(), e))
         })?;
         context.note_file_read(&file_path);
@@ -731,7 +733,7 @@ impl ToolSpec for EditFileTool {
         let file_path = context.resolve_path(path_str)?;
         context.require_fresh_file_read(&file_path, path_str)?;
 
-        let contents = fs::read_to_string(&file_path).map_err(|e| {
+        let contents = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
             ToolError::execution_failed(format!("Failed to read {}: {}", file_path.display(), e))
         })?;
 
@@ -837,7 +839,7 @@ impl ToolSpec for EditFileTool {
             }
         };
 
-        fs::write(&file_path, &updated).map_err(|e| {
+        tokio::fs::write(&file_path, &updated).await.map_err(|e| {
             ToolError::execution_failed(format!("Failed to write {}: {}", file_path.display(), e))
         })?;
         context.note_file_read(&file_path);

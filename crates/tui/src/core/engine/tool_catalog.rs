@@ -438,36 +438,86 @@ fn discover_tools_with_regex(
     Ok(matches)
 }
 
-fn discover_tools_with_bm25_like(catalog: &[Tool], query: &str, max_results: usize) -> Vec<String> {
-    let terms: Vec<String> = query
-        .split_whitespace()
+/// Split a haystack into lowercased whitespace-delimited tokens.
+fn tokenize(text: &str) -> Vec<String> {
+    text.split_whitespace()
         .map(|term| term.trim().to_lowercase())
         .filter(|term| !term.is_empty())
-        .collect();
+        .collect()
+}
+
+/// Rank catalog tools against `query` using a proper BM25 scorer.
+///
+/// Unlike the legacy "count term presence" heuristic, this computes inverse
+/// document frequency across the catalog plus saturation/length-normalized
+/// term frequency, so rare-but-relevant terms outrank frequent filler and
+/// long descriptions don't dominate. The signature and sort order
+/// (`score desc`, then `name asc`) are unchanged, and no `Tool` bytes are
+/// touched, so the DeepSeek prefix-cache invariant holds.
+fn discover_tools_with_bm25_like(catalog: &[Tool], query: &str, max_results: usize) -> Vec<String> {
+    let terms = tokenize(query);
     if terms.is_empty() {
         return Vec::new();
     }
 
-    let mut scored: Vec<(i64, String)> = Vec::new();
-    for tool in catalog {
-        if is_tool_search_tool(&tool.name) {
-            continue;
+    // Build the corpus of searchable documents (excluding the tool_search
+    // tool itself, matching the original filtering behavior).
+    let docs: Vec<(String, Vec<String>)> = catalog
+        .iter()
+        .filter(|tool| !is_tool_search_tool(&tool.name))
+        .map(|tool| {
+            let hay = tool_search_haystack(tool);
+            (tool.name.to_lowercase(), tokenize(&hay))
+        })
+        .collect();
+    let n_docs = docs.len().max(1);
+
+    // Document frequency per term (over the whole catalog) for IDF.
+    let mut doc_freq: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (_, tokens) in &docs {
+        let mut seen = std::collections::HashSet::new();
+        for token in tokens {
+            seen.insert(token.clone());
         }
-        let hay = tool_search_haystack(tool);
-        let mut score = 0i64;
-        for term in &terms {
-            if hay.contains(term) {
-                score += 1;
-            }
-            if tool.name.to_lowercase().contains(term) {
-                score += 2;
-            }
-        }
-        if score > 0 {
-            scored.push((score, tool.name.clone()));
+        for token in seen {
+            *doc_freq.entry(token).or_insert(0) += 1;
         }
     }
-    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+
+    // Average document length for length normalization.
+    let avg_len = docs.iter().map(|(_, t)| t.len()).sum::<usize>() as f64 / n_docs as f64;
+
+    const K1: f64 = 1.5;
+    const B: f64 = 0.75;
+
+    let mut scored: Vec<(f64, String)> = Vec::new();
+    for (name, tokens) in &docs {
+        let dl = tokens.len().max(1) as f64;
+        let mut score = 0.0f64;
+        for term in &terms {
+            let n_t = *doc_freq.get(term).unwrap_or(&0);
+            if n_t == 0 {
+                continue;
+            }
+            let idf = ((n_docs as f64 - n_t as f64 + 0.5) / (n_t as f64 + 0.5) + 1.0).ln();
+            let tf = tokens.iter().filter(|t| *t == term).count() as f64;
+            let denom = tf + K1 * (1.0 - B + B * (dl / avg_len.max(1.0)));
+            score += idf * (tf * (K1 + 1.0)) / denom;
+            // Preserve the legacy "name match" boost so explicit name hits
+            // still rank above equally-relevant description-only matches.
+            if name.contains(term) {
+                score += 2.0;
+            }
+        }
+        if score > 0.0 {
+            scored.push((score, name.clone()));
+        }
+    }
+    scored.sort_by(|a, b| {
+        b.0.partial_cmp(&a.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.1.cmp(&b.1))
+    });
     scored
         .into_iter()
         .take(max_results)
@@ -972,4 +1022,68 @@ pub(super) async fn execute_code_execution_tool(
         success,
         metadata: Some(payload),
     })
+}
+
+#[cfg(test)]
+mod bm25_tests {
+    use super::discover_tools_with_bm25_like;
+    use crate::models::Tool;
+    use serde_json::json;
+
+    fn tool(name: &str, description: &str) -> Tool {
+        Tool {
+            tool_type: Some("function".to_string()),
+            name: name.to_string(),
+            description: description.to_string(),
+            input_schema: json!({}),
+            allowed_callers: None,
+            defer_loading: None,
+            input_examples: None,
+            strict: None,
+            cache_control: None,
+        }
+    }
+
+    #[test]
+    fn rare_term_ranks_above_common_term() {
+        // "semantic" appears once; "file" appears in many descriptions.
+        let catalog = vec![
+            tool("read_file", "read a file from disk"),
+            tool("write_file", "write a file to disk"),
+            tool("grep_files", "search text inside files"),
+            tool("semantic_search", "perform semantic vector search over the codebase"),
+        ];
+        let results = discover_tools_with_bm25_like(&catalog, "semantic", 10);
+        assert!(!results.is_empty(), "query must return at least one hit");
+        assert_eq!(results[0], "semantic_search");
+    }
+
+    #[test]
+    fn name_match_ranks_above_description_only_match() {
+        let catalog = vec![
+            tool("alpha_worker", "processes the requested data"),
+            tool("request_info", "returns metadata about the request"),
+            tool("beta_tool", "does not mention the keyword at all"),
+        ];
+        let results = discover_tools_with_bm25_like(&catalog, "request", 10);
+        // request_info contains the term in its name -> should lead.
+        assert_eq!(results[0], "request_info");
+    }
+
+    #[test]
+    fn tool_search_itself_is_excluded() {
+        let catalog = vec![
+            tool("tool_search", "search for tools by query"),
+            tool("search_code", "search source code for a pattern"),
+        ];
+        let results = discover_tools_with_bm25_like(&catalog, "search", 10);
+        assert!(!results.contains(&"tool_search".to_string()));
+        assert!(results.contains(&"search_code".to_string()));
+    }
+
+    #[test]
+    fn empty_query_returns_nothing() {
+        let catalog = vec![tool("read_file", "read a file")];
+        assert!(discover_tools_with_bm25_like(&catalog, "   ", 10).is_empty());
+    }
 }

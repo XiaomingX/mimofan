@@ -28,7 +28,7 @@ use crate::config::{ApiProvider, Config};
 use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, StreamError};
 use crate::features::Feature;
 use crate::llm_client::LlmClient;
-use crate::mcp::McpPool;
+use crate::mcp::{McpPool, PendingMcpCall, PreparedMcpCall};
 
 use crate::models::{
     ContentBlock, ContentBlockStart, Delta, Message, MessageRequest, StreamEvent, SystemBlock,
