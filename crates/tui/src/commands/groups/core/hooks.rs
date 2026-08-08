@@ -175,6 +175,8 @@ fn event_label(event: HookEvent) -> &'static str {
         HookEvent::SubagentSpawn => "subagent_spawn",
         HookEvent::SubagentComplete => "subagent_complete",
         HookEvent::ShellEnv => "shell_env",
+        HookEvent::PreCompact => "pre_compact",
+        HookEvent::PostCompact => "post_compact",
     }
 }
 
