@@ -3,18 +3,20 @@ const os = require("os");
 
 const CHECKSUM_MANIFEST = "mimofan-artifacts-sha256.txt";
 
+// After the mimofan/mimofan-tui binary merge, every platform ships a single
+// `mimofan` binary (mimofan-tui, riscv64, and the .bat launcher no longer exist).
+// Keep this matrix in lock-step with .github/workflows/release.yml.
 const ASSET_MATRIX = {
   linux: {
-    x64: ["mimofan-linux-x64", "mimofan-tui-linux-x64"],
-    arm64: ["mimofan-linux-arm64", "mimofan-tui-linux-arm64"],
-    riscv64: ["mimofan-linux-riscv64", "mimofan-tui-linux-riscv64"],
+    x64: ["mimofan-linux-x64"],
+    arm64: ["mimofan-linux-arm64"],
   },
   darwin: {
-    x64: ["mimofan-macos-x64", "mimofan-tui-macos-x64"],
-    arm64: ["mimofan-macos-arm64", "mimofan-tui-macos-arm64"],
+    x64: ["mimofan-macos-x64"],
+    arm64: ["mimofan-macos-arm64"],
   },
   win32: {
-    x64: ["mimofan-windows-x64.exe", "mimofan-tui-windows-x64.exe", "mimofan.bat"],
+    x64: ["mimofan-windows-x64.exe"],
   },
 };
 
@@ -49,7 +51,6 @@ function detectBinaryNames() {
     platform,
     arch,
     mimofan: pair[0],
-    tui: pair[1],
   };
 }
 

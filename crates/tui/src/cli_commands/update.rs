@@ -26,7 +26,12 @@ const UPDATE_HTTP_ATTEMPTS: usize = 3;
 const UPDATE_HTTP_RETRY_DELAY_MS: u64 = 100;
 
 /// Run the self-update workflow.
-pub fn run_update(beta: bool, check_only: bool, proxy_arg: Option<String>) -> Result<()> {
+pub fn run_update(
+    beta: bool,
+    check_only: bool,
+    proxy_arg: Option<String>,
+    allow_unverified: bool,
+) -> Result<()> {
     #[cfg(target_env = "ohos")]
     {
         let _ = (beta, check_only, proxy_arg);
@@ -107,8 +112,16 @@ pub fn run_update(beta: bool, check_only: bool, proxy_arg: Option<String>) -> Re
             Some(parse_checksum_manifest(checksum_text)?)
         }
         None => {
-            println!("  (no SHA256 checksum manifest found; skipping verification)");
-            None
+            if allow_unverified {
+                println!("  (no SHA256 checksum manifest found; verification skipped via --allow-unverified)");
+                None
+            } else {
+                bail!(
+                    "no SHA256 checksum manifest found for release {latest_tag}; \
+                     refusing to install an unverifiable binary.\n\
+                     Re-run with --allow-unverified to install anyway (not recommended)."
+                );
+            }
         }
     };
 

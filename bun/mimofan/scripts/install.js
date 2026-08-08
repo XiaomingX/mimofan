@@ -145,16 +145,12 @@ function maxAttempts(context = "runtime", env = process.env) {
 }
 
 function binaryPaths() {
-  const { mimofan, tui } = detectBinaryNames();
+  const { mimofan } = detectBinaryNames();
   const releaseDir = releaseBinaryDirectory();
   return {
     mimofan: {
       asset: mimofan,
       target: path.join(releaseDir, process.platform === "win32" ? "mimofan.exe" : "mimofan"),
-    },
-    tui: {
-      asset: tui,
-      target: path.join(releaseDir, process.platform === "win32" ? "mimofan-tui.exe" : "mimofan-tui"),
     },
   };
 }
@@ -205,7 +201,7 @@ function installFailureHint(error) {
       "mimofan install hint:",
       `  MIMOFAN_RELEASE_BASE_URL is set to ${releaseBase}`,
       "  Verify that this directory contains mimofan-artifacts-sha256.txt",
-      "  plus the mimofan/mimofan-tui binary assets for your platform.",
+      "  plus the mimofan binary asset for your platform.",
     ].join("\n");
   }
 
@@ -1129,7 +1125,6 @@ async function run(options = {}) {
 
   await Promise.all([
     ensureBinary(paths.mimofan.target, paths.mimofan.asset, version, repo, getChecksums, { context }),
-    ensureBinary(paths.tui.target, paths.tui.asset, version, repo, getChecksums, { context }),
   ]);
 }
 
@@ -1138,9 +1133,6 @@ async function getBinaryPath(name) {
   const paths = binaryPaths();
   if (name === "mimofan") {
     return paths.mimofan.target;
-  }
-  if (name === "mimofan-tui") {
-    return paths.tui.target;
   }
   throw new Error(`Unknown binary: ${name}`);
 }

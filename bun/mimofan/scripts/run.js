@@ -50,22 +50,12 @@ async function runMimofan() {
   await run("mimofan");
 }
 
-async function runMimofanTui() {
-  await run("mimofan-tui");
-}
-
 module.exports = {
   run,
   runMimofan,
-  runMimofanTui,
   _internal: { isVersionFlag, printVersionFallback },
 };
 
 if (require.main === module) {
-  const command = process.argv[1] || "";
-  if (command.includes("tui")) {
-    runMimofanTui();
-  } else {
-    runMimofan();
-  }
+  runMimofan();
 }

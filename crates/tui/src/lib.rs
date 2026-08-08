@@ -471,7 +471,12 @@ pub async fn run() -> Result<()> {
             }
             Commands::Metrics(args) => cli_commands::run_metrics_command(args),
             Commands::Update(args) => {
-                cli_commands::update::run_update(args.beta, args.check, args.proxy)
+                cli_commands::update::run_update(
+                    args.beta,
+                    args.check,
+                    args.proxy,
+                    args.allow_unverified,
+                )
             }
             Commands::Models(args) => {
                 let config = load_config_from_cli(&cli)?;

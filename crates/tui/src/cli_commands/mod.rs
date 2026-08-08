@@ -225,6 +225,11 @@ pub(crate) struct UpdateArgs {
     pub(crate) check: bool,
     #[arg(long, value_name = "URL")]
     pub(crate) proxy: Option<String>,
+    /// Allow replacing the binary even when no SHA256 checksum manifest is
+    /// published for the release. Off by default: an unverifiable update is
+    /// refused to keep `mimofan update` from installing a tampered binary.
+    #[arg(long)]
+    pub(crate) allow_unverified: bool,
 }
 
 // ── Helper functions ────────────────────────────────────────────────────────

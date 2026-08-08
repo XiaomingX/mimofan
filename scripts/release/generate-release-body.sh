@@ -27,13 +27,13 @@ cat <<EOF
 
 ## Install
 
-### Recommended — bun (one command, both binaries)
+### Recommended — bun (one command)
 
 \`\`\`bash
 bun add -g mimofan
 \`\`\`
 
-The wrapper downloads both binaries from this Release and places them in the same directory.
+The wrapper downloads the single \`mimofan\` binary from this Release.
 
 ### Docker / GHCR
 
@@ -44,7 +44,7 @@ docker run --rm -it \\
   ghcr.io/hmbown/mimofan:${tag}
 \`\`\`
 
-The image ships the \`mimofan\` dispatcher and \`mimofan-tui\` runtime. The \`latest\` tag is also updated on release.
+The image ships the \`mimofan\` binary. The \`latest\` tag is also updated on release.
 
 ### Cargo (Linux / macOS)
 
@@ -54,18 +54,15 @@ cargo install mimofan --locked
 
 ### Manual download — platform archives (recommended)
 
-Each archive below contains **both** the \`mimofan\` dispatcher and \`mimofan-tui\` runtime, plus an install script:
+Each archive below contains the \`mimofan\` binary plus an install script:
 
 | Platform | Archive | Install script |
 |---|---|---|
 | Linux x64 | \`mimofan-linux-x64.tar.gz\` | \`install.sh\` |
 | Linux ARM64 | \`mimofan-linux-arm64.tar.gz\` | \`install.sh\` |
-| Linux RISC-V | \`mimofan-linux-riscv64.tar.gz\` | \`install.sh\` |
 | macOS x64 | \`mimofan-macos-x64.tar.gz\` | \`install.sh\` |
 | macOS ARM | \`mimofan-macos-arm64.tar.gz\` | \`install.sh\` |
-| Windows x64 (installer) | \`MimofanSetup.exe\` | NSIS setup |
-| Windows x64 | \`mimofan-windows-x64.zip\` | \`install.bat\` |
-| Windows x64 (portable) | \`mimofan-windows-x64-portable.zip\` | — |
+| Windows x64 | \`mimofan-windows-x64.zip\` | (bundled \`mimofan.exe\`) |
 
 **Unix (Linux / macOS):**
 \`\`\`bash
@@ -75,14 +72,11 @@ cd mimofan-<platform>
 \`\`\`
 
 **Windows:**
-- For the installer path, run \`MimofanSetup.exe\`; it installs both binaries under \`%LOCALAPPDATA%\\Programs\\Mimofan\\bin\` and adds that directory to the current-user PATH.
 - Extract \`mimofan-windows-x64.zip\`
-- Run \`install.bat\` (copies to \`%USERPROFILE%\\bin\`)
-- Add \`%USERPROFILE%\\bin\` to your PATH
+- Move \`mimofan.exe\` onto your PATH (e.g. \`%USERPROFILE%\\bin\`)
+- Add that directory to your PATH
 
-The **portable** Windows archive skips the install script — extract and run from any directory. The NSIS installer is currently unsigned and may trigger Windows SmartScreen until a signing certificate is wired into the release pipeline.
-
-Each platform also has **bare, unarchived** binaries attached below (\`mimofan-<platform>\` and \`mimofan-tui-<platform>\`) — these are what the bun wrapper and the in-app \`mimofan update\` download, whereas the \`.tar.gz\` / \`.zip\` archives above are the recommended manual download and additionally bundle an install script. The legacy npm package \`deepseek-tui\` is deprecated and is not republished. For migration from v0.8.x legacy binary names, see \`docs/REBRAND.md\`.
+Each platform also has a **bare, unarchived** binary attached below (\`mimofan-<platform>\`) — this is what the bun wrapper and the in-app \`mimofan update\` download, whereas the \`.tar.gz\` / \`.zip\` archives above are the recommended manual download and additionally bundle an install script. The legacy npm package \`deepseek-tui\` is deprecated and is not republished. For migration from v0.8.x legacy binary names, see \`docs/REBRAND.md\`.
 
 ### Verify (recommended)
 
