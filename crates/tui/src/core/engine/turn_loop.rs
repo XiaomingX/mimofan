@@ -277,41 +277,40 @@ impl Engine {
                 // Fire the PreCompact lifecycle hook so external hooks can
                 // inspect (and optionally deny via exit code 2) the imminent
                 // summarization. Runs off the worker thread like other hooks.
-                if let Some(hook_executor) = self.config.hook_executor.as_ref() {
-                    if hook_executor.has_hooks_for_event(crate::hooks::HookEvent::PreCompact) {
-                        let hook_context = crate::hooks::HookContext::new()
-                            .with_message("Auto context compaction")
-                            .with_workspace(self.session.workspace.clone())
-                            .with_model(&self.config.model)
-                            .with_session_id(&self.session.id)
-                            .with_tokens(auto_messages_before as u32);
-                        let executor = hook_executor.clone();
-                        let results = tokio::task::spawn_blocking(move || {
-                            executor.execute(crate::hooks::HookEvent::PreCompact, &hook_context)
-                        })
-                        .await
-                        .unwrap_or_else(|join_err| {
-                            tracing::error!("PreCompact hook task panicked: {join_err}");
-                            Vec::new()
-                        });
-                        // A PreCompact hook may deny compaction to preserve
-                        // critical context (exit code 2, like ToolCallBefore).
-                        if results.iter().any(|r| r.exit_code == Some(2)) {
-                            let _ = self
-                                .tx_event
-                                .send(Event::status(
-                                    "Auto-compaction skipped: denied by PreCompact hook"
-                                        .to_string(),
-                                ))
-                                .await;
-                            self.emit_compaction_failed(
-                                compaction_id.clone(),
-                                true,
-                                "Auto-compaction denied by PreCompact hook".to_string(),
-                            )
+                if let Some(hook_executor) = self.config.hook_executor.as_ref()
+                    && hook_executor.has_hooks_for_event(crate::hooks::HookEvent::PreCompact)
+                {
+                    let hook_context = crate::hooks::HookContext::new()
+                        .with_message("Auto context compaction")
+                        .with_workspace(self.session.workspace.clone())
+                        .with_model(&self.config.model)
+                        .with_session_id(&self.session.id)
+                        .with_tokens(auto_messages_before as u32);
+                    let executor = hook_executor.clone();
+                    let results = tokio::task::spawn_blocking(move || {
+                        executor.execute(crate::hooks::HookEvent::PreCompact, &hook_context)
+                    })
+                    .await
+                    .unwrap_or_else(|join_err| {
+                        tracing::error!("PreCompact hook task panicked: {join_err}");
+                        Vec::new()
+                    });
+                    // A PreCompact hook may deny compaction to preserve
+                    // critical context (exit code 2, like ToolCallBefore).
+                    if results.iter().any(|r| r.exit_code == Some(2)) {
+                        let _ = self
+                            .tx_event
+                            .send(Event::status(
+                                "Auto-compaction skipped: denied by PreCompact hook".to_string(),
+                            ))
                             .await;
-                            continue;
-                        }
+                        self.emit_compaction_failed(
+                            compaction_id.clone(),
+                            true,
+                            "Auto-compaction denied by PreCompact hook".to_string(),
+                        )
+                        .await;
+                        continue;
                     }
                 }
 
@@ -335,31 +334,28 @@ impl Engine {
                             // Fire PostCompact after a successful summarization
                             // so hooks can re-inject disk-backed context or emit
                             // telemetry on the compaction outcome.
-                            if let Some(hook_executor) =
-                                self.config.hook_executor.as_ref()
-                            {
-                                if hook_executor
+                            if let Some(hook_executor) = self.config.hook_executor.as_ref()
+                                && hook_executor
                                     .has_hooks_for_event(crate::hooks::HookEvent::PostCompact)
-                                {
-                                    let removed = auto_messages_before
-                                        .saturating_sub(auto_messages_after);
-                                    let hook_context = crate::hooks::HookContext::new()
-                                        .with_message(&format!(
-                                            "Auto compaction: {auto_messages_before} → {auto_messages_after} ({removed} removed)"
-                                        ))
-                                        .with_workspace(self.session.workspace.clone())
-                                        .with_model(&self.config.model)
-                                        .with_session_id(&self.session.id)
-                                        .with_tokens(auto_messages_after as u32);
-                                    let executor = hook_executor.clone();
-                                    let _ = tokio::task::spawn_blocking(move || {
-                                        executor.execute(
-                                            crate::hooks::HookEvent::PostCompact,
-                                            &hook_context,
-                                        )
-                                    })
-                                    .await;
-                                }
+                            {
+                                let removed =
+                                    auto_messages_before.saturating_sub(auto_messages_after);
+                                let hook_context = crate::hooks::HookContext::new()
+                                    .with_message(&format!(
+                                        "Auto compaction: {auto_messages_before} → {auto_messages_after} ({removed} removed)"
+                                    ))
+                                    .with_workspace(self.session.workspace.clone())
+                                    .with_model(&self.config.model)
+                                    .with_session_id(&self.session.id)
+                                    .with_tokens(auto_messages_after as u32);
+                                let executor = hook_executor.clone();
+                                let _ = tokio::task::spawn_blocking(move || {
+                                    executor.execute(
+                                        crate::hooks::HookEvent::PostCompact,
+                                        &hook_context,
+                                    )
+                                })
+                                .await;
                             }
 
                             self.emit_session_updated().await;
