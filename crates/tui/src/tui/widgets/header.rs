@@ -16,8 +16,8 @@ use crate::tui::app::AppMode;
 
 use super::Renderable;
 
-const CONTEXT_WARNING_THRESHOLD_PERCENT: f64 = 85.0;
-const CONTEXT_CRITICAL_THRESHOLD_PERCENT: f64 = 95.0;
+const CONTEXT_WARNING_THRESHOLD_PERCENT: f64 = crate::context_budget::UI_WARNING_PERCENT;
+const CONTEXT_CRITICAL_THRESHOLD_PERCENT: f64 = crate::context_budget::UI_CRITICAL_PERCENT;
 const CONTEXT_SIGNAL_WIDTH: usize = 4;
 
 /// Milliseconds between status-indicator frame advances. The original
