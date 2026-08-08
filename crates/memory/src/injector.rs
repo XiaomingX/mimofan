@@ -217,8 +217,17 @@ impl MemoryInjector {
         }
     }
 
-    /// Estimate token count for text (rough: 1 token ≈ 4 characters)
+    /// Estimate token count for text (rough: 1 token ≈ 4 characters).
+    ///
+    /// Mirrors the permissive ratio in the TUI crate's `context_budget`
+    /// estimator (`CHARS_PER_TOKEN_PERMISSIVE`). It is duplicated rather than
+    /// imported because `mimofan-memory` is a standalone experimental crate
+    /// that does not depend on the TUI; keep the two in sync if the ratio
+    /// changes.
+    ///
+    /// Counts characters, not bytes: `len()` would inflate CJK text ~3x under
+    /// UTF-8 and cause this budget to evict context far too eagerly.
     fn estimate_tokens(&self, text: &str) -> usize {
-        text.len() / 4
+        text.chars().count() / 4
     }
 }

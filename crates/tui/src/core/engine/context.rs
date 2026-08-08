@@ -565,7 +565,7 @@ pub(super) fn route_context_budget_for_route(
     input_tokens: usize,
 ) -> Option<ContextBudget> {
     let window = crate::route_budget::route_context_window_tokens(provider, model, route_limits);
-    let output_cap = route_output_reservation_for_window(model, window, route_limits);
+    let output_cap = route_output_reservation_for_route(model, window, route_limits);
     crate::route_budget::route_context_budget(
         provider,
         model,
@@ -575,7 +575,7 @@ pub(super) fn route_context_budget_for_route(
     )
 }
 
-fn route_output_reservation_for_window(
+pub(super) fn route_output_reservation_for_route(
     model: &str,
     window_tokens: u32,
     route_limits: Option<RouteLimits>,

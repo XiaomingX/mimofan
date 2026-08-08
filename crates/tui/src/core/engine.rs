@@ -25,6 +25,7 @@ use tokio_util::sync::CancellationToken;
 use crate::client::ApiClient;
 use crate::compaction::{compact_messages_safe, merge_system_prompts, should_compact};
 use crate::config::{ApiProvider, Config};
+use crate::context_budget::ContextBudget;
 use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, StreamError};
 use crate::features::Feature;
 use crate::llm_client::LlmClient;
@@ -2309,6 +2310,45 @@ impl Engine {
         )
     }
 
+    /// Budget snapshot for the live route, with the compaction trigger taken
+    /// from the *configured* threshold rather than the module default.
+    ///
+    /// `compaction.token_threshold` is itself derived from the user's
+    /// `compact_threshold` percentage of the route window (see
+    /// `route_budget::compaction_threshold_for_route_at_percent`), so routing
+    /// it through [`ContextBudget::with_trigger`] keeps the engine decision and
+    /// the UI percentage reading off the same number instead of two parallel
+    /// rules that can drift apart.
+    fn route_compaction_budget(&mut self) -> Option<ContextBudget> {
+        let input_tokens = self.estimated_input_tokens();
+        let window =
+            crate::route_budget::route_context_window_tokens(
+                self.api_provider,
+                &self.session.model,
+                self.active_route_limits,
+            );
+        // A zero threshold means "no token budget configured" in
+        // `compaction::should_compact`, which then falls back to a message-count
+        // rule. Pass `None` so the budget gate uses its percent-of-window
+        // default instead of a clamped 1-token trigger that would fire on every
+        // turn and leave the structural check as the only real gate.
+        let configured_trigger = match self.config.compaction.token_threshold {
+            0 => None,
+            threshold => u64::try_from(threshold).ok(),
+        };
+        let output_cap = context::route_output_reservation_for_route(
+            &self.session.model,
+            window,
+            self.active_route_limits,
+        );
+        Some(ContextBudget::with_trigger(
+            u64::from(window),
+            u64::try_from(input_tokens).ok()?,
+            u64::from(output_cap),
+            configured_trigger,
+        ))
+    }
+
     fn trim_oldest_messages_to_budget(&mut self, target_input_budget: usize) -> usize {
         let mut removed = 0usize;
         while self.session.messages.len() > MIN_RECENT_MESSAGES_TO_KEEP
@@ -2343,12 +2383,22 @@ impl Engine {
         let mut summary_prompt = None;
         let mut compacted_messages: Vec<Message> = self.session.messages.clone().into();
 
-        let mut forced_config = self.config.compaction.clone();
-        forced_config.enabled = true;
-        forced_config.token_threshold = forced_config
+        // Emergency path: the provider already rejected (or is about to reject)
+        // this context, so the trigger must sit strictly below the spendable
+        // budget regardless of what the user configured. Build the same
+        // `ContextBudget` the auto path uses, but force the trigger down to
+        // `target_budget - 1` so `should_compact` is unambiguously true — this
+        // keeps the "what counts as too full" arithmetic in one module instead
+        // of a bespoke min/max here.
+        let forced_trigger = self
+            .config
+            .compaction
             .token_threshold
             .min(target_budget.saturating_sub(1))
             .max(1);
+        let mut forced_config = self.config.compaction.clone();
+        forced_config.enabled = true;
+        forced_config.token_threshold = forced_trigger;
 
         match compact_messages_safe(
             client,

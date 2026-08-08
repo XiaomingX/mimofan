@@ -91,6 +91,59 @@ pub const UI_SUGGEST_COMPACT_PERCENT: f64 = 60.0;
 /// drive the available input budget to zero on a usable window.
 pub const MIN_INPUT_BUDGET_TOKENS: u64 = 1_024;
 
+// ── Token estimation ──────────────────────────────────────────────────────────
+//
+// Every token count in this app is a character-count heuristic; there is no
+// tokeniser dependency. Before this module owned the ratios they were spread
+// across three call sites with two *different* divisors (4 and 3), so the same
+// text produced counts that differed by ~33% depending on which subsystem
+// asked. That is a systematic bias, not noise: the compaction gate and the
+// large-output router were effectively using different definitions of "token".
+//
+// The ratios are centralised here. They intentionally remain two distinct
+// values, because the two roles have opposite failure modes:
+//
+//   * Bulk accounting (`estimate_tokens_permissive`) answers "roughly how big
+//     is this history?". Over-counting here triggers needless compaction and
+//     throws away the V4 prefix cache, so it errs high on chars-per-token
+//     (i.e. reports fewer tokens).
+//   * Gating (`estimate_tokens_conservative`) answers "could this overflow
+//     something?". Under-counting here lets an oversized payload through to
+//     the provider, so it errs low on chars-per-token (reports more tokens).
+//
+// Both are deliberately calibrated for a mixed English/CJK corpus. Real
+// tokenisers land near ~4 chars/token for English prose and ~1.5-2 for Chinese;
+// a single ratio cannot serve both, which is why the conservative path exists.
+
+/// Characters per token for permissive/bulk estimates. Tuned for English-heavy
+/// prose and code, where real tokenisers cluster around four characters per
+/// token. Over-reporting tokens here would cause premature compaction, so this
+/// is the higher (more forgiving) divisor.
+pub const CHARS_PER_TOKEN_PERMISSIVE: usize = 4;
+
+/// Characters per token for conservative/gating estimates. Lower than
+/// [`CHARS_PER_TOKEN_PERMISSIVE`] so CJK-heavy text — which tokenises closer to
+/// 1.5-2 characters per token — is not badly under-counted at the point where
+/// under-counting means an overflow rather than a wasted cache.
+pub const CHARS_PER_TOKEN_CONSERVATIVE: usize = 3;
+
+/// Permissive token estimate for `text` (see [`CHARS_PER_TOKEN_PERMISSIVE`]).
+///
+/// Counts characters rather than bytes so multi-byte CJK/emoji text is not
+/// inflated ~3x by UTF-8 encoding length.
+#[must_use]
+pub fn estimate_tokens_permissive(text: &str) -> usize {
+    text.chars().count() / CHARS_PER_TOKEN_PERMISSIVE
+}
+
+/// Conservative token estimate for `text` (see [`CHARS_PER_TOKEN_CONSERVATIVE`]).
+///
+/// Rounds up: a partial trailing token still costs a token.
+#[must_use]
+pub fn estimate_tokens_conservative(text: &str) -> usize {
+    text.chars().count().div_ceil(CHARS_PER_TOKEN_CONSERVATIVE)
+}
+
 /// Coarse, UI-facing description of how full the context window is.
 ///
 /// Ordered from least to most pressure so the variants can be compared
@@ -188,6 +241,26 @@ impl ContextBudget {
     /// Never panics and never underflows: all arithmetic saturates.
     #[must_use]
     pub fn new(window_tokens: u64, input_tokens: u64, configured_output_cap: u64) -> Self {
+        Self::with_trigger(window_tokens, input_tokens, configured_output_cap, None)
+    }
+
+    /// Like [`ContextBudget::new`], but overrides the compaction trigger with an
+    /// explicit token level instead of deriving it from
+    /// [`DEFAULT_COMPACTION_TRIGGER_PERCENT`].
+    ///
+    /// This is what lets the *configured* compaction threshold
+    /// (`compaction.token_threshold`, itself derived from the user's
+    /// `compact_threshold` percentage of the route window) become the single
+    /// decision input, rather than each call site re-deriving its own rule.
+    /// `None` keeps the default percent-of-window trigger; `Some(0)` is clamped
+    /// up to 1 so a misconfigured zero cannot make every turn "need" compaction.
+    #[must_use]
+    pub fn with_trigger(
+        window_tokens: u64,
+        input_tokens: u64,
+        configured_output_cap: u64,
+        trigger_tokens: Option<u64>,
+    ) -> Self {
         let output_cap_tokens = clamp_output_cap(window_tokens, configured_output_cap);
 
         // Reserve output + safety headroom; whatever remains is spendable input.
@@ -195,8 +268,10 @@ impl ContextBudget {
         let input_budget_ceiling = window_tokens.saturating_sub(reserved);
         let available_input_tokens = input_budget_ceiling.saturating_sub(input_tokens);
 
-        let compaction_trigger_tokens =
-            percent_of(window_tokens, DEFAULT_COMPACTION_TRIGGER_PERCENT);
+        let compaction_trigger_tokens = match trigger_tokens {
+            Some(explicit) => explicit.max(1),
+            None => percent_of(window_tokens, DEFAULT_COMPACTION_TRIGGER_PERCENT),
+        };
 
         let pressure =
             PressureLevel::from_usage_percent(usage_percent(window_tokens, input_tokens));
@@ -231,6 +306,51 @@ impl ContextBudget {
     pub fn fits_additional(&self, additional_input_tokens: u64) -> bool {
         additional_input_tokens <= self.available_input_tokens
     }
+
+    /// Whether the input has exhausted the spendable budget, i.e. the next
+    /// request would cross the reserved output + headroom boundary.
+    ///
+    /// This is the "must compact or the provider will reject us" signal that
+    /// the emergency-recovery path cares about, as distinct from
+    /// [`ContextBudget::should_compact`], which is the softer "we've crossed
+    /// the configured trigger" signal.
+    #[must_use]
+    pub fn is_over_budget(&self) -> bool {
+        self.window_tokens > 0 && self.available_input_tokens == 0
+    }
+}
+
+/// The reason a compaction decision came back positive.
+///
+/// Returned by [`compaction_decision`] so callers can distinguish a routine
+/// threshold crossing from a hard budget exhaustion (which warrants the
+/// emergency path) without re-deriving either condition themselves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompactionTrigger {
+    /// Input crossed the configured/derived compaction trigger.
+    ThresholdReached,
+    /// Input exhausted the spendable budget; compaction is mandatory.
+    BudgetExhausted,
+}
+
+/// Single decision point for "should we compact now?".
+///
+/// `enabled` short-circuits to `None` so the caller does not need a separate
+/// config check that could drift from this rule. Budget exhaustion outranks a
+/// plain threshold crossing because it changes how aggressively the caller
+/// should compact.
+#[must_use]
+pub fn compaction_decision(budget: &ContextBudget, enabled: bool) -> Option<CompactionTrigger> {
+    if !enabled {
+        return None;
+    }
+    if budget.is_over_budget() {
+        return Some(CompactionTrigger::BudgetExhausted);
+    }
+    if budget.should_compact() {
+        return Some(CompactionTrigger::ThresholdReached);
+    }
+    None
 }
 
 /// Clamp a desired output cap so it fits the window while preserving at least
@@ -340,6 +460,77 @@ mod tests {
         assert_eq!(budget.usage_percent(), 0.0);
         assert!(!budget.should_compact());
         assert_eq!(budget.pressure, PressureLevel::Low);
+    }
+
+    #[test]
+    fn explicit_trigger_overrides_percent_of_window() {
+        // Configured threshold (60k) is below the 75%-of-window default (150k),
+        // so a 100k input should compact under the override but not the default.
+        let default_budget = ContextBudget::new(200_000, 100_000, 8_192);
+        assert!(!default_budget.should_compact());
+
+        let configured = ContextBudget::with_trigger(200_000, 100_000, 8_192, Some(60_000));
+        assert_eq!(configured.compaction_trigger_tokens, 60_000);
+        assert!(configured.should_compact());
+    }
+
+    #[test]
+    fn zero_trigger_is_clamped_so_it_does_not_always_fire_at_zero_input() {
+        let budget = ContextBudget::with_trigger(200_000, 0, 8_192, Some(0));
+        assert_eq!(budget.compaction_trigger_tokens, 1);
+        assert!(!budget.should_compact());
+    }
+
+    #[test]
+    fn compaction_decision_respects_enabled_flag() {
+        let budget = ContextBudget::new(200_000, 150_000, 8_192);
+        assert!(budget.should_compact());
+        assert_eq!(
+            compaction_decision(&budget, true),
+            Some(CompactionTrigger::ThresholdReached)
+        );
+        assert_eq!(compaction_decision(&budget, false), None);
+    }
+
+    #[test]
+    fn compaction_decision_reports_budget_exhaustion_first() {
+        // Input consumes everything left after the output reservation, so the
+        // decision must escalate past a plain threshold crossing.
+        let budget = ContextBudget::new(200_000, 199_000, 8_192);
+        assert_eq!(budget.available_input_tokens, 0);
+        assert_eq!(
+            compaction_decision(&budget, true),
+            Some(CompactionTrigger::BudgetExhausted)
+        );
+    }
+
+    #[test]
+    fn compaction_decision_is_none_when_there_is_room() {
+        let budget = ContextBudget::new(200_000, 10_000, 8_192);
+        assert_eq!(compaction_decision(&budget, true), None);
+    }
+
+    #[test]
+    fn token_estimators_count_chars_not_bytes() {
+        // Multi-byte text must not be inflated by UTF-8 encoding length; the
+        // byte-based version of this estimate over-counted CJK by ~3x.
+        let cjk = "上下文压缩"; // 5 chars, 15 bytes
+        assert_eq!(cjk.chars().count(), 5);
+        assert_eq!(estimate_tokens_permissive(cjk), 5 / 4);
+        assert_eq!(estimate_tokens_conservative(cjk), 5_usize.div_ceil(3));
+    }
+
+    #[test]
+    fn conservative_estimate_never_below_permissive() {
+        // The gating estimate must stay the more pessimistic of the two, or
+        // the large-output router would pass through payloads the compaction
+        // gate already considers oversized.
+        for text in ["", "a", "hello world", "上下文压缩与预算", &"x".repeat(1_000)] {
+            assert!(
+                estimate_tokens_conservative(text) >= estimate_tokens_permissive(text),
+                "conservative < permissive for {text:?}"
+            );
+        }
     }
 
     #[test]

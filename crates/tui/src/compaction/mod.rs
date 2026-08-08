@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use crate::client::ApiClient;
 use crate::config::DEFAULT_TEXT_MODEL;
+use crate::context_budget::{estimate_tokens_conservative, estimate_tokens_permissive};
 use crate::llm_client::LlmClient;
 use crate::logging;
 use crate::models::{
@@ -578,15 +579,17 @@ fn estimate_tokens_for_message(message: &Message, include_thinking: bool) -> usi
         .content
         .iter()
         .map(|c| match c {
-            ContentBlock::Text { text, .. } => text.len() / 4,
+            ContentBlock::Text { text, .. } => estimate_tokens_permissive(text),
             // Historical reasoning blocks are UI/session metadata for DeepSeek.
             // Only current-turn tool-call reasoning is sent back to the API.
-            ContentBlock::Thinking { thinking, .. } if include_thinking => thinking.len() / 4,
+            ContentBlock::Thinking { thinking, .. } if include_thinking => {
+                estimate_tokens_permissive(thinking)
+            }
             ContentBlock::Thinking { .. } => 0,
             ContentBlock::ToolUse { input, .. } => serde_json::to_string(input)
-                .map(|s| s.len() / 4)
+                .map(|s| estimate_tokens_permissive(&s))
                 .unwrap_or(100),
-            ContentBlock::ToolResult { content, .. } => content.len() / 4,
+            ContentBlock::ToolResult { content, .. } => estimate_tokens_permissive(content),
             ContentBlock::ServerToolUse { .. }
             | ContentBlock::ToolSearchToolResult { .. }
             | ContentBlock::CodeExecutionToolResult { .. }
@@ -596,9 +599,10 @@ fn estimate_tokens_for_message(message: &Message, include_thinking: bool) -> usi
 }
 
 pub fn estimate_tokens(messages: &[Message]) -> usize {
-    // Rough estimate: ~4 chars per token. DeepSeek thinking-mode rule: any
-    // assistant message with tool_calls keeps its reasoning_content forever
-    // (replayed in all subsequent requests). Final text-only answers drop it.
+    // Permissive per-character estimate (see `CHARS_PER_TOKEN_PERMISSIVE`).
+    // DeepSeek thinking-mode rule: any assistant message with tool_calls keeps
+    // its reasoning_content forever (replayed in all subsequent requests).
+    // Final text-only answers drop it.
     messages
         .iter()
         .map(|message| estimate_tokens_for_message(message, message_has_tool_use(message)))
@@ -613,7 +617,7 @@ fn message_has_tool_use(message: &Message) -> bool {
 }
 
 pub fn estimate_text_tokens_conservative(text: &str) -> usize {
-    text.chars().count().div_ceil(3)
+    estimate_tokens_conservative(text)
 }
 
 fn estimate_system_tokens_conservative(system: Option<&SystemPrompt>) -> usize {
