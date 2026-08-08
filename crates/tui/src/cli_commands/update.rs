@@ -344,6 +344,15 @@ fn release_asset_name_for_prefix(prefix: &str, os: &str, rust_arch: &str) -> Str
     }
 }
 
+/// 本机平台对应的 release 资产名（例如 `mimofan-macos-arm64`）。
+///
+/// 启动期版本检查用它判断「这个 release 里有没有本平台能装的东西」，与
+/// `update_targets_for_exe` 下载时选取资产共用同一套命名规则，避免检查侧
+/// 和下载侧各写一份清单而漂移。
+pub(crate) fn current_platform_asset_name() -> String {
+    release_asset_name_for_prefix("mimofan", std::env::consts::OS, std::env::consts::ARCH)
+}
+
 #[cfg(test)]
 pub fn release_asset_stem_for(current_exe: &Path, os: &str, rust_arch: &str) -> String {
     let prefix = binary_prefix_for_exe(current_exe);
@@ -951,6 +960,60 @@ pub(crate) fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
         tmp.persist(target)
             .map_err(|err| err.error)
             .with_context(|| format!("failed to rename temp file to {}", target.display()))?;
+    }
+
+    // Windows 无法直接覆盖正在运行的可执行文件，但允许把它重命名走。
+    // 先把旧文件挪到 `<name>.old-<pid>`，再把新文件落到原路径；任一步失败
+    // 都要把旧文件搬回来，避免 target 处于「旧的没了、新的没到」的空档。
+    //
+    // 此前这里只有 `cfg(not(windows))` 分支，Windows 上 tmp 会在函数返回时
+    // 被 Drop 删除，自更新静默失效（下载、校验全做了，就是没装上）。
+    #[cfg(windows)]
+    {
+        let backup = target.with_file_name(format!(
+            "{}.old-{}",
+            target
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("mimofan"),
+            std::process::id()
+        ));
+
+        // 目标不存在时（首次安装到该路径）无需备份。
+        let backed_up = if target.exists() {
+            let _ = std::fs::remove_file(&backup);
+            std::fs::rename(target, &backup).with_context(|| {
+                format!(
+                    "failed to move current binary {} out of the way",
+                    target.display()
+                )
+            })?;
+            true
+        } else {
+            false
+        };
+
+        if let Err(err) = tmp.persist(target).map_err(|err| err.error) {
+            if backed_up {
+                // 尽力恢复；恢复失败时把备份路径写进错误里，用户可手动改回。
+                if let Err(restore_err) = std::fs::rename(&backup, target) {
+                    return Err(anyhow::anyhow!(err).context(format!(
+                        "failed to install new binary at {} and could not restore the \
+                         previous one; it is preserved at {} (restore error: {restore_err})",
+                        target.display(),
+                        backup.display()
+                    )));
+                }
+            }
+            return Err(anyhow::anyhow!(err)
+                .context(format!("failed to install new binary at {}", target.display())));
+        }
+
+        // 旧文件仍被运行中的进程占用，此刻通常删不掉；删除失败不算错误，
+        // 留待下次更新开头的 remove_file 或用户手动清理。
+        if backed_up {
+            let _ = std::fs::remove_file(&backup);
+        }
     }
 
     Ok(())
