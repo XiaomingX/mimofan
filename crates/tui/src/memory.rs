@@ -395,6 +395,88 @@ pub fn read_category(dir: &Path, category: &str) -> Option<String> {
     Some(content)
 }
 
+/// Delete the first bullet whose text (after stripping the leading
+/// `(timestamp)` prefix and surrounding whitespace) contains `matcher` as a
+/// substring. Returns `true` when a line was removed. Refreshes the index.
+/// Errors on an unknown category or I/O failure.
+pub fn remove_entry(dir: &Path, category: &str, matcher: &str) -> io::Result<bool> {
+    if !is_category(category) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "unknown memory category `{category}` (expected one of: {})",
+                CATEGORIES.join(", ")
+            ),
+        ));
+    }
+    let path = category_path(dir, category);
+    let content = fs::read_to_string(&path)?;
+    let needle = matcher.trim();
+    let mut removed = false;
+    let mut kept: Vec<&str> = Vec::new();
+    for line in content.lines() {
+        if !removed && line.trim_start().starts_with("- ") {
+            let body = strip_timestamp(line.trim_start_matches("- ").trim());
+            if body.contains(needle) {
+                removed = true;
+                continue;
+            }
+        }
+        kept.push(line);
+    }
+    if removed {
+        let rewritten = kept.join("\n");
+        fs::write(&path, rewritten)?;
+        write_index(dir)?;
+    }
+    Ok(removed)
+}
+
+/// Replace the text of the first bullet matching `matcher` with `new_text`.
+/// The matched line keeps its `- (timestamp)` prefix but gets a fresh
+/// timestamp and the new body. Returns `true` when a line was replaced.
+/// Refreshes the index. Errors on an unknown category or I/O failure.
+pub fn replace_entry(dir: &Path, category: &str, matcher: &str, new_text: &str) -> io::Result<bool> {
+    if !is_category(category) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "unknown memory category `{category}` (expected one of: {})",
+                CATEGORIES.join(", ")
+            ),
+        ));
+    }
+    let new_text = new_text.trim_start_matches('#').trim();
+    if new_text.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "replacement memory text is empty",
+        ));
+    }
+    let path = category_path(dir, category);
+    let content = fs::read_to_string(&path)?;
+    let needle = matcher.trim();
+    let timestamp = Utc::now().format("%Y-%m-%d %H:%M UTC");
+    let mut replaced = false;
+    let mut out: Vec<String> = Vec::new();
+    for line in content.lines() {
+        if !replaced && line.trim_start().starts_with("- ") {
+            let body = strip_timestamp(line.trim_start_matches("- ").trim());
+            if body.contains(needle) {
+                out.push(format!("- ({timestamp}) {new_text}"));
+                replaced = true;
+                continue;
+            }
+        }
+        out.push(line.to_string());
+    }
+    if replaced {
+        fs::write(&path, out.join("\n"))?;
+        write_index(dir)?;
+    }
+    Ok(replaced)
+}
+
 /// Parse a `# foo` quick-add into an optional explicit category and the
 /// remaining entry text.
 ///
@@ -592,5 +674,43 @@ mod tests {
         assert!(!matches_seg.contains("<!-- paths:"));
         // The always-on bullet has no paths tag, so it is NOT inlined.
         assert!(!matches_seg.contains("always-on project note"));
+    }
+
+    #[test]
+    fn remove_entry_deletes_matching_bullet() {
+        let dir = tmp_memory_dir();
+        ensure_dir(&dir);
+        append_entry(&dir, "feedback", "use tabs not spaces").unwrap();
+        append_entry(&dir, "feedback", "keep PRs small").unwrap();
+        // Matches the first bullet by substring; timestamp prefix is ignored.
+        assert!(remove_entry(&dir, "feedback", "tabs").unwrap());
+        let fb = read_category(&dir, "feedback").expect("feedback file");
+        assert!(!fb.contains("tabs"));
+        assert!(fb.contains("keep PRs small"));
+        // No match => nothing removed, still returns Ok(false).
+        assert!(!remove_entry(&dir, "feedback", "nonexistent").unwrap());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn replace_entry_updates_matching_bullet() {
+        let dir = tmp_memory_dir();
+        ensure_dir(&dir);
+        append_entry(&dir, "user", "prefers Rust").unwrap();
+        assert!(replace_entry(&dir, "user", "Rust", "prefers Go now").unwrap());
+        let user = read_category(&dir, "user").expect("user file");
+        assert!(user.contains("prefers Go now"));
+        assert!(!user.contains("prefers Rust"));
+        // Empty replacement is rejected.
+        assert!(replace_entry(&dir, "user", "Go", "").is_err());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn remove_and_replace_reject_unknown_category() {
+        let dir = tmp_memory_dir();
+        assert!(remove_entry(&dir, "bogus", "x").is_err());
+        assert!(replace_entry(&dir, "bogus", "x", "y").is_err());
+        let _ = fs::remove_dir_all(&dir);
     }
 }
