@@ -239,6 +239,12 @@ pub struct Settings {
     pub default_model: Option<String>,
     /// Default reasoning effort selected from the TUI model picker.
     pub reasoning_effort: Option<String>,
+    /// Start new sessions in `/fast` mode (cheap-tier model + low effort).
+    ///
+    /// `/fast` is otherwise a session-scoped toggle that resets on every
+    /// launch; this is the persisted default so cost-sensitive users do not
+    /// have to retype it. `/normal` still turns it off for the current session.
+    pub fast_mode: bool,
     /// Per-provider model overrides. Key is provider name, value is model id.
     pub provider_models: Option<std::collections::HashMap<String, String>>,
     /// Header status indicator: whale, dots, or off.
@@ -284,6 +290,7 @@ impl Default for Settings {
             default_provider: None,
             default_model: None,
             reasoning_effort: None,
+            fast_mode: false,
             provider_models: None,
             status_indicator: "whale".to_string(),
             synchronized_output: "auto".to_string(),
@@ -711,6 +718,9 @@ impl Settings {
             "reasoning_effort" | "effort" => {
                 self.reasoning_effort = normalize_reasoning_effort_setting(value)?;
             }
+            "fast_mode" | "fast" => {
+                self.fast_mode = parse_bool(value)?;
+            }
             _ => {
                 anyhow::bail!("Failed to update setting: unknown setting '{key}'.");
             }
@@ -806,6 +816,7 @@ impl Settings {
                 .as_deref()
                 .unwrap_or("(config/default)")
         ));
+        lines.push(format!("  fast_mode:          {}", self.fast_mode));
         lines.push(String::new());
         lines.push(format!(
             "{} {}",
@@ -925,6 +936,10 @@ impl Settings {
             (
                 "reasoning_effort",
                 "Default thinking effort: auto, off, low, medium, high, max, or default",
+            ),
+            (
+                "fast_mode",
+                "Start sessions in /fast mode (cheap model + low effort): on/off",
             ),
         ]
     }

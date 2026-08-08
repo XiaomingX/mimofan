@@ -275,6 +275,27 @@ impl App {
             })
         };
 
+        // `settings.fast_mode` makes `/fast` the startup default. Resolve the
+        // same cheap-tier model and low effort `/fast` would pick, so the
+        // persisted preference and the runtime command cannot drift apart. The
+        // pre-fast model/effort are recorded as the `/normal` restore point.
+        let start_fast = settings.fast_mode;
+        let (model, auto_model, reasoning_effort, fast_saved_model, fast_saved_effort) =
+            if start_fast {
+                let candidates =
+                    crate::model_routing::provider_router_candidates(provider, &model);
+                let cheap = candidates.cheap_or_big().to_string();
+                (
+                    cheap,
+                    false,
+                    ReasoningEffort::Low,
+                    Some(model),
+                    Some(reasoning_effort),
+                )
+            } else {
+                (model, auto_model, reasoning_effort, None, None)
+            };
+
         // Start in YOLO mode if --yolo flag was passed
         let preferred_mode = AppMode::from_setting(&settings.default_mode);
         let initial_mode = if yolo {
@@ -423,9 +444,9 @@ impl App {
             pending_provider_switch: None,
             reasoning_effort,
             last_effective_reasoning_effort: None,
-            fast_mode_active: false,
-            fast_saved_model: None,
-            fast_saved_effort: None,
+            fast_mode_active: start_fast,
+            fast_saved_model,
+            fast_saved_effort,
             workspace,
             config_path,
             config_profile,

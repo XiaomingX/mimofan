@@ -36,6 +36,7 @@ pub mod schedule;
 mod stash;
 mod subagents;
 mod swarm;
+mod think;
 mod translate;
 pub mod util;
 pub mod voice;
@@ -75,6 +76,10 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 fast::NormalCmd::info(),
                 fast::NormalCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                think::ThinkCmd::info(),
+                think::ThinkCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 model::ModelCmd::info(),

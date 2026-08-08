@@ -4,7 +4,7 @@
 //! faster responses on simple tasks. `/normal` restores the previous state.
 
 use crate::commands::traits::{CommandInfo, RegisterCommand};
-use crate::model_routing::RouterCandidates;
+use crate::model_routing::provider_router_candidates;
 use crate::tui::app::{App, AppAction, ReasoningEffort};
 
 use super::CommandResult;
@@ -32,14 +32,18 @@ impl RegisterCommand for FastCmd {
         app.fast_saved_model = Some(app.model.clone());
         app.fast_saved_effort = Some(app.reasoning_effort);
 
-        // Switch to cheap-tier model for the current provider.
-        let candidates = match app.api_provider.as_str() {
-            "deepseek" | "deepseek-chat" | "deepseek-api" => RouterCandidates::deepseek(),
-            _ => RouterCandidates {
-                big: app.model.clone(),
-                cheap: None,
-            },
-        };
+        // Switch to the cheap-tier model for the active provider.
+        //
+        // Reuse the auto-router's provider-aware candidate table so `/fast` and
+        // auto mode agree on what "cheap" means (GLM-5.2 → GLM-5-Turbo, the
+        // DeepSeek pro/flash pair, ...). The previous implementation matched on
+        // `api_provider.as_str()` against `"deepseek"`, but that accessor only
+        // ever yields the wire-format names (`openai-compatible`,
+        // `anthropic-compatible`, `gemini-compatible`), so the cheap branch was
+        // unreachable and `/fast` silently degraded to an effort-only toggle for
+        // every provider.
+        let candidates = provider_router_candidates(app.api_provider, &app.model);
+        let has_cheap_tier = candidates.cheap.is_some();
 
         let cheap_model = candidates.cheap_or_big().to_string();
         let model_changed = app.model != cheap_model;
@@ -60,10 +64,20 @@ impl RegisterCommand for FastCmd {
         }
 
         let old_label = app.fast_saved_model.as_deref().unwrap_or("unknown");
-        CommandResult::with_message_and_action(
+        let message = if has_cheap_tier {
             format!(
                 "⚡ Fast mode ON: {old_label} → {cheap_model}, reasoning: low. Use /normal to restore."
-            ),
+            )
+        } else {
+            // Be explicit rather than implying a model switch that did not
+            // happen: this provider exposes no cheaper sibling.
+            format!(
+                "⚡ Fast mode ON: {cheap_model} has no cheaper tier for this provider, \
+                 so only reasoning was lowered to low. Use /normal to restore."
+            )
+        };
+        CommandResult::with_message_and_action(
+            message,
             AppAction::UpdateCompaction(app.compaction_config()),
         )
     }
