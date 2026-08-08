@@ -148,6 +148,15 @@ impl Engine {
         let mut last_tool_error_text = String::new();
         // De-duplicates auto-captured memory signals within a single turn.
         let mut seen_auto_memory: std::collections::HashSet<String> = std::collections::HashSet::new();
+        // In-turn repetition / oscillation / stall brake. Turn-scoped on
+        // purpose: a new user message is a new intent and should not inherit
+        // the previous turn's suspicion. Detections inject an advisory nudge
+        // (see below) rather than terminating, so the user never loses
+        // in-flight progress to a false positive.
+        let mut loop_guard = crate::loop_guard::LoopGuard::default();
+        // Nudges detected during result folding, injected after the batch so
+        // they land after the tool results the model is about to read.
+        let mut pending_loop_nudges: Vec<String> = Vec::new();
         let mut context_recovery_attempts = 0u8;
         let mut tool_catalog = tools.unwrap_or_default();
         if !tool_catalog.is_empty() {
@@ -2436,6 +2445,31 @@ impl Engine {
                         {
                             turn_had_write = true;
                         }
+                        // Loop guard: a successful write is unambiguous forward
+                        // progress, which resets the repeat/stall counters so a
+                        // legitimate edit-heavy loop is never flagged. A tool
+                        // that did not execute (blocked/denied) contributes no
+                        // progress signal.
+                        if let Some(loop_break) =
+                            loop_guard.observe(&crate::loop_guard::ToolObservation {
+                                name: &outcome.name,
+                                args: &tool_input,
+                                success: output.success,
+                                output: &output_for_context,
+                                progress: output.success
+                                    && tool_was_executed
+                                    && Self::is_file_write_tool(&outcome.name),
+                            })
+                        {
+                            tracing::warn!(
+                                target: "engine.loop_guard",
+                                pattern = loop_break.pattern.as_str(),
+                                occurrences = loop_break.occurrences,
+                                tools = ?loop_break.tools,
+                                "in-turn loop detected; injecting self-correction hint"
+                            );
+                            pending_loop_nudges.push(loop_break.nudge);
+                        }
                         // Self-heal: a tool that executed but reported
                         // `success: false` (e.g. non-zero command exit, missing
                         // file) gets a recovery hint so the model retries within
@@ -2501,6 +2535,28 @@ impl Engine {
                         step_error_categories.push(envelope.category);
                         let error = format_tool_error(&e, &outcome.name);
                         last_tool_error_text = error.clone();
+                        // Loop guard: a hard error is never progress. The error
+                        // text feeds the outcome digest, so a retry that fails
+                        // *differently* still counts as converging and will not
+                        // trip the stall detector.
+                        if let Some(loop_break) =
+                            loop_guard.observe(&crate::loop_guard::ToolObservation {
+                                name: &outcome.name,
+                                args: &tool_input,
+                                success: false,
+                                output: &error,
+                                progress: false,
+                            })
+                        {
+                            tracing::warn!(
+                                target: "engine.loop_guard",
+                                pattern = loop_break.pattern.as_str(),
+                                occurrences = loop_break.occurrences,
+                                tools = ?loop_break.tools,
+                                "in-turn loop detected; injecting self-correction hint"
+                            );
+                            pending_loop_nudges.push(loop_break.nudge);
+                        }
                         self.session.working_set.observe_tool_call(
                             &tool_name_for_ws,
                             &tool_input,
@@ -2550,6 +2606,20 @@ impl Engine {
                     self.add_session_message(self.user_text_message_with_turn_metadata(steer))
                         .await;
                 }
+            }
+
+            // Loop guard intervention: bounded, advisory, non-fatal. Injected
+            // after the tool results so the model reads the evidence first,
+            // then the diagnosis. The turn continues either way — the model
+            // gets a chance to self-correct, and `max_steps` remains the only
+            // hard stop.
+            for nudge in pending_loop_nudges.drain(..) {
+                let _ = self
+                    .tx_event
+                    .send(Event::status("Loop detected — nudging the model to re-plan"))
+                    .await;
+                self.add_session_message(self.user_text_message_with_turn_metadata(nudge))
+                    .await;
             }
 
             if step_error_count > 0 {

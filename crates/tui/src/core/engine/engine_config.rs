@@ -196,9 +196,10 @@ impl Default for EngineConfig {
             project_context_pack_enabled: true,
             translation_enabled: false,
             show_thinking: true,
-            // High backstop rather than a working ceiling: the in-turn
-            // loop_guard that used to brake repetition is gone, so this only
-            // exists to terminate a pathological runaway turn via
+            // High backstop rather than a working ceiling. Repetition is
+            // braked in-turn by `crate::loop_guard`, which injects a bounded
+            // self-correction hint on repeat / A-B-A-B / no-progress patterns;
+            // this only exists to terminate a pathological runaway turn via
             // `at_max_steps()`. 1000 stays high enough to never gate real work
             // while still guaranteeing the turn ends.
             max_steps: 1000,
