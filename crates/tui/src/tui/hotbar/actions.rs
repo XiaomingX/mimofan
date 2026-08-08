@@ -213,7 +213,9 @@ impl HotbarAction for AppHotbarAction {
                     app.status_message = Some("Compaction is already running.".to_string());
                     return Ok(HotbarDispatch::Handled);
                 }
-                Ok(HotbarDispatch::AppAction(AppAction::CompactContext))
+                Ok(HotbarDispatch::AppAction(AppAction::CompactContext {
+                    instructions: None,
+                }))
             }
             AppHotbarKind::Mode(mode) => {
                 let changed = app.set_mode(mode);

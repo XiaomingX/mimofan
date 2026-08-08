@@ -147,6 +147,59 @@ impl ProjectContext {
         self.instructions.is_some()
     }
 
+    /// Extract the project's persistent compaction guidance, if any.
+    ///
+    /// Reads a `# Compact Instructions` section (any heading level, case
+    /// insensitive) out of the loaded AGENTS.md so the project can steer both
+    /// manual and automatic compaction without repeating itself on every
+    /// `/compact`. Mirrors the same-named convention in Claude Code's
+    /// CLAUDE.md and CodeBuddy's CODEBUDDY.md.
+    pub fn compact_instructions(&self) -> Option<String> {
+        extract_compact_instructions(self.instructions.as_deref()?)
+    }
+}
+
+/// Pull the body of a `# Compact Instructions` section out of markdown.
+///
+/// The section ends at the next heading of the same or shallower depth, so a
+/// nested `### Example` under it stays part of the guidance.
+fn extract_compact_instructions(markdown: &str) -> Option<String> {
+    fn heading_depth(line: &str) -> Option<usize> {
+        let depth = line.chars().take_while(|&c| c == '#').count();
+        // A heading needs at least one `#` and whitespace before the title,
+        // otherwise `#hashtag` would parse as a heading.
+        (depth > 0 && line[depth..].starts_with(char::is_whitespace)).then_some(depth)
+    }
+
+    let mut lines = markdown.lines();
+    let start_depth = loop {
+        let line = lines.next()?;
+        let trimmed = line.trim_start();
+        if let Some(depth) = heading_depth(trimmed) {
+            let title = trimmed[depth..].trim();
+            // Accept both the documented spelling and the lowercase variant
+            // Claude Code's docs use ("Compact instructions").
+            if title.eq_ignore_ascii_case("compact instructions") {
+                break depth;
+            }
+        }
+    };
+
+    let mut body = String::new();
+    for line in lines {
+        let trimmed = line.trim_start();
+        if heading_depth(trimmed).is_some_and(|depth| depth <= start_depth) {
+            break;
+        }
+        body.push_str(line);
+        body.push('\n');
+    }
+
+    let body = body.trim();
+    (!body.is_empty()).then(|| body.to_string())
+}
+
+impl ProjectContext {
     /// Get the instructions as a formatted block for system prompt.
     ///
     /// The mimofan repo constitution (`.mimofan/constitution.json`), when
@@ -1070,3 +1123,76 @@ Use conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore
 }
 
 // === Unit Tests ===
+
+#[cfg(test)]
+mod compact_instructions_tests {
+    use super::extract_compact_instructions;
+
+    #[test]
+    fn extracts_section_body_and_stops_at_next_same_level_heading() {
+        let md = "\
+# Project
+
+Some prose.
+
+# Compact Instructions
+
+Focus on test output and code changes.
+Drop exploratory debugging.
+
+# Build
+
+cargo build
+";
+        assert_eq!(
+            extract_compact_instructions(md).as_deref(),
+            Some("Focus on test output and code changes.\nDrop exploratory debugging.")
+        );
+    }
+
+    #[test]
+    fn matches_any_heading_level_case_insensitively() {
+        let md = "## compact instructions\n\nKeep API decisions.\n";
+        assert_eq!(
+            extract_compact_instructions(md).as_deref(),
+            Some("Keep API decisions.")
+        );
+    }
+
+    #[test]
+    fn keeps_deeper_nested_headings_inside_the_section() {
+        let md = "\
+## Compact Instructions
+
+Preserve migrations.
+
+### Example
+
+Keep the schema diff.
+
+## Other
+ignored
+";
+        assert_eq!(
+            extract_compact_instructions(md).as_deref(),
+            Some("Preserve migrations.\n\n### Example\n\nKeep the schema diff.")
+        );
+    }
+
+    #[test]
+    fn returns_none_when_section_missing_or_empty() {
+        assert_eq!(extract_compact_instructions("# Build\n\ncargo build\n"), None);
+        assert_eq!(
+            extract_compact_instructions("# Compact Instructions\n\n# Next\nbody\n"),
+            None
+        );
+    }
+
+    #[test]
+    fn ignores_hashtag_that_is_not_a_heading() {
+        assert_eq!(
+            extract_compact_instructions("#Compact Instructions\nbody\n"),
+            None
+        );
+    }
+}

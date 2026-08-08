@@ -1560,7 +1560,9 @@ impl RuntimeThreadManager {
         .await?;
 
         engine
-            .send(Op::CompactContext)
+            .send(Op::CompactContext {
+                instructions: None,
+            })
             .await
             .map_err(|e| anyhow!("Failed to trigger compaction: {e}"))?;
 
@@ -1640,6 +1642,8 @@ impl RuntimeThreadManager {
                 &thread.model,
                 settings.compact_threshold,
             ),
+            custom_instructions: crate::project_context::load_project_context(&thread.workspace)
+                .compact_instructions(),
             ..Default::default()
         };
         let network_policy = self.config.network.clone().map(|toml_cfg| {

@@ -2299,7 +2299,11 @@ pub(crate) async fn run_event_loop(
                     "Compacting context (Ctrl+L)...".to_string()
                 });
                 if !app.is_compacting {
-                    let _ = engine_handle.send(Op::CompactContext).await;
+                    let _ = engine_handle
+                        .send(Op::CompactContext {
+                            instructions: None,
+                        })
+                        .await;
                 }
                 app.needs_redraw = true;
                 continue;
@@ -4039,9 +4043,14 @@ pub(crate) async fn apply_command_result(
             AppAction::OpenContextInspector => {
                 open_context_inspector(app);
             }
-            AppAction::CompactContext => {
-                app.status_message = Some("Compacting context...".to_string());
-                let _ = engine_handle.send(Op::CompactContext).await;
+            AppAction::CompactContext { instructions } => {
+                app.status_message = Some(match instructions.as_deref() {
+                    Some(text) => format!("Compacting context (focus: {text})..."),
+                    None => "Compacting context...".to_string(),
+                });
+                let _ = engine_handle
+                    .send(Op::CompactContext { instructions })
+                    .await;
             }
             AppAction::PurgeContext => {
                 app.status_message = Some("Agent purging context...".to_string());

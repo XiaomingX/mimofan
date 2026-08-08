@@ -260,6 +260,8 @@ impl App {
         };
         let compact_threshold =
             compaction_threshold_for_model_at_percent(threshold_model, compact_threshold_percent);
+        let compact_instructions =
+            crate::project_context::load_project_context(&workspace).compact_instructions();
         let auto_compact = if auto_compact_user_configured {
             settings_auto_compact
         } else {
@@ -479,6 +481,7 @@ impl App {
             file_tree: None,
             file_tree_visible: false,
             compact_threshold,
+            compact_instructions,
             max_input_history,
             allow_shell,
             verbosity: config.verbosity.clone(),
