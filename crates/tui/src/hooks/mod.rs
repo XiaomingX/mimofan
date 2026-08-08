@@ -52,6 +52,18 @@ pub enum HookEvent {
     /// fail or time out are logged but do *not* abort the shell call; they
     /// simply contribute no env vars.
     ShellEnv,
+    /// Triggered immediately before an automatic or manual context compaction
+    /// runs. The hook can inspect the imminent compaction (cause, message
+    /// count) and, like `ToolCallBefore`, deny it via exit code 2 to preserve
+    /// critical context that the summarizer would otherwise discard. Mirrors
+    /// the `PreCompact` lifecycle hook available in other agents.
+    PreCompact,
+    /// Triggered immediately after a context compaction completes
+    /// successfully. Useful for re-injecting context that should survive the
+    /// summarization pass (e.g. re-reading disk-backed project rules), or for
+    /// telemetry on compaction outcomes. Not fired when compaction is skipped
+    /// or fails, so listeners can assume a real summarization took place.
+    PostCompact,
 }
 
 impl HookEvent {
@@ -69,6 +81,8 @@ impl HookEvent {
             HookEvent::SubagentSpawn => "subagent_spawn",
             HookEvent::SubagentComplete => "subagent_complete",
             HookEvent::ShellEnv => "shell_env",
+            HookEvent::PreCompact => "pre_compact",
+            HookEvent::PostCompact => "post_compact",
         }
     }
 }
@@ -1394,3 +1408,46 @@ fn parse_env_lines(stdout: &str) -> HashMap<String, String> {
 }
 
 // === Unit Tests ===
+
+#[cfg(test)]
+mod tests {
+    use super::HookEvent;
+
+    #[test]
+    fn all_hook_events_have_distinct_as_str() {
+        let events = [
+            HookEvent::SessionStart,
+            HookEvent::SessionEnd,
+            HookEvent::MessageSubmit,
+            HookEvent::ToolCallBefore,
+            HookEvent::ToolCallAfter,
+            HookEvent::ModeChange,
+            HookEvent::OnError,
+            HookEvent::TurnEnd,
+            HookEvent::SubagentSpawn,
+            HookEvent::SubagentComplete,
+            HookEvent::ShellEnv,
+            HookEvent::PreCompact,
+            HookEvent::PostCompact,
+        ];
+        let mut seen = std::collections::HashSet::new();
+        for event in events {
+            let label = event.as_str();
+            assert!(!label.is_empty(), "as_str must not be empty");
+            assert!(
+                seen.insert(label.to_string()),
+                "duplicate as_str label: {label}"
+            );
+        }
+    }
+
+    #[test]
+    fn compaction_hook_labels_match_lifecycle_names() {
+        // These labels are the stable contract surfaced to hook authors
+        // and mirror the PreCompact/PostCompact lifecycle hooks found in
+        // other agents.
+        assert_eq!(HookEvent::PreCompact.as_str(), "pre_compact");
+        assert_eq!(HookEvent::PostCompact.as_str(), "post_compact");
+    }
+}
+
