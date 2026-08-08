@@ -100,7 +100,8 @@ pub(crate) async fn run_mcp_command(
         McpCommand::Tools { server } => {
             let mut pool = McpPool::from_config_path_with_workspace(&config_path, workspace)?;
             if let Some(name) = server {
-                let conn = pool.get_or_connect(&name).await?;
+                let shared = pool.get_or_connect(&name).await?;
+                let conn = shared.lock().await;
                 if conn.tools().is_empty() {
                     println!("No tools found for MCP server: {name}");
                 } else {

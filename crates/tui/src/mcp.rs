@@ -13,6 +13,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
+use tokio::sync::Mutex as AsyncMutex;
+
 use anyhow::{Context, Result};
 use tokio::io::AsyncBufReadExt;
 
@@ -871,8 +873,76 @@ impl Drop for McpConnection {
 // === McpPool - Connection Pool Management ===
 
 /// Pool of MCP connections for reuse
+/// A pooled MCP connection shared behind a per-server async mutex.
+///
+/// Holding the pool lock for the whole duration of an RPC serialized *every*
+/// MCP call across *all* servers, so one slow server stalled the rest. The
+/// pool lock now only guards the connection map; the RPC itself takes this
+/// per-server mutex, so different servers run concurrently while calls to the
+/// same server stay serialized — which the wire protocol requires, since
+/// `McpConnection::recv` demultiplexes a single shared stream by request id
+/// and would otherwise let concurrent callers steal each other's responses.
+pub type SharedMcpConnection = Arc<AsyncMutex<McpConnection>>;
+
+/// A tool call resolved against the pool but not yet executed.
+///
+/// Produced by [`McpPool::prepare_tool_call`] so the caller can release the
+/// pool lock before awaiting the RPC.
+pub struct PendingMcpCall {
+    connection: SharedMcpConnection,
+    server_name: String,
+    tool_name: String,
+    arguments: serde_json::Value,
+    timeouts: McpTimeouts,
+}
+
+impl PendingMcpCall {
+    /// The server this call is routed to, for stale-session retry.
+    pub fn server_name(&self) -> &str {
+        &self.server_name
+    }
+
+    /// Execute the RPC. The pool lock must already be released.
+    pub async fn execute(&self) -> Result<serde_json::Value> {
+        McpPool::invoke_tool(
+            &self.connection,
+            &self.server_name,
+            &self.tool_name,
+            self.arguments.clone(),
+            self.timeouts,
+        )
+        .await
+    }
+
+    /// Whether an error from [`Self::execute`] means the session went stale
+    /// and the call is worth retrying on a fresh connection. Keeps the
+    /// stale-session heuristic inside the MCP module.
+    pub fn is_retryable(err: &anyhow::Error) -> bool {
+        is_mcp_stale_session_error(err)
+    }
+
+    /// Rebind to a freshly established connection after a stale session.
+    pub fn with_connection(&self, connection: SharedMcpConnection) -> Self {
+        Self {
+            connection,
+            server_name: self.server_name.clone(),
+            tool_name: self.tool_name.clone(),
+            arguments: self.arguments.clone(),
+            timeouts: self.timeouts,
+        }
+    }
+}
+
+/// Outcome of [`McpPool::prepare_tool_call`]: either the pseudo-tool already
+/// ran inline, or a real RPC is pending and should be awaited off the pool
+/// lock.
+pub enum PreparedMcpCall {
+    Completed(serde_json::Value),
+    Pending(PendingMcpCall),
+}
+
 pub struct McpPool {
-    connections: HashMap<String, McpConnection>,
+    connections: HashMap<String, SharedMcpConnection>,
     config: McpConfig,
     network_policy: Option<NetworkPolicyDecider>,
     /// Source paths the config was loaded from. Empty for pools constructed
@@ -1011,8 +1081,12 @@ impl McpPool {
         Ok(true)
     }
 
-    /// Get or create a connection to a server
-    pub async fn get_or_connect(&mut self, server_name: &str) -> Result<&mut McpConnection> {
+    /// Get or create a connection to a server.
+    ///
+    /// Returns a shared handle rather than a borrow so the caller can drop the
+    /// pool lock before performing the (potentially slow) RPC — see
+    /// [`SharedMcpConnection`].
+    pub async fn get_or_connect(&mut self, server_name: &str) -> Result<SharedMcpConnection> {
         // Lazy auto-reload (#1267 part 2): cheap mtime-then-hash check before
         // each connection lookup. Transient FS errors are logged but not
         // propagated so a brief hiccup can't take down the whole tool dispatch.
@@ -1020,16 +1094,17 @@ impl McpPool {
             tracing::warn!("MCP config reload check failed: {e:#}");
         }
 
-        let is_ready = self
-            .connections
-            .get(server_name)
-            .map(|conn| conn.is_ready())
-            .unwrap_or(false);
-        if is_ready {
-            return self
-                .connections
-                .get_mut(server_name)
-                .ok_or_else(|| anyhow::anyhow!("MCP connection disappeared for {server_name}"));
+        if let Some(existing) = self.connections.get(server_name) {
+            // `try_lock` failing means another task is mid-RPC on this server.
+            // A busy connection is by definition still live, so reuse it and
+            // let the per-server mutex serialize us behind that call.
+            let is_ready = match existing.try_lock() {
+                Ok(conn) => conn.is_ready(),
+                Err(_) => true,
+            };
+            if is_ready {
+                return Ok(existing.clone());
+            }
         }
 
         self.drop_connection(server_name, "reconnect");
@@ -1053,10 +1128,10 @@ impl McpPool {
         )
         .await?;
 
-        self.connections.insert(server_name.to_string(), connection);
+        let shared: SharedMcpConnection = Arc::new(AsyncMutex::new(connection));
         self.connections
-            .get_mut(server_name)
-            .ok_or_else(|| anyhow::anyhow!("Failed to store MCP connection for {server_name}"))
+            .insert(server_name.to_string(), shared.clone());
+        Ok(shared)
     }
 
     /// Connect to all enabled servers, returning errors for failed connections
@@ -1079,10 +1154,9 @@ impl McpPool {
         for (name, server_cfg) in &self.config.servers {
             if server_cfg.required
                 && server_cfg.is_enabled()
-                && !self
-                    .connections
-                    .get(name)
-                    .is_some_and(McpConnection::is_ready)
+                && !self.connections.get(name).is_some_and(|shared| {
+                    shared.try_lock().map(|conn| conn.is_ready()).unwrap_or(true)
+                })
             {
                 errors.push((
                     name.clone(),
@@ -1094,16 +1168,25 @@ impl McpPool {
         errors
     }
 
-    /// Get all discovered tools with server-prefixed names
-    pub fn all_tools(&self) -> Vec<(String, &McpTool)> {
+    /// Get all discovered tools with server-prefixed names.
+    ///
+    /// Returns owned clones: connections now live behind per-server mutexes,
+    /// so there is no stable borrow to hand out. Servers with an in-flight RPC
+    /// are skipped rather than waited on — this feeds tool-catalog rendering,
+    /// where blocking the caller on a slow server would be worse than briefly
+    /// omitting its tools.
+    pub fn all_tools(&self) -> Vec<(String, McpTool)> {
         let mut tools = Vec::new();
-        for (server, conn) in &self.connections {
+        for (server, shared) in &self.connections {
+            let Ok(conn) = shared.try_lock() else {
+                continue;
+            };
             for tool in conn.tools() {
                 if !conn.config().is_tool_enabled(&tool.name) {
                     continue;
                 }
                 // Format: mcp_{server}_{tool}
-                tools.push((format!("mcp_{}_{}", server, tool.name), tool));
+                tools.push((format!("mcp_{}_{}", server, tool.name), tool.clone()));
             }
         }
         // Sort by prefixed name so iteration order across servers is
@@ -1113,26 +1196,32 @@ impl McpPool {
     }
 
     /// Get all discovered resources with server-prefixed names
-    pub fn all_resources(&self) -> Vec<(String, &McpResource)> {
+    pub fn all_resources(&self) -> Vec<(String, McpResource)> {
         let mut resources = Vec::new();
-        for (server, conn) in &self.connections {
+        for (server, shared) in &self.connections {
+            let Ok(conn) = shared.try_lock() else {
+                continue;
+            };
             for resource in conn.resources() {
                 // Format: mcp_{server}_{resource_name}
                 // Note: resource names might contain spaces, we should probably slugify them
                 let safe_name = resource.name.replace(' ', "_").to_lowercase();
-                resources.push((format!("mcp_{server}_{safe_name}"), resource));
+                resources.push((format!("mcp_{server}_{safe_name}"), resource.clone()));
             }
         }
         resources
     }
 
     /// Get all discovered resource templates with server-prefixed names
-    pub fn all_resource_templates(&self) -> Vec<(String, &McpResourceTemplate)> {
+    pub fn all_resource_templates(&self) -> Vec<(String, McpResourceTemplate)> {
         let mut templates = Vec::new();
-        for (server, conn) in &self.connections {
+        for (server, shared) in &self.connections {
+            let Ok(conn) = shared.try_lock() else {
+                continue;
+            };
             for template in conn.resource_templates() {
                 let safe_name = template.name.replace(' ', "_").to_lowercase();
-                templates.push((format!("mcp_{server}_{safe_name}"), template));
+                templates.push((format!("mcp_{server}_{safe_name}"), template.clone()));
             }
         }
         templates
@@ -1140,7 +1229,8 @@ impl McpPool {
 
     async fn list_resources(&mut self, server: Option<String>) -> Result<Vec<serde_json::Value>> {
         if let Some(server_name) = server {
-            let conn = self.get_or_connect(&server_name).await?;
+            let shared = self.get_or_connect(&server_name).await?;
+            let conn = shared.lock().await;
             let resources = conn
                 .resources()
                 .iter()
@@ -1162,7 +1252,8 @@ impl McpPool {
             tracing::warn!("Failed to connect MCP server '{server}' for resources: {err:#}");
         }
         let mut items = Vec::new();
-        for (server, conn) in &self.connections {
+        for (server, shared) in &self.connections {
+            let conn = shared.lock().await;
             for resource in conn.resources() {
                 items.push(serde_json::json!({
                     "server": server,
@@ -1181,7 +1272,8 @@ impl McpPool {
         server: Option<String>,
     ) -> Result<Vec<serde_json::Value>> {
         if let Some(server_name) = server {
-            let conn = self.get_or_connect(&server_name).await?;
+            let shared = self.get_or_connect(&server_name).await?;
+            let conn = shared.lock().await;
             let templates = conn
                 .resource_templates()
                 .iter()
@@ -1205,7 +1297,8 @@ impl McpPool {
             );
         }
         let mut items = Vec::new();
-        for (server, conn) in &self.connections {
+        for (server, shared) in &self.connections {
+            let conn = shared.lock().await;
             for template in conn.resource_templates() {
                 items.push(serde_json::json!({
                     "server": server,
@@ -1220,12 +1313,15 @@ impl McpPool {
     }
 
     /// Get all discovered prompts with server-prefixed names
-    pub fn all_prompts(&self) -> Vec<(String, &McpPrompt)> {
+    pub fn all_prompts(&self) -> Vec<(String, McpPrompt)> {
         let mut prompts = Vec::new();
-        for (server, conn) in &self.connections {
+        for (server, shared) in &self.connections {
+            let Ok(conn) = shared.try_lock() else {
+                continue;
+            };
             for prompt in conn.prompts() {
                 // Format: mcp_{server}_{prompt}
-                prompts.push((format!("mcp_{}_{}", server, prompt.name), prompt));
+                prompts.push((format!("mcp_{}_{}", server, prompt.name), prompt.clone()));
             }
         }
         prompts
@@ -1238,7 +1334,8 @@ impl McpPool {
         uri: &str,
     ) -> Result<serde_json::Value> {
         let global_timeouts = self.config.timeouts;
-        let conn = self.get_or_connect(server_name).await?;
+        let shared = self.get_or_connect(server_name).await?;
+        let mut conn = shared.lock().await;
         let timeout = conn.config().effective_read_timeout(&global_timeouts);
         conn.read_resource(uri, timeout).await
     }
@@ -1251,7 +1348,8 @@ impl McpPool {
         arguments: serde_json::Value,
     ) -> Result<serde_json::Value> {
         let global_timeouts = self.config.timeouts;
-        let conn = self.get_or_connect(server_name).await?;
+        let shared = self.get_or_connect(server_name).await?;
+        let mut conn = shared.lock().await;
         let timeout = conn.config().effective_execute_timeout(&global_timeouts);
         conn.get_prompt(prompt_name, arguments, timeout).await
     }
@@ -1487,12 +1585,10 @@ impl McpPool {
         let (server_name, tool_name) = self.parse_prefixed_name(prefixed_name)?;
         // Copy the global timeouts to avoid borrow conflict
         let global_timeouts = self.config.timeouts;
-        let conn = self.get_or_connect(server_name).await?;
-        if !conn.config().is_tool_enabled(tool_name) {
-            anyhow::bail!("MCP tool '{tool_name}' is disabled for server '{server_name}'");
-        }
-        let timeout = conn.config().effective_execute_timeout(&global_timeouts);
-        match conn.call_tool(tool_name, arguments.clone(), timeout).await {
+        let shared = self.get_or_connect(server_name).await?;
+        match Self::invoke_tool(&shared, server_name, tool_name, arguments.clone(), global_timeouts)
+            .await
+        {
             Ok(result) => Ok(result),
             Err(err) if is_mcp_stale_session_error(&err) => {
                 tracing::debug!(
@@ -1503,15 +1599,75 @@ impl McpPool {
                     "retrying MCP tool call after stale session"
                 );
                 self.drop_connection(server_name, "stale session retry");
-                let conn = self.get_or_connect(server_name).await?;
-                if !conn.config().is_tool_enabled(tool_name) {
-                    anyhow::bail!("MCP tool '{tool_name}' is disabled for server '{server_name}'");
-                }
-                let timeout = conn.config().effective_execute_timeout(&global_timeouts);
-                conn.call_tool(tool_name, arguments, timeout).await
+                let shared = self.get_or_connect(server_name).await?;
+                Self::invoke_tool(&shared, server_name, tool_name, arguments, global_timeouts).await
             }
             Err(err) => Err(err),
         }
+    }
+
+    /// Resolve everything a tool call needs while holding the pool lock, then
+    /// hand back a plan the caller can execute *after* dropping that lock.
+    ///
+    /// This is the pool-side half of the concurrency fix: dispatch keeps the
+    /// pool locked only long enough to look up (or establish) the connection,
+    /// so a slow RPC on one server no longer blocks calls to every other
+    /// server. Resource/prompt pseudo-tools still run inline under the pool
+    /// lock — they are metadata reads, not long-running RPCs.
+    pub async fn prepare_tool_call(
+        &mut self,
+        prefixed_name: &str,
+        arguments: serde_json::Value,
+    ) -> Result<PreparedMcpCall> {
+        if matches!(
+            prefixed_name,
+            "list_mcp_resources"
+                | "list_mcp_resource_templates"
+                | "mcp_read_resource"
+                | "read_mcp_resource"
+                | "mcp_get_prompt"
+        ) {
+            return Ok(PreparedMcpCall::Completed(
+                self.call_tool(prefixed_name, arguments).await?,
+            ));
+        }
+
+        let (server_name, tool_name) = self.parse_prefixed_name(prefixed_name)?;
+        let (server_name, tool_name) = (server_name.to_string(), tool_name.to_string());
+        let timeouts = self.config.timeouts;
+        let connection = self.get_or_connect(&server_name).await?;
+        Ok(PreparedMcpCall::Pending(PendingMcpCall {
+            connection,
+            server_name,
+            tool_name,
+            arguments,
+            timeouts,
+        }))
+    }
+
+    /// Re-resolve a connection after a stale-session failure, for the
+    /// detached dispatch path.
+    pub async fn reconnect_for_retry(
+        &mut self,
+        server_name: &str,
+    ) -> Result<SharedMcpConnection> {
+        self.drop_connection(server_name, "stale session retry");
+        self.get_or_connect(server_name).await
+    }
+
+    async fn invoke_tool(
+        shared: &SharedMcpConnection,
+        server_name: &str,
+        tool_name: &str,
+        arguments: serde_json::Value,
+        global_timeouts: McpTimeouts,
+    ) -> Result<serde_json::Value> {
+        let mut conn = shared.lock().await;
+        if !conn.config().is_tool_enabled(tool_name) {
+            anyhow::bail!("MCP tool '{tool_name}' is disabled for server '{server_name}'");
+        }
+        let timeout = conn.config().effective_execute_timeout(&global_timeouts);
+        conn.call_tool(tool_name, arguments, timeout).await
     }
 
     /// Get list of configured server names
@@ -1523,11 +1679,12 @@ impl McpPool {
             .collect()
     }
 
-    /// Get list of connected server names
+    /// Get list of connected server names. A server with an in-flight RPC
+    /// counts as connected without waiting on its per-server mutex.
     pub fn connected_servers(&self) -> Vec<&str> {
         self.connections
             .iter()
-            .filter(|(_, c)| c.is_ready())
+            .filter(|(_, shared)| shared.try_lock().map(|c| c.is_ready()).unwrap_or(true))
             .map(|(n, _)| n.as_str())
             .collect()
     }
@@ -1546,13 +1703,13 @@ impl McpPool {
     /// `StdioTransport` still sends SIGTERM if this never runs, so even
     /// abnormal exits avoid leaking PIDs without a signal.
     pub async fn shutdown_all(&mut self) {
-        let names: Vec<String> = self.connections.keys().cloned().collect();
-        for name in names {
-            if let Some(conn) = self.connections.get_mut(&name) {
-                conn.transport.shutdown().await;
-            }
+        // Take the handles out first so an in-flight RPC holding a per-server
+        // mutex can finish and release it while we await each shutdown.
+        let connections: Vec<SharedMcpConnection> =
+            self.connections.drain().map(|(_, shared)| shared).collect();
+        for shared in connections {
+            shared.lock().await.transport.shutdown().await;
         }
-        self.connections.clear();
     }
 
     /// Get the underlying configuration
@@ -1980,7 +2137,13 @@ fn snapshot_from_config(
                 if let Some(error) = errors.get(name) {
                     snapshot.error = Some(error.clone());
                 }
-                if let Some(conn) = pool.connections.get(name) {
+                // Snapshot rendering is synchronous and must not stall on a
+                // server that is mid-RPC; skip its discovery detail instead.
+                if let Some(conn) = pool
+                    .connections
+                    .get(name)
+                    .and_then(|shared| shared.try_lock().ok())
+                {
                     snapshot.connected = conn.is_ready();
                     snapshot.tools = conn
                         .tools()

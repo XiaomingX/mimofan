@@ -153,16 +153,53 @@ pub(super) fn emit_tool_audit(event: serde_json::Value) {
 }
 
 impl Engine {
+    /// Dispatch an MCP tool without holding the pool lock across the RPC.
+    ///
+    /// The pool mutex is taken only to resolve (or establish) the target
+    /// connection; the call itself then runs under that server's own mutex.
+    /// Previously the pool lock was held for the whole RPC, which serialized
+    /// every MCP tool call across every server — one slow server stalled all
+    /// the others, including the read-only MCP tools the turn loop is allowed
+    /// to fan out in parallel.
     pub(super) async fn execute_mcp_tool_with_pool(
         pool: Arc<AsyncMutex<McpPool>>,
         name: &str,
         input: serde_json::Value,
     ) -> Result<ToolResult, ToolError> {
-        let mut pool = pool.lock().await;
-        let result = pool
-            .call_tool(name, input)
-            .await
-            .map_err(|e| ToolError::execution_failed(format!("MCP tool failed: {e}")))?;
+        let prepared = {
+            let mut guard = pool.lock().await;
+            guard
+                .prepare_tool_call(name, input)
+                .await
+                .map_err(|e| ToolError::execution_failed(format!("MCP tool failed: {e}")))?
+        };
+
+        let result = match prepared {
+            PreparedMcpCall::Completed(value) => value,
+            PreparedMcpCall::Pending(call) => match call.execute().await {
+                Ok(value) => value,
+                Err(err) if PendingMcpCall::is_retryable(&err) => {
+                    // Re-resolve through the pool, then retry off the lock again.
+                    let connection = {
+                        let mut guard = pool.lock().await;
+                        guard
+                            .reconnect_for_retry(call.server_name())
+                            .await
+                            .map_err(|e| {
+                                ToolError::execution_failed(format!("MCP tool failed: {e}"))
+                            })?
+                    };
+                    call.with_connection(connection)
+                        .execute()
+                        .await
+                        .map_err(|e| ToolError::execution_failed(format!("MCP tool failed: {e}")))?
+                }
+                Err(err) => {
+                    return Err(ToolError::execution_failed(format!("MCP tool failed: {err}")));
+                }
+            },
+        };
+
         let content = serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string());
         Ok(ToolResult::success(content))
     }

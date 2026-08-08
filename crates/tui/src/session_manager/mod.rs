@@ -1051,9 +1051,12 @@ mod plan_persist_tests {
                     id: 1,
                     content: "first".to_string(),
                     status: TodoStatus::Completed,
+                    blocked_by: Vec::new(),
                 }],
                 completion_pct: 100,
                 in_progress_id: None,
+                ready_ids: Vec::new(),
+                blocked_ids: Vec::new(),
             }),
         }
     }
