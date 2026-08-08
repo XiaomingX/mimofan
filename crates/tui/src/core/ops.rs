@@ -189,7 +189,12 @@ pub enum Op {
     },
 
     /// Run context compaction immediately.
-    CompactContext,
+    CompactContext {
+        /// Optional user guidance from `/compact <instructions>`. When absent,
+        /// the engine falls back to the project's persistent compact
+        /// instructions, if any.
+        instructions: Option<String>,
+    },
 
     /// Get a snapshot of the current session state (messages, tokens, etc.)
     /// for saving to disk. Returns the result via the oneshot sender so

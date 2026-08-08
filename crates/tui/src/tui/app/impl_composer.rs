@@ -800,6 +800,7 @@ impl App {
             enabled: self.auto_compact,
             token_threshold: self.compact_threshold,
             model: self.effective_model_for_budget().to_string(),
+            custom_instructions: self.compact_instructions.clone(),
             ..Default::default()
         }
     }

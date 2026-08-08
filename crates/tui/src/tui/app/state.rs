@@ -862,6 +862,11 @@ pub struct App {
     /// Set false when the terminal is too narrow to show the tree.
     pub file_tree_visible: bool,
     pub compact_threshold: usize,
+    /// Persistent `# Compact Instructions` from the project's AGENTS.md.
+    ///
+    /// Resolved once at startup because `compaction_config()` runs on hot UI
+    /// paths and re-reading AGENTS.md there would cost a syscall per frame.
+    pub compact_instructions: Option<String>,
     pub max_input_history: usize,
     pub allow_shell: bool,
     pub verbosity: Option<String>,

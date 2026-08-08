@@ -281,13 +281,18 @@ pub fn load(app: &mut App, path: Option<&str>) -> CommandResult {
     )
 }
 
-/// Trigger context compaction
-pub fn compact(_app: &mut App) -> CommandResult {
+/// Trigger context compaction, optionally steered by user instructions.
+pub fn compact(_app: &mut App, instructions: Option<&str>) -> CommandResult {
+    let instructions = instructions
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(str::to_string);
+    let message = match instructions.as_deref() {
+        Some(text) => format!("Context compaction triggered (focus: {text})..."),
+        None => "Context compaction triggered...".to_string(),
+    };
     // Trigger immediate compaction via engine
-    CommandResult::with_message_and_action(
-        "Context compaction triggered...".to_string(),
-        AppAction::CompactContext,
-    )
+    CommandResult::with_message_and_action(message, AppAction::CompactContext { instructions })
 }
 
 /// Trigger agent-driven context purging.

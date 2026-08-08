@@ -78,7 +78,10 @@ pub enum AppAction {
         heartbeat_timeout_secs: u64,
     },
     OpenContextInspector,
-    CompactContext,
+    CompactContext {
+        /// Optional `/compact <instructions>` guidance for this run.
+        instructions: Option<String>,
+    },
     PurgeContext,
     TaskAdd {
         prompt: String,

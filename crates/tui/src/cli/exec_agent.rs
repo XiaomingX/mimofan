@@ -567,6 +567,8 @@ pub(crate) async fn run_exec_agent(
             &effective_model,
             settings.compact_threshold,
         ),
+        custom_instructions: crate::project_context::load_project_context(&workspace)
+            .compact_instructions(),
         ..Default::default()
     };
 
