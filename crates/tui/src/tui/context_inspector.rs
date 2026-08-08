@@ -124,6 +124,45 @@ pub fn build_context_inspector_text(app: &App, locale: Locale) -> String {
         "{ctx_label}: {status_label} - ~{used}/{max} {tokens_unit} ({percent:.1}%)",
         ctx_label = tr(locale, MessageId::CtxInspContext),
     );
+    // Autocompact buffer: how much headroom remains before auto-compaction
+    // fires, and how much of the window is reserved for the compaction trigger.
+    // The clamp mirrors `should_auto_compact_before_send` so the panel's
+    // trigger line matches the engine's actual auto-compact behavior.
+    let trigger_pct = app.compact_threshold_percent.clamp(10.0, 100.0);
+    let trigger_tokens = ((f64::from(max) * trigger_pct / 100.0).round()) as usize;
+    let buffer = trigger_tokens.saturating_sub(used);
+    let reserved = (max as usize).saturating_sub(trigger_tokens);
+    let _ = writeln!(out);
+    let _ = writeln!(out, "{}", tr(locale, MessageId::CtxInspAutocompactBuffer));
+    let _ = writeln!(out, "----------------------");
+    if app.auto_compact {
+        let _ = writeln!(
+            out,
+            "{}: {trigger_pct:.0}% (~{trigger_tokens} {tokens_unit})",
+            tr(locale, MessageId::CtxInspTriggerLine),
+        );
+        let _ = writeln!(
+            out,
+            "{}: ~{buffer} {tokens_unit}",
+            tr(locale, MessageId::CtxInspRemainingWritable),
+        );
+        let _ = writeln!(
+            out,
+            "{}: ~{reserved} {tokens_unit}",
+            tr(locale, MessageId::CtxInspReservedForCompaction),
+        );
+    } else {
+        let _ = writeln!(
+            out,
+            "{}",
+            tr(locale, MessageId::CtxInspAutocompactDisabled),
+        );
+        let _ = writeln!(
+            out,
+            "{}: {trigger_pct:.0}% (~{trigger_tokens} {tokens_unit})",
+            tr(locale, MessageId::CtxInspReferenceTriggerLine),
+        );
+    }
     let cells = tr(locale, MessageId::CtxInspCells);
     let api_msgs = tr(locale, MessageId::CtxInspApiMessages);
     let _ = writeln!(
