@@ -377,6 +377,139 @@ fn test_replace_binary_creates_new_file() {
     assert_eq!(content, "fresh binary");
 }
 
+/// 成功路径不能把 `<name>.old` 留在安装目录里——用户会看到一堆垃圾文件。
+#[test]
+fn test_replace_binary_removes_backup_on_success() {
+    let dir = tempfile::TempDir::new().expect("create temp dir");
+    let target = dir.path().join("mimofan-backup-test");
+    std::fs::write(&target, b"old binary").expect("write temp file");
+
+    replace_binary(&target, b"new binary").expect("replace binary");
+
+    let backup = dir.path().join("mimofan-backup-test.old");
+    assert!(
+        !backup.exists(),
+        "backup {} should be cleaned up after a successful replace",
+        backup.display()
+    );
+    let content = std::fs::read_to_string(&target).expect("read replaced binary");
+    assert_eq!(content, "new binary");
+}
+
+/// persist 失败时旧二进制必须还在原地。用只读目录逼 rename 失败：备份是
+/// 拷贝而非移动，所以即便恢复这一步也做不了，target 依然是旧内容。
+#[cfg(unix)]
+#[test]
+fn test_replace_binary_preserves_original_when_install_fails() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::TempDir::new().expect("create temp dir");
+    let target = dir.path().join("mimofan-rollback-test");
+    std::fs::write(&target, b"old binary").expect("write temp file");
+
+    // 目录只读 → 目录内无法创建临时文件/改名，替换必然失败。
+    let original_mode = std::fs::metadata(dir.path())
+        .expect("stat temp dir")
+        .permissions()
+        .mode();
+    std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o500))
+        .expect("make dir read-only");
+
+    let result = replace_binary(&target, b"new binary");
+
+    // 先恢复权限，保证 TempDir 能正常清理。
+    std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(original_mode))
+        .expect("restore dir permissions");
+
+    assert!(result.is_err(), "replace must fail in a read-only directory");
+    let content = std::fs::read_to_string(&target).expect("read binary after failed replace");
+    assert_eq!(
+        content, "old binary",
+        "the original binary must survive a failed replace"
+    );
+}
+
+#[test]
+fn test_detect_install_method_homebrew() {
+    assert_eq!(
+        detect_install_method(Path::new("/opt/homebrew/Cellar/mimofan/1.0.0/bin/mimofan")),
+        InstallMethod::Homebrew
+    );
+    assert_eq!(
+        detect_install_method(Path::new("/usr/local/Cellar/mimofan/1.0.0/bin/mimofan")),
+        InstallMethod::Homebrew
+    );
+    assert_eq!(
+        detect_install_method(Path::new("/home/linuxbrew/.linuxbrew/bin/mimofan")),
+        InstallMethod::Homebrew
+    );
+}
+
+#[test]
+fn test_detect_install_method_npm() {
+    assert_eq!(
+        detect_install_method(Path::new("/usr/local/lib/node_modules/mimofan/bin/mimofan")),
+        InstallMethod::Npm
+    );
+    assert_eq!(
+        detect_install_method(Path::new("/home/u/project/node_modules/.bin/mimofan")),
+        InstallMethod::Npm
+    );
+}
+
+/// 包管理器特征必须按完整路径段匹配，不能用子串包含，否则名字里带
+/// "cellar"/"homebrew" 的普通目录会被误判成 Homebrew 而拒绝自更新。
+#[test]
+fn test_detect_install_method_does_not_substring_match() {
+    assert_ne!(
+        detect_install_method(Path::new("/home/u/my-cellar-tools/mimofan")),
+        InstallMethod::Homebrew
+    );
+    assert_ne!(
+        detect_install_method(Path::new("/home/u/node_modules_backup/mimofan")),
+        InstallMethod::Npm
+    );
+}
+
+#[test]
+fn test_detect_install_method_unknown_for_arbitrary_paths() {
+    assert_eq!(
+        detect_install_method(Path::new("/tmp/some/random/place/mimofan")),
+        InstallMethod::Unknown
+    );
+}
+
+/// 策略矩阵：只有 native/npm 允许自动替换。
+#[test]
+fn test_install_method_self_replace_policy() {
+    assert!(InstallMethod::Native.supports_self_replace());
+    assert!(InstallMethod::Npm.supports_self_replace());
+    assert!(!InstallMethod::Homebrew.supports_self_replace());
+    assert!(!InstallMethod::Cargo.supports_self_replace());
+    assert!(!InstallMethod::Unknown.supports_self_replace());
+}
+
+/// 拒绝自动更新时必须给出可直接复制的升级命令，否则用户会卡住。
+#[test]
+fn test_manual_update_hint_is_actionable() {
+    let exe = Path::new("/opt/homebrew/Cellar/mimofan/1.0.0/bin/mimofan");
+    assert!(
+        InstallMethod::Homebrew
+            .manual_update_hint(exe)
+            .contains("brew upgrade mimofan")
+    );
+    assert!(
+        InstallMethod::Cargo
+            .manual_update_hint(exe)
+            .contains("cargo install mimofan --locked")
+    );
+    assert!(
+        InstallMethod::Unknown
+            .manual_update_hint(exe)
+            .contains("github.com")
+    );
+}
+
 /// Mocked GitHub release payload covering both the dispatcher (`mimofan`)
 /// and the legacy TUI (`mimofan`) binaries across our published
 /// platform/arch matrix, plus a checksum sibling that must never be picked

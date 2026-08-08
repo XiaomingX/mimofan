@@ -45,6 +45,7 @@ pub fn run_update(
     let targets = update_targets_for_exe(&current_exe);
     let channel = ReleaseChannel::from_beta_flag(beta);
     let current_version = env!("CARGO_PKG_VERSION");
+    let install_method = detect_install_method(&current_exe);
     let proxy = proxy_arg
         .as_deref()
         .map(validate_and_build_proxy)
@@ -53,6 +54,7 @@ pub fn run_update(
     println!("Checking for {} updates...", channel.label());
     println!("Current binary: {}", current_exe.display());
     println!("Current version: v{current_version}");
+    println!("Install method: {}", install_method.label());
     if legacy_binary {
         println!();
         println!("{}", legacy_binary_message(&current_exe));
@@ -74,6 +76,25 @@ pub fn run_update(
                 }
             }
         }
+        return Ok(());
+    }
+
+    // 安装方式决定要不要自己动手替换。包管理器管理的安装（Homebrew/Cargo）
+    // 以及识别不出来的安装，一律只报告可用版本 + 给出对应升级命令，绝不
+    // 下载覆盖：那会让包管理器的元数据与磁盘内容脱节，也可能覆盖到并非由
+    // 我们分发的文件。检查版本本身对所有安装方式都开放（上面 check_only
+    // 已提前返回），这里只拦「自动替换」这一步。
+    if !install_method.supports_self_replace() {
+        let latest_tag = latest_release_tag(channel, proxy.as_ref())
+            .with_context(update_network_fallback_hint)?;
+        println!("Latest {} release: {latest_tag}", channel.label());
+        if update_is_needed(channel, current_version, &latest_tag)? {
+            println!("Update available: {latest_tag}");
+        } else {
+            println!("Already up to date.");
+        }
+        println!();
+        println!("{}", install_method.manual_update_hint(&current_exe));
         return Ok(());
     }
 
@@ -253,6 +274,191 @@ original install method:
 Once `mimofan` is on your PATH, run `mimofan update` for future updates.",
         exe = current_exe.display(),
     )
+}
+
+/// 当前二进制是怎么装上来的。
+///
+/// 决定自更新能不能直接覆盖文件：包管理器装的二进制由它自己的清单/校验和
+/// 管理，我们贸然替换会让包管理器状态和磁盘内容不一致（`brew upgrade` 之后
+/// 又被覆盖回去，或者 cargo 认为版本还是旧的），所以这类只提示、不动手。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum InstallMethod {
+    /// Homebrew（路径位于 Cellar/Caskroom 或 brew 前缀下）。
+    Homebrew,
+    /// `cargo install` 装到 CARGO_HOME/bin。
+    Cargo,
+    /// npm/npx 装到 node_modules 里。
+    Npm,
+    /// 直接下载的单文件二进制。
+    Native,
+    /// 认不出来——宁可不动。
+    Unknown,
+}
+
+impl InstallMethod {
+    /// 能不能由 `mimofan update` 自行下载并覆盖。
+    pub(crate) fn supports_self_replace(self) -> bool {
+        matches!(self, Self::Native | Self::Npm)
+    }
+
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Homebrew => "Homebrew",
+            Self::Cargo => "Cargo",
+            Self::Npm => "npm",
+            Self::Native => "native binary",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    /// 由外部包管理器接管时，给用户的升级命令。
+    pub(crate) fn manual_update_hint(self, current_exe: &Path) -> String {
+        match self {
+            Self::Homebrew => format!(
+                "This binary ({exe}) is managed by Homebrew.\n\
+                 mimofan will not overwrite it, because that would desync Homebrew's\n\
+                 manifest from what is on disk. Update with:\n\
+                 \n  brew upgrade mimofan",
+                exe = current_exe.display(),
+            ),
+            Self::Cargo => format!(
+                "This binary ({exe}) was installed with Cargo.\n\
+                 mimofan will not overwrite it, because that would desync Cargo's\n\
+                 install metadata from what is on disk. Update with:\n\
+                 \n  cargo install mimofan --locked",
+                exe = current_exe.display(),
+            ),
+            Self::Unknown => format!(
+                "Could not determine how this binary ({exe}) was installed, so mimofan\n\
+                 will not replace it automatically. Update using your original install\n\
+                 method, or download the matched asset from\n\
+                 \n  {GITHUB_LATEST_RELEASE_PAGE_URL}",
+                exe = current_exe.display(),
+            ),
+            Self::Native | Self::Npm => String::new(),
+        }
+    }
+}
+
+/// 判断 `current_exe` 的安装方式。
+///
+/// 只看路径结构，不执行任何外部命令（`brew --prefix` 之类在更新路径上既慢
+/// 又可能不存在）。判断顺序按「特征强度」从强到弱排列，避免误判：
+/// node_modules / Cellar 这类目录名是包管理器独有的强特征，CARGO_HOME/bin
+/// 次之，最后才把「在已知系统目录里的裸文件」认定为 native。
+pub(crate) fn detect_install_method(current_exe: &Path) -> InstallMethod {
+    // 尽量用真实路径：Homebrew 会在 /opt/homebrew/bin 放指向 Cellar 的符号
+    // 链接，不解引用就看不到 Cellar 这个决定性特征。解析失败（文件不存在、
+    // 权限不足）时退回原路径，不影响后续判断。
+    let resolved = std::fs::canonicalize(current_exe).unwrap_or_else(|_| current_exe.to_path_buf());
+
+    if let Some(method) = detect_from_path_components(&resolved) {
+        return method;
+    }
+    // 符号链接本身所在的位置也可能带特征（如 node_modules/.bin/mimofan
+    // 指向别处），原路径再查一遍。
+    if resolved != current_exe {
+        if let Some(method) = detect_from_path_components(current_exe) {
+            return method;
+        }
+    }
+
+    if is_under_cargo_bin(&resolved) || is_under_cargo_bin(current_exe) {
+        return InstallMethod::Cargo;
+    }
+
+    if is_plain_downloaded_binary(&resolved) {
+        return InstallMethod::Native;
+    }
+
+    InstallMethod::Unknown
+}
+
+/// 匹配包管理器独有的目录名。按整个路径段比较，避免 `my-cellar-tools`
+/// 之类的名字被 `contains("cellar")` 误伤。
+fn detect_from_path_components(path: &Path) -> Option<InstallMethod> {
+    let mut saw_homebrew_root = false;
+
+    for component in path.components() {
+        let segment = component.as_os_str().to_str()?;
+
+        // npm/npx：全局安装、本地依赖、npx 缓存都会经过 node_modules。
+        if segment.eq_ignore_ascii_case("node_modules") {
+            return Some(InstallMethod::Npm);
+        }
+        // npx 的临时安装目录（~/.npm/_npx/<hash>/node_modules/...），
+        // 少数布局下 node_modules 会被 canonicalize 抹掉，补一条兜底。
+        if segment.eq_ignore_ascii_case("_npx") {
+            return Some(InstallMethod::Npm);
+        }
+        // Homebrew 的 formula/cask 实体目录，是最可靠的特征。
+        if segment.eq_ignore_ascii_case("Cellar") || segment.eq_ignore_ascii_case("Caskroom") {
+            return Some(InstallMethod::Homebrew);
+        }
+        // linuxbrew/homebrew 前缀目录本身不够决定性（用户可能只是把文件
+        // 丢进 /opt/homebrew/bin），先记下来，走完再判。
+        if segment.eq_ignore_ascii_case("homebrew") || segment.eq_ignore_ascii_case("linuxbrew") {
+            saw_homebrew_root = true;
+        }
+    }
+
+    saw_homebrew_root.then_some(InstallMethod::Homebrew)
+}
+
+/// 是否位于 CARGO_HOME/bin（默认 `~/.cargo/bin`）。
+fn is_under_cargo_bin(path: &Path) -> bool {
+    let cargo_bin_roots = cargo_bin_dirs();
+    let Some(parent) = path.parent() else {
+        return false;
+    };
+    cargo_bin_roots.iter().any(|root| {
+        // 目录可能是符号链接（rustup 的多种布局），两边都规范化后再比。
+        let normalized_root = std::fs::canonicalize(root).unwrap_or_else(|_| root.clone());
+        let normalized_parent = std::fs::canonicalize(parent).unwrap_or_else(|_| parent.to_owned());
+        normalized_parent == normalized_root || parent == root.as_path()
+    })
+}
+
+fn cargo_bin_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(cargo_home) = std::env::var_os("CARGO_HOME") {
+        if !cargo_home.is_empty() {
+            dirs.push(PathBuf::from(cargo_home).join("bin"));
+        }
+    }
+    if let Some(home) = home_dir() {
+        dirs.push(home.join(".cargo").join("bin"));
+    }
+    dirs
+}
+
+fn home_dir() -> Option<PathBuf> {
+    let key = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    std::env::var_os(key)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+/// 手动下载的单文件二进制：位于常见的「自己管的」bin 目录里，且不带任何
+/// 包管理器特征（前面的分支已排除）。这里保持保守——只认这些目录，其他
+/// 位置归到 Unknown，宁可让用户手动更新也不要覆盖错文件。
+fn is_plain_downloaded_binary(path: &Path) -> bool {
+    let Some(parent) = path.parent() else {
+        return false;
+    };
+
+    let mut known_dirs: Vec<PathBuf> = vec![
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/usr/bin"),
+        PathBuf::from("/opt/bin"),
+    ];
+    if let Some(home) = home_dir() {
+        known_dirs.push(home.join(".local").join("bin"));
+        known_dirs.push(home.join("bin"));
+        known_dirs.push(home.join(".mimofan").join("bin"));
+    }
+
+    known_dirs.iter().any(|dir| parent == dir.as_path())
 }
 
 pub fn binary_prefix_for_exe(_current_exe: &Path) -> &'static str {
@@ -968,11 +1174,59 @@ pub(crate) fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
         }
     }
 
+    // Unix 可以直接 rename 覆盖正在运行的可执行文件，所以备份用 **拷贝**
+    // 而不是像 Windows 那样把 target 挪走：拷贝能让 target 全程有效，替换
+    // 仍是单次原子 rename，不存在「旧的没了、新的没到」的空档。
+    //
+    // 备份的意义在于 persist 失败（跨设备、磁盘写满、权限收紧、SELinux
+    // 拒绝）时能把旧二进制放回去——此前这里是裸 persist，一旦失败且原文件
+    // 已被破坏就只能手动重装。
     #[cfg(not(windows))]
     {
-        tmp.persist(target)
-            .map_err(|err| err.error)
-            .with_context(|| format!("failed to rename temp file to {}", target.display()))?;
+        let backup = target.with_file_name(format!(
+            "{}.old",
+            target
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("mimofan"),
+        ));
+
+        // 目标不存在时（首次安装到该路径）无需备份。
+        let backed_up = if target.exists() {
+            let _ = std::fs::remove_file(&backup);
+            std::fs::copy(target, &backup)
+                .with_context(|| {
+                    format!(
+                        "failed to back up current binary {} to {}",
+                        target.display(),
+                        backup.display()
+                    )
+                })
+                .map(|_| true)?
+        } else {
+            false
+        };
+
+        if let Err(err) = tmp.persist(target).map_err(|err| err.error) {
+            if backed_up {
+                // 尽力恢复；恢复失败时把备份路径写进错误里，用户可手动改回。
+                if let Err(restore_err) = std::fs::rename(&backup, target) {
+                    return Err(anyhow::anyhow!(err).context(format!(
+                        "failed to install new binary at {} and could not restore the \
+                         previous one; it is preserved at {} (restore error: {restore_err})",
+                        target.display(),
+                        backup.display()
+                    )));
+                }
+            }
+            return Err(anyhow::anyhow!(err)
+                .context(format!("failed to install new binary at {}", target.display())));
+        }
+
+        // 安装成功，备份不再需要。删不掉也不算错误（只是留个文件）。
+        if backed_up {
+            let _ = std::fs::remove_file(&backup);
+        }
     }
 
     // Windows 无法直接覆盖正在运行的可执行文件，但允许把它重命名走。
