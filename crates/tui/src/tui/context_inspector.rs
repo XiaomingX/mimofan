@@ -16,8 +16,8 @@ use crate::utils::estimate_message_chars;
 /// working-set context without importing engine internals.
 const WORKING_SET_MARKER: &str = "## Repo Working Set";
 
-const CONTEXT_WARNING_THRESHOLD_PERCENT: f64 = 85.0;
-const CONTEXT_CRITICAL_THRESHOLD_PERCENT: f64 = 95.0;
+const CONTEXT_WARNING_THRESHOLD_PERCENT: f64 = crate::context_budget::UI_WARNING_PERCENT;
+const CONTEXT_CRITICAL_THRESHOLD_PERCENT: f64 = crate::context_budget::UI_CRITICAL_PERCENT;
 const MAX_REFERENCE_ROWS: usize = 12;
 const MAX_TOOL_ROWS: usize = 8;
 

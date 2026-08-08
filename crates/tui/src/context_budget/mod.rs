@@ -65,6 +65,26 @@ pub const MEDIUM_PRESSURE_PERCENT: f64 = 40.0;
 /// engine's `CONTEXT_HEADROOM_TOKENS`.
 pub const CONTEXT_HEADROOM_TOKENS: u64 = 1_024;
 
+/// UI-facing context-pressure thresholds (window-usage percentage).
+///
+/// These describe *when to surface a visual warning to the user*, which is a
+/// deliberately more conservative band than the budget-level compaction
+/// trigger (`HIGH_PRESSURE_PERCENT` / `DEFAULT_COMPACTION_TRIGGER_PERCENT`).
+/// The two are intentionally distinct: the engine may compact at 75% of the
+/// window to protect the V4 prefix cache, but the UI shouldn't start flashing
+/// "high" until 85% so users aren't alarmed by normal long-session growth.
+///
+/// These constants are the single source of truth for the previously
+/// copy-pasted `CONTEXT_WARNING_THRESHOLD_PERCENT` / `CONTEXT_CRITICAL_THRESHOLD_PERCENT`
+/// literals in `tui/ui/mod.rs`, `tui/widgets/header.rs`, and
+/// `tui/context_inspector.rs`. Reuse them so the warning band can be tuned in
+/// one place.
+pub const UI_WARNING_PERCENT: f64 = 85.0;
+/// Window-usage percentage at or above which the UI shows a critical warning.
+pub const UI_CRITICAL_PERCENT: f64 = 95.0;
+/// Window-usage percentage at or above which the UI suggests compacting.
+pub const UI_SUGGEST_COMPACT_PERCENT: f64 = 60.0;
+
 /// Smallest input budget (tokens) [`ContextBudget`] will report for any window
 /// large enough to hold it. The output cap is clamped down as needed to
 /// preserve this much input room, so a generous configured output cap can never
@@ -240,4 +260,94 @@ fn percent_of(window_tokens: u64, percent: f64) -> u64 {
     let value = (window_tokens as f64) * (percent / 100.0);
     // `as u64` saturates on overflow and floors; add 0.5 to round to nearest.
     (value + 0.5) as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pressure_level_classifies_percent_bands() {
+        assert_eq!(PressureLevel::from_usage_percent(0.0), PressureLevel::Low);
+        assert_eq!(PressureLevel::from_usage_percent(39.9), PressureLevel::Low);
+        assert_eq!(
+            PressureLevel::from_usage_percent(MEDIUM_PRESSURE_PERCENT),
+            PressureLevel::Medium
+        );
+        assert_eq!(
+            PressureLevel::from_usage_percent(HIGH_PRESSURE_PERCENT - 0.1),
+            PressureLevel::Medium
+        );
+        assert_eq!(
+            PressureLevel::from_usage_percent(HIGH_PRESSURE_PERCENT),
+            PressureLevel::High
+        );
+        assert_eq!(
+            PressureLevel::from_usage_percent(CRITICAL_PRESSURE_PERCENT - 0.1),
+            PressureLevel::High
+        );
+        assert_eq!(
+            PressureLevel::from_usage_percent(CRITICAL_PRESSURE_PERCENT),
+            PressureLevel::Critical
+        );
+        assert_eq!(PressureLevel::from_usage_percent(100.0), PressureLevel::Critical);
+    }
+
+    #[test]
+    fn pressure_level_clamps_out_of_range() {
+        assert_eq!(PressureLevel::from_usage_percent(-50.0), PressureLevel::Low);
+        assert_eq!(PressureLevel::from_usage_percent(250.0), PressureLevel::Critical);
+    }
+
+    #[test]
+    fn suggests_compaction_only_at_high_and_critical() {
+        assert!(!PressureLevel::Low.suggests_compaction());
+        assert!(!PressureLevel::Medium.suggests_compaction());
+        assert!(PressureLevel::High.suggests_compaction());
+        assert!(PressureLevel::Critical.suggests_compaction());
+    }
+
+    #[test]
+    fn context_budget_computes_trigger_and_pressure() {
+        // 200k window, 150k input -> 75% used -> at the High/compaction trigger.
+        let budget = ContextBudget::new(200_000, 150_000, 8_192);
+        assert_eq!(budget.window_tokens, 200_000);
+        assert_eq!(budget.input_tokens, 150_000);
+        assert_eq!(budget.compaction_trigger_tokens, 150_000);
+        assert!(budget.should_compact());
+        assert_eq!(budget.pressure, PressureLevel::High);
+        assert_eq!(budget.usage_percent(), 75.0);
+    }
+
+    #[test]
+    fn context_budget_below_trigger_is_safe() {
+        let budget = ContextBudget::new(200_000, 100_000, 8_192);
+        assert_eq!(budget.pressure, PressureLevel::Medium);
+        assert!(!budget.should_compact());
+        assert!(budget.available_input_tokens > 0);
+    }
+
+    #[test]
+    fn context_budget_never_underflows_on_small_window() {
+        let budget = ContextBudget::new(4_096, 1_000, 262_144);
+        assert!(budget.output_cap_tokens <= budget.window_tokens);
+        assert!(!budget.should_compact() || budget.input_tokens >= budget.compaction_trigger_tokens);
+    }
+
+    #[test]
+    fn context_budget_zero_window_is_safe() {
+        let budget = ContextBudget::new(0, 0, 8_192);
+        assert_eq!(budget.usage_percent(), 0.0);
+        assert!(!budget.should_compact());
+        assert_eq!(budget.pressure, PressureLevel::Low);
+    }
+
+    #[test]
+    fn ui_threshold_constants_are_distinct_from_budget_band() {
+        // UI warning band is intentionally more conservative than the budget
+        // compaction trigger, so the two must not silently collapse together.
+        assert!(UI_WARNING_PERCENT > HIGH_PRESSURE_PERCENT);
+        assert!(UI_CRITICAL_PERCENT > UI_WARNING_PERCENT);
+        assert!(UI_SUGGEST_COMPACT_PERCENT < UI_WARNING_PERCENT);
+    }
 }
