@@ -159,6 +159,46 @@ fn test_release_asset_stem_for_supported_platforms() {
     }
 }
 
+/// 发布矩阵与自更新消费端必须产出/期望同一批资产名。
+///
+/// 回归背景：release.yml 长期只构建 2 个 macOS 资产，而 update.rs 会按
+/// `mimofan-{os}-{arch}` 去 release 里找本平台资产，导致 Linux/Windows 用户
+/// 执行 `mimofan update` 直接报 "no asset found for platform"。此测试直接
+/// 解析 workflow 里的 artifact_name，与消费端命名规则逐一对齐，防止两边再次漂移。
+#[test]
+fn release_workflow_publishes_every_platform_the_updater_expects() {
+    let workflow = include_str!("../../../../.github/workflows/release.yml");
+
+    let published: Vec<&str> = workflow
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("artifact_name:"))
+        .map(str::trim)
+        .collect();
+
+    // 消费端 release_asset_name_for_prefix 的命名规则：windows 带 .exe。
+    let expected = [
+        ("macos", "x86_64"),
+        ("macos", "aarch64"),
+        ("linux", "x86_64"),
+        ("linux", "aarch64"),
+        ("windows", "x86_64"),
+    ];
+
+    for (os, arch) in expected {
+        let stem = release_asset_stem_for(Path::new("mimofan"), os, arch);
+        let asset = if os == "windows" {
+            format!("{stem}.exe")
+        } else {
+            stem
+        };
+        assert!(
+            published.contains(&asset.as_str()),
+            "release.yml 未发布 {os}/{arch} 所需资产 `{asset}`；\
+             该平台用户将无法 `mimofan update`。已发布：{published:?}"
+        );
+    }
+}
+
 #[test]
 fn update_targets_include_only_mimofan() {
     let dir = tempfile::TempDir::new().expect("create temp dir");

@@ -110,6 +110,22 @@ jobs:
             target: aarch64-apple-darwin
             binary: mimofan
             artifact_name: mimofan-macos-arm64
+          # Linux 走 musl 静态链接：GNU 构建会把产物钉死在 runner 的 glibc
+          # 版本上（Ubuntu 24.04 = glibc 2.39），比它旧的发行版直接跑不起来，
+          # 这正是 update.rs 里 glibc preflight 要拦的情况。静态 musl 产物
+          # 无此约束，preflight 因为找不到 GLIBC_ 符号也会自动放行。
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary: mimofan
+            artifact_name: mimofan-linux-x64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            binary: mimofan
+            artifact_name: mimofan-linux-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: mimofan.exe
+            artifact_name: mimofan-windows-x64.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -122,10 +138,22 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-bin: false
+      # rusqlite 用的是 `bundled` feature（从 C 源码编译 SQLite），ring 也带
+      # C/汇编，因此 musl target 需要一套 musl C 工具链，否则 cc 会拿 glibc
+      # 的 gcc 去编而链接失败。
+      - name: Install musl toolchain
+        if: ${{ contains(matrix.target, '-musl') }}
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools musl-dev
       - name: Build
         shell: bash
         env:
           DEEPSEEK_BUILD_SHA: ${{ needs.resolve.outputs.sha }}
+          # 让 cc crate 在交叉/静态场景下用 musl-gcc 而非默认 cc。
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          CC_aarch64_unknown_linux_musl: musl-gcc
         run: |
           for attempt in 1 2 3; do
             if cargo build --release --locked --target ${{ matrix.target }}; then
@@ -174,24 +202,31 @@ jobs:
           : > "$MANIFEST"
 
           bundle() {
-            local platform="$1"   # macos-x64, macos-arm64
+            local platform="$1"   # macos-x64, macos-arm64, linux-x64, ...
             local src="$2"        # artifact name for mimofan binary
-            local ext="$3"        # tar.gz
-            shift 3
+            local ext="$3"        # tar.gz | zip
 
             local dir="bundles/mimofan-${platform}"
             mkdir -p "$dir"
 
-            # Copy binary
-            cp "artifacts/${src}/${src}" "$dir/mimofan"
-
-            # Add install script
-            cp scripts/release/install.sh "$dir/"
-            chmod +x "$dir/install.sh"
-
-            tar -czf "bundles/mimofan-${platform}.tar.gz" -C bundles "mimofan-${platform}/"
+            # Copy binary. Windows 资产自带 .exe 后缀，解包后也应保留，
+            # 否则用户拿到的文件在 Windows 上不可执行。
+            if [ "${ext}" = "zip" ]; then
+              cp "artifacts/${src}/${src}" "$dir/mimofan.exe"
+            else
+              cp "artifacts/${src}/${src}" "$dir/mimofan"
+              # Add install script（仅 tar.gz 的类 Unix 包需要）
+              cp scripts/release/install.sh "$dir/"
+              chmod +x "$dir/install.sh"
+            fi
 
             local archive="mimofan-${platform}.${ext}"
+            if [ "${ext}" = "zip" ]; then
+              (cd bundles && zip -qr "mimofan-${platform}.zip" "mimofan-${platform}/")
+            else
+              tar -czf "bundles/${archive}" -C bundles "mimofan-${platform}/"
+            fi
+
             sha256sum "bundles/${archive}" | awk '{printf "%s  %s\n", $1, $2}' >> "$MANIFEST"
             echo "  Created bundles/${archive}"
           }
@@ -203,6 +238,18 @@ jobs:
           # Platform: macos-arm64
           bundle macos-arm64 \
             mimofan-macos-arm64 tar.gz
+
+          # Platform: linux-x64 (musl static)
+          bundle linux-x64 \
+            mimofan-linux-x64 tar.gz
+
+          # Platform: linux-arm64 (musl static)
+          bundle linux-arm64 \
+            mimofan-linux-arm64 tar.gz
+
+          # Platform: windows-x64
+          bundle windows-x64 \
+            mimofan-windows-x64.exe zip
 
           echo ""
           echo "=== Archive checksums ==="
