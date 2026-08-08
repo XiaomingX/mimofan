@@ -76,7 +76,10 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
         ("MOONSHOT_BASE_URL", "moonshot"),
         ("KIMI_BASE_URL", "moonshot"),
         ("SILICONFLOW_BASE_URL", "siliconflow"),
+        // Deprecated product-specific alias; listed before the generic key so
+        // `OPENAI_COMPATIBLE_BASE_URL` wins when both are set.
         ("XIAOMI_MIMO_BASE_URL", "openai_compatible"),
+        ("OPENAI_COMPATIBLE_BASE_URL", "openai_compatible"),
     ] {
         if let Some(value) = std::env::var(env_var).ok().filter(|v| !v.trim().is_empty()) {
             set_base_url(config, slot, value);
@@ -118,7 +121,10 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
         ("KIMI_MODEL_NAME", "moonshot"),
         ("KIMI_MODEL", "moonshot"),
         ("SILICONFLOW_MODEL", "siliconflow"),
+        // Deprecated product-specific alias; listed before the generic key so
+        // `OPENAI_COMPATIBLE_MODEL` wins when both are set.
         ("XIAOMI_MIMO_MODEL", "openai_compatible"),
+        ("OPENAI_COMPATIBLE_MODEL", "openai_compatible"),
     ] {
         if let Some(value) = std::env::var(env_var).ok().filter(|v| !v.trim().is_empty()) {
             set_model(config, slot, value);
