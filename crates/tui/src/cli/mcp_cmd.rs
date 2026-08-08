@@ -31,7 +31,7 @@ pub(crate) async fn run_mcp_command(
                     );
                 }
             }
-            println!("Edit the file, then run `mimo mcp list` or `mimo mcp tools`.");
+            println!("Edit the file, then run `mimofan mcp list` or `mimofan mcp tools`.");
             Ok(())
         }
         McpCommand::List => {
@@ -335,8 +335,8 @@ pub(crate) async fn run_mcp_command(
                 workspace.map_or(String::new(), |ws| format!(" --workspace {ws}"))
             );
             println!();
-            println!("Tip: Use `mimo mcp validate` to test the connection.");
-            println!("     Use `mimo serve --http` for the HTTP/SSE runtime API instead.");
+            println!("Tip: Use `mimofan mcp validate` to test the connection.");
+            println!("     Use `mimofan serve --http` for the HTTP/SSE runtime API instead.");
             Ok(())
         }
     }

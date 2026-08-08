@@ -486,7 +486,7 @@ pub(crate) fn resolve_exec_resume_session_id(
     latest_session_id_for_workspace(workspace)?.map_or_else(
         || {
             bail!(
-                "No saved sessions found for workspace {}. Use `mimofan sessions` to list sessions, or pass `mimo exec --resume <SESSION_ID> ...`.",
+                "No saved sessions found for workspace {}. Use `mimofan sessions` to list sessions, or pass `mimofan exec --resume <SESSION_ID> ...`.",
                 workspace.display()
             )
         },
@@ -840,10 +840,10 @@ pub(crate) enum McpCommand {
     /// Register this mimofan binary as a local MCP stdio server.
     ///
     /// This adds a config entry that runs `mimofan serve --mcp` (stdio protocol).
-    /// For the HTTP/SSE runtime API, use `mimo serve --http` directly instead.
+    /// For the HTTP/SSE runtime API, use `mimofan serve --http` directly instead.
     #[command(
         name = "add-self",
-        long_about = "Register this mimofan binary as a local MCP stdio server.\n\nAdds a config entry to ~/.mimofan/mcp.json that launches `mimo serve --mcp`\nvia the stdio transport. Other mimofan sessions (or any MCP client) can then\ndiscover and call tools exposed by this server.\n\nUse `mimo serve --http` instead if you need the HTTP/SSE runtime API."
+        long_about = "Register this mimofan binary as a local MCP stdio server.\n\nAdds a config entry to ~/.mimofan/mcp.json that launches `mimofan serve --mcp`\nvia the stdio transport. Other mimofan sessions (or any MCP client) can then\ndiscover and call tools exposed by this server.\n\nUse `mimofan serve --http` instead if you need the HTTP/SSE runtime API."
     )]
     AddSelf {
         /// Server name in mcp.json (default: "mimofan")

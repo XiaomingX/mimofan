@@ -255,7 +255,7 @@ async fn mobile_page(State(state): State<RuntimeApiState>, req: Request) -> Resp
     if !state.mobile_enabled {
         return (
             StatusCode::NOT_FOUND,
-            "mobile control is disabled; start with `mimo serve --mobile`",
+            "mobile control is disabled; start with `mimofan serve --mobile`",
         )
             .into_response();
     }

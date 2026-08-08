@@ -159,7 +159,7 @@ pub(crate) async fn run_doctor(
                         "  {} latest: {latest_tag}",
                         "!".truecolor(sky_r, sky_g, sky_b)
                     );
-                    println!("    Update available. Run `mimo update` to install.");
+                    println!("    Update available. Run `mimofan update` to install.");
                 }
                 Ok(std::cmp::Ordering::Equal) => {
                     println!(
@@ -186,7 +186,7 @@ pub(crate) async fn run_doctor(
                 "  {} latest release check failed: {err}",
                 "!".truecolor(sky_r, sky_g, sky_b)
             );
-            println!("    Run `mimo update --check` to retry.");
+            println!("    Run `mimofan update --check` to retry.");
         }
     }
     println!();
@@ -435,7 +435,7 @@ pub(crate) async fn run_doctor(
         Ok(cfg) if cfg.servers.is_empty() => {
             println!("  {} 0 merged server(s) configured", "·".dimmed());
             if !mcp_config_path.exists() && !project_mcp_config_path.exists() {
-                println!("    Run `mimo mcp init` or add `.mimofan/mcp.json`.");
+                println!("    Run `mimofan mcp init` or add `.mimofan/mcp.json`.");
             }
         }
         Ok(cfg) => {
@@ -611,7 +611,7 @@ pub(crate) async fn run_doctor(
             .is_some_and(|dir| dir.exists())
         && !global_skills_dir.exists()
     {
-        println!("    Run `mimo setup --skills` (or add --local for ./skills).");
+        println!("    Run `mimofan setup --skills` (or add --local for ./skills).");
     }
 
     // Tools directory
@@ -632,7 +632,7 @@ pub(crate) async fn run_doctor(
             "·".dimmed(),
             crate::utils::display_path(&tools_dir)
         );
-        println!("    Run `mimo setup --tools` to scaffold a starter dir.");
+        println!("    Run `mimofan setup --tools` to scaffold a starter dir.");
     }
 
     // Plugins directory
@@ -653,7 +653,7 @@ pub(crate) async fn run_doctor(
             "·".dimmed(),
             crate::utils::display_path(&plugins_dir)
         );
-        println!("    Run `mimo setup --plugins` to scaffold a starter dir.");
+        println!("    Run `mimofan setup --plugins` to scaffold a starter dir.");
     }
 
     // Storage surfaces (#422 / #440 / #500)
@@ -1220,7 +1220,7 @@ pub(crate) fn run_doctor_json(
         },
         "api_connectivity": {
             "checked": false,
-            "note": "Skipped in --json mode; run `mimo doctor` for a live check.",
+            "note": "Skipped in --json mode; run `mimofan doctor` for a live check.",
         },
         "capability": provider_capability_report(config),
     });
@@ -1519,7 +1519,7 @@ pub(crate) fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
                 && !target.base_url.contains("api.deepseeki.com") =>
         {
             lines.push(
-                "If this is a custom DeepSeek-compatible endpoint, set its HTTPS base URL in ~/.mimofan/config.toml and rerun `mimo doctor`."
+                "If this is a custom DeepSeek-compatible endpoint, set its HTTPS base URL in ~/.mimofan/config.toml and rerun `mimofan doctor`."
                     .to_string(),
             );
         }
@@ -1538,7 +1538,7 @@ pub(crate) fn doctor_timeout_recovery_lines(config: &Config) -> Vec<String> {
     }
 
     lines.push(
-        "Run `mimo doctor --json` and include `base_url`, `default_text_model`, and `api_connectivity` when filing an issue."
+        "Run `mimofan doctor --json` and include `base_url`, `default_text_model`, and `api_connectivity` when filing an issue."
             .to_string(),
     );
     lines

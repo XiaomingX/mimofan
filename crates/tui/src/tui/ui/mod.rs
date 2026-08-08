@@ -273,20 +273,18 @@ const TURN_META_PREFIX: &str = "<turn_meta>";
 const SESSION_TITLE_MAX_CHARS: usize = 32;
 const VERSION_HINT_TOAST_TTL_MS: u64 = 12_000;
 
-const REQUIRED_RELEASE_ASSETS: &[&str] = &[
-    "mimofan-artifacts-sha256.txt",
-    "mimofan-linux-arm64",
-    "mimofan-linux-arm64.tar.gz",
-    "mimofan-linux-x64",
-    "mimofan-linux-x64.tar.gz",
-    "mimofan-macos-arm64",
-    "mimofan-macos-arm64.tar.gz",
-    "mimofan-macos-x64",
-    "mimofan-macos-x64.tar.gz",
-    "mimofan-windows-x64.exe",
-    "mimofan-windows-x64-portable.zip",
-    "mimofan-windows-x64.zip",
-];
+/// 启动升级提示所需的 release 资产：**只看本机平台**。
+///
+/// 历史实现在此写死 12 个跨平台资产，要求全部 `uploaded` 才提示升级；但
+/// `.github/workflows/release.yml` 的 build matrix 实际只产出 2 个 macOS
+/// 资产，该条件在真实 release 上永远不成立，升级提示因此形同虚设。
+/// 现只要求「校验清单 + 本平台二进制」，其余平台是否发布与本机无关。
+fn required_release_assets() -> Vec<String> {
+    vec![
+        mimofan_release::CHECKSUM_MANIFEST_ASSET.to_string(),
+        crate::cli_commands::update::current_platform_asset_name(),
+    ]
+}
 
 fn is_session_approved_for_tool(app: &App, tool_name: &str, grouping_key: &str) -> bool {
     app.approval_session_approved.contains(grouping_key)

@@ -196,7 +196,7 @@ pub(crate) fn init_plugins_dir(
     Ok((readme_path, example_path, readme_status, example_status))
 }
 
-/// Resolve the user-supplied CORS origins for `mimo serve --http`.
+/// Resolve the user-supplied CORS origins for `mimofan serve --http`.
 ///
 /// Sources, in priority order (later sources extend earlier ones):
 /// 1. `--cors-origin URL` flags (repeatable)
@@ -421,7 +421,7 @@ pub(crate) fn run_setup(config: &Config, workspace: &Path, args: SetupArgs) -> R
                 println!("  · MCP config already exists at {}", mcp_path.display());
             }
         }
-        println!("    Next: edit the file, then run `mimo mcp list` or `mimo mcp tools`.");
+        println!("    Next: edit the file, then run `mimofan mcp list` or `mimofan mcp tools`.");
     }
 
     if run_skills {
@@ -639,7 +639,7 @@ pub(crate) fn run_setup_status(config: &Config, workspace: &Path) -> Result<()> 
     println!("  {} {}", "·".dimmed(), dotenv_status_line(workspace));
 
     println!();
-    println!("Run `mimo doctor --json` for a machine-readable check.");
+    println!("Run `mimofan doctor --json` for a machine-readable check.");
     Ok(())
 }
 

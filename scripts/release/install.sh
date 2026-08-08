@@ -85,21 +85,38 @@ mkdir -p "$BIN_DIR"
 
 echo "Installing mimofan to $BIN_DIR ..."
 
-for bin in mimofan mimofan-tui; do
-    src="$SCRIPT_DIR/$bin"
-    dst="$BIN_DIR/$bin"
-    if [[ ! -f "$src" ]]; then
-        echo "ERROR: $src not found in archive"
-        exit 1
-    fi
+# 二进制合并后发布产物只有 mimofan 一个可执行文件；mimofan-tui 仅在旧的
+# 双二进制包里存在。此前这里把两者都当作必需，缺 mimofan-tui 就 exit 1，
+# 导致当前发布的 bundle 根本装不上。现在：mimofan 必需，mimofan-tui 可选。
+installed=0
+
+src="$SCRIPT_DIR/mimofan"
+if [[ ! -f "$src" ]]; then
+    echo "ERROR: $src not found in archive"
+    exit 1
+fi
+preflight_glibc "$src"
+cp "$src" "$BIN_DIR/mimofan"
+chmod +x "$BIN_DIR/mimofan"
+echo "  $BIN_DIR/mimofan"
+installed=$((installed + 1))
+
+# 旧版双二进制包的兼容路径：存在才装，不存在不报错。
+src="$SCRIPT_DIR/mimofan-tui"
+if [[ -f "$src" ]]; then
     preflight_glibc "$src"
-    cp "$src" "$dst"
-    chmod +x "$dst"
-    echo "  $dst"
-done
+    cp "$src" "$BIN_DIR/mimofan-tui"
+    chmod +x "$BIN_DIR/mimofan-tui"
+    echo "  $BIN_DIR/mimofan-tui"
+    installed=$((installed + 1))
+fi
 
 echo ""
-echo "Done. Both binaries installed to $BIN_DIR."
+if [[ "$installed" -eq 1 ]]; then
+    echo "Done. mimofan installed to $BIN_DIR."
+else
+    echo "Done. $installed binaries installed to $BIN_DIR."
+fi
 
 # Check if BIN_DIR is on PATH
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then

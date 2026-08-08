@@ -449,7 +449,7 @@ fn exec_stream_resume_hint(session_id: &str) -> String {
     if session_id.trim().is_empty() {
         String::new()
     } else {
-        "mimo exec --resume <redacted-session-id>".to_string()
+        "mimofan exec --resume <redacted-session-id>".to_string()
     }
 }
 
