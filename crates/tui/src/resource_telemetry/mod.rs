@@ -17,6 +17,8 @@ use std::{
     time::Duration,
 };
 
+use crate::tokenizer::count_tokens;
+
 /// A coarse, three-level read on how close a task is to exhausting its budget.
 ///
 /// The level is derived from the *highest* pressure across all bounded
@@ -213,15 +215,11 @@ impl TokenThroughput {
 /// Estimate output tokens from streamed text before provider usage arrives.
 ///
 /// Provider-reported usage remains canonical at turn completion. During a live
-/// stream, this gives the footer a stable approximation without inspecting
-/// provider-specific tokenizer internals.
+/// stream, this gives the footer a close approximation via the shared BPE
+/// tokenizer ([`crate::tokenizer`]); providers using a different vocabulary may
+/// still differ slightly, which the canonical usage reconciles at turn end.
 pub fn estimate_output_tokens_from_text(text: &str) -> u64 {
-    let chars = text.chars().count() as u64;
-    if chars == 0 {
-        0
-    } else {
-        chars.saturating_add(3) / 4
-    }
+    u64::try_from(count_tokens(text)).unwrap_or(u64::MAX)
 }
 
 /// Divide `used` by an optional budget, guarding against an absent or zero

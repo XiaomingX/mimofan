@@ -5,6 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
 use crate::models::{ContentBlock, Message};
+use crate::tokenizer::count_tokens;
 use anyhow::Result;
 use ignore::WalkBuilder;
 
@@ -490,17 +491,22 @@ pub fn display_path_with_home(path: &Path, home: Option<&Path>) -> String {
     path.display().to_string()
 }
 
-/// Estimate the total character count across message content blocks.
+/// Count the total tokens across message content blocks.
+///
+/// This previously returned a **byte** count (`String::len`) named "chars",
+/// which callers then divided by 4 to reach a token figure — badly wrong for
+/// CJK text, where one character is 3 UTF-8 bytes. It now returns real token
+/// counts from [`crate::tokenizer`], so callers must not scale the result.
 #[must_use]
-pub fn estimate_message_chars(messages: &[Message]) -> usize {
+pub fn estimate_message_tokens(messages: &[Message]) -> usize {
     let mut total = 0;
     for msg in messages {
         for block in &msg.content {
             match block {
-                ContentBlock::Text { text, .. } => total += text.len(),
-                ContentBlock::Thinking { thinking, .. } => total += thinking.len(),
-                ContentBlock::ToolUse { input, .. } => total += input.to_string().len(),
-                ContentBlock::ToolResult { content, .. } => total += content.len(),
+                ContentBlock::Text { text, .. } => total += count_tokens(text),
+                ContentBlock::Thinking { thinking, .. } => total += count_tokens(thinking),
+                ContentBlock::ToolUse { input, .. } => total += count_tokens(&input.to_string()),
+                ContentBlock::ToolResult { content, .. } => total += count_tokens(content),
                 ContentBlock::ServerToolUse { .. }
                 | ContentBlock::ToolSearchToolResult { .. }
                 | ContentBlock::CodeExecutionToolResult { .. }

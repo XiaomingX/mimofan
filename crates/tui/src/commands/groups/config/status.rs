@@ -6,7 +6,7 @@ use std::path::Path;
 use super::CommandResult;
 use crate::compaction::estimate_input_tokens_conservative;
 use crate::tui::app::App;
-use crate::utils::{display_path, estimate_message_chars};
+use crate::utils::{display_path, estimate_message_tokens};
 
 /// Show a compact runtime status report for the current TUI session.
 pub fn status(app: &mut App) -> CommandResult {
@@ -172,8 +172,10 @@ fn context_usage(app: &App) -> (usize, u32, f64) {
     );
     let estimated =
         estimate_input_tokens_conservative(&app.api_messages, app.system_prompt.as_ref());
-    let total_chars = estimate_message_chars(&app.api_messages);
-    let used = estimated.max(total_chars / 4);
+    // `estimate_message_tokens` already returns real tokens (it used to return
+    // bytes, which callers divided by 4); do not scale it again.
+    let raw_tokens = estimate_message_tokens(&app.api_messages);
+    let used = estimated.max(raw_tokens);
     let percent = ((used as f64 / f64::from(max)) * 100.0).clamp(0.0, 100.0);
     (used, max, percent)
 }

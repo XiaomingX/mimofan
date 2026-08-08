@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use crate::artifacts::{ArtifactKind, ArtifactRecord, format_artifact_relative_path};
 use crate::models::{ContentBlock, Message};
+use crate::tokenizer::count_tokens;
 use crate::tools::truncate;
 use crate::utils::sha256_hex;
 
@@ -263,7 +264,7 @@ fn render_tool_output_receipt(
          [/TOOL_OUTPUT_RECEIPT]",
         bytes = crate::artifacts::format_byte_size(original_bytes),
         chars = format_count(original_chars),
-        tokens = format_count(approx_tokens(original_chars)),
+        tokens = format_count(count_tokens(original_content)),
     )
 }
 
@@ -333,10 +334,6 @@ fn summarize_text(text: &str, max_chars: usize) -> String {
         summary.push_str("...");
     }
     summary
-}
-
-fn approx_tokens(chars: usize) -> usize {
-    chars.div_ceil(4)
 }
 
 fn format_count(value: usize) -> String {

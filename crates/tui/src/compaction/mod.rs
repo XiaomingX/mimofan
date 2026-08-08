@@ -10,13 +10,13 @@ use std::time::Duration;
 
 use crate::client::ApiClient;
 use crate::config::DEFAULT_TEXT_MODEL;
-use crate::context_budget::{estimate_tokens_conservative, estimate_tokens_permissive};
 use crate::llm_client::LlmClient;
 use crate::logging;
 use crate::models::{
     CacheControl, ContentBlock, Message, MessageRequest, SystemBlock, SystemPrompt,
     context_window_for_model,
 };
+use crate::tokenizer::count_tokens;
 
 /// Configuration for conversation compaction behavior.
 ///
@@ -579,17 +579,15 @@ fn estimate_tokens_for_message(message: &Message, include_thinking: bool) -> usi
         .content
         .iter()
         .map(|c| match c {
-            ContentBlock::Text { text, .. } => estimate_tokens_permissive(text),
+            ContentBlock::Text { text, .. } => count_tokens(text),
             // Historical reasoning blocks are UI/session metadata for DeepSeek.
             // Only current-turn tool-call reasoning is sent back to the API.
-            ContentBlock::Thinking { thinking, .. } if include_thinking => {
-                estimate_tokens_permissive(thinking)
-            }
+            ContentBlock::Thinking { thinking, .. } if include_thinking => count_tokens(thinking),
             ContentBlock::Thinking { .. } => 0,
             ContentBlock::ToolUse { input, .. } => serde_json::to_string(input)
-                .map(|s| estimate_tokens_permissive(&s))
+                .map(|s| count_tokens(&s))
                 .unwrap_or(100),
-            ContentBlock::ToolResult { content, .. } => estimate_tokens_permissive(content),
+            ContentBlock::ToolResult { content, .. } => count_tokens(content),
             ContentBlock::ServerToolUse { .. }
             | ContentBlock::ToolSearchToolResult { .. }
             | ContentBlock::CodeExecutionToolResult { .. }
@@ -599,10 +597,10 @@ fn estimate_tokens_for_message(message: &Message, include_thinking: bool) -> usi
 }
 
 pub fn estimate_tokens(messages: &[Message]) -> usize {
-    // Permissive per-character estimate (see `CHARS_PER_TOKEN_PERMISSIVE`).
-    // DeepSeek thinking-mode rule: any assistant message with tool_calls keeps
-    // its reasoning_content forever (replayed in all subsequent requests).
-    // Final text-only answers drop it.
+    // Counts via the real BPE tokenizer (see `crate::tokenizer`). DeepSeek
+    // thinking-mode rule: any assistant message with tool_calls keeps its
+    // reasoning_content forever (replayed in all subsequent requests). Final
+    // text-only answers drop it.
     messages
         .iter()
         .map(|message| estimate_tokens_for_message(message, message_has_tool_use(message)))
@@ -616,8 +614,16 @@ fn message_has_tool_use(message: &Message) -> bool {
         .any(|block| matches!(block, ContentBlock::ToolUse { .. }))
 }
 
+/// Exact token count for free-form text.
+///
+/// Backed by the real tokenizer (`crate::tokenizer`) instead of the old
+/// `chars / 3` heuristic, so no per-text padding is applied here. The
+/// `_conservative` suffix and signature are kept for call-site compatibility;
+/// the safety margin now lives solely in
+/// [`estimate_input_tokens_conservative`], which is the only place that should
+/// add headroom.
 pub fn estimate_text_tokens_conservative(text: &str) -> usize {
-    estimate_tokens_conservative(text)
+    count_tokens(text)
 }
 
 fn estimate_system_tokens_conservative(system: Option<&SystemPrompt>) -> usize {
@@ -632,6 +638,13 @@ fn estimate_system_tokens_conservative(system: Option<&SystemPrompt>) -> usize {
 }
 
 /// Conservative estimate for full request input tokens (messages + system + framing).
+///
+/// `estimate_tokens` is now exact (real BPE), so the historical `* 3 / 2`
+/// inflation below is no longer compensating for an undercount — it is pure
+/// headroom. It is deliberately left in place here: every compaction trigger
+/// and context-usage gauge is calibrated against it, and retuning the factor
+/// is a behavioural change that belongs in its own commit with threshold
+/// re-validation.
 #[must_use]
 pub fn estimate_input_tokens_conservative(
     messages: &[Message],

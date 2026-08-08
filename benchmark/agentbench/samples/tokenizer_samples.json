@@ -1,0 +1,80 @@
+{
+  "_comment": "Tokenizer 计数精度样本集（B4）。reference_tokens 为 cl100k_base（GPT-4/Claude 近似）实测值，作为真值。冻结后实现阶段不得修改。",
+  "version": "1.0.0",
+  "frozen_at": "2026-08-08",
+  "reference_encoding": "cl100k_base",
+  "samples": [
+    {
+      "id": "T01",
+      "lang": "en",
+      "text": "The quick brown fox jumps over the lazy dog.",
+      "reference_tokens": 10
+    },
+    {
+      "id": "T02",
+      "lang": "en",
+      "text": "function calculateTotalPrice(items, taxRate) { return items.reduce((sum, item) => sum + item.price, 0) * (1 + taxRate); }",
+      "reference_tokens": 35
+    },
+    {
+      "id": "T03",
+      "lang": "zh",
+      "text": "这是一个用于测试中文分词准确度的句子。",
+      "reference_tokens": 20
+    },
+    {
+      "id": "T04",
+      "lang": "zh",
+      "text": "上下文压缩子系统需要在保留关键信息的前提下尽可能减少令牌数量，同时避免破坏前缀缓存。",
+      "reference_tokens": 50
+    },
+    {
+      "id": "T05",
+      "lang": "zh",
+      "text": "小米开源的终端人工智能编程助手支持多种模型提供商，包括深度求索与通义千问。",
+      "reference_tokens": 43
+    },
+    {
+      "id": "T06",
+      "lang": "mixed",
+      "text": "在 Rust 中使用 tokio::spawn 启动异步任务时，需要注意 Send + 'static 约束。",
+      "reference_tokens": 27
+    },
+    {
+      "id": "T07",
+      "lang": "mixed",
+      "text": "错误信息：thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 5'，请检查数组越界。",
+      "reference_tokens": 36
+    },
+    {
+      "id": "T08",
+      "lang": "code",
+      "text": "impl<T: Clone + Send> Iterator for MyStruct<T> { type Item = T; fn next(&mut self) -> Option<Self::Item> { self.inner.pop() } }",
+      "reference_tokens": 38
+    },
+    {
+      "id": "T09",
+      "lang": "json",
+      "text": "{\"name\":\"mimofan\",\"version\":\"0.0.9\",\"features\":[\"vector-memory\",\"lsp\",\"mcp\"],\"nested\":{\"a\":1,\"b\":[2,3]}}",
+      "reference_tokens": 40
+    },
+    {
+      "id": "T10",
+      "lang": "zh",
+      "text": "记忆系统应当区分确定性偏好与语义召回：前者用文件记忆保证可预测，后者用向量检索提升覆盖面。",
+      "reference_tokens": 50
+    },
+    {
+      "id": "T11",
+      "lang": "en",
+      "text": "When the context window approaches its limit, the agent must decide whether to compact the conversation history, purge stale tool outputs, or append a summary seam.",
+      "reference_tokens": 30
+    },
+    {
+      "id": "T12",
+      "lang": "mixed",
+      "text": "TODO: 修复 crates/tui/src/compaction/mod.rs:581 的 text.len() / 4 字节计数 bug（中文场景低估约 4 倍）",
+      "reference_tokens": 44
+    }
+  ]
+}

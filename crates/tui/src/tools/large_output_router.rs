@@ -14,6 +14,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::tokenizer::count_tokens;
 use crate::tools::spec::ToolResult;
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -58,15 +59,15 @@ impl WorkshopConfig {
 
 // ── Token estimation ──────────────────────────────────────────────────────────
 
-/// Estimate the number of tokens in `text` using a character-count heuristic.
+/// Count the number of tokens in `text` using the real BPE tokenizer.
 ///
-/// This avoids a real tokeniser dependency; the estimate is deliberately
-/// conservative (over-reports tokens for English prose) so we route
-/// aggressively rather than letting a 5K-token blob slip through. Delegates to
-/// the shared estimator so the ratio lives in exactly one place.
+/// Previously this used a `chars / 3` heuristic to avoid a tokeniser
+/// dependency. Now that [`crate::tokenizer`] is the single authoritative
+/// counter, routing decisions use exact counts — which matters most for CJK
+/// tool output, where the old heuristic was far off.
 #[must_use]
 pub fn estimate_tokens(text: &str) -> usize {
-    crate::context_budget::estimate_tokens_conservative(text)
+    count_tokens(text)
 }
 
 // ── Router ────────────────────────────────────────────────────────────────────
