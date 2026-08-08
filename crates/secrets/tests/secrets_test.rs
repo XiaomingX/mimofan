@@ -23,7 +23,10 @@ fn clear_known_envs() {
         "SILICONFLOW_API_KEY",
         "ARCEE_API_KEY",
         "OPENAI_API_KEY",
+        "OPENAI_COMPATIBLE_API_KEY",
+        // Deprecated aliases, still honoured by `env_for`.
         "XIAOMI_MIMO_API_KEY",
+        "MIMO_API_KEY",
         SECRET_BACKEND_ENV,
     ] {
         // Safety: tests serialise on env_lock(); the broader
@@ -341,18 +344,36 @@ fn nvidia_env_aliases_resolve() {
 }
 
 #[test]
-fn xiaomi_mimo_env_aliases_resolve() {
+fn legacy_mimo_env_keys_still_resolve_as_deprecated_aliases() {
     let _guard = env_lock();
     clear_known_envs();
     // Safety: env mutation guarded by env_lock().
     unsafe { std::env::set_var("XIAOMI_MIMO_API_KEY", "mimo-key") };
 
+    // Retired product aliases keep working for existing user setups...
     assert_eq!(env_for("xiaomi-mimo").as_deref(), Some("mimo-key"));
     assert_eq!(env_for("xiaomimimo").as_deref(), Some("mimo-key"));
     assert_eq!(env_for("mimo").as_deref(), Some("mimo-key"));
     assert_eq!(env_for("xiaomi").as_deref(), Some("mimo-key"));
+    // ...and the canonical provider name reads the same legacy key.
+    assert_eq!(env_for("openai-compatible").as_deref(), Some("mimo-key"));
 
     clear_known_envs();
+}
+
+#[test]
+fn openai_compatible_prefers_generic_key_over_legacy_mimo_key() {
+    let _guard = env_lock();
+    clear_known_envs();
+    let _generic = EnvVarGuard::set("OPENAI_COMPATIBLE_API_KEY", "generic-key");
+    // Safety: env mutation guarded by env_lock().
+    unsafe { std::env::set_var("XIAOMI_MIMO_API_KEY", "mimo-key") };
+
+    assert_eq!(env_for("openai-compatible").as_deref(), Some("generic-key"));
+    assert_eq!(env_for("xiaomi-mimo").as_deref(), Some("generic-key"));
+
+    // Safety: env mutation guarded by env_lock().
+    unsafe { std::env::remove_var("XIAOMI_MIMO_API_KEY") };
 }
 
 #[test]

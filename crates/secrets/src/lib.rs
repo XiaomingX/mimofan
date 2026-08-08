@@ -680,7 +680,7 @@ impl Secrets {
 /// |---|---|
 /// | `deepseek` | `MIMOFAN_API_KEY` |
 /// | `openrouter` | `OPENROUTER_API_KEY` |
-/// | `xiaomi-mimo` / `mimo` | `XIAOMI_MIMO_API_KEY` |
+/// | `openai-compatible` | `OPENAI_COMPATIBLE_API_KEY`, `OPENAI_API_KEY` |
 /// | `novita` | `NOVITA_API_KEY` |
 /// | `nvidia` / `nvidia-nim` / `nim` | `NVIDIA_API_KEY`, `NVIDIA_NIM_API_KEY`, `MIMOFAN_API_KEY` |
 /// | `fireworks` | `FIREWORKS_API_KEY` |
@@ -690,6 +690,14 @@ impl Secrets {
 /// | `openai` | `OPENAI_API_KEY` |
 /// | `volcengine` / `ark` | `VOLCENGINE_API_KEY`, `VOLCENGINE_ARK_API_KEY`, `ARK_API_KEY` |
 ///
+/// # Deprecated aliases
+///
+/// The retired `xiaomi-mimo` / `mimo` / `xiaomi` product names are still
+/// accepted and route to the generic OpenAI-compatible provider. Their
+/// legacy env keys (`XIAOMI_MIMO_API_KEY`, `MIMO_API_KEY`) remain readable
+/// as a fallback for existing user setups, but new configurations should
+/// use `OPENAI_COMPATIBLE_API_KEY` (or `OPENAI_API_KEY`).
+///
 /// Returns `None` if the provider is not recognised or none of its
 /// candidate environment variables are set to a non-empty value.
 #[must_use]
@@ -697,9 +705,22 @@ pub fn env_for(name: &str) -> Option<String> {
     let candidates: &[&str] = match name.to_ascii_lowercase().as_str() {
         "deepseek" => &["MIMOFAN_API_KEY"],
         "openrouter" => &["OPENROUTER_API_KEY"],
-        "xiaomi-mimo" | "xiaomi_mimo" | "xiaomimimo" | "mimo" | "xiaomi" => {
-            &["XIAOMI_MIMO_API_KEY"]
-        }
+        // Canonical OpenAI-compatible provider. The `xiaomi-mimo` family are
+        // retired product aliases kept for backwards compatibility; their
+        // legacy env keys stay as a deprecated fallback.
+        "openai-compatible"
+        | "openai_compatible"
+        | "xiaomi-mimo"
+        | "xiaomi_mimo"
+        | "xiaomimimo"
+        | "mimo"
+        | "xiaomi" => &[
+            "OPENAI_COMPATIBLE_API_KEY",
+            // Deprecated: legacy product-specific keys.
+            "XIAOMI_MIMO_API_KEY",
+            "MIMO_API_KEY",
+            "OPENAI_API_KEY",
+        ],
         "novita" => &["NOVITA_API_KEY"],
         "nvidia" | "nvidia-nim" | "nvidia_nim" | "nim" => {
             &["NVIDIA_API_KEY", "NVIDIA_NIM_API_KEY", "MIMOFAN_API_KEY"]

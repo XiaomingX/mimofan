@@ -1681,7 +1681,10 @@ impl EnvRuntimeOverrides {
                 .or_else(|_| std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
-            openai_compatible_model: std::env::var("XIAOMI_MIMO_MODEL")
+            // `XIAOMI_MIMO_MODEL` is a deprecated product-specific alias kept
+            // for existing setups; prefer `OPENAI_COMPATIBLE_MODEL`.
+            openai_compatible_model: std::env::var("OPENAI_COMPATIBLE_MODEL")
+                .or_else(|_| std::env::var("XIAOMI_MIMO_MODEL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             verbosity: std::env::var("MIMOFAN_VERBOSITY")
@@ -1720,7 +1723,10 @@ impl EnvRuntimeOverrides {
                     }
                 })
                 .filter(|headers| !headers.is_empty()),
-            openai_compatible_base_url: std::env::var("XIAOMI_MIMO_BASE_URL")
+            // `XIAOMI_MIMO_BASE_URL` is a deprecated product-specific alias kept
+            // for existing setups; prefer `OPENAI_COMPATIBLE_BASE_URL`.
+            openai_compatible_base_url: std::env::var("OPENAI_COMPATIBLE_BASE_URL")
+                .or_else(|_| std::env::var("XIAOMI_MIMO_BASE_URL"))
                 .or_else(|_| std::env::var("ANTHROPIC_BASE_URL"))
                 .ok()
                 .filter(|v| !v.trim().is_empty()),

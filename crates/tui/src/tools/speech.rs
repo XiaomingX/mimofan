@@ -1,4 +1,4 @@
-//! Model-visible Xiaomi MiMo speech/TTS generation tool.
+//! Model-visible OpenAI-compatible speech/TTS generation tool.
 //!
 //! This mirrors the CLI `speech` / `tts` command as a first-class API tool so
 //! the TUI model can generate narrated audio without shelling out to a nested
@@ -63,7 +63,7 @@ impl ToolSpec for SpeechTool {
     }
 
     fn description(&self) -> &str {
-        "Generate speech/audio directly through the configured Xiaomi MiMo OpenAI-compatible API. Use this when the user asks for speech, TTS, narration, read-aloud, voice design, or voice cloning."
+        "Generate speech/audio directly through the configured OpenAI-compatible API. Use this when the user asks for speech, TTS, narration, read-aloud, voice design, or voice cloning."
     }
 
     fn input_schema(&self) -> Value {
@@ -139,7 +139,7 @@ impl ToolSpec for SpeechTool {
 
         let client = self.client.clone().ok_or_else(|| {
             ToolError::not_available(
-                "speech tool requires an active Xiaomi MiMo API client; configure provider = \"xiaomi-mimo\" and an API key first",
+                "speech tool requires an active OpenAI-compatible API client; configure provider = \"openai-compatible\" (with a TTS-capable base_url) and an API key first",
             )
         })?;
 
@@ -276,7 +276,7 @@ impl ToolSpec for SpeechTool {
         let result = json!({
             "mode": "speech",
             "success": true,
-            "api": "Xiaomi MiMo OpenAI-compatible chat/completions speech synthesis",
+            "api": "OpenAI-compatible chat/completions speech synthesis",
             "base_url": openai_compatible_base_url(client.base_url()),
             "model": response.model,
             "format": response.audio_format,
@@ -287,7 +287,7 @@ impl ToolSpec for SpeechTool {
             "voice": response.voice.as_deref().map(describe_speech_voice),
             "transcript": response.transcript,
             "supported_formats": SUPPORTED_SPEECH_FORMATS,
-            "supported_xiaomi_mimo_models": SUPPORTED_OPENAI_COMPATIBLE_SPEECH_MODELS,
+            "supported_models": SUPPORTED_OPENAI_COMPATIBLE_SPEECH_MODELS,
         });
         ToolResult::json(&result).map_err(|err| {
             ToolError::execution_failed(format!("failed to serialize result: {err}"))
