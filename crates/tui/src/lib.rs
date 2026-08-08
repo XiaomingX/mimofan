@@ -478,6 +478,7 @@ pub async fn run() -> Result<()> {
                     args.allow_unverified,
                 )
             }
+            Commands::InstallDeps(args) => cli_commands::install_deps::run_install_deps(args.yes),
             Commands::Models(args) => {
                 let config = load_config_from_cli(&cli)?;
                 run_models(&config, args).await

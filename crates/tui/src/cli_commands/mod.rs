@@ -1,6 +1,7 @@
 #![allow(clippy::uninlined_format_args)]
 
 pub mod metrics;
+pub(crate) mod install_deps;
 pub(crate) mod update;
 
 use std::io::{self, Read, Write};
@@ -230,6 +231,14 @@ pub(crate) struct UpdateArgs {
     /// refused to keep `mimofan update` from installing a tampered binary.
     #[arg(long)]
     pub(crate) allow_unverified: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub(crate) struct InstallDepsArgs {
+    /// Actually run the install commands. By default `install-deps` only
+    /// prints the commands it would run (dry-run).
+    #[arg(long)]
+    pub(crate) yes: bool,
 }
 
 // ── Helper functions ────────────────────────────────────────────────────────

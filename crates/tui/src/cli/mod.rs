@@ -253,6 +253,8 @@ The command prints the completion script to stdout; redirect it to a path your s
     Metrics(crate::cli_commands::MetricsArgs),
     /// Check for and apply updates to the `mimofan` binary.
     Update(crate::cli_commands::UpdateArgs),
+    /// Detect missing optional tool dependencies and print (or run) install commands.
+    InstallDeps(crate::cli_commands::InstallDepsArgs),
 }
 
 #[derive(Args, Debug, Clone)]
