@@ -9,7 +9,7 @@ use super::CommandResult;
 pub(in crate::commands) const COMMAND_INFO: CommandInfo = CommandInfo {
     name: "compact",
     aliases: &["yasuo", "compress"],
-    usage: "/compact",
+    usage: "/compact [instructions]",
     description_id: MessageId::CmdCompactDescription,
 };
 
@@ -20,7 +20,7 @@ impl RegisterCommand for CompactCmd {
         &COMMAND_INFO
     }
 
-    fn execute(app: &mut App, _arg: Option<&str>) -> CommandResult {
-        super::session::compact(app)
+    fn execute(app: &mut App, arg: Option<&str>) -> CommandResult {
+        super::session::compact(app, arg)
     }
 }

@@ -1454,8 +1454,8 @@ impl Engine {
                             .send(Event::status("Session context synced".to_string()))
                             .await;
                     }
-                    Op::CompactContext => {
-                        self.handle_manual_compaction().await;
+                    Op::CompactContext { instructions } => {
+                        self.handle_manual_compaction(instructions).await;
                     }
                     Op::GetSessionSnapshot { tx } => {
                         let total_tokens = self.session.total_usage.input_tokens
@@ -2063,7 +2063,7 @@ impl Engine {
         }
     }
 
-    async fn handle_manual_compaction(&mut self) {
+    async fn handle_manual_compaction(&mut self, instructions: Option<String>) {
         let id = format!("compact_{}", &uuid::Uuid::new_v4().to_string()[..8]);
         let zero_usage = Usage {
             input_tokens: 0,
@@ -2091,7 +2091,23 @@ impl Engine {
             return;
         };
 
-        let start_message = "Manual context compaction started".to_string();
+        // `/compact <instructions>` wins over the project's persistent
+        // `# Compact Instructions` section for this one run; with no inline
+        // argument the persistent section (already resolved into the config)
+        // still applies.
+        let mut compaction_config = self.config.compaction.clone();
+        if let Some(inline) = instructions
+            .as_deref()
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+        {
+            compaction_config.custom_instructions = Some(inline.to_string());
+        }
+
+        let start_message = match compaction_config.custom_instructions.as_deref() {
+            Some(text) => format!("Manual context compaction started (focus: {text})"),
+            None => "Manual context compaction started".to_string(),
+        };
         self.emit_compaction_started(id.clone(), false, start_message)
             .await;
 
@@ -2107,7 +2123,7 @@ impl Engine {
         match compact_messages_safe(
             &client,
             &self.session.messages,
-            &self.config.compaction,
+            &compaction_config,
             Some(&self.session.workspace),
             Some(&compaction_pins),
             Some(&compaction_paths),

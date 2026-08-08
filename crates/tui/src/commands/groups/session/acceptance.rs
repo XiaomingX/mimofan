@@ -549,7 +549,7 @@ fn mimofan_triggers_context_compaction(world: &mut SessionCommandWorld) {
     );
     assert!(matches!(
         world.last_action.as_ref(),
-        Some(AppAction::CompactContext)
+        Some(AppAction::CompactContext { instructions: None })
     ));
     assert_eq!(
         world.last_message.as_deref(),

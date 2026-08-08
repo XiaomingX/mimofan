@@ -117,7 +117,11 @@ pub(crate) async fn dispatch_user_message(
     if should_auto_compact_before_send(app) {
         app.status_message =
             Some("Context threshold reached; compacting before send...".to_string());
-        let _ = engine_handle.send(Op::CompactContext).await;
+        let _ = engine_handle
+            .send(Op::CompactContext {
+                instructions: None,
+            })
+            .await;
     }
     app.session.last_prompt_tokens = None;
     app.session.last_completion_tokens = None;

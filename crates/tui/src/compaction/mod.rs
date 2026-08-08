@@ -31,6 +31,14 @@ pub struct CompactionConfig {
     pub token_threshold: usize,
     pub model: String,
     pub cache_summary: bool,
+    /// Extra user guidance appended to the summarization instruction.
+    ///
+    /// Two sources feed this, in ascending priority:
+    /// 1. A `# Compact Instructions` section in the project's AGENTS.md,
+    ///    which applies to both manual and automatic compaction.
+    /// 2. An inline argument to `/compact <instructions>`, which overrides
+    ///    the persistent section for that one invocation.
+    pub custom_instructions: Option<String>,
 }
 
 impl Default for CompactionConfig {
@@ -55,6 +63,7 @@ impl Default for CompactionConfig {
             token_threshold: 800_000,
             model: DEFAULT_TEXT_MODEL.to_string(),
             cache_summary: true,
+            custom_instructions: None,
         }
     }
 }
@@ -1068,7 +1077,13 @@ pub async fn compact_messages(
         .collect();
 
     // Create a summary of the unpinned portion of the conversation
-    let summary = create_summary(client, &to_summarize, &config.model).await?;
+    let summary = create_summary(
+        client,
+        &to_summarize,
+        &config.model,
+        config.custom_instructions.as_deref(),
+    )
+    .await?;
 
     // Extract workflow context (files touched, tasks in progress, etc.)
     let workflow_context = extract_workflow_context(&to_summarize, workspace);
@@ -1115,13 +1130,18 @@ pub async fn compact_messages(
     ))
 }
 
-async fn create_summary(client: &ApiClient, messages: &[Message], model: &str) -> Result<String> {
+async fn create_summary(
+    client: &ApiClient,
+    messages: &[Message],
+    model: &str,
+    custom_instructions: Option<&str>,
+) -> Result<String> {
     let limits = summary_input_limits_for_model(model);
     let used_cache_aligned = should_use_cache_aligned_summary(model, messages);
     let request = if used_cache_aligned {
-        build_cache_aligned_summary_request(model, messages, limits)
+        build_cache_aligned_summary_request(model, messages, limits, custom_instructions)
     } else {
-        build_formatted_summary_request(model, messages, limits)
+        build_formatted_summary_request(model, messages, limits, custom_instructions)
     };
 
     let mut telemetry_cache_aligned = used_cache_aligned;
@@ -1133,7 +1153,8 @@ async fn create_summary(client: &ApiClient, messages: &[Message], model: &str) -
                  retrying with bounded formatted summary input"
             ));
             telemetry_cache_aligned = false;
-            let fallback_request = build_formatted_summary_request(model, messages, limits);
+            let fallback_request =
+                build_formatted_summary_request(model, messages, limits, custom_instructions);
             client.create_message(fallback_request).await?
         }
         Err(err) => return Err(err),
@@ -1278,26 +1299,52 @@ fn should_use_cache_aligned_summary(model: &str, messages: &[Message]) -> bool {
     estimate_tokens(messages).saturating_add(summary_prompt_tokens) <= budget
 }
 
-fn summary_instruction(word_limit: usize) -> String {
-    format!(
+/// Upper bound on user-supplied compaction guidance.
+///
+/// The instruction rides in front of the whole transcript, so an unbounded
+/// value would eat the very budget compaction is trying to reclaim.
+const MAX_CUSTOM_INSTRUCTION_CHARS: usize = 2_000;
+
+/// Normalize user guidance: trim, drop empties, and bound the length.
+fn normalize_custom_instructions(raw: Option<&str>) -> Option<String> {
+    let trimmed = raw?.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(truncate_chars(trimmed, MAX_CUSTOM_INSTRUCTION_CHARS).to_string())
+}
+
+fn summary_instruction(word_limit: usize, custom: Option<&str>) -> String {
+    let base = format!(
         "Summarize the conversation above in a concise but comprehensive way. \
          Preserve key information, decisions made, exact file paths, commands, \
          errors, and tool-result facts needed to continue the work. \
          Tool outputs may be abbreviated only when they are repetitive. \
          Keep it under {word_limit} words."
-    )
+    );
+    match normalize_custom_instructions(custom) {
+        // The user's focus is additive guidance, not a replacement: the base
+        // continuity requirements still hold or the next turn loses its footing.
+        Some(custom) => format!(
+            "{base}\n\n\
+             Additional user instructions for this summary (follow them while still \
+             preserving the continuity requirements above):\n{custom}"
+        ),
+        None => base,
+    }
 }
 
 fn build_cache_aligned_summary_request(
     model: &str,
     messages: &[Message],
     limits: SummaryInputLimits,
+    custom_instructions: Option<&str>,
 ) -> MessageRequest {
     let mut request_messages = messages.to_vec();
     request_messages.push(Message {
         role: "user".to_string(),
         content: vec![ContentBlock::Text {
-            text: summary_instruction(limits.word_limit),
+            text: summary_instruction(limits.word_limit, custom_instructions),
             cache_control: None,
         }],
     });
@@ -1323,6 +1370,7 @@ fn build_formatted_summary_request(
     model: &str,
     messages: &[Message],
     limits: SummaryInputLimits,
+    custom_instructions: Option<&str>,
 ) -> MessageRequest {
     // Format messages for summarization
     let mut conversation_text = String::new();
@@ -1374,7 +1422,7 @@ fn build_formatted_summary_request(
             content: vec![ContentBlock::Text {
                 text: format!(
                     "{}\n\n---\n\n{conversation_text}",
-                    summary_instruction(limits.word_limit)
+                    summary_instruction(limits.word_limit, custom_instructions)
                 ),
                 cache_control: None,
             }],
@@ -1534,5 +1582,45 @@ pub fn merge_system_prompts(
             });
             Some(SystemPrompt::Blocks(blocks))
         }
+    }
+}
+
+#[cfg(test)]
+mod summary_instruction_tests {
+    use super::{MAX_CUSTOM_INSTRUCTION_CHARS, normalize_custom_instructions, summary_instruction};
+
+    #[test]
+    fn base_instruction_is_unchanged_without_custom_guidance() {
+        let base = summary_instruction(500, None);
+        assert!(base.contains("Keep it under 500 words."));
+        assert!(!base.contains("Additional user instructions"));
+    }
+
+    #[test]
+    fn custom_guidance_is_appended_not_substituted() {
+        let out = summary_instruction(500, Some("Focus on the auth refactor."));
+        // The continuity requirements must survive alongside the user's focus.
+        assert!(out.contains("Preserve key information"));
+        assert!(out.contains("Additional user instructions"));
+        assert!(out.contains("Focus on the auth refactor."));
+    }
+
+    #[test]
+    fn blank_and_whitespace_guidance_is_ignored() {
+        assert_eq!(summary_instruction(500, Some("   ")), summary_instruction(500, None));
+        assert_eq!(summary_instruction(500, Some("")), summary_instruction(500, None));
+        assert_eq!(normalize_custom_instructions(Some("\n\t ")), None);
+        assert_eq!(normalize_custom_instructions(None), None);
+    }
+
+    #[test]
+    fn guidance_is_trimmed_and_length_bounded() {
+        assert_eq!(
+            normalize_custom_instructions(Some("  keep migrations  ")).as_deref(),
+            Some("keep migrations")
+        );
+        let huge = "x".repeat(MAX_CUSTOM_INSTRUCTION_CHARS + 500);
+        let bounded = normalize_custom_instructions(Some(&huge)).expect("guidance retained");
+        assert_eq!(bounded.chars().count(), MAX_CUSTOM_INSTRUCTION_CHARS);
     }
 }
