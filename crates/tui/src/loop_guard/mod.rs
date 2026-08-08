@@ -767,10 +767,10 @@ mod tests {
         let mut fired = 0;
         // Far more identical calls than the cap allows nudges for.
         for _ in 0..60 {
-            if let Some(loop_break) = guard.observe(&stalled("read_file", &args)) {
-                if loop_break.pattern == LoopPattern::RepeatedCall {
-                    fired += 1;
-                }
+            if let Some(loop_break) = guard.observe(&stalled("read_file", &args))
+                && loop_break.pattern == LoopPattern::RepeatedCall
+            {
+                fired += 1;
             }
         }
         assert_eq!(
