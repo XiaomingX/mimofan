@@ -1604,6 +1604,7 @@ pub fn set_config_value(app: &mut App, key: &str, value: &str, persist: bool) ->
                     .to_string()
             },
         ),
+        "fast_mode" | "fast" => settings.fast_mode.to_string(),
         "vim_mode" | "vim" => settings.vim_mode.clone(),
         "low_motion" | "motion" => settings.low_motion.to_string(),
         "fancy_animations" | "fancy" | "animations" => settings.fancy_animations.to_string(),

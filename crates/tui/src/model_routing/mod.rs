@@ -42,12 +42,11 @@ impl RouterCandidates {
 
 /// Derive the auto-router's candidate pair for the active provider (#3018).
 ///
-/// DeepSeek providers route between the canonical pro/flash pair. Hosted
-/// routes with known wire ids for that pair (NVIDIA NIM, OpenRouter, Novita,
-/// SiliconFlow, Wanjie Ark, Volcengine) use their provider
-/// spellings. Every other provider has no known cheap tier: `big` is the
-/// session model and `cheap` is `None`, so auto mode never fabricates a
-/// DeepSeek id for a provider that cannot serve it.
+/// OpenAI-compatible routes normalize the session model and pair GLM-5.2 with
+/// its same-family fast sibling GLM-5-Turbo. Every other provider — and every
+/// other OpenAI-compatible model, including GLM-5.1 and GLM-5-Turbo itself —
+/// has no known cheap tier: `big` is the session model and `cheap` is `None`,
+/// so auto mode never fabricates a model id that the provider cannot serve.
 pub(crate) fn provider_router_candidates(
     provider: crate::config::ApiProvider,
     current_model: &str,
@@ -69,32 +68,9 @@ pub(crate) fn provider_router_candidates(
         };
     }
 
-    if provider == ApiProvider::OpenAiCompatible
-        && let Some(normalized) =
-            crate::config::normalize_model_name_for_provider(provider, current_model)
-        && matches!(
-            normalized.as_str(),
-            "z-ai/glm-5.1" | "z-ai/glm-5.2" | "z-ai/glm-5-turbo"
-        )
-    {
-        return RouterCandidates {
-            // z-ai/glm-5.2 routes faster children to z-ai/glm-5-turbo; the 5.1
-            // and turbo ids have no cheaper tier and keep children on parent.
-            cheap: if normalized == "z-ai/glm-5.2" {
-                Some("z-ai/glm-5-turbo".to_string())
-            } else {
-                None
-            },
-            big: normalized,
-        };
-    }
-
-    match provider {
-        ApiProvider::OpenAiCompatible => RouterCandidates::deepseek(),
-        _ => RouterCandidates {
-            big: current_model.to_string(),
-            cheap: None,
-        },
+    RouterCandidates {
+        big: current_model.to_string(),
+        cheap: None,
     }
 }
 
@@ -248,10 +224,20 @@ fn extract_first_json_object(raw: &str) -> Option<&str> {
     (end >= start).then_some(&raw[start..=end])
 }
 
+/// Parse a router-reported effort string into its **literal** tier.
+///
+/// Parsing deliberately does not collapse `low`/`medium` into `High`: that is a
+/// provider capability question, and
+/// [`normalize_auto_route_effort_for_provider`] already answers it — collapsing
+/// for compat modes that only distinguish on/off/max while *preserving* the
+/// finer tiers for OpenAI-compatible providers. Collapsing here too threw away
+/// the distinction before the normalizer could honour it, so a router asking
+/// for `low` on an OpenAI-compatible route silently got `high`.
 fn parse_auto_route_reasoning_effort(effort: &str) -> Option<ReasoningEffort> {
     match effort.trim().to_ascii_lowercase().as_str() {
         "off" | "disabled" | "none" | "false" => Some(ReasoningEffort::Off),
-        "low" | "minimal" | "medium" | "mid" => Some(ReasoningEffort::High),
+        "low" | "minimal" => Some(ReasoningEffort::Low),
+        "medium" | "mid" => Some(ReasoningEffort::Medium),
         "high" => Some(ReasoningEffort::High),
         "max" | "maximum" | "xhigh" | "ultracode" => Some(ReasoningEffort::Max),
         _ => None,

@@ -1572,6 +1572,18 @@ impl Engine {
         verbosity: Option<String>,
         provenance: UserInputProvenance,
     ) {
+        // `App::fast_mode_active` lives on the TUI side and is never sent across
+        // the engine boundary, but `/fast` is exactly "pinned model + low
+        // effort": it turns auto-routing off and forces `low`. Auto-routed turns
+        // are excluded because the router picks an effort per message, so a
+        // routed `low` is a per-turn judgement rather than a standing speed
+        // preference. Computed up front because `reasoning_effort` is moved into
+        // the session before the tool catalog is built.
+        let fast_mode = !auto_model
+            && reasoning_effort
+                .as_deref()
+                .is_some_and(|effort| effort.eq_ignore_ascii_case("low"));
+
         let input_policy = effective_input_policy(
             provenance,
             mode,
@@ -1922,12 +1934,22 @@ impl Engine {
                 self.api_config.api_provider(),
                 &self.config.model,
             );
+            // `/fast` trades breadth for cost, so shrink the eagerly-loaded tool
+            // surface the same way a small context window would. This only flips
+            // heavyweight tools to `defer_loading` (they stay reachable via
+            // tool_search and append to the catalog *tail*), so the catalog head
+            // keeps the byte-stability the KV prefix cache depends on.
+            let surface_budget = if fast_mode {
+                crate::model_profile::ToolSurfaceBudget::Compact
+            } else {
+                capability.tool_surface_budget
+            };
             let mut catalog = build_model_tool_catalog_with_surface(
                 registry.to_api_tools_with_cache(true),
                 mcp_tools,
                 input_policy.mode,
                 &self.config.tools_always_load,
-                capability.tool_surface_budget,
+                surface_budget,
             );
             for tool in &mut catalog {
                 if plugin_tool_names.contains(&tool.name) {
