@@ -139,7 +139,7 @@ fn pricing_for_model_at(model: &str, _now: DateTime<Utc>) -> Option<ModelPricing
 
 fn known_pricing_for_model(model_lower: &str) -> Option<ModelPricing> {
     if let Some((input_usd_per_million, output_usd_per_million, cache_read_usd_per_million)) =
-        crate::model_catalog::resolved_usd_pricing(model_lower)
+        mimofan_protocol::model_catalog::resolved_usd_pricing(model_lower)
     {
         // A published cache-read tier is billed as the cache-hit rate; when the
         // catalog omits it, cache reads fall back to the cache-miss rate.

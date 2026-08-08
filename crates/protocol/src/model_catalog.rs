@@ -23,9 +23,6 @@ use mimofan_config::models_dev::{ModelsDevCost, ModelsDevLimit, ModelsDevModalit
 
 /// The single source of truth for model facts is the unified
 /// `models_dev.bundled.json` catalog shipped by the config crate. The legacy
-/// `model_catalog.bundled.json` second catalog has been merged into it.
-#[allow(dead_code)]
-const BUNDLED_CATALOG_JSON: &str = mimofan_config::catalog::BUNDLED_MODELS_DEV_JSON;
 const OPENROUTER_CACHE_FILE: &str = "openrouter.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -345,106 +342,4 @@ pub fn store_cache(cache: &CatalogCache) -> Result<()> {
 
 fn write_cache_file(path: &std::path::Path, json: &[u8]) -> std::io::Result<()> {
     crate::utils::write_atomic(path, json)
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct OpenRouterModelsResponse {
-    #[serde(default)]
-    data: Vec<OpenRouterModel>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct OpenRouterModel {
-    id: String,
-    context_length: Option<u32>,
-    top_provider: Option<OpenRouterTopProvider>,
-    pricing: Option<OpenRouterPricing>,
-    architecture: Option<OpenRouterArchitecture>,
-    #[serde(default)]
-    supported_parameters: Vec<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct OpenRouterTopProvider {
-    max_completion_tokens: Option<u32>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct OpenRouterPricing {
-    prompt: Option<String>,
-    completion: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct OpenRouterArchitecture {
-    #[serde(default)]
-    input_modalities: Vec<String>,
-    #[serde(default)]
-    output_modalities: Vec<String>,
-}
-
-#[allow(dead_code)]
-fn normalize_openrouter_response_for_ids(
-    raw: &str,
-    curated_ids: &[&str],
-) -> Result<Vec<CatalogEntry>> {
-    let response: OpenRouterModelsResponse = serde_json::from_str(raw)?;
-    let curated: BTreeSet<String> = curated_ids.iter().map(|id| id.to_lowercase()).collect();
-    Ok(response
-        .data
-        .into_iter()
-        .filter(|model| curated.contains(&model.id.to_lowercase()))
-        .map(|model| {
-            let (input_usd_per_million, output_usd_per_million) =
-                model.pricing.as_ref().map_or((None, None), |pricing| {
-                    (
-                        pricing.prompt.as_deref().and_then(per_token_usd_to_million),
-                        pricing
-                            .completion
-                            .as_deref()
-                            .and_then(per_token_usd_to_million),
-                    )
-                });
-            let modalities = model.architecture.as_ref().map_or_else(Vec::new, |arch| {
-                let mut values = arch.input_modalities.clone();
-                values.extend(arch.output_modalities.iter().cloned());
-                values.sort();
-                values.dedup();
-                values
-            });
-            let supports_reasoning = model
-                .supported_parameters
-                .iter()
-                .any(|param| param.eq_ignore_ascii_case("reasoning"));
-            CatalogEntry {
-                id: model.id.clone(),
-                context_window: model.context_length,
-                max_output: model
-                    .top_provider
-                    .as_ref()
-                    .and_then(|provider| provider.max_completion_tokens),
-                supports_reasoning: Some(supports_reasoning),
-                input_usd_per_million,
-                output_usd_per_million,
-                cache_read_usd_per_million: None,
-                modalities,
-                supported_parameters: model.supported_parameters,
-                provider_model_id: Some(model.id),
-                provenance: MetadataProvenance::ProviderApi,
-            }
-        })
-        .collect())
-}
-
-#[allow(dead_code)]
-fn per_token_usd_to_million(value: &str) -> Option<f64> {
-    value
-        .parse::<f64>()
-        .ok()
-        .map(|per_token| per_token * 1_000_000.0)
 }
