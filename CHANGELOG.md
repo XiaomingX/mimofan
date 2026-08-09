@@ -2,6 +2,16 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.11] - 2026-08-09
+
+### Fixed
+- **Linux 编译失败（[issue #585](https://github.com/XiaomingX/mimofan/issues/585)）**：补齐 macOS-gated 函数在非 macOS 平台的 fallback，修复 `cargo install --git` 在 Linux 上的 `E0425`/`E0308` 编译错误。
+  - `normalize_macos_modifiers`（`composer_ui.rs`）新增非 macOS 恒等 fallback。
+  - `native_ocr_available` / `try_native_ocr`（`image_ocr.rs`）新增非 macOS fallback（返回 `false` / `Ok(None)`）。
+  - `probe_bwrap_available` / `probe_cgroup_version`（`diagnostics.rs`）补 Linux 真实探测分支，并修正非 Linux 返回值类型。
+
+[0.0.11]: https://github.com/XiaomingX/mimofan/compare/v0.0.10...v0.0.11
+
 ## [0.0.10] - 2026-08-09
 
 ### Added

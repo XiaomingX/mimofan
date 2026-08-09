@@ -1,6 +1,6 @@
 {
   "name": "@mimofan/runtime-sdk",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Typed JavaScript helpers for Mimofan Runtime API fleet endpoints.",
   "license": "MIT",
   "type": "module",
