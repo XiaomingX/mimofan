@@ -159,12 +159,31 @@ fn probe_bwrap_available() -> bool {
     {
         false
     }
+    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
+    {
+        // Bubblewrap ships as `/usr/bin/bwrap` on most distros.
+        std::path::Path::new("/usr/bin/bwrap").exists()
+            || std::path::Path::new("/bin/bwrap").exists()
+            || run_command("bwrap", &["--version"], std::path::Path::new("/"))
+                .into_success()
+                .is_some()
+    }
 }
 
 fn probe_cgroup_version() -> Option<u8> {
     #[cfg(not(all(target_os = "linux", not(target_env = "ohos"))))]
     {
         None
+    }
+    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
+    {
+        // cgroup v2 exposes a single unified hierarchy rooted at
+        // `/sys/fs/cgroup/cgroup.controllers`; v1 lacks that file.
+        if std::path::Path::new("/sys/fs/cgroup/cgroup.controllers").exists() {
+            Some(2)
+        } else {
+            Some(1)
+        }
     }
 }
 

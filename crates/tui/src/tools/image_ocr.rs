@@ -128,6 +128,19 @@ fn try_native_ocr(image_path: &Path) -> Result<Option<String>, ToolError> {
     macos_vision::recognize_text(image_path).map(Some)
 }
 
+// On non-macOS platforms there is no built-in Vision framework; OCR falls back
+// to the tesseract subprocess path in `ocr_image_path`. These stubs keep a
+// single cross-platform call site and fix the Linux build (issue #585).
+#[cfg(not(target_os = "macos"))]
+fn native_ocr_available() -> bool {
+    false
+}
+
+#[cfg(not(target_os = "macos"))]
+fn try_native_ocr(_image_path: &Path) -> Result<Option<String>, ToolError> {
+    Ok(None)
+}
+
 #[cfg(target_os = "macos")]
 mod macos_vision {
     use super::*;

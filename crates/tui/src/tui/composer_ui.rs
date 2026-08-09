@@ -136,6 +136,14 @@ pub(crate) fn normalize_macos_modifiers(modifiers: KeyModifiers) -> KeyModifiers
     }
 }
 
+/// On non-macOS platforms, `SUPER` (Cmd) is not used as a Ctrl substitute, so
+/// this is a no-op that returns the modifiers unchanged. Keeps a single
+/// cross-platform call site in `ui_event_loop.rs` (fixes #585 Linux build).
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn normalize_macos_modifiers(modifiers: KeyModifiers) -> KeyModifiers {
+    modifiers
+}
+
 pub(crate) fn handle_composer_alt_word_motion_key(app: &mut App, key: KeyEvent) -> bool {
     if !key.modifiers.contains(KeyModifiers::ALT) || key.modifiers.contains(KeyModifiers::CONTROL) {
         return false;
