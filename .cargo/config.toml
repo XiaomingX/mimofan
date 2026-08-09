@@ -3,3 +3,13 @@
 # Do NOT re-declare `[profile.*]` or debuginfo rustflags here — settings in
 # .cargo/config.toml silently override Cargo.toml and previously caused a
 # conflict (release codegen-units 1 vs 16), slowing down release builds.
+
+# Suppress the benign `linker_messages` warning emitted by ld64.lld on hosts
+# with a very new SDK (e.g. macOS 26 / Xcode Tahoe). Prebuilt object files in
+# native crates (ring, blake3, …) carry version 26.2.0, which exceeds the
+# rustc default deployment target (10.12), so lld warns "newer than target
+# minimum". The binary links and runs fine — this is an environment artifact,
+# not a code defect. We keep `-fuse-ld=lld` here so this section does not drop
+# the linker set in the global cargo config.
+[build]
+rustflags = ["-C", "link-arg=-fuse-ld=lld", "-A", "linker_messages"]

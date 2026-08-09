@@ -489,6 +489,32 @@ class ExecRunner:
 
 
 TEST_RESULT_RX = re.compile(r"^test result:\s+(ok|FAILED)\.", re.MULTILINE)
+# 抓每个测试二进制的通过数，用于识别「0 passed」假阳性（用例名写错时 libtest 仍输出 ok）
+TEST_PASSED_RX = re.compile(r"(\d+) passed", re.MULTILINE)
+
+# 「测试没跑起来」而非「测试失败」的特征。命中这些说明是工具链/构建/环境问题，
+# 判失败的同时必须在 reason 里显式标注 INFRA，避免被当成能力缺失写进结论。
+INFRA_FAILURE_PATTERNS: list[tuple[str, str]] = [
+    (r"failed to run `rustc` to learn about target-specific information",
+     "rustc 探测失败（工具链/RUSTFLAGS 配置问题）"),
+    (r"Unrecognized option: '[^']+'", "rustc 不识别的 flag（多半来自 cargo config 的 rustflags）"),
+    (r"error: could not compile", "编译失败，测试未执行"),
+    (r"^error\[E\d+\]", "编译错误，测试未执行"),
+    (r"error: linking with .* failed", "链接失败，测试未执行"),
+    (r"error: no such command", "cargo 子命令不存在"),
+    (r"error: package ID specification .* did not match", "指定的 package 不存在"),
+    (r"error: no test target named", "指定的 test target 不存在"),
+    (r"Blocking waiting for file lock", "cargo 锁竞争（建议用 --target-dir 隔离）"),
+    (r"error: failed to acquire package cache lock", "cargo 包缓存锁竞争"),
+]
+
+
+def detect_infra_failure(output: str) -> str | None:
+    """识别「构建/工具链没跑起来」类失败，返回人类可读原因；否则 None。"""
+    for pat, label in INFRA_FAILURE_PATTERNS:
+        if re.search(pat, output, re.MULTILINE):
+            return label
+    return None
 
 
 def run_exec(check: dict, entry: dict, runner: ExecRunner) -> tuple[bool, str]:
@@ -533,9 +559,14 @@ def run_exec(check: dict, entry: dict, runner: ExecRunner) -> tuple[bool, str]:
         failed = [m for m in marks if m != "ok"]
         if failed:
             return False, f"{len(failed)}/{len(marks)} 个测试二进制 FAILED"
+        # 防「0 passed」假阳性：用例名写错时 libtest 仍输出 ok 但 0 passed，
+        # 退出码 0 且含 'test result:' 行，朴素判定会误判通过。必须确有用例执行过。
+        passed_total = sum(int(n) for n in TEST_PASSED_RX.findall(combined))
+        if passed_total < 1:
+            return False, "test_passes 但 0 passed（用例名可能写错，无任何用例执行）"
         if res["returncode"] != 0:
             return False, f"test result 全 ok 但退出码为 {res['returncode']}"
-        return True, f"{len(marks)} 个测试二进制全部 ok"
+        return True, f"{len(marks)} 个测试二进制全部 ok（共 {passed_total} 用例通过）"
 
     return False, f"未知 expect 类型: {expect}"
 

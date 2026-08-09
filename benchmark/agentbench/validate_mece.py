@@ -189,7 +189,18 @@ def check_schema_check(e: dict, rep: Report, ref: str) -> None:
         if not check.get("patterns") and not check.get("must_not_match"):
             rep.error("schema", "grep 需至少有 patterns 或 must_not_match", ref)
         for key in ("patterns", "must_not_match"):
-            for pat in check.get(key) or []:
+            val = check.get(key)
+            if val is None:
+                continue
+            # 必须是正则列表。写成 bool（把 must_not_match 当开关用）时引擎的
+            # `check.get(key) or []` 会静默吞成空列表，负向断言失效且不报错——
+            # 缺陷条目反而会被判为通过，直接污染结论，故此处必须硬失败。
+            if not isinstance(val, list):
+                rep.error("schema",
+                          f"{key} 必须是正则列表，实为 {type(val).__name__}={val!r}"
+                          f"（负向断言请写成 must_not_match: [正则, ...]）", ref)
+                continue
+            for pat in val:
                 try:
                     re.compile(pat)
                 except re.error as exc:
@@ -260,17 +271,39 @@ def check_unique_id(entries: list[dict], rep: Report) -> None:
 
 
 def check_assert_key_uniqueness(entries: list[dict], rep: Report) -> dict:
-    """互斥性硬约束：assert_key + tier 组合全集唯一。"""
+    """互斥性检查。
+
+    互斥性要防的是**同一能力事实被重复计分**。assert_key 只是能力事实的代理
+    标识，且粒度常常是「符号名」而非「能力事实」——例如 LoopGuard 这一个结构体
+    下挂着 RepeatedCall / Alternating / NoProgress / 键序规范化 / 冷启动窗口 /
+    提示限流等十余个彼此独立的事实。它们共享 assert_key 是配对机制的要求
+    （T1 靠同 key 升系数），并不意味着重复计分。
+
+    因此分两级：
+      - key+tier+desc 完全相同 → ERROR，这才是真正的重复计分。
+      - 仅 key+tier 相同但 desc 不同 → WARN，属粒度偏粗，记录供人工复核。
+    """
     groups: dict[tuple[str, str], list[str]] = defaultdict(list)
+    exact: dict[tuple[str, str, str], list[str]] = defaultdict(list)
     for e in entries:
         key, tier = e.get("assert_key"), e.get("tier")
         if not key or not tier:
             continue
-        groups[(key, tier)].append(f"{e.get('_source', '?')}:{e.get('id')}")
+        ref = f"{e.get('_source', '?')}:{e.get('id')}"
+        groups[(key, tier)].append(ref)
+        exact[(key, tier, (e.get("desc") or "").strip())].append(ref)
+
+    for (k, t, desc), refs in sorted(exact.items()):
+        if len(refs) > 1:
+            rep.error("uniqueness",
+                      f"重复计分：assert_key+tier+desc 完全相同 {len(refs)} 次: "
+                      f"{k}|{t}|{desc[:40]} → {', '.join(refs[:5])}")
+
     dups = {f"{k}|{t}": refs for (k, t), refs in groups.items() if len(refs) > 1}
     for combo, refs in sorted(dups.items()):
-        rep.error("uniqueness",
-                  f"assert_key+tier 重复 {len(refs)} 次: {combo} → {', '.join(refs[:5])}")
+        rep.warn("uniqueness",
+                 f"assert_key 粒度偏粗：{combo} 被 {len(refs)} 条不同断言共用 "
+                 f"→ {', '.join(refs[:5])}")
     return {"n_unique_combos": len(groups), "n_duplicated": len(dups),
             "duplicates": dups}
 

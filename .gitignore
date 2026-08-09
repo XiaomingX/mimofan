@@ -92,6 +92,9 @@ integrations/*/pnpm-lock.yaml
 web/pnpm-lock.yaml
 # Local dev scripts and temp files
 *.sh
+# Benchmark temp snapshots / superseded generations (keep only curated samples)
+benchmark/agentbench/samples/_snapshot_*/
+benchmark/agentbench/samples/_superseded/
 *.cmd
 !scripts/**
 !benchmark/*.sh
