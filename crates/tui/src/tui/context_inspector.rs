@@ -7,6 +7,7 @@ use crate::compaction::estimate_input_tokens_conservative;
 use crate::localization::{Locale, MessageId, tr};
 use crate::models::SystemPrompt;
 use crate::session_manager::SessionContextReference;
+use crate::tokenizer::count_tokens;
 use crate::tui::app::{App, ToolDetailRecord};
 use crate::tui::file_mention::ContextReferenceSource;
 use crate::utils::estimate_message_tokens;
@@ -229,10 +230,11 @@ fn push_system_prompt_structure(out: &mut String, app: &App, locale: Locale) {
     let _ = writeln!(out, "{}", tr(locale, MessageId::CtxInspSystemPrompt));
     let _ = writeln!(out, "-----------------------");
 
-    // Conservative token estimate: ~3 chars per token (consistent with
-    // compaction.rs internal helpers — replicated here to avoid depending
-    // on a private function).
-    let text_tokens = |text: &str| text.chars().count().div_ceil(3);
+    // Counts through the crate-wide tokenizer so the panel reports the same
+    // numbers compaction acts on. Previously this replicated a chars/3
+    // heuristic to avoid depending on a private helper; `count_tokens` is now
+    // the shared entry point, so the copy (and its drift) is gone.
+    let text_tokens = |text: &str| count_tokens(text);
 
     let total_est = match &app.system_prompt {
         Some(SystemPrompt::Text(t)) => text_tokens(t),

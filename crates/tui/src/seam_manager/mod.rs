@@ -39,6 +39,7 @@ use crate::compaction::KEEP_RECENT_MESSAGES;
 use crate::compaction::plan_compaction;
 use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
+use crate::tokenizer::count_tokens;
 
 /// Default seam model — Flash is cheap and fast, ideal for summarization.
 pub use mimofan_config::DEFAULT_GEMINI_COMPATIBLE_MODEL as DEFAULT_SEAM_MODEL;
@@ -210,7 +211,7 @@ impl SeamManager {
         };
 
         let timestamp = Utc::now();
-        let token_estimate = summary.len() / 4;
+        let token_estimate = count_tokens(&summary);
 
         // Record this seam.
         {
@@ -321,7 +322,7 @@ impl SeamManager {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let token_estimate = summary.len() / 4;
+        let token_estimate = count_tokens(&summary);
         let timestamp = Utc::now();
 
         // Record this recompacted seam.
