@@ -525,6 +525,7 @@ fn decode_entities(s: &str) -> String {
 /// Attempts to execute headless Chrome to retrieve SPA JS-rendered DOM.
 /// Uses `tokio::process::Command` to avoid blocking the async runtime,
 /// with a 30-second timeout to prevent hangs.
+#[allow(unused_variables)]
 async fn try_headless_browser_fetch(url: &str) -> Result<String, ToolError> {
     #[cfg(target_os = "macos")]
     {

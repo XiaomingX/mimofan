@@ -5,6 +5,8 @@ pub(crate) mod install_deps;
 pub(crate) mod update;
 
 use std::io::{self, Read, Write};
+#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
+use std::os::unix::process::CommandExt;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Command;
@@ -1107,6 +1109,19 @@ pub(crate) fn delegate_server_to_tui(
 
 #[cfg(not(all(target_os = "linux", not(target_env = "ohos"))))]
 fn install_server_parent_death_signal(_cmd: &mut Command) {}
+
+#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
+fn install_server_parent_death_signal(cmd: &mut Command) {
+    // Linux counterpart to the macOS/Windows stub: kill the supervised server
+    // child if mimofan (its parent) dies abruptly.
+    // SAFETY: pre_exec runs before exec; prctl is async-signal-safe.
+    let _ = unsafe {
+        cmd.pre_exec(|| {
+            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL);
+            Ok(())
+        })
+    };
+}
 
 #[derive(Debug)]
 enum ServerTeardown {

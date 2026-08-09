@@ -216,6 +216,20 @@ fn install_parent_death_signal(_cmd: &mut Command) {
     // leak children on those platforms — tracked as a follow-up.
 }
 
+#[cfg(all(target_os = "linux", not(target_env = "ohos")))]
+fn install_parent_death_signal(cmd: &mut Command) {
+    // Reap children if the TUI (parent) dies abruptly: ask the kernel to
+    // SIGKILL this child when its parent exits (PR_SET_PDEATHSIG), which is
+    // the Linux counterpart to the macOS/Windows cooperative paths.
+    // SAFETY: pre_exec runs before exec; prctl is async-signal-safe.
+    let _ = unsafe {
+        cmd.pre_exec(|| {
+            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL);
+            Ok(())
+        })
+    };
+}
+
 #[derive(Clone, Copy, Debug)]
 struct ShellExitStatus {
     code: Option<i32>,
