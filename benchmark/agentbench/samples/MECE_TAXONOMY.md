@@ -51,9 +51,31 @@ T1 条目才升到 1.0。这直接落实 EVAL_METRICS 第四节「grep 到符号
 
 - 路径必须是完整相对路径，不得简写（`tools/file.rs` ✗ / `crates/tui/src/tools/file.rs` ✓）。
 - 符号名必须是代码中真实存在的函数/结构体/枚举变体名，不得用自然语言描述。
+
+两类**例外**，不适用上述「`crates/` 前缀 + 真实符号」格式，但同样受「同 key 配对」与「key+tier 唯一」约束：
+
+1. **仓库根级文件断言**：D12 工程化域考察的对象本就位于仓库根，不在 `crates/` 下。
+   此时 `assert_key` 以该文件的真实相对路径起头即可，例：
+   `Cargo.toml::workspace_dependencies`、`deny.toml::absent`、`.github/workflows::release_pipeline`、
+   `CHANGELOG.md::semver_declared`、`Cargo.lock::duplicate_versions`。
+   强行给这类 key 套 `crates/` 前缀会指向**不存在的文件**，属于数据污染，禁止。
+
+2. **缺失能力断言（negative existence）**：断言「某能力在代码中不存在」时，
+   按定义就没有真实符号可指向，故使用 `<能力域>::<能力名>_absent` 形式，例：
+   `observability::otel_metrics_absent`、`resilience::circuit_breaker_absent`、
+   `recovery::auto_resume_after_crash_absent`。
+   这类条目是评测的重要产出（直接构成「不足范畴」结论），不得为了凑格式而删改或伪造路径。
 - **同一能力的 T1 与 T3 必须使用完全相同的 `assert_key`**，否则该 T1 永远停在 0.5 系数，
   会系统性压低总分并使结论失真。写 T3 时应刻意配对一条同 key 的 T1。
-- 「同一 `assert_key` + 同一 `tier`」禁止重复；同 key 不同 tier 是允许且被鼓励的。
+- 互斥性的真正标的是**能力事实**，不是 `assert_key` 字符串本身。`assert_key` 只是能力事实的
+  代理标识，其粒度往往是「符号名」——例如 `LoopGuard` 这一个结构体下挂着 RepeatedCall /
+  Alternating / NoProgress / 键序规范化 / 冷启动窗口 / 提示限流等十余个彼此独立的事实。
+  故判定分两级：
+  - **`assert_key` + `tier` + `desc` 完全相同** → 违规（ERROR）。这才是同一事实被重复计分。
+  - **仅 `assert_key` + `tier` 相同、`desc` 不同** → 允许（WARN 提示粒度偏粗）。
+    多条断言共用一个 key 是配对机制的必然结果（T1 必须与 T3 同 key 才能升系数），
+    强行拆 key 反而会打断配对、让 T1 集体停在 0.5 系数。
+- 同 key 不同 tier 是允许且被鼓励的（这正是反作弊升级的前提）。
 
 ---
 

@@ -1,0 +1,1916 @@
+[
+  {
+    "id": "D02.1.001",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::ShellManager",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 ShellManager 作为命令执行的统一管理入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "pub struct ShellManager"
+      ]
+    }
+  },
+  {
+    "id": "D02.1.002",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::execute_timeout_param",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "ShellManager::execute 接受 timeout_ms 参数而非硬编码超时",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "execute",
+        "param": "timeout_ms"
+      }
+    }
+  },
+  {
+    "id": "D02.1.003",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::wait_timeout_crate",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "同步执行使用 wait_timeout::ChildExt 实现带超时的等待，而非忙轮询 try_wait",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "use wait_timeout::ChildExt",
+        "child\\.wait_timeout\\("
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.1.004",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::timeout_clamp_bounds",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "timeout_ms 被 clamp 到 [1000, 600000] 区间，防止 0 超时与无限阻塞",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "timeout_ms\\.clamp\\(1000,\\s*600_000\\)"
+      ]
+    }
+  },
+  {
+    "id": "D02.1.005",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::kill_child_process_group",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "超时终止走进程组 kill(-pgid) 而非仅 kill 直接子进程，避免孤儿孙进程",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "fn kill_child_process_group",
+        "libc::kill\\(-pgid"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.1.006",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::process_group_setup",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "spawn 前调用 Command::process_group(0) 建立独立进程组，使组 kill 生效",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "cmd\\.process_group\\(0\\)"
+      ]
+    }
+  },
+  {
+    "id": "D02.1.007",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::ShellStatus_enum",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "ShellStatus 枚举区分运行中/完成/超时等终态，而非仅用布尔标志",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ShellStatus",
+        "variant": "Running"
+      }
+    }
+  },
+  {
+    "id": "D02.1.008",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::ShellStatus_timeout_variant",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "ShellStatus 有独立的超时终态变体，超时可与普通非零退出区分",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ShellStatus",
+        "variant": "TimedOut"
+      }
+    }
+  },
+  {
+    "id": "D02.1.009",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::exit_code_field",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "ShellResult 携带 exit_code，退出码可回传给模型而非只给 stdout",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "pub struct ShellResult",
+        "exit_code"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.1.010",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::BackgroundShell",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 BackgroundShell 支持后台长任务，命令不必阻塞主回合",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "pub struct BackgroundShell"
+      ]
+    }
+  },
+  {
+    "id": "D02.1.011",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::kill_by_task_id",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "实跑：execpolicy crate 全量测试通过（命令分类/规则匹配基座可用）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-execpolicy"
+      ],
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.1.012",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::kill_running_bulk",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "提供 kill_running 批量终止所有在跑任务（会话中断时的兜底清理）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "pub fn kill_running"
+      ]
+    }
+  },
+  {
+    "id": "D02.1.013",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::drop_cleanup",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "BackgroundShell 实现 Drop 在析构时清理子进程，避免进程泄漏",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "impl Drop for",
+        "n": 2
+      }
+    }
+  },
+  {
+    "id": "D02.1.014",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::list_jobs",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "实跑探针：mimofan 是否存在任何针对 ShellManager/后台任务生命周期的自动化测试（`--list` 中可检索到 shell 相关用例）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--test",
+        "tui_regression_tests",
+        "--",
+        "--list"
+      ],
+      "expect": "stdout_contains",
+      "args": {
+        "text": "shell"
+      },
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.1.015",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::drain_finished_jobs",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "drain_finished_jobs 回收已完成任务并产生完成事件，用于主动通知模型",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "pub fn drain_finished_jobs",
+        "ShellCompletionEvent"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.1.016",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::write_stdin",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "支持向运行中进程写 stdin 并可关闭管道，交互式命令不会死锁",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "write_stdin",
+        "param": "close"
+      }
+    }
+  },
+  {
+    "id": "D02.1.017",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::install_parent_death_signal",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "安装父进程死亡信号，TUI 异常退出时子进程随之终止（Linux PDEATHSIG 类机制）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "fn install_parent_death_signal"
+      ]
+    }
+  },
+  {
+    "id": "D02.1.018",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::execute_interactive_pty",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在 PTY 交互执行路径（portable_pty），需要终端的命令不会因非 tty 行为异常",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "pub fn execute_interactive",
+        "portable_pty"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.1.019",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/shell.rs::raw_mode_guard",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "spawn 前后用 RawModeGuard 托管终端 raw mode，子进程结束后终端状态被还原",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "RawModeGuard",
+        "fn disable_raw_mode_for_spawn"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.1.020",
+    "domain": "D02",
+    "cluster": 1,
+    "assert_key": "execpolicy::bash_arity_tests_pass",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "execpolicy crate 的命令分类/arity 测试实际可跑通",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-execpolicy",
+        "--test",
+        "bash_arity_test"
+      ],
+      "env": {
+        "CARGO_TARGET_DIR": "/tmp/mece_a2_target"
+      },
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.2.001",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/shell.rs::stdout_stderr_separate",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "ShellResult 分列 stdout 与 stderr，而非合并成单一字符串丢失来源信息",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "stdout",
+        "stderr"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.2.002",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/shell.rs::spawn_reader_thread",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "stdout/stderr 各起读取线程并发消费，避免管道缓冲区写满导致子进程阻塞",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "fn spawn_reader_thread"
+      ]
+    }
+  },
+  {
+    "id": "D02.2.003",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/shell.rs::take_delta_streaming",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "take_delta 支持增量取出新输出，实现后台任务流式回传而非只在结束时给全量",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "fn take_delta",
+        "ShellDeltaResult"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.2.004",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/shell.rs::poll_delta_entry",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "ShellManager::poll_delta 对外暴露增量拉取入口，供 UI/引擎轮询",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "pub fn poll_delta"
+      ]
+    }
+  },
+  {
+    "id": "D02.2.005",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/truncate.rs::SPILLOVER_THRESHOLD_BYTES",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在明确的输出溢出阈值常量（100 KiB），超限输出转存磁盘而非塞进上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "pub const SPILLOVER_THRESHOLD_BYTES"
+      ]
+    }
+  },
+  {
+    "id": "D02.2.006",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/truncate.rs::SPILLOVER_HEAD_BYTES",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "实跑探针：输出截断/溢出（spillover）逻辑是否有任何自动化测试覆盖",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--test",
+        "tui_regression_tests",
+        "--",
+        "--list"
+      ],
+      "expect": "stdout_contains",
+      "args": {
+        "text": "spillover"
+      },
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.2.007",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/truncate.rs::write_spillover_artifact",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "溢出内容写入 tool_outputs 目录并返回可回读路径，截断不等于永久丢失",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "SPILLOVER_DIR_NAME",
+        "pub fn write_spillover"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.2.008",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/truncate.rs::apply_spillover_with_artifact",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "apply_spillover_with_artifact 把溢出与 artifact 系统接线，而非裸写文件",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "pub fn apply_spillover_with_artifact"
+      ]
+    }
+  },
+  {
+    "id": "D02.2.009",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/truncate.rs::prune_older_than",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "溢出文件有过期清理（SPILLOVER_MAX_AGE + prune_older_than），不会无限堆积",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "SPILLOVER_MAX_AGE",
+        "pub fn prune_older_than"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.2.010",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/truncate.rs::is_valid_sha256_guard",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "按 sha 定位溢出文件前用 is_valid_sha256 校验，防止路径穿越注入",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "sha_spillover_path",
+        "callee": "is_valid_sha256"
+      }
+    }
+  },
+  {
+    "id": "D02.2.011",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/large_output_router.rs::LargeOutputRouter",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 LargeOutputRouter 对超大工具输出做路由决策",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/large_output_router.rs"
+      ],
+      "patterns": [
+        "pub struct LargeOutputRouter",
+        "pub fn route"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.2.012",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/large_output_router.rs::per_tool_threshold",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "threshold_for 支持按工具名给不同阈值，而非全局一刀切",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/large_output_router.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "threshold_for",
+        "param": "tool_name"
+      }
+    }
+  },
+  {
+    "id": "D02.2.013",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/large_output_router.rs::raw_bypass",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "route 支持 raw_bypass 显式绕过路由，用户要全量时不被强制摘要",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/large_output_router.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "route",
+        "param": "raw_bypass"
+      }
+    }
+  },
+  {
+    "id": "D02.2.014",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/large_output_router.rs::threshold_in_tokens",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "大输出阈值以 token 计（DEFAULT_LARGE_OUTPUT_THRESHOLD_TOKENS）而非纯字节，贴合上下文预算",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/large_output_router.rs"
+      ],
+      "patterns": [
+        "DEFAULT_LARGE_OUTPUT_THRESHOLD_TOKENS"
+      ]
+    }
+  },
+  {
+    "id": "D02.2.015",
+    "domain": "D02",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/large_output_router.rs::estimate_tokens_uses_tokenizer",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "large_output_router 的 token 估算复用统一 tokenizer，而非本地 len/4 启发式（已知技术债点）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/large_output_router.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "estimate_tokens",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D02.3.001",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::analyze_command",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 analyze_command 作为命令安全分析入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "patterns": [
+        "pub fn analyze_command"
+      ]
+    }
+  },
+  {
+    "id": "D02.3.002",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::SafetyLevel_four_levels",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SafetyLevel 提供 Dangerous 分级而非仅 safe/unsafe 二元判定",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SafetyLevel",
+        "variant": "Dangerous"
+      }
+    }
+  },
+  {
+    "id": "D02.3.003",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::SafetyLevel_workspace_safe",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SafetyLevel 有 WorkspaceSafe 中间档，工作区内写操作不必等同于危险",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SafetyLevel",
+        "variant": "WorkspaceSafe"
+      }
+    }
+  },
+  {
+    "id": "D02.3.004",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::DANGEROUS_PATTERNS_rm_rf_root",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "危险模式表显式包含 rm -rf / 与 rm -rf /*，删根命令被识别",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "patterns": [
+        "\"rm -rf /\"",
+        "\"rm -rf /\\*\""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.3.005",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::DANGEROUS_PATTERNS_home",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "rm -rf ~ 与 rm -rf $HOME 两种家目录删除写法都被覆盖",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "patterns": [
+        "\"rm -rf ~\"",
+        "rm -rf \\$HOME"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.3.006",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::fork_bomb_pattern",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "fork bomb 字面量 :(){ :|:& };: 被列入危险模式",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "patterns": [
+        "Fork bomb"
+      ]
+    }
+  },
+  {
+    "id": "D02.3.007",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::analyze_destructive_patterns",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "除字面量表外还有 analyze_destructive_patterns 做语义级 rm 参数解析（-r/-f 组合 + 目标路径）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "analyze_command",
+        "callee": "analyze_destructive_patterns"
+      }
+    }
+  },
+  {
+    "id": "D02.3.008",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::rm_flag_combining",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "rm 的合并短标志（如 -rf/-fr）被逐字符解析，不能靠改写标志顺序绕过",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "patterns": [
+        "flag\\.chars\\(\\)\\.any\\(\\|ch\\| ch == 'f'\\)"
+      ]
+    }
+  },
+  {
+    "id": "D02.3.009",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::git_push_force",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "git push --force / -f 被单独识别并提级，force push 不按普通 git 命令放行",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "command_lower\\.contains\\(\"git push\"\\)",
+        "b": "contains\\(\"--force\"\\)"
+      }
+    }
+  },
+  {
+    "id": "D02.3.010",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::PRIVILEGED_PATTERNS",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "提权命令 sudo/doas/pkexec 等被单独列表识别",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "patterns": [
+        "PRIVILEGED_PATTERNS",
+        "\"doas\"",
+        "\"pkexec\""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.3.011",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::newline_injection_block",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "含换行符的多行命令被直接判为 Dangerous，阻断换行注入绕过前缀白名单",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "analyze_command",
+        "callee": "Command contains multiple lines"
+      }
+    }
+  },
+  {
+    "id": "D02.3.012",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::null_byte_block",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "含 NUL 字节的命令被拒绝，防止截断式绕过",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "analyze_command",
+        "callee": "Command contains a null byte"
+      }
+    }
+  },
+  {
+    "id": "D02.3.013",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::chaining_escalation",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "命令串联 && / || / ; 被检测并提级到 RequiresApproval，不能靠拼接混入危险段",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "analyze_command",
+        "callee": "Command chaining detected"
+      }
+    }
+  },
+  {
+    "id": "D02.3.014",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "command_safety::substitution_escalation",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "实跑：命令模式匹配的边界用例（引号/空白/大小写等变形）不产生绕过",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--test",
+        "tui_regression_tests",
+        "test_pattern_matching_edge_cases"
+      ],
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.3.015",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "command_safety::prefix_allow_matches_token_boundary",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "实跑：`rm *` 模式能命中 `/bin/rm -rf /` 与 `sudo rm -rf /`，且裸 `rm` 前缀不误配 `rm -rf /`（token 边界正确）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--test",
+        "tui_regression_tests",
+        "test_pattern_matching_dangerous_commands"
+      ],
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.3.016",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/execpolicy/rules.rs::RuleSet_evaluate",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在可配置 RuleSet::evaluate，危险命令策略不是纯硬编码常量表",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/execpolicy/rules.rs"
+      ],
+      "patterns": [
+        "pub fn evaluate",
+        "pub struct RuleSet"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.3.017",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/execpolicy/rules.rs::load_default_policy_from_file",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "策略可从磁盘文件加载（default_execpolicy_path + from_path），用户可自定义拦截规则",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/execpolicy/rules.rs"
+      ],
+      "patterns": [
+        "pub fn default_execpolicy_path",
+        "pub fn from_path"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.3.018",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/execpolicy/src/lib.rs::ExecPolicyEngine_check",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "独立 execpolicy crate 提供 ExecPolicyEngine::check 作为拦截决策入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/execpolicy/src/lib.rs"
+      ],
+      "patterns": [
+        "pub struct ExecPolicyEngine",
+        "pub fn check"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.3.019",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "crates/execpolicy/src/lib.rs::RulesetLayer_precedence",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "规则集分层（builtin/agent/user），高优先层可覆盖内置默认拦截",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/execpolicy/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "RulesetLayer",
+        "variant": "User"
+      }
+    }
+  },
+  {
+    "id": "D02.3.020",
+    "domain": "D02",
+    "cluster": 3,
+    "assert_key": "execpolicy::canonical_executable_form",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "命令归一化 + 匹配器实际可跑通：`git push --force` 不被 `git status` 类白名单前缀误放行",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--test",
+        "execpolicy_matcher_test"
+      ],
+      "env": {
+        "CARGO_TARGET_DIR": "/tmp/mece_a2_target"
+      },
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.4.001",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/mod.rs::SandboxManager",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 SandboxManager 作为沙箱选择与命令包装的统一入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/mod.rs"
+      ],
+      "patterns": [
+        "pub struct SandboxManager",
+        "pub fn prepare"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.4.002",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/seatbelt.rs::SANDBOX_EXEC_PATH",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "macOS seatbelt 后端存在并通过 /usr/bin/sandbox-exec 落地",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/seatbelt.rs"
+      ],
+      "patterns": [
+        "pub const SANDBOX_EXEC_PATH",
+        "/usr/bin/sandbox-exec"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.4.003",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/seatbelt.rs::deny_default",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "seatbelt 策略以 (deny default) 开头，采用默认拒绝而非默认允许",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/seatbelt.rs"
+      ],
+      "patterns": [
+        "\\(deny default\\)"
+      ]
+    }
+  },
+  {
+    "id": "D02.4.004",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/seatbelt.rs::create_seatbelt_args",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "create_seatbelt_args 按策略动态拼装 profile，而非用固定 profile 字符串",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/seatbelt.rs"
+      ],
+      "patterns": [
+        "pub fn create_seatbelt_args"
+      ]
+    }
+  },
+  {
+    "id": "D02.4.005",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/seatbelt.rs::is_available_probe",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "实跑探针：沙箱策略（可写根/网络开关/seatbelt profile）是否有任何自动化测试覆盖",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--test",
+        "tui_regression_tests",
+        "--",
+        "--list"
+      ],
+      "expect": "stdout_contains",
+      "args": {
+        "text": "sandbox"
+      },
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.4.006",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::SandboxPolicy_ReadOnly",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SandboxPolicy 提供 ReadOnly 只读档位",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SandboxPolicy",
+        "variant": "ReadOnly"
+      }
+    }
+  },
+  {
+    "id": "D02.4.007",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::SandboxPolicy_WorkspaceWrite",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SandboxPolicy 提供 WorkspaceWrite 档位限制写入范围到工作区",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SandboxPolicy",
+        "variant": "WorkspaceWrite"
+      }
+    }
+  },
+  {
+    "id": "D02.4.008",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::DangerFullAccess",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在显式命名的 DangerFullAccess 逃生档，越权是显式选择而非隐式默认",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SandboxPolicy",
+        "variant": "DangerFullAccess"
+      }
+    }
+  },
+  {
+    "id": "D02.4.009",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::has_network_access",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "网络访问是独立可控维度（has_network_access + network_access 字段），可只读磁盘但断网",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "patterns": [
+        "pub fn has_network_access",
+        "network_access"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.4.010",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::readonly_denies_network",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "ReadOnly 策略在 has_network_access 中硬编码返回 false，只读档必然断网",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "has_network_access",
+        "callee": "SandboxPolicy::ReadOnly => false"
+      }
+    }
+  },
+  {
+    "id": "D02.4.011",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::WritableRoot",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "WritableRoot 描述可写根，写路径限制是结构化数据而非字符串前缀比较",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "patterns": [
+        "pub struct WritableRoot",
+        "pub fn get_writable_roots"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.4.012",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::WritableRoot_read_only_exceptions",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "WritableRoot 支持只读例外子路径（with_exceptions），可写根内仍能挖只读洞（如 .git）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "with_exceptions",
+        "param": "read_only"
+      }
+    }
+  },
+  {
+    "id": "D02.4.013",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::is_path_writable",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "is_path_writable 对写路径做判定，越界写在策略层可被拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "patterns": [
+        "pub fn is_path_writable"
+      ]
+    }
+  },
+  {
+    "id": "D02.4.014",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/policy.rs::map_safety_level_to_behavior",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "map_safety_level_to_behavior 把 command_safety 的 SafetyLevel 接到沙箱行为，两套安全判定已打通",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/policy.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "map_safety_level_to_behavior",
+        "callee": "SandboxPolicyBehavior::Blocked"
+      }
+    }
+  },
+  {
+    "id": "D02.4.015",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/mod.rs::was_denied_detection",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "was_denied 依据退出码与 stderr 识别沙箱拒绝，能把权限失败与普通失败区分",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/mod.rs"
+      ],
+      "patterns": [
+        "pub fn was_denied",
+        "pub fn denial_message"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.4.016",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/shell.rs::sandbox_denied_wiring",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "shell 执行路径消费沙箱拒绝信号（sandbox_denied），拒绝可回传给模型触发重试/升权请求",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "fn sandbox_denied"
+      ]
+    }
+  },
+  {
+    "id": "D02.4.017",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/mod.rs::SandboxType_linux_landlock",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SandboxType 提供 Linux Landlock 变体（文档声称支持 Linux Landlock，需核实是否只有注释）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SandboxType",
+        "variant": "LinuxLandlock"
+      }
+    }
+  },
+  {
+    "id": "D02.4.018",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/mod.rs::landlock_backend_impl",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在 Landlock 后端实现文件（landlock.rs 或 landlock 规则集构建），而不仅是注释里提到 Landlock",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/sandbox/mod.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "mod landlock|landlock::(?!\\s)",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D02.4.019",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/backend.rs::SandboxBackend_trait",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "存在可插拔 SandboxBackend trait 与远程执行后端（OpenSandbox），本地沙箱不可用时有替代路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/backend.rs"
+      ],
+      "patterns": [
+        "pub trait SandboxBackend",
+        "pub fn create_backend"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.4.020",
+    "domain": "D02",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/sandbox/process_hardening.rs",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在 process_hardening 对 agent 自身进程加固（如禁止被 ptrace/core dump）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/sandbox/process_hardening.rs"
+      ],
+      "patterns": [
+        "pub fn"
+      ]
+    }
+  },
+  {
+    "id": "D02.5.001",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/child_env/mod.rs::apply_to_command_env_clear",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "子进程环境先 env_clear 再按允许清单重建，父进程秘密不会默认继承",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/child_env/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "apply_to_command",
+        "callee": "env_clear"
+      }
+    }
+  },
+  {
+    "id": "D02.5.002",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "child_env::is_allowed_parent_env_key_allowlist",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "实跑探针：子进程环境变量白名单脱敏是否有自动化测试覆盖（防止有人放宽白名单而无测试拦截）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--test",
+        "tui_regression_tests",
+        "--",
+        "--list"
+      ],
+      "expect": "stdout_contains",
+      "args": {
+        "text": "child_env"
+      },
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.5.003",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/child_env/mod.rs::allowlist_excludes_api_key",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "shell 子进程白名单中不含任何 API_KEY / TOKEN / SECRET 形状的键",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/child_env/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "\\|\\s*\"[A-Z_]*(API_KEY|_TOKEN|SECRET[A-Z_]*)\""
+      }
+    }
+  },
+  {
+    "id": "D02.5.004",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/child_env/mod.rs::apply_to_pty_command",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "PTY 执行路径同样走 env_clear + 白名单，交互式命令不是脱敏盲区",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/child_env/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "apply_to_pty_command",
+        "callee": "sanitized_child_env"
+      }
+    }
+  },
+  {
+    "id": "D02.5.005",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "child_env::sanitized_mcp_env_separate",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "实跑：密钥后端选择默认落到文件后端，未配置时行为确定",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-secrets",
+        "--test",
+        "secrets_test",
+        "backend_selection_defaults_to_file"
+      ],
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.5.006",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/child_env/mod.rs::normalize_key_case_insensitive",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "环境变量键做大写归一化比较，无法用 api_key 小写变体绕过白名单",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/child_env/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "normalize_key",
+        "callee": "to_ascii_uppercase"
+      }
+    }
+  },
+  {
+    "id": "D02.5.007",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/shell.rs::child_env_wired",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "shell.rs 实际调用 child_env::apply_to_command，脱敏逻辑真的接在执行路径上",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/shell.rs"
+      ],
+      "patterns": [
+        "child_env::apply_to_command"
+      ]
+    }
+  },
+  {
+    "id": "D02.5.008",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/config/src/lib.rs::redact_secret",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "配置展示层存在 redact_secret，api_key 打印为 ******** 而非明文",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/config/src/lib.rs"
+      ],
+      "patterns": [
+        "fn redact_secret",
+        "\\*\\*\\*\\*\\*\\*\\*\\*"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D02.5.009",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/config/src/lib.rs::redact_toml_nested",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "TOML 脱敏递归进入嵌套表与数组，深层 provider 配置里的 key 也被遮蔽",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/config/src/lib.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "redact_toml_value_for_display_inner",
+        "callee": "redact_toml_value_for_display_inner"
+      }
+    }
+  },
+  {
+    "id": "D02.5.010",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/llm_client/mod.rs::redact_api_key_from_message",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "LLM 错误信息中的 api_key 被替换为 [redacted API key]，报错不泄密",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/llm_client/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "redact_api_key_from_message",
+        "callee": "redacted API key"
+      }
+    }
+  },
+  {
+    "id": "D02.5.011",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "llm_client::redacted_key_fingerprint",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "实跑：keyring 为空时回退环境变量，密钥解析链路完整",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-secrets",
+        "--test",
+        "secrets_test",
+        "resolve_falls_back_to_env_when_keyring_empty"
+      ],
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.5.012",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "secrets::FileKeyringStore_secure_perms",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "文件后端密钥存储以受限权限落盘且可往返读写（secrets crate 测试实跑）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-secrets",
+        "--test",
+        "secrets_test",
+        "file_store_round_trips_with_secure_perms"
+      ],
+      "env": {
+        "CARGO_TARGET_DIR": "/tmp/mece_a2_target"
+      },
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.5.013",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "secrets::resolve_prefers_keyring_over_env",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "密钥解析优先 keyring 后回退环境变量的分层顺序被实测覆盖",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-secrets",
+        "--test",
+        "secrets_test",
+        "resolve_prefers_keyring_over_env"
+      ],
+      "env": {
+        "CARGO_TARGET_DIR": "/tmp/mece_a2_target"
+      },
+      "expect": "test_passes",
+      "timeout": 1800
+    }
+  },
+  {
+    "id": "D02.5.014",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/shell_output.rs::secret_scrub_on_stdout",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "命令 stdout/stderr 在回传模型前经过 secret 扫描脱敏（如 `cat .env`、`env` 打印出的密钥被遮蔽）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/shell_output.rs",
+        "crates/tui/src/tools/shell.rs",
+        "crates/tui/src/tools/shell_tools.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "redact|scrub_secret|mask_secret",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D02.5.015",
+    "domain": "D02",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/command_safety/mod.rs::secret_exfil_command_block",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "读取凭据文件类命令（cat ~/.aws/credentials、cat .env、printenv 全量）被安全分析识别为需审批/危险",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/command_safety/mod.rs"
+      ],
+      "patterns": [
+        "\\.env",
+        "credentials",
+        "id_rsa"
+      ]
+    }
+  }
+]

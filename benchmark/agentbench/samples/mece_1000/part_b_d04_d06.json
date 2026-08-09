@@ -1,0 +1,4896 @@
+[
+  {
+    "id": "D04.1.001",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::tiktoken_rs_dep",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "token 计数走真实 BPE 库 tiktoken-rs，而非自研启发式",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "use\\s+tiktoken_rs::"
+      ]
+    }
+  },
+  {
+    "id": "D04.1.002",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::cl100k_base",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 cl100k_base 编码器（GPT-4/Claude 近似，项目默认）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "cl100k_base"
+      ]
+    }
+  },
+  {
+    "id": "D04.1.003",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::o200k_base",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 o200k_base 编码器（GPT-4o / o 系列）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "o200k_base"
+      ]
+    }
+  },
+  {
+    "id": "D04.1.004",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::Encoding",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 Encoding 枚举以区分编码族，而非硬编码单一词表",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "pub enum Encoding"
+      ]
+    }
+  },
+  {
+    "id": "D04.1.005",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::Encoding::variants",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "Encoding 同时具备 Cl100kBase 与 O200kBase 两个变体",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "Encoding",
+        "variant": "Cl100kBase"
+      }
+    }
+  },
+  {
+    "id": "D04.1.006",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "暴露 count_tokens 作为标准计数入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "pub fn count_tokens\\("
+      ]
+    }
+  },
+  {
+    "id": "D04.1.007",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens_with",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "count_tokens_with 接受 Encoding 参数，允许显式指定编码族",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "count_tokens_with",
+        "param": "encoding"
+      }
+    }
+  },
+  {
+    "id": "D04.1.008",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens_for_model",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "count_tokens_for_model 接受 model 参数，按模型名选择编码族",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "count_tokens_for_model",
+        "param": "model"
+      }
+    }
+  },
+  {
+    "id": "D04.1.009",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::encode_ordinary",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "用 encode_ordinary 而非 encode_with_special_tokens：用户文本里的 <|endoftext|> 应按普通文本计数",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "count_tokens_with",
+        "callee": "encode_ordinary"
+      }
+    }
+  },
+  {
+    "id": "D04.1.010",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::Encoding::for_model",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "for_model 按模型名推断编码族，而非要求调用方自己判断",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "for_model",
+        "param": "model"
+      }
+    }
+  },
+  {
+    "id": "D04.1.011",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "英文散文计数与 cl100k_base 真值完全一致（不是近似）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::counts_english_prose",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.012",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "中文计数与真值一致，且不等于旧的 len()/4 字节除法结果",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::counts_chinese_without_byte_length_underestimate",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.013",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "Rust 源码片段（泛型/生命周期/符号密集）计数与真值一致",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::counts_source_code",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.014",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "JSON payload（引号/冒号/括号密集）计数与真值一致",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::counts_json_payload",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.015",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "中英混排（含 :: 与 'static 等符号）计数与真值一致",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::counts_mixed_chinese_english",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.016",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "12 条冻结真值样本逐条比对全部通过（回归护栏）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::matches_reference_token_counts_exactly",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.017",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "空字符串返回 0 而非 panic 或 1",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::empty_text_is_zero",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.018",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::emoji_and_astral",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "样本集覆盖 emoji / 星平面字符等非 BMP 输入（当前样本集只有 CJK+ASCII，预期缺失）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "emoji|\\\\u\\{1F|😀|🚀"
+      ]
+    }
+  },
+  {
+    "id": "D04.1.019",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::lazy_lock_singleton",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "重复调用 100 次结果稳定，词表全局复用不重建",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::repeated_calls_are_stable",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.1.020",
+    "domain": "D04",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::lazy_lock_singleton",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "用 LazyLock 做惰性单例，避免每次调用重建 BPE 词表",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "\\bLazyLock\\b",
+        "b": "LazyLock::new"
+      }
+    }
+  },
+  {
+    "id": "D04.2.001",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/lib.rs::mod tokenizer",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "tokenizer 作为 crate 级公开模块导出，可被全库引用",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/lib.rs"
+      ],
+      "patterns": [
+        "pub mod tokenizer"
+      ]
+    }
+  },
+  {
+    "id": "D04.2.002",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::uses_tokenizer",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "压缩模块改用统一 tokenizer 计数（历史 bug 源头已收敛）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "estimate_tokens_for_message",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D04.2.003",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/utils/mod.rs::uses_tokenizer",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "utils 的 token 估算改走统一入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/utils/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "estimate_message_tokens",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D04.2.004",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/large_output_router.rs::uses_tokenizer",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "大输出路由的门限判定改走真实 BPE，而非 chars/3 启发式",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/large_output_router.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "estimate_tokens",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D04.2.005",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/resource_telemetry/mod.rs::uses_tokenizer",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "资源遥测的 token 统计走统一入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/resource_telemetry/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "estimate_output_tokens_from_text",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D04.2.006",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tool_output_receipts/mod.rs::uses_tokenizer",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "工具输出回执的 token 计量走统一入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tool_output_receipts/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "render_tool_output_receipt",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D04.2.007",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::no_byte_division",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "压缩模块内不再残留 text.len()/4 字节除法（注释除外的实际代码）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "must_not_match": [
+        "^\\s*[^/\\n]*\\.len\\(\\)\\s*/\\s*4"
+      ]
+    }
+  },
+  {
+    "id": "D04.2.008",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/seam_manager/mod.rs::no_byte_division",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "缝合点管理器不应残留 summary.len()/4 字节除法（实测 213/324 行仍存在，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/seam_manager/mod.rs"
+      ],
+      "must_not_match": [
+        "\\.len\\(\\)\\s*/\\s*4"
+      ]
+    }
+  },
+  {
+    "id": "D04.2.009",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/seam_manager/mod.rs::uses_tokenizer",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "seam_manager 应改用统一 tokenizer 而非自算（实测未接线，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/seam_manager/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "produce_soft_seam",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D04.2.010",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::estimator_removed",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "context_budget 的 chars/N 估算器应已随统一而删除（实测仍保留常量与函数，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "must_not_match": [
+        "CHARS_PER_TOKEN_PERMISSIVE|CHARS_PER_TOKEN_CONSERVATIVE"
+      ]
+    }
+  },
+  {
+    "id": "D04.2.011",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::two_ratios_coexist",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "context_budget 同时定义宽松(4)与保守(3)两套比值——两套口径并存本身即不统一",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "CHARS_PER_TOKEN_PERMISSIVE",
+        "b": "CHARS_PER_TOKEN_CONSERVATIVE"
+      }
+    }
+  },
+  {
+    "id": "D04.2.012",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/injector.rs::uses_unified_tokenizer",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "memory crate 的注入预算应共享统一计数，而非自己复制 chars/4（实测复制，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "count_tokens"
+      ]
+    }
+  },
+  {
+    "id": "D04.2.013",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/injector.rs::duplicated_ratio",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "memory/injector.rs 不应出现独立的 chars().count()/4 估算（实测第 231 行存在，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "must_not_match": [
+        "chars\\(\\)\\.count\\(\\)\\s*/\\s*4"
+      ]
+    }
+  },
+  {
+    "id": "D04.2.014",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::single_source_of_truth_doc",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "模块文档明确声明自己是全库唯一权威计数入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "唯一权威|single authoritative|唯一.*入口"
+      ]
+    }
+  },
+  {
+    "id": "D04.2.015",
+    "domain": "D04",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/utils/mod.rs::no_scaling_by_callers",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "调用方文档要求不得对返回值再做 *3/2 之类缩放（余量应在阈值侧体现）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/utils/mod.rs",
+        "crates/tui/src/tools/large_output_router.rs"
+      ],
+      "patterns": [
+        "must not scale|不得.*缩放|not scale the result"
+      ]
+    }
+  },
+  {
+    "id": "D04.3.001",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::heuristic_tokens",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 heuristic_tokens 作为词表不可用时的降级路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "pub fn heuristic_tokens\\("
+      ]
+    }
+  },
+  {
+    "id": "D04.3.002",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::option_not_unwrap",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "BPE 初始化用 .ok() 包成 Option，不使用 tiktoken 自带会 panic 的 *_singleton()",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "cl100k_base_singleton"
+      }
+    }
+  },
+  {
+    "id": "D04.3.003",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::no_unwrap_on_vocab",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "词表加载路径不出现 unwrap()/expect()，算不出 token 不该让编码助手崩溃",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "must_not_match": [
+        "cl100k_base\\(\\)\\.unwrap\\(\\)|o200k_base\\(\\)\\.unwrap\\(\\)"
+      ]
+    }
+  },
+  {
+    "id": "D04.3.004",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::fallback_chars_per_token",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "降级比值取 3 而非 4，偏保守以免中文低估导致压缩不触发",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "FALLBACK_CHARS_PER_TOKEN:\\s*usize\\s*=\\s*3"
+      ]
+    }
+  },
+  {
+    "id": "D04.3.005",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::heuristic_tokens",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "降级启发式按字符而非字节计数（6 个汉字应得 2 而非 6）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::heuristic_counts_characters_not_bytes",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.3.006",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::div_ceil_not_floor",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "降级路径用 div_ceil 向上取整，避免短文本被算成 0 token",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "div_ceil\\("
+      ]
+    }
+  },
+  {
+    "id": "D04.3.007",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::bpe_returns_option",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "内部 bpe() 返回 Option<&'static CoreBPE>，把词表失败显式建模并让所有调用方共享同一降级出口",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "count_tokens_with",
+        "param": "text"
+      }
+    }
+  },
+  {
+    "id": "D04.3.008",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::fallback_chars_per_token",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "未知模型（MiMo/DeepSeek/Qwen/空串）一律回落 cl100k_base 而非报错",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::mimo_and_deepseek_use_default_encoding",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.3.009",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::fallback_chars_per_token",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "o 系列识别不误伤 deepseek-r1 / mimo-7b 中的字母 o",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::o_series_detection_does_not_false_positive",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D04.3.010",
+    "domain": "D04",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::vocab_missing_no_panic",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "存在针对「词表缺失/加载失败」路径的显式测试（当前仅靠 Option 建模，无注入式故障测试，预期缺失）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "fn .*vocab_(missing|unavailable|load_fail)"
+      ]
+    }
+  },
+  {
+    "id": "D04.4.001",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::pricing_table",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在模型价格表并可按模型名查询",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "fn pricing_for_model\\("
+      ]
+    }
+  },
+  {
+    "id": "D04.4.002",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::has_pricing_for_model",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 has_pricing_for_model 判断某模型是否有价格数据",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "pub fn has_pricing_for_model\\("
+      ]
+    }
+  },
+  {
+    "id": "D04.4.003",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::cache_hit_miss_split",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "价格结构区分 cache hit / cache miss 两档输入价，而非单一 input 价",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "input_cache_hit_per_million",
+        "b": "input_cache_miss_per_million"
+      }
+    }
+  },
+  {
+    "id": "D04.4.004",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::output_price_separate",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "输出 token 单独计价（output_per_million）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "output_per_million"
+      ]
+    }
+  },
+  {
+    "id": "D04.4.005",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::token_usage_for_pricing",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "token_usage_for_pricing 把 provider 上报的 usage 归一为计费三分类",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "token_usage_for_pricing",
+        "param": "usage"
+      }
+    }
+  },
+  {
+    "id": "D04.4.006",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::uncategorized_input",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "对 provider 未归类的剩余输入 token 做兜底归入非缓存输入，避免漏计费",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "uncategorized_input"
+      ]
+    }
+  },
+  {
+    "id": "D04.4.007",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::saturating_arithmetic",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "用量归一使用 saturating_sub/saturating_add，避免上报异常时下溢 panic",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "saturating_sub|saturating_add"
+      ]
+    }
+  },
+  {
+    "id": "D04.4.008",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::calculate_cache_savings",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "可单独计算前缀缓存带来的节省金额",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "pub fn calculate_cache_savings\\("
+      ]
+    }
+  },
+  {
+    "id": "D04.4.009",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::multi_currency",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "支持 USD 与 CNY 双币种（DeepSeek 官方以人民币计价）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "CostCurrency",
+        "variant": "Usd"
+      }
+    }
+  },
+  {
+    "id": "D04.4.010",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::unknown_model_returns_none",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "未知模型返回 None 而非编造 0 成本或默认价",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "_\\s*=>\\s*None"
+      ]
+    }
+  },
+  {
+    "id": "D04.4.011",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::nim_hosted_excluded",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "NVIDIA NIM 托管的 deepseek-ai/* 明确排除，避免套用 DeepSeek 官方价误导用户",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "patterns": [
+        "starts_with\\(\"deepseek-ai/\"\\)"
+      ]
+    }
+  },
+  {
+    "id": "D04.4.012",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::catalog_backed_pricing",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "价格优先取自 protocol 的 model_catalog，而非只有硬编码 match 分支",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "known_pricing_for_model",
+        "callee": "resolved_usd_pricing"
+      }
+    }
+  },
+  {
+    "id": "D04.4.013",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/cost_status/mod.rs::session_accumulation",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "会话级成本累计存在 report/drain 接口，压缩后子回合用量不丢",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/cost_status/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "\\breport\\b",
+        "b": "\\bdrain\\b"
+      }
+    }
+  },
+  {
+    "id": "D04.4.014",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::cost_from_usage",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "提供 calculate_turn_cost_from_usage 由真实 usage 直接算钱，而非用本地估算 token 反推",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/pricing/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "calculate_turn_cost_from_usage",
+        "param": "usage"
+      }
+    }
+  },
+  {
+    "id": "D04.4.015",
+    "domain": "D04",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/pricing/mod.rs::budget_alert",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "存在成本超预算告警/硬阻断机制（实测仅展示与累计，无阈值告警，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/pricing/mod.rs",
+        "crates/tui/src/cost_status/mod.rs"
+      ],
+      "patterns": [
+        "budget_exceeded|cost_limit|over_budget|超出预算"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.001",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::VectorStore",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 VectorStore 作为跨会话观察记录的存储层",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub struct VectorStore"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.002",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::open",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "VectorStore::open 支持按路径打开或创建存储",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub fn open\\(path: &Path, dimension: usize\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.003",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::sqlite_backend",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "结构化元数据落 SQLite（rusqlite），非纯内存",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "rusqlite::Connection::open"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.004",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::sled_backend",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "向量数据落 sled 嵌入式 KV，非纯内存",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "sled::open\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.1.005",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::init_schema",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "启动时用 CREATE TABLE IF NOT EXISTS 初始化 schema，重复打开幂等",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "open",
+        "callee": "init_schema"
+      }
+    }
+  },
+  {
+    "id": "D05.1.006",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::wal_mode",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "SQLite 开启 WAL 日志模式，提升并发读写与崩溃安全",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pragma_update\\(None,\\s*\"journal_mode\",\\s*\"WAL\"\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.007",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::foreign_keys_on",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "开启 foreign_keys 约束，保证子表引用完整性",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "\"foreign_keys\",\\s*\"ON\""
+      ]
+    }
+  },
+  {
+    "id": "D05.1.008",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::cascade_delete",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "子表声明 ON DELETE CASCADE，删除观察记录不留孤儿行",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "ON DELETE CASCADE"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.009",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::created_at_index",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "对 created_at 建降序索引以支撑时间序召回",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "idx_observations_created_at"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.010",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::Observation.kind",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "Observation 携带 kind 分类字段，与文件记忆的四分类共享口径",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "new",
+        "param": "kind"
+      }
+    }
+  },
+  {
+    "id": "D05.1.011",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::observation_files_table",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "单独的 observation_files 表记录读/改文件，支持按文件反查",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "CREATE TABLE IF NOT EXISTS observation_files"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.012",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::observation_concepts_table",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "单独的 observation_concepts 表记录概念标签",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "CREATE TABLE IF NOT EXISTS observation_concepts"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.013",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::load_observation",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "支持按 id 精确加载单条观察记录",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub fn load_observation\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.1.014",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::list_recent",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "list_recent 提供确定性时间序列出，绕开 HNSW 近似检索",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "list_recent",
+        "param": "limit"
+      }
+    }
+  },
+  {
+    "id": "D05.1.015",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::open",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "跨会话端到端：写入→销毁实例→重新 open→仍能召回（probe_recall 探针）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "run",
+        "-p",
+        "mimofan-memory",
+        "--example",
+        "probe_recall",
+        "--",
+        "benchmark/agentbench/samples/memory_recall.json"
+      ],
+      "expect": "stdout_contains",
+      "args": {
+        "text": "recall_rate"
+      }
+    }
+  },
+  {
+    "id": "D05.1.016",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::load_observation",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "存储后按 id 读回，字段完整无损",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-memory",
+        "--test",
+        "vector_test",
+        "test_store_and_load_observation",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D05.1.017",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::VectorStore",
+    "view": "existence",
+    "tier": "T3",
+    "desc": "VectorStore 能在空目录上成功创建",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-memory",
+        "--test",
+        "vector_test",
+        "test_vector_store_creation",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D05.1.018",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::hnsw_not_persisted",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "HNSW 索引本身不落盘，需每次 open 全量重建——大库启动会线性劣化，缺少持久化索引",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "fn load_or_create_index"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.019",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::max_elements_cap",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "HNSW 硬编码 max_elements=20000 上限，超出后行为未定义且无扩容路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "20000,\\s*//\\s*max_elements"
+      ]
+    }
+  },
+  {
+    "id": "D05.1.020",
+    "domain": "D05",
+    "cluster": 1,
+    "assert_key": "crates/memory/src/vector.rs::schema_migration",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "存在 schema 版本号与迁移机制（实测只有 IF NOT EXISTS，无版本化迁移，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "schema_version|PRAGMA user_version|migrate_schema"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.001",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::search",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "VectorStore::search 提供相似度检索入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub fn search\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.2.002",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::hnsw_index",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "用 hnsw_rs 做近似最近邻检索，而非全表线性扫描",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "Hnsw::<f32, DistL2>::new"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.003",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::search_limit",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "search 接受 limit 参数控制 topK",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "search",
+        "param": "limit"
+      }
+    }
+  },
+  {
+    "id": "D05.2.004",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::search_filters",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "search 接受 SearchFilters 做检索后过滤",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "search",
+        "param": "filters"
+      }
+    }
+  },
+  {
+    "id": "D05.2.005",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::SearchFilters.project",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持按 project 维度隔离检索，避免跨项目串味",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub project: Option<String>"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.006",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::SearchFilters.kind",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持按记忆分类过滤",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub kind: Option<String>"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.007",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::SearchFilters.time_range",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "支持 start_time / end_time 时间窗过滤",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "start_time",
+        "b": "end_time"
+      }
+    }
+  },
+  {
+    "id": "D05.2.008",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::filter_overfetch",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "过滤前按 limit*2 超量取回，降低过滤后结果不足的概率",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "limit \\* 2"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.009",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::score_normalization",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "把 L2 距离转成 0~1 相似度分数返回给调用方",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "1\\.0 / \\(1\\.0 \\+ result\\.distance\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.010",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/error.rs::dimension_mismatch_reject",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "查询向量维度不符时返回 DimensionMismatch 错误而非静默截断",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/error.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "MemoryError",
+        "variant": "DimensionMismatch"
+      }
+    }
+  },
+  {
+    "id": "D05.2.011",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::store_dimension_check",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "写入时同样校验 embedding 维度，防止污染索引",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "if embedding\\.len\\(\\) != self\\.dimension"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.012",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::search",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "检索链路端到端可用（vector_test::test_search）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-memory",
+        "--test",
+        "vector_test",
+        "test_search",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D05.2.013",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::count_dual_store_consistency",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "count() 应同时反映 SQLite 与 sled 两侧（实测只查 SQLite，双存储失步不可见，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "fn count\\([\\s\\S]{0,400}?self\\.vectors"
+      ],
+      "multiline": true
+    }
+  },
+  {
+    "id": "D05.2.014",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::delete_removes_from_index",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "删除应同步从 HNSW 索引移除（实测只删 SQLite+sled，索引留残影，源码 TODO 自陈，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "must_not_match": [
+        "//\\s*TODO: Remove from HNSW index"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.015",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::deleted_not_returned",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "已删除记录不应出现在检索结果（当前靠 load_observation 返回 None 兜底，无索引级清理）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "tombstone|is_deleted|deleted_at"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.016",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/embedding.rs::EmbeddingService",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "存在 embedding 服务把文本转成向量",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/embedding.rs"
+      ],
+      "patterns": [
+        "pub struct EmbeddingService"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.017",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/embedding.rs::dimension_accessor",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "embedding 服务暴露 dimension()，供存储层校验一致性",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/embedding.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "pub fn dimension",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D05.2.018",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/embedding.rs::batch_embed",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持批量 embedding 以摊薄 API 往返开销",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/embedding.rs"
+      ],
+      "patterns": [
+        "embed_batch|embed_texts"
+      ]
+    }
+  },
+  {
+    "id": "D05.2.019",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/optimization.rs::SearchCache",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "检索结果有 LRU 缓存层，避免重复 embedding+检索",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/optimization.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "SearchCache",
+        "b": "insert"
+      }
+    }
+  },
+  {
+    "id": "D05.2.020",
+    "domain": "D05",
+    "cluster": 2,
+    "assert_key": "crates/memory/src/vector.rs::hybrid_bm25",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "存在关键词/BM25 与向量的混合检索（实测纯向量，专有名词精确召回弱，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "bm25|BM25|keyword_search|hybrid_search|fts5|FTS5"
+      ]
+    }
+  },
+  {
+    "id": "D05.3.001",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::store_observation",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 store_observation 写入观察记录 + 向量",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub fn store_observation\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.3.002",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::store_returns_id",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "写入返回自增 id，供后续引用与删除",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "store_observation",
+        "callee": "last_insert_rowid"
+      }
+    }
+  },
+  {
+    "id": "D05.3.003",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::files_recorded",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "写入时同时记录 files_read 与 files_modified 关联",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "for file in &observation\\.files_read"
+      ]
+    }
+  },
+  {
+    "id": "D05.3.004",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::concepts_recorded",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "写入时记录 concepts 标签关联",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "for concept in &observation\\.concepts"
+      ]
+    }
+  },
+  {
+    "id": "D05.3.005",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::MemoryCategory",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "文件型记忆定义四类记忆（user/feedback/project/reference）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "patterns": [
+        "pub enum MemoryCategory"
+      ]
+    }
+  },
+  {
+    "id": "D05.3.006",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::append_entry",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "支持按分类追加记忆条目",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "patterns": [
+        "pub fn append_entry\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.3.007",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::replace_entry",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "支持按匹配串替换既有条目，实现更新而非只追加",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "replace_entry",
+        "param": "matcher"
+      }
+    }
+  },
+  {
+    "id": "D05.3.008",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::remove_entry",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "支持按匹配串删除条目（用户要求「忘记」某事）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "remove_entry",
+        "param": "matcher"
+      }
+    }
+  },
+  {
+    "id": "D05.3.009",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::build_index",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "维护 MEMORY.md 索引，作为始终加载的目录",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "patterns": [
+        "pub fn build_index\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.3.010",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::write_index",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "索引变更后可持久化回写",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "migrate_legacy",
+        "callee": "write_index"
+      }
+    }
+  },
+  {
+    "id": "D05.3.011",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::migrate_legacy",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在从旧版单文件记忆迁移到分类目录的路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "migrate_legacy",
+        "param": "legacy_path"
+      }
+    }
+  },
+  {
+    "id": "D05.3.012",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::category_validation",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "写入前校验分类合法性，拒绝未知 category",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "patterns": [
+        "pub fn is_category\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.3.013",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/memory.rs::paths_scoped_entry",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "条目可带 paths 作用域标签，仅在相关文件活跃时注入",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "paths_match",
+        "param": "globs"
+      }
+    }
+  },
+  {
+    "id": "D05.3.014",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/optimization.rs::BatchProcessor",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "写入侧有批处理队列，避免每条观察都单独往返",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/optimization.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "new",
+        "param": "batch_size"
+      }
+    }
+  },
+  {
+    "id": "D05.3.015",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/optimization.rs::queue_bound",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "批处理队列有 max_queue_size 上限，防止无界堆积吃内存",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/optimization.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "new",
+        "param": "max_queue_size"
+      }
+    }
+  },
+  {
+    "id": "D05.3.016",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/optimization.rs::RateLimiter",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "对 embedding API 调用做限流，避免突发写入打爆配额",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/optimization.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "new",
+        "param": "max_requests"
+      }
+    }
+  },
+  {
+    "id": "D05.3.017",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::write_dedup",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "写入前做内容去重（相同事实不重复入库）——实测无任何去重逻辑，预期失败",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "fn .*dedup|is_duplicate|content_hash|UNIQUE\\(content\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.3.018",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::conflict_merge",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "同一事实的新旧版本冲突时能合并/覆盖（实测无冲突检测，新旧并存，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "fn .*merge_conflict|supersede|invalidate_older"
+      ]
+    }
+  },
+  {
+    "id": "D05.3.019",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::write_transaction",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "SQLite 多表写入 + sled 写入应包在事务里（实测逐条 execute 无事务，中途失败会半写，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "BEGIN TRANSACTION|transaction\\(\\)|unchecked_transaction"
+      ]
+    }
+  },
+  {
+    "id": "D05.3.020",
+    "domain": "D05",
+    "cluster": 3,
+    "assert_key": "crates/memory/src/vector.rs::auto_write_trigger",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "存在「何时该写记忆」的自动判定策略（实测写入全靠外部显式调用，无自动萃取策略，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs",
+        "crates/tui/src/vector_memory/mod.rs"
+      ],
+      "patterns": [
+        "should_remember|auto_capture|salience|worth_remembering"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.001",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::ObservationCompressor",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在观察记录压缩器，对历史记忆做整合",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "pub struct ObservationCompressor"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.002",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::CompressionStrategy",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "定义压缩策略枚举",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "pub enum CompressionStrategy"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.003",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::analyze_observations",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "能分析一批观察记录并给出压缩策略建议",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "analyze_observations",
+        "param": "observations"
+      }
+    }
+  },
+  {
+    "id": "D05.4.004",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::max_age_seconds",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "按年龄阈值区分新旧记忆，老记录才进入合并",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "with_settings",
+        "param": "max_age_seconds"
+      }
+    }
+  },
+  {
+    "id": "D05.4.005",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::min_observations",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "设置最小条数门槛，样本太少不触发压缩",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "with_settings",
+        "param": "min_observations"
+      }
+    }
+  },
+  {
+    "id": "D05.4.006",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::should_merge",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "有 should_merge 判定两条观察是否应合并",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "fn should_merge\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.4.007",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::generate_merge_summary",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "合并时生成摘要文本而非直接丢弃",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "fn generate_merge_summary\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.4.008",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::keep_unmerged",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "未被合并的观察记录原样保留，压缩不误删",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "if !merged_ids\\.contains\\(&obs\\.id\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.009",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::summarize_session",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "支持把整个会话压成 SessionSummary",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "pub fn summarize_session\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.4.010",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::files_dedup",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "会话摘要里对文件列表去重，避免同一文件重复列出",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "files_modified\\.dedup\\(\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.011",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::delete_observation",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供按 id 删除观察记录的接口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "pub fn delete_observation\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.4.012",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/compressor.rs::ObservationCompressor",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "压缩器有集成测试覆盖并通过",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-memory",
+        "--test",
+        "compressor_test"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D05.4.013",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::importance_score",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "记忆条目带重要性/置信度权重（实测 Observation 无任何权重字段，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "importance|confidence|salience_score|weight:\\s*f32"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.014",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::access_tracking",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "记录命中次数与最近访问时间以支撑衰减（实测只有 created_at，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "access_count|last_accessed|hit_count"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.015",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::time_decay",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "检索打分含时间衰减因子（实测纯距离分，十个月前的记忆与昨天等权，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "decay|recency_boost|time_weight"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.016",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::prune",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "提供 prune/gc 主动淘汰陈旧记忆（实测无任何 prune 入口，库只增不减，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs",
+        "crates/memory/src/optimization.rs"
+      ],
+      "patterns": [
+        "fn prune|fn gc|fn evict|fn vacuum|fn cleanup_old"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.017",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::ttl_expiry",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "记忆支持 TTL 过期（实测无 expires_at 概念，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "ttl|expires_at|expiry"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.018",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::promotion",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "短期观察可晋升为长期记忆的分层机制（实测单层存储，无晋升路径，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs",
+        "crates/memory/src/compressor.rs"
+      ],
+      "patterns": [
+        "fn promote|promotion|short_term|long_term|working_memory"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.019",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/memory/src/vector.rs::capacity_policy",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "达到容量上限时有明确的淘汰策略（实测 HNSW 20000 硬上限且无淘汰，越界行为未定义，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/vector.rs"
+      ],
+      "patterns": [
+        "capacity_policy|when_full|max_observations.*evict"
+      ]
+    }
+  },
+  {
+    "id": "D05.4.020",
+    "domain": "D05",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/vector_memory/mod.rs::compression_applied_in_prod",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "压缩器被生产路径实际调用（实测仅 crate 内 + 测试，tui 侧无调用方，属未接线能力，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/vector_memory/mod.rs",
+        "crates/tui/src/memory.rs"
+      ],
+      "patterns": [
+        "ObservationCompressor|summarize_session"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.001",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::MemoryInjector",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 MemoryInjector 负责把历史记忆注入当前上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "pub struct MemoryInjector"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.002",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::generate_injection",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 generate_injection 按当前上下文生成注入内容",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "pub async fn generate_injection\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.5.003",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::query_memory",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "提供 query_memory 支持用户主动查询历史记忆",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "query_memory",
+        "param": "query"
+      }
+    }
+  },
+  {
+    "id": "D05.5.004",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::InjectionConfig.max_tokens",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "注入有 max_tokens 预算上限，不会无限占用上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "max_observations",
+        "b": "max_tokens"
+      }
+    }
+  },
+  {
+    "id": "D05.5.005",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::budget_enforced",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "超出 max_tokens 时真的会裁剪列表，而不是只记录数字",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "while estimated_tokens > self\\.config\\.max_tokens"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.006",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::eviction_order",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "裁剪时先丢 recent_changes 再丢 key_decisions，关键决策优先保留",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "recent_changes\\s*\\n?\\s*\\.pop\\(\\)[\\s\\S]{0,300}key_decisions\\s*\\n?\\s*\\.pop\\(\\)"
+      ],
+      "multiline": true
+    }
+  },
+  {
+    "id": "D05.5.007",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::project_scoped",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "注入按 project 过滤，不把别的项目的记忆灌进来",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "project: Some\\(project\\.to_string\\(\\)\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.008",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::kind_routing",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "按 kind 把记忆分流到 key_decisions / recent_changes 不同语义槽位",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "generate_injection",
+        "callee": "matches_to_injection"
+      }
+    }
+  },
+  {
+    "id": "D05.5.009",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::files_modified_dedup",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "注入的改动文件列表去重",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "if !files_modified\\.contains\\(file\\)"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.010",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::empty_result_message",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "无相关记忆时给出明确提示而非空串或伪造内容",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "\"No relevant past work found\""
+      ]
+    }
+  },
+  {
+    "id": "D05.5.011",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::unknown_kind_ignored",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "未知 kind 的观察记录被忽略而非塞进错误槽位",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "_\\s*=>\\s*\\{\\}"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.012",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::generate_injection",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "注入器有集成测试覆盖并通过",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan-memory",
+        "--test",
+        "injector_test"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D05.5.013",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/vector_memory/mod.rs::format_injection_block",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "tui 侧能把召回结果格式化成可注入的提示块",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/vector_memory/mod.rs"
+      ],
+      "patterns": [
+        "pub fn format_injection_block\\("
+      ]
+    }
+  },
+  {
+    "id": "D05.5.014",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/vector_memory/mod.rs::graceful_degrade",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "未配置 MIMOFAN_MEMORY_API_KEY 时 enabled()==false 且读写安全降级，不报错不产生副作用",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/vector_memory/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "is_configured",
+        "b": "enabled"
+      }
+    }
+  },
+  {
+    "id": "D05.5.015",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/vector_memory/mod.rs::disabled_returns_error_not_panic",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "未启用时调用 search/store 返回友好错误提示而非 panic",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/vector_memory/mod.rs"
+      ],
+      "patterns": [
+        "vector-memory 未启用"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.016",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/memory.rs::compose_index_block",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "文件记忆的索引块按活跃路径组装后注入系统提示",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/memory.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "pub fn compose_index_block",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D05.5.017",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::relevance_threshold",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "注入前按相似度阈值过滤低相关记忆（实测只截 topK 不看分数，弱相关照样注入，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "score\\s*[<>]=?\\s*|min_score|relevance_threshold|SIMILARITY_FLOOR"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.018",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::token_budget_uses_real_tokenizer",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "注入预算应用真实 tokenizer 计数（实测 estimate_tokens 用 chars/4，与全库统一入口脱节，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "count_tokens|tiktoken"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.019",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::injection_provenance",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "注入内容标注来源与时间戳，便于模型判断新鲜度（实测只拼 content，无时间/来源标注，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "created_at|provenance|source_session|timestamp"
+      ]
+    }
+  },
+  {
+    "id": "D05.5.020",
+    "domain": "D05",
+    "cluster": 5,
+    "assert_key": "crates/memory/src/injector.rs::stale_memory_verification",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "存在「记忆可能过期需先验证」的机制或提示（实测无，注入即当作事实，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/memory/src/injector.rs"
+      ],
+      "patterns": [
+        "stale|verify_before|may be outdated|可能已过期"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.001",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskStatus",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在持久化任务状态枚举",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub enum TaskStatus"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.002",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskStatus::variants",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "任务状态覆盖 Queued/Running/Completed/Failed/Canceled 五态",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "TaskStatus",
+        "variant": "Queued"
+      }
+    }
+  },
+  {
+    "id": "D06.1.003",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::is_terminal",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "提供 is_terminal 区分终态与活跃态",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub fn is_terminal\\(self\\)"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.004",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::is_terminal_prod_visible",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "is_terminal 不应被 #[cfg(test)] 限定为仅测试可见（实测带 cfg(test)，生产代码无法用，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "must_not_match": [
+        "#\\[cfg\\(test\\)\\]\\s*\\n\\s*#\\[must_use\\]\\s*\\n\\s*pub fn is_terminal"
+      ],
+      "multiline": true
+    }
+  },
+  {
+    "id": "D06.1.005",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskRecord",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 TaskRecord 作为任务的持久化载体",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub struct TaskRecord"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.006",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskCounts",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "提供按状态聚合的计数结构，支撑进度展示",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "counts",
+        "callee": "TaskCounts"
+      }
+    }
+  },
+  {
+    "id": "D06.1.007",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskTimelineEntry",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "任务带时间线条目，可回溯执行过程",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub struct TaskTimelineEntry"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.008",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskToolCallSummary",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "任务记录其工具调用摘要，而非只有最终结果",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub struct TaskToolCallSummary"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.009",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskChecklistState",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "任务可携带清单状态，支持子项级进度",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub struct TaskChecklistState"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.010",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskAttemptRecord",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "记录多次尝试，失败重试有据可查",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub struct TaskAttemptRecord"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.011",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::TaskArtifactRef",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "任务可关联产出物引用",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "pub struct TaskArtifactRef"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.012",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::write_task_artifact",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "支持把任务产出物写入受管目录",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "pub fn write_task_artifact",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D06.1.013",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::serde_snake_case",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "状态序列化用 snake_case，跨进程/跨版本口径稳定",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "#\\[serde\\(rename_all = \"snake_case\"\\)\\]"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.014",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::durable_tasks_dir",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "任务落盘到确定目录，进程重启不丢",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "from_runtime",
+        "callee": "default_tasks_dir"
+      }
+    }
+  },
+  {
+    "id": "D06.1.015",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::cancel_from_queued",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "排队中的任务可被取消并转入 Canceled",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "TaskStatus::Queued\\s*=>\\s*\\{[\\s\\S]{0,200}TaskStatus::Canceled"
+      ],
+      "multiline": true
+    }
+  },
+  {
+    "id": "D06.1.016",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::subscribe_completions",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "提供完成事件广播订阅，供 UI/编排层消费",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "pub fn subscribe_completions",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D06.1.017",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::shutdown",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "任务管理器支持优雅关停并可查询关停状态",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "shutdown",
+        "b": "is_shutdown"
+      }
+    }
+  },
+  {
+    "id": "D06.1.018",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/tasks.rs::blocked_flag",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "任务工具输出含 blocked 标记，暴露阻塞关系",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/tasks.rs"
+      ],
+      "patterns": [
+        "\"blocked\":\\s*true"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.019",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::dependency_graph",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "任务模型含显式依赖图（blocked_by/blocks 字段与拓扑校验）——实测无依赖字段，预期失败",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "blocked_by|blocks:\\s*Vec|depends_on|dependency_graph"
+      ]
+    }
+  },
+  {
+    "id": "D06.1.020",
+    "domain": "D06",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::cycle_detection",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "任务依赖成环时能检测并拒绝（无依赖图自然无环检测，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/task_manager/mod.rs"
+      ],
+      "patterns": [
+        "detect_cycle|cyclic|would_create_cycle"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.001",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::PlanState",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 PlanState 承载计划状态",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "pub struct PlanState"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.002",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::StepStatus",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "计划步骤有独立状态枚举",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "pub enum StepStatus"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.003",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::update_plan",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 update_plan 参数结构，模型可增量更新计划",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "pub struct UpdatePlanArgs"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.004",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::approved_plan",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "显式区分「用户已批准的计划」与草稿计划",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "set_approved_plan",
+        "b": "approved_plan"
+      }
+    }
+  },
+  {
+    "id": "D06.2.005",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::progress_percent",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "可按已完成步骤算出进度百分比",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "execute",
+        "callee": "progress_percent"
+      }
+    }
+  },
+  {
+    "id": "D06.2.006",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::counts",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "提供三态计数（待办/进行中/已完成）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "pub fn counts\\(&self\\)"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.007",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::PlanSnapshot",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "计划可快照，便于持久化与恢复",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "pub struct PlanSnapshot"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.008",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::apply_snapshot",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "可从快照恢复计划状态（会话恢复路径）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "apply_snapshot",
+        "param": "snap"
+      }
+    }
+  },
+  {
+    "id": "D06.2.009",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::step_elapsed",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "步骤记录耗时，长任务可观测",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "pub fn elapsed\\(&self\\)"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.010",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::from_tool_input",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "能从模型传来的原始 JSON 容错解析计划快照",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "from_tool_input",
+        "param": "input"
+      }
+    }
+  },
+  {
+    "id": "D06.2.011",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::StepStatus::from_str",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "非法步骤状态字符串返回 None 而非 panic 或默认值",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "from_str",
+        "param": "value"
+      }
+    }
+  },
+  {
+    "id": "D06.2.012",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/commands/groups/core/exit_plan.rs::exit_plan_mode",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 exit_plan_mode 作为计划模式的退出闸门",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/commands/groups/core/exit_plan.rs"
+      ],
+      "patterns": [
+        "exit_plan|ExitPlan"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.013",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/prompts/modes/plan.md::plan_mode_prompt",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "存在 plan 模式专用系统提示，约束只读调研不落地改动",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/prompts/modes/plan.md"
+      ],
+      "patterns": [
+        ".+"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.014",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/decision_gate/mod.rs::DecisionGate",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在决策闸门机制，可在关键点暂停等待用户裁决",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/decision_gate/mod.rs"
+      ],
+      "patterns": [
+        "pub struct DecisionGate"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.015",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/decision_gate/mod.rs::GateType",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "闸门有类型划分，不同决策场景走不同闸门",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/decision_gate/mod.rs"
+      ],
+      "patterns": [
+        "pub enum GateType"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.016",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/decision_gate/mod.rs::GateStatus",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "闸门有状态机，可表达待决/已决/超时",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/decision_gate/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "GateStatus",
+        "variant": "Pending"
+      }
+    }
+  },
+  {
+    "id": "D06.2.017",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/decision_gate/mod.rs::is_expired",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "闸门支持超时判定，用户不响应不会永久挂起",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/decision_gate/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "check_expirations",
+        "callee": "is_expired"
+      }
+    }
+  },
+  {
+    "id": "D06.2.018",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/decision_gate/mod.rs::DecisionOption",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "闸门可携带候选选项供用户选择，而非只有是/否",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/decision_gate/mod.rs"
+      ],
+      "patterns": [
+        "pub struct DecisionOption"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.019",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::plan_deviation_detection",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "执行偏离已批准计划时能检测并提示（实测无对照逻辑，批准后计划不再约束执行，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "deviat|drift_from_plan|off_plan|violates_plan"
+      ]
+    }
+  },
+  {
+    "id": "D06.2.020",
+    "domain": "D06",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/plan.rs::plan_step_verification",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "步骤标记完成前需通过验证条件（实测状态由模型自报，无校验，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/plan.rs"
+      ],
+      "patterns": [
+        "verify_step|acceptance_criteria|step_gate|require_evidence"
+      ]
+    }
+  },
+  {
+    "id": "D06.3.001",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 decide_continuation 作为目标循环的推进决策核心",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/goal_loop/mod.rs"
+      ],
+      "patterns": [
+        "pub fn decide_continuation\\("
+      ]
+    }
+  },
+  {
+    "id": "D06.3.002",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::GoalRunStatus",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "定义目标运行状态（Active/Completed/Blocked）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/goal_loop/mod.rs"
+      ],
+      "patterns": [
+        "pub enum GoalRunStatus"
+      ]
+    }
+  },
+  {
+    "id": "D06.3.003",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::StopReason::variants",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "停止原因覆盖 7 种：完成/阻塞/token/时间/续跑上限/无进展/重复错误",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/goal_loop/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "StopReason",
+        "variant": "Completed"
+      }
+    }
+  },
+  {
+    "id": "D06.3.004",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::GoalBudget",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 GoalBudget 表达目标运行的资源边界",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/goal_loop/mod.rs"
+      ],
+      "patterns": [
+        "pub struct GoalBudget"
+      ]
+    }
+  },
+  {
+    "id": "D06.3.005",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::token_budget",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "支持 token 预算并在耗尽时停止",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/goal_loop/mod.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "pub const fn with_token_budget",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D06.3.006",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "墙钟时间预算耗尽时返回 Stop(TimeBudget)",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "goal_loop::tests::stops_on_time_budget_when_wired",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.3.007",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::DEFAULT_MAX_CONTINUATIONS",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "有默认续跑上限常量（50）作为失控兜底",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/goal_loop/mod.rs"
+      ],
+      "patterns": [
+        "DEFAULT_MAX_CONTINUATIONS: u32 = 50"
+      ]
+    }
+  },
+  {
+    "id": "D06.3.008",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "续跑次数达到上限时返回 Stop(ContinuationLimit)",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "goal_loop::tests::stops_on_continuation_limit",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.3.009",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "未达上限时继续推进，不提前终止",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "goal_loop::tests::continues_under_max_rounds",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.3.010",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::precedence_terminal_first",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "决策优先级：模型自报终态优先于所有预算判断",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/goal_loop/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "decide_continuation",
+        "param": "status"
+      }
+    }
+  },
+  {
+    "id": "D06.3.011",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "连续无文件改动达阈值时触发 NoProgress 熔断",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "goal_loop::tests::stops_on_no_progress_breaker",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.3.012",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "同一工具错误连续重复达阈值时触发 RepeatedError 熔断",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "goal_loop::tests::stops_on_repeated_error_breaker",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.3.013",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "熔断阈值为 None 时禁用，99 轮无进展也继续（显式 opt-in 语义）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "goal_loop::tests::breakers_disabled_when_none",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.3.014",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "各计数低于阈值时不误触发熔断",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "goal_loop::tests::continues_when_under_thresholds",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.3.015",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/core/engine/turn_loop.rs::goal_loop_wired",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "引擎回合结束后真的调用 decide_continuation 决定是否再派工",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/core/engine/turn_loop.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "goal_continuation_message_if_needed",
+        "callee": "decide_continuation"
+      }
+    }
+  },
+  {
+    "id": "D06.3.016",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/core/engine/engine_messages.rs::goal_loop_wired",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "消息处理路径同样接入续跑决策，两条入口一致",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/core/engine/engine_messages.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "goal_continuation_if_active",
+        "callee": "decide_continuation"
+      }
+    }
+  },
+  {
+    "id": "D06.3.017",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/goal.rs::record_progress_signal",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "目标状态能记录进度信号，喂给熔断计数器",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/goal.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "record_progress_signal",
+        "param": "signal"
+      }
+    }
+  },
+  {
+    "id": "D06.3.018",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/goal.rs::completion_verification",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "目标可挂载完成验证条件，而非只信模型自报完成",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/goal.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "fn completion_verification",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D06.3.019",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/state/src/lib.rs::record_thread_goal_usage",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "跨回合用量持久累计，续跑决策拿到的是真实累计值而非单回合值",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/state/src/lib.rs"
+      ],
+      "patterns": [
+        "record_thread_goal_usage"
+      ]
+    }
+  },
+  {
+    "id": "D06.3.020",
+    "domain": "D06",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/goal.rs::checkpoint_each_round",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持每轮检查点配置，长目标可中途落存",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/goal.rs"
+      ],
+      "patterns": [
+        "pub fn checkpoint_each_round\\("
+      ]
+    }
+  },
+  {
+    "id": "D06.4.001",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 LoopGuard 做回合内循环检测",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/loop_guard/mod.rs"
+      ],
+      "patterns": [
+        "pub struct LoopGuard"
+      ]
+    }
+  },
+  {
+    "id": "D06.4.002",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopPattern::variants",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "三维检测：RepeatedCall / Alternating / NoProgress",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/loop_guard/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "LoopPattern",
+        "variant": "RepeatedCall"
+      }
+    }
+  },
+  {
+    "id": "D06.4.003",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::observe",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "提供 observe 接口逐次喂入工具调用观察",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/loop_guard/mod.rs"
+      ],
+      "patterns": [
+        "pub fn observe\\(&mut self"
+      ]
+    }
+  },
+  {
+    "id": "D06.4.004",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "连续 3 次相同 (tool,args) 触发 RepeatedCall",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::identical_calls_trip_repeat_detector",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.005",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "A→B→A→B 两个完整周期触发 Alternating",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::abab_alternation_trips_alternating_detector",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.006",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "连续 4 次输出摘要完全相同触发 NoProgress",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::repeated_identical_failures_trip_no_progress",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.007",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "参数键序不同不应绕过指纹（preserve_order 陷阱已处理）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::argument_key_order_does_not_defeat_the_fingerprint",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.008",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "嵌套对象的键序同样被规范化，递归生效",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::nested_key_order_does_not_defeat_the_fingerprint",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.009",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "数组顺序属于值语义，重排后视为不同调用",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::array_order_is_significant",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.010",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "字符串 \"1\" 与数字 1、null 与缺键、不同工具名均不碰撞",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::distinct_shapes_do_not_collide",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.011",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "冷启动窗口内观察但不指控，避免开局探路被误判",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::cold_start_window_suppresses_detection",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.012",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "有真实进展时重置计数：12 次同参 edit_file 只要在改东西就不算循环",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::progress_resets_counters_so_retries_are_not_loops",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.013",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "错误文本在变化说明在收敛，不判为停滞",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::differing_errors_are_not_a_stall",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.014",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "健康多样化调用序列全程零误报",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::healthy_varied_sequence_never_fires",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.015",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "每种模式每回合最多提示 2 次，避免提示本身刷屏烧上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::nudges_are_capped_per_pattern",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.016",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuard",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "enabled=false 时完全静默且不记录观察",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "loop_guard::tests::disabled_guard_never_fires",
+        "--",
+        "--exact"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D06.4.017",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::non_fatal_nudge",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "检测结果是建议性 nudge 文本，不直接终止回合丢失用户进度",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/loop_guard/mod.rs"
+      ],
+      "patterns": [
+        "pub nudge: String"
+      ]
+    }
+  },
+  {
+    "id": "D06.4.018",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/turn_loop.rs::loop_guard_wired",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "引擎回合循环真的构造 LoopGuard 并逐次 observe（非仅定义未接线）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/core/engine/turn_loop.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "handle_deepseek_turn",
+        "callee": "LoopGuard::default"
+      }
+    }
+  },
+  {
+    "id": "D06.4.019",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/turn_loop.rs::nudge_injected",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "检测到的 nudge 被收集并注入回模型上下文，形成闭环",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/turn_loop.rs"
+      ],
+      "patterns": [
+        "pending_loop_nudges\\.push\\(loop_break\\.nudge\\)"
+      ]
+    }
+  },
+  {
+    "id": "D06.4.020",
+    "domain": "D06",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/turn_loop.rs::cross_turn_persistence",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "循环检测跨回合保留状态（实测每回合新建 LoopGuard，跨回合重复行为检测不到，属设计取舍但为能力缺口）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/turn_loop.rs"
+      ],
+      "patterns": [
+        "loop_guard.*persist|SharedLoopGuard|loop_guard_state"
+      ]
+    }
+  }
+]

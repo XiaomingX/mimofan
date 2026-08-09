@@ -1,0 +1,4676 @@
+[
+ {
+  "id": "D10.1.001",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::McpConnection",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在 MCP 连接抽象 McpConnection，而非把 MCP 调用散落在工具层",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "pub struct McpConnection"
+   ]
+  }
+ },
+ {
+  "id": "D10.1.002",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::initialize_handshake",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "MCP 初始化握手发送 initialize 并回 notifications/initialized，符合协议要求的两步",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "\"initialize\"",
+    "\"notifications/initialized\""
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D10.1.003",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::protocolVersion",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "握手声明 protocolVersion，服务端可据此做版本协商",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "protocolVersion"
+   ]
+  }
+ },
+ {
+  "id": "D10.1.004",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::tools_list",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "实现 tools/list 工具发现",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "\"tools/list\""
+   ]
+  }
+ },
+ {
+  "id": "D10.1.005",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::resources_list",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "实现 resources/list 资源发现（不止工具）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "\"resources/list\""
+   ]
+  }
+ },
+ {
+  "id": "D10.1.006",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::prompts_list",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "实现 prompts/list 提示词发现",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "\"prompts/list\""
+   ]
+  }
+ },
+ {
+  "id": "D10.1.007",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/transport.rs::four_transports",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "同时提供 Stdio/SSE/Http/StreamableHttp 四种传输，覆盖本地与远程 MCP 服务器",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp/transport.rs"
+   ],
+   "assert": "both_present",
+   "args": {
+    "a": "StdioTransport",
+    "b": "SseTransport"
+   }
+  }
+ },
+ {
+  "id": "D10.1.008",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/config.rs::McpTimeouts::three_phase",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "超时按 connect/execute/read 三阶段分列，而非一个笼统 timeout",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp/config.rs"
+   ],
+   "assert": "both_present",
+   "args": {
+    "a": "connect_timeout",
+    "b": "execute_timeout"
+   }
+  }
+ },
+ {
+  "id": "D10.1.009",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/config.rs::effective_connect_timeout",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "单服务器超时可覆盖全局默认（effective_* 做逐级回退）",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp/config.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "effective_connect_timeout",
+    "param": "global"
+   }
+  }
+ },
+ {
+  "id": "D10.1.010",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/config.rs::expand_env_vars",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "服务器配置支持 ${ENV} 展开，密钥不必明文写进配置文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp/config.rs"
+   ],
+   "patterns": [
+    "expand_env_in_string"
+   ]
+  }
+ },
+ {
+  "id": "D10.1.011",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/config.rs::is_tool_enabled",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "支持 enabled_tools/disabled_tools 工具级白黑名单，可裁剪单个服务器暴露的工具",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp/config.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "is_tool_enabled",
+    "param": "tool_name"
+   }
+  }
+ },
+ {
+  "id": "D10.1.012",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/oauth.rs::perform_oauth_login_for_server",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "远程 MCP 支持完整 OAuth 登录流程，而非仅静态 bearer token",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp/oauth.rs"
+   ],
+   "patterns": [
+    "perform_oauth_login_for_server"
+   ]
+  }
+ },
+ {
+  "id": "D10.1.013",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/oauth.rs::McpAuthStatus",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "存在鉴权状态枚举 McpAuthStatus，UI 可区分未登录/已登录/不需要",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp/oauth.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "McpAuthStatus",
+    "variant": "BearerToken"
+   }
+  }
+ },
+ {
+  "id": "D10.1.014",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp/headers.rs::env_headers",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "支持 env_headers 从环境变量注入请求头，避免 token 落配置文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp/config.rs"
+   ],
+   "patterns": [
+    "env_headers"
+   ]
+  }
+ },
+ {
+  "id": "D10.1.015",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::mask_url_secrets",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "MCP URL 在日志/错误里做密钥脱敏，不整串回显",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "mask_url_secrets"
+   ]
+  }
+ },
+ {
+  "id": "D10.1.016",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::validate_mcp_config_path",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "加载 MCP 配置前校验路径（拒绝符号链接/异常文件），防止读到工作区外的配置",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "load_config",
+    "callee": "validate_mcp_config_path"
+   }
+  }
+ },
+ {
+  "id": "D10.1.017",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::workspace_allows_project_mcp_config",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "项目级 .mimofan/mcp.json 只有工作区被信任后才生效，克隆的仓库不能自动挂 MCP 服务器",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "load_config_with_workspace",
+    "callee": "workspace_allows_project_mcp_config"
+   }
+  }
+ },
+ {
+  "id": "D10.1.018",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::advanced_capabilities_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】未实现 MCP sampling/roots/elicitation 反向能力，服务器无法请求 LLM 采样或工作区根",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqE 'sampling/createMessage|roots/list|elicitation/create' crates/tui/src/mcp.rs crates/tui/src/mcp/ && echo HAS_ADVANCED_MCP || (echo MISSING_ADVANCED_MCP; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_ADVANCED_MCP",
+   "args": {
+    "text": "HAS_ADVANCED_MCP"
+   }
+  }
+ },
+ {
+  "id": "D10.1.019",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::reload_if_config_changed",
+  "view": "integration",
+  "tier": "T1",
+  "desc": "MCP 配置变更可热重载（比对 mtime/hash 后重连），不必重启进程",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "patterns": [
+    "reload_if_config_changed"
+   ]
+  }
+ },
+ {
+  "id": "D10.1.020",
+  "domain": "D10",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/mcp.rs::to_api_tools",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "MCP 发现的工具被转换成模型 API 的 Tool 列表，真正进入 LLM 可调用集合",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/core/engine/tool_catalog.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "tool_catalog_consistency_issues",
+    "callee": "to_api_tools"
+   }
+  }
+ },
+ {
+  "id": "D10.2.001",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::HookEvent",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在生命周期 hook 事件枚举 HookEvent",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "pub enum HookEvent"
+   ]
+  }
+ },
+ {
+  "id": "D10.2.002",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::tool_call_before_after",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "覆盖工具调用前后两个事件点（ToolCallBefore/ToolCallAfter）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "ToolCallBefore",
+    "ToolCallAfter"
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D10.2.003",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::session_lifecycle_events",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "覆盖会话起止事件（SessionStart/SessionEnd）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "SessionStart",
+    "SessionEnd"
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D10.2.004",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::compaction_events",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "覆盖压缩前后事件（PreCompact/PostCompact），可在摘要前抢救上下文",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "PreCompact",
+    "PostCompact"
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D10.2.005",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::subagent_events",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "覆盖子 agent 派生与完成事件（SubagentSpawn/SubagentComplete）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "SubagentSpawn",
+    "SubagentComplete"
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D10.2.006",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::shell_env_event",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "提供 ShellEnv 事件，可在每次 shell 执行前注入临时环境变量",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "ShellEnv"
+   ]
+  }
+ },
+ {
+  "id": "D10.2.007",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::HookEvent",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "HookEvent 的 13 个变体全部在 as_str 里有字符串映射，无遗漏变体",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "m=$(grep -cE 'HookEvent::[A-Za-z]+ => \"' crates/tui/src/hooks/mod.rs); [ \"$m\" = 13 ] && echo ALL_13_MAPPED || (echo ONLY_$m; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "ALL_13_MAPPED",
+   "args": {
+    "text": "ALL_13_MAPPED"
+   }
+  }
+ },
+ {
+  "id": "D10.2.008",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::ToolCallDecision",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "tool_call_before hook 可返回 allow/deny/ask 三态决策，而非只有通过/失败",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "ToolCallDecision",
+    "variant": "Allow"
+   }
+  }
+ },
+ {
+  "id": "D10.2.009",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::updatedInput",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "hook 可通过 updatedInput 改写工具入参，不只是放行或拦截",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "updated_input"
+   ]
+  }
+ },
+ {
+  "id": "D10.2.010",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::additionalContext",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "hook 可通过 additionalContext 向本轮注入补充上下文",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "additionalContext"
+   ]
+  }
+ },
+ {
+  "id": "D10.2.011",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::MessageSubmitOutcome::Replaced",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "message_submit hook 可替换用户提交的文本（可变管道，而非只读观察）",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "MessageSubmitOutcome",
+    "variant": "Replaced"
+   }
+  }
+ },
+ {
+  "id": "D10.2.012",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::HookCondition::composite",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "hook 触发条件支持 All/Any 组合，可表达复合触发规则",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "HookCondition",
+    "variant": "ToolName"
+   }
+  }
+ },
+ {
+  "id": "D10.2.013",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::exit_code_2_blocks",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "退出码 2 是明确的阻断约定（区别于一般失败），message_submit 据此拒绝提交",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "exit_code"
+   ]
+  }
+ },
+ {
+  "id": "D10.2.014",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::wait_timeout_kill",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "hook 超时后真的 kill 子进程，不会挂死主循环",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "patterns": [
+    "wait_timeout"
+   ]
+  }
+ },
+ {
+  "id": "D10.2.015",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::continue_on_error",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "hook 失败时按 continue_on_error 决定是继续还是阻断，默认不因 hook 崩溃打断会话",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "count_at_least",
+   "args": {
+    "pattern": "continue_on_error",
+    "n": 1
+   }
+  }
+ },
+ {
+  "id": "D10.2.016",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::has_background_hooks_for_event",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "识别「background hook 想阻断工具」这种配置错误：后台 hook 拿不到退出码，无法 deny",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "has_background_hooks_for_event",
+    "param": "event"
+   }
+  }
+ },
+ {
+  "id": "D10.2.017",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::workspace_allows_project_hooks",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "项目级 .mimofan/hooks.toml 属可执行仓库配置，仅在工作区受信任时加载",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "load_with_project",
+    "callee": "workspace_allows_project_hooks"
+   }
+  }
+ },
+ {
+  "id": "D10.2.018",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::load_with_project",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "全局 hook 与项目 hook 分层合并（load_with_project），项目 hook 追加在全局之后",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "load_with_project",
+    "param": "workspace"
+   }
+  }
+ },
+ {
+  "id": "D10.2.019",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/hooks/mod.rs::has_hooks_for_event_fastpath",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "每次工具分发前有 has_hooks_for_event 快速判空，未配置 hook 时不构造上下文",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "has_hooks_for_event",
+    "param": "event"
+   }
+  }
+ },
+ {
+  "id": "D10.2.020",
+  "domain": "D10",
+  "cluster": 2,
+  "assert_key": "crates/hooks/src/lib.rs::observer_crate_not_wired_to_tui",
+  "view": "integration",
+  "tier": "T3",
+  "desc": "【缺口探针】观测型 mimofan-hooks crate（HookDispatcher/各类 sink）未被 tui 依赖，与 tui 自己的 shell hook 系统完全割裂，TUI 侧没有 webhook/jsonl 事件流",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -q 'mimofan-hooks' crates/tui/Cargo.toml && echo TUI_USES_HOOKS_CRATE || (echo TUI_DOES_NOT_USE_HOOKS_CRATE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "TUI_USES_HOOKS_CRATE",
+   "args": {
+    "text": "TUI_USES_HOOKS_CRATE"
+   }
+  }
+ },
+ {
+  "id": "D10.3.001",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::SkillRegistry",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在 skill 注册表 SkillRegistry，支持从目录发现 skill",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/skills/mod.rs"
+   ],
+   "patterns": [
+    "pub struct SkillRegistry"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.002",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::SKILL.md",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "skill 以 SKILL.md 为载体（与主流 agent 生态一致的约定）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/skills/mod.rs",
+    "crates/tui/src/tools/skill.rs"
+   ],
+   "patterns": [
+    "SKILL\\.md"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.003",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/commands/user_commands.rs::md_slash_commands",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "支持用户自定义 slash 命令：commands 目录下的 .md 文件名即命令名",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/commands/user_commands.rs"
+   ],
+   "patterns": [
+    "commands",
+    "\\.md"
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D10.3.004",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/tools/skill.rs::LoadSkillTool",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "提供 load_skill 工具让模型按名字主动加载 skill，而非全量塞进系统提示",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/tools/skill.rs"
+   ],
+   "patterns": [
+    "LoadSkillTool"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.005",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/install.rs::install",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "支持 skill 安装（从远程/压缩包引入），不止手工放目录",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/skills/install.rs"
+   ],
+   "patterns": [
+    "fn install|pub async fn install|install_skill"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.006",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::discover_recursive",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "skill 目录递归发现，支持嵌套分组而非只扫一层",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/skills/mod.rs"
+   ],
+   "patterns": [
+    "discover_recursive"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.007",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::SkillDiscoveryMode",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "skill 发现有模式开关（仅 .mimofan / 兼容 .agents 等厂商中立目录）",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/skills/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "SkillDiscoveryMode",
+    "variant": "Compatible"
+   }
+  }
+ },
+ {
+  "id": "D10.3.008",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/commands/user_commands.rs::parse_frontmatter",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "自定义命令解析 YAML frontmatter，支持 description/argument-hint/allowed-tools",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/commands/user_commands.rs"
+   ],
+   "patterns": [
+    "parse_frontmatter"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.009",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/commands/user_commands.rs::allowed_tools",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "自定义命令可用 allowed-tools 约束该命令能调用的工具子集",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/commands/user_commands.rs"
+   ],
+   "patterns": [
+    "allowed-tools"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.010",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skill_state/mod.rs::set_enabled",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "skill 可单独启用/禁用并持久化状态，不必删目录",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/skill_state/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "set_enabled",
+    "param": "enabled"
+   }
+  }
+ },
+ {
+  "id": "D10.3.011",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::truncate_for_prompt",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "skill 描述注入系统提示前做长度截断，避免单个 skill 撑爆前缀预算",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/skills/mod.rs"
+   ],
+   "patterns": [
+    "truncate_for_prompt"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.012",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::warnings",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "SKILL.md 解析失败时收集 warning 而非静默丢弃或 panic",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/skills/mod.rs"
+   ],
+   "patterns": [
+    "push_warning"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.013",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/tools/skill.rs::unknown_skill_lists_available",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "load_skill 请求不存在的 skill 时，报错里列出可用 skill 而不是空报错",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/tools/skill.rs"
+   ],
+   "patterns": [
+    "not found\\. Available"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.014",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::paths_refer_to_same_dir",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "多个 skill 目录指向同一物理路径时去重，避免同一 skill 被重复列出",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/skills/mod.rs"
+   ],
+   "patterns": [
+    "paths_refer_to_same_dir"
+   ]
+  }
+ },
+ {
+  "id": "D10.3.015",
+  "domain": "D10",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/skills/mod.rs::render_available_skills_context",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "可用 skill 列表被渲染进系统提示的 ## Skills 区块，模型才知道有哪些 skill",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/skills/mod.rs"
+   ],
+   "assert": "count_at_least",
+   "args": {
+    "pattern": "render_available_skills_context",
+    "n": 1
+   }
+  }
+ },
+ {
+  "id": "D10.4.001",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::AGENTS.md",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "加载 AGENTS.md 作为规范的跨 agent 项目指令文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "patterns": [
+    "\"AGENTS\\.md\""
+   ]
+  }
+ },
+ {
+  "id": "D10.4.002",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::CLAUDE.md_compat",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "兼容读取 CLAUDE.md 与 .claude/instructions.md（只读兼容，不主动创建）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "patterns": [
+    "\"CLAUDE\\.md\"",
+    "\\.claude/instructions\\.md"
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D10.4.003",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::mimofan_instructions",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "支持 .mimofan/instructions.md 隐藏指令文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "patterns": [
+    "\\.mimofan/instructions\\.md"
+   ]
+  }
+ },
+ {
+  "id": "D10.4.004",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/config.rs::Config::load",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在统一配置加载入口 Config::load",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/config.rs"
+   ],
+   "patterns": [
+    "pub fn load\\("
+   ]
+  }
+ },
+ {
+  "id": "D10.4.005",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::PROJECT_CONTEXT_FILES_order",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "规则文件按优先级数组有序枚举（AGENTS.md 最高），而非无序遍历目录",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "patterns": [
+    "PROJECT_CONTEXT_FILES"
+   ]
+  }
+ },
+ {
+  "id": "D10.4.006",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::load_project_context_with_parents",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "规则文件向父目录逐级查找，monorepo 子目录能继承上层 AGENTS.md",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "load_project_context_with_parents",
+    "param": "workspace"
+   }
+  }
+ },
+ {
+  "id": "D10.4.007",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::global_fallback",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "工作区无规则文件时回退到用户级 ~/.mimofan/AGENTS.md 与厂商中立的 ~/.agents/AGENTS.md",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "assert": "both_present",
+   "args": {
+    "a": "GLOBAL_AGENTS_RELATIVE_PATH",
+    "b": "GLOBAL_AGENTS_VENDOR_NEUTRAL_PATH"
+   }
+  }
+ },
+ {
+  "id": "D10.4.008",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/config.rs::merge_config",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "全局与项目配置做深合并（merge_config），而非整体覆盖丢字段",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/config.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "apply_managed_overrides",
+    "callee": "merge_config"
+   }
+  }
+ },
+ {
+  "id": "D10.4.009",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/config.rs::merge_providers",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "Provider 配置逐 key 深合并，项目层只覆盖显式声明的字段",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/config.rs"
+   ],
+   "patterns": [
+    "merge_provider_config"
+   ]
+  }
+ },
+ {
+  "id": "D10.4.010",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/config.rs::profile_param",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "配置加载支持 profile 参数，可切换多套配置档位",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/config.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "load",
+    "param": "profile"
+   }
+  }
+ },
+ {
+  "id": "D10.4.011",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::MAX_CONTEXT_SIZE",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "规则文件有 100KB 上限，超大 AGENTS.md 不会被整体吞进上下文",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "patterns": [
+    "MAX_CONTEXT_SIZE"
+   ]
+  }
+ },
+ {
+  "id": "D10.4.012",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/config/trust.rs::is_workspace_trusted",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "存在工作区信任闸门，未信任的仓库不能靠自带配置提升自身权限",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "check_trust_status",
+    "callee": "is_workspace_trusted"
+   }
+  }
+ },
+ {
+  "id": "D10.4.013",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::constitution_schema_version",
+  "view": "negative",
+  "tier": "T1",
+  "desc": ".mimofan/constitution.json 校验 schema_version，未知版本不盲目解析",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/project_context/mod.rs"
+   ],
+   "patterns": [
+    "SUPPORTED_CONSTITUTION_SCHEMA"
+   ]
+  }
+ },
+ {
+  "id": "D10.4.014",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::project_overlay_ignores_instructions",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "项目层配置覆盖时忽略 instructions 字段，克隆的仓库无法改写系统指令",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/config.rs"
+   ],
+   "patterns": [
+    "project overlay ignores"
+   ]
+  }
+ },
+ {
+  "id": "D10.4.015",
+  "domain": "D10",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/project_context/mod.rs::as_system_block",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "加载到的项目规则被渲染成系统提示块（as_system_block），真正进入模型上下文",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/context_report/mod.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "base_source_entries",
+    "callee": "as_system_block"
+   }
+  }
+ },
+ {
+  "id": "D11.1.001",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::tracing_subscriber",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "使用 tracing_subscriber 建立结构化日志栈，而非裸 println",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "patterns": [
+    "tracing_subscriber"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.002",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::EnvFilter",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "日志级别通过 EnvFilter 从环境变量控制（RUST_LOG）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "patterns": [
+    "EnvFilter"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.003",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::file_appender",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "日志落盘到文件，TUI 全屏模式下仍可事后排查",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "patterns": [
+    "OpenOptions|log_path|log_directory"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.004",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/logging/mod.rs::set_verbose",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "提供 verbose 开关控制 CLI 侧详细输出",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/logging/mod.rs"
+   ],
+   "patterns": [
+    "pub fn set_verbose"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.005",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/audit/mod.rs::log_sensitive_event",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "敏感操作有独立审计日志入口 log_sensitive_event",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/audit/mod.rs"
+   ],
+   "patterns": [
+    "pub fn log_sensitive_event"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.006",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/audit/mod.rs::audit.log_path",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "审计事件写入 ~/.mimofan/audit.log 固定位置",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/audit/mod.rs"
+   ],
+   "patterns": [
+    "audit\\.log"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.007",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::NonBlocking",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "日志写入用 NonBlocking appender，磁盘 IO 不阻塞异步运行时热路径",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "init",
+    "callee": "NonBlocking"
+   }
+  }
+ },
+ {
+  "id": "D11.1.008",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::prune_old_logs",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "旧日志按保留天数自动清理（prune_old_logs），不会无限增长撑爆磁盘",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "patterns": [
+    "prune_old_logs"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.009",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::log_retention_days",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "日志保留期可配置（log_retention_days），而非硬编码",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "patterns": [
+    "log_retention_days"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.010",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::pid_in_filename",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "日志文件名带进程 id，多实例并行不会互相覆盖同一文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "log_file_name",
+    "param": "date"
+   }
+  }
+ },
+ {
+  "id": "D11.1.011",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::with_ansi_false",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "落盘日志关闭 ANSI 颜色，日志文件不被转义序列污染",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "patterns": [
+    "with_ansi\\(false\\)"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.012",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::redirect_stderr",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "alt-screen 期间把 stderr 重定向到日志文件，第三方库的裸 eprintln 不会打乱 TUI 画面",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "patterns": [
+    "redirect_stderr_to"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.013",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/audit/mod.rs::flush_and_sync",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "审计记录写完即 flush+fsync，进程被杀也不丢最后一条",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/audit/mod.rs"
+   ],
+   "patterns": [
+    "flush_and_sync"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.014",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/hooks/mod.rs::shell_env_audit_keys_only",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "shell_env hook 注入的环境变量只审计 key 不记录 value，避免把凭据写进审计日志",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/hooks/mod.rs"
+   ],
+   "assert": "count_at_least",
+   "args": {
+    "pattern": "log_sensitive_event",
+    "n": 1
+   }
+  }
+ },
+ {
+  "id": "D11.1.015",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::subscriber_already_set_no_panic",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "全局 subscriber 已被宿主进程安装时跳过而非 panic（set_global_default 结果被吞）",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/runtime_log/mod.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "init",
+    "callee": "set_global_default"
+   }
+  }
+ },
+ {
+  "id": "D11.1.016",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/logging/mod.rs::rust_log_not_gating_verbose",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "RUST_LOG 不用来控制 CLI verbose（否则 tracing 输出会泄漏进 TUI 画面），只看 MIMOFAN_LOG_LEVEL",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/logging/mod.rs"
+   ],
+   "patterns": [
+    "MIMOFAN_LOG_LEVEL"
+   ]
+  }
+ },
+ {
+  "id": "D11.1.017",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::log_redaction_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】日志层无统一脱敏：写入 tracing 的字段不经过 redact/mask，API key 之类内容若被 warn! 打出就明文落盘",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -qE 'redact|mask_secret|sanitize' crates/tui/src/runtime_log/mod.rs && echo LOG_REDACTION_PRESENT || (echo LOG_REDACTION_ABSENT; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "LOG_REDACTION_PRESENT",
+   "args": {
+    "text": "LOG_REDACTION_PRESENT"
+   }
+  }
+ },
+ {
+  "id": "D11.1.018",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/runtime_log/mod.rs::tracing_span_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】全库无 #[instrument] / tracing span，一次 turn 内的日志无法按 span 归组，多 agent 并行时日志交织难以追踪",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqE '#\\[instrument|tracing::span!' crates/tui/src --include='*.rs' && echo SPANS_PRESENT || (echo SPANS_ABSENT; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "SPANS_PRESENT",
+   "args": {
+    "text": "SPANS_PRESENT"
+   }
+  }
+ },
+ {
+  "id": "D11.1.019",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "observability::otel_metrics_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】未接入 OpenTelemetry / Prometheus 任何指标导出，无法对接外部监控体系",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqE 'opentelemetry|prometheus' crates/*/Cargo.toml && echo METRICS_PRESENT || (echo METRICS_ABSENT; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "METRICS_PRESENT",
+   "args": {
+    "text": "METRICS_PRESENT"
+   }
+  }
+ },
+ {
+  "id": "D11.1.020",
+  "domain": "D11",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/resource_telemetry/mod.rs::PressureLevel",
+  "view": "integration",
+  "tier": "T1",
+  "desc": "资源遥测把 token/时间用量折算成压力等级供上层决策，不只是打日志",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/resource_telemetry/mod.rs"
+   ],
+   "patterns": [
+    "pressure"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.001",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::ErrorCategory",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在统一错误分类枚举 ErrorCategory",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "pub enum ErrorCategory"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.002",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::ErrorSeverity",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "错误带严重程度分级 ErrorSeverity，而非一律同等对待",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "pub enum ErrorSeverity"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.003",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::ErrorEnvelope",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在统一错误信封 ErrorEnvelope 承载分类+严重度+可恢复性",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "pub struct ErrorEnvelope"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.004",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::LlmError",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "LLM 侧有专门错误枚举 LlmError，而非全用 anyhow 字符串",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "pub enum LlmError"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.005",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/tools/spec.rs::ToolError",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "工具侧有专门错误枚举 ToolError",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/tools/spec.rs"
+   ],
+   "patterns": [
+    "pub enum ToolError"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.006",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/errors/mod.rs::error_index",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "有集中的错误类型索引文档模块，说明各错误类型归属",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/errors/mod.rs"
+   ],
+   "patterns": [
+    "ErrorCategory|错误类型清单"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.007",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::ErrorCategory",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "ErrorCategory 恰好 10 类（Network/Auth/Authz/RateLimit/Timeout/InvalidInput/Parse/Tool/State/Internal），分类面完整且无膨胀",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(sed -n '/pub enum ErrorCategory/,/^}/p' crates/tui/src/error_taxonomy/mod.rs | grep -cE '^    [A-Z][A-Za-z]+,'); [ \"$n\" = 10 ] && echo TEN_CATEGORIES || (echo GOT_$n; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "TEN_CATEGORIES",
+   "args": {
+    "text": "TEN_CATEGORIES"
+   }
+  }
+ },
+ {
+  "id": "D11.2.008",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::LlmError_to_envelope",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "LlmError 的每个变体都映射到 ErrorEnvelope，错误跨层不丢分类信息",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "LlmError"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.009",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::ToolError_to_envelope",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "ToolError 的每个变体都映射到 ErrorEnvelope",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "ToolError"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.010",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::classify_error_message",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "对无结构的错误字符串也能启发式归类（classify_error_message），第三方错误不掉进 Internal 黑洞",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "classify_error_message",
+    "param": "message"
+   }
+  }
+ },
+ {
+  "id": "D11.2.011",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::severity_mapping",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "严重度由分类推导：Authentication→Critical，RateLimit/Timeout/Network→可重试级别",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "classify"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.012",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::context_overflow_constructor",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "上下文溢出是一等公民错误（context_overflow 构造器），可被压缩流程单独捕获",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "context_overflow"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.013",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::transient_vs_fatal",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "区分 transient（可重试）与 fatal（终止）两类构造器，驱动上层重试决策",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "assert": "both_present",
+   "args": {
+    "a": "transient",
+    "b": "fatal"
+   }
+  }
+ },
+ {
+  "id": "D11.2.014",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::ContextLengthError",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "LlmError 单列 ContextLengthError，上下文超限不被误判成普通 InvalidRequest",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "LlmError",
+    "variant": "ContextLengthError"
+   }
+  }
+ },
+ {
+  "id": "D11.2.015",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::ContentPolicyError",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "LlmError 单列 ContentPolicyError，内容策略拒绝不会被当成可重试的服务端错误",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "LlmError",
+    "variant": "ContentPolicyError"
+   }
+  }
+ },
+ {
+  "id": "D11.2.016",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/tools/spec.rs::PathEscape",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "ToolError 有 PathEscape 变体，路径越界是显式错误类型而非笼统执行失败",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/tools/spec.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "ToolError",
+    "variant": "PathEscape"
+   }
+  }
+ },
+ {
+  "id": "D11.2.017",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/tools/spec.rs::MissingField",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "ToolError 有 MissingField 变体，缺参能明确告知模型缺哪个字段",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/tools/spec.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "ToolError",
+    "variant": "MissingField"
+   }
+  }
+ },
+ {
+  "id": "D11.2.018",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::fatal_auth_not_retried",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "认证类错误走 fatal_auth，不进重试循环反复消耗配额",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "patterns": [
+    "fatal_auth"
+   ]
+  }
+ },
+ {
+  "id": "D11.2.019",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/mcp.rs::redact_body_preview",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "错误信息里回显响应体前先脱敏（redact_body_preview），报错不泄漏 token",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "invalid_json_preview",
+    "callee": "redact_body_preview"
+   }
+  }
+ },
+ {
+  "id": "D11.2.020",
+  "domain": "D11",
+  "cluster": 2,
+  "assert_key": "crates/tui/src/error_taxonomy/mod.rs::recoverable_flag",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "ErrorEnvelope 带 recoverable 标记，UI 与重试层据此决定是否给用户重试入口",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/error_taxonomy/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "classify",
+    "param": "recoverable"
+   }
+  }
+ },
+ {
+  "id": "D11.3.001",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::RetryConfig",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在可配置的重试策略 RetryConfig",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "pub struct RetryConfig|RetryConfig"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.002",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::exponential_base",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "重试采用指数退避（exponential_base）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "exponential_base"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.003",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::jitter",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "退避带 jitter 抖动，避免多实例惊群同时重试",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "jitter"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.004",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::respect_retry_after",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "尊重服务端 Retry-After 头，而非只按本地退避公式",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "respect_retry_after"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.005",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::RateLimited",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "429 被识别为独立的 RateLimited 错误",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "RateLimited"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.006",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/retry_status/mod.rs::RetryBanner",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "重试过程对用户可见（RetryBanner 展示第几次尝试、还剩多久）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/retry_status/mod.rs"
+   ],
+   "patterns": [
+    "pub struct RetryBanner"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.007",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::retryable_status_codes",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "可重试状态码是显式白名单 [429,500,502,503,504]，不会盲目重试 4xx 客户端错误",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "retryable_status_codes"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.008",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::max_retries_default_3",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "重试次数有上限（默认 3 次），不会无限重试卡死",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "max_retries"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.009",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::with_max_retries",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "重试次数可通过 builder 覆盖，长任务与交互场景可用不同策略",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "with_max_retries",
+    "param": "max_retries"
+   }
+  }
+ },
+ {
+  "id": "D11.3.010",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::jitter_factor",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "抖动幅度可配置（jitter_factor，默认 10%），而非固定随机",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "jitter_factor"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.011",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::from_http_response_with_retry_after",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "从 HTTP 响应构造错误时一并解析 Retry-After 头，退避时长来自服务端真实指示",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "from_http_response_with_retry_after",
+    "param": "retry_after"
+   }
+  }
+ },
+ {
+  "id": "D11.3.012",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::retry_after_duration_accessor",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "错误对象可直接取出建议的退避时长（retry_after），重试层无需重新解析",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "patterns": [
+    "retry_after"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.013",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/retry_status/mod.rs::note_rate_limit_per_provider",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "限流状态按 provider 分别记录，一个 provider 被限流不影响切到另一个",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/retry_status/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "note_rate_limit",
+    "param": "provider"
+   }
+  }
+ },
+ {
+  "id": "D11.3.014",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/retry_status/mod.rs::rate_limit_remaining",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "可查询某 provider 限流还剩多久（rate_limit_remaining），支持路由避让",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/retry_status/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "rate_limit_remaining",
+    "param": "provider"
+   }
+  }
+ },
+ {
+  "id": "D11.3.015",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/retry_status/mod.rs::seconds_remaining",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "重试倒计时以秒粒度暴露给 UI（seconds_remaining）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/retry_status/mod.rs"
+   ],
+   "patterns": [
+    "seconds_remaining"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.016",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/mcp.rs::PendingMcpCall::is_retryable",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "MCP 工具调用也有可重试判定，不是只有 LLM 请求做韧性处理",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "is_retryable",
+    "param": "err"
+   }
+  }
+ },
+ {
+  "id": "D11.3.017",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/mcp.rs::reconnect_for_retry",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "MCP 连接断开后重试前先重连（reconnect_for_retry），而非在死连接上空转",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/core/engine/tool_execution.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "execute_mcp_tool_with_pool",
+    "callee": "reconnect_for_retry"
+   }
+  }
+ },
+ {
+  "id": "D11.3.018",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/mcp/transport.rs::stdio_shutdown_timeout",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "MCP stdio 子进程关闭有超时（SIGTERM 后等待再强杀），不留僵尸进程",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/mcp/transport.rs"
+   ],
+   "patterns": [
+    "shutdown"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.019",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::AuthenticationError_not_retryable",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "401/403 映射为认证/授权错误且不在可重试码表内，避免拿错误 key 反复打接口",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "LlmError",
+    "variant": "AuthenticationError"
+   }
+  }
+ },
+ {
+  "id": "D11.3.020",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::Timeout_variant",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "超时是独立错误变体并携带时长，便于区分「慢」和「挂」",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/llm_client/mod.rs"
+   ],
+   "assert": "enum_has_variant",
+   "args": {
+    "enum": "LlmError",
+    "variant": "Timeout"
+   }
+  }
+ },
+ {
+  "id": "D11.3.021",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/mcp.rs::bounded_body_excerpt",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "读取错误响应体时有字节上限（bounded_body_excerpt），恶意大响应不会打爆内存",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/mcp.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "bounded_body_excerpt",
+    "param": "max_bytes"
+   }
+  }
+ },
+ {
+  "id": "D11.3.022",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/retry_status/mod.rs::failed_state",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "重试耗尽后进入明确的 failed 状态并保留原因，不是静默归零",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/retry_status/mod.rs"
+   ],
+   "patterns": [
+    "is_failed"
+   ]
+  }
+ },
+ {
+  "id": "D11.3.023",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/llm_client/mod.rs::stream_resume_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】流式响应中途断开后无断点续传/重连恢复机制，只能整轮重发，长回复在弱网下会反复从头生成",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqE 'resume_stream|stream_reconnect|last_event_id' crates/tui/src/llm_client/ crates/tui/src/client.rs && echo STREAM_RESUME_PRESENT || (echo STREAM_RESUME_ABSENT; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "STREAM_RESUME_PRESENT",
+   "args": {
+    "text": "STREAM_RESUME_PRESENT"
+   }
+  }
+ },
+ {
+  "id": "D11.3.024",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "resilience::circuit_breaker_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】无熔断器（circuit breaker）：某 provider 连续失败后仍按固定重试次数硬打，没有快速失败与半开探测",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqiE 'circuit_?breaker|half_open' crates/tui/src --include='*.rs' && echo BREAKER_PRESENT || (echo BREAKER_ABSENT; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "BREAKER_PRESENT",
+   "args": {
+    "text": "BREAKER_PRESENT"
+   }
+  }
+ },
+ {
+  "id": "D11.3.025",
+  "domain": "D11",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::offline_queue_state",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "网络不可用时用户消息进离线队列并落盘，恢复后可继续，不丢输入",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/tui/persistence_actor.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "apply_offline_queue_request",
+    "callee": "save_offline_queue_state"
+   }
+  }
+ },
+ {
+  "id": "D11.4.001",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/lib.rs::panic_set_hook",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "安装自定义 panic hook，崩溃时能先恢复终端再打印信息",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/lib.rs"
+   ],
+   "patterns": [
+    "std::panic::set_hook"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.002",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/lib.rs::take_hook_chain",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "自定义 panic hook 保留并转调原始 hook，不吞掉默认 backtrace",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/lib.rs"
+   ],
+   "patterns": [
+    "std::panic::take_hook"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.003",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/core/engine.rs::turn_catch_unwind",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "单轮对话在 catch_unwind 保护下执行，某一轮 panic 不带崩整个会话",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/core/engine.rs"
+   ],
+   "patterns": [
+    "catch_unwind"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.004",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/utils/mod.rs::panic_guard_helper",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "有统一的 panic 捕获辅助（AssertUnwindSafe + catch_unwind 封装）供各处复用",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/utils/mod.rs"
+   ],
+   "patterns": [
+    "catch_unwind"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.005",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::save_checkpoint",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在会话检查点保存机制 save_checkpoint",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "patterns": [
+    "pub fn save_checkpoint"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.006",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::load_checkpoint",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "崩溃后可加载检查点恢复（load_checkpoint）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "patterns": [
+    "pub fn load_checkpoint"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.007",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/snapshot/repo.rs::snapshot_restore",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "工作区有快照与回滚能力（snapshot/restore），误改可回退",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/snapshot/repo.rs"
+   ],
+   "patterns": [
+    "pub fn restore"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.008",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::save_plan_state",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "计划与 todo 状态单独持久化，恢复会话时任务进度不丢",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "save_plan_state",
+    "param": "state"
+   }
+  }
+ },
+ {
+  "id": "D11.4.009",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::load_session_by_prefix",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "支持用 id 前缀恢复会话，用户不必输入完整 uuid",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "load_session_by_prefix",
+    "param": "prefix"
+   }
+  }
+ },
+ {
+  "id": "D11.4.010",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::get_latest_session_for_workspace",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "可按工作区取最近一次会话，支持「继续上次」语义",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "get_latest_session_for_workspace",
+    "param": "workspace"
+   }
+  }
+ },
+ {
+  "id": "D11.4.011",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::mark_forked_from",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "会话可从既有会话派生并记录来源（mark_forked_from），支持分叉探索",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "mark_forked_from",
+    "param": "parent"
+   }
+  }
+ },
+ {
+  "id": "D11.4.012",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::copy_cost_from",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "派生会话继承累计成本，分叉后统计不归零失真",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "copy_cost_from",
+    "param": "other"
+   }
+  }
+ },
+ {
+  "id": "D11.4.013",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/snapshot/repo.rs::work_tree_matches_snapshot",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "可判断工作区是否仍与某快照一致，回滚前能先确认有无外部改动",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/snapshot/repo.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "work_tree_matches_snapshot",
+    "param": "id"
+   }
+  }
+ },
+ {
+  "id": "D11.4.014",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/snapshot/repo.rs::diff_name_status",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "快照可产出 name-status 差异列表，回滚前能预览将要变更的文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/snapshot/repo.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "diff_name_status",
+    "param": "id"
+   }
+  }
+ },
+ {
+  "id": "D11.4.015",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/snapshot/repo.rs::open_or_init_with_cap",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "快照仓库初始化带体积上限，超大工作区不会被无脑全量快照拖垮",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/snapshot/repo.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "open_or_init_with_cap",
+    "param": "cap_bytes"
+   }
+  }
+ },
+ {
+  "id": "D11.4.016",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/snapshot/repo.rs::prune_keep_last_n",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "快照按数量保留上限清理（prune_keep_last_n），不会无限累积",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/snapshot/repo.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "prune_keep_last_n",
+    "param": "max_count"
+   }
+  }
+ },
+ {
+  "id": "D11.4.017",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/snapshot/repo.rs::prune_older_than",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "快照按时间清理（prune_older_than），过期快照自动回收",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/snapshot/repo.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "prune_older_than",
+    "param": "max_age"
+   }
+  }
+ },
+ {
+  "id": "D11.4.018",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/snapshot/repo.rs::prune_unreachable_objects",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "快照删除后回收不可达 git 对象，磁盘真正释放而非只删引用",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/snapshot/repo.rs"
+   ],
+   "patterns": [
+    "prune_unreachable_objects"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.019",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::prune_sessions_older_than",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "历史会话按时间自动清理，会话目录不会无限膨胀",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "prune_sessions_older_than",
+    "param": "max_age"
+   }
+  }
+ },
+ {
+  "id": "D11.4.020",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::clear_checkpoint",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "正常退出时清除检查点，下次启动不会误报「上次异常崩溃」",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "patterns": [
+    "clear_checkpoint"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.021",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/audit/mod.rs::best_effort_no_fail",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "审计写失败只 warn 不打断主流程，可观测性故障不升级为功能故障",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/audit/mod.rs"
+   ],
+   "patterns": [
+    "log_sensitive_event"
+   ]
+  }
+ },
+ {
+  "id": "D11.4.022",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/runtime_threads/mod.rs::monitor_turn_catch_unwind",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "后台监控线程同样在 catch_unwind 内，监控自身 panic 不静默杀死线程",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/runtime_threads/mod.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "start_turn",
+    "callee": "catch_unwind"
+   }
+  }
+ },
+ {
+  "id": "D11.4.023",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/tools/file.rs::extract_catch_unwind",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "文件解析这类第三方库调用被 catch_unwind 包住，畸形文件不会 panic 整个进程",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/tools/file.rs"
+   ],
+   "assert": "calls_symbol",
+   "args": {
+    "caller": "guard_pdf_extract",
+    "callee": "catch_unwind"
+   }
+  }
+ },
+ {
+  "id": "D11.4.024",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "recovery::auto_resume_after_crash_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】崩溃后没有「自动续跑未完成 turn」：checkpoint 只恢复消息与计划，中断的工具调用不会被自动重放或标记为需人工确认。（模式刻意排除 shell 工具的 auto_resume_on_completion 元数据键，避免假阳性）",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "if grep -rqE 'fn resume_interrupted_turn|fn replay_pending_tool_calls|fn resume_unfinished_turn' crates/tui/src --include='*.rs'; then echo AUTO_RESUME_PRESENT; else echo AUTO_RESUME_ABSENT; exit 1; fi"
+   ],
+   "expect": "stdout_contains",
+   "contains": "AUTO_RESUME_PRESENT",
+   "args": {
+    "text": "AUTO_RESUME_PRESENT"
+   }
+  }
+ },
+ {
+  "id": "D11.4.025",
+  "domain": "D11",
+  "cluster": 4,
+  "assert_key": "crates/tui/src/session_manager/mod.rs::prune_workspace_snapshots",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "会话清理与工作区快照清理联动（prune_workspace_snapshots），两套持久化不各自漂移",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/tui/src/session_manager/mod.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "prune_workspace_snapshots",
+    "param": "max_age"
+   }
+  }
+ },
+ {
+  "id": "D12.1.001",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::rust_version_msrv",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "声明 MSRV（rust-version），旧工具链能得到明确报错而非晦涩的语法错误",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "rust-version"
+   ]
+  }
+ },
+ {
+  "id": "D12.1.002",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::edition_2024",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "使用 Rust 2024 edition，跟进语言演进而非停留在旧版",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "edition = \"2024\""
+   ]
+  }
+ },
+ {
+  "id": "D12.1.003",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::resolver_2",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "启用 resolver = \"2\"，feature 统一不会因 dev-dependency 被意外放大",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "resolver = \"2\""
+   ]
+  }
+ },
+ {
+  "id": "D12.1.004",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::profile_dev_tuned",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "dev profile 做过调优（debug 信息裁剪 / codegen-units），构建体验被认真对待",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "\\[profile\\.dev\\]"
+   ]
+  }
+ },
+ {
+  "id": "D12.1.005",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::split_debuginfo",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "macOS 下用 split-debuginfo=unpacked 加速链接，平台差异被针对性处理",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "split\\-debuginfo"
+   ]
+  }
+ },
+ {
+  "id": "D12.1.006",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::debug_line_tables_only",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "debug 信息降为 line-tables-only，在保留 backtrace 的同时大幅压缩 target 体积",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "line\\-tables\\-only"
+   ]
+  }
+ },
+ {
+  "id": "D12.1.007",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::incremental_off_for_sccache",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "关闭 incremental 以让 sccache 生效（两者互斥），构建缓存策略是想清楚的",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "incremental"
+   ]
+  }
+ },
+ {
+  "id": "D12.1.008",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::workspace_dependencies",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "依赖版本集中在 [workspace.dependencies]，各 crate 不各写各的版本",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "workspace\\.dependencies"
+   ]
+  }
+ },
+ {
+  "id": "D12.1.009",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/lib.rs::allow_uninlined_format_args",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "对 clippy::uninlined_format_args 的豁免是显式声明的，而非靠全局关 clippy",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/src/lib.rs"
+   ],
+   "patterns": [
+    "allow\\(clippy::uninlined_format_args\\)"
+   ]
+  }
+ },
+ {
+  "id": "D12.1.010",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "Cargo.toml::workspace_lints_absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】workspace 未配置 [lints] 段：lint 等级无法集中管理，各 crate 只能靠源码里散落的 #![allow] 控制，新 crate 默认不继承任何 lint 策略",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -q '^\\[lints' Cargo.toml && echo HAS_WORKSPACE_LINTS || (echo NO_WORKSPACE_LINTS; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_WORKSPACE_LINTS",
+   "args": {
+    "text": "HAS_WORKSPACE_LINTS"
+   }
+  }
+ },
+ {
+  "id": "D12.1.011",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "crates/tui/src/lib.rs::blanket_allow_dead_code",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】tui crate 顶层 #![allow(dead_code)] 全局关闭死代码检查，512 个源文件里真正的无用代码不会被编译器暴露",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "if grep -q '^#!\\[allow(dead_code)\\]' crates/tui/src/lib.rs; then echo BLANKET_DEAD_CODE_ALLOW; exit 1; else echo NO_BLANKET_ALLOW; fi"
+   ],
+   "expect": "stdout_contains",
+   "contains": "NO_BLANKET_ALLOW",
+   "args": {
+    "text": "NO_BLANKET_ALLOW"
+   }
+  }
+ },
+ {
+  "id": "D12.1.012",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "clippy.toml::absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】仓库无 clippy.toml：复杂度阈值、允许的重复字面量等 clippy 行为全用默认值，无项目级 lint 定制",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "[ -f clippy.toml ] && echo HAS_CLIPPY_TOML || (echo NO_CLIPPY_TOML; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_CLIPPY_TOML",
+   "args": {
+    "text": "HAS_CLIPPY_TOML"
+   }
+  }
+ },
+ {
+  "id": "D12.1.013",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "rustfmt.toml::absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】仓库无 rustfmt.toml：格式化规则依赖 rustfmt 默认值，无项目统一约定文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "([ -f rustfmt.toml ] || [ -f .rustfmt.toml ]) && echo HAS_RUSTFMT_TOML || (echo NO_RUSTFMT_TOML; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_RUSTFMT_TOML",
+   "args": {
+    "text": "HAS_RUSTFMT_TOML"
+   }
+  }
+ },
+ {
+  "id": "D12.1.014",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": "rust-toolchain.toml::absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】无 rust-toolchain.toml 固定工具链版本，不同开发者/CI 可能用不同 rustc 编译",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "([ -f rust-toolchain.toml ] || [ -f rust-toolchain ]) && echo HAS_TOOLCHAIN_FILE || (echo NO_TOOLCHAIN_FILE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_TOOLCHAIN_FILE",
+   "args": {
+    "text": "HAS_TOOLCHAIN_FILE"
+   }
+  }
+ },
+ {
+  "id": "D12.1.015",
+  "domain": "D12",
+  "cluster": 1,
+  "assert_key": ".cargo/config.toml::no_profile_conflict",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "构建 profile 只在 Cargo.toml 定义，.cargo/config.toml 不重复声明（曾因覆盖导致 release 变慢）",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    ".cargo/config.toml"
+   ],
+   "assert": "absent",
+   "args": {
+    "pattern": "^\\[profile\\."
+   }
+  }
+ },
+ {
+  "id": "D12.2.001",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/*/tests::every_crate_has_tests_dir",
+  "view": "existence",
+  "tier": "T3",
+  "desc": "workspace 里 15 个 crate 每一个都有 tests/ 集成测试目录，无裸奔 crate",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "miss=0; for d in crates/*/; do [ -d \"$d/tests\" ] || miss=1; done; [ $miss = 0 ] && echo ALL_CRATES_HAVE_TESTS || (echo SOME_MISSING; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "ALL_CRATES_HAVE_TESTS",
+   "args": {
+    "text": "ALL_CRATES_HAVE_TESTS"
+   }
+  }
+ },
+ {
+  "id": "D12.2.002",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/hooks/tests::hooks_test.rs",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "hook 系统有独立集成测试文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/hooks/tests/hooks_test.rs"
+   ],
+   "patterns": [
+    "#\\[tokio::test\\]|#\\[test\\]"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.003",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/mcp/tests::exists",
+  "view": "existence",
+  "tier": "T3",
+  "desc": "MCP crate 有集成测试文件",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "ls crates/mcp/tests/*.rs >/dev/null 2>&1 && echo MCP_TESTS_EXIST || (echo NO_MCP_TESTS; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "MCP_TESTS_EXIST",
+   "args": {
+    "text": "MCP_TESTS_EXIST"
+   }
+  }
+ },
+ {
+  "id": "D12.2.004",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/memory/tests::six_files",
+  "view": "existence",
+  "tier": "T3",
+  "desc": "memory crate 有 6 个测试文件，长程记忆这类高风险模块测试相对密集",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(ls crates/memory/tests/*.rs 2>/dev/null | wc -l | tr -d ' '); [ \"$n\" -ge 6 ] && echo MEMORY_TESTS_$n || (echo ONLY_$n; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "MEMORY_TESTS_",
+   "args": {
+    "text": "MEMORY_TESTS_"
+   }
+  }
+ },
+ {
+  "id": "D12.2.005",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/tests::regression_suite",
+  "view": "existence",
+  "tier": "T3",
+  "desc": "tui crate 有 15 个集成测试文件覆盖 subagent/execpolicy/client 等关键路径",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(ls crates/tui/tests/*.rs 2>/dev/null | wc -l | tr -d ' '); [ \"$n\" -ge 15 ] && echo TUI_TESTS_$n || (echo ONLY_$n; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "TUI_TESTS_",
+   "args": {
+    "text": "TUI_TESTS_"
+   }
+  }
+ },
+ {
+  "id": "D12.2.006",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/protocol/tests::exists",
+  "view": "existence",
+  "tier": "T3",
+  "desc": "protocol crate 有测试，协议契约变更能被测试挡住",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(ls crates/protocol/tests/*.rs 2>/dev/null | wc -l | tr -d ' '); [ \"$n\" -ge 1 ] && echo PROTOCOL_TESTS_$n || (echo NONE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "PROTOCOL_TESTS_",
+   "args": {
+    "text": "PROTOCOL_TESTS_"
+   }
+  }
+ },
+ {
+  "id": "D12.2.007",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/execpolicy/tests::exists",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "命令执行策略（安全关键）有独立测试",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/tests/execpolicy_matcher_test.rs"
+   ],
+   "patterns": [
+    "#\\[test\\]"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.008",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/tests/fleet_observability_test.rs::fleet_observability_test",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "subagent 编排有 5 个以上专项测试文件（bus/events/aggregator/decomposer/naming），多 agent 这类难测路径被认真覆盖",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(ls crates/tui/tests/tools_subagent_*.rs 2>/dev/null | wc -l | tr -d ' '); [ \"$n\" -ge 5 ] && echo SUBAGENT_TESTS_$n || (echo ONLY_$n; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "SUBAGENT_TESTS_",
+   "args": {
+    "text": "SUBAGENT_TESTS_"
+   }
+  }
+ },
+ {
+  "id": "D12.2.009",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/src::cfg_test_modules",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "tui 源码内至少 51 个文件带 #[cfg(test)] 内联单测，核心逻辑就近验证",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "b=$(grep -rl '#\\[cfg(test)\\]' crates/tui/src --include='*.rs' | wc -l | tr -d ' '); [ \"$b\" -ge 51 ] && echo CFG_TEST_FILES_$b || (echo ONLY_$b; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "CFG_TEST_FILES_",
+   "args": {
+    "text": "CFG_TEST_FILES_"
+   }
+  }
+ },
+ {
+  "id": "D12.2.010",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/tests::regression_suite",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "存在专门的回归测试文件 tui_regression_tests.rs，历史 bug 被钉住",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/tests/tui_regression_tests.rs"
+   ],
+   "patterns": [
+    "#\\[test\\]|#\\[tokio::test\\]"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.011",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/tests/cli_commands_metrics_test.rs::cli_commands_metrics_test",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "测试覆盖异步路径（存在 #[tokio::test]），不是只测同步纯函数",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rq '#\\[tokio::test\\]' crates/ --include='*.rs' && echo ASYNC_TESTS_PRESENT || (echo NO_ASYNC_TESTS; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "ASYNC_TESTS_PRESENT",
+   "args": {
+    "text": "ASYNC_TESTS_PRESENT"
+   }
+  }
+ },
+ {
+  "id": "D12.2.012",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "tests::tempfile_isolation",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "测试用 tempfile 做文件系统隔离，不污染真实 home/工作区",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -q 'tempfile' Cargo.toml && echo TEMPFILE_DEP || (echo NO_TEMPFILE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "TEMPFILE_DEP",
+   "args": {
+    "text": "TEMPFILE_DEP"
+   }
+  }
+ },
+ {
+  "id": "D12.2.013",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/hooks/tests::unix_socket_sink_tested",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "hook 的 Unix socket sink 有针对性测试（含 listener 不存在的场景）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/hooks/tests/hooks_test.rs"
+   ],
+   "patterns": [
+    "UnixSocketHookSink"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.014",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/hooks/tests::jsonl_sink_tested",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "hook 的 JSONL 落盘 sink 有测试",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/hooks/tests/hooks_test.rs"
+   ],
+   "patterns": [
+    "JsonlHookSink"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.015",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/state/src::inline_tests",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "state crate 源码内含单元测试，不是只有集成测试",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rq '#\\[test\\]' crates/state/src && echo STATE_INLINE_TESTS || (echo NONE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "STATE_INLINE_TESTS",
+   "args": {
+    "text": "STATE_INLINE_TESTS"
+   }
+  }
+ },
+ {
+  "id": "D12.2.016",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/src::test_file_ratio_low",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】tui 有 512 个源文件但仅 51 个含 #[cfg(test)]（约 10%），九成模块无就近单测，是全仓最大的测试短板",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "a=$(find crates/tui/src -name '*.rs' | wc -l | tr -d ' '); b=$(grep -rl '#\\[cfg(test)\\]' crates/tui/src --include='*.rs' | wc -l | tr -d ' '); pct=$((b*100/a)); [ \"$pct\" -ge 30 ] && echo RATIO_OK_$pct || (echo RATIO_LOW_$pct; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "RATIO_OK_",
+   "args": {
+    "text": "RATIO_OK_"
+   }
+  }
+ },
+ {
+  "id": "D12.2.017",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "coverage::no_coverage_tooling",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】未接入覆盖率工具（tarpaulin/llvm-cov/grcov），测试覆盖只能靠文件计数估算，无法量化行覆盖",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqiE 'tarpaulin|llvm-cov|grcov' Cargo.toml .github/workflows/ 2>/dev/null && echo COVERAGE_TOOLING || (echo NO_COVERAGE_TOOLING; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "COVERAGE_TOOLING",
+   "args": {
+    "text": "COVERAGE_TOOLING"
+   }
+  }
+ },
+ {
+  "id": "D12.2.018",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "tests::no_property_based_testing",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】无 proptest/quickcheck 属性测试，编辑保真、tokenizer 这类适合随机化验证的模块只靠手写用例",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqE 'proptest|quickcheck' crates/*/Cargo.toml && echo PROPERTY_TESTING || (echo NO_PROPERTY_TESTING; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "PROPERTY_TESTING",
+   "args": {
+    "text": "PROPERTY_TESTING"
+   }
+  }
+ },
+ {
+  "id": "D12.2.019",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "tests::no_snapshot_testing",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】无 insta 等快照测试框架，TUI 渲染与提示词拼装的输出变化不易被发现",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "grep -rqE 'insta' crates/*/Cargo.toml && echo SNAPSHOT_TESTING || (echo NO_SNAPSHOT_TESTING; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "SNAPSHOT_TESTING",
+   "args": {
+    "text": "SNAPSHOT_TESTING"
+   }
+  }
+ },
+ {
+  "id": "D12.2.020",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/secrets/tests::exists",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "密钥处理这类安全关键 crate 有测试兜底",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(ls crates/secrets/tests/*.rs 2>/dev/null | wc -l | tr -d ' '); [ \"$n\" -ge 1 ] && echo SECRETS_TESTS_$n || (echo NONE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "SECRETS_TESTS_",
+   "args": {
+    "text": "SECRETS_TESTS_"
+   }
+  }
+ },
+ {
+  "id": "D12.2.021",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/release/tests::exists",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "发布/版本比较逻辑有测试，升级判定错误代价高",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/release/src/lib.rs"
+   ],
+   "patterns": [
+    "#\\[cfg\\(test\\)\\]|mod tests"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.022",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "tests::mcp_no_live_network",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "MCP 测试不依赖真实外网服务器（无硬编码远程 URL 直连），CI 可离线跑",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/mcp/src/lib.rs"
+   ],
+   "assert": "absent",
+   "args": {
+    "pattern": "https://api\\."
+   }
+  }
+ },
+ {
+  "id": "D12.2.023",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/hooks/tests::dispatcher_fanout_tested",
+  "view": "integration",
+  "tier": "T1",
+  "desc": "HookDispatcher 多 sink 扇出行为有测试覆盖",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/hooks/tests/hooks_test.rs"
+   ],
+   "patterns": [
+    "HookDispatcher"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.024",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/tests/fleet_observability_test.rs::fleet_observability_test",
+  "view": "integration",
+  "tier": "T1",
+  "desc": "多 agent 可观测性（fleet）有专门集成测试",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/tests/fleet_observability_test.rs"
+   ],
+   "patterns": [
+    "#\\[test\\]|#\\[tokio::test\\]"
+   ]
+  }
+ },
+ {
+  "id": "D12.2.025",
+  "domain": "D12",
+  "cluster": 2,
+  "assert_key": "crates/tui/tests/cli_commands_metrics_test.rs::cli_commands_metrics_test",
+  "view": "integration",
+  "tier": "T1",
+  "desc": "CLI 命令与指标上报路径有集成测试",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/tui/tests/cli_commands_metrics_test.rs"
+   ],
+   "patterns": [
+    "#\\[test\\]|#\\[tokio::test\\]"
+   ]
+  }
+ },
+ {
+  "id": "D12.3.001",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.lock::committed",
+  "view": "existence",
+  "tier": "T3",
+  "desc": "Cargo.lock 已提交，二进制项目的构建可复现",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "[ -f Cargo.lock ] && echo LOCKFILE_COMMITTED || (echo NO_LOCKFILE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "LOCKFILE_COMMITTED",
+   "args": {
+    "text": "LOCKFILE_COMMITTED"
+   }
+  }
+ },
+ {
+  "id": "D12.3.002",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::fifteen_members",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "workspace 显式列出 15 个成员 crate，模块边界在构建层面就是清晰的",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "\"crates/tui\"",
+    "\"crates/mcp\"",
+    "\"crates/hooks\""
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D12.3.003",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::default_members",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "声明 default-members，日常 cargo build 只构建实际产物而非全量",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "default-members"
+   ]
+  }
+ },
+ {
+  "id": "D12.3.004",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::rustls_not_openssl",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "TLS 用 rustls 而非 openssl，避免系统 openssl 版本地狱与交叉编译麻烦",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "rustls"
+   ]
+  }
+ },
+ {
+  "id": "D12.3.005",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::reqwest_default_features_off",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "reqwest 关闭 default-features 并显式挑选，不拖入不需要的传递依赖",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "default\\-features\\ =\\ false"
+   ]
+  }
+ },
+ {
+  "id": "D12.3.006",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "crates/*/Cargo.toml::version_workspace_inherit",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "15 个 crate 全部用 version.workspace = true 继承版本，不存在版本漂移",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(grep -c '^    \"crates/' Cargo.toml); m=$(grep -l '^version.workspace = true' crates/*/Cargo.toml | wc -l | tr -d ' '); [ \"$n\" = \"$m\" ] && echo VERSION_UNIFIED_$n || (echo MISMATCH_$n_$m; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "VERSION_UNIFIED_",
+   "args": {
+    "text": "VERSION_UNIFIED_"
+   }
+  }
+ },
+ {
+  "id": "D12.3.007",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::toml_edit_version_pinned_for_dedup",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "toml_edit 版本被刻意选定以与 toml 1.x 共享 winnow，避免同一依赖编译两份",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "toml_edit"
+   ]
+  }
+ },
+ {
+  "id": "D12.3.008",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::license_declared",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "workspace 声明 license，分发合规性明确",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "license = "
+   ]
+  }
+ },
+ {
+  "id": "D12.3.009",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::repository_declared",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "workspace 声明 repository 地址，产物可溯源",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "repository = "
+   ]
+  }
+ },
+ {
+  "id": "D12.3.010",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::tiktoken_rs_pinned",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "tokenizer 依赖真实 BPE 库 tiktoken-rs 并在 workspace 层统一版本",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "tiktoken-rs"
+   ]
+  }
+ },
+ {
+  "id": "D12.3.011",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.lock::duplicate_versions",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】Cargo.lock 中有 49 个 crate 存在多版本共存（getrandom/bitflags/digest 等），既拖慢编译又增大二进制，缺少 cargo-deny 之类的重复依赖治理",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "n=$(grep '^name = ' Cargo.lock | sort | uniq -d | wc -l | tr -d ' '); [ \"$n\" -le 20 ] && echo DUP_OK_$n || (echo DUP_HIGH_$n; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "DUP_OK_",
+   "args": {
+    "text": "DUP_OK_"
+   }
+  }
+ },
+ {
+  "id": "D12.3.012",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "deny.toml::absent",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】无 deny.toml：没有对许可证合规、已知漏洞（RUSTSEC）、重复依赖做自动化门禁",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "[ -f deny.toml ] && echo HAS_DENY_TOML || (echo NO_DENY_TOML; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_DENY_TOML",
+   "args": {
+    "text": "HAS_DENY_TOML"
+   }
+  }
+ },
+ {
+  "id": "D12.3.013",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "dependabot::configured",
+  "view": "integration",
+  "tier": "T3",
+  "desc": "配置了 dependabot 自动跟进依赖更新，安全补丁不靠人工盯梢",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "if [ -f .github/dependabot.yml ] || [ -f renovate.json ]; then echo HAS_DEP_BOT; else echo NO_DEP_BOT; exit 1; fi"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_DEP_BOT",
+   "args": {
+    "text": "HAS_DEP_BOT"
+   }
+  }
+ },
+ {
+  "id": "D12.3.014",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::no_git_dependencies",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "workspace 依赖不含 git 直连依赖，全部来自 crates.io，供应链面可控且可复现",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "if grep -qE '^[a-z_-]+ = \\{[^}]*git = ' Cargo.toml; then echo HAS_GIT_DEPS; exit 1; else echo NO_GIT_DEPS; fi"
+   ],
+   "expect": "stdout_contains",
+   "contains": "NO_GIT_DEPS",
+   "args": {
+    "text": "NO_GIT_DEPS"
+   }
+  }
+ },
+ {
+  "id": "D12.3.015",
+  "domain": "D12",
+  "cluster": 3,
+  "assert_key": "Cargo.toml::rusqlite_bundled",
+  "view": "integration",
+  "tier": "T1",
+  "desc": "rusqlite 启用 bundled 特性，用户无需预装 sqlite 即可构建，降低安装门槛",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "Cargo.toml"
+   ],
+   "patterns": [
+    "bundled"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.001",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "CHANGELOG.md::exists",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "存在 CHANGELOG.md 记录版本变更",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "CHANGELOG.md"
+   ],
+   "patterns": [
+    "更新日志|Changelog|CHANGELOG"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.002",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "CHANGELOG.md::semver_declared",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "CHANGELOG 明示遵循语义化版本",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "CHANGELOG.md"
+   ],
+   "patterns": [
+    "语义化版本|semver\\.org"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.003",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "CHANGELOG.md::keepachangelog_sections",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "CHANGELOG 使用 Added/Changed/Security 等标准分节，而非流水账",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "CHANGELOG.md"
+   ],
+   "patterns": [
+    "### Added",
+    "### Changed"
+   ],
+   "require_all": true
+  }
+ },
+ {
+  "id": "D12.4.004",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "crates/release/src/lib.rs::update_is_needed",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "内置升级检查逻辑 update_is_needed",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/release/src/lib.rs"
+   ],
+   "patterns": [
+    "pub fn update_is_needed"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.005",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "crates/release/src/lib.rs::ReleaseChannel",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "支持稳定/beta 双发布通道",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/release/src/lib.rs"
+   ],
+   "patterns": [
+    "ReleaseChannel"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.006",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "CHANGELOG.md::version_matches_cargo",
+  "view": "depth",
+  "tier": "T3",
+  "desc": "CHANGELOG 最新版本号与 Cargo.toml workspace version 一致（当前 0.0.9），发布元数据不脱节",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "v=$(grep -m1 '^version = ' Cargo.toml | cut -d'\"' -f2); grep -q \"^## \\[$v\\]\" CHANGELOG.md && echo VERSION_CHANGELOG_MATCH || (echo MISMATCH; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "VERSION_CHANGELOG_MATCH",
+   "args": {
+    "text": "VERSION_CHANGELOG_MATCH"
+   }
+  }
+ },
+ {
+  "id": "D12.4.007",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "CHANGELOG.md::compare_links",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "CHANGELOG 每个版本带 compare 链接，可直接查看版本间 diff",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "CHANGELOG.md"
+   ],
+   "patterns": [
+    "/compare/v"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.008",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "CHANGELOG.md::issue_references",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "变更条目关联 issue 编号，可追溯到需求来源",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "CHANGELOG.md"
+   ],
+   "patterns": [
+    "issues/\\d+"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.009",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "crates/release/src/lib.rs::semver_parse",
+  "view": "depth",
+  "tier": "T1",
+  "desc": "版本比较用 semver crate 严格解析，而非字符串比大小",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/release/src/lib.rs"
+   ],
+   "patterns": [
+    "semver::Version"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.010",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "crates/release/src/lib.rs::is_beta_tag",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "能识别 beta tag，稳定通道用户不会被预发布版本误升级",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/release/src/lib.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "is_beta_tag",
+    "param": "tag_name"
+   }
+  }
+ },
+ {
+  "id": "D12.4.011",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "crates/release/src/lib.rs::mirror_asset_url",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "支持镜像下载地址（mirror_asset_url），网络受限环境也能升级",
+  "weight": 1.0,
+  "check": {
+   "kind": "struct_assert",
+   "files": [
+    "crates/release/src/lib.rs"
+   ],
+   "assert": "fn_has_param",
+   "args": {
+    "fn": "mirror_asset_url",
+    "param": "base_url"
+   }
+  }
+ },
+ {
+  "id": "D12.4.012",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "crates/release/src/lib.rs::update_network_fallback_hint",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "升级检查失败时给出网络回退提示，而非只报一句连接失败",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "crates/release/src/lib.rs"
+   ],
+   "patterns": [
+    "update_network_fallback_hint"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.013",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "CHANGELOG.md::breaking_change_marked",
+  "view": "negative",
+  "tier": "T1",
+  "desc": "行为变化在 CHANGELOG 中被显式标注（如 deny 规则大小写不敏感被标为「行为变化」）",
+  "weight": 1.0,
+  "check": {
+   "kind": "grep",
+   "files": [
+    "CHANGELOG.md"
+   ],
+   "patterns": [
+    "行为变化"
+   ]
+  }
+ },
+ {
+  "id": "D12.4.014",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": "release::no_migration_guide",
+  "view": "negative",
+  "tier": "T3",
+  "desc": "【缺口探针】仓库无 MIGRATION/UPGRADING 指南：0.x 阶段配置项变更时，用户只能从 CHANGELOG 条目自行推断如何迁移",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "ls MIGRATION*.md UPGRADING*.md docs/migration* 2>/dev/null | grep -q . && echo HAS_MIGRATION_GUIDE || (echo NO_MIGRATION_GUIDE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "HAS_MIGRATION_GUIDE",
+   "args": {
+    "text": "HAS_MIGRATION_GUIDE"
+   }
+  }
+ },
+ {
+  "id": "D12.4.015",
+  "domain": "D12",
+  "cluster": 4,
+  "assert_key": ".github/workflows::release_pipeline",
+  "view": "integration",
+  "tier": "T3",
+  "desc": "存在 release.yml 发布流水线与 auto-tag.yml 自动打标，发布过程自动化而非手工",
+  "weight": 1.0,
+  "check": {
+   "kind": "exec",
+   "cmd": [
+    "sh",
+    "-c",
+    "[ -f .github/workflows/release.yml ] && [ -f .github/workflows/auto-tag.yml ] && echo RELEASE_PIPELINE_OK || (echo MISSING_PIPELINE; exit 1)"
+   ],
+   "expect": "stdout_contains",
+   "contains": "RELEASE_PIPELINE_OK",
+   "args": {
+    "text": "RELEASE_PIPELINE_OK"
+   }
+  }
+ }
+]

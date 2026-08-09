@@ -1,0 +1,4631 @@
+[
+  {
+    "id": "D07.1.001",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::SubAgentStatus",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 SubAgentStatus 生命周期状态枚举",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "patterns": [
+        "enum SubAgentStatus"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.1.002",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::SubAgentStatus::Running",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SubAgentStatus 含 Running 运行态",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SubAgentStatus",
+        "variant": "Running"
+      }
+    }
+  },
+  {
+    "id": "D07.1.003",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::SubAgentStatus::Cancelled",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SubAgentStatus 含 Cancelled 取消态",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SubAgentStatus",
+        "variant": "Cancelled"
+      }
+    }
+  },
+  {
+    "id": "D07.1.004",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::SubAgentStatus::BudgetExhausted",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SubAgentStatus 区分预算耗尽 BudgetExhausted，而非笼统 Failed",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SubAgentStatus",
+        "variant": "BudgetExhausted"
+      }
+    }
+  },
+  {
+    "id": "D07.1.005",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::SubAgentStatus::Interrupted",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SubAgentStatus 含可续跑的 Interrupted(String) 态，携带原因",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SubAgentStatus",
+        "variant": "Interrupted"
+      }
+    }
+  },
+  {
+    "id": "D07.1.006",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::AgentWorkerStatus::Queued",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "AgentWorkerStatus 含 Queued，说明有准入排队而非直接拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "AgentWorkerStatus",
+        "variant": "Queued"
+      }
+    }
+  },
+  {
+    "id": "D07.1.007",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::spawn_background",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SubAgentManager 提供 spawn_background 后台派生入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "spawn_background",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D07.1.008",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::spawn_background_with_assignment",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "派生支持携带 assignment（objective/role）的重载入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "patterns": [
+        "fn spawn_background_with_assignment"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.1.009",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::cancel_agent",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SubAgentManager 提供 cancel_agent 主动取消",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "cancel_agent",
+        "param": "agent_ref"
+      }
+    }
+  },
+  {
+    "id": "D07.1.010",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/runtime.rs::SubAgentRuntimeHandle::cancel",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "运行句柄 cancel() 通过 CancellationToken 传播取消",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/runtime.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "pub\\ cancel:\\ tokio_util::sync::CancellationToken",
+        "b": "self\\.cancel\\.cancel\\(\\)"
+      }
+    }
+  },
+  {
+    "id": "D07.1.011",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/runtime.rs::is_timed_out",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SubAgentRuntimeState::is_timed_out 按 elapsed 与 timeout 比较判定超时",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/runtime.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "is_timed_out",
+        "param": "timeout"
+      }
+    }
+  },
+  {
+    "id": "D07.1.012",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/runtime.rs::is_step_exceeded",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SubAgentRuntimeState::is_step_exceeded 独立于超时做步数上限判定",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/runtime.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "is_step_exceeded",
+        "param": "max_steps"
+      }
+    }
+  },
+  {
+    "id": "D07.1.013",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/runtime.rs::SubAgentRuntimeConfig::tool_timeout",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "运行时配置默认单工具超时 300 秒",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/runtime.rs"
+      ],
+      "patterns": [
+        "tool_timeout",
+        "Duration::from_secs\\(300\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.1.014",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/runtime.rs::SubAgentRuntimeConfig",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "SubAgentRuntimeConfig 默认 max_steps 为 u32::MAX，即默认不设步数上限（缺陷面）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/runtime.rs"
+      ],
+      "patterns": [
+        "max_steps: u32::MAX"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.1.015",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::running_heartbeat_timed_out",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "manager 具备 running 心跳超时检测，回收僵死 worker",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "patterns": [
+        "fn running_heartbeat_timed_out"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.1.016",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::with_launch_concurrency",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "派生并发由 launch_gate Semaphore 限流，可配置 launch_concurrency",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "with_launch_concurrency",
+        "b": "Semaphore::new"
+      }
+    }
+  },
+  {
+    "id": "D07.1.017",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::with_admission_limit",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在 admission 准入上限，queued+running 总量受 MAX_SUBAGENT_ADMISSION 钳制",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "patterns": [
+        "with_admission_limit",
+        "MAX_SUBAGENT_ADMISSION"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.1.018",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::cleanup",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "manager 提供 cleanup(max_age) 回收过期终态 agent",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "cleanup",
+        "param": "max_age"
+      }
+    }
+  },
+  {
+    "id": "D07.1.019",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/runtime.rs::SubAgentRuntimeManager::cancel_all",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "运行时管理器支持 cancel_all 批量取消所有在跑子 agent",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/runtime.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "cancel_all",
+        "callee": "cancel"
+      }
+    }
+  },
+  {
+    "id": "D07.1.020",
+    "domain": "D07",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/persistence.rs::load_persisted_agent_worker_records",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "worker 记录跨会话落盘并可回读，支持 from_prior_session 标记",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/persistence.rs",
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "patterns": [
+        "load_persisted_agent_worker_records",
+        "from_prior_session"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.021",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::AgentBus",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 AgentBus 发布订阅消息总线",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/bus.rs"
+      ],
+      "patterns": [
+        "pub struct AgentBus"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.022",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::BusMessage",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "BusMessage 含 to: Option<String> 定向字段，None 表示广播给该 topic 全部订阅者",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/bus.rs"
+      ],
+      "patterns": [
+        "pub to: Option<String>",
+        "broadcast to all subscribers",
+        "pub topic: String"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.023",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::publish",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "AgentBus::publish 存在且为异步投递入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/bus.rs"
+      ],
+      "patterns": [
+        "pub async fn publish"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.024",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::publish",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "publish 接收 BusMessage 参数投递",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/bus.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "publish",
+        "param": "message"
+      }
+    }
+  },
+  {
+    "id": "D07.2.025",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::publish",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "发布-订阅端到端投递闭环在真实运行下可用",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_bus_test",
+        "test_publish_subscribe",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.2.026",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::subscribe",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "AgentBus::subscribe 存在且返回可 Drop 自动退订的订阅句柄",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/bus.rs"
+      ],
+      "patterns": [
+        "pub async fn subscribe",
+        "impl Drop for BusSubscription"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.027",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::subscribe",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "同一 topic 的多个订阅者都能收到广播消息",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_bus_test",
+        "test_multiple_subscribers",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.2.028",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::BusSubscription",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "订阅句柄按 topic 归属过滤，定向消息不会投递到不相关 topic",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/bus.rs"
+      ],
+      "patterns": [
+        "struct BusSubscription",
+        "topic"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.029",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::BusSubscription",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "定向消息不会投递到不相关 topic 的订阅者（真实运行验证）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_bus_test",
+        "test_unrelated_topic_not_delivered",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.2.030",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/bus.rs::state_set",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "AgentBus 提供跨 agent 共享 KV 状态 state_set/state_get/state_remove/state_keys",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/bus.rs"
+      ],
+      "patterns": [
+        "pub async fn state_set",
+        "pub async fn state_get",
+        "pub async fn state_remove",
+        "pub async fn state_keys"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.031",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/mailbox.rs::MailboxMessage",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在父子 agent 的 Mailbox 消息通道",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/mailbox.rs"
+      ],
+      "patterns": [
+        "pub enum MailboxMessage",
+        "pub struct Mailbox"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.032",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/mailbox.rs::MailboxMessage::Progress",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "Mailbox 支持子 agent 增量进度回报 Progress",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/mailbox.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "MailboxMessage",
+        "variant": "Progress"
+      }
+    }
+  },
+  {
+    "id": "D07.2.033",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/events.rs::SubAgentEventBus",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "SubAgentEventBus 按 agent_id 过滤事件历史在真实运行下可用",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_events_test",
+        "test_sub_agent_event_bus",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.2.034",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/mailbox.rs::MailboxMessage::ToolCallStarted",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "Mailbox 上报子 agent 内部工具调用起止事件",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/mailbox.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "MailboxMessage",
+        "variant": "ToolCallStarted"
+      }
+    }
+  },
+  {
+    "id": "D07.2.035",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/mailbox.rs::MailboxMessage::ChildSpawned",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "Mailbox 上报嵌套派生 ChildSpawned，父级可感知孙 agent",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/mailbox.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "MailboxMessage",
+        "variant": "ChildSpawned"
+      }
+    }
+  },
+  {
+    "id": "D07.2.036",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/mailbox.rs::is_closed",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "Mailbox 绑定 CancellationToken，取消后 is_closed 为真、send 返回 None",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/mailbox.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "cancel_token",
+        "b": "pub\\ fn\\ is_closed"
+      }
+    }
+  },
+  {
+    "id": "D07.2.037",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/events.rs::SubAgentEvent::event_type",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "SubAgentEvent 提供 event_type() 为每个变体返回稳定字符串标签",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/events.rs"
+      ],
+      "patterns": [
+        "fn event_type",
+        "\"needs_input\""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.038",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/events.rs::SubAgentEvent::event_type",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "event_type 的标签映射在真实运行下逐变体正确",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_events_test",
+        "test_sub_agent_event_type",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.2.039",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/events.rs::SubAgentEventBus",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在 SubAgentEventBus 事件总线，可按 agent_id 过滤事件历史",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/events.rs"
+      ],
+      "patterns": [
+        "struct SubAgentEventBus",
+        "agent_id"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.2.040",
+    "domain": "D07",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/tool.rs::AgentTool",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺失：没有模型可见的 send_message/broadcast 工具，子 agent 无法主动给同伴发消息（仅 Mailbox 单向回报父级）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs",
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "send_message"
+      }
+    }
+  },
+  {
+    "id": "D07.3.041",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::create_isolated_worktree",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "支持为子 agent 真实创建 git worktree 隔离（git worktree add -b）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "fn\\ create_isolated_worktree",
+        "b": "\"worktree\"\\.to_string\\(\\)"
+      }
+    }
+  },
+  {
+    "id": "D07.3.042",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/tool.rs::input_schema",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "agent 工具 schema 暴露 worktree 布尔参数",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "patterns": [
+        "\"worktree\"",
+        "create a fresh git worktree"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.043",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::worktree_branch",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持 worktree_branch / worktree_base / worktree_path 三个细粒度覆盖参数",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "patterns": [
+        "worktree_branch",
+        "worktree_base|worktreeBase",
+        "worktree_path"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.044",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::default_worktree_branch",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "未指定分支名时按 codex/agent-<slug>-<uuid8> 生成默认分支，避免撞名",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "default_worktree_branch",
+        "callee": "Uuid::new_v4"
+      }
+    }
+  },
+  {
+    "id": "D07.3.045",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::validate_git_branch_name",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "分支名经 git check-ref-format --branch 校验，非法名被拒",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "validate_git_branch_name",
+        "callee": "check-ref-format"
+      }
+    }
+  },
+  {
+    "id": "D07.3.046",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::worktree_path",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "worktree_path 落在父 checkout 内部时被拒绝，防止污染主工作区",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "patterns": [
+        "worktree_path must not be inside the parent checkout"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.047",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::resolve_worktree_path",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "相对 worktree_path 必须留在默认 .mimofan-worktrees 根下，禁止 ../ 逃逸",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "patterns": [
+        "must stay under"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.048",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::parse_spawn_request",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "cwd 与 worktree 互斥，同时给出时报错而非静默择一",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "patterns": [
+        "Use either cwd or worktree isolation, not both"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.049",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::cwd",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "显式 cwd 必须位于父 workspace 之内，越界被拒",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "patterns": [
+        "cwd must be inside the parent workspace"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.050",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::git_repo_root",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "worktree=true 在非 git 仓库工作区下明确报错",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "patterns": [
+        "worktree=true requires a git repository workspace"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.051",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/helpers.rs::SUBAGENT_WORKTREE_ROOT_DIR",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "worktree 默认落在仓库同级 .mimofan-worktrees 目录而非仓库内",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/helpers.rs"
+      ],
+      "patterns": [
+        "\\.mimofan-worktrees"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.052",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/parser.rs::worktree",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "worktree=false 与 worktree_* 细化参数同时出现时报冲突",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/parser.rs"
+      ],
+      "patterns": [
+        "worktree=false conflicts with worktree isolation options"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.053",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/tool.rs::_resident_conflict",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺陷：resident_file 租约冲突已计算但被丢弃（绑定到 _resident_conflict），冲突警告不会传达给模型",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "_resident_conflict",
+        "b": "already\\ holds\\ a\\ resident\\ lease"
+      }
+    }
+  },
+  {
+    "id": "D07.3.054",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/task_claim.rs::TaskClaimManager",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在任务认领管理器，用于多 agent 抢占同一任务时的互斥",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/task_claim.rs"
+      ],
+      "patterns": [
+        "pub struct TaskClaimManager",
+        "pub async fn claim_task"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.3.055",
+    "domain": "D07",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/subagent/task_claim.rs::claim_task",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "缺陷：TaskClaimManager 仅在 subagent/mod.rs 做了 pub use 再导出，SubAgentManager 与派生路径均未实际调用，任务认领互斥未接线",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs",
+        "crates/tui/src/tools/subagent/runner.rs",
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "TaskClaimManager"
+      }
+    }
+  },
+  {
+    "id": "D07.4.056",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::ResultAggregator",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在多 agent 结果聚合器 ResultAggregator",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/aggregator.rs"
+      ],
+      "patterns": [
+        "pub struct ResultAggregator",
+        "pub fn aggregate"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.4.057",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::ResultAggregator",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "空结果集聚合不 panic，返回可用降级值",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_aggregator_test",
+        "test_aggregate_empty_results",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.4.058",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::AggregationStrategy",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "聚合策略枚举覆盖 Merge / First / Vote{quorum} / Concatenate / LlmAggregate",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/aggregator.rs"
+      ],
+      "patterns": [
+        "enum AggregationStrategy",
+        "Merge",
+        "First",
+        "Vote",
+        "LlmAggregate"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.4.059",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::AggregationStrategy",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "未达 quorum 时表决聚合不强行给出结论",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_aggregator_test",
+        "test_aggregate_vote_no_consensus",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.4.060",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::AggregationStrategy::Vote",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "聚合策略含 Vote{quorum} 法定多数表决",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/aggregator.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "AggregationStrategy",
+        "variant": "Vote"
+      }
+    }
+  },
+  {
+    "id": "D07.4.061",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::AggregationStrategy::LlmAggregate",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "聚合策略含 LlmAggregate 由模型综合",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/aggregator.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "AggregationStrategy",
+        "variant": "LlmAggregate"
+      }
+    }
+  },
+  {
+    "id": "D07.4.062",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::ConflictDetector",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 ConflictDetector 检测多 agent 对同一字段给出不同值",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/aggregator.rs"
+      ],
+      "patterns": [
+        "struct ConflictDetector",
+        "fn detect"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.4.063",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::ConflictDetector",
+    "view": "existence",
+    "tier": "T3",
+    "desc": "冲突检测能识别多 agent 对同一字段给出不同值",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_aggregator_test",
+        "test_conflict_detect_with_conflict",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.4.064",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::ConflictDetector::detect",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "冲突检测在结果一致时应返回空冲突列表（不误报）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/aggregator.rs"
+      ],
+      "patterns": [
+        "fn detect",
+        "Vec<"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D07.4.065",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::ConflictDetector::detect",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "结果一致时冲突检测不误报",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "--test",
+        "tools_subagent_aggregator_test",
+        "test_conflict_detect_no_conflict",
+        "-p",
+        "mimofan"
+      ],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "D07.4.066",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/aggregator.rs::ResultAggregator",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "缺陷：ResultAggregator / ConflictDetector / AggregationStrategy 在 aggregator.rs 与其测试之外零调用方，聚合能力未接入真实派生流程",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs",
+        "crates/tui/src/tools/subagent/mod.rs",
+        "crates/tui/src/tools/subagent/runner.rs",
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "ResultAggregator"
+      }
+    }
+  },
+  {
+    "id": "D07.4.067",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/manager.rs::terminal_results_excluding",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "manager 提供 terminal_results_excluding，父级可批量收割已完成子 agent 结果",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/manager.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "terminal_results_excluding",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D07.4.068",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::update_status",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "SubAgentResult.result 为 Option<String>，部分成功/无产出可如实表达",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "update_status",
+        "param": "status"
+      }
+    }
+  },
+  {
+    "id": "D07.4.069",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::SubAgentError::Failed",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "SubAgentError 区分 Failed / Cancelled / Interrupted / Timeout，失败原因可向上传播",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "SubAgentError",
+        "variant": "Failed"
+      }
+    }
+  },
+  {
+    "id": "D07.4.070",
+    "domain": "D07",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/subagent/types.rs::AgentRunVerificationSummary",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "子 agent 结果携带验证摘要与推荐动作，供父级判断是否可信采纳",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/types.rs"
+      ],
+      "patterns": [
+        "AgentRunVerificationSummary",
+        "AgentRunRecommendedAction"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.1.001",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::ToolSpec",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在统一的 ToolSpec trait 作为全部工具的定义契约",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "pub trait ToolSpec",
+        "fn input_schema",
+        "fn capabilities"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.1.002",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::ToolSpec::input_schema",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "ToolSpec 要求每个工具声明 JSON Schema 形式的 input_schema",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "input_schema",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D08.1.003",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::ToolRegistry::register",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "ToolRegistry 提供 register 注册单个工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "register",
+        "param": "tool"
+      }
+    }
+  },
+  {
+    "id": "D08.1.004",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::ToolRegistry::to_api_tools",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "注册表能导出 provider API 所需的工具列表 to_api_tools",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "to_api_tools",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D08.1.005",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::to_api_tools_with_cache",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "工具目录导出支持 prefix-cache 开关，避免每轮重算 schema",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "to_api_tools_with_cache",
+        "param": "enable_cache"
+      }
+    }
+  },
+  {
+    "id": "D08.1.006",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::invalidate_api_cache",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "注册/移除工具后主动失效 API 目录缓存，避免陈旧目录发给模型",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "remove",
+        "callee": "invalidate_api_cache"
+      }
+    }
+  },
+  {
+    "id": "D08.1.007",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::ToolRegistry::resolve",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "注册表提供 resolve 名称纠偏，容忍模型拼错的工具名",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "resolve",
+        "param": "requested"
+      }
+    }
+  },
+  {
+    "id": "D08.1.008",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::to_snake_case",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "名称纠偏含 CamelCase→snake_case 与 -/空格→下划线两级",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "patterns": [
+        "to_snake_case",
+        "replace\\(\\['-', ' '\\], \"_\"\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.1.009",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::ToolRegistry::resolve",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "名称纠偏会剥离 _tool/-tool 后缀（最多两次）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "patterns": [
+        "_tool",
+        "-tool"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.1.010",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::resolve",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "无法纠偏时 resolve 返回 Option<&str> 的 None，让调用方报 Unknown tool，而非瞎猜一个工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "patterns": [
+        "pub fn resolve\\(&self, requested: &str\\) -> Option<&str>",
+        "Unknown tool"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.1.011",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::apply_overrides",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "config.toml 的 ToolOverride::Disabled 会真正把工具从注册表移除",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "apply_overrides",
+        "callee": "remove_tool"
+      }
+    }
+  },
+  {
+    "id": "D08.1.012",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::ToolOverride",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "override 未能构造替代实现时移除原工具，避免 override 落空后仍暴露旧行为",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "patterns": [
+        "override did not create a replacement"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.1.013",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::load_plugins",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "注册表支持从插件目录加载脚本工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "load_plugins",
+        "param": "plugin_dir"
+      }
+    }
+  },
+  {
+    "id": "D08.1.014",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::filter_by_capability",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "可按 ToolCapability 过滤工具集合（只读集、需审批集）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "filter_by_capability",
+        "param": "capability"
+      }
+    }
+  },
+  {
+    "id": "D08.1.015",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::read_only_tools",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "注册表可导出只读工具子集，供受限 agent 使用",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "read_only_tools",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D08.1.016",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::ToolRegistryBuilder::with_read_only_file_tools",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "Builder 提供只读文件工具变体，与全量文件工具区分",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "patterns": [
+        "with_read_only_file_tools",
+        "with_file_tools"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.1.017",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::ToolSpec::defer_loading",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "ToolSpec 支持 defer_loading 延迟加载，工具注册但不进模型目录",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "defer_loading",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D08.1.018",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::ToolSpec::model_visible",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "ToolSpec 支持 model_visible 隐藏兼容工具（仍可按名执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "model_visible",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D08.1.019",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::model_visible",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺陷：model_visible 只有 trait 默认实现返回 true，全库没有任何工具真的把自己标为隐藏，该开关等于未使用",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs",
+        "crates/tui/src/tools/shell.rs",
+        "crates/tui/src/tools/search.rs",
+        "crates/tui/src/tools/registry.rs",
+        "crates/tui/src/tools/git.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "fn\\ model_visible"
+      }
+    }
+  },
+  {
+    "id": "D08.1.020",
+    "domain": "D08",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/core/engine/catalog_filter.rs::filter_tool_catalog_for_gates",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "引擎侧按闸门状态过滤模型可见工具目录",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/catalog_filter.rs"
+      ],
+      "patterns": [
+        "filter_tool_catalog_for_gates",
+        "default_active_native_tool_names"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.021",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::required_str",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "提供 required_str 统一必填字符串参数取值",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "required_str",
+        "param": "field"
+      }
+    }
+  },
+  {
+    "id": "D08.2.022",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::required_u64",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "提供 required_u64 必填整型参数取值",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "required_u64",
+        "param": "field"
+      }
+    }
+  },
+  {
+    "id": "D08.2.023",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::optional_bool",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "optional_bool 带显式 default，缺参时行为确定",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "optional_bool",
+        "param": "default"
+      }
+    }
+  },
+  {
+    "id": "D08.2.024",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::optional_u64",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "optional_u64 带显式 default 值",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "optional_u64",
+        "param": "default"
+      }
+    }
+  },
+  {
+    "id": "D08.2.025",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::ToolError::MissingField",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺失必填字段时返回结构化 ToolError::MissingField 而非泛化字符串",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ToolError",
+        "variant": "MissingField"
+      }
+    }
+  },
+  {
+    "id": "D08.2.026",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::ToolError::InvalidInput",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "非法参数返回 ToolError::InvalidInput",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ToolError",
+        "variant": "InvalidInput"
+      }
+    }
+  },
+  {
+    "id": "D08.2.027",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::ToolError::PathEscape",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "路径越界有专门的 ToolError::PathEscape 变体，可被上层区分处理",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ToolError",
+        "variant": "PathEscape"
+      }
+    }
+  },
+  {
+    "id": "D08.2.028",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::ToolError::PermissionDenied",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "权限拒绝有独立 PermissionDenied 变体，区别于执行失败",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ToolError",
+        "variant": "PermissionDenied"
+      }
+    }
+  },
+  {
+    "id": "D08.2.029",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tools/src/lib.rs::ToolError::Timeout",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "超时有独立 Timeout(seconds) 变体，携带时长",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ToolError",
+        "variant": "Timeout"
+      }
+    }
+  },
+  {
+    "id": "D08.2.030",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/tool.rs::parse_agent_tool_action",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "agent 工具的 action 参数对未知值明确报错并列出合法取值",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "patterns": [
+        "Invalid agent action",
+        "Use start, status, peek, or cancel"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.031",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/tool.rs::action",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "agent 工具 schema 用 JSON Schema enum 约束 action 取值",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "patterns": [
+        "\"enum\": \\[\"start\", \"status\", \"peek\", \"cancel\"\\]"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.032",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/tool.rs::max_depth",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "agent 工具的 max_depth 参数在 schema 声明 minimum/maximum 边界",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/subagent/tool.rs"
+      ],
+      "patterns": [
+        "\"minimum\": 0",
+        "\"maximum\": 3"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.033",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::query",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "file_search 对空白 query 显式报错而非返回全仓库",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "patterns": [
+        "query cannot be empty"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.034",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::limit",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "file_search 的 limit 被 clamp 到 1..=200，防止超大请求",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "patterns": [
+        "clamp\\(1, 200\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.035",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::Regex",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "grep_files 对非法正则返回 InvalidInput 而非 panic",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "Invalid regex pattern",
+        "ToolError::invalid_input"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.036",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::context_lines",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "grep_files 的 context_lines 上限被钳制（min(1000)），避免上下文爆炸",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "\\.min\\(1000\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.037",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/arg_repair.rs::repair",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在确定性 JSON 参数修复阶梯 repair()，容忍流式截断的 tool_calls 参数",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/arg_repair.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "repair",
+        "param": "raw"
+      }
+    }
+  },
+  {
+    "id": "D08.2.038",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/arg_repair.rs::MAX_ARG_LEN",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "参数修复对超过 1MiB 的输入直接拒绝，不做无界修复",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/arg_repair.rs"
+      ],
+      "patterns": [
+        "MAX_ARG_LEN",
+        "TooLarge"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.039",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/arg_repair.rs::strip_excess_closers",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "修复阶梯覆盖控制符剥离/尾逗号/括号配平/多余闭合四类畸形，最后回落空对象",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/arg_repair.rs"
+      ],
+      "patterns": [
+        "strip_control_chars_in_strings",
+        "strip_trailing_commas",
+        "balance_braces",
+        "strip_excess_closers"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.2.040",
+    "domain": "D08",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::required_str",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "参数校验助手真实接入工具实现：grep_files 用 mimofan_tools::required_str/optional_u64 取参，而非各自手搓 as_str",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "required_str\\(",
+        "b": "optional_u64\\("
+      }
+    }
+  },
+  {
+    "id": "D08.3.041",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::ToolResult",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在统一 ToolResult 返回类型",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "patterns": [
+        "pub struct ToolResult",
+        "pub fn success",
+        "pub fn error"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.042",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::ToolResult::json",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "ToolResult::json 提供结构化 JSON 返回构造器",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "json",
+        "param": "value"
+      }
+    }
+  },
+  {
+    "id": "D08.3.043",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::ToolResult::with_metadata",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "ToolResult 支持附加 metadata，与正文内容分离",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "with_metadata",
+        "param": "metadata"
+      }
+    }
+  },
+  {
+    "id": "D08.3.044",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::ToolResult::success",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "ToolResult 显式携带 success 布尔，错误不靠正文关键字判断",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "patterns": [
+        "pub success",
+        "pub fn error"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.045",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::FunctionCallError::ToolNotFound",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "调用不存在的工具返回结构化 FunctionCallError::ToolNotFound",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "FunctionCallError",
+        "variant": "ToolNotFound"
+      }
+    }
+  },
+  {
+    "id": "D08.3.046",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::FunctionCallError::MutatingToolRejected",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "只读语境下写工具被拒有专门 MutatingToolRejected 变体",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "FunctionCallError",
+        "variant": "MutatingToolRejected"
+      }
+    }
+  },
+  {
+    "id": "D08.3.047",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::FunctionCallError::TimedOut",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "工具超时返回 TimedOut{name,timeout_ms}，携带工具名与预算",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "FunctionCallError",
+        "variant": "TimedOut"
+      }
+    }
+  },
+  {
+    "id": "D08.3.048",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tools/src/lib.rs::FunctionCallError::Cancelled",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "取消与失败在错误契约上分开（Cancelled vs ExecutionFailed）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "FunctionCallError",
+        "variant": "Cancelled"
+      }
+    }
+  },
+  {
+    "id": "D08.3.049",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/truncate.rs::SPILLOVER_THRESHOLD_BYTES",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "超过 100KiB 的工具输出溢出落盘而非整块塞进上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "SPILLOVER_THRESHOLD_BYTES",
+        "100 \\* 1024"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.050",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/truncate.rs::apply_spillover_inner",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "截断时插入显式 [Output truncated: ...] 标记并给出总量，模型能感知丢失",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "Output truncated",
+        "KiB of"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.051",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/truncate.rs::SPILLOVER_HEAD_BYTES",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "溢出保留 32KiB 头部，而非全丢",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "SPILLOVER_HEAD_BYTES",
+        "32 \\* 1024"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.052",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/truncate.rs::maybe_spillover",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "存在 maybe_spillover 统一入口决定是否落盘",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "maybe_spillover",
+        "param": "content"
+      }
+    }
+  },
+  {
+    "id": "D08.3.053",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/truncate.rs::apply_spillover_with_artifact",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "溢出内容登记为 artifact，可被后续 retrieve_tool_result 取回",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "apply_spillover_with_artifact",
+        "param": "content"
+      }
+    }
+  },
+  {
+    "id": "D08.3.054",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/tool_result_retrieval.rs::RetrieveToolResultTool",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "存在 retrieve_tool_result 工具，模型可按需取回被截断的完整输出",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/tool_result_retrieval.rs"
+      ],
+      "patterns": [
+        "retrieve_tool_result"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.055",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/truncate.rs::prune_older_than",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "溢出目录有 prune_older_than 老化清理（7 天）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "prune_older_than",
+        "param": "max_age"
+      }
+    }
+  },
+  {
+    "id": "D08.3.056",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/truncate.rs::is_valid_sha256",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "按 sha 取回溢出内容前校验 sha256 格式，阻断路径穿越式的 id",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/truncate.rs"
+      ],
+      "patterns": [
+        "fn is_valid_sha256"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.057",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/schema_sanitize.rs::sanitize",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "发往 provider 前对 input_schema 做兼容性净化 sanitize()",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/schema_sanitize.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "sanitize",
+        "param": "schema"
+      }
+    }
+  },
+  {
+    "id": "D08.3.058",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/schema_sanitize.rs::collapse_nullable_unions",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "把 Pydantic 风格 anyOf:[X,null] 折叠为 X+nullable，避免 provider 400",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/schema_sanitize.rs"
+      ],
+      "patterns": [
+        "fn collapse_nullable_unions",
+        "nullable"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.059",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/schema_sanitize.rs::prune_dangling_required",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "剪掉 required 中不存在于 properties 的悬空字段",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/schema_sanitize.rs"
+      ],
+      "patterns": [
+        "fn prune_dangling_required"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.3.060",
+    "domain": "D08",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/schema_canonicalize.rs::canonicalize_schema",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "schema 做字节级规范化（键序+required 排序）以稳定 prefix cache",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/schema_canonicalize.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "canonicalize_schema",
+        "param": "value"
+      }
+    }
+  },
+  {
+    "id": "D08.4.061",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::ToolSpec::supports_parallel",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "ToolSpec 声明 supports_parallel 表明工具能否并行",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "supports_parallel",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D08.4.062",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::supports_parallel_for",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "并行能力可按具体入参判定（supports_parallel_for），而非只看工具级静态标记",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "supports_parallel_for",
+        "param": "_input"
+      }
+    }
+  },
+  {
+    "id": "D08.4.063",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::is_read_only_for",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "只读性可按具体入参判定 is_read_only_for（同一工具不同参数读写性不同）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "is_read_only_for",
+        "param": "_input"
+      }
+    }
+  },
+  {
+    "id": "D08.4.064",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::approval_requirement_for",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "审批要求可按具体入参判定 approval_requirement_for",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "approval_requirement_for",
+        "param": "_input"
+      }
+    }
+  },
+  {
+    "id": "D08.4.065",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::starts_detached_for",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "区分「启动后台作业后立即返回」的 starts_detached_for，不阻塞相邻只读调用",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "starts_detached_for",
+        "param": "_input"
+      }
+    }
+  },
+  {
+    "id": "D08.4.066",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::approval_requirement",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "默认审批等级由 capability 推导：ExecutesCode→Required，WritesFiles→Suggest，其余 Auto",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "ExecutesCode",
+        "ApprovalRequirement::Required",
+        "WritesFiles",
+        "ApprovalRequirement::Suggest",
+        "ApprovalRequirement::Auto"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.067",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::execute_parallel_tool",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "引擎实现 execute_parallel_tool 批量并行分发",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "execute_parallel_tool",
+        "param": "tool_registry"
+      }
+    }
+  },
+  {
+    "id": "D08.4.068",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::FuturesUnordered",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "并行执行用 FuturesUnordered 真并发，而非顺序 await",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "FuturesUnordered",
+        "tasks.next\\(\\).await"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.069",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::is_read_only_for",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "并行批次中出现非只读工具直接整批报错，防止并发写互踩",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "is not read-only and cannot run in parallel"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.070",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::approval_requirement_for",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "需审批的工具被拒绝进入并行批次",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "requires approval and cannot run in parallel"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.071",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::supports_parallel_for",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "未声明 supports_parallel 的工具被拒绝并行执行",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "does not support parallel execution"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.072",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::MULTI_TOOL_USE_PARALLEL",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "multi_tool_use.parallel 不允许递归调用自身",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "cannot call itself"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.073",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::not_available",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "并行批次引用未注册工具时报 not_available 并整批失败",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "is not registered"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.074",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::mcp_tool_is_parallel_safe",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "MCP 工具并行走白名单，仅只读资源类允许并行",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "mcp_tool_is_parallel_safe",
+        "Allowed MCP tools"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.075",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::max_parallel_shell_exec",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "并行 exec_shell 受 Semaphore 限流（max_parallel_shell_exec 可配）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "Semaphore::new",
+        "max_parallel_shell_exec"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.076",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::ParallelToolResultEntry",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "并行结果按原始 index 回填，输出顺序与请求顺序一致而非完成顺序",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "results\\[index\\] = Some\\(entry\\)",
+        "resize_with"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.077",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::parse_parallel_tool_calls",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "单个并行子调用失败被就地转成 error 条目，不拖垮整批已完成结果",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "patterns": [
+        "ParallelToolResultEntry",
+        "success: false"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.078",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/core/engine/tool_execution.rs::execute_tool_with_lock",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "工具执行统一走 execute_tool_with_lock，按 supports_parallel 决定读锁/写锁",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/core/engine/tool_execution.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "execute_tool_with_lock",
+        "param": "supports_parallel"
+      }
+    }
+  },
+  {
+    "id": "D08.4.079",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tools/src/lib.rs::ToolCallRuntime",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "调用运行时用 RwLock 读写守卫区分 Parallel/Serial/Reentrant 三种并发档位",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "patterns": [
+        "Reentrant",
+        "Parallel\\(",
+        "Serial\\("
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D08.4.080",
+    "domain": "D08",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/parallel.rs::MultiToolUseParallelTool",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "缺陷面：multi_tool_use.parallel 已被刻意从模型目录摘除（其 execute 直接报错、依赖引擎旁路），并非可直接调用的工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/parallel.rs"
+      ],
+      "patterns": [
+        "must be handled by the engine",
+        "no longer registered"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.001",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::SymbolIndex",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 SymbolIndex 符号索引结构",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "pub struct SymbolIndex"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.002",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::CodeSymbol",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "CodeSymbol 记录 name/kind/file_path/line_number 四要素",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "pub struct CodeSymbol",
+        "line_number"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.003",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::index_file",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SymbolIndex::index_file 可对单文件抽取符号",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "index_file",
+        "param": "content"
+      }
+    }
+  },
+  {
+    "id": "D09.1.004",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::search",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "SymbolIndex::search 按名称子串查询符号",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "search",
+        "param": "query"
+      }
+    }
+  },
+  {
+    "id": "D09.1.005",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::SymbolIndex::new",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "缺失：SymbolIndex 除 lib.rs 的 mod 声明外零调用方，既没有构建入口也没有工具暴露，属于死代码",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs",
+        "crates/tui/src/tools/search.rs",
+        "crates/tui/src/tools/file_search.rs",
+        "crates/tui/src/tools/project.rs",
+        "crates/tui/src/core/engine/tool_setup.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "SymbolIndex"
+      }
+    }
+  },
+  {
+    "id": "D09.1.006",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/registry.rs::find_symbol",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "缺失：没有 find_symbol / goto_definition / find_references 之类的符号查询工具注册给模型",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "find_symbol"
+      }
+    }
+  },
+  {
+    "id": "D09.1.007",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::_root",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺陷：index_file 的 root 形参名为 _root 完全未使用，索引里只有相对路径字符串，无法回溯仓库根",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "_root:\\ \\&Path",
+        "b": "rel_path\\.to_string_lossy"
+      }
+    }
+  },
+  {
+    "id": "D09.1.008",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::remove_file",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "缺失：索引只有 index_file 追加，没有 remove_file/update_file，文件删除或改名后旧符号永久残留",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "fn\\ remove_file"
+      }
+    }
+  },
+  {
+    "id": "D09.1.009",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::index_file",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "缺陷：重复索引同一文件会向 entry 的 Vec 继续 push，不去重也不覆盖，产生重复符号",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "entry\\(sym.name.to_lowercase\\(\\)\\).or_default\\(\\).push"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.010",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::search",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "search 结果被硬截断到 50 条且无排序/评分，命中质量不可控",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "results.truncate\\(50\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.011",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::symbols",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "缺失：符号索引纯内存 HashMap，无落盘/无跨会话复用",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "serde_json::to_writer"
+      }
+    }
+  },
+  {
+    "id": "D09.1.012",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::parse_line_symbol",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "符号抽取是逐行 strip_prefix 的启发式，而非语法解析",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "strip_prefix\\(prefix\\)",
+        "line.trim\\(\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.013",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::CodeSymbol::kind",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "启发式覆盖 fn/struct/enum/trait/class/interface/def/function 若干种声明前缀",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "\"struct \"",
+        "\"trait \"",
+        "\"class \"",
+        "\"interface \"",
+        "\"def \""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.014",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::trimmed",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "以 // / # / /* 开头的注释行不被当作符号声明",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "starts_with\\(\"//\"\\)",
+        "starts_with\\('#'\\)",
+        "starts_with\\(\"/\\*\"\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.015",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::strip_prefix",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺陷：抽取只匹配 trim 后的行首前缀，impl 块内缩进的方法虽被 trim 救回，但 `pub(crate) fn` / `unsafe fn` / 带属性宏的声明均漏抓",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "pub\\(crate\\)\\ fn\\ "
+      }
+    }
+  },
+  {
+    "id": "D09.1.016",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::CodeSymbol",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "缺失：CodeSymbol 不含所属模块/父类型/签名/可见性，无法区分同名符号",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "parent"
+      }
+    }
+  },
+  {
+    "id": "D09.1.017",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::Mutex",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "缺陷：索引锁用 expect(\"symbol index mutex poisoned\")，锁中毒直接 panic 而非降级",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "patterns": [
+        "expect\\(\"symbol index mutex poisoned\"\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.1.018",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::index_workspace",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "缺失：没有「遍历工作区批量建索引」的入口函数（如 build_index/index_workspace）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "fn\\ index_workspace"
+      }
+    }
+  },
+  {
+    "id": "D09.1.019",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/symbol_index/mod.rs::cfg_test",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "缺陷：symbol_index 模块没有任何 #[cfg(test)] 单测，正确性无回归保护",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/symbol_index/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "\\#\\[cfg\\(test\\)\\]"
+      }
+    }
+  },
+  {
+    "id": "D09.1.020",
+    "domain": "D09",
+    "cluster": 1,
+    "assert_key": "crates/tui/Cargo.toml::tree-sitter",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "缺失：全仓库没有 tree-sitter / tantivy / 向量代码索引类依赖，代码库索引能力整体缺位",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/Cargo.toml",
+        "Cargo.toml"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "tree\\-sitter"
+      }
+    }
+  },
+  {
+    "id": "D09.2.021",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::GrepFilesTool",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 grep_files 正则检索工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "pub struct GrepFilesTool",
+        "\"grep_files\""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.022",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::FileSearchTool",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 file_search 按文件名模糊检索工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "patterns": [
+        "pub struct FileSearchTool",
+        "\"file_search\""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.023",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::matches_glob",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "grep_files 支持 include/exclude glob 过滤",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "\"include\"",
+        "\"exclude\"",
+        "matches_glob"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.024",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::case_insensitive",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "grep_files 支持 case_insensitive，通过 (?i) 前缀注入",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "case_insensitive",
+        "\\(\\?i\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.025",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::context_before",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "grep_files 返回匹配行前后上下文（默认 2 行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "context_before",
+        "b": "context_after"
+      }
+    }
+  },
+  {
+    "id": "D09.2.026",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::exclude_patterns",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "grep_files 默认排除 node_modules/.git/target/dist/__pycache__ 等噪声目录",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "node_modules",
+        "\\.git",
+        "target",
+        "__pycache__"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.027",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::MAX_FILE_SIZE",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "grep_files 跳过超过 10MB 的大文件，避免卡死",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "MAX_FILE_SIZE",
+        "10 \\* 1024 \\* 1024"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.028",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::max_results",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "grep_files 结果显式带 truncated 标记，模型知道命中被截断",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "\"truncated\": total_matches > max_results"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.029",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::GREP_FILES_TIMEOUT",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "grep_files 有 30 秒硬超时，大仓库不会永久阻塞",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "GREP_FILES_TIMEOUT",
+        "Duration::from_secs\\(30\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.030",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::check_cancelled",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "grep_files 遍历过程中周期性检查 CancellationToken，可被停止按钮打断",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "collect_files_recursive",
+        "callee": "check_cancelled"
+      }
+    }
+  },
+  {
+    "id": "D09.2.031",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::run_blocking_grep",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "同步目录遍历与正则被 offload 到 blocking worker，不占用 async runtime",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "fn\\ run_blocking_grep",
+        "b": "tokio::task::spawn_blocking"
+      }
+    }
+  },
+  {
+    "id": "D09.2.032",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::collect_files_recursive",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺陷：grep_files 的 description 宣称 respects .gitignore，但 collect_files 用裸 fs::read_dir 递归、未接 ignore::WalkBuilder，实际只有硬编码排除表生效",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "WalkBuilder"
+      }
+    }
+  },
+  {
+    "id": "D09.2.033",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::mimoignore",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺陷：grep_files 不识别 .mimoignore（该能力只存在于 working_set 模块）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "mimoignore"
+      }
+    }
+  },
+  {
+    "id": "D09.2.034",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::WalkBuilder",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "file_search 使用 ignore::WalkBuilder，因此确实遵守 .gitignore —— 与 grep_files 行为不一致",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "use\\ ignore::WalkBuilder",
+        "b": "WalkBuilder::new"
+      }
+    }
+  },
+  {
+    "id": "D09.2.035",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::FileSearchMatch",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "file_search 有评分排序而非返回顺序即结果",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "patterns": [
+        "score",
+        "FileSearchMatch"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.036",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::parse_extensions",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "file_search 支持 extensions 后缀过滤",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "patterns": [
+        "\"extensions\"",
+        "parse_extensions"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.037",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::matches_glob",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "file_search 复用 search.rs 的 matches_glob，exclude 语义与 grep_files 保持一致",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "use\\ crate::tools::search::matches_glob",
+        "b": "matches_glob\\(rel_path,\\ pattern\\)"
+      }
+    }
+  },
+  {
+    "id": "D09.2.038",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file_search.rs::FILE_SEARCH_TIMEOUT",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "file_search 同样有 30 秒硬超时",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file_search.rs"
+      ],
+      "patterns": [
+        "FILE_SEARCH_TIMEOUT",
+        "Duration::from_secs\\(30\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.2.039",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::supports_parallel",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "grep_files 声明 supports_parallel=true，可与其它只读检索并发",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "supports_parallel",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D09.2.040",
+    "domain": "D09",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/search.rs::visited_dirs",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "跟随符号链接时用 visited_dirs 去重，避免符号链接环导致无限递归",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/search.rs"
+      ],
+      "patterns": [
+        "visited_dirs",
+        "canonicalize"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.3.041",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/mod.rs::LspManager",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 LspManager 语言服务器管理器",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/lsp/mod.rs"
+      ],
+      "patterns": [
+        "pub struct LspManager",
+        "pub struct LspConfig"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.3.042",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/registry.rs::server_for",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "LSP 注册表为 Rust 映射到 rust-analyzer",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/lsp/registry.rs"
+      ],
+      "patterns": [
+        "rust-analyzer"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.3.043",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/registry.rs::LspServerSpec",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "LSP 覆盖 Rust/Go/Python/TypeScript 多语言服务器",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/lsp/registry.rs"
+      ],
+      "patterns": [
+        "rust-analyzer",
+        "gopls",
+        "pyright-langserver",
+        "typescript-language-server"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.3.044",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/mod.rs::diagnostics_for",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "LspManager::diagnostics_for 按文件拉取诊断",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/lsp/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "diagnostics_for",
+        "param": "file"
+      }
+    }
+  },
+  {
+    "id": "D09.3.045",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/client.rs::close_file",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "LSP 客户端实现 didOpen/didChange/didClose 文档同步三件套",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/lsp/client.rs"
+      ],
+      "patterns": [
+        "textDocument/didOpen",
+        "textDocument/didChange",
+        "textDocument/didClose"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.3.046",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/client.rs::parse_publish_diagnostics",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "客户端解析 textDocument/publishDiagnostics 通知",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/lsp/client.rs"
+      ],
+      "patterns": [
+        "textDocument/publishDiagnostics"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.3.047",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/spec.rs::lsp_diagnostics_for_paths",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "编辑工具成功后可自动注入 LSP 诊断（lsp_diagnostics_for_paths）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "lsp_diagnostics_for_paths",
+        "param": "paths"
+      }
+    }
+  },
+  {
+    "id": "D09.3.048",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/spec.rs::lsp_manager",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "LSP 不可用（未配置/二进制缺失/语言未知）时降级为空串，不向上抛错阻断编辑",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "return\\ String::new\\(\\)",
+        "b": "lsp_manager"
+      }
+    }
+  },
+  {
+    "id": "D09.3.049",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/mod.rs::disabled",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "LspManager 提供 disabled() 构造，可整体关闭",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/lsp/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "disabled",
+        "param": "self"
+      }
+    }
+  },
+  {
+    "id": "D09.3.050",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/diagnostics.rs::DiagnosticsTool",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "存在模型可见的 diagnostics 工具，可主动查询诊断",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/diagnostics.rs"
+      ],
+      "patterns": [
+        "\"diagnostics\""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.3.051",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/client.rs::goto_definition",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "缺失：LSP 集成只做诊断，未实现 textDocument/definition，无跳转定义能力",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/lsp/client.rs",
+        "crates/tui/src/lsp/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "textDocument/definition"
+      }
+    }
+  },
+  {
+    "id": "D09.3.052",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/client.rs::find_references",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "缺失：未实现 textDocument/references，无「查找引用」能力",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/lsp/client.rs",
+        "crates/tui/src/lsp/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "textDocument/references"
+      }
+    }
+  },
+  {
+    "id": "D09.3.053",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/client.rs::document_symbol",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "缺失：未实现 textDocument/documentSymbol 或 workspace/symbol，无法用 LSP 补齐符号索引",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/lsp/client.rs",
+        "crates/tui/src/lsp/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "workspace/symbol"
+      }
+    }
+  },
+  {
+    "id": "D09.3.054",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/lsp/client.rs::rename",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "缺失：未实现 textDocument/rename，跨文件重命名只能靠文本替换",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/lsp/client.rs",
+        "crates/tui/src/lsp/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "textDocument/rename"
+      }
+    }
+  },
+  {
+    "id": "D09.3.055",
+    "domain": "D09",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/registry.rs::ast_grep",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "缺失：没有基于 AST 的结构化检索工具（ast-grep 类），结构查询只能退化为正则",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs",
+        "crates/tui/src/tools/search.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "ast_grep"
+      }
+    }
+  },
+  {
+    "id": "D09.4.056",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/project.rs::ProjectMapTool",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 project_map 工具输出项目结构地图",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "patterns": [
+        "pub struct ProjectMapTool",
+        "\"project_map\""
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.4.057",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/project.rs::key_files",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "project_map 同时返回 tree / summary / key_files 三部分",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "key_files",
+        "b": "summary"
+      }
+    }
+  },
+  {
+    "id": "D09.4.058",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/project.rs::generate_project_map",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "project_map 支持 max_depth 控制树深度（默认 3）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "generate_project_map",
+        "param": "max_depth"
+      }
+    }
+  },
+  {
+    "id": "D09.4.059",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/utils/mod.rs::project_tree",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "project_map 复用 utils::project_tree 生成目录树",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "generate_project_map",
+        "callee": "project_tree"
+      }
+    }
+  },
+  {
+    "id": "D09.4.060",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/utils/mod.rs::is_key_file",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在 is_key_file 判定入口/配置类关键文件",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/utils/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "is_key_file",
+        "param": "path"
+      }
+    }
+  },
+  {
+    "id": "D09.4.061",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/project.rs::max_depth",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "关键文件扫描深度限制为 2 层，避免全仓库遍历",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "patterns": [
+        "max_depth\\(Some\\(2\\)\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.4.062",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/project.rs::WalkBuilder",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "project_map 使用 ignore::WalkBuilder，遵守 .gitignore",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "generate_project_map",
+        "callee": "ignore::WalkBuilder::new"
+      }
+    }
+  },
+  {
+    "id": "D09.4.063",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/project.rs::follow_symlinks",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "未开启 follow_symlinks 时 project_map 跳过符号链接条目",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "patterns": [
+        "is_symlink\\(\\)",
+        "!follow_symlinks"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.4.064",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::ListDirTool::input_schema",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "缺陷（仓库导航侧）：list_dir 的 input_schema 只有 path 一个参数，既无 recursive/max_depth 也无 glob 过滤，逐层下钻只能靠模型多轮往返调用",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "\"list_dir\"",
+        "\"Relative path \\(default: \\.\\)\""
+      ],
+      "require_all": true,
+      "must_not_match": [
+        "\"recursive\"",
+        "\"max_depth\""
+      ]
+    }
+  },
+  {
+    "id": "D09.4.065",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::run_blocking_list_dir",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "list_dir 有超时保护并可被取消",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "run_blocking_list_dir",
+        "param": "timeout"
+      }
+    }
+  },
+  {
+    "id": "D09.4.066",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/working_set/mod.rs::add_custom_ignore_filename",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "working_set 的仓库遍历支持自定义 .mimoignore 忽略文件",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/working_set/mod.rs"
+      ],
+      "patterns": [
+        "add_custom_ignore_filename\\(\".mimoignore\"\\)"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D09.4.067",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/dependencies/mod.rs::probe_executable",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "存在外部工具链探测（git/cargo/node/python 可用性）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/dependencies/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "probe_executable",
+        "param": "spec"
+      }
+    }
+  },
+  {
+    "id": "D09.4.068",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/dependencies/mod.rs::dependency_graph",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "缺失：dependencies 模块只探测外部可执行文件，不做代码内部的模块/crate 依赖图分析",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/dependencies/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "dependency_graph"
+      }
+    }
+  },
+  {
+    "id": "D09.4.069",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/registry.rs::call_graph",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "缺失：没有 import/调用关系图类导航工具，跨文件依赖只能靠 grep 拼",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/registry.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "call_graph"
+      }
+    }
+  },
+  {
+    "id": "D09.4.070",
+    "domain": "D09",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/project.rs::sort_by",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "缺陷：key_files 只做 is_key_file 布尔筛选后原序 push，没有重要性排序或入口推断",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/project.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "sort_by"
+      }
+    }
+  }
+]

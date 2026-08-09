@@ -1,0 +1,2185 @@
+[
+  {
+    "id": "D03.1.001",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::compaction_decision",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在压缩触发判定入口 should_compact",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn compaction_decision"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.002",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::CompactionTrigger",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在压缩配置结构",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "enum CompactionTrigger"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.003",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::ContextBudget::should_compact",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "压缩配置含 token 阈值字段",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn should_compact"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.004",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/compaction/mod.rs::CompactionConfig::enabled",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "压缩可被 enabled 开关关闭",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "should_compact",
+        "param": "config"
+      }
+    }
+  },
+  {
+    "id": "D03.1.005",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::DEFAULT_COMPACTION_TRIGGER_PERCENT",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "enabled=false 时 should_compact 直接返回 false",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "DEFAULT_COMPACTION_TRIGGER_PERCENT"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.006",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::ContextBudget::with_trigger",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "消息数低于下限时不触发压缩（避免对短会话瞎压）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn with_trigger"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.007",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/compaction/mod.rs::pinned_reduce_effective_threshold",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "已 pin 消息占用的预算会从阈值中扣除，使触发更早",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "effective_token_threshold"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.008",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/compaction/mod.rs::token_only_trigger",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "v0.8.11 起为 token-only 触发，已移除消息数分支",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "Token-only trigger"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.009",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/compaction/mod.rs::message_threshold_removed",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "旧的 message_threshold 字段确已从配置中移除（不是保留死字段）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "assert": "absent",
+      "args": {
+        "pattern": "pub message_threshold"
+      }
+    }
+  },
+  {
+    "id": "D03.1.010",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::DEFAULT_COMPACTION_TRIGGER_PERCENT",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "定义了默认压缩触发百分比",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "DEFAULT_COMPACTION_TRIGGER_PERCENT"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.011",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::compaction_decision",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在结构化的压缩决策函数",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn compaction_decision"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.012",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::CompactionTrigger",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "压缩触发原因被建模为枚举而非布尔",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "enum CompactionTrigger"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.013",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::CompactionTrigger::BudgetExhausted",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "区分「达到阈值」与「预算耗尽」两种触发原因",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "CompactionTrigger",
+        "variant": "BudgetExhausted"
+      }
+    }
+  },
+  {
+    "id": "D03.1.014",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::should_compact_method",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "ContextBudget 自身可判定是否应压缩",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn should_compact"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.015",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/models/mod.rs::compaction_threshold_for_model_at_percent",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "阈值按模型上下文窗口动态推导，而非写死常量",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/models/mod.rs"
+      ],
+      "patterns": [
+        "fn compaction_threshold_for_model_at_percent"
+      ]
+    }
+  },
+  {
+    "id": "D03.1.016",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::compaction_decision",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "compaction_decision 尊重 enabled 开关（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::compaction_decision_respects_enabled_flag"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.1.017",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::CompactionTrigger",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "预算耗尽优先于阈值触发被报告（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::compaction_decision_reports_budget_exhaustion_first"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.1.018",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::ContextBudget::should_compact",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "有余量时不产生压缩决策（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::compaction_decision_is_none_when_there_is_room"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.1.019",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::DEFAULT_COMPACTION_TRIGGER_PERCENT",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "阈值为 0 时被 clamp，不会在零输入时永远触发（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::zero_trigger_is_clamped_so_it_does_not_always_fire_at_zero_input"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.1.020",
+    "domain": "D03",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::ContextBudget::with_trigger",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "显式阈值覆盖按窗口百分比推导的默认值（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::explicit_trigger_overrides_percent_of_window"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.2.001",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::custom_instructions",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在压缩计划生成函数（先规划后执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "custom_instructions"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.002",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::summary_instruction",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "压缩计划是结构化产物（pin 集合 + 待摘要集合）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn summary_instruction"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.003",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::normalize_custom_instructions",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在实际执行压缩的入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn normalize_custom_instructions"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.004",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::MAX_CUSTOM_INSTRUCTION_CHARS",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在带失败兜底的安全压缩包装",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "MAX_CUSTOM_INSTRUCTION_CHARS"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.005",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::create_summary",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "摘要范式：调用 LLM 生成会话摘要",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "async fn create_summary"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.006",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::prune_tool_results_until",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "裁剪范式：按需逐步剪掉工具结果直到满足预算",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn prune_tool_results_until"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.007",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::KEEP_RECENT_MESSAGES",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "保留最近 N 条消息不参与摘要",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "KEEP_RECENT_MESSAGES"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.008",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::HARD_COMPACT_KEEP_RECENT",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "硬压缩模式有独立的保留条数",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "HARD_COMPACT_KEEP_RECENT"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.009",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::HardCompactionConfig",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在硬压缩（丢弃式）配置，作为摘要失败的降级路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "struct HardCompactionConfig"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.010",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::summary_input_limits_for_model",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "摘要输入上限按模型上下文窗口分档",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn summary_input_limits_for_model"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.011",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::LARGE_CONTEXT_WINDOW_TOKENS",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "定义大窗口模型的分档阈值",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "LARGE_CONTEXT_WINDOW_TOKENS"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.012",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::SUMMARY_INPUT_HEAD_CHARS",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "摘要输入过长时按头尾保留而非直接掐断",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "SUMMARY_INPUT_HEAD_CHARS"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.013",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::SUMMARY_INPUT_TAIL_CHARS",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "摘要输入保留尾部配额",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "SUMMARY_INPUT_TAIL_CHARS"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.014",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::tail_chars",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在按字符（非字节）取尾的工具函数，避免切坏 Unicode",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn tail_chars"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.015",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::truncate_chars",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在按字符截断的工具函数",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn truncate_chars"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.016",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::summary_instruction",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "摘要提示词由函数构造并带字数上限",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn summary_instruction"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.017",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::custom_instructions",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持用户自定义压缩指令（AGENTS.md + /compact 参数）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "custom_instructions"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.018",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::normalize_custom_instructions",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "自定义指令会被归一化并限制长度",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn normalize_custom_instructions"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.019",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::MAX_CUSTOM_INSTRUCTION_CHARS",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "自定义压缩指令有字符上限，防止提示词注入撑爆",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "MAX_CUSTOM_INSTRUCTION_CHARS"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.020",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::custom_instructions",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "自定义指令是追加而非替换基础指令（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "compaction::summary_instruction_tests::custom_guidance_is_appended_not_substituted"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.2.021",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::summary_instruction",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "无自定义指令时基础提示词保持不变（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "compaction::summary_instruction_tests::base_instruction_is_unchanged_without_custom_guidance"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.2.022",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::normalize_custom_instructions",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "空白/纯空格自定义指令被忽略（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "compaction::summary_instruction_tests::blank_and_whitespace_guidance_is_ignored"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.2.023",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::MAX_CUSTOM_INSTRUCTION_CHARS",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "自定义指令超长会被裁剪（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "compaction::summary_instruction_tests::guidance_is_trimmed_and_length_bounded"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.2.024",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::cache_aligned_summary",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "摘要请求可对齐 prompt cache 前缀以省成本",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn build_cache_aligned_summary_request"
+      ]
+    }
+  },
+  {
+    "id": "D03.2.025",
+    "domain": "D03",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/compaction/mod.rs::should_use_cache_aligned_summary",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "按模型与消息状态决定是否走缓存对齐摘要",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn should_use_cache_aligned_summary"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.001",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::should_pin_message",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在消息 pin 判定（关键消息不进摘要）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn should_pin_message"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.002",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::derive_working_set_paths",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "从近期消息推导工作集文件路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn derive_working_set_paths"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.003",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::RECENT_WORKING_SET_WINDOW",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "工作集推导只看最近 N 条消息",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "RECENT_WORKING_SET_WINDOW"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.004",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::MAX_WORKING_SET_PATHS",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "工作集路径数量有上限，防止无限膨胀",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "MAX_WORKING_SET_PATHS"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.005",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::extract_paths_from_text",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "能从自由文本中抽取仓库相对路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn extract_paths_from_text"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.006",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::extract_paths_from_tool_input",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "能从工具调用参数中抽取涉及的文件路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn extract_paths_from_tool_input"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.007",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::path_regex",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "路径识别用正则覆盖常见源码/配置扩展名",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn path_regex"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.008",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::looks_repo_relative",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "区分仓库内相对路径与无关字符串",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn looks_repo_relative"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.009",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::normalize_path_candidate",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "候选路径归一化时剔除含 .. 的越界路径",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn normalize_path_candidate"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.010",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::tail_always_pinned",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "会话尾部始终被 pin，保住即时上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "Always pin the tail"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.011",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::external_pins_authoritative",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "外部显式 pin 权威，不会被启发式覆盖",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "External pins are authoritative"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.012",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::enforce_tool_call_pairs",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "保证 tool_call 与 tool_result 成对保留",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn enforce_tool_call_pairs"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.013",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::tool_pair_fixpoint",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "成对性用不动点迭代求解，处理级联孤儿",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "Fixpoint loop"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.014",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::tool_pair_no_oscillation",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "已移除的消息不会被反复加回（防止震荡不收敛）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "permanently_removed"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.015",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::tool_pair_convergence_warn",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "不动点未收敛时打日志告警而非静默产出坏状态",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "did not converge after"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.016",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::keep_one_user_text",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "至少保留一条用户文本消息，避免后端因全是工具消息而拒绝请求",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn is_user_text_query"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.017",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::error_markers_pinned",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "含报错/panic/traceback 的消息被优先保留",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "\\\"traceback\\\""
+      ]
+    }
+  },
+  {
+    "id": "D03.3.018",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::patch_markers_pinned",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "含 diff/patch 标记的消息被优先保留",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "\\\"diff --git\\\""
+      ]
+    }
+  },
+  {
+    "id": "D03.3.019",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::read_workspace_anchors",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "压缩时注入工作区锚点信息（AGENTS.md 等）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn read_workspace_anchors"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.020",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::anchor_summary_section",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "摘要中包含独立的锚点小节",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn anchor_summary_section"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.021",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::extract_workflow_context",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "摘要保留工作流上下文（正在做什么、改了哪些文件）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn extract_workflow_context"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.022",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::collect_tool_uses",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "汇总历史工具调用用于摘要中的动作回溯",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn collect_tool_uses"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.023",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::tool_args_preview",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "工具参数在摘要中以预览形式保留而非全量",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn tool_args_preview"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.024",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::merge_system_prompts",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "压缩后系统提示与摘要正确合并",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn merge_system_prompts"
+      ]
+    }
+  },
+  {
+    "id": "D03.3.025",
+    "domain": "D03",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/compaction/mod.rs::todo_state_survives",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "待办/计划状态在压缩后不丢失（跨压缩的任务连续性）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "Tasks/TODOs Identified|contains\\(\"TODO\"\\)|contains\\(\"task\"\\)",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D03.4.001",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::PressureLevel",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在上下文预算结构体",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "enum PressureLevel"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.002",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::PressureLevel::from_usage_percent",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "预算以模型窗口大小为基准",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn from_usage_percent"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.003",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::clamp_output_cap",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "预算显式为输出预留额度",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn clamp_output_cap"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.004",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::window_tokens",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "计算可用输入额度",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "window_tokens"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.005",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::UI_WARNING_PERCENT",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "预留安全余量常量，避免贴边溢出",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "UI_WARNING_PERCENT"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.006",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::MIN_INPUT_BUDGET_TOKENS",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "输入预算有下限，避免被压到不可用",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "MIN_INPUT_BUDGET_TOKENS"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.007",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::clamp_output_cap",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "输出额度 clamp 使用饱和算术，不会下溢",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn clamp_output_cap"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.008",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::usage_percent",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "可计算当前占用百分比",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn usage_percent"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.009",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::fits_additional",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "可预判追加内容是否放得下",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn fits_additional"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.010",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::is_over_budget",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "可判定是否已超预算",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "fn is_over_budget"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.011",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::PressureLevel",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "压力等级被建模为枚举",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "enum PressureLevel"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.012",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::PressureLevel::Critical",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "压力等级含 Critical 档",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "PressureLevel",
+        "variant": "Critical"
+      }
+    }
+  },
+  {
+    "id": "D03.4.013",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::suggests_compaction",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "预算压力分级已接线到引擎/TUI 消费方（实测未接线：suggests_compaction 仅被自身单测调用，模块头注释自陈 pending engine/TUI consumers，预期失败）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/core/engine.rs",
+        "crates/tui/src/core/engine/tool_execution.rs",
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "suggests_compaction"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.014",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::UI_WARNING_PERCENT",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "UI 告警阈值与压缩触发阈值分离",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "UI_WARNING_PERCENT"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.015",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::UI_SUGGEST_COMPACT_PERCENT",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在「建议手动 /compact」的更早提示阈值",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "patterns": [
+        "UI_SUGGEST_COMPACT_PERCENT"
+      ]
+    }
+  },
+  {
+    "id": "D03.4.016",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::PressureLevel",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "压力等级按百分比正确分档（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::pressure_level_classifies_percent_bands"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.4.017",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::PressureLevel::from_usage_percent",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "越界百分比被 clamp 而非 panic（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::pressure_level_clamps_out_of_range"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.4.018",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::clamp_output_cap",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "极小窗口不会导致下溢（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::context_budget_never_underflows_on_small_window"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.4.019",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::window_tokens",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "窗口为 0 时行为安全（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::context_budget_zero_window_is_safe"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.4.020",
+    "domain": "D03",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::UI_WARNING_PERCENT",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "UI 阈值与预算阈值确为不同常量（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "context_budget::tests::ui_threshold_constants_are_distinct_from_budget_band"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.5.001",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "能识别「上下文窗口超限」这一特定 API 错误",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "fn count_tokens"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.002",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens_for_model",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "区分瞬时错误与永久错误，决定是否重试",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "fn count_tokens_for_model"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.003",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::Encoding::for_model",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "compact_messages_safe 在摘要失败时有降级路径而非直接崩",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "fn for_model"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.004",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::heuristic_tokens",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "裁剪工具结果时按字节增量检查停止条件",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tokenizer/mod.rs"
+      ],
+      "patterns": [
+        "fn heuristic_tokens"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.005",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::prune_until_predicate",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "裁剪以谓词驱动，达标即停而非一刀切全删",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "prune_tool_results_until",
+        "param": "messages"
+      }
+    }
+  },
+  {
+    "id": "D03.5.006",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens",
+    "view": "existence",
+    "tier": "T3",
+    "desc": "存在真实 BPE token 计数入口",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::matches_reference_token_counts_exactly"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.5.007",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::count_tokens_for_model",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "token 计数可按模型选择编码",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::per_model_counting_matches_default_for_unknown_models"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.5.008",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::Encoding::for_model",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "存在模型到编码的映射",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::openai_o200k_family_is_detected"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.5.009",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tokenizer/mod.rs::heuristic_tokens",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "保留启发式计数作为 BPE 不可用时的兜底",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tokenizer::tests::heuristic_counts_characters_not_bytes"
+      ],
+      "expect": "test_passes"
+    },
+    "timeout": 1800
+  },
+  {
+    "id": "D03.5.010",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::estimate_tokens_uses_real_bpe",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "压缩的 token 估算走真实 tokenizer 而非 chars/4 启发式",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "estimate_tokens_for_message",
+        "callee": "count_tokens"
+      }
+    }
+  },
+  {
+    "id": "D03.5.011",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::estimate_input_tokens_conservative",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在带安全余量的输入 token 保守估算",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn estimate_input_tokens_conservative"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.012",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::framing_overhead_accounted",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "估算计入每条消息的协议 framing 开销",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "framing_overhead"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.013",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::thinking_block_token_rule",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "DeepSeek thinking 块的 token 计入规则被显式处理",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "include_thinking"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.014",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::tool_use_json_token_fallback",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "工具入参 JSON 序列化失败时用兜底 token 数而非 0",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "unwrap_or\\(100\\)"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.015",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/context_budget/mod.rs::dead_char_estimators",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "context_budget 的 chars/3、chars/4 字符估算器已被真实调用方使用（否则为死代码）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/context_budget/mod.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "estimate_tokens_permissive",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D03.5.016",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/core/engine.rs::recovery_success_requires_real_reduction",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "恢复成功判定要求「降到预算内」且「确实减少了 token/消息」，仅仅没变化不算成功",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/core/engine.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "let recovered = after_tokens <= target_budget",
+        "b": "after_tokens < before_tokens \\|\\| after_count < before_count \\|\\| trimmed > 0"
+      }
+    }
+  },
+  {
+    "id": "D03.5.017",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::summary_cache_telemetry",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "摘要请求的缓存命中率被记录用于观测",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn log_summary_cache_telemetry"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.018",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::summary_cache_hit_percent",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "能计算摘要请求的缓存命中百分比",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "fn summary_cache_hit_percent"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.019",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::CACHE_ALIGNED_SUMMARY_CONTEXT_BUDGET_PERCENT",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "缓存对齐摘要有独立的预算占比上限",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "patterns": [
+        "CACHE_ALIGNED_SUMMARY_CONTEXT_BUDGET_PERCENT"
+      ]
+    }
+  },
+  {
+    "id": "D03.5.020",
+    "domain": "D03",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/compaction/mod.rs::compaction_loop_guard",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "压缩后若仍超预算不会无限递归压缩（有次数或收益守卫）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/compaction/mod.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "max_attempts|no_progress|recursion",
+        "n": 1
+      }
+    }
+  }
+]

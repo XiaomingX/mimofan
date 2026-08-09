@@ -1,0 +1,2473 @@
+[
+  {
+    "id": "D01.1.001",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::FileReadSnapshot",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 read_file 工具类型 ReadFileTool",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "struct FileReadSnapshot"
+      ]
+    }
+  },
+  {
+    "id": "D01.1.002",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::FileReadTracker",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "read_file 工具对外暴露的名称为 read_file",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "struct FileReadTracker"
+      ]
+    }
+  },
+  {
+    "id": "D01.1.003",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::read_file::offset_param",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "read_file 支持 offset 参数以分页读取大文件",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "\"offset\"",
+        "b": "\"limit\""
+      }
+    }
+  },
+  {
+    "id": "D01.1.004",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::add_range",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "read_file 支持 limit 参数限定读取行数",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn add_range"
+      ]
+    }
+  },
+  {
+    "id": "D01.1.005",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::read_file::supports_parallel",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "read_file 声明可并行执行（只读工具允许并发）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "execute",
+        "param": "context"
+      }
+    }
+  },
+  {
+    "id": "D01.1.006",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::line_span_for_byte_range",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在把字节区间映射为 1-based 行号区间的函数",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "line_span_for_byte_range",
+        "param": "contents"
+      }
+    }
+  },
+  {
+    "id": "D01.1.007",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::note_file_read_range",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "分页读取会按行区间登记已读覆盖范围（1-based 含端点）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "note_file_read_range",
+        "param": "start"
+      }
+    }
+  },
+  {
+    "id": "D01.1.008",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::FileReadSnapshot",
+    "view": "existence",
+    "tier": "T3",
+    "desc": "存在文件读取快照类型用于追踪已读内容",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::spec::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::spec::tests::full_snapshot_covers_every_line ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.1.009",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::FileReadTracker",
+    "view": "existence",
+    "tier": "T3",
+    "desc": "存在 FileReadTracker 追踪 read-before-write 状态",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::spec::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::spec::tests::adjacent_ranges_coalesce_into_one_span ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.1.010",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::read_pdf",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "read_file 能读取 PDF 文本（非纯文本格式的读取扩展）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "read_pdf",
+        "callee": "read_pdf_via_pdftotext"
+      }
+    }
+  },
+  {
+    "id": "D01.1.011",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::covers",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "read_file 对图片走 OCR 提取文本",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn covers"
+      ]
+    }
+  },
+  {
+    "id": "D01.1.012",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::line_span_for_byte_range",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "PDF 读取支持 pages 页码范围参数解析",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "fn line_span_for_byte_range"
+      ]
+    }
+  },
+  {
+    "id": "D01.1.013",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::guard_pdf_extract",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "PDF 解析被 panic 守卫包裹，第三方库崩溃不会拖垮进程",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "guard_pdf_extract",
+        "callee": "catch_unwind"
+      }
+    }
+  },
+  {
+    "id": "D01.1.014",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::read_file::line_anchor",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "read_file 输出携带行内容哈希锚点（line_ref）供后续精确编辑",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "fn line_content_hash",
+        "b": "line_ref"
+      }
+    }
+  },
+  {
+    "id": "D01.1.015",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::require_read_coverage",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "编辑行必须落在已读区间内，否则拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "require_read_coverage",
+        "callee": "ToolError"
+      }
+    }
+  },
+  {
+    "id": "D01.1.016",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::add_range",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "多次分页读取的覆盖范围可累积（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::successive_reads_accumulate_coverage ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.1.017",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/spec.rs::covers",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "小文件一次读取即授予全量覆盖（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::small_file_read_grants_full_coverage ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.1.018",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::line_span_for_byte_range",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "字节区间到行号映射正确（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::line_span_maps_byte_ranges_to_line_numbers ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.1.019",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::read_file::truncation_notice",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "超长文件读取会给出截断/继续读取提示而非静默丢内容",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "offset",
+        "b": "truncat"
+      }
+    }
+  },
+  {
+    "id": "D01.1.020",
+    "domain": "D01",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/file.rs::read_file::binary_reject",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "读取二进制/不可解码文件时报错而非返回乱码",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "read_to_string",
+        "b": "execution_failed"
+      }
+    }
+  },
+  {
+    "id": "D01.2.001",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 FileFidelity 类型承载 BOM/CRLF 保真信息",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "struct FileFidelity"
+      ]
+    }
+  },
+  {
+    "id": "D01.2.002",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::UTF8_BOM",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "定义了 UTF-8 BOM 常量",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "const UTF8_BOM"
+      ]
+    }
+  },
+  {
+    "id": "D01.2.003",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity::bom",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "FileFidelity 记录原文件是否带 BOM",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "restore",
+        "param": "normalized"
+      }
+    }
+  },
+  {
+    "id": "D01.2.004",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity::restore",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "FileFidelity 记录原文件是否为 CRLF 行尾",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "fn restore\\("
+      ]
+    }
+  },
+  {
+    "id": "D01.2.005",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity::detect",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "detect 把原始字节拆为保真信息 + 规范化正文",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "detect",
+        "param": "raw"
+      }
+    }
+  },
+  {
+    "id": "D01.2.006",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity::restore",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "restore 在写回前还原 BOM 与 CRLF",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "restore",
+        "param": "normalized"
+      }
+    }
+  },
+  {
+    "id": "D01.2.007",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::restore_is_inverse_of_detect",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "detect/restore 互为逆运算（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::restore_is_inverse_of_detect ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.2.008",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::detect_splits_bom_and_crlf_from_body",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "detect 正确分离 BOM 与 CRLF（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::detect_splits_bom_and_crlf_from_body ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.2.009",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity::restore",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "替换文本中的换行不会被二次转换成 CRCRLF（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::restore_does_not_double_convert_crlf_in_replacement ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.2.010",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity::crlf",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "CRLF 文件编辑后仍为 CRLF（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::crlf_file_stays_crlf_after_edit ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.2.011",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::bom_is_preserved_after_edit",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "带 BOM 文件编辑后 BOM 不消失（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::bom_is_preserved_after_edit ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.2.012",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::crlf_edit_touches_only_the_edited_line",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "CRLF 文件编辑只改目标行，未触碰行的字节不变（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::crlf_edit_touches_only_the_edited_line ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.2.013",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::FileFidelity::crlf",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "edit_file 的工具描述明确承诺保留 BOM 与行尾",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "crlf: bool"
+      ]
+    }
+  },
+  {
+    "id": "D01.2.014",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::write_file::fidelity",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "write_file 全量覆写时同样处理编码保真（而非只在 edit 路径处理）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "WriteFileTool",
+        "b": "FileFidelity"
+      }
+    }
+  },
+  {
+    "id": "D01.2.015",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::mixed_line_endings",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "混合行尾（部分 CRLF 部分 LF）文件不会被整体重写行尾",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "matches\\(\"\\r\\n\"",
+        "b": "crlf"
+      }
+    }
+  },
+  {
+    "id": "D01.2.016",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::utf16_detect",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "UTF-16/UTF-32 编码文件被识别并拒绝而非按 UTF-8 破坏性写回",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "utf-16|UTF-16|utf16",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.2.017",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::binary_write_guard",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "写入路径对二进制内容有保护，不会把二进制当文本截断",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "NUL|U\\+FFFD|binary_unavailable",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.2.018",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::trailing_newline_preserved",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "文件末尾换行的有无在编辑后保持不变",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "ends_with('\\n')",
+        "b": "original_had_newline"
+      }
+    }
+  },
+  {
+    "id": "D01.2.019",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::unicode_byte_boundary",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "多字节 Unicode 内容的字节切片按字符边界处理，不会 panic",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "char_indices|is_char_boundary",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.2.020",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::file_permissions_preserved",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "编辑写回后保留原文件权限位（如可执行位）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "set_permissions|PermissionsExt",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.3.001",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::EditFileTool",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 edit_file 工具类型",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "pub struct EditFileTool"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.002",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_file::replace_all",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "edit_file 支持 replace_all 参数",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "\"replace_all\"",
+        "b": "optional_bool\\(&input, \"replace_all\""
+      }
+    }
+  },
+  {
+    "id": "D01.3.003",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::search_non_unique_reject",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "edit_file 支持 line_ref 锚点模式",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "edit_file search is non-unique: matched"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.004",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_file::replace_all",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "edit_file 支持 search 精确匹配模式",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "\"replace_all\""
+      ]
+    }
+  },
+  {
+    "id": "D01.3.005",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::find_all_lines_by_anchor",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "锚点模式会查找全部匹配行以检测非唯一",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "find_all_lines_by_anchor",
+        "param": "anchor"
+      }
+    }
+  },
+  {
+    "id": "D01.3.006",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::anchor_non_unique_reject",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "锚点匹配到多处时拒绝编辑并提示改用 search 模式",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "is non-unique: matched",
+        "b": "matches.len()"
+      }
+    }
+  },
+  {
+    "id": "D01.3.007",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::replace_all_default_false",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "锚点失效时给出「重新 read_file 取新锚点」的恢复指引",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "optional_bool\\(&input, \"replace_all\", false\\)"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.008",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::search_non_unique_reject",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "search 命中多处且未开 replace_all 时拒绝并报出命中数",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "edit_file search is non-unique: matched",
+        "b": "replace_all=true"
+      }
+    }
+  },
+  {
+    "id": "D01.3.009",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::search_not_found_recovery",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "search 未命中时给出可执行的恢复指引而非裸报错",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "Search string not found in"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.010",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::identical_search_replace_reject",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "search 与 replace 完全相同时拒绝执行空编辑",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "search and replace are identical"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.011",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::leading_whitespace_fuzzy_matches",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在缩进容错的模糊匹配回退",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "leading_whitespace_fuzzy_matches",
+        "callee": "strip_line_leading_whitespace_with_map"
+      }
+    }
+  },
+  {
+    "id": "D01.3.012",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::punctuation_normalized_matches",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在排版标点（弯引号/长破折号/NBSP）归一化匹配回退",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "punctuation_normalized_matches",
+        "callee": "punctuation_normalized_with_map"
+      }
+    }
+  },
+  {
+    "id": "D01.3.013",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::fuzzy_indent_non_unique_reject",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "缩进归一化后命中多处仍然拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "non-unique after indentation normalization"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.014",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::fuzzy_punct_non_unique_reject",
+    "view": "negative",
+    "tier": "T1",
+    "desc": "标点归一化后命中多处仍然拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "non-unique after punctuation normalization"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.015",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::fuzz_param_deprecated",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "旧 fuzz 参数已废弃但保留兼容（不破坏老调用）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "Deprecated: fuzzy fallback is now automatic"
+      ]
+    }
+  },
+  {
+    "id": "D01.3.016",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::match_byte_ranges",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "存在枚举全部匹配字节区间的函数供 replace_all 覆盖校验",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "match_byte_ranges",
+        "param": "needle"
+      }
+    }
+  },
+  {
+    "id": "D01.3.017",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::replace_all_coverage_check",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "replace_all 会逐个校验每个命中点都已被读取过",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "match_byte_ranges",
+        "b": "require_read_coverage"
+      }
+    }
+  },
+  {
+    "id": "D01.3.018",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_returns_unified_diff",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "编辑结果返回统一 diff 而非整文件回显",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "execute",
+        "callee": "make_unified_diff"
+      }
+    }
+  },
+  {
+    "id": "D01.3.019",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_reports_occurrence_count",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "编辑结果报告实际替换了几处",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "Replaced {count} occurrence",
+        "b": "fuzz_note"
+      }
+    }
+  },
+  {
+    "id": "D01.3.020",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::EditFileTool",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "唯一命中时无需 replace_all 即可替换（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::single_match_replaces_without_replace_all ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.3.021",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::search_non_unique_reject",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "多命中报错文案会建议使用 replace_all（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::multi_match_without_replace_all_reports_count_and_suggests_flag ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.3.022",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_file::replace_all",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "replace_all=true 时全部命中都被替换（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::multi_match_with_replace_all_rewrites_every_occurrence ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.3.023",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::replace_all_default_false",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "replace_all 默认为 false，保持保守语义（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::replace_all_defaults_to_false_preserving_legacy_behavior ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.3.024",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_file::lsp_diagnostics",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "编辑后自动附加该文件的 LSP 诊断信息",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "execute",
+        "callee": "lsp_diagnostics_for_paths"
+      }
+    }
+  },
+  {
+    "id": "D01.3.025",
+    "domain": "D01",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_file::multi_edit_atomic",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "单次调用内多处编辑要么全成功要么不落盘（无部分写入）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "persist\\(|fslock|atomic_write",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.4.001",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::require_fresh_file_read",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 write_file 工具类型",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn require_fresh_file_read"
+      ]
+    }
+  },
+  {
+    "id": "D01.4.002",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::require_fresh_file_read",
+    "view": "existence",
+    "tier": "T3",
+    "desc": "存在 read-before-write 校验函数",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::spec::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::spec::tests::unread_file_defers_to_freshness_check ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.4.003",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_calls_require_fresh_read",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "edit_file 执行前调用 require_fresh_file_read",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "execute",
+        "callee": "require_fresh_file_read"
+      }
+    }
+  },
+  {
+    "id": "D01.4.004",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::disjoint_ranges_leave_a_hole",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "ToolContext 持有共享的文件读取追踪器",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::spec::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::spec::tests::disjoint_ranges_leave_a_hole ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.4.005",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::note_file_read_after_write",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "写回成功后刷新读取快照，避免连续编辑被误判为脏读",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "execute",
+        "callee": "note_file_read"
+      }
+    }
+  },
+  {
+    "id": "D01.4.006",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::stale_content_detection",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "文件在读取后被外部改动时拒绝编辑（TOCTOU 检测）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "modified|SystemTime|content_hash",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.4.007",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::require_read_coverage",
+    "view": "negative",
+    "tier": "T3",
+    "desc": "只读了部分行就编辑范围外的行会被拒绝（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::partial_read_rejects_edit_outside_observed_range ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.4.008",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_calls_read_coverage",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "编辑落在已观察区间内则放行（真实执行）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::file::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::file::tests::edit_inside_observed_range_is_allowed ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.4.009",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::FileReadTracker::disjoint_ranges",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "edit_file 声明 RequiresApproval 能力",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn describe_observed"
+      ]
+    }
+  },
+  {
+    "id": "D01.4.010",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::require_read_coverage",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "写类工具声明 WritesFiles 能力用于权限编排",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn require_read_coverage"
+      ]
+    }
+  },
+  {
+    "id": "D01.4.011",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::edit_calls_read_coverage",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "edit_file 的审批级别为 Suggest（可被策略提升）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "require_read_coverage"
+      ]
+    }
+  },
+  {
+    "id": "D01.4.012",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::FileReadSnapshot::coalesce",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "ToolContext 携带沙箱策略，写工具据此判定可写范围",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn identity"
+      ]
+    }
+  },
+  {
+    "id": "D01.4.013",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::FileReadSnapshot::coalesce",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "存在 trust_mode 用于在受信工作区放宽校验",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::spec::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::spec::tests::out_of_order_ranges_still_coalesce ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.4.014",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::write_file_requires_prior_read",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "覆写已存在文件同样要求先读过（不只 edit 受约束）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "WriteFileTool",
+        "b": "require_fresh_file_read"
+      }
+    }
+  },
+  {
+    "id": "D01.4.015",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::write_creates_parent_dirs",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "写入新文件时按需创建父目录",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "create_dir_all|parent\\(\\)",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.4.016",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::symlink_write_guard",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "写入目标是符号链接时不会穿透覆写链接目标",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "symlink_metadata|is_symlink",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.4.017",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::readonly_file_error",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "写入只读文件时返回明确错误而非静默失败",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "Failed to write",
+        "b": "execution_failed"
+      }
+    }
+  },
+  {
+    "id": "D01.4.018",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::overlapping_ranges_merge",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "读取追踪器在工具之间共享（read_file 的记录能被 edit_file 看到）",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::spec::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::spec::tests::overlapping_ranges_merge ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.4.019",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::concurrent_edit_lock",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "并发编辑同一文件时有互斥保护，避免写丢失",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "Mutex|RwLock|file_lock",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.4.020",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/file.rs::write_verifies_after_flush",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "写入后校验落盘结果（fsync/回读），不假定写成功",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "sync_all|sync_data",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.5.001",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::ApplyPatchTool",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 apply_patch 结构化补丁工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "pub struct ApplyPatchTool"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.002",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::Hunk",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "补丁被解析为 Hunk 结构",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "pub struct Hunk"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.003",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::HunkLine",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "Hunk 内区分增/删/上下文行",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "HunkLine",
+        "variant": "Context"
+      }
+    }
+  },
+  {
+    "id": "D01.5.004",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::PatchResult",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "补丁应用返回结构化结果",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "pub struct PatchResult"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.005",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::FileSummary",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "补丁结果按文件汇总变更",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "pub struct FileSummary"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.006",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::preflight_apply_patch",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "补丁应用前有 preflight 预检（先验证再落盘）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "preflight_apply_patch",
+        "param": "input"
+      }
+    }
+  },
+  {
+    "id": "D01.5.007",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::ApplyPatchPreflight",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "预检返回结构化的影响面信息",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "pub struct ApplyPatchPreflight"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.008",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::file_count",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "补丁能报告涉及的文件数量",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "fn file_count"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.009",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::add_file_op",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持 Add File 补丁操作（新建文件）",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "Add File"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.010",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::delete_file_op",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持 Delete File 补丁操作",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "Delete File"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.011",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::update_file_op",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "支持 Update File 补丁操作",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "Update File"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.012",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::requires_approval",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "apply_patch 声明需要审批",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "patterns": [
+        "ToolCapability::RequiresApproval"
+      ]
+    }
+  },
+  {
+    "id": "D01.5.013",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::atomic_multi_file",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "多文件补丁失败时整体回滚，不留半应用状态",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "rollback_pending_writes",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.5.014",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::context_mismatch_reject",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "上下文行与实际文件不符时拒绝应用该 hunk",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "header_path_mismatch|could not find matching context",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.5.015",
+    "domain": "D01",
+    "cluster": 5,
+    "assert_key": "crates/tui/src/tools/apply_patch.rs::patch_read_before_write",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "apply_patch 同样受 read-before-write 约束",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/apply_patch.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "require_fresh_file_read|require_read_coverage",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.6.001",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/spec.rs::resolve_path",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "存在统一的路径解析入口 resolve_path",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "fn_has_param",
+      "args": {
+        "fn": "resolve_path",
+        "param": "raw"
+      }
+    }
+  },
+  {
+    "id": "D01.6.002",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/spec.rs::ToolError::PathEscape",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "定义了 PathEscape 错误变体用于越界拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tools/src/lib.rs"
+      ],
+      "assert": "enum_has_variant",
+      "args": {
+        "enum": "ToolError",
+        "variant": "PathEscape"
+      }
+    }
+  },
+  {
+    "id": "D01.6.003",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/spec.rs::path_escape_reject",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "越出工作区的路径被 resolve_path 拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "calls_symbol",
+      "args": {
+        "caller": "resolve_path",
+        "callee": "PathEscape"
+      }
+    }
+  },
+  {
+    "id": "D01.6.004",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/spec.rs::is_trusted_external_path",
+    "view": "depth",
+    "tier": "T1",
+    "desc": "存在受信外部路径白名单机制",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn is_trusted_external_path"
+      ]
+    }
+  },
+  {
+    "id": "D01.6.005",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/spec.rs::is_trusted_external_path",
+    "view": "depth",
+    "tier": "T3",
+    "desc": "路径解析对符号链接有显式处理策略",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": [
+        "cargo",
+        "test",
+        "-p",
+        "mimofan",
+        "--lib",
+        "tools::spec::tests"
+      ],
+      "expect": "stdout_contains",
+      "timeout": 1800,
+      "args": {
+        "text": "tools::spec::tests::adding_range_to_full_snapshot_keeps_full_coverage ... ok"
+      }
+    }
+  },
+  {
+    "id": "D01.6.006",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/file.rs::ListDirTool",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在 list_dir 目录列举工具",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "pub struct ListDirTool"
+      ]
+    }
+  },
+  {
+    "id": "D01.6.007",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/file.rs::LIST_DIR_TIMEOUT",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "目录列举有超时上限，防止深目录卡死",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "both_present",
+      "args": {
+        "a": "LIST_DIR_TIMEOUT",
+        "b": "fn list_dir_timeout"
+      }
+    }
+  },
+  {
+    "id": "D01.6.009",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/file_search.rs::FileSearchTool",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "文件搜索/列举遵守 .gitignore，不把 target/ node_modules 灌进上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/search.rs",
+        "crates/tui/src/tools/file_search.rs",
+        "crates/tui/src/tools/file.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "gitignore|ignore::|WalkBuilder|git_ignore",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.6.010",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/spec.rs::dotdot_normalization",
+    "view": "negative",
+    "tier": "T2",
+    "desc": "路径中的 .. 在校验前被规范化，防止绕过越界检查",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "assert": "count_at_least",
+      "args": {
+        "pattern": "canonicalize|components\\(\\)|ParentDir",
+        "n": 1
+      }
+    }
+  },
+  {
+    "id": "D01.6.011",
+    "domain": "D01",
+    "cluster": 6,
+    "assert_key": "crates/tui/src/tools/spec.rs::resolve_path_integrates_trust_check",
+    "view": "integration",
+    "tier": "T1",
+    "desc": "路径解析在 resolve_path 流程中集成了受信外部路径检查，越界解析会触发 is_trusted_external_path 拒绝",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "fn resolve_path",
+        "is_trusted_external_path"
+      ]
+    }
+  },
+  {
+    "id": "D01.2.022",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::restore_is_inverse_of_detect",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "T1 配对：restore_is_inverse_of_detect 测试函数真实存在于源码",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "restore_is_inverse_of_detect"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D01.2.023",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::crlf_edit_touches_only_the_edited_line",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "T1 配对：crlf_edit_touches_only_the_edited_line 测试函数真实存在于源码",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "crlf_edit_touches_only_the_edited_line"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D01.2.024",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::detect_splits_bom_and_crlf_from_body",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "T1 配对：detect_splits_bom_and_crlf_from_body 测试函数真实存在于源码",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "detect_splits_bom_and_crlf_from_body"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D01.2.025",
+    "domain": "D01",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/file.rs::bom_is_preserved_after_edit",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "T1 配对：bom_is_preserved_after_edit 测试函数真实存在于源码",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/file.rs"
+      ],
+      "patterns": [
+        "bom_is_preserved_after_edit"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D01.4.022",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::disjoint_ranges_leave_a_hole",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "T1 配对：disjoint_ranges_leave_a_hole 测试函数真实存在于源码",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "disjoint_ranges_leave_a_hole"
+      ],
+      "require_all": true
+    }
+  },
+  {
+    "id": "D01.4.023",
+    "domain": "D01",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/tools/spec.rs::overlapping_ranges_merge",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "T1 配对：overlapping_ranges_merge 测试函数真实存在于源码",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/tools/spec.rs"
+      ],
+      "patterns": [
+        "overlapping_ranges_merge"
+      ],
+      "require_all": true
+    }
+  }
+]
