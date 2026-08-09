@@ -11,7 +11,8 @@
 //!
 //! - [`LspTransport`] is the trait the [`super::LspManager`] talks to. The
 //!   real implementation is [`StdioLspTransport`] (forks an LSP server with
-//!   `tokio::process::Command`); tests use `super::tests::FakeTransport`.
+//!   `tokio::process::Command`); tests use the in-process `FakeTransport`
+//!   in the `tests` module below.
 //! - [`StdioLspTransport`] runs three tokio tasks: a reader, a writer, and
 //!   the public API. Communication uses tokio mpsc channels.
 //! - We parse `Content-Length`-framed JSON-RPC and route inbound messages
@@ -42,6 +43,35 @@ use super::diagnostics::{Diagnostic, Severity};
 use super::registry::Language;
 use crate::utils::spawn_supervised;
 
+/// A source symbol as returned by `textDocument/documentSymbol`. We keep the
+/// minimal fields needed by static-analysis queries (name + kind + span +
+/// children for outline navigation), not the full LSP shape.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LspSymbol {
+    /// Symbol name (e.g. function or type identifier).
+    pub name: String,
+    /// LSP `SymbolKind` numeric code (1=file … 12=class … 14=method …).
+    pub kind: u64,
+    /// 1-based line of the symbol's defining range start.
+    pub line: u32,
+    /// 1-based column of the symbol's defining range start.
+    pub column: u32,
+    /// Nested symbols (methods inside a class, variants inside an enum).
+    pub children: Vec<LspSymbol>,
+}
+
+/// A source location as returned by `textDocument/references` and
+/// `textDocument/definition`. URI is always a `file://` path for our servers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LspLocation {
+    /// Absolute filesystem path decoded from the `file://` URI.
+    pub path: PathBuf,
+    /// 1-based line of the reference/definition.
+    pub line: u32,
+    /// 1-based column of the reference/definition.
+    pub column: u32,
+}
+
 /// Trait the LSP manager talks to. A real LSP server speaks this via stdio;
 /// tests use an in-process fake.
 #[async_trait]
@@ -59,6 +89,34 @@ pub trait LspTransport: Send + Sync {
 
     /// Send `textDocument/didClose` notification for `path` and remove it from opened map.
     async fn close_file(&self, path: &Path) -> Result<()>;
+
+    /// Generic JSON-RPC request/reply. Allocates an id, registers a reply
+    /// slot, sends the message, and awaits the matching reply (or error)
+    /// up to `wait`. Returns the full reply `Value`. This is the shared path
+    /// behind every request-style LSP method (symbols/references/definition/
+    /// hover/workspace symbol). Implementations must surface timeouts and
+    /// server errors as `Err`, never block indefinitely.
+    async fn request(&self, method: &str, params: Value, wait: Duration) -> Result<Value>;
+
+    /// List symbols in `path` via `textDocument/documentSymbol`. Best-effort:
+    /// returns an empty list when unsupported or on failure.
+    async fn document_symbols(&self, path: &Path, wait: Duration) -> Vec<LspSymbol>;
+
+    /// Find references to the symbol at `(line, column)` in `path` via
+    /// `textDocument/references`. Best-effort: empty on unsupported/failure.
+    async fn references(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        include_declaration: bool,
+        wait: Duration,
+    ) -> Vec<LspLocation>;
+
+    /// Resolve the definition of the symbol at `(line, column)` in `path` via
+    /// `textDocument/definition`. Best-effort: `None` on unsupported/failure.
+    async fn definition(&self, path: &Path, line: u32, column: u32, wait: Duration)
+    -> Option<LspLocation>;
 }
 
 /// Stdio-backed transport. Spawns the LSP server as a child process and
@@ -73,13 +131,18 @@ pub struct StdioLspTransport {
     /// Inbound diagnostics queue. We push every `publishDiagnostics`
     /// notification into here and the public API drains the relevant entries.
     diagnostics_rx: AsyncMutex<mpsc::Receiver<(PathBuf, Vec<Diagnostic>)>>,
-    /// Map of in-flight request id -> reply slot. We do not currently call
-    /// methods that need replies after `initialize`, but this is the hook
-    /// for it.
+    /// Map of in-flight request id -> reply slot. Populated by [`Self::request_raw`]
+    /// for every method call that expects a server reply; drained by the
+    /// dispatcher when a matching `id` arrives.
     pending: Arc<AsyncMutex<HashMap<i64, oneshot::Sender<Value>>>>,
-    /// Monotonic request id counter. Reserved for future LSP request/reply
-    /// methods (workspace symbol queries, etc.).
+    /// Monotonic request id counter. `request_raw` takes the next value, sends
+    /// the message, and registers a reply slot keyed by it.
     next_id: AsyncMutex<i64>,
+    /// `serverCapabilities` from the `initialize` reply. `None` until
+    /// `spawn` completes the handshake; read by capability-gated helpers
+    /// (`document_symbols`, `references`, `definition`, …) to skip servers
+    /// that do not advertise support.
+    capabilities: Arc<AsyncMutex<Option<Value>>>,
     /// Language id passed in `textDocument/didOpen` (e.g. "rust").
     language_id: &'static str,
     /// Track which files we have opened so the second touch sends
@@ -164,11 +227,27 @@ impl StdioLspTransport {
         });
         send_message(&tx_outbound, &init_payload).await?;
 
-        // We do not actually wait for the initialize response here in MVP —
-        // most servers buffer notifications until they are ready, and waiting
-        // for `initialize` reply doubles the latency of the first edit. Send
-        // `initialized` immediately and let publishDiagnostics arrive on its
-        // own clock.
+        // Await the `initialize` reply so we capture `serverCapabilities`
+        // for capability-gated helpers (symbols/references/definition). We
+        // bound the wait so a broken server cannot hang startup; on timeout
+        // we proceed with `capabilities = None` (helpers will then probe
+        // lazily or degrade). Most servers reply within tens of ms.
+        let init_reply = timeout(Duration::from_secs(10), Self::wait_for_reply(&pending, 1)).await;
+        let capabilities = match init_reply {
+            Ok(Ok(reply)) => reply.get("result").and_then(|r| r.get("capabilities")).cloned(),
+            Ok(Err(err)) => {
+                tracing::warn!(?err, "lsp: initialize reply error; capabilities unknown");
+                None
+            }
+            Err(_) => {
+                tracing::warn!("lsp: initialize reply timed out; capabilities unknown");
+                None
+            }
+        };
+
+        // Send `initialized` to complete the handshake. Servers buffer
+        // notifications until ready, so publishDiagnostics arrive on their
+        // own clock after this.
         let initialized = json!({
             "jsonrpc": "2.0",
             "method": "initialized",
@@ -182,9 +261,211 @@ impl StdioLspTransport {
             diagnostics_rx: AsyncMutex::new(rx_diag),
             pending,
             next_id: AsyncMutex::new(2),
+            capabilities: Arc::new(AsyncMutex::new(capabilities)),
             language_id: language.language_id(),
             opened: AsyncMutex::new(HashMap::new()),
         })
+    }
+
+    /// Generic JSON-RPC request/reply. Allocates the next id, registers a
+    /// one-shot reply slot, frames and sends the message, then awaits the
+    /// matching reply (or error) up to `wait`. Returns the full reply
+    /// `Value` (callers extract `result`/`error` as needed).
+    ///
+    /// Failures are surfaced as `Err`: a closed outbound channel, a server
+    /// `error` object, or a `wait` timeout. This is the single shared path
+    /// for every request-style LSP method (`documentSymbol`, `references`,
+    /// `definition`, `hover`, `workspace/symbol`, …) so individual helpers
+    /// stay tiny and capability-gated.
+    async fn request_raw(&self, method: &str, params: Value, wait: Duration) -> Result<Value> {
+        let id = {
+            let mut next = self.next_id.lock().await;
+            let id = *next;
+            *next += 1;
+            id
+        };
+        let msg = json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": method,
+            "params": params,
+        });
+
+        let (tx, rx) = oneshot::channel::<Value>();
+        {
+            let mut map = self.pending.lock().await;
+            map.insert(id, tx);
+        }
+
+        send_message(&self.tx_outbound, &msg).await?;
+
+        match timeout(wait, rx).await {
+            Ok(Ok(reply)) => {
+                if let Some(err) = reply.get("error") {
+                    let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
+                    let msg = err
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("unknown LSP error");
+                    return Err(anyhow!("LSP `{method}` failed ({code}): {msg}"));
+                }
+                Ok(reply)
+            }
+            Ok(Err(_)) => Err(anyhow!("LSP `{method}` reply channel dropped")),
+            Err(_) => {
+                // Drop the stale slot so it cannot leak. The dispatcher will
+                // find nothing to deliver if the late reply arrives.
+                self.pending.lock().await.remove(&id);
+                Err(anyhow!("LSP `{method}` timed out after {wait:?}"))
+            }
+        }
+    }
+
+    /// Await a reply for `id` from the pending map. Used during `initialize`
+    /// where we already hold `pending` by reference. Returns `Err` if the
+    /// dispatcher drops the slot (server died) before delivery.
+    async fn wait_for_reply(
+        pending: &Arc<AsyncMutex<HashMap<i64, oneshot::Sender<Value>>>>,
+        id: i64,
+    ) -> Result<Value> {
+        let (tx, rx) = oneshot::channel::<Value>();
+        {
+            let mut map = pending.lock().await;
+            map.insert(id, tx);
+        }
+        match rx.await {
+            Ok(reply) => {
+                if let Some(err) = reply.get("error") {
+                    let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-1);
+                    let msg = err
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or("unknown LSP error");
+                    return Err(anyhow!("LSP initialize failed ({code}): {msg}"));
+                }
+                Ok(reply)
+            }
+            Err(_) => Err(anyhow!("LSP initialize reply channel dropped")),
+        }
+    }
+
+    /// List the symbols defined in `path` via `textDocument/documentSymbol`.
+    ///
+    /// Requires the file to have been opened first (callers send `didOpen`/
+    /// `didChange` through [`Self::diagnostics_for`]). Returns an empty list
+    /// when the server does not advertise `textDocument.documentSymbol`
+    /// support or the call fails — symbol queries are best-effort for static
+    /// analysis and must not block the agent.
+    pub async fn document_symbols(&self, path: &Path, wait: Duration) -> Vec<LspSymbol> {
+        if !self.capability_supported(&["textDocument", "documentSymbol"]).await {
+            return Vec::new();
+        }
+        let uri = uri_from_path(path);
+        let params = json!({ "textDocument": { "uri": uri } });
+        let reply = match self.request_raw("textDocument/documentSymbol", params, wait).await {
+            Ok(r) => r,
+            Err(err) => {
+                tracing::debug!(?err, file = %path.display(), "lsp: documentSymbol failed");
+                return Vec::new();
+            }
+        };
+        let raw = reply
+            .get("result")
+            .and_then(|r| r.as_array())
+            .cloned()
+            .unwrap_or_default();
+        raw.into_iter().filter_map(parse_symbol).collect()
+    }
+
+    /// Find all references to the symbol at `(line, column)` in `path` via
+    /// `textDocument/references`. `include_declaration` mirrors LSP's
+    /// `context.includeDeclaration`.
+    pub async fn references(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        include_declaration: bool,
+        wait: Duration,
+    ) -> Vec<LspLocation> {
+        if !self
+            .capability_supported(&["textDocument", "references"])
+            .await
+        {
+            return Vec::new();
+        }
+        let uri = uri_from_path(path);
+        let params = json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": line.saturating_sub(1), "character": column.saturating_sub(1) },
+            "context": { "includeDeclaration": include_declaration }
+        });
+        let reply = match self.request_raw("textDocument/references", params, wait).await {
+            Ok(r) => r,
+            Err(err) => {
+                tracing::debug!(?err, file = %path.display(), "lsp: references failed");
+                return Vec::new();
+            }
+        };
+        let raw = reply
+            .get("result")
+            .and_then(|r| r.as_array())
+            .cloned()
+            .unwrap_or_default();
+        raw.into_iter().filter_map(|v| parse_location(&v)).collect()
+    }
+
+    /// Resolve the definition of the symbol at `(line, column)` in `path` via
+    /// `textDocument/definition`. Returns `None` when there is no definition
+    /// or the server does not support the method.
+    pub async fn definition(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        wait: Duration,
+    ) -> Option<LspLocation> {
+        if !self.capability_supported(&["textDocument", "definition"]).await {
+            return None;
+        }
+        let uri = uri_from_path(path);
+        let params = json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": line.saturating_sub(1), "character": column.saturating_sub(1) }
+        });
+        let reply = match self.request_raw("textDocument/definition", params, wait).await {
+            Ok(r) => r,
+            Err(err) => {
+                tracing::debug!(?err, file = %path.display(), "lsp: definition failed");
+                return None;
+            }
+        };
+        reply.get("result").and_then(parse_location)
+    }
+
+    /// True when `serverCapabilities` advertises `path` as a nested object.
+    /// `path` follows the `serverCapabilities` shape, e.g.
+    /// `["textDocument", "documentSymbol"]`. Returns `true` when capabilities
+    /// are unknown (`None`) so we still attempt the call and let the server
+    /// reject — safer than silently skipping when the handshake was missed.
+    async fn capability_supported(&self, path: &[&str]) -> bool {
+        let caps = self.capabilities.lock().await;
+        let Some(caps) = caps.as_ref() else {
+            return true;
+        };
+        let mut node = caps;
+        for seg in path {
+            match node.get(*seg) {
+                Some(next) => node = next,
+                None => return false,
+            }
+        }
+        // A capability entry is "supported" when present and not explicitly
+        // `false` (e.g. `{"dynamicRegistration": false}` still means supported).
+        match node.as_bool() {
+            Some(false) => false,
+            _ => true,
+        }
     }
 }
 
@@ -284,6 +565,29 @@ impl LspTransport for StdioLspTransport {
             send_message(&self.tx_outbound, &payload).await?;
         }
         Ok(())
+    }
+
+    async fn request(&self, method: &str, params: Value, wait: Duration) -> Result<Value> {
+        self.request_raw(method, params, wait).await
+    }
+
+    async fn document_symbols(&self, path: &Path, wait: Duration) -> Vec<LspSymbol> {
+        StdioLspTransport::document_symbols(self, path, wait).await
+    }
+
+    async fn references(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        include_declaration: bool,
+        wait: Duration,
+    ) -> Vec<LspLocation> {
+        StdioLspTransport::references(self, path, line, column, include_declaration, wait).await
+    }
+
+    async fn definition(&self, path: &Path, line: u32, column: u32, wait: Duration) -> Option<LspLocation> {
+        StdioLspTransport::definition(self, path, line, column, wait).await
     }
 }
 
@@ -417,6 +721,50 @@ fn parse_publish_diagnostics(value: &Value) -> Option<(PathBuf, Vec<Diagnostic>)
     Some((path, out))
 }
 
+/// Decode one `documentSymbol` result entry (LSP 3.16 hierarchical or flat
+/// `SymbolInformation`) into [`LspSymbol`]. Returns `None` on a malformed
+/// entry so a bad server payload cannot abort the whole list.
+fn parse_symbol(value: Value) -> Option<LspSymbol> {
+    let name = value.get("name")?.as_str()?.to_string();
+    let kind = value.get("kind").and_then(|k| k.as_u64()).unwrap_or(0);
+    let range = value.get("range").or_else(|| value.get("location").and_then(|l| l.get("range")))?;
+    let start = range.get("start")?;
+    let line = start.get("line")?.as_u64()? as u32 + 1;
+    let column = start.get("character")?.as_u64()? as u32 + 1;
+    let children = value
+        .get("children")
+        .and_then(|c| c.as_array())
+        .map(|arr| arr.iter().filter_map(|v| parse_symbol(v.clone())).collect())
+        .unwrap_or_default();
+    Some(LspSymbol {
+        name,
+        kind,
+        line,
+        column,
+        children,
+    })
+}
+
+/// Decode one `references`/`definition` result entry into [`LspLocation`].
+/// Handles both a bare `{uri, range}` location and a `{uri, range}` wrapped
+/// in a `LocationLink`. Returns `None` on a malformed entry.
+fn parse_location(value: &Value) -> Option<LspLocation> {
+    // LocationLink nests the target under `targetUri`/`targetRange`.
+    let (uri, range) = if let Some(uri) = value.get("targetUri").and_then(|u| u.as_str()) {
+        let range = value.get("targetRange")?;
+        (uri, range)
+    } else {
+        let uri = value.get("uri")?.as_str()?;
+        let range = value.get("range")?;
+        (uri, range)
+    };
+    let path = path_from_uri(uri)?;
+    let start = range.get("start")?;
+    let line = start.get("line")?.as_u64()? as u32 + 1;
+    let column = start.get("character")?.as_u64()? as u32 + 1;
+    Some(LspLocation { path, line, column })
+}
+
 /// Convert a filesystem path to a `file://` URI. Best-effort — we do not
 /// support Windows drive letters perfectly, but the LSP servers in our
 /// registry accept percent-encoded paths well enough for the post-edit
@@ -435,4 +783,148 @@ fn uri_from_path(path: &Path) -> String {
 fn path_from_uri(uri: &str) -> Option<PathBuf> {
     let stripped = uri.strip_prefix("file://")?;
     Some(PathBuf::from(stripped))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex as StdMutex;
+
+    /// In-process fake of [`LspTransport`]. Unlike a real server it does not
+    /// spawn a process; it returns scripted replies keyed by method name so
+    /// we can unit-test the request/reply plumbing, timeout handling, and
+    /// capability gating without an LSP binary on PATH. Uses a std `Mutex`
+    /// (not the async one) so construction never blocks the test runtime.
+    struct FakeTransport {
+        /// Scripted reply for `request(method, …)`. `None` means "no reply
+        /// ever arrives" (to exercise the timeout path).
+        replies: Arc<StdMutex<HashMap<String, Value>>>,
+        /// When `true`, `request` sleeps past any reasonable `wait` before
+        /// replying, simulating a hung server for the timeout test.
+        hang: Arc<StdMutex<bool>>,
+    }
+
+    impl FakeTransport {
+        fn new() -> Self {
+            Self {
+                replies: Arc::new(StdMutex::new(HashMap::new())),
+                hang: Arc::new(StdMutex::new(false)),
+            }
+        }
+        fn with_reply(mut self, method: &str, result: Value) -> Self {
+            self.replies
+                .lock()
+                .unwrap()
+                .insert(method.to_string(), json!({ "result": result }));
+            self
+        }
+        fn hanging(mut self) -> Self {
+            *self.hang.lock().unwrap() = true;
+            self
+        }
+    }
+
+    #[async_trait]
+    impl LspTransport for FakeTransport {
+        async fn diagnostics_for(
+            &self,
+            _path: &Path,
+            _text: &str,
+            _wait: Duration,
+        ) -> Result<Vec<Diagnostic>> {
+            Ok(Vec::new())
+        }
+        async fn close_file(&self, _path: &Path) -> Result<()> {
+            Ok(())
+        }
+        async fn request(&self, method: &str, _params: Value, wait: Duration) -> Result<Value> {
+            if *self.hang.lock().unwrap() {
+                tokio::time::sleep(wait + Duration::from_millis(50)).await;
+            }
+            let replies = self.replies.lock().unwrap();
+            match replies.get(method) {
+                Some(reply) => Ok(reply.clone()),
+                None => Err(anyhow!("fake: no scripted reply for `{method}`")),
+            }
+        }
+        async fn document_symbols(&self, _path: &Path, _wait: Duration) -> Vec<LspSymbol> {
+            Vec::new()
+        }
+        async fn references(
+            &self,
+            _path: &Path,
+            _line: u32,
+            _column: u32,
+            _include_declaration: bool,
+            _wait: Duration,
+        ) -> Vec<LspLocation> {
+            Vec::new()
+        }
+        async fn definition(
+            &self,
+            _path: &Path,
+            _line: u32,
+            _column: u32,
+            _wait: Duration,
+        ) -> Option<LspLocation> {
+            None
+        }
+    }
+
+    #[tokio::test]
+    async fn request_roundtrip_returns_result() {
+        let fake = FakeTransport::new().with_reply(
+            "textDocument/documentSymbol",
+            json!([
+                { "name": "main", "kind": 14, "range": { "start": { "line": 0, "character": 4 } } },
+                { "name": "Helper", "kind": 12, "range": { "start": { "line": 9, "character": 1 } },
+                  "children": [ { "name": "inner", "kind": 14, "range": { "start": { "line": 10, "character": 5 } } } ] }
+            ]),
+        );
+        let reply = fake
+            .request("textDocument/documentSymbol", json!({}), Duration::from_millis(500))
+            .await
+            .unwrap();
+        let raw = reply.get("result").and_then(|r| r.as_array()).unwrap();
+        let parsed: Vec<LspSymbol> = raw.iter().filter_map(|v| parse_symbol(v.clone())).collect();
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed[0].name, "main");
+        assert_eq!(parsed[0].line, 1);
+        assert_eq!(parsed[1].children[0].name, "inner");
+        assert_eq!(parsed[1].children[0].line, 11);
+    }
+
+    #[tokio::test]
+    async fn request_timeout_surfaces_error() {
+        let fake = FakeTransport::new().hanging();
+        let err = fake
+            .request("textDocument/references", json!({}), Duration::from_millis(100))
+            .await;
+        assert!(err.is_err(), "hung server must time out, got {err:?}");
+    }
+
+    #[test]
+    fn parse_location_handles_bare_and_locationlink() {
+        let bare = json!({ "uri": "file:///a/b.rs", "range": { "start": { "line": 2, "character": 1 } } });
+        let loc = parse_location(&bare).unwrap();
+        assert_eq!(loc.line, 3);
+        assert_eq!(loc.column, 2);
+
+        let link = json!({
+            "targetUri": "file:///c/d.rs",
+            "targetRange": { "start": { "line": 4, "character": 0 } }
+        });
+        let loc2 = parse_location(&link).unwrap();
+        assert_eq!(loc2.path, PathBuf::from("/c/d.rs"));
+        assert_eq!(loc2.line, 5);
+    }
+
+    #[test]
+    fn uri_roundtrip_is_stable() {
+        let p = Path::new("/tmp/x/y.rs");
+        let uri = uri_from_path(p);
+        assert!(uri.starts_with("file://"));
+        let back = path_from_uri(&uri).unwrap();
+        assert_eq!(back, p);
+    }
 }
