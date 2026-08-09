@@ -37,3 +37,8 @@ path = "examples/memory_integration_test.rs"
 [[example]]
 name = "memory_benchmark"
 path = "examples/memory_benchmark.rs"
+
+# B6 记忆跨会话召回探针（由 benchmark/agentbench/dynamic_bench.py 调用）
+[[example]]
+name = "probe_recall"
+path = "examples/probe_recall.rs"

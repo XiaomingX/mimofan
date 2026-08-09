@@ -32,7 +32,7 @@ pub mod cli_commands;
 pub mod client;
 mod command_safety;
 pub mod commands;
-mod compaction;
+pub mod compaction;
 mod composer_history;
 mod composer_stash;
 pub mod config;

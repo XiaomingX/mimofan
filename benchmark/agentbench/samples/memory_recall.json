@@ -1,0 +1,66 @@
+{
+  "_comment": "长程记忆与压缩保真度样本集（B5/B6）。模拟一段长对话，压缩后检验关键事实是否仍可召回。冻结后实现阶段不得修改。",
+  "version": "1.0.0",
+  "frozen_at": "2026-08-08",
+  "scenarios": [
+    {
+      "id": "M01",
+      "name": "跨会话技术决策召回",
+      "description": "用户在早期会话中确定了架构决策，多轮后仍需正确引用",
+      "facts": [
+        { "key": "数据库选型", "value": "PostgreSQL", "statement": "我们决定用 PostgreSQL 而不是 MySQL，因为需要 JSONB 和更好的并发写入。" },
+        { "key": "认证方式", "value": "JWT", "statement": "认证统一走 JWT，不用 session cookie，因为要支持移动端。" },
+        { "key": "部署环境", "value": "Kubernetes", "statement": "生产部署在 Kubernetes 上，用 Helm 管理 chart。" }
+      ],
+      "distractor_turns": 30,
+      "queries": [
+        { "q": "我们用的什么数据库？", "expect": "PostgreSQL" },
+        { "q": "认证方案是什么？", "expect": "JWT" },
+        { "q": "部署在哪里？", "expect": "Kubernetes" }
+      ]
+    },
+    {
+      "id": "M02",
+      "name": "约束条件保持",
+      "description": "用户给出的硬约束在压缩后不得丢失",
+      "facts": [
+        { "key": "禁止依赖", "value": "不引入新的第三方运行时依赖", "statement": "这个项目不允许引入新的第三方运行时依赖，只能用标准库。" },
+        { "key": "兼容性", "value": "Rust 1.88+", "statement": "必须兼容 Rust 1.88，不能用更新的语言特性。" },
+        { "key": "性能要求", "value": "冷启动小于 100ms", "statement": "冷启动时间必须控制在 100ms 以内。" }
+      ],
+      "distractor_turns": 25,
+      "queries": [
+        { "q": "可以加新依赖吗？", "expect": "不引入新的第三方运行时依赖" },
+        { "q": "最低 Rust 版本？", "expect": "1.88" },
+        { "q": "冷启动的性能要求？", "expect": "100ms" }
+      ]
+    },
+    {
+      "id": "M03",
+      "name": "错误修复上下文",
+      "description": "调试过程中已排除的假设，压缩后不应重复尝试",
+      "facts": [
+        { "key": "已排除原因1", "value": "不是网络超时", "statement": "已经确认不是网络超时问题，抓包显示连接正常。" },
+        { "key": "已排除原因2", "value": "不是权限问题", "statement": "也不是权限问题，用 root 跑一样失败。" },
+        { "key": "真实根因", "value": "sled 数据库文件锁", "statement": "根因找到了：sled 数据库文件锁没释放导致的。" }
+      ],
+      "distractor_turns": 20,
+      "queries": [
+        { "q": "根本原因是什么？", "expect": "sled" },
+        { "q": "网络超时排除了吗？", "expect": "不是网络超时" }
+      ]
+    }
+  ],
+  "distractor_pool": [
+    "帮我看看这个函数的实现有没有问题。",
+    "这段代码的时间复杂度是多少？",
+    "把这个变量名改成更清晰的。",
+    "加一个单元测试覆盖边界情况。",
+    "这里为什么要用 Arc 而不是 Rc？",
+    "格式化一下这个文件。",
+    "检查一下有没有 clippy warning。",
+    "这个错误处理能简化吗？",
+    "把这个同步函数改成 async 的。",
+    "解释一下这个宏做了什么。"
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "_comment": "静态能力矩阵样本集（A 类，60 分）。每项通过 grep 探针在 mimofan 源码中验证符号存在性。冻结后实现阶段不得修改本文件。",
+  "version": "1.0.0",
+  "frozen_at": "2026-08-08",
+  "total_weight": 60,
+  "domains": [
+    {
+      "id": "A1",
+      "name": "核心文件工具健壮性",
+      "weight": 8,
+      "probes": [
+        { "id": "A1.1", "desc": "read_file 支持偏移/限制读取", "patterns": ["start_line", "max_lines"], "files": ["crates/tui/src/tools/file.rs"], "require_all": true },
+        { "id": "A1.2", "desc": "edit_file 支持唯一性校验", "patterns": ["non-unique|replace_all|occurrences"], "files": ["crates/tui/src/tools/file.rs"] },
+        { "id": "A1.3", "desc": "apply_patch 结构化补丁", "patterns": ["apply_patch"], "files": ["crates/tui/src/tools/apply_patch.rs"] },
+        { "id": "A1.4", "desc": "写入前置读取保护（防止盲写）", "patterns": ["snapshot required|must_read|read_before_write|file snapshot"], "files": ["crates/tui/src/tools/file.rs"] },
+        { "id": "A1.5", "desc": "文件编码/二进制检测", "patterns": ["is_binary|from_utf8_lossy|BINARY|binary"], "files": ["crates/tui/src/tools/file.rs"] },
+        { "id": "A1.6", "desc": "大文件截断与提示", "patterns": ["truncat"], "files": ["crates/tui/src/tools/truncate.rs", "crates/tui/src/tools/file.rs"] }
+      ]
+    },
+    {
+      "id": "A2",
+      "name": "Shell 与执行安全",
+      "weight": 6,
+      "probes": [
+        { "id": "A2.1", "desc": "命令超时控制", "patterns": ["timeout"], "files": ["crates/tui/src/tools/shell.rs"] },
+        { "id": "A2.2", "desc": "后台执行与取消", "patterns": ["cancel|background|run_in_background"], "files": ["crates/tui/src/tools/shell.rs", "crates/tui/src/tools/shell_tools.rs"] },
+        { "id": "A2.3", "desc": "沙箱后端（seatbelt/opensandbox）", "patterns": ["seatbelt"], "files": ["crates/tui/src/sandbox/seatbelt.rs"] },
+        { "id": "A2.4", "desc": "危险命令拦截策略", "patterns": ["deny|dangerous|forbid"], "files": ["crates/tui/src/command_safety"] },
+        { "id": "A2.5", "desc": "执行策略引擎 execpolicy", "patterns": ["execpolicy|ExecPolicy|policy"], "files": ["crates/execpolicy/src"] },
+        { "id": "A2.6", "desc": "进程加固", "patterns": ["hardening|rlimit|setrlimit"], "files": ["crates/tui/src/sandbox/process_hardening.rs"] }
+      ]
+    },
+    {
+      "id": "A3",
+      "name": "上下文压缩与预算",
+      "weight": 10,
+      "probes": [
+        { "id": "A3.1", "desc": "替换式摘要压缩", "patterns": ["fn should_compact|fn compact"], "files": ["crates/tui/src/compaction/mod.rs"] },
+        { "id": "A3.2", "desc": "append-only 软缝（护 prefix cache）", "patterns": ["seam|Seam"], "files": ["crates/tui/src/seam_manager"] },
+        { "id": "A3.3", "desc": "agent 驱动外科清理 purge", "patterns": ["purge|Purge"], "files": ["crates/tui/src/purge"] },
+        { "id": "A3.4", "desc": "上下文溢出恢复", "patterns": ["recover_context_overflow"], "files": ["crates/tui/src/core/engine.rs"] },
+        { "id": "A3.5", "desc": "PreCompact/PostCompact hook", "patterns": ["PreCompact", "PostCompact"], "files": ["crates/tui/src/hooks/mod.rs"], "require_all": true },
+        { "id": "A3.6", "desc": "自定义压缩指令", "patterns": ["Compact Instructions|compact_instructions|custom_instructions"], "files": ["crates/tui/src/compaction"] },
+        { "id": "A3.7", "desc": "统一 token 计数入口（真实 tokenizer/BPE）", "patterns": ["mod tokenizer|pub fn count_tokens|Tokenizer"], "files": ["crates/tui/src/tokenizer"] },
+        { "id": "A3.8", "desc": "统一压缩阈值决策入口", "patterns": ["fn should_compact"], "files": ["crates/tui/src/context_budget/mod.rs"] },
+        { "id": "A3.9", "desc": "Autocompact buffer 预留量展示", "patterns": ["autocompact_buffer|AUTOCOMPACT_BUFFER|reserved_buffer|buffer_tokens"], "files": ["crates/tui/src/context_budget/mod.rs", "crates/tui/src/context_report"] },
+        { "id": "A3.10", "desc": "压缩后可重建内容重新注入（而非摘要掉）", "patterns": ["reinject|re_inject|rebuild_from_disk|rehydrate"], "files": ["crates/tui/src/compaction"] }
+      ]
+    },
+    {
+      "id": "A4",
+      "name": "长程记忆",
+      "weight": 10,
+      "probes": [
+        { "id": "A4.1", "desc": "文件型记忆工具", "patterns": ["remember"], "files": ["crates/tui/src/tools/remember.rs"] },
+        { "id": "A4.2", "desc": "向量记忆与嵌入", "patterns": ["embedding|Embedding"], "files": ["crates/memory/src/embedding.rs"] },
+        { "id": "A4.3", "desc": "语义召回检索", "patterns": ["fn search|similarity|cosine"], "files": ["crates/memory/src/vector.rs"] },
+        { "id": "A4.4", "desc": "记忆自动注入上下文", "patterns": ["injector|inject"], "files": ["crates/memory/src/injector.rs"] },
+        { "id": "A4.5", "desc": "记忆压缩/摘要", "patterns": ["compressor|compress"], "files": ["crates/memory/src/compressor.rs"] },
+        { "id": "A4.6", "desc": "知识库结构化存储", "patterns": ["knowledge|Knowledge"], "files": ["crates/memory/src/knowledge.rs"] },
+        { "id": "A4.7", "desc": "记忆陈旧性校验/生命周期治理", "patterns": ["stale|staleness|expire|ttl"], "files": ["crates/memory/src"] },
+        { "id": "A4.8", "desc": "遗忘/更新（forget/update）", "patterns": ["forget|fn update_memory|Forget"], "files": ["crates/memory/src", "crates/tui/src/tools/remember.rs"] },
+        { "id": "A4.9", "desc": "跨会话记忆持久化", "patterns": ["sled|sqlite|save_corpus"], "files": ["crates/memory/src/vector.rs", "crates/memory/src/knowledge.rs"] },
+        { "id": "A4.10", "desc": "情景记忆（episodic，按时间/会话检索）", "patterns": ["episodic|Episode|timeline|session_recall"], "files": ["crates/memory/src"] }
+      ]
+    },
+    {
+      "id": "A5",
+      "name": "任务与规划",
+      "weight": 6,
+      "probes": [
+        { "id": "A5.1", "desc": "todo 依赖图（阻塞判定）", "patterns": ["is_blocked", "unmet_dependencies"], "files": ["crates/tui/src/tools/todo.rs"], "require_all": true },
+        { "id": "A5.2", "desc": "就绪/阻塞任务查询", "patterns": ["ready_ids", "blocked_ids"], "files": ["crates/tui/src/tools/todo.rs"], "require_all": true },
+        { "id": "A5.3", "desc": "任务管理器", "patterns": ["TaskManager|task_manager"], "files": ["crates/tui/src/task_manager/mod.rs"] },
+        { "id": "A5.4", "desc": "计划模式审批闸门", "patterns": ["exit_plan_mode|ExitPlanMode"], "files": ["crates/tui/src/tools/plan.rs", "crates/tui/src/tools"] },
+        { "id": "A5.5", "desc": "目标循环 goal_loop", "patterns": ["goal_loop|GoalLoop|Goal"], "files": ["crates/tui/src/goal_loop"] },
+        { "id": "A5.6", "desc": "决策闸门 decision_gate", "patterns": ["decision_gate|DecisionGate"], "files": ["crates/tui/src/decision_gate"] }
+      ]
+    },
+    {
+      "id": "A6",
+      "name": "多 Agent 编排",
+      "weight": 5,
+      "probes": [
+        { "id": "A6.1", "desc": "子智能体运行时", "patterns": ["runtime|Runtime"], "files": ["crates/tui/src/tools/subagent/runtime.rs"] },
+        { "id": "A6.2", "desc": "消息总线/邮箱", "patterns": ["mailbox|Mailbox"], "files": ["crates/tui/src/tools/subagent/mailbox.rs"] },
+        { "id": "A6.3", "desc": "任务认领机制", "patterns": ["claim|Claim"], "files": ["crates/tui/src/tools/subagent/task_claim.rs"] },
+        { "id": "A6.4", "desc": "任务分解器", "patterns": ["decompos|Decompos"], "files": ["crates/tui/src/tools/subagent/decomposer.rs"] },
+        { "id": "A6.5", "desc": "结果聚合器", "patterns": ["aggregat|Aggregat"], "files": ["crates/tui/src/tools/subagent/aggregator.rs"] }
+      ]
+    },
+    {
+      "id": "A7",
+      "name": "扩展性",
+      "weight": 5,
+      "probes": [
+        { "id": "A7.1", "desc": "MCP 客户端", "patterns": ["mcp|Mcp|MCP"], "files": ["crates/mcp/src"] },
+        { "id": "A7.2", "desc": "MCP 服务端（对外暴露）", "patterns": ["server|Server"], "files": ["crates/tui/src/mcp_server"] },
+        { "id": "A7.3", "desc": "Skills 技能系统", "patterns": ["skill|Skill"], "files": ["crates/tui/src/skills/mod.rs"] },
+        { "id": "A7.4", "desc": "用户自定义斜杠命令", "patterns": ["user_commands|UserCommand"], "files": ["crates/tui/src/commands/user_commands.rs"] },
+        { "id": "A7.5", "desc": "生命周期 hook（用户可配）", "patterns": ["SessionStart", "ToolCallBefore"], "files": ["crates/tui/src/hooks/mod.rs"], "require_all": true }
+      ]
+    },
+    {
+      "id": "A8",
+      "name": "代码理解",
+      "weight": 5,
+      "probes": [
+        { "id": "A8.1", "desc": "符号索引", "patterns": ["symbol|Symbol"], "files": ["crates/tui/src/symbol_index"] },
+        { "id": "A8.2", "desc": "LSP 客户端", "patterns": ["lsp|Lsp|LSP"], "files": ["crates/tui/src/lsp/client.rs"] },
+        { "id": "A8.3", "desc": "LSP 诊断集成", "patterns": ["diagnostic|Diagnostic"], "files": ["crates/tui/src/lsp/diagnostics.rs"] },
+        { "id": "A8.4", "desc": "代码搜索（grep/glob）", "patterns": ["grep|search"], "files": ["crates/tui/src/tools/search.rs"] },
+        { "id": "A8.5", "desc": "AST/结构化代码检索（tree-sitter 等）", "patterns": ["tree_sitter|tree-sitter|ast|Ast"], "files": ["crates/tui/src/symbol_index", "crates/tui/src/tools"] }
+      ]
+    },
+    {
+      "id": "A9",
+      "name": "可观测与成本",
+      "weight": 3,
+      "probes": [
+        { "id": "A9.1", "desc": "token/成本统计", "patterns": ["cost|Cost|pricing"], "files": ["crates/tui/src/pricing", "crates/tui/src/cost_status"] },
+        { "id": "A9.2", "desc": "审计日志", "patterns": ["audit|Audit"], "files": ["crates/tui/src/audit"] },
+        { "id": "A9.3", "desc": "资源遥测", "patterns": ["telemetry|Telemetry"], "files": ["crates/tui/src/resource_telemetry"] }
+      ]
+    },
+    {
+      "id": "A10",
+      "name": "工程化质量",
+      "weight": 2,
+      "probes": [
+        { "id": "A10.1", "desc": "集成测试存在", "patterns": ["#\\[test\\]|#\\[tokio::test\\]"], "files": ["crates/tui/tests"] },
+        { "id": "A10.2", "desc": "CI 工作流", "patterns": ["jobs:|runs-on"], "files": [".github/workflows"] }
+      ]
+    }
+  ]
+}
