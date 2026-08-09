@@ -562,6 +562,19 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(DiagnosticsTool))
     }
 
+    /// 注册 LSP 符号导航工具（`lsp_document_symbols`、`lsp_find_references`、
+    /// `lsp_goto_definition`）。三者都是只读的，运行时若 `ToolContext` 里没有
+    /// `lsp_manager` 会返回明确错误，因此这里无条件注册即可。
+    #[must_use]
+    pub fn with_lsp_symbol_tools(self) -> Self {
+        use super::lsp_symbols::{
+            LspDocumentSymbolsTool, LspFindReferencesTool, LspGotoDefinitionTool,
+        };
+        self.with_tool(Arc::new(LspDocumentSymbolsTool))
+            .with_tool(Arc::new(LspFindReferencesTool))
+            .with_tool(Arc::new(LspGotoDefinitionTool))
+    }
+
     /// Include the `pandoc_convert` tool only when the `pandoc`
     /// binary is present on this host. Same probe-then-decide
     /// pattern v0.8.31 introduced for Python — when pandoc is
@@ -927,6 +940,7 @@ impl ToolRegistryBuilder {
             .with_git_tools()
             .with_git_history_tools()
             .with_diagnostics_tool()
+            .with_lsp_symbol_tools()
             .with_project_tools()
             .with_skill_tools()
             .with_test_runner_tool()

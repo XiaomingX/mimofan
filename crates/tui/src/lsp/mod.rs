@@ -44,7 +44,7 @@ pub mod client;
 pub mod diagnostics;
 pub mod registry;
 
-pub use client::{LspTransport, StdioLspTransport};
+pub use client::{LspLocation, LspSymbol, LspTransport, StdioLspTransport};
 pub use diagnostics::{Diagnostic, DiagnosticBlock, Severity, render_blocks};
 pub use registry::Language;
 
@@ -247,6 +247,104 @@ impl LspManager {
         }
     }
 
+    /// 打开 `file` 并返回其对应语言的 transport。
+    ///
+    /// 符号类查询（documentSymbol/references/definition）都要求服务端已经
+    /// 通过 `didOpen` 见过该文件，否则会返回空结果或报 "unknown document"。
+    /// 这里复用 `transport.diagnostics_for`：它的主要副作用正是发送
+    /// `didOpen`/`didChange`，顺带在 `wait` 内收集诊断（诊断结果我们丢弃）。
+    ///
+    /// 返回 `None` 表示：LSP 被禁用、文件语言不受支持、文件读不到，或
+    /// 服务端不可用。调用方据此降级为空结果，绝不 panic。
+    async fn open_and_get_transport(
+        &self,
+        file: &Path,
+        wait: Duration,
+    ) -> Option<Arc<dyn LspTransport>> {
+        if !self.config.enabled {
+            return None;
+        }
+        let lang = registry::detect_language(file);
+        if lang == Language::Other {
+            return None;
+        }
+
+        let text = match tokio::fs::read_to_string(file).await {
+            Ok(text) => text,
+            Err(err) => {
+                tracing::debug!(?err, file = %file.display(), "lsp: read file failed");
+                return None;
+            }
+        };
+
+        let transport = self.transport_for(lang).await?;
+
+        // 先同步文件内容；超时或失败都不阻断后续查询——服务端可能已经
+        // 通过 workspace 扫描索引到了该文件。
+        match timeout(wait, transport.diagnostics_for(file, &text, wait)).await {
+            Ok(Ok(_)) => {}
+            Ok(Err(err)) => {
+                tracing::debug!(?err, file = %file.display(), "lsp: didOpen sync failed");
+            }
+            Err(_) => {
+                tracing::debug!(file = %file.display(), "lsp: didOpen sync timed out");
+            }
+        }
+
+        Some(transport)
+    }
+
+    /// 默认等待时长，取自 `[lsp] poll_after_edit_ms`。
+    #[must_use]
+    pub fn default_wait(&self) -> Duration {
+        Duration::from_millis(self.config.poll_after_edit_ms)
+    }
+
+    /// 列出 `file` 中定义的符号（`textDocument/documentSymbol`）。
+    ///
+    /// 尽力而为：LSP 被禁用、语言不支持、服务端缺失或查询失败时返回空列表。
+    pub async fn document_symbols_for(&self, file: &Path, wait: Duration) -> Vec<LspSymbol> {
+        let Some(transport) = self.open_and_get_transport(file, wait).await else {
+            return Vec::new();
+        };
+        transport.document_symbols(file, wait).await
+    }
+
+    /// 查找 `file` 中 `(line, column)` 处符号的所有引用
+    /// （`textDocument/references`）。行列均为 1-based。
+    ///
+    /// 尽力而为：不可用时返回空列表。
+    pub async fn references_for(
+        &self,
+        file: &Path,
+        line: u32,
+        column: u32,
+        include_declaration: bool,
+        wait: Duration,
+    ) -> Vec<LspLocation> {
+        let Some(transport) = self.open_and_get_transport(file, wait).await else {
+            return Vec::new();
+        };
+        transport
+            .references(file, line, column, include_declaration, wait)
+            .await
+    }
+
+    /// 解析 `file` 中 `(line, column)` 处符号的定义位置
+    /// （`textDocument/definition`）。行列均为 1-based。
+    ///
+    /// 尽力而为：不可用或无定义时返回 `None`。
+    pub async fn definition_for(
+        &self,
+        file: &Path,
+        line: u32,
+        column: u32,
+        wait: Duration,
+    ) -> Option<LspLocation> {
+        let transport = self.open_and_get_transport(file, wait).await?;
+        transport.definition(file, line, column, wait).await
+    }
+
     async fn warn_missing_once(&self, lang: Language, cmd: &str, err: &anyhow::Error) {
         let mut warned = self.missing_warned.lock().await;
         if warned.insert(lang) {
@@ -287,5 +385,51 @@ impl LspManager {
             },
             PathBuf::new(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 禁用状态下三个转发方法都应立即返回空结果，且不尝试拉起任何进程。
+    #[tokio::test]
+    async fn disabled_manager_returns_empty_for_symbol_queries() {
+        let manager = LspManager::disabled();
+        let file = Path::new("/tmp/does-not-matter.rs");
+        let wait = Duration::from_millis(10);
+
+        assert!(manager.document_symbols_for(file, wait).await.is_empty());
+        assert!(
+            manager
+                .references_for(file, 1, 1, true, wait)
+                .await
+                .is_empty()
+        );
+        assert!(manager.definition_for(file, 1, 1, wait).await.is_none());
+    }
+
+    /// 非受支持语言（`Language::Other`）同样短路返回，不去 spawn 服务端。
+    #[tokio::test]
+    async fn unsupported_language_returns_empty() {
+        let manager = LspManager::new(LspConfig::default(), PathBuf::from("/tmp"));
+        let file = Path::new("/tmp/notes.unknown-ext");
+        let wait = Duration::from_millis(10);
+
+        assert!(manager.document_symbols_for(file, wait).await.is_empty());
+        assert!(manager.definition_for(file, 1, 1, wait).await.is_none());
+    }
+
+    /// `default_wait` 应当反映配置里的 `poll_after_edit_ms`。
+    #[test]
+    fn default_wait_follows_config() {
+        let manager = LspManager::new(
+            LspConfig {
+                poll_after_edit_ms: 1_234,
+                ..LspConfig::default()
+            },
+            PathBuf::from("/tmp"),
+        );
+        assert_eq!(manager.default_wait(), Duration::from_millis(1_234));
     }
 }

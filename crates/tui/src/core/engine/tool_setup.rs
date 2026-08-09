@@ -66,6 +66,7 @@ impl Engine {
                 .with_git_tools()
                 .with_git_history_tools()
                 .with_diagnostics_tool()
+                .with_lsp_symbol_tools()
                 .with_skill_tools()
                 .with_validation_tools()
                 .with_handle_tools()
