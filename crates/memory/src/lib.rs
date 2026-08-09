@@ -20,6 +20,7 @@
 //! 仍标记 experimental：语义召回质量、embedding 成本、sled 本地存储上限等
 //! 仍在评估中。不要假设其行为已稳定，但可默认编译、按需启用。
 
+pub mod backend;
 pub mod compressor;
 pub mod embedding;
 pub mod error;
@@ -28,6 +29,7 @@ pub mod knowledge;
 pub mod optimization;
 pub mod vector;
 
+pub use backend::{MemoryBackend, SharedMemoryBackend};
 pub use compressor::{CompressionStrategy, ObservationCompressor, SessionSummary};
 pub use embedding::{EmbeddingConfig, EmbeddingService};
 pub use error::MemoryError;
