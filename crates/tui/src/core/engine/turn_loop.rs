@@ -2659,7 +2659,14 @@ impl Engine {
     fn is_file_write_tool(name: &str) -> bool {
         matches!(
             name,
-            "Write" | "Edit" | "MultiEdit" | "NotebookEdit" | "write" | "edit" | "multi_edit"
+            "Write"
+                | "Edit"
+                | "MultiEdit"
+                | "NotebookEdit"
+                | "write"
+                | "edit"
+                | "multi_edit"
+                | "notebook_edit"
         )
     }
 
