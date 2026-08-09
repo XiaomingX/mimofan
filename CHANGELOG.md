@@ -9,6 +9,8 @@
   - `normalize_macos_modifiers`（`composer_ui.rs`）新增非 macOS 恒等 fallback。
   - `native_ocr_available` / `try_native_ocr`（`image_ocr.rs`）新增非 macOS fallback（返回 `false` / `Ok(None)`）。
   - `probe_bwrap_available` / `probe_cgroup_version`（`diagnostics.rs`）补 Linux 真实探测分支，并修正非 Linux 返回值类型。
+  - `install_parent_death_signal` / `install_server_parent_death_signal`（`shell.rs` / `cli_commands/mod.rs`）补 Linux 实现（`prctl(PR_SET_PDEATHSIG, SIGKILL)`）。
+  - `try_headless_browser_fetch`（`fetch_url.rs`）消除跨平台未使用变量 warning。
 
 [0.0.11]: https://github.com/XiaomingX/mimofan/compare/v0.0.10...v0.0.11
 
