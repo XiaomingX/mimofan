@@ -2,6 +2,26 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.10] - 2026-08-09
+
+### Added
+- **LSP request/response 基础设施（[issue #597](https://github.com/XiaomingX/mimofan/issues/597)）**：新增 `document_symbols` / `references` / `definition` 请求层与 `serverCapabilities` 解析，支撑后续漏洞挖掘的跨过程分析（MECE L0 前置）。
+- **记忆分类索引 + 按需加载（[PR #583](https://github.com/XiaomingX/mimofan/pull/583)）**：对齐 CodeBuddy 记忆机制，按四分类体系索引、懒加载。
+
+### Changed
+- **Provider 配置增强**：`anthropic-compatible` 模式新增识别 `ANTHROPIC_AUTH_TOKEN`，并补充环境变量配置文档（README/config.example.toml）。
+- **真实 BPE 统一全库 token 计数（[#9478882](https://github.com/XiaomingX/mimofan/commit/9478882)）**：修复中文 token 系统性低估，收敛 `seam_manager`/`context_inspector`/`injector` 三处估算到共享计数。
+
+### Fixed
+- **编辑工具正确性三项修复（[#2284d7a](https://github.com/XiaomingX/mimofan/commit/2284d7a)）**：读范围授权 / `replace_all` / BOM+CRLF 保真。
+- **回合内循环检测（[loop_guard](https://github.com/XiaomingX/mimofan/commit/6801a72)）**：恢复循环/重复/停滞检测，防长程任务目标漂移。
+- **抑制 libring linker_messages 警告**：`.cargo/config.toml` 新增 `-A linker_messages`，零 warning 编译。
+
+### Docs
+- **README 去 emoji 提升专业性（[PR #584](https://github.com/XiaomingX/mimofan/pull/584)）**。
+
+[0.0.10]: https://github.com/XiaomingX/mimofan/compare/v0.0.9...v0.0.10
+
 ## [0.0.9] - 2026-08-05
 
 ### Added
