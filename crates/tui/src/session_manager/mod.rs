@@ -1030,6 +1030,9 @@ fn format_age(dt: &DateTime<Utc>) -> String {
     }
 }
 
+pub use search::SessionSearchHit;
+pub(crate) mod search;
+
 // === Unit Tests ===
 
 #[cfg(test)]

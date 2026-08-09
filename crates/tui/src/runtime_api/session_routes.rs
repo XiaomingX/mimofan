@@ -27,8 +27,11 @@ pub(crate) async fn list_sessions(
         .map_err(|e| ApiError::internal(format!("Failed to open sessions dir: {e}")))?;
     let mut sessions = if let Some(search) = query.search {
         manager
-            .search_sessions(&search)
+            .search_sessions_fulltext(&search)
             .map_err(|e| ApiError::internal(format!("Failed to search sessions: {e}")))?
+            .into_iter()
+            .map(|hit| hit.metadata)
+            .collect()
     } else {
         manager
             .list_sessions()

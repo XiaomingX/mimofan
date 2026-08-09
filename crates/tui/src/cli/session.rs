@@ -9,7 +9,7 @@ pub(crate) fn sessions_resume_command() -> &'static str {
 pub(crate) fn list_sessions(limit: usize, search: Option<String>) -> Result<()> {
     use crate::palette;
     use colored::Colorize;
-    use session_manager::{SessionManager, format_session_line};
+    use session_manager::{SessionManager, SessionSearchHit, format_session_line};
 
     let (accent_r, accent_g, accent_b) = palette::MIMOFAN_ACCENT_PRIMARY_RGB;
     let (sky_r, sky_g, sky_b) = palette::MIMOFAN_SKY_RGB;
@@ -17,10 +17,14 @@ pub(crate) fn list_sessions(limit: usize, search: Option<String>) -> Result<()> 
 
     let manager = SessionManager::default_location()?;
 
-    let sessions = if let Some(query) = search {
-        manager.search_sessions(&query)?
+    let sessions: Vec<SessionSearchHit> = if let Some(query) = search {
+        manager.search_sessions_fulltext(&query)?.into_iter().map(Into::into).collect()
     } else {
-        manager.list_sessions()?
+        manager
+            .list_sessions()?
+            .into_iter()
+            .map(SessionSearchHit::from)
+            .collect()
     };
 
     if sessions.is_empty() {
@@ -41,12 +45,19 @@ pub(crate) fn list_sessions(limit: usize, search: Option<String>) -> Result<()> 
     println!("{}", "==============".truecolor(sky_r, sky_g, sky_b));
     println!();
 
-    for (i, session) in sessions.iter().take(limit).enumerate() {
-        let line = format_session_line(session);
+    for (i, hit) in sessions.iter().take(limit).enumerate() {
+        let line = format_session_line(&hit.metadata);
         if i == 0 {
             println!("  {} {}", "*".truecolor(aqua_r, aqua_g, aqua_b), line);
         } else {
             println!("    {line}");
+        }
+        if let Some(snippet) = &hit.snippet {
+            println!(
+                "      {} {}",
+                "↳".truecolor(sky_r, sky_g, sky_b),
+                snippet.truecolor(sky_r, sky_g, sky_b)
+            );
         }
     }
 
