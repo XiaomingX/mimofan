@@ -731,7 +731,7 @@ pub fn env_for(name: &str) -> Option<String> {
         "arcee" | "arcee-ai" | "arcee_ai" => &["ARCEE_API_KEY"],
         "moonshot" | "moonshot-ai" | "kimi" | "kimi-k2" => &["MOONSHOT_API_KEY", "KIMI_API_KEY"],
         "openai" => &["OPENAI_API_KEY"],
-        "anthropic" | "claude" => &["ANTHROPIC_API_KEY"],
+        "anthropic" | "claude" => &["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"],
         "volcengine" | "volcengine-ark" | "volcengine_ark" | "ark" | "volc-ark"
         | "volcengineark" => &[
             "VOLCENGINE_API_KEY",

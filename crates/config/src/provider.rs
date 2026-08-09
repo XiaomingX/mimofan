@@ -137,7 +137,7 @@ provider!(
     "Anthropic Compatible",
     "https://api.anthropic.com/v1",
     "claude-sonnet-4-0",
-    ["ANTHROPIC_API_KEY", "MIMOFAN_API_KEY"],
+    ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "MIMOFAN_API_KEY"],
     "anthropic_compatible",
     WireFormat::AnthropicCompatible,
     aliases: []

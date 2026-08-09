@@ -7,6 +7,31 @@
 # 关于配置的加载方式（profiles、环境变量覆盖等），请参见 `docs/CONFIGURATION.md`。
 
 # ─────────────────────────────────────────────────────────────────────────────────
+# 通过环境变量配置（无需改动本文件）
+# ─────────────────────────────────────────────────────────────────────────────────
+# 除 config 文件外，mimofan 也支持纯环境变量配置。三种兼容模式的 provider 需显式
+# 用 MIMOFAN_PROVIDER 切换；仅设 base_url 不会自动改变 provider。
+#
+#   Anthropic 兼容模式（/v1/messages 协议，如 MiMo、Claude 网关）：
+#     export MIMOFAN_PROVIDER=anthropic-compatible
+#     export ANTHROPIC_BASE_URL=https://your-gateway.example.com/anthropic
+#     export ANTHROPIC_API_KEY=sk-xxx          # 也兼容 ANTHROPIC_AUTH_TOKEN
+#     export ANTHROPIC_MODEL=mimo-v2.5          # 可选，缺省用 claude-sonnet-4-0
+#
+#   OpenAI 兼容模式：
+#     export MIMOFAN_PROVIDER=openai-compatible
+#     export OPENAI_COMPATIBLE_BASE_URL=https://your-gateway.example.com/v1
+#     export OPENAI_API_KEY=sk-xxx
+#
+#   Gemini 兼容模式：
+#     export MIMOFAN_PROVIDER=gemini-compatible
+#     export OPENAI_COMPATIBLE_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+#     export GEMINI_API_KEY=xxx
+#
+# 注意：Anthropic 官方 SDK 的 ANTHROPIC_AUTH_TOKEN 变量名 mimofan 同样识别，
+# 但 ANTHROPIC_API_KEY 仍是首选；base_url 三模式共用同一字段读取。
+
+# ─────────────────────────────────────────────────────────────────────────────────
 # 默认服务商及默认配置
 # ─────────────────────────────────────────────────────────────────────────────────
 # 选择默认使用的服务商。现在主要推荐使用 [profiles.xxx] 来管理多套环境。
