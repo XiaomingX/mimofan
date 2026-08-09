@@ -575,6 +575,13 @@ impl ToolRegistryBuilder {
             .with_tool(Arc::new(LspGotoDefinitionTool))
     }
 
+    /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
+    #[must_use]
+    pub fn with_notebook_tools(self) -> Self {
+        use super::notebook_edit::NotebookEditTool;
+        self.with_tool(Arc::new(NotebookEditTool))
+    }
+
     /// Include the `pandoc_convert` tool only when the `pandoc`
     /// binary is present on this host. Same probe-then-decide
     /// pattern v0.8.31 introduced for Python — when pandoc is
@@ -949,6 +956,7 @@ impl ToolRegistryBuilder {
             .with_handle_tools()
             .with_runtime_task_tools()
             .with_revert_turn_tool()
+            .with_notebook_tools()
             .with_pandoc_tools()
             .with_image_ocr_tools()
             .with_finance_tool();
