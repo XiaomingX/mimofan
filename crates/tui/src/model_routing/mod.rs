@@ -40,37 +40,56 @@ impl RouterCandidates {
     }
 }
 
+/// Known cheap-tier siblings for common OpenAI-compatible models (#3018).
+///
+/// Maps a "big" model id to its faster/cheaper same-family sibling. Only
+/// well-known pairs are listed so `/fast` and auto mode never fabricate a
+/// model id the provider cannot serve. These ids belong to the
+/// OpenAI-compatible family; the lookup is only consulted for that provider
+/// (see [`provider_router_candidates`]), so an Anthropic/Gemini provider is
+/// never handed a sibling it cannot serve.
+const CHEAP_SIBLINGS: &[(&str, &str)] = &[
+    (crate::config::ZAI_GLM_5_2_MODEL, crate::config::ZAI_GLM_5_TURBO_MODEL),
+    ("deepseek-v4-pro", "deepseek-v4-flash"),
+    ("gpt-4o", "gpt-4o-mini"),
+    ("gemini-2.5-pro", "gemini-2.0-flash"),
+];
+
+/// Resolve the known cheap sibling for a (normalized) model id, if any.
+fn cheap_sibling_for(normalized: &str) -> Option<String> {
+    CHEAP_SIBLINGS
+        .iter()
+        .find(|(big, _)| *big == normalized)
+        .map(|(_, cheap)| (*cheap).to_string())
+}
+
 /// Derive the auto-router's candidate pair for the active provider (#3018).
 ///
-/// OpenAI-compatible routes normalize the session model and pair GLM-5.2 with
-/// its same-family fast sibling GLM-5-Turbo. Every other provider — and every
-/// other OpenAI-compatible model, including GLM-5.1 and GLM-5-Turbo itself —
-/// has no known cheap tier: `big` is the session model and `cheap` is `None`,
-/// so auto mode never fabricates a model id that the provider cannot serve.
+/// Only the OpenAI-compatible family carries known cheap siblings (GLM-5.2 →
+/// GLM-5-Turbo, deepseek-v4-pro → deepseek-v4-flash, gpt-4o → gpt-4o-mini,
+/// gemini-2.5-pro → gemini-2.0-flash, ...). The session model is normalized and
+/// looked up in [`CHEAP_SIBLINGS`; when a known fast sibling exists, `cheap`
+/// carries that sibling so `/fast` and auto mode switch to it. Other providers
+/// — and any OpenAI-compatible model with no known sibling — get `cheap: None`,
+/// so heuristics stay on the current model (only thinking effort varies) and
+/// auto mode never fabricates a model id the provider cannot serve (#1549).
 pub(crate) fn provider_router_candidates(
     provider: crate::config::ApiProvider,
     current_model: &str,
 ) -> RouterCandidates {
     use crate::config::ApiProvider;
-    if provider == ApiProvider::OpenAiCompatible {
-        let normalized = crate::config::normalize_model_name_for_provider(provider, current_model)
-            .unwrap_or_else(|| current_model.to_string());
+    if provider != ApiProvider::OpenAiCompatible {
         return RouterCandidates {
-            // GLM-5.2 (the default) routes faster/explore children to GLM-5-Turbo,
-            // the same-family fast sibling. GLM-5.1 and GLM-5-Turbo itself have no
-            // cheaper tier and keep children on the parent model.
-            cheap: if normalized == crate::config::ZAI_GLM_5_2_MODEL {
-                Some(crate::config::ZAI_GLM_5_TURBO_MODEL.to_string())
-            } else {
-                None
-            },
-            big: normalized,
+            big: current_model.to_string(),
+            cheap: None,
         };
     }
-
+    let normalized = crate::config::normalize_model_name_for_provider(provider, current_model)
+        .unwrap_or_else(|| current_model.to_string());
+    let cheap = cheap_sibling_for(&normalized);
     RouterCandidates {
-        big: current_model.to_string(),
-        cheap: None,
+        big: normalized,
+        cheap,
     }
 }
 
@@ -559,5 +578,61 @@ fn truncate_for_auto_router(text: &str, max_chars: usize) -> String {
         format!("{truncated}...")
     } else {
         truncated
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::ApiProvider;
+
+    #[test]
+    fn known_cheap_siblings_resolve() {
+        // GLM-5.2 → GLM-5-Turbo
+        let c = provider_router_candidates(ApiProvider::OpenAiCompatible, "GLM-5.2");
+        assert_eq!(c.big, "GLM-5.2");
+        assert_eq!(c.cheap.as_deref(), Some("GLM-5-Turbo"));
+
+        // deepseek-v4-pro → deepseek-v4-flash
+        let c = provider_router_candidates(ApiProvider::OpenAiCompatible, "deepseek-v4-pro");
+        assert_eq!(c.cheap.as_deref(), Some("deepseek-v4-flash"));
+
+        // gpt-4o → gpt-4o-mini
+        let c = provider_router_candidates(ApiProvider::OpenAiCompatible, "gpt-4o");
+        assert_eq!(c.cheap.as_deref(), Some("gpt-4o-mini"));
+
+        // gemini-2.5-pro → gemini-2.0-flash
+        let c = provider_router_candidates(ApiProvider::OpenAiCompatible, "gemini-2.5-pro");
+        assert_eq!(c.cheap.as_deref(), Some("gemini-2.0-flash"));
+    }
+
+    #[test]
+    fn cheap_sibling_is_idempotent_on_child() {
+        // Selecting the cheap sibling itself yields no further cheaper tier.
+        let c = provider_router_candidates(ApiProvider::OpenAiCompatible, "GLM-5-Turbo");
+        assert_eq!(c.big, "GLM-5-Turbo");
+        assert_eq!(c.cheap, None);
+
+        let c = provider_router_candidates(ApiProvider::OpenAiCompatible, "deepseek-v4-flash");
+        assert_eq!(c.cheap, None);
+    }
+
+    #[test]
+    fn unknown_models_have_no_cheap_tier() {
+        let c = provider_router_candidates(ApiProvider::OpenAiCompatible, "some-custom-model");
+        assert_eq!(c.cheap, None);
+        assert_eq!(c.big, "some-custom-model");
+    }
+
+    #[test]
+    fn non_openai_providers_have_no_cheap_tier() {
+        // Even a model id that has a known sibling must not be remapped on a
+        // provider that doesn't serve the OpenAI-compatible family.
+        let c = provider_router_candidates(ApiProvider::AnthropicCompatible, "gpt-4o");
+        assert_eq!(c.cheap, None);
+        assert_eq!(c.big, "gpt-4o");
+
+        let c = provider_router_candidates(ApiProvider::GeminiCompatible, "gemini-2.5-pro");
+        assert_eq!(c.cheap, None);
     }
 }
