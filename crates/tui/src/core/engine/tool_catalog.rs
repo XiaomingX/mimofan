@@ -1029,7 +1029,10 @@ pub(super) async fn execute_code_execution_tool(
 
 #[cfg(test)]
 mod bm25_tests {
-    use super::{discover_tools_with_bm25_like, should_default_defer_tool};
+    use super::{
+        DEFAULT_ACTIVE_NATIVE_TOOLS, discover_tools_with_bm25_like,
+        should_default_defer_tool, tool_catalog_consistency_issues,
+    };
     use crate::models::Tool;
     use serde_json::json;
     use std::collections::HashSet;
@@ -1101,5 +1104,66 @@ mod bm25_tests {
     fn empty_query_returns_nothing() {
         let catalog = vec![tool("read_file", "read a file")];
         assert!(discover_tools_with_bm25_like(&catalog, "   ", 10).is_empty());
+    }
+
+    // --- #604 (方向 B)：把双轨一致性校验从运行时 warn 升级为 CI 强制 ---
+    // 这些测试锁定 `tool_catalog_consistency_issues` 的双向契约，确保新增工具
+    // 漏接一路（catalog 或 registry 任一侧）时 CI 失败，而非仅靠运行时 warn。
+
+    use crate::tools::spec::ToolContext;
+    use crate::tools::ToolRegistry;
+    use crate::tools::ToolRegistryBuilder;
+    use tempfile::TempDir;
+
+    fn file_tools_registry() -> ToolRegistry {
+        let dir = TempDir::new().expect("tempdir");
+        ToolRegistryBuilder::new()
+            .with_file_tools()
+            .build(ToolContext::new(dir.path().to_path_buf()))
+    }
+
+    #[test]
+    fn consistent_catalog_and_registry_yields_no_issues() {
+        // catalog 与 registry（read/write/edit/list_dir）完全对称 -> 零问题。
+        let catalog = vec![
+            tool("read_file", "read a file"),
+            tool("write_file", "write a file"),
+            tool("edit_file", "edit a file"),
+            tool("list_dir", "list a directory"),
+        ];
+        let registry = file_tools_registry();
+        let issues = tool_catalog_consistency_issues(&catalog, &registry);
+        assert!(issues.is_empty(), "symmetric catalog/registry must be consistent: {issues:?}");
+    }
+
+    #[test]
+    fn catalog_advertises_tool_missing_from_registry() {
+        // catalog 宣传了 registry 没有的工具 -> 必须报告 "catalog advertises"。
+        let catalog = vec![
+            tool("read_file", "read a file"),
+            tool("nonexistent_tool", "a tool with no registered handler"),
+        ];
+        let registry = file_tools_registry();
+        let issues = tool_catalog_consistency_issues(&catalog, &registry);
+        let joined = issues.join("; ");
+        assert!(joined.contains("catalog advertises"), "missing-handler branch must be reported: {joined}");
+    }
+
+    #[test]
+    fn registered_core_tool_missing_from_catalog_is_reported() {
+        // registry 注册了 edit_file，但 catalog 未列 -> 必须报告
+        // "missing from the model/search catalog"（反向分支）。
+        let catalog = vec![
+            tool("read_file", "read a file"),
+            tool("write_file", "write a file"),
+            tool("list_dir", "list a directory"),
+        ];
+        let registry = file_tools_registry();
+        let issues = tool_catalog_consistency_issues(&catalog, &registry);
+        let joined = issues.join("; ");
+        assert!(
+            joined.contains("missing from the model/search catalog"),
+            "reverse branch (registered tool absent from catalog) must be reported: {joined}"
+        );
     }
 }
