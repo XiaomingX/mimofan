@@ -11,6 +11,7 @@ use crate::commands::traits::{CommandInfo, RegisterCommand};
 use crate::localization::{MessageId, tr};
 use crate::tui::app::{App, AppAction, HuntVerdict};
 use crate::tools::goal::{GoalStatus, LoopConfig};
+use crate::automation_manager::CreateAutomationRequest;
 
 use super::CommandResult;
 
@@ -78,15 +79,17 @@ fn loop_cmd(app: &mut App, arg: Option<&str>) -> CommandResult {
         checkpoint_each_round: parsed.checkpoint,
     };
 
-    // `/loop --schedule HH:MM`: queue for later (placeholder parity with /night;
-    // the automation manager does not yet expose a one-shot enqueue API).
+    // `/loop --schedule HH:MM`: register a daily automation that enqueues the
+    // loop prompt at the requested wall-clock time. The scheduler respects the
+    // same recurring-engine path as `/night`; the loop itself starts when the
+    // automation fires and the user resumes it (or it runs unattended with the
+    // configured auto-approve policy).
     if let Some((hour, minute)) = parsed.schedule {
-        let message = tr(app.ui_locale, MessageId::CmdLoopScheduled)
-            .replace("{prompt}", &truncate_preview(&parsed.prompt, 50))
-            .replace("{time}", &format!("{hour:02}:{minute:02}"));
-        // NOTE: scheduling shares the same future automation hook as `/night`.
-        // Until that lands, we surface the confirmation and do not dispatch now.
-        return CommandResult::message(message);
+        let result = schedule_loop(app, &parsed.prompt, hour, minute);
+        return match result {
+            Ok(text) => CommandResult::message(text),
+            Err(e) => CommandResult::error(format!("调度循环任务失败: {e}")),
+        };
     }
 
     let mut detail = String::new();
@@ -195,6 +198,48 @@ fn parse_hh_mm(t: &str) -> Result<(u32, u32), String> {
         return Err("Time out of range. Use HH:MM (00-23 : 00-59)".to_string());
     }
     Ok((hour, minute))
+}
+
+/// Register a `/loop --schedule` prompt as a daily automation.
+///
+/// Reuses the durable `AutomationManager` (same backing store as `/night` and
+/// `/time`) so the scheduler enqueues the loop prompt at the requested
+/// wall-clock time. Returns a confirmation message with the automation id.
+fn schedule_loop(app: &mut App, prompt: &str, hour: u32, minute: u32) -> Result<String, String> {
+    let automations = app
+        .runtime_services
+        .automations
+        .clone()
+        .ok_or_else(|| {
+            "Automation manager is not available in this session. Restart the TUI to enable scheduled loops.".to_string()
+        })?;
+
+    let rrule = format!("FREQ=DAILY;BYHOUR={hour};BYMINUTE={minute}");
+    let record = tokio::task::block_in_place(|| {
+        tokio::runtime::Handle::current().block_on(async {
+            let guard = automations.lock().await;
+            guard
+                .create_automation(CreateAutomationRequest {
+                    name: format!("loop:{}", truncate_preview(prompt, 40)),
+                    prompt: prompt.to_string(),
+                    rrule,
+                    cwds: vec![app.workspace.clone()],
+                    mode: None,
+                    allow_shell: None,
+                    trust_mode: None,
+                    auto_approve: None,
+                    status: None,
+                })
+                .map_err(|e| e.to_string())
+        })
+    })?;
+
+    let mut text = "✅ 已创建每日循环调度\n\n".to_string();
+    text.push_str(&format!("**ID**: {}\n", record.id));
+    text.push_str(&format!("**时间**: 每天 {}:{:02}\n", hour, minute));
+    text.push_str(&format!("**提示**: {}\n", truncate_preview(prompt, 80)));
+    text.push_str("\n使用 `/time list` 查看全部，`/time cancel <id>` 取消。");
+    Ok(text)
 }
 
 fn clear_loop(app: &mut App) -> CommandResult {

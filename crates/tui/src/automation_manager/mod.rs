@@ -160,6 +160,7 @@ pub struct UpdateAutomationRequest {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AutomationFrequency {
     Hourly,
+    Daily,
     Weekly,
 }
 
@@ -168,6 +169,10 @@ pub enum AutomationSchedule {
     Hourly {
         interval_hours: u32,
         byday: Option<Vec<Weekday>>,
+    },
+    Daily {
+        byhour: u32,
+        byminute: u32,
     },
     Weekly {
         byday: Vec<Weekday>,
@@ -192,8 +197,9 @@ impl AutomationSchedule {
 
         let freq = match parts.get("FREQ").map(String::as_str) {
             Some("HOURLY") => AutomationFrequency::Hourly,
+            Some("DAILY") => AutomationFrequency::Daily,
             Some("WEEKLY") => AutomationFrequency::Weekly,
-            Some(other) => bail!("Unsupported RRULE FREQ '{other}'. Supported: HOURLY and WEEKLY"),
+            Some(other) => bail!("Unsupported RRULE FREQ '{other}'. Supported: HOURLY, DAILY, WEEKLY"),
             None => bail!("RRULE must include FREQ"),
         };
 
@@ -223,6 +229,38 @@ impl AutomationSchedule {
                     interval_hours,
                     byday,
                 })
+            }
+            AutomationFrequency::Daily => {
+                for key in parts.keys() {
+                    if key != "FREQ" && key != "BYHOUR" && key != "BYMINUTE" {
+                        bail!(
+                            "Unsupported RRULE field '{key}' for DAILY. Allowed: FREQ,BYHOUR,BYMINUTE"
+                        );
+                    }
+                }
+                let byhour = parts
+                    .get("BYHOUR")
+                    .map(String::as_str)
+                    .or(Some("0"))
+                    .unwrap()
+                    .parse::<u32>()
+                    .context("Failed to parse BYHOUR")?;
+                let byminute = parts
+                    .get("BYMINUTE")
+                    .map(String::as_str)
+                    .or(Some("0"))
+                    .unwrap()
+                    .parse::<u32>()
+                    .context("Failed to parse BYMINUTE")?;
+
+                if byhour > 23 {
+                    bail!("BYHOUR must be between 0 and 23");
+                }
+                if byminute > 59 {
+                    bail!("BYMINUTE must be between 0 and 59");
+                }
+
+                Ok(Self::Daily { byhour, byminute })
             }
             AutomationFrequency::Weekly => {
                 for key in parts.keys() {
@@ -288,6 +326,20 @@ impl AutomationSchedule {
                 }
 
                 Ok(candidate.with_timezone(&Utc))
+            }
+            Self::Daily { byhour, byminute } => {
+                for day_offset in 0..2 {
+                    let date = local_after.date_naive() + Duration::days(i64::from(day_offset));
+                    let Some(candidate_naive) = date.and_hms_opt(*byhour, *byminute, 0) else {
+                        continue
+                    };
+                    if let Some(candidate) = resolve_local_datetime(candidate_naive)
+                        && candidate > local_after
+                    {
+                        return Ok(candidate.with_timezone(&Utc));
+                    }
+                }
+                bail!("Unable to compute next DAILY run");
             }
             Self::Weekly {
                 byday,
