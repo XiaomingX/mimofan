@@ -360,3 +360,17 @@ default_text_model = "deepseek-ai/deepseek-v4-pro"
 # default_trust_level = "sandbox"
 # require_identity_verification = true
 # max_trust_level = "operator"
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# 成本上限阈值告警 (Cost Budget, #620)
+# ─────────────────────────────────────────────────────────────────────────────────
+# 当累计成本超过设定上限时，弹出 footer/状态提示（仅告警，不阻断任务）。
+# enabled    : 总开关，默认 false
+# session_limit_usd : 单会话高水位成本上限（USD），默认 0 表示不限
+# daily_limit_usd   : 单日累计成本上限（USD），跨会话累计，默认 0 表示不限
+# warn_percent : 达到上限的百分比时先发软告警，默认 0.8
+# [cost_budget]
+# enabled = true
+# session_limit_usd = 5.0
+# daily_limit_usd = 20.0
+# warn_percent = 0.8

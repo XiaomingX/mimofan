@@ -111,6 +111,40 @@ impl Default for NetworkPolicyToml {
     }
 }
 
+/// On-disk schema for the `[cost_budget]` table (#620). See
+/// `config.example.toml` for documentation.
+///
+/// Lets a user cap spend per session and per calendar day. When the accrued
+/// cost crosses `warn_percent` of a limit a soft warning alert is emitted;
+/// crossing the limit itself emits a hard alert. Blocking on exceed is
+/// intentionally out of scope (high blast radius) — only alerts are produced.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CostBudgetToml {
+    /// Master switch. When `false` or absent, no cost budget alerts fire.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Per-session cost ceiling in USD. The session high-water cost
+    /// (`session_cost + subagent_cost`, which never decreases) is compared
+    /// against this value. `0.0` / unset means "no session limit".
+    #[serde(default)]
+    pub session_limit_usd: f64,
+    /// Per-calendar-day cost ceiling in USD, accrued across all sessions that
+    /// day. `0.0` / unset means "no daily limit".
+    #[serde(default)]
+    pub daily_limit_usd: f64,
+    /// Fraction (0.0–1.0) of a limit at which a soft warning alert fires,
+    /// before the hard limit is reached. Defaults to `0.8`.
+    #[serde(default)]
+    pub warn_percent: f64,
+}
+
+impl CostBudgetToml {
+    /// Whether this config actually defines any active budget.
+    pub fn has_limit(&self) -> bool {
+        self.enabled && (self.session_limit_usd > 0.0 || self.daily_limit_usd > 0.0)
+    }
+}
+
 /// On-disk schema for the `[lsp]` table (#136). See `config.example.toml`
 /// for documentation. All fields are optional so the TUI runtime can fall
 /// back to its own defaults when keys are absent.
