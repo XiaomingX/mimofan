@@ -226,6 +226,9 @@ impl FleetManager {
         validate_task_spec_document(&doc)?;
         let agent_profiles = super::profile::load_workspace_agent_profiles(&self.workspace)?;
         worker_runtime::validate_task_agent_profiles(&doc.tasks, &agent_profiles)?;
+        // Reject unsupported host specs before any worker is scheduled, rather
+        // than at dispatch time where a task has already been accepted.
+        validate_worker_hosts(&doc.workers)?;
         let max_workers = max_workers.clamp(1, 128);
         let run_id = FleetRunId::from(format!(
             "fleet-{}",
@@ -1325,6 +1328,26 @@ fn host_label(host: &FleetHostSpec) -> String {
         FleetHostSpec::Ssh { host, .. } => format!("ssh:{host}"),
         FleetHostSpec::Docker { image, .. } => format!("docker:{image}"),
     }
+}
+
+/// Reject worker hosts the executor cannot actually start.
+///
+/// `FleetHostSpec` models Docker because the protocol is shared, but
+/// `FleetExecutor::start_worker_on_host` only implements Local and Ssh. Without
+/// this check a Docker host is accepted at submission, the run is created, and
+/// the failure only surfaces once the scheduler tries to dispatch — by which
+/// point the run exists and partially scheduled work has to be unwound.
+fn validate_worker_hosts(workers: &[FleetWorkerSpec]) -> Result<()> {
+    for worker in workers {
+        if let FleetHostSpec::Docker { image, .. } = &worker.host {
+            bail!(
+                "worker {} requests an unsupported docker host (image {image}); \
+                 docker fleet workers are not implemented — use a local or ssh host",
+                worker.id
+            );
+        }
+    }
+    Ok(())
 }
 
 fn latest_event_for_worker<'a>(

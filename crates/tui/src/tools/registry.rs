@@ -776,6 +776,15 @@ impl ToolRegistryBuilder {
     /// (`<multi_tool_use.parallel><tool_name>…</tool_name>…`) instead of
     /// emitting native calls. Kept as a no-op so existing callers compile;
     /// the engine's compatibility dispatcher still handles legacy emissions.
+    ///
+    /// Deprecated: this no longer registers anything. It is retained only so
+    /// the three in-tree call sites (`tool_setup.rs`, `command_palette.rs`,
+    /// `registry.rs`) keep compiling while the call sites are cleaned up. Do
+    /// not add new callers — drop the `.with_parallel_tool()` chain link
+    /// instead.
+    #[deprecated(
+        note = "no-op: native parallel tool calls are used instead. Drop this call-site link."
+    )]
     #[must_use]
     pub fn with_parallel_tool(self) -> Self {
         self
