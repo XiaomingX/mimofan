@@ -645,6 +645,13 @@ fn add_extra_root_certs(
 }
 
 impl ApiClient {
+    /// Gemini authenticates via the `?key=` query parameter (see
+    /// `client/gemini.rs`); Anthropic/OpenAI use headers, so this accessor is
+    /// only consumed by the Gemini adapter.
+    pub(super) fn api_key(&self) -> &str {
+        &self.api_key
+    }
+
     /// Returns an error if the request contains image content blocks but the
     /// model does not support image input.
     fn check_image_support(&self, request: &MessageRequest) -> Result<()> {
@@ -1419,14 +1426,20 @@ impl LlmClient for ApiClient {
 
     async fn create_message(&self, request: MessageRequest) -> Result<MessageResponse> {
         self.check_image_support(&request)?;
-        if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
-            return self.handle_anthropic_message(request).await;
+        match self.api_provider {
+            ApiProvider::AnthropicCompatible => {
+                return self.handle_anthropic_message(request).await;
+            }
+            ApiProvider::GeminiCompatible => {
+                return self.handle_gemini_message(request).await;
+            }
+            _ => {}
         }
         // XiaomiMiMo's public API is OpenAI Chat-Completions compatible at
         // `/v1/chat/completions`. The Codex Responses API in
         // `client/responses.rs` is not served by the XiaomiMiMo gateway
         // (sending it there 404s), so the OpenAI Chat path is the correct
-        // destination for any non-Anthropic MiMo base URL.
+        // destination for any non-Anthropic/non-Gemini base URL.
         self.create_message_chat(&request).await
     }
 
@@ -1435,11 +1448,17 @@ impl LlmClient for ApiClient {
         request: MessageRequest,
     ) -> Result<crate::llm_client::StreamEventBox> {
         self.check_image_support(&request)?;
-        if api_provider_uses_anthropic_messages(self.api_provider, &self.base_url) {
-            return self.handle_anthropic_stream(request).await;
+        match self.api_provider {
+            ApiProvider::AnthropicCompatible => {
+                return self.handle_anthropic_stream(request).await;
+            }
+            ApiProvider::GeminiCompatible => {
+                return self.handle_gemini_stream(request).await;
+            }
+            _ => {}
         }
-        // See `create_message` above — XiaomiMiMo non-Anthropic base URLs
-        // speak the OpenAI Chat-Completions dialect, not the Codex
+        // See `create_message` above — XiaomiMiMo non-Anthropic/non-Gemini base
+        // URLs speak the OpenAI Chat-Completions dialect, not the Codex
         // Responses dialect.
         self.handle_chat_completion_stream(request).await
     }
@@ -1664,6 +1683,7 @@ impl ApiClient {
 }
 
 pub mod anthropic;
+pub mod gemini;
 mod chat;
 mod responses;
 
