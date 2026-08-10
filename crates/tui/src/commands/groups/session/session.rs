@@ -368,15 +368,76 @@ pub fn sessions(app: &mut App, arg: Option<&str>) -> CommandResult {
     let mut parts = trimmed.split_whitespace();
     let action = parts.next().unwrap_or("").to_ascii_lowercase();
     match action.as_str() {
+        "search" => fulltext_search(app, parts.next()),
         "prune" => prune(app, parts.next()),
         "show" | "list" | "picker" => {
             app.view_stack.push(SessionPickerView::new(&app.workspace));
             CommandResult::ok()
         }
         _ => CommandResult::error(format!(
-            "unknown subcommand `{action}`. usage: /sessions [show|prune <days>]"
+            "unknown subcommand `{action}`. usage: /sessions [show|search <query>|prune <days>]"
         )),
     }
+}
+
+/// Full-text search across all saved session **bodies** (not just titles),
+/// exposing [`SessionManager::search_sessions_fulltext`] in the TUI so
+/// interactive users can find prior conversations without leaving the app
+/// (#624). Multi-word queries are AND-combined by the underlying search.
+fn fulltext_search(app: &mut App, query_arg: Option<&str>) -> CommandResult {
+    let query = match query_arg {
+        Some(q) if !q.trim().is_empty() => q.trim().to_string(),
+        _ => {
+            return CommandResult::error(
+                "usage: /sessions search <query>   (e.g. `/sessions search postgresql pooling`)",
+            );
+        }
+    };
+
+    let manager = match crate::session_manager::SessionManager::default_location() {
+        Ok(m) => m,
+        Err(err) => {
+            return CommandResult::error(format!("could not open sessions directory: {err}"));
+        }
+    };
+
+    let hits = match manager.search_sessions_fulltext(&query) {
+        Ok(hits) => hits,
+        Err(err) => {
+            return CommandResult::error(format!("search failed: {err}"));
+        }
+    };
+
+    if hits.is_empty() {
+        return CommandResult::message(format!("No sessions match `{query}`."));
+    }
+
+    let mut body = String::new();
+    let _ = write!(body, "Found {} session(s) matching `{query}`:\n", hits.len());
+    for hit in &hits {
+        let id_short = crate::session_manager::truncate_id(&hit.metadata.id);
+        let when = hit.metadata.updated_at.format("%Y-%m-%d %H:%M");
+        let _ = write!(
+            body,
+            "\n● {id_short}  |  {when}  |  {matches} match(es)  |  in: {role}\n  Title: {title}\n",
+            matches = hit.match_count,
+            role = hit.matched_in,
+            title = hit.metadata.title,
+        );
+        if let Some(snippet) = &hit.snippet {
+            let _ = write!(body, "  Snippet: {snippet}\n");
+        }
+    }
+    let _ = write!(
+        body,
+        "\nOpen a matching session with `/resume <id>` (prefix works, e.g. `/resume {first}`).",
+        first = crate::session_manager::truncate_id(&hits[0].metadata.id),
+    );
+
+    let title = format!("Session search: `{query}`");
+    app.view_stack
+        .push(crate::tui::pager::PagerView::from_text(title, &body, 100));
+    CommandResult::ok()
 }
 
 /// Prune persisted sessions older than `<days>` from
