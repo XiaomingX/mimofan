@@ -1576,6 +1576,19 @@ fn is_likely_spam_results(results: &[WebSearchEntry]) -> bool {
 /// so spam detection groups `astralia.forumgratuit.org` with
 /// `russia.forumgratuit.org`. Returns lowercase host minus the leftmost
 /// label, or the bare host when there are only two labels.
+/// Multi-label public suffixes (eTLD+1 where the suffix itself has more than
+/// one label, e.g. `co.uk`, `com.au`). For hosts under these, the registrable
+/// domain is the last three labels, not the last two. This is a small curated
+/// set covering the common cases; a full public-suffix list would be heavier.
+const MULTI_LABEL_PUBLIC_SUFFIXES: &[&str] = &[
+    "co.uk", "org.uk", "ac.uk", "gov.uk", "ltd.uk", "me.uk", "net.uk", "sch.uk",
+    "com.au", "net.au", "org.au", "edu.au", "gov.au",
+    "com.cn", "net.cn", "org.cn", "gov.cn",
+    "com.br", "net.br", "org.br", "gov.br",
+    "co.nz", "ac.nz", "geek.nz",
+    "com.hk", "org.hk", "gov.hk",
+];
+
 fn root_domain(url: &str) -> Option<String> {
     let after_scheme = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
     let host = after_scheme.split(['/', '?', '#']).next()?;
@@ -1588,7 +1601,15 @@ fn root_domain(url: &str) -> Option<String> {
     if labels.len() <= 2 {
         return Some(host);
     }
-    Some(labels[labels.len().saturating_sub(2)..].join("."))
+    // If the last two labels form a known multi-label public suffix, the
+    // registrable domain is the last three labels (e.g. example.co.uk).
+    let last_two = labels[labels.len() - 2..].join(".");
+    let take = if MULTI_LABEL_PUBLIC_SUFFIXES.contains(&last_two.as_str()) {
+        3
+    } else {
+        2
+    };
+    Some(labels[labels.len().saturating_sub(take)..].join("."))
 }
 
 fn normalize_url(href: &str) -> String {
@@ -1789,3 +1810,125 @@ fn extract_query_param(url: &str, key: &str) -> Option<String> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_domain_returns_etld_plus_one() {
+        assert_eq!(
+            root_domain("https://www.example.com/path"),
+            Some("example.com".to_string())
+        );
+        // Multi-label public suffix (co.uk): the registrable eTLD+1 keeps the
+        // last three labels, so `sub.a.example.co.uk` resolves to `example.co.uk`.
+        assert_eq!(
+            root_domain("https://sub.a.example.co.uk/x"),
+            Some("example.co.uk".to_string())
+        );
+        // Two labels or fewer: bare host.
+        assert_eq!(root_domain("https://example.com"), Some("example.com".to_string()));
+        assert_eq!(root_domain("https://localhost:8080"), Some("localhost".to_string()));
+        // Strips credentials, port, query, fragment.
+        assert_eq!(
+            root_domain("https://user@example.com:443/p?q#f"),
+            Some("example.com".to_string())
+        );
+        // No scheme and no dot: the whole token is returned as-is (a single
+        // label, so the `<= 2 labels` branch returns the bare host).
+        assert_eq!(root_domain("not a url"), Some("not a url".to_string()));
+        assert_eq!(root_domain("https:///empty"), None);
+    }
+
+    #[test]
+    fn is_likely_spam_results_flags_domain_stuffing() {
+        // 3-of-5 same root domain trips the 60% threshold.
+        let spammy = vec![
+            WebSearchEntry { title: "a".into(), url: "https://x.forumgratuit.org/1".into(), snippet: None },
+            WebSearchEntry { title: "b".into(), url: "https://y.forumgratuit.org/2".into(), snippet: None },
+            WebSearchEntry { title: "c".into(), url: "https://z.forumgratuit.org/3".into(), snippet: None },
+            WebSearchEntry { title: "d".into(), url: "https://other.com/4".into(), snippet: None },
+            WebSearchEntry { title: "e".into(), url: "https://elsewhere.net/5".into(), snippet: None },
+        ];
+        assert!(is_likely_spam_results(&spammy));
+
+        // 2-of-5 does not trip.
+        let mixed = vec![
+            WebSearchEntry { title: "a".into(), url: "https://a.example.com".into(), snippet: None },
+            WebSearchEntry { title: "b".into(), url: "https://b.example.com".into(), snippet: None },
+            WebSearchEntry { title: "c".into(), url: "https://c.other.com".into(), snippet: None },
+            WebSearchEntry { title: "d".into(), url: "https://d.elsewhere.net".into(), snippet: None },
+            WebSearchEntry { title: "e".into(), url: "https://e.another.org".into(), snippet: None },
+        ];
+        assert!(!is_likely_spam_results(&mixed));
+
+        // Fewer than 3 results never trips.
+        assert!(!is_likely_spam_results(&mixed[..2]));
+    }
+
+    #[test]
+    fn is_duckduckgo_challenge_detects_block_page() {
+        assert!(is_duckduckgo_challenge(
+            "<div class=\"anomaly-modal\">blocked</div>"
+        ));
+        assert!(is_duckduckgo_challenge(
+            "Unfortunately, bots use DuckDuckGo too"
+        ));
+        assert!(!is_duckduckgo_challenge("<html><body>normal results</body></html>"));
+    }
+
+    #[test]
+    fn normalize_url_unwraps_duckduckgo_redirect_and_protocol_relative() {
+        assert_eq!(
+            normalize_url("https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com"),
+            "https://example.com"
+        );
+        assert_eq!(normalize_url("//cdn.example.com/a"), "https://cdn.example.com/a");
+        assert_eq!(
+            normalize_url("/relative"),
+            "https://duckduckgo.com/relative"
+        );
+        assert_eq!(normalize_url("https://keep.com/x"), "https://keep.com/x");
+    }
+
+    #[test]
+    fn sanitize_error_body_redacts_bearer_and_strips_control() {
+        let dirty =
+            "<p>Authorization: Bearer secret-token-123</p>\x07control\x01char https://x.com";
+        let clean = sanitize_error_body(dirty);
+        assert!(!clean.contains("secret-token-123"), "bearer token leaked");
+        assert!(clean.contains("[REDACTED]"));
+        assert!(!clean.contains('<'));
+        assert!(!clean.contains('\x07'));
+        assert!(!clean.contains('\x01'));
+    }
+
+    #[test]
+    fn truncate_error_body_respects_preview_limit_and_char_boundary() {
+        let long = "a".repeat(ERROR_BODY_PREVIEW_BYTES * 2);
+        let truncated = truncate_error_body(&long);
+        // Truncated preview + "..."; stays within byte budget.
+        assert!(truncated.len() <= ERROR_BODY_PREVIEW_BYTES + 3);
+        assert!(truncated.ends_with("..."));
+
+        let short = "short body";
+        assert_eq!(truncate_error_body(short), "short body");
+    }
+
+    #[test]
+    fn normalize_bing_url_decodes_click_tracking_redirect() {
+        // Bing `/ck/a?...&u=a1<base64>` wrapped URL decodes to the real http(s) URL.
+        // base64 of "https://real-example.com/page" with `-`/`_` alphabet + padding.
+        let payload = "a1aHR0cHM6Ly9yZWFsLWV4YW1wbGUuY29tL3BhZ2U";
+        let wrapped = format!("https://www.bing.com/ck/a?u={payload}");
+        assert_eq!(normalize_bing_url(&wrapped), "https://real-example.com/page");
+
+        // Non-http decoded payload falls back to protocol-relative.
+        assert_eq!(
+            normalize_bing_url("//cdn.bing.com/x"),
+            "https://cdn.bing.com/x"
+        );
+    }
+}
+

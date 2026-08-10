@@ -1233,6 +1233,10 @@ fn split_pdf_pages(text: &str) -> Vec<Vec<String>> {
                 .map(|line| line.to_string())
                 .collect::<Vec<_>>()
         })
+        // Drop pages that contributed no non-empty lines so an empty or
+        // whitespace-only input yields an empty result rather than a single
+        // empty page (split always returns at least one element, even for "").
+        .filter(|page| !page.is_empty())
         .collect()
 }
 
@@ -1706,3 +1710,86 @@ fn url_encode(input: &str) -> String {
 }
 
 // === Tests ===
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn looks_like_url_detects_http_schemes() {
+        assert!(looks_like_url("https://example.com"));
+        assert!(looks_like_url("http://localhost:8080/path"));
+        assert!(!looks_like_url("example.com"));
+        assert!(!looks_like_url("ftp://example.com"));
+        assert!(!looks_like_url(""));
+    }
+
+    #[test]
+    fn domain_matches_handles_empty_allowed_list_and_subdomains() {
+        // Empty allow-list matches everything.
+        assert!(domain_matches("https://example.com/a", &[]));
+
+        let allowed = vec!["example.com".to_string()];
+        assert!(domain_matches("https://example.com/a", &allowed));
+        assert!(domain_matches("https://sub.example.com/a", &allowed));
+        assert!(!domain_matches("https://other.com/a", &allowed));
+
+        // `www.` prefix on the policy is ignored.
+        let www_allowed = vec!["www.example.com".to_string()];
+        assert!(domain_matches("https://example.com/a", &www_allowed));
+
+        // Unparseable URLs never match a non-empty allow-list.
+        assert!(!domain_matches("not a url", &allowed));
+    }
+
+    #[test]
+    fn extract_duckduckgo_vqd_parses_single_and_double_quoted() {
+        assert_eq!(
+            extract_duckduckgo_vqd("var vqd='abc123-_XYZ';"),
+            Some("abc123-_XYZ".to_string())
+        );
+        assert_eq!(
+            extract_duckduckgo_vqd(r#"meta vqd="def456""#),
+            Some("def456".to_string())
+        );
+        // Fallback `vqd=` form with conservative charset.
+        assert_eq!(
+            extract_duckduckgo_vqd("prefix vqd=ghi789more text"),
+            Some("ghi789more".to_string())
+        );
+        // Empty / whitespace input yields nothing.
+        assert_eq!(extract_duckduckgo_vqd(""), None);
+        assert_eq!(extract_duckduckgo_vqd("   "), None);
+        // No token present.
+        assert_eq!(extract_duckduckgo_vqd("<html></html>"), None);
+    }
+
+    #[test]
+    fn is_pdf_detects_content_type_and_extension() {
+        assert!(is_pdf(&Some("application/pdf".to_string()), "https://x.com/a"));
+        assert!(is_pdf(&Some("Application/PDF; charset=utf-8".to_string()), "https://x.com/a"));
+        assert!(is_pdf(&None, "https://x.com/report.PDF"));
+        assert!(!is_pdf(&Some("text/html".to_string()), "https://x.com/a"));
+        assert!(!is_pdf(&None, "https://x.com/a.txt"));
+    }
+
+    #[test]
+    fn split_pdf_pages_splits_on_form_feed_and_trims() {
+        let text = "line1\nline2\x0C\nline3\n\n  \nline4";
+        let pages = split_pdf_pages(text);
+        assert_eq!(pages.len(), 2);
+        assert_eq!(pages[0], vec!["line1".to_string(), "line2".to_string()]);
+        // Page 2 keeps only non-empty, trimmed lines.
+        assert_eq!(pages[1], vec!["line3".to_string(), "line4".to_string()]);
+    }
+
+    #[test]
+    fn split_pdf_pages_handles_empty_input() {
+        // Empty / whitespace-only input yields no pages: the form-feed split
+        // always produces at least one slice, but an empty slice maps to an
+        // empty line vec, which is then dropped, so the result is empty rather
+        // than a single meaningless empty page.
+        assert!(split_pdf_pages("").is_empty());
+        assert!(split_pdf_pages("   \n  \n").is_empty());
+    }
+}
