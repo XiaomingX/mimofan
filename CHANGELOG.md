@@ -2,6 +2,17 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.14] - 2026-08-10
+
+本轮（LoopX P0 批次续作）聚焦工具执行层的命令策略审计，并修复一处导致安全门静默失效的配置解析缺陷。
+
+### Fixed
+- **MCP stdio server 启动经 execpolicy 审核（[#616](https://github.com/XiaomingX/mimofan/issues/616)）**：`mcp.rs` 启动任意 stdio server 前接入 `load_default_policy()` 审核门——`deny` 规则硬阻断、`allow` 放行并审计日志、未命中（AskUser）作为用户配置集成放行但记录审计轨迹；策略加载失败拒绝静默降级。
+- **plugin 子进程启动经 execpolicy 审核（[#617](https://github.com/XiaomingX/mimofan/issues/617)）**：`tools/plugin.rs` 的 `run_plugin_child` 在既有审批门之外叠加 execpolicy 审核层，阻断/放行语义与 MCP 一致。
+- **execpolicy 安全门静默失效（[#616](https://github.com/XiaomingX/mimofan/issues/616) 根因）**：`ExecPolicyConfig::rules` 原为 `BTreeMap`，但 `execpolicy.toml` 采用扁平 `[group]` 形式（如 `[runtime] deny=["rm *"]`），缺 `#[serde(flatten)]` 时该表被 serde 静默忽略，导致 `rules` 恒空、每条命令都落到 AskUser、deny 规则永不触发。补 `flatten` 后安全门真正生效。新增 3 个单测覆盖 deny/allow/ask_user。
+
+[0.0.14]: https://github.com/XiaomingX/mimofan/compare/v0.0.13...v0.0.14
+
 ## [0.0.13] - 2026-08-10
 
 本轮（LoopX P0 批次）补齐 Provider 矩阵与一批「引擎在手边但命令壳/守卫没接」的能力断连，并加固自动化与记忆检索。
