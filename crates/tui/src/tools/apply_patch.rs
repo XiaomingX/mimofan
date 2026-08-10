@@ -805,6 +805,12 @@ async fn build_pending_writes_from_changes(
             .ok_or_else(|| ToolError::missing_field("changes[].content"))?;
 
         let resolved = context.resolve_path(path)?;
+        // Rewriting an existing file requires a fresh prior read; creating a
+        // new one does not. Checked here, during planning, so a violation
+        // aborts before `apply_pending_writes` touches the disk.
+        if resolved.exists() {
+            context.require_fresh_file_read_for("apply_patch", &resolved, path)?;
+        }
         let original = if resolved.exists() {
             Some(read_file_content(&resolved).await?)
         } else {
@@ -853,6 +859,12 @@ async fn build_pending_writes_from_patches(
         }
 
         let resolved = context.resolve_path(&file_patch.path)?;
+        // Patching or deleting an existing file requires a fresh prior read;
+        // creating a new one does not. Every touched file is checked, and the
+        // whole batch aborts before any write lands.
+        if resolved.exists() {
+            context.require_fresh_file_read_for("apply_patch", &resolved, &file_patch.path)?;
+        }
         let original = if resolved.exists() {
             Some(read_file_content(&resolved).await?)
         } else {
@@ -1176,3 +1188,120 @@ fn matches_at_position(lines: &[String], old_lines: &[&str], pos: usize) -> bool
 }
 
 // === Unit Tests ===
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn ctx(dir: &TempDir) -> ToolContext {
+        ToolContext::new(dir.path().to_path_buf())
+    }
+
+    /// A minimal single-hunk diff replacing `one` with `ONE`.
+    fn patch_text() -> &'static str {
+        "@@ -1,2 +1,2 @@\n-one\n+ONE\n two\n"
+    }
+
+    #[tokio::test]
+    async fn apply_patch_rejects_patching_an_unread_file() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("target.txt");
+        std::fs::write(&path, "one\ntwo\n").unwrap();
+        let ctx = ctx(&dir);
+
+        let err = ApplyPatchTool
+            .execute(
+                json!({ "path": "target.txt", "patch": patch_text() }),
+                &ctx,
+            )
+            .await
+            .expect_err("patching an unread file must be refused");
+
+        let msg = err.to_string();
+        assert!(msg.contains("apply_patch"), "{msg}");
+        assert!(msg.contains("never_read"), "{msg}");
+        // Nothing may reach disk when the guard trips.
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "one\ntwo\n");
+    }
+
+    #[tokio::test]
+    async fn apply_patch_allows_patching_after_a_read() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("target.txt");
+        std::fs::write(&path, "one\ntwo\n").unwrap();
+        let ctx = ctx(&dir);
+        ctx.note_file_read(&path);
+
+        ApplyPatchTool
+            .execute(
+                json!({ "path": "target.txt", "patch": patch_text() }),
+                &ctx,
+            )
+            .await
+            .expect("patching after a read must be allowed");
+
+        assert!(std::fs::read_to_string(&path).unwrap().starts_with("ONE"));
+    }
+
+    #[tokio::test]
+    async fn apply_patch_changes_rejects_unread_overwrite_but_allows_creation() {
+        let dir = TempDir::new().unwrap();
+        let existing = dir.path().join("existing.txt");
+        std::fs::write(&existing, "original\n").unwrap();
+        let ctx = ctx(&dir);
+
+        // Overwriting an unread file via `changes` is refused...
+        let err = ApplyPatchTool
+            .execute(
+                json!({ "changes": [{ "path": "existing.txt", "content": "clobbered\n" }] }),
+                &ctx,
+            )
+            .await
+            .expect_err("unread overwrite must be refused");
+        assert!(err.to_string().contains("never_read"), "{err}");
+        assert_eq!(std::fs::read_to_string(&existing).unwrap(), "original\n");
+
+        // ...while creating a brand-new file stays allowed.
+        ApplyPatchTool
+            .execute(
+                json!({ "changes": [{ "path": "fresh.txt", "content": "new\n" }] }),
+                &ctx,
+            )
+            .await
+            .expect("creating a new file must be allowed");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("fresh.txt")).unwrap(),
+            "new\n",
+        );
+    }
+
+    #[tokio::test]
+    async fn apply_patch_batch_aborts_before_writing_when_one_file_is_unread() {
+        let dir = TempDir::new().unwrap();
+        let read_file = dir.path().join("a.txt");
+        let unread_file = dir.path().join("b.txt");
+        std::fs::write(&read_file, "alpha\n").unwrap();
+        std::fs::write(&unread_file, "beta\n").unwrap();
+        let ctx = ctx(&dir);
+        // Only the first file was read.
+        ctx.note_file_read(&read_file);
+
+        let err = ApplyPatchTool
+            .execute(
+                json!({ "changes": [
+                    { "path": "a.txt", "content": "alpha changed\n" },
+                    { "path": "b.txt", "content": "beta changed\n" },
+                ] }),
+                &ctx,
+            )
+            .await
+            .expect_err("a single unread file must fail the whole batch");
+        assert!(err.to_string().contains("never_read"), "{err}");
+
+        // The transaction must not have partially applied: even the file that
+        // *was* read stays untouched.
+        assert_eq!(std::fs::read_to_string(&read_file).unwrap(), "alpha\n");
+        assert_eq!(std::fs::read_to_string(&unread_file).unwrap(), "beta\n");
+    }
+}

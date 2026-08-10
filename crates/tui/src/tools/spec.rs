@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use async_trait::async_trait;
-use serde_json::Value;
+use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
 
 use crate::features::Features;
@@ -110,10 +110,21 @@ impl std::fmt::Debug for RuntimeToolServices {
 /// Identity of a file's on-disk state, used to detect edits made against
 /// stale content. Deliberately excludes observed line ranges so that
 /// freshness and coverage can be compared independently.
+///
+/// `content_hash` is the authoritative field: `len` and `modified` alone miss
+/// same-length edits made within the same mtime granularity (a `touch`-style
+/// rewrite, or two writes inside one second on a coarse filesystem clock).
+/// The metadata fields are retained because they still distinguish files whose
+/// contents could not be hashed (unreadable or non-UTF8-safe reads fall back
+/// to `None`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct FileIdentity {
     len: u64,
     modified: Option<SystemTime>,
+    /// SHA-256 of the file bytes, or `None` when the file could not be read.
+    /// Two `None` hashes never compare as a content match on their own — the
+    /// `len`/`modified` fields carry the comparison in that degraded case.
+    content_hash: Option<[u8; 32]>,
 }
 
 /// A single inclusive, 1-based range of lines the caller has actually seen.
@@ -121,6 +132,74 @@ struct FileIdentity {
 struct LineRange {
     start: usize,
     end: usize,
+}
+
+/// Why a read-before-write check rejected a mutation. Surfaced to the model as
+/// a stable machine-readable `reason` so it can branch on the failure mode
+/// instead of pattern-matching English prose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PriorReadViolation {
+    /// The file was never read in this session.
+    NeverRead,
+    /// The file was read, but its on-disk contents changed since.
+    Stale,
+    /// The file's current state could not be inspected to compare.
+    Unverifiable,
+    /// The specific lines being edited were never observed.
+    UnreadLines,
+}
+
+impl PriorReadViolation {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::NeverRead => "never_read",
+            Self::Stale => "stale_content",
+            Self::Unverifiable => "unverifiable",
+            Self::UnreadLines => "unread_lines",
+        }
+    }
+}
+
+/// Marker prefix for the machine-readable trailer appended to prior-read
+/// errors. `ToolError` carries only a `String` payload, so structured fields
+/// travel as a single-line JSON object the model (and tests) can locate
+/// deterministically without disturbing the human-readable guidance above it.
+pub const PRIOR_READ_ERROR_TAG: &str = "prior_read_violation=";
+
+/// Build a prior-read `ToolError` whose message keeps the existing prose
+/// recovery guidance and appends a parseable `prior_read_violation={...}`
+/// trailer carrying `reason`, `tool`, `path` and the expected/actual state.
+fn prior_read_error(
+    reason: PriorReadViolation,
+    tool: &str,
+    path: &Path,
+    requested_path: &str,
+    prose: &str,
+) -> ToolError {
+    prior_read_error_with(reason, tool, path, requested_path, prose, &[])
+}
+
+/// As [`prior_read_error`], with additional structured fields merged into the
+/// JSON trailer (used by coverage failures to report expected/actual lines).
+fn prior_read_error_with(
+    reason: PriorReadViolation,
+    tool: &str,
+    path: &Path,
+    requested_path: &str,
+    prose: &str,
+    extra: &[(&str, Value)],
+) -> ToolError {
+    let mut fields = serde_json::Map::new();
+    fields.insert("reason".to_string(), json!(reason.as_str()));
+    fields.insert("tool".to_string(), json!(tool));
+    fields.insert("path".to_string(), json!(path.display().to_string()));
+    fields.insert("requested_path".to_string(), json!(requested_path));
+    fields.insert("recovery_tool".to_string(), json!("read_file"));
+    for (key, value) in extra {
+        fields.insert((*key).to_string(), value.clone());
+    }
+    let trailer = Value::Object(fields);
+    ToolError::execution_failed(format!("{prose}\n{PRIOR_READ_ERROR_TAG}{trailer}"))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -222,7 +301,20 @@ fn file_identity(path: &Path) -> Result<FileIdentity, ToolError> {
     Ok(FileIdentity {
         len: metadata.len(),
         modified: metadata.modified().ok(),
+        content_hash: hash_file_contents(path),
     })
+}
+
+/// Hash a file's bytes for staleness detection. Best-effort: an unreadable
+/// file yields `None` and the comparison degrades to metadata only, which is
+/// the pre-hash behaviour rather than a hard failure.
+fn hash_file_contents(path: &Path) -> Option<[u8; 32]> {
+    use sha2::{Digest, Sha256};
+
+    let mut file = fs::File::open(path).ok()?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher).ok()?;
+    Some(hasher.finalize().into())
 }
 
 /// Sandbox policy for command execution.
@@ -623,6 +715,23 @@ impl ToolContext {
         path: &Path,
         requested_path: &str,
     ) -> Result<(), ToolError> {
+        self.require_fresh_file_read_for("edit_file", path, requested_path)
+    }
+
+    /// Same guarantee as [`Self::require_fresh_file_read`], but attributed to
+    /// an arbitrary mutating tool so `write_file`, `apply_patch` and
+    /// `notebook_edit` can enforce read-before-write with accurate recovery
+    /// instructions instead of telling the model to retry `edit_file`.
+    ///
+    /// Callers must exempt file *creation* themselves: there is nothing to
+    /// read before a new file exists, so gating creation would break normal
+    /// use. Only pass paths that already exist on disk.
+    pub fn require_fresh_file_read_for(
+        &self,
+        tool: &str,
+        path: &Path,
+        requested_path: &str,
+    ) -> Result<(), ToolError> {
         let prior = {
             let tracker = self.file_read_tracker.lock().map_err(|_| {
                 ToolError::execution_failed(
@@ -633,28 +742,46 @@ impl ToolContext {
         };
 
         let Some(prior) = prior else {
-            return Err(ToolError::execution_failed(format!(
-                "Refusing edit_file for {} because it has not been read in this session. \
-                 Recovery: call read_file with path=\"{requested_path}\" to inspect the current contents, \
-                 then retry edit_file with a unique search string.",
-                path.display()
-            )));
+            return Err(prior_read_error(
+                PriorReadViolation::NeverRead,
+                tool,
+                path,
+                requested_path,
+                &format!(
+                    "Refusing {tool} for {} because it has not been read in this session. \
+                     Recovery: call read_file with path=\"{requested_path}\" to inspect the current contents, \
+                     then retry {tool}.",
+                    path.display()
+                ),
+            ));
         };
 
         let current = file_identity(path).map_err(|e| {
-            ToolError::execution_failed(format!(
-                "Refusing edit_file for {} because the file could not be checked for staleness ({e}). \
-                 Recovery: call read_file with path=\"{requested_path}\" again, then retry edit_file.",
-                path.display()
-            ))
+            prior_read_error(
+                PriorReadViolation::Unverifiable,
+                tool,
+                path,
+                requested_path,
+                &format!(
+                    "Refusing {tool} for {} because the file could not be checked for staleness ({e}). \
+                     Recovery: call read_file with path=\"{requested_path}\" again, then retry {tool}.",
+                    path.display()
+                ),
+            )
         })?;
 
         if current != prior.identity {
-            return Err(ToolError::execution_failed(format!(
-                "Refusing edit_file for {} because it changed since the last read_file call. \
-                 Recovery: call read_file with path=\"{requested_path}\" again and retry with the current contents.",
-                path.display()
-            )));
+            return Err(prior_read_error(
+                PriorReadViolation::Stale,
+                tool,
+                path,
+                requested_path,
+                &format!(
+                    "Refusing {tool} for {} because it changed since the last read_file call. \
+                     Recovery: call read_file with path=\"{requested_path}\" again and retry with the current contents.",
+                    path.display()
+                ),
+            ));
         }
 
         Ok(())
@@ -698,14 +825,26 @@ impl ToolContext {
         };
         let span = end.saturating_sub(start).saturating_add(1);
         let suggested_max = span.max(50);
-        Err(ToolError::execution_failed(format!(
-            "Refusing edit_file for {} because {target} was never read in this session. \
-             Only these lines have been read: {}. Editing unread lines risks overwriting content you have not seen. \
-             Recovery: call read_file with path=\"{requested_path}\" start_line={start} max_lines={suggested_max} \
-             to inspect the target region, then retry the same edit_file call.",
-            path.display(),
-            prior.describe_observed(),
-        )))
+        let observed = prior.describe_observed();
+        Err(prior_read_error_with(
+            PriorReadViolation::UnreadLines,
+            "edit_file",
+            path,
+            requested_path,
+            &format!(
+                "Refusing edit_file for {} because {target} was never read in this session. \
+                 Only these lines have been read: {observed}. Editing unread lines risks overwriting content you have not seen. \
+                 Recovery: call read_file with path=\"{requested_path}\" start_line={start} max_lines={suggested_max} \
+                 to inspect the target region, then retry the same edit_file call.",
+                path.display(),
+            ),
+            &[
+                ("expected_lines_read", json!(format!("{start}-{end}"))),
+                ("actual_lines_read", json!(observed)),
+                ("edit_start_line", json!(start)),
+                ("edit_end_line", json!(end)),
+            ],
+        ))
     }
 
     /// Resolve a path relative to workspace, validating it doesn't escape.
@@ -1109,6 +1248,7 @@ mod tests {
         FileIdentity {
             len: 42,
             modified: None,
+            content_hash: None,
         }
     }
 
@@ -1209,6 +1349,101 @@ mod tests {
         assert!(msg.contains("line 300"), "{msg}");
         assert!(msg.contains("start_line=300"), "{msg}");
         assert!(msg.contains("1-200"), "{msg}");
+    }
+
+    #[test]
+    fn identity_detects_same_length_same_mtime_rewrite() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "aaaa").unwrap();
+        let before = file_identity(&path).unwrap();
+
+        std::fs::write(&path, "bbbb").unwrap();
+        let after = file_identity(&path).unwrap();
+
+        // Same byte length: the pre-#695 identity could not tell these apart
+        // whenever the mtime also failed to advance.
+        assert_eq!(before.len, after.len);
+        assert_ne!(
+            before.content_hash, after.content_hash,
+            "content hash must distinguish same-length rewrites"
+        );
+        assert_ne!(before, after);
+    }
+
+    #[test]
+    fn prior_read_error_carries_parseable_reason() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "body\n").unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+
+        let err = ctx
+            .require_fresh_file_read_for("write_file", &path, "f.txt")
+            .expect_err("an unread file must be refused");
+        let msg = err.to_string();
+
+        // Human-readable guidance is preserved...
+        assert!(msg.contains("Recovery: call read_file"), "{msg}");
+        // ...and a machine-parseable trailer rides along with it.
+        let trailer = msg
+            .split_once(PRIOR_READ_ERROR_TAG)
+            .expect("structured trailer must be present")
+            .1;
+        let parsed: Value = serde_json::from_str(trailer.trim()).expect("trailer must be JSON");
+        assert_eq!(parsed["reason"], "never_read");
+        assert_eq!(parsed["tool"], "write_file");
+        assert_eq!(parsed["requested_path"], "f.txt");
+        assert_eq!(parsed["recovery_tool"], "read_file");
+    }
+
+    #[test]
+    fn stale_content_reason_is_reported_separately_from_never_read() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "one\n").unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+
+        ctx.note_file_read(&path);
+        std::fs::write(&path, "two\n").unwrap();
+
+        let err = ctx
+            .require_fresh_file_read_for("apply_patch", &path, "f.txt")
+            .expect_err("a changed file must be refused");
+        let trailer = err
+            .to_string()
+            .split_once(PRIOR_READ_ERROR_TAG)
+            .expect("structured trailer must be present")
+            .1
+            .trim()
+            .to_string();
+        let parsed: Value = serde_json::from_str(&trailer).expect("trailer must be JSON");
+        assert_eq!(parsed["reason"], "stale_content");
+        assert_eq!(parsed["tool"], "apply_patch");
+    }
+
+    #[test]
+    fn coverage_error_reports_expected_and_actual_lines() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "x\n".repeat(500)).unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+        ctx.note_file_read_range(&path, 1, 200);
+
+        let err = ctx
+            .require_read_coverage(&path, "f.txt", 300, 310)
+            .expect_err("line 300 is unread");
+        let trailer = err
+            .to_string()
+            .split_once(PRIOR_READ_ERROR_TAG)
+            .expect("structured trailer must be present")
+            .1
+            .trim()
+            .to_string();
+        let parsed: Value = serde_json::from_str(&trailer).expect("trailer must be JSON");
+        assert_eq!(parsed["reason"], "unread_lines");
+        assert_eq!(parsed["expected_lines_read"], "300-310");
+        assert_eq!(parsed["actual_lines_read"], "1-200");
     }
 
     #[test]
