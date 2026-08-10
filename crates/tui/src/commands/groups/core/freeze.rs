@@ -26,16 +26,23 @@ impl RegisterCommand for FreezeCmd {
             Some(_) | None => None,
         };
 
-        app.spec_frozen = true;
-        app.frozen_spec = spec.clone();
-
-        let message = match &spec {
-            None => "Spec frozen. Agent will be constrained to the current plan.".to_string(),
-            Some(s) => format!(
-                "Spec frozen with {} chars. Agent will be constrained to this spec.",
-                s.len()
-            ),
+        let Some(spec) = spec else {
+            // No plan supplied. The engine (`prompts/mod.rs`) only injects a
+            // constraint when `frozen_spec` is non-empty, so freezing with an
+            // empty spec would *look* successful while binding nothing. Say so
+            // plainly and leave the existing freeze state untouched.
+            return CommandResult::message(
+                "No spec provided, so nothing was frozen. To constrain the agent, run `/freeze <plan text>`.".to_string(),
+            );
         };
+
+        app.spec_frozen = true;
+        app.frozen_spec = Some(spec.clone());
+
+        let message = format!(
+            "Spec frozen with {} chars. Agent will be constrained to this spec.",
+            spec.len()
+        );
 
         CommandResult::with_message_and_action(message, AppAction::SpecFrozen)
     }
