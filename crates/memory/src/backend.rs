@@ -138,11 +138,10 @@ mod tests {
 
     /// 向库中灌入若干「背景」观察。
     ///
-    /// `VectorStore` 建索引时用了 `max_layer = 100`（见 `vector.rs:170`），而
-    /// `hnsw_rs` 为每个点随机分配层级——库里只有 1 个点时，它有相当概率落在高层，
-    /// 导致自底层入口出发的近似搜索召回为空（表现为 flaky 的 0 召回）。灌入一批
-    /// 背景点可让入口层稳定连通，使召回断言具备确定性。这是既有索引参数的性质，
-    /// 与本次 trait 化无关。
+    /// 早先 `VectorStore` 用 `max_layer = 100` 建索引，`hnsw_rs` 为每个点随机
+    /// 分配层级，单点极易落在孤立高层导致 0 召回（flaky）。索引参数已收敛到
+    /// `max_layer = 16`，召回在小数据集上恢复稳定，这里的背景点仅用于让向量
+    /// 空间更饱满、断言更稳健，不再是为规避索引 bug 而必需的补丁。
     fn seed_background(store: &VectorStore) {
         for i in 0..16 {
             store
@@ -263,6 +262,52 @@ mod tests {
         backend.rebuild().expect("rebuild via trait object");
         backend.delete(id).expect("delete via trait object");
         assert_eq!(backend.count().expect("count after delete"), 0);
+    }
+
+    /// 删除后的观察绝不被 `query` 召回，且重开 store（从 sled 重建索引）后
+    /// 同样不再出现。这是对 #615 核心正确性保证的回归测试：SQLite 是召回的
+    /// 唯一真相源，`search` 通过 `load_observation` 过滤已删行，HNSW 中的残留
+    /// 条目不会透出。
+    #[test]
+    fn deleted_observation_is_never_recalled() {
+        let dir = TempDir::new().expect("create temp dir");
+        let store = open_store(&dir);
+
+        let id = store
+            .upsert(&observation("待删除观察"), &[0.0; DIM])
+            .expect("upsert");
+        seed_background(&store);
+
+        // 删除前能召回。
+        let before = store
+            .query(&[0.0; DIM], 5, &SearchFilters::default())
+            .expect("query before delete");
+        assert!(
+            before.iter().any(|m| m.observation.id == id),
+            "删除前应能召回该观察"
+        );
+
+        store.delete(id).expect("delete");
+
+        // 删除后，即便查询向量与已删观察完全一致，也不应出现在结果里。
+        let after = store
+            .query(&[0.0; DIM], 5, &SearchFilters::default())
+            .expect("query after delete");
+        assert!(
+            !after.iter().any(|m| m.observation.id == id),
+            "已删观察不应再被召回"
+        );
+
+        // 关闭并重新打开：索引应仅从 sled 重建，已删条目不应归来。
+        drop(store);
+        let reopened = open_store(&dir);
+        let reopened_hits = reopened
+            .query(&[0.0; DIM], 5, &SearchFilters::default())
+            .expect("query after reopen");
+        assert!(
+            !reopened_hits.iter().any(|m| m.observation.id == id),
+            "重开后已删观察仍不应出现"
+        );
     }
 
     /// 自定义内存后端也能实现本 trait —— 验证抽象对外部后端开放。

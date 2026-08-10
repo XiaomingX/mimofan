@@ -163,16 +163,24 @@ impl VectorStore {
 
     /// Load or create HNSW index
     fn load_or_create_index(vectors: &Db, _dimension: usize) -> Result<Hnsw<f32, DistL2>> {
+        // `max_layer` bounds the top layer of the graph. The previous value of
+        // 100 forced every point into a single near-empty top layer, which
+        // makes recall on small observation sets non-deterministic — the graph
+        // degenerates and nearest-neighbour search returns a different subset
+        // on each run. HNSW's own insertion probabilistics assume
+        // `max_layer ≈ ln(N)`, so 16 is the standard choice for the dataset
+        // sizes mimofan memory deals with and restores stable recall.
+        const MAX_LAYER: usize = 16;
         // Create a new index
         let index = Hnsw::<f32, DistL2>::new(
-            16,    // max_nb_connection
-            20000, // max_elements
-            100,   // max_layer
-            100,   // ef_construction
+            16,      // max_nb_connection
+            20000,   // max_elements
+            MAX_LAYER,
+            100,     // ef_construction
             DistL2,
         );
 
-        // Load existing vectors from sled
+        // Load existing vectors from sled (the persisted source of truth).
         for entry in vectors.iter() {
             let (key, value) = entry?;
             let id: u64 = bincode::deserialize(&key)?;
@@ -453,17 +461,25 @@ impl VectorStore {
     pub fn delete_observation(&self, id: i64) -> Result<()> {
         debug!("Deleting observation: {}", id);
 
-        // Delete from SQLite (cascades to files and concepts)
+        // Delete from SQLite (cascades to files and concepts). SQLite is the
+        // source of truth for what `search` may return: `search` resolves each
+        // HNSW candidate through `load_observation`, which returns `None` for a
+        // deleted row, so the stale HNSW entry is never surfaced.
         self.sqlite.execute(
             "DELETE FROM observations WHERE id = ?1",
             rusqlite::params![id],
         )?;
 
-        // Delete from sled
+        // Delete from sled (the HNSW rebuild source on next `open`).
         let key = bincode::serialize(&id)?;
         self.vectors.remove(key)?;
 
-        // TODO: Remove from HNSW index (requires rebuild or lazy deletion)
+        // The HNSW entry is left in place. hnsw-rs 0.1.x has no `remove`
+        // (lazy-deletion) API, and rebuilding the whole index here would be
+        // expensive; the SQLite-backed `search` filter above already excludes
+        // the deleted id, so correctness does not depend on the HNSW tombstone.
+        // The stale entry only costs an extra over-fetch slot until the next
+        // `open`, where it is dropped because it is absent from sled.
 
         Ok(())
     }
