@@ -36,6 +36,7 @@ pub(super) fn is_tool_search_tool(name: &str) -> bool {
 pub(super) const DEFAULT_ACTIVE_NATIVE_TOOLS: &[&str] = &[
     "agent",
     "apply_patch",
+    "ast_query",
     "checklist_write",
     "edit_file",
     "exec_shell",
@@ -1164,6 +1165,44 @@ mod bm25_tests {
         assert!(
             joined.contains("missing from the model/search catalog"),
             "reverse branch (registered tool absent from catalog) must be reported: {joined}"
+        );
+    }
+
+    // --- #587：ast_query 双轨注册验收 ---
+    // 断言 `ast_query` 工具确实通过 `with_ast_query_tool()` 注册，并出现在最终
+    // registry 的 API 工具列表中（即模型可见）。这是 #587 验收标准里
+    // "双轨注册均已接线，工具出现在最终 API tools 列表" 的机器校验版本。
+
+    fn ast_query_registry() -> ToolRegistry {
+        let dir = TempDir::new().expect("tempdir");
+        ToolRegistryBuilder::new()
+            .with_ast_query_tool()
+            .build(ToolContext::new(dir.path().to_path_buf()))
+    }
+
+    #[test]
+    fn ast_query_tool_is_registered_and_visible() {
+        let registry = ast_query_registry();
+        assert!(
+            registry.contains("ast_query"),
+            "ast_query must be present in the registry after with_ast_query_tool()"
+        );
+        let api_tools = registry.to_api_tools();
+        let api_names: Vec<&str> = api_tools.iter().map(|t| t.name.as_str()).collect();
+        assert!(
+            api_names.contains(&"ast_query"),
+            "ast_query must appear in the final API tools list; got {api_names:?}"
+        );
+    }
+
+    #[test]
+    fn ast_query_is_listed_in_active_native_tools() {
+        // 反向契约：DEFAULT_ACTIVE_NATIVE_TOOLS 必须包含 ast_query，否则
+        // tool_catalog_consistency_issues 会对 registry 已注册的该工具报
+        // "missing from the model/search catalog"。
+        assert!(
+            DEFAULT_ACTIVE_NATIVE_TOOLS.contains(&"ast_query"),
+            "ast_query must be in DEFAULT_ACTIVE_NATIVE_TOOLS for dual-track consistency"
         );
     }
 }

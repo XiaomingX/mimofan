@@ -10,6 +10,7 @@
 
 pub mod apply_patch;
 pub mod approval_cache;
+pub mod ast_query;
 pub mod arg_repair;
 pub mod automation;
 pub mod cargo_failure_summary;

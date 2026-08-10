@@ -1,0 +1,15 @@
+[package]
+name = "mimofan-staticanalysis"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tree-sitter = "0.25"
+tree-sitter-rust = { version = "0.23", optional = true }
+serde_json = { workspace = true }
+anyhow = "1"
+
+[features]
+default = ["lang-rust"]
+lang-rust = ["dep:tree-sitter-rust"]

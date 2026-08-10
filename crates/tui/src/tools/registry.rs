@@ -575,6 +575,14 @@ impl ToolRegistryBuilder {
             .with_tool(Arc::new(LspGotoDefinitionTool))
     }
 
+    /// 注册结构化 AST 检索工具（`ast_query`，issue #587）。只读、可并行，把
+    /// tree-sitter 查询能力暴露给模型，替代手搓 grep/sed 做代码模式检索。
+    #[must_use]
+    pub fn with_ast_query_tool(self) -> Self {
+        use super::ast_query::AstQueryTool;
+        self.with_tool(Arc::new(AstQueryTool))
+    }
+
     /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
     #[must_use]
     pub fn with_notebook_tools(self) -> Self {
