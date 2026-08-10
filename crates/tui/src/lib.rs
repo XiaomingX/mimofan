@@ -111,7 +111,6 @@ mod slop_ledger;
 mod snapshot;
 mod state_machine;
 mod status;
-pub mod symbol_index;
 mod task_manager;
 mod tls;
 mod tokenizer;
