@@ -2,6 +2,22 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.12] - 2026-08-10
+
+### Fixed
+- **`/monitor` 命令真正持久化（[#704](https://github.com/XiaomingX/mimofan/issues/704)）**：命令原仅回显「已接收」却零落盘。现经 `MonitorStore` 真正创建/列表/查询/暂停/恢复/删除，并用 `block_in_place`+`Handle::block_on` 桥接同步命令层与异步存储；monitor 存于状态目录 `issue_monitors/`，重启后仍保留。
+- **`/balance` 读取真实余额（[#705](https://github.com/XiaomingX/mimofan/issues/705)）**：命令原对所有 provider 回显「not wired yet」。现复用 footer 同源的 `balance_cell`，展示与 footer 一致的真实余额（无 key/未拉取时明确提示，而非假失败）。
+- **`/freeze` 无参不再假成功（[#707](https://github.com/XiaomingX/mimofan/issues/707)）**：无参时原回显「已约束到当前计划」但引擎要求 `frozen_spec` 非空，实际未约束。现明确提示需提供 plan，不误报约束。
+- **UI 死代码/空壳清理（[#706](https://github.com/XiaomingX/mimofan/issues/706)）**：fleet Docker host 在 `create_run` 阶段 fail-fast 拒绝（原运行时才报错）；`with_parallel_tool` 标 `#[deprecated]` 显式暴露废弃意图；footer `LastToolElapsed`/`RateLimit` 无真实数据支撑，从可选列表移除（保留枚举变体以兼容既有配置反序列化）。
+- **MSRV 修正为 1.95（[#641](https://github.com/XiaomingX/mimofan/issues/641)）**：原声明 1.88 仅覆盖自身语法需求；`rusqlite`/`libsqlite3-sys` 使用 1.95 稳定的 `cfg_select!` 且不声明自身 rust-version，1.88 工具链会报晦涩宏错误。
+- **记忆 HNSW 召回稳定（[#615](https://github.com/XiaomingX/mimofan/issues/615)）**：`max_layer` 由 100 收敛到 16（≈ ln(N) 设计不变量），修复小数据集召回随机为空的 flaky；核验确认已删记忆不会被 `search` 召回（SQLite 为唯一真相源，`load_observation` 过滤已删行），并固化该不变量的注释与回归测试。
+- **先读后改扩展到 write_file/apply_patch/notebook_edit（[#695](https://github.com/XiaomingX/mimofan/issues/695)）**：`FileIdentity` 引入 SHA-256 `content_hash`（可检测同长度同 mtime 改写）；新增 `require_fresh_file_read_for(tool, …)` 按调用工具归因拒绝并产出结构化 `prior_read_violation={...}` trailer，供模型按失败模式分支而非匹配散文。
+
+### Chore
+- **移除零调用方 token 估算残留**：清理 `context_budget` 中无生产调用方的字符启发式估算函数，统一到已收敛的 tiktoken/BPE 计数器。
+
+[0.0.12]: https://github.com/XiaomingX/mimofan/compare/v0.0.11...v0.0.12
+
 ## [0.0.11] - 2026-08-09
 
 ### Fixed
