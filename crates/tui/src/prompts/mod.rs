@@ -696,7 +696,7 @@ const V4_MODEL_CHARACTERISTICS: &str = include_str!("v4_model_characteristics.md
 const GENERIC_MODEL_CHARACTERISTICS: &str = include_str!("generic_model_characteristics.md");
 
 const TOOL_TAXONOMY_DISCOVERY: &[&str] = &["grep_files", "file_search"];
-const TOOL_TAXONOMY_GIT: &[&str] = &["git_status", "git_diff"];
+const TOOL_TAXONOMY_GIT: &[&str] = &["git_status", "git_diff", "git_commit"];
 const TOOL_TAXONOMY_VERIFICATION: &[&str] = &["run_tests", "run_verifiers"];
 
 /// Return the core tool taxonomy body **without** a markdown heading.
