@@ -1,5 +1,6 @@
 //! Performance optimization for long-running tasks
 
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -61,10 +62,21 @@ impl BatchProcessor {
     }
 }
 
-/// LRU cache for vector search results
+/// LRU cache for vector search results.
+///
+/// Internally uses a [`RefCell`]-wrapped [`VecDeque`] so the cache can be
+/// shared behind a `&self` borrow. This matches the `VectorMemory` access
+/// pattern, where `&VectorMemory` is not `Send`/`Sync` (the inner
+/// `VectorStore` holds non-`Send` SQLite/HNSW state), so the cache is only
+/// ever used from a single thread and a `RefCell` is sufficient — wrapping it
+/// in a `Mutex` would be unnecessary overhead and would not change the
+/// (non-`Sync`) soundness profile.
+///
+/// The original `&mut self` methods are retained for the `examples/` and
+/// `tests/` that drive the cache directly.
 pub struct SearchCache {
     capacity: usize,
-    cache: VecDeque<(String, Vec<VectorMatch>)>,
+    cache: RefCell<VecDeque<(String, Vec<VectorMatch>)>>,
 }
 
 impl SearchCache {
@@ -72,32 +84,75 @@ impl SearchCache {
     pub fn new(capacity: usize) -> Self {
         Self {
             capacity,
-            cache: VecDeque::new(),
+            cache: RefCell::new(VecDeque::new()),
         }
     }
 
-    /// Get cached results
-    pub fn get(&mut self, key: &str) -> Option<&Vec<VectorMatch>> {
-        if let Some(pos) = self.cache.iter().position(|(k, _)| k == key) {
+    /// Get cached results (shared borrow).
+    ///
+    /// Returns a clone of the cached matches on hit. The LRU position is
+    /// updated (the matched entry is moved to the back) to reflect recency.
+    pub fn get(&self, key: &str) -> Option<Vec<VectorMatch>> {
+        let mut cache = self.cache.borrow_mut();
+        if let Some(pos) = cache.iter().position(|(k, _)| k == key) {
             // Move to back (most recently used)
-            let item = self.cache.remove(pos).expect("remove cached search result");
-            self.cache.push_back(item);
-            return self.cache.back().map(|(_, v)| v);
+            let item = cache.remove(pos).expect("cached search entry exists at position");
+            cache.push_back(item.clone());
+            return cache.back().map(|(_, v)| v.clone());
         }
         None
     }
 
-    /// Insert into cache
-    pub fn insert(&mut self, key: String, value: Vec<VectorMatch>) {
-        if self.cache.len() >= self.capacity {
-            self.cache.pop_front();
+    /// Insert into cache (shared borrow).
+    pub fn insert(&self, key: String, value: Vec<VectorMatch>) {
+        let mut cache = self.cache.borrow_mut();
+        if cache.len() >= self.capacity {
+            cache.pop_front();
         }
-        self.cache.push_back((key, value));
+        cache.push_back((key, value));
     }
 
-    /// Clear cache
-    pub fn clear(&mut self) {
-        self.cache.clear();
+    /// Clear cache (shared borrow).
+    pub fn clear(&self) {
+        self.cache.borrow_mut().clear();
+    }
+
+    /// Number of entries currently cached.
+    pub fn len(&self) -> usize {
+        self.cache.borrow().len()
+    }
+
+    /// Whether the cache is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.cache.borrow().is_empty()
+    }
+
+    // ---- `&mut self` API retained for backward compatibility (examples/tests) ----
+
+    /// Get cached results (mutable borrow, returns a reference).
+    pub fn get_mut(&mut self, key: &str) -> Option<&Vec<VectorMatch>> {
+        let cache = self.cache.get_mut();
+        if let Some(pos) = cache.iter().position(|(k, _)| k == key) {
+            let item = cache.remove(pos).expect("remove cached search result");
+            cache.push_back(item);
+            return cache.back().map(|(_, v)| v);
+        }
+        None
+    }
+
+    /// Insert into cache (mutable borrow).
+    pub fn insert_mut(&mut self, key: String, value: Vec<VectorMatch>) {
+        let cache = self.cache.get_mut();
+        if cache.len() >= self.capacity {
+            cache.pop_front();
+        }
+        cache.push_back((key, value));
+    }
+
+    /// Clear cache (mutable borrow).
+    pub fn clear_mut(&mut self) {
+        self.cache.get_mut().clear();
     }
 }
 
@@ -286,7 +341,7 @@ impl ObservationStore {
         // Check cache
         if let Some(cached) = self.search_cache.get(&cache_key) {
             debug!("Cache hit for search query");
-            return Ok(cached.clone());
+            return Ok(cached);
         }
 
         // Perform search
@@ -314,5 +369,70 @@ impl ObservationStore {
         }
 
         Ok(processed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fake_match(content: &str, score: f32) -> VectorMatch {
+        VectorMatch {
+            observation: Observation {
+                id: 0,
+                content: content.to_string(),
+                kind: "project".to_string(),
+                project: Some("demo".to_string()),
+                files_read: Vec::new(),
+                files_modified: Vec::new(),
+                concepts: Vec::new(),
+                created_at: 0,
+            },
+            score,
+        }
+    }
+
+    #[test]
+    fn search_cache_miss_then_hit() {
+        let cache = SearchCache::new(8);
+
+        // Miss on empty cache
+        assert!(cache.get("q:1536:5:demo").is_none());
+        assert!(cache.is_empty());
+
+        // Insert a result, then hit
+        let results = vec![fake_match("renamed module", 0.91)];
+        cache.insert("q:1536:5:demo".to_string(), results);
+        assert_eq!(cache.len(), 1);
+
+        let hit = cache.get("q:1536:5:demo").expect("should be a cache hit");
+        assert_eq!(hit.len(), 1);
+        assert_eq!(hit[0].observation.content, "renamed module");
+        assert!((hit[0].score - 0.91).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn search_cache_lru_eviction() {
+        let cache = SearchCache::new(2);
+        cache.insert("a".to_string(), vec![fake_match("a", 0.1)]);
+        cache.insert("b".to_string(), vec![fake_match("b", 0.2)]);
+        assert_eq!(cache.len(), 2);
+
+        // Inserting a third entry evicts the least-recently-used ("a").
+        cache.insert("c".to_string(), vec![fake_match("c", 0.3)]);
+        assert_eq!(cache.len(), 2);
+        assert!(cache.get("a").is_none(), "LRU entry 'a' should be evicted");
+        assert!(cache.get("b").is_some());
+        assert!(cache.get("c").is_some());
+    }
+
+    #[test]
+    fn search_cache_clear() {
+        let cache = SearchCache::new(4);
+        cache.insert("k".to_string(), vec![fake_match("x", 0.5)]);
+        assert!(!cache.is_empty());
+        cache.clear();
+        assert!(cache.is_empty());
+        assert!(cache.get("k").is_none());
     }
 }
