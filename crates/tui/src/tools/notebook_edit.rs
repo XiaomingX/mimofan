@@ -87,6 +87,13 @@ impl ToolSpec for NotebookEditTool {
         let file_path = context.resolve_path(path_str)?;
         let display = file_path.display().to_string();
 
+        // Mutating commands rewrite an existing notebook, so they need a fresh
+        // prior read. `get_cell` only reads, and records the snapshot itself
+        // below, so it must stay ungated or the notebook could never be read.
+        if matches!(command, "update_cell" | "insert_cell" | "delete_cell") && file_path.exists() {
+            context.require_fresh_file_read_for("notebook_edit", &file_path, path_str)?;
+        }
+
         let raw = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
             ToolError::invalid_input(format!("Failed to read notebook {display}: {e}"))
         })?;
@@ -99,6 +106,9 @@ impl ToolSpec for NotebookEditTool {
         match command {
             "get_cell" => {
                 let idx = locate_cell(&notebook, &input, &display)?;
+                // Record the observation so a subsequent edit to this notebook
+                // satisfies the read-before-write check above.
+                context.note_file_read(&file_path);
                 let cells = cells_ref(&notebook, &display)?;
                 let cell = &cells[idx];
                 let summary = json!({

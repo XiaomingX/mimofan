@@ -687,6 +687,14 @@ impl ToolSpec for WriteFileTool {
         // Snapshot the existing contents (if any) before we overwrite — used
         // to render an inline diff in the tool result.
         let existed_before = file_path.exists();
+
+        // Overwriting an existing file destroys content wholesale, so it is
+        // gated by the same read-before-write rule as `edit_file`. Creating a
+        // new file is exempt: there is nothing to have read beforehand.
+        if existed_before {
+            context.require_fresh_file_read_for("write_file", &file_path, path_str)?;
+        }
+
         let prior_contents = if existed_before {
             tokio::fs::read_to_string(&file_path)
                 .await
@@ -1583,5 +1591,112 @@ mod tests {
         // Byte-for-byte identical apart from the single edited line: no
         // whole-file line-ending churn.
         assert_eq!(after, expected);
+    }
+
+    // --- write_file read-before-overwrite enforcement (#695) ---
+
+    async fn write(ctx: &ToolContext, input: Value) -> Result<ToolResult, ToolError> {
+        WriteFileTool.execute(input, ctx).await
+    }
+
+    #[tokio::test]
+    async fn write_file_rejects_blind_overwrite_of_existing_file() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("existing.txt");
+        std::fs::write(&path, "precious original contents\n").unwrap();
+        let ctx = ctx(&dir);
+
+        let err = write(
+            &ctx,
+            json!({ "path": "existing.txt", "content": "clobbered\n" }),
+        )
+        .await
+        .expect_err("overwriting an unread file must be refused");
+
+        let msg = err.to_string();
+        assert!(msg.contains("write_file"), "{msg}");
+        assert!(msg.contains("has not been read"), "{msg}");
+        assert!(msg.contains("never_read"), "{msg}");
+        // The refusal must be total: the original bytes survive untouched.
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "precious original contents\n",
+        );
+    }
+
+    #[tokio::test]
+    async fn write_file_allows_creating_a_new_file_without_a_prior_read() {
+        let dir = TempDir::new().unwrap();
+        let ctx = ctx(&dir);
+
+        // There is nothing to have read: creation must not be gated.
+        write(&ctx, json!({ "path": "brand_new.txt", "content": "hello\n" }))
+            .await
+            .expect("creating a new file must be allowed");
+
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("brand_new.txt")).unwrap(),
+            "hello\n",
+        );
+    }
+
+    #[tokio::test]
+    async fn write_file_allows_overwrite_after_reading() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("existing.txt");
+        std::fs::write(&path, "original\n").unwrap();
+        let ctx = ctx(&dir);
+
+        read_all(&ctx, "existing.txt").await;
+        write(
+            &ctx,
+            json!({ "path": "existing.txt", "content": "replacement\n" }),
+        )
+        .await
+        .expect("overwrite after a fresh read must be allowed");
+
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "replacement\n");
+    }
+
+    #[tokio::test]
+    async fn write_file_rejects_overwrite_when_file_changed_after_read() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("racy.txt");
+        std::fs::write(&path, "first\n").unwrap();
+        let ctx = ctx(&dir);
+
+        read_all(&ctx, "racy.txt").await;
+        // A concurrent writer changes the file behind our back.
+        std::fs::write(&path, "changed by someone else\n").unwrap();
+
+        let err = write(&ctx, json!({ "path": "racy.txt", "content": "mine\n" }))
+            .await
+            .expect_err("a stale read must not authorize an overwrite");
+
+        let msg = err.to_string();
+        assert!(msg.contains("stale_content"), "{msg}");
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "changed by someone else\n",
+        );
+    }
+
+    #[tokio::test]
+    async fn write_file_detects_same_length_change_after_read() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("samelen.txt");
+        std::fs::write(&path, "aaaa\n").unwrap();
+        let ctx = ctx(&dir);
+
+        read_all(&ctx, "samelen.txt").await;
+        // Same byte length as before, so `len` alone cannot distinguish it.
+        // Detection relies on the content hash added for #695 gap 2.
+        std::fs::write(&path, "bbbb\n").unwrap();
+
+        let err = write(&ctx, json!({ "path": "samelen.txt", "content": "cccc\n" }))
+            .await
+            .expect_err("same-length external change must still be detected");
+        assert!(err.to_string().contains("stale_content"), "{err}");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "bbbb\n");
     }
 }
