@@ -22,6 +22,7 @@
 
 pub mod backend;
 pub mod category;
+pub mod codebase;
 pub mod compressor;
 pub mod embedding;
 pub mod error;

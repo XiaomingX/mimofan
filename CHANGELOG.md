@@ -2,6 +2,20 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.16] - 2026-08-11
+
+本轮（LoopX 续作）落地代码库语义索引能力，补齐离线代码检索基础设施。
+
+### Added
+- **代码库语义索引（[#675](https://github.com/XiaomingX/mimofan/issues/675) / [#720](https://github.com/XiaomingX/mimofan/issues/720)）**：新增 `mimofan-memory::codebase` 模块，基于 rusqlite + FTS5 提供离线代码全文检索。特性：
+  - `CodebaseIndex` 以 SQLite 持久化，按仓库隔离，文件级内容哈希增量跳过未变更文件；
+  - `chunk_source` 按行窗口（40 行/重叠 8 行）切片，`extract_symbols` 启发式抽取 `fn/struct/enum/impl/trait/mod/async fn` 等符号；
+  - `search` 支持语言 / 路径前缀 / 符号三类过滤，返回 `SearchHit`（含 `snippet` 高亮与 `rank` 排序）；
+  - `normalize_query` 将 `compute_hash` / `fooBar` 等标识符风格查询展开为空格分隔 token，对齐 `unicode61` 分词，解决裸下划线/驼峰词在 FTS5 中查不到的问题（保留 `"..."`、`*`、`AND/OR/NOT` 等显式 FTS 语法不被改写）；
+  - 含 9 个单元测试覆盖切片/符号抽取/增量跳过/语言与路径过滤/符号过滤/查询归一化。
+
+[0.0.16]: https://github.com/XiaomingX/mimofan/compare/v0.0.15...v0.0.16
+
 ## [0.0.15] - 2026-08-10
 
 本轮（LoopX 续作）补齐测试覆盖、收口安全审计遗漏路径、强化记忆访问统计。
