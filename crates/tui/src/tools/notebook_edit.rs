@@ -376,8 +376,16 @@ mod tests {
 
     fn setup() -> (TempDir, ToolContext) {
         let dir = TempDir::new().unwrap();
-        std::fs::write(dir.path().join("nb.ipynb"), NOTEBOOK).unwrap();
+        let path = dir.path().join("nb.ipynb");
+        std::fs::write(&path, NOTEBOOK).unwrap();
         let ctx = ToolContext::new(dir.path().to_path_buf());
+        // Simulate a prior `get_cell` read so mutation commands satisfy the
+        // read-before-write guard introduced for #695. Real usage always
+        // reads before editing a notebook. Resolve the path the same way the
+        // guard does so the snapshot key matches regardless of /var vs
+        // /private/var symlink normalisation on macOS.
+        let resolved = ctx.resolve_path("nb.ipynb").unwrap();
+        ctx.note_file_read(&resolved);
         (dir, ctx)
     }
 

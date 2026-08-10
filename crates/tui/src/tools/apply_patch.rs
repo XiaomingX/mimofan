@@ -1231,7 +1231,11 @@ mod tests {
         let path = dir.path().join("target.txt");
         std::fs::write(&path, "one\ntwo\n").unwrap();
         let ctx = ctx(&dir);
-        ctx.note_file_read(&path);
+        // Note the read with the same resolved (canonicalized) path the guard
+        // compares against, so the snapshot key matches regardless of /var vs
+        // /private/var symlink normalisation on macOS.
+        let resolved = ctx.resolve_path("target.txt").unwrap();
+        ctx.note_file_read(&resolved);
 
         ApplyPatchTool
             .execute(
@@ -1284,8 +1288,10 @@ mod tests {
         std::fs::write(&read_file, "alpha\n").unwrap();
         std::fs::write(&unread_file, "beta\n").unwrap();
         let ctx = ctx(&dir);
-        // Only the first file was read.
-        ctx.note_file_read(&read_file);
+        // Only the first file was read. Resolve it the same way the guard
+        // does so the snapshot key matches.
+        let read_resolved = ctx.resolve_path("a.txt").unwrap();
+        ctx.note_file_read(&read_resolved);
 
         let err = ApplyPatchTool
             .execute(
