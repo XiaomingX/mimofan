@@ -538,12 +538,14 @@ impl ToolRegistryBuilder {
             .with_tool(Arc::new(FileSearchTool))
     }
 
-    /// Include git inspection tools (`git_status`, `git_diff`).
+    /// Include git inspection tools (`git_status`, `git_diff`) and the
+    /// write operation `git_commit` (which requires user approval).
     #[must_use]
     pub fn with_git_tools(self) -> Self {
-        use super::git::{GitDiffTool, GitStatusTool};
+        use super::git::{GitCommitTool, GitDiffTool, GitStatusTool};
         self.with_tool(Arc::new(GitStatusTool))
             .with_tool(Arc::new(GitDiffTool))
+            .with_tool(Arc::new(GitCommitTool))
     }
 
     /// Include git history tools (`git_log`, `git_show`, `git_blame`).

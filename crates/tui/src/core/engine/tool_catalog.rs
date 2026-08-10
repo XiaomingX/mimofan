@@ -48,6 +48,7 @@ pub(super) const DEFAULT_ACTIVE_NATIVE_TOOLS: &[&str] = &[
     "fetch_url",
     "file_search",
     "git_diff",
+    "git_commit",
     "git_log",
     "git_show",
     "git_status",
