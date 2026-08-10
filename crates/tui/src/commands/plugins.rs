@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::commands::CommandResult;
 use crate::config::Config;
+use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 use crate::localization::{MessageId, tr};
 use crate::tools::plugin::scan_plugin_dir;
 use crate::tui::app::App;
@@ -253,6 +254,39 @@ pub fn plugin_test(_app: &mut App, args: Option<&str>) -> CommandResult {
     output.push_str(&format!("  Input: {}\n\n", json_val));
 
     // Exec process
+    //
+    // #617 — the `/plugins <name>` debug trial previously spawned the plugin
+    // interpreter with no execpolicy audit, letting a debug command bypass the
+    // deny/allowlist that the tool-path (`tools/plugin.rs::run_plugin_child`)
+    // already enforces. Mirror that audit here: a `deny` rule hard-blocks, an
+    // explicit `allow` proceeds, and an unmatched (`AskUser`) command is still
+    // run but flagged so the gap is visible.
+    let full_command = {
+        let mut c = interpreter.clone();
+        for a in &script_args {
+            c.push(' ');
+            c.push_str(a);
+        }
+        c
+    };
+    if let Ok(Some(policy)) = load_default_policy() {
+        match policy.evaluate(&full_command) {
+            ExecPolicyDecision::Deny(reason) => {
+                return CommandResult::error(format!(
+                    "plugin debug trial blocked by execpolicy: {reason}"
+                ));
+            }
+            ExecPolicyDecision::Allow => {
+                output.push_str("  ✓ execpolicy allowlist covers this command.\n");
+            }
+            ExecPolicyDecision::AskUser(_) => {
+                output.push_str(
+                    "  ⚠️ execpolicy allowlist does not cover this command; proceeding via approval gate.\n",
+                );
+            }
+        }
+    }
+
     let mut child = std::process::Command::new(&interpreter);
     child.args(&script_args);
     child.stdin(std::process::Stdio::piped());
