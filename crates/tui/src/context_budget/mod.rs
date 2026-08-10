@@ -93,56 +93,14 @@ pub const MIN_INPUT_BUDGET_TOKENS: u64 = 1_024;
 
 // ── Token estimation ──────────────────────────────────────────────────────────
 //
-// Every token count in this app is a character-count heuristic; there is no
-// tokeniser dependency. Before this module owned the ratios they were spread
-// across three call sites with two *different* divisors (4 and 3), so the same
-// text produced counts that differed by ~33% depending on which subsystem
-// asked. That is a systematic bias, not noise: the compaction gate and the
-// large-output router were effectively using different definitions of "token".
-//
-// The ratios are centralised here. They intentionally remain two distinct
-// values, because the two roles have opposite failure modes:
-//
-//   * Bulk accounting (`estimate_tokens_permissive`) answers "roughly how big
-//     is this history?". Over-counting here triggers needless compaction and
-//     throws away the V4 prefix cache, so it errs high on chars-per-token
-//     (i.e. reports fewer tokens).
-//   * Gating (`estimate_tokens_conservative`) answers "could this overflow
-//     something?". Under-counting here lets an oversized payload through to
-//     the provider, so it errs low on chars-per-token (reports more tokens).
-//
-// Both are deliberately calibrated for a mixed English/CJK corpus. Real
-// tokenisers land near ~4 chars/token for English prose and ~1.5-2 for Chinese;
-// a single ratio cannot serve both, which is why the conservative path exists.
-
-/// Characters per token for permissive/bulk estimates. Tuned for English-heavy
-/// prose and code, where real tokenisers cluster around four characters per
-/// token. Over-reporting tokens here would cause premature compaction, so this
-/// is the higher (more forgiving) divisor.
-pub const CHARS_PER_TOKEN_PERMISSIVE: usize = 4;
-
-/// Characters per token for conservative/gating estimates. Lower than
-/// [`CHARS_PER_TOKEN_PERMISSIVE`] so CJK-heavy text — which tokenises closer to
-/// 1.5-2 characters per token — is not badly under-counted at the point where
-/// under-counting means an overflow rather than a wasted cache.
-pub const CHARS_PER_TOKEN_CONSERVATIVE: usize = 3;
-
-/// Permissive token estimate for `text` (see [`CHARS_PER_TOKEN_PERMISSIVE`]).
-///
-/// Counts characters rather than bytes so multi-byte CJK/emoji text is not
-/// inflated ~3x by UTF-8 encoding length.
-#[must_use]
-pub fn estimate_tokens_permissive(text: &str) -> usize {
-    text.chars().count() / CHARS_PER_TOKEN_PERMISSIVE
-}
-
-/// Conservative token estimate for `text` (see [`CHARS_PER_TOKEN_CONSERVATIVE`]).
-///
-/// Rounds up: a partial trailing token still costs a token.
-#[must_use]
-pub fn estimate_tokens_conservative(text: &str) -> usize {
-    text.chars().count().div_ceil(CHARS_PER_TOKEN_CONSERVATIVE)
-}
+// Token *counts* are no longer derived here. The whole app routes through the
+// shared tiktoken BPE estimator (see the tokeniser module), so this module owns
+// only budget thresholds and pressure-level classification — it never estimates
+// tokens itself. The estimates that used to live here (a chars/4 and a
+// chars/3 heuristic with their `CHARS_PER_TOKEN_*` constants) had zero
+// production callers and were removed; keeping a char-count heuristic alive
+// next to the real tokenizer would have re-introduced the very divergence that
+// the single-estimator cleanup fixed.
 
 /// Coarse, UI-facing description of how full the context window is.
 ///
@@ -508,29 +466,6 @@ mod tests {
     fn compaction_decision_is_none_when_there_is_room() {
         let budget = ContextBudget::new(200_000, 10_000, 8_192);
         assert_eq!(compaction_decision(&budget, true), None);
-    }
-
-    #[test]
-    fn token_estimators_count_chars_not_bytes() {
-        // Multi-byte text must not be inflated by UTF-8 encoding length; the
-        // byte-based version of this estimate over-counted CJK by ~3x.
-        let cjk = "上下文压缩"; // 5 chars, 15 bytes
-        assert_eq!(cjk.chars().count(), 5);
-        assert_eq!(estimate_tokens_permissive(cjk), 5 / 4);
-        assert_eq!(estimate_tokens_conservative(cjk), 5_usize.div_ceil(3));
-    }
-
-    #[test]
-    fn conservative_estimate_never_below_permissive() {
-        // The gating estimate must stay the more pessimistic of the two, or
-        // the large-output router would pass through payloads the compaction
-        // gate already considers oversized.
-        for text in ["", "a", "hello world", "上下文压缩与预算", &"x".repeat(1_000)] {
-            assert!(
-                estimate_tokens_conservative(text) >= estimate_tokens_permissive(text),
-                "conservative < permissive for {text:?}"
-            );
-        }
     }
 
     #[test]
