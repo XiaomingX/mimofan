@@ -2,6 +2,21 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.15] - 2026-08-10
+
+本轮（LoopX 续作）补齐测试覆盖、收口安全审计遗漏路径、强化记忆访问统计。
+
+### Added
+- **记忆访问强化（[#719](https://github.com/XiaomingX/mimofan/issues/719) M7）**：`Observation` 新增 `access_count` / `last_accessed_at` 字段；检索（`search`）命中即调用 `record_access` 递增计数并刷新时间戳，反哺 M4 重要性评分。含 `ALTER TABLE` migration 兼容旧库，新增 `test_search_records_access` / `test_record_access_direct` 覆盖计数递增与时效字段更新。
+
+### Fixed
+- **`/plugins` 调试试用执行补齐 execpolicy 审核（[#617](https://github.com/XiaomingX/mimofan/issues/617) 续）**：v0.0.14 已修复工具路径（`tools/plugin.rs::run_plugin_child`）与 execpolicy 解析根因；本版补齐遗漏的调试命令路径——`commands/plugins.rs` 的 `Execution Trial` 此前裸 spawn 解释器、绕过审核门，现对齐 deny 硬拦 / allow 放行 / AskUser 审计放行语义，消除调试命令绕过安全策略的缺口。
+
+### Test
+- **web_run / web_search 纯逻辑单元测试（[#633](https://github.com/XiaomingX/mimofan/issues/633)）**：为 URL 识别、域名匹配、DuckDuckGo vqd 提取、PDF 判定、PDF 分页、根域提取、垃圾结果检测、挑战页识别、URL 归一化、错误体脱敏/截断、Bing 重定向解码等补 13 例单元测试，零行为变更。
+
+[0.0.15]: https://github.com/XiaomingX/mimofan/compare/v0.0.14...v0.0.15
+
 ## [0.0.14] - 2026-08-10
 
 本轮（LoopX P0 批次续作）聚焦工具执行层的命令策略审计，并修复一处导致安全门静默失效的配置解析缺陷。
