@@ -23,11 +23,16 @@ resolver = "2"
 [workspace.package]
 version = "0.0.11"
 edition = "2024"
-# Rust 1.88 stabilized `let_chains` in `if`/`while` conditions, which the
-# codebase relies on extensively. Cargo enforces this so users on older
-# toolchains get a clear "package requires rustc 1.88+" error instead of a
-# confusing E0658 from rustc.
-rust-version = "1.88"
+# The codebase itself only needs 1.88 (`let_chains` in `if`/`while`
+# conditions, used extensively). The binding constraint comes from
+# dependencies: rusqlite 0.40 and libsqlite3-sys 0.38 use the built-in
+# `cfg_select!` macro, stabilized in 1.95. Neither crate declares its own
+# `rust-version`, so Cargo cannot infer this for us — building on 1.88 fails
+# with a confusing macro-resolution error rather than an MSRV message.
+#
+# Declared as 1.95 (the true floor) rather than the 1.97 we happen to develop
+# on, so we do not lock out toolchains that actually work.
+rust-version = "1.95"
 license = "MIT"
 repository = "https://github.com/XiaomingX/mimofan"
 

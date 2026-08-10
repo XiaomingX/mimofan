@@ -47,9 +47,13 @@ pub enum StatusItem {
     ContextPercent,
     /// Current git branch name.
     GitBranch,
-    /// Elapsed time of the most recent tool call (placeholder until wired).
+    /// Elapsed time of the most recent tool call. Reserved variant: not
+    /// currently surfaced in the footer (no live backing data yet), so it is
+    /// excluded from `StatusItem::all()` and cannot be selected by the user.
+    /// Kept in the enum so already-persisted configs keep deserializing.
     LastToolElapsed,
-    /// Remaining rate-limit budget (placeholder until wired).
+    /// Remaining rate-limit budget. Reserved variant, same status as
+    /// `LastToolElapsed` above.
     RateLimit,
     /// Session token usage: input / cache-hit / output.
     Tokens,
@@ -181,8 +185,6 @@ impl StatusItem {
             StatusItem::Cache,
             StatusItem::ContextPercent,
             StatusItem::GitBranch,
-            StatusItem::LastToolElapsed,
-            StatusItem::RateLimit,
             StatusItem::Tokens,
             StatusItem::Throughput,
         ]

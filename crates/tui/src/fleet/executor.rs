@@ -254,10 +254,16 @@ impl FleetExecutor {
                 let handle = adapter.start_worker(request)?;
                 (handle, WorkerStreamHost::Ssh(key))
             }
+            // Unreachable in practice: `FleetManager::create_run` rejects
+            // docker hosts at submission time. Kept as a defence-in-depth
+            // backstop for any path that builds a run without that check.
             FleetHostSpec::Docker { image, .. } => {
                 return Err(super::host::FleetHostError {
                     kind: super::host::FleetHostErrorKind::Configuration,
-                    message: format!("docker fleet workers are not wired yet (image {image})"),
+                    message: format!(
+                        "docker fleet workers are not implemented (image {image}); \
+                         this should have been rejected at run submission"
+                    ),
                 });
             }
         };
