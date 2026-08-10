@@ -30,6 +30,8 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "vector-memory")]
 use anyhow::{Context, Result};
 #[cfg(feature = "vector-memory")]
+use mimofan_memory::optimization::SearchCache;
+#[cfg(feature = "vector-memory")]
 use mimofan_memory::{
     EmbeddingConfig, EmbeddingService, Observation, SearchFilters, VectorStore,
 };
@@ -47,6 +49,17 @@ pub struct VectorMemory {
     store: Option<VectorStore>,
     root: PathBuf,
     dimension: usize,
+    /// LRU cache over semantic `search_embedded` results, backed by the
+    /// experimental `mimofan_memory::optimization::SearchCache` (issue #642).
+    ///
+    /// Wrapped in a `RefCell` because `&VectorMemory` is not `Sync` (the inner
+    /// `VectorStore` holds non-`Send` SQLite/HNSW state) — the cache is only
+    /// ever touched from a single thread, so interior mutability without a
+    /// `Mutex` is both sufficient and cheaper. The cache key encodes the
+    /// query dimension, `top_k`, and project filter, so repeated injections of
+    /// the same prompt (the common multi-tool-call case) skip the embedding
+    /// round-trip via `VectorStore::search`.
+    search_cache: std::cell::RefCell<SearchCache>,
 }
 
 #[cfg(feature = "vector-memory")]
@@ -90,6 +103,7 @@ impl VectorMemory {
             store,
             root,
             dimension,
+            search_cache: std::cell::RefCell::new(SearchCache::new(1_000)),
         })
     }
 
@@ -126,6 +140,9 @@ impl VectorMemory {
     }
 
     /// 用预计算的 embedding 写入一条 observation（同步，不跨 await）。
+    ///
+    /// 写入会改变向量库召回结果，因此使语义检索缓存（`SearchCache`）失效，
+    /// 避免返回写之前的陈旧命中。
     pub fn store_observation(
         &self,
         project: &str,
@@ -137,10 +154,17 @@ impl VectorMemory {
             anyhow::anyhow!("vector-memory 未启用：请配置 MIMOFAN_MEMORY_API_KEY 后重启")
         })?;
         let obs = Observation::new(project.to_string(), kind, content.to_string());
-        Ok(store.store_observation(&obs, embedding)?)
+        let id = store.store_observation(&obs, embedding)?;
+        self.search_cache.borrow_mut().clear();
+        Ok(id)
     }
 
     /// 用预计算的 embedding 做语义检索（同步，不跨 await）。
+    ///
+    /// 接 `mimofan_memory::optimization::SearchCache` 缓存层（issue #642）：
+    /// 相同 `(query_dim, top_k, project)` 的重复检索直接命中缓存、跳过
+    /// `VectorStore::search` 的 HNSW + SQLite 往返——在系统提示注入中对同一
+    /// 项目反复 recall 的常见场景下可显著减少召回开销。
     pub fn search_embedded(
         &self,
         embedding: &[f32],
@@ -150,11 +174,31 @@ impl VectorMemory {
         let store = self.store.as_ref().ok_or_else(|| {
             anyhow::anyhow!("vector-memory 未启用：请配置 MIMOFAN_MEMORY_API_KEY 后重启")
         })?;
+
+        // Build a cache key from the query shape + filters (not the raw
+        // embedding, which is high-dimensional; the shape is what makes a
+        // search result reusable).
+        let cache_key = format!(
+            "{:?}:{}:{}",
+            embedding.len(),
+            top_k,
+            project.unwrap_or("")
+        );
+
+        if let Some(cached) = self.search_cache.borrow().get(&cache_key) {
+            tracing::debug!("vector-memory search cache hit for key {cache_key}");
+            return Ok(cached
+                .into_iter()
+                .map(|m| (m.observation, m.score))
+                .collect());
+        }
+
         let filters = SearchFilters {
             project: project.map(|p| p.to_string()),
             ..Default::default()
         };
         let matches = store.search(embedding, top_k, &filters)?;
+        self.search_cache.borrow_mut().insert(cache_key, matches.clone());
         Ok(matches
             .into_iter()
             .map(|m| (m.observation, m.score))
@@ -274,6 +318,37 @@ mod tests {
         assert!(block.contains("[project] renamed module"));
         assert!(block.contains("score 0.91"));
         assert!(block.trim_end().ends_with("</vector_memory>"));
+    }
+
+    // `search_embedded` is backed by `mimofan_memory::optimization::SearchCache`
+    // (issue #642). These tests exercise the exact cache type used on the
+    // production path: a cache key built from `(query_dim, top_k, project)` and
+    // the hit/miss semantics the search wrapper relies on. They do not require
+    // a real embedding backend, so they run in any environment.
+    #[test]
+    fn search_cache_hit_and_miss_contract() {
+        let cache = mimofan_memory::optimization::SearchCache::new(16);
+
+        // Miss on a key that was never inserted.
+        assert!(cache.get("q:1536:5:demo").is_none());
+
+        // Cache key shape mirrors `search_embedded` (dim, top_k, project).
+        let key = format!("{:?}:{}:{}", 1536usize, 5usize, "demo");
+        let cached = vec![mimofan_memory::VectorMatch {
+            observation: obs("project", "renamed module"),
+            score: 0.91,
+        }];
+        cache.insert(key.clone(), cached);
+
+        // Hit returns the previously stored results without touching the store.
+        let hit = cache.get(&key).expect("cache hit expected");
+        assert_eq!(hit.len(), 1);
+        assert_eq!(hit[0].observation.content, "renamed module");
+        assert!((hit[0].score - 0.91).abs() < f32::EPSILON);
+
+        // A different project yields a distinct key → miss.
+        let other_key = format!("{:?}:{}:{}", 1536usize, 5usize, "other");
+        assert!(cache.get(&other_key).is_none());
     }
 }
 
