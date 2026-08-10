@@ -34,7 +34,7 @@ use mimofan_memory::{
     EmbeddingConfig, EmbeddingService, Observation, SearchFilters, VectorStore,
 };
 #[cfg(feature = "vector-memory")]
-use crate::memory::MemoryCategory;
+use mimofan_memory::MemoryCategory;
 
 /// 向量记忆后端：持有 embedding 服务与向量库，提供 remember/recall/list/inject 的
 /// 构建块。
@@ -217,7 +217,7 @@ pub fn parse_memory_category(s: &str) -> Result<MemoryCategory> {
 #[cfg(all(test, feature = "vector-memory"))]
 mod tests {
     use super::*;
-    use crate::memory::MemoryCategory;
+    use mimofan_memory::MemoryCategory;
     use mimofan_memory::Observation;
 
     fn obs(kind: &str, content: &str) -> Observation {

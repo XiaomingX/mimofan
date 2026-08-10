@@ -19,8 +19,8 @@
 
 use regex::Regex;
 
-use crate::memory::MemoryCategory;
 use crate::models::Message;
+use mimofan_memory::MemoryCategory;
 
 /// A candidate memory extracted from a turn, ready to persist.
 #[derive(Debug, Clone, PartialEq, Eq)]

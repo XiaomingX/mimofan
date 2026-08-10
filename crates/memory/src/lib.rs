@@ -21,6 +21,7 @@
 //! 仍在评估中。不要假设其行为已稳定，但可默认编译、按需启用。
 
 pub mod backend;
+pub mod category;
 pub mod compressor;
 pub mod embedding;
 pub mod error;
@@ -30,6 +31,7 @@ pub mod optimization;
 pub mod vector;
 
 pub use backend::{MemoryBackend, SharedMemoryBackend};
+pub use category::MemoryCategory;
 pub use compressor::{CompressionStrategy, ObservationCompressor, SessionSummary};
 pub use embedding::{EmbeddingConfig, EmbeddingService};
 pub use error::MemoryError;

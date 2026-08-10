@@ -1,6 +1,6 @@
 [package]
 name = "mimofan-memory"
-description = "Memory system for mimofan - embeddings/vector search (EXPERIMENTAL: not integrated into main runtime; see ARCHITECTURE_IMPROVEMENT_PLAN.md Phase D)"
+description = "Memory system for mimofan - embeddings/vector search (EXPERIMENTAL but integrated into the main runtime via tui's `vector-memory` feature; see ARCHITECTURE_IMPROVEMENT_PLAN.md Phase D)"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
