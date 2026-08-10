@@ -11,6 +11,8 @@ fn test_observation() -> Observation {
         files_modified: vec!["src/lib.rs".to_string()],
         concepts: vec!["bugfix".to_string(), "test".to_string()],
         created_at: chrono::Utc::now().timestamp(),
+        access_count: 0,
+        last_accessed_at: None,
     }
 }
 
@@ -63,4 +65,55 @@ fn test_search() {
         .search(&query, 3, &SearchFilters::default())
         .expect("search vector store");
     assert!(!results.is_empty());
+}
+
+/// #719 — M7 access reinforcement: a successful `search` recall must bump
+/// `access_count` and refresh `last_accessed_at` on the recalled observation.
+#[test]
+fn test_search_records_access() {
+    let temp_dir = TempDir::new().expect("create temp dir");
+    let store = VectorStore::open(temp_dir.path(), 384).expect("open vector store");
+
+    let obs = test_observation();
+    let embedding = vec![0.0; 384];
+    let id = store
+        .store_observation(&obs, &embedding)
+        .expect("store observation");
+
+    // Freshly stored: never accessed yet.
+    let before = store.load_observation(id).expect("load").expect("some");
+    assert_eq!(before.access_count, 0);
+    assert_eq!(before.last_accessed_at, None);
+
+    // A search that recalls the observation increments the counter.
+    let results = store
+        .search(&embedding, 5, &SearchFilters::default())
+        .expect("search");
+    assert!(results.iter().any(|m| m.observation.id == id));
+
+    let after = store.load_observation(id).expect("load").expect("some");
+    assert_eq!(after.access_count, 1);
+    assert!(after.last_accessed_at.is_some());
+
+    // A second recall bumps it to 2 without resetting prior state.
+    let _ = store.search(&embedding, 5, &SearchFilters::default());
+    let twice = store.load_observation(id).expect("load").expect("some");
+    assert_eq!(twice.access_count, 2);
+    assert!(twice.last_accessed_at.is_some());
+}
+
+/// #719 — explicit `record_access` increments the counter and sets the timestamp.
+#[test]
+fn test_record_access_direct() {
+    let temp_dir = TempDir::new().expect("create temp dir");
+    let store = VectorStore::open(temp_dir.path(), 384).expect("open vector store");
+
+    let id = store
+        .store_observation(&test_observation(), &vec![0.0; 384])
+        .expect("store");
+
+    store.record_access(id).expect("record access");
+    let after = store.load_observation(id).expect("load").expect("some");
+    assert_eq!(after.access_count, 1);
+    assert!(after.last_accessed_at.is_some());
 }

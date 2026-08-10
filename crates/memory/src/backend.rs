@@ -129,6 +129,8 @@ mod tests {
             files_modified: Vec::new(),
             concepts: vec!["backend".to_string()],
             created_at: chrono::Utc::now().timestamp(),
+            access_count: 0,
+            last_accessed_at: None,
         }
     }
 

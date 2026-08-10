@@ -13,6 +13,8 @@ fn test_observations() -> Vec<Observation> {
             files_modified: vec!["src/auth.rs".to_string()],
             concepts: vec!["authentication".to_string()],
             created_at: now - 3600,
+            access_count: 0,
+            last_accessed_at: None,
         },
         Observation {
             id: 2,
@@ -23,6 +25,8 @@ fn test_observations() -> Vec<Observation> {
             files_modified: vec!["src/login.rs".to_string()],
             concepts: vec!["authentication".to_string()],
             created_at: now - 1800,
+            access_count: 0,
+            last_accessed_at: None,
         },
         Observation {
             id: 3,
@@ -33,6 +37,8 @@ fn test_observations() -> Vec<Observation> {
             files_modified: vec![],
             concepts: vec!["authentication".to_string(), "jwt".to_string()],
             created_at: now,
+            access_count: 0,
+            last_accessed_at: None,
         },
     ]
 }

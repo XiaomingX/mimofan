@@ -31,6 +31,12 @@ pub struct Observation {
     pub concepts: Vec<String>,
     /// Creation timestamp (epoch seconds)
     pub created_at: i64,
+    /// Number of times this observation has been recalled/accessed. Feeds the
+    /// M4 importance scoring (spacing effect) so frequently-hit memories rank
+    /// higher over time.
+    pub access_count: i64,
+    /// Epoch seconds of the last recall/access, or `None` if never accessed.
+    pub last_accessed_at: Option<i64>,
 }
 
 impl Observation {
@@ -45,6 +51,8 @@ impl Observation {
             files_modified: Vec::new(),
             concepts: Vec::new(),
             created_at: chrono::Utc::now().timestamp(),
+            access_count: 0,
+            last_accessed_at: None,
         }
     }
 }
@@ -133,7 +141,9 @@ impl VectorStore {
                 files_read_json TEXT NOT NULL DEFAULT '[]',
                 files_modified_json TEXT NOT NULL DEFAULT '[]',
                 concepts_json TEXT NOT NULL DEFAULT '[]',
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                access_count INTEGER NOT NULL DEFAULT 0,
+                last_accessed_at INTEGER
             );
 
             CREATE INDEX IF NOT EXISTS idx_observations_kind ON observations(kind);
@@ -158,6 +168,18 @@ impl VectorStore {
             CREATE INDEX IF NOT EXISTS idx_observation_concepts_concept ON observation_concepts(concept);
             "#,
         )?;
+
+        // Migration: older stores lack the access-tracking columns. `ADD COLUMN`
+        // errors if the column already exists, so ignore that specific failure.
+        let _ = conn.execute(
+            "ALTER TABLE observations ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE observations ADD COLUMN last_accessed_at INTEGER",
+            [],
+        );
+
         Ok(())
     }
 
@@ -205,8 +227,8 @@ impl VectorStore {
         // Insert into SQLite
         self.sqlite.execute(
             r#"
-            INSERT INTO observations (content, kind, project, files_read_json, files_modified_json, concepts_json, created_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            INSERT INTO observations (content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
             "#,
             rusqlite::params![
                 observation.content,
@@ -216,6 +238,8 @@ impl VectorStore {
                 serde_json::to_string(&observation.files_modified)?,
                 serde_json::to_string(&observation.concepts)?,
                 observation.created_at,
+                observation.access_count,
+                observation.last_accessed_at,
             ],
         )?;
 
@@ -288,6 +312,10 @@ impl VectorStore {
                 if self.matches_filters(&observation, filters) {
                     matches.push(VectorMatch { observation, score });
 
+                    // M7 access reinforcement: a recalled observation bumps its
+                    // access counter and refresh timestamp, feeding M4 importance.
+                    let _ = self.record_access(id);
+
                     if matches.len() >= limit {
                         break;
                     }
@@ -298,6 +326,17 @@ impl VectorStore {
         debug!("Found {} matches", matches.len());
 
         Ok(matches)
+    }
+
+    /// M7 access reinforcement: record that an observation was recalled by
+    /// incrementing `access_count` and refreshing `last_accessed_at`. Errors are
+    /// swallowed by callers (best-effort telemetry that must never break search).
+    pub fn record_access(&self, id: i64) -> Result<()> {
+        self.sqlite.execute(
+            "UPDATE observations SET access_count = access_count + 1, last_accessed_at = ?1 WHERE id = ?2",
+            rusqlite::params![chrono::Utc::now().timestamp(), id],
+        )?;
+        Ok(())
     }
 
     /// List the most recent observations for a project, ordered by creation
@@ -324,6 +363,8 @@ impl VectorStore {
                 files_modified: serde_json::from_str(&files_modified_json).unwrap_or_default(),
                 concepts: serde_json::from_str(&concepts_json).unwrap_or_default(),
                 created_at: row.get(7)?,
+                access_count: row.get(8)?,
+                last_accessed_at: row.get(9)?,
             })
         }
     }
@@ -335,14 +376,14 @@ impl VectorStore {
     ) -> Result<Vec<Observation>> {
         let sql = match project {
             Some(_) => r#"
-                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at
                 FROM observations
                 WHERE project = ?1
                 ORDER BY created_at DESC
                 LIMIT ?2
                 "#,
             None => r#"
-                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at
                 FROM observations
                 ORDER BY created_at DESC
                 LIMIT ?1
@@ -366,7 +407,7 @@ impl VectorStore {
     pub fn load_observation(&self, id: i64) -> Result<Option<Observation>> {
         let mut stmt = self.sqlite.prepare(
             r#"
-            SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at
+            SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at
             FROM observations
             WHERE id = ?1
             "#,
@@ -387,6 +428,8 @@ impl VectorStore {
                 files_modified: serde_json::from_str(&files_modified_json).unwrap_or_default(),
                 concepts: serde_json::from_str(&concepts_json).unwrap_or_default(),
                 created_at: row.get(7)?,
+                access_count: row.get(8)?,
+                last_accessed_at: row.get(9)?,
             })
         });
 

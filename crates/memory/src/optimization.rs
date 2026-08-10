@@ -387,6 +387,8 @@ mod tests {
                 files_modified: Vec::new(),
                 concepts: Vec::new(),
                 created_at: 0,
+                access_count: 0,
+                last_accessed_at: None,
             },
             score,
         }
