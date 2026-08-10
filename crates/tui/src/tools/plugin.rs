@@ -32,6 +32,7 @@ use super::spec::{
 };
 
 use crate::config::ToolOverride;
+use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 
 /// Timeout for plugin script execution (120 seconds).
 const PLUGIN_EXECUTION_TIMEOUT: Duration = Duration::from_secs(120);
@@ -259,6 +260,45 @@ async fn run_plugin_child(
     label: &str,
     input: Value,
 ) -> Result<ToolResult, ToolError> {
+    // #617 — plugin child processes already require approval via the tool
+    // scheduling layer, but launching an executable should also pass through
+    // execpolicy's deny/allowlist audit layer. A matching `deny` rule hard
+    // blocks; an explicit `allow` proceeds; an unmatched (AskUser) command is
+    // *allowed* (approval gate still applies) but audit-logged.
+    let full_command = {
+        let mut c = command.to_string();
+        for a in args {
+            c.push(' ');
+            c.push_str(a);
+        }
+        c
+    };
+    if let Ok(Some(policy)) = load_default_policy() {
+        match policy.evaluate(&full_command) {
+            ExecPolicyDecision::Deny(reason) => {
+                return Err(ToolError::execution_failed(format!(
+                    "plugin child launch blocked by execpolicy (label={label}): {reason}"
+                )));
+            }
+            ExecPolicyDecision::Allow => {
+                tracing::debug!(
+                    target: "plugin",
+                    label = %label,
+                    command = %command,
+                    "plugin child launch allowed by execpolicy allowlist"
+                );
+            }
+            ExecPolicyDecision::AskUser(reason) => {
+                tracing::info!(
+                    target: "plugin",
+                    label = %label,
+                    command = %command,
+                    "plugin child launch not covered by execpolicy allowlist (allowed via approval gate): {reason}"
+                );
+            }
+        }
+    }
+
     let mut cmd = tokio::process::Command::new(command);
     cmd.args(args);
     run_plugin_child_raw(&mut cmd, label, input).await
