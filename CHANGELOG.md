@@ -2,6 +2,22 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.13] - 2026-08-10
+
+本轮（LoopX P0 批次）补齐 Provider 矩阵与一批「引擎在手边但命令壳/守卫没接」的能力断连，并加固自动化与记忆检索。
+
+### Added
+- **Gemini 原生适配（[#737](https://github.com/XiaomingX/mimofan/issues/737)）**：新增 `client/gemini.rs`，实现 Gemini `generateContent`/`streamGenerateContent` 适配（系统指令、函数声明、停止原因映射、增量文本与 SSE 帧解析），补齐 `GeminiCompatible` provider 的端到端通路；含 9 个单元测试。
+- **CostBudget 成本上限硬停守卫（[#620](https://github.com/XiaomingX/mimofan/issues/620)，[PR #747](https://github.com/XiaomingX/mimofan/pull/747)）**：会话水位 + 当日累计双阈值，Warn/Hard 两档；超出硬上限时阻断后续请求，避免失控烧钱。
+- **TUI transcript 全文搜索（[#624](https://github.com/XiaomingX/mimofan/issues/624)，[PR #748](https://github.com/XiaomingX/mimofan/pull/748)）**：将 transcript 全文检索绑定到 TUI 交互，会话回顾可在界面内直接搜索。
+- **`/commit` 生成并提交 commit message（[#682](https://github.com/XiaomingX/mimofan/issues/682)，[PR #749](https://github.com/XiaomingX/mimofan/pull/749)）**：新增 `GitCommitTool`（带 `ApprovalRequirement::Required` 审批门槛），由模型基于 diff 生成提交信息并执行提交，闭合「先生成后提交」工作流。
+- **`/night` `/time` `/loop --schedule` 接线 AutomationManager（[#655](https://github.com/XiaomingX/mimofan/issues/655)）**：定时/循环类自动化命令真正落到 `AutomationManager`，消除 UI 壳未接引擎的断连。
+
+### Changed
+- **向量语义检索接入 SearchCache 缓存层（[#642](https://github.com/XiaomingX/mimofan/issues/642)）**：为向量检索叠加 `SearchCache` 缓存，降低重复查询成本、稳定召回路径。
+
+[0.0.13]: https://github.com/XiaomingX/mimofan/compare/v0.0.12...v0.0.13
+
 ## [0.0.12] - 2026-08-10
 
 ### Fixed
