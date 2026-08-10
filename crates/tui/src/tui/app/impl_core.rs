@@ -11,6 +11,7 @@ use crate::localization::{MessageId, resolve_locale, tr};
 use crate::models::{auto_compact_default_for_model, compaction_threshold_for_model_at_percent};
 use crate::palette;
 use crate::pricing::{CostCurrency, CostEstimate};
+use crate::cost_budget::{CostBudgetKind, CostBudgetLevel};
 use crate::settings::Settings;
 use crate::session_manager::PlanAndTodoState;
 use crate::tools::plan::new_shared_plan_state;
@@ -213,6 +214,9 @@ impl App {
             ("usd", "zh-Hans") => CostCurrency::Cny,
             _ => CostCurrency::from_setting(&settings.cost_currency).unwrap_or(CostCurrency::Usd),
         };
+        let cost_budget = crate::cost_budget::CostBudget::from_toml(
+            config.cost_budget.as_ref().unwrap_or(&mimofan_config::CostBudgetToml::default()),
+        );
         let composer_density = ComposerDensity::from_setting(&settings.composer_density);
         let composer_border = settings.composer_border;
         let composer_vim_enabled = settings.vim_mode.trim().eq_ignore_ascii_case("vim");
@@ -474,6 +478,10 @@ impl App {
             show_tool_details,
             ui_locale,
             cost_currency,
+            cost_budget,
+            daily_cost_usd: 0.0,
+            daily_cost_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
+            cost_budget_alerts: std::collections::HashMap::new(),
             composer_density,
             composer_border,
             voice_enabled: false,
@@ -901,6 +909,7 @@ impl App {
         self.session.session_cost += estimate.usd;
         self.session.session_cost_cny += estimate.cny;
         self.refresh_displayed_cost_high_water();
+        self.check_cost_budget(CostBudgetKind::Session, self.session.displayed_cost_high_water);
     }
 
     /// Add `delta` to the running sub-agent cost and bump the displayed
@@ -914,6 +923,43 @@ impl App {
         self.session.subagent_cost += estimate.usd;
         self.session.subagent_cost_cny += estimate.cny;
         self.refresh_displayed_cost_high_water();
+        // Sub-agent spend counts toward both the session high-water ceiling and
+        // the rolling daily ceiling.
+        self.check_cost_budget(CostBudgetKind::Session, self.session.displayed_cost_high_water);
+        let daily_total = self.accrue_daily_cost(estimate.usd);
+        self.check_cost_budget(CostBudgetKind::Daily, daily_total);
+    }
+
+    /// Add `delta` USD to the rolling daily cost accumulator, rolling the day
+    /// over (and resetting to `delta`) when the local date changes. Returns the
+    /// current daily total in USD.
+    fn accrue_daily_cost(&mut self, delta: f64) -> f64 {
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        if today != self.daily_cost_date {
+            self.daily_cost_date = today;
+            self.daily_cost_usd = 0.0;
+        }
+        self.daily_cost_usd += delta;
+        self.daily_cost_usd
+    }
+
+    /// Evaluate the running cost against the configured budget and surface a
+    /// status-toast alert when a threshold is crossed for the first time.
+    /// No-op when the budget is inactive (#620). Never blocks the turn.
+    fn check_cost_budget(&mut self, kind: CostBudgetKind, current_usd: f64) {
+        let Some(alert) = self.cost_budget.evaluate(kind, current_usd) else {
+            return;
+        };
+        let already = self.cost_budget_alerts.get(&kind).copied();
+        if already.is_some_and(|level| level >= alert.level) {
+            return;
+        }
+        self.cost_budget_alerts.insert(kind, alert.level);
+        let level = match alert.level {
+            CostBudgetLevel::Warn => StatusToastLevel::Warning,
+            CostBudgetLevel::Hard => StatusToastLevel::Error,
+        };
+        self.push_status_toast(alert.message(), level, Some(15_000));
     }
 
     /// Copy current session/subagent cost accumulators into session metadata

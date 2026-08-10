@@ -486,6 +486,10 @@ pub struct Config {
     /// companion permissions file after profile/env/managed config resolution.
     #[serde(skip)]
     pub exec_policy_engine: ExecPolicyEngine,
+
+    /// Cost upper-bound alerts (#620). When absent, no cost budget alerts fire.
+    #[serde(default)]
+    pub cost_budget: Option<mimofan_config::CostBudgetToml>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -2160,6 +2164,7 @@ fn merge_config(base: Config, override_cfg: Config) -> Config {
         strict_tool_mode: override_cfg.strict_tool_mode.or(base.strict_tool_mode),
         runtime_api: override_cfg.runtime_api.or(base.runtime_api),
         workshop: override_cfg.workshop.or(base.workshop),
+        cost_budget: override_cfg.cost_budget.or(base.cost_budget),
         exec_policy_engine: override_cfg.exec_policy_engine,
     }
 }

@@ -807,6 +807,17 @@ pub struct App {
     pub show_tool_details: bool,
     pub ui_locale: Locale,
     pub cost_currency: CostCurrency,
+    /// Resolved cost upper-bound budget guard (#620). When inactive (no
+    /// `[cost_budget]` config) this is a no-op and never emits alerts.
+    pub cost_budget: crate::cost_budget::CostBudget,
+    /// Per-calendar-day cost accrual backing `CostBudgetKind::Daily`. Reset
+    /// automatically when the local date rolls over.
+    pub daily_cost_usd: f64,
+    /// Local date string (`YYYY-MM-DD`) for which `daily_cost_usd` is valid.
+    pub daily_cost_date: String,
+    /// Highest budget alert level already surfaced per ceiling, so the same
+    /// threshold doesn't re-toast on every subsequent accrual.
+    pub cost_budget_alerts: std::collections::HashMap<crate::cost_budget::CostBudgetKind, crate::cost_budget::CostBudgetLevel>,
     pub composer_density: ComposerDensity,
     pub composer_border: bool,
     /// Voice input state — toggled by `/voice` and the voice hotbar action.

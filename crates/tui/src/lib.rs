@@ -41,6 +41,7 @@ mod config_ui;
 mod context_budget;
 mod context_report;
 mod core;
+mod cost_budget;
 mod cost_status;
 pub mod decision_gate;
 mod dependencies;
