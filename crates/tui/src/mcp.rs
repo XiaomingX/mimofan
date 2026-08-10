@@ -37,6 +37,7 @@ use self::transport::{
     validate_mcp_transport,
 };
 use crate::child_env;
+use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 use crate::network_policy::{Decision, NetworkPolicyDecider, host_from_url};
 use crate::utils::{normalize_path_components, write_atomic};
 
@@ -349,6 +350,63 @@ impl McpConnection {
                 .kill_on_drop(true);
             if let Some(cwd) = &config.cwd {
                 cmd.current_dir(cwd);
+            }
+
+            // #616 — MCP stdio servers are user-configured integrations, so we
+            // keep the wider MCP allowlist semantics (don't hard-block every
+            // server). But launching an arbitrary executable must still pass
+            // through execpolicy's deny/allowlist *audit layer*. A matching
+            // `deny` rule is a hard block; an explicit `allow` proceeds; an
+            // unmatched (AskUser) command is *allowed* but audit-logged so the
+            // launch is visible rather than silent.
+            let full_command = {
+                let mut c = command.clone();
+                for a in &config.args {
+                    c.push(' ');
+                    c.push_str(a);
+                }
+                c
+            };
+            match load_default_policy() {
+                Ok(Some(policy)) => match policy.evaluate(&full_command) {
+                    ExecPolicyDecision::Deny(reason) => {
+                        anyhow::bail!(
+                            "MCP stdio server launch blocked by execpolicy (server={name} cmd={command:?}): {reason}"
+                        );
+                    }
+                    ExecPolicyDecision::Allow => {
+                        tracing::debug!(
+                            target: "mcp",
+                            server = %name,
+                            command = %command,
+                            "stdio server launch allowed by execpolicy allowlist"
+                        );
+                    }
+                    ExecPolicyDecision::AskUser(reason) => {
+                        tracing::info!(
+                            target: "mcp",
+                            server = %name,
+                            command = %command,
+                            "stdio server launch not covered by execpolicy allowlist (allowed, audit-logged): {reason}"
+                        );
+                    }
+                },
+                Ok(None) => {
+                    tracing::debug!(
+                        target: "mcp",
+                        server = %name,
+                        command = %command,
+                        "no execpolicy configured; stdio server launch proceeds"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "mcp",
+                        server = %name,
+                        command = %command,
+                        "execpolicy load failed, proceeding without audit gate: {e:#}"
+                    );
+                }
             }
 
             // MCP stdio servers are user-configured integrations. Use the

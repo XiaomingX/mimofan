@@ -18,7 +18,14 @@ pub enum ExecPolicyDecision {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct ExecPolicyConfig {
-    #[serde(default)]
+    /// Top-level groups in `execpolicy.toml` use the flat `[group]` form
+    /// (e.g. `[runtime]` with `allow`/`deny` lists). `#[serde(flatten)]`
+    /// maps each such table directly into this map, so a user-written
+    /// `[runtime] deny = ["rm *"]` is captured as `rules["runtime"]`.
+    /// Without `flatten`, a flat `[runtime]` table silently fails to
+    /// deserialize (toml looks for a `[rules]` table), leaving `rules`
+    /// empty and every command falling through to `AskUser`.
+    #[serde(default, flatten)]
     pub rules: BTreeMap<String, RuleSet>,
 }
 
@@ -87,3 +94,68 @@ pub fn load_default_policy() -> Result<Option<ExecPolicyConfig>> {
     }
     ExecPolicyConfig::from_path(&path).map(Some)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// TOML mirror of the execpolicy used by the mcp/plugin audit gates (#616, #617).
+    ///
+    /// `execpolicy.toml` uses the flat `[group]` form documented in
+    /// `ARCHITECTURE_IMPROVEMENT_PLAN.md` (e.g. `[runtime]` with `allow`/`deny`
+    /// lists). `#[serde(flatten)]` on `ExecPolicyConfig::rules` captures each
+    /// such table as `rules[group]`, which is the on-disk layout that
+    /// `load_default_policy` reads.
+    fn sample_policy() -> ExecPolicyConfig {
+        ExecPolicyConfig::from_str(
+            r#"
+[runtime]
+deny = ["rm *", "evil *"]
+allow = ["node *", "python3 *"]
+"#,
+        )
+        .expect("sample execpolicy parses")
+    }
+
+    #[test]
+    fn deny_rule_blocks_matching_command() {
+        let policy = sample_policy();
+        // `rm -rf /` collapses to the `rm *` basename/wrapper-stripped form.
+        assert!(matches!(
+            policy.evaluate("rm -rf /"),
+            ExecPolicyDecision::Deny(_)
+        ));
+        // Absolute-path and wrapper bypasses are still caught: the canonical
+        // executable form reduces `/bin/evil --steal` to `evil --steal`,
+        // which the `evil *` deny rule matches.
+        assert!(matches!(
+            policy.evaluate("/bin/evil --steal"),
+            ExecPolicyDecision::Deny(_)
+        ));
+    }
+
+    #[test]
+    fn allow_rule_permits_matching_command() {
+        let policy = sample_policy();
+        assert!(matches!(
+            policy.evaluate("node server.js --port 3000"),
+            ExecPolicyDecision::Allow
+        ));
+        assert!(matches!(
+            policy.evaluate("python3 -m myplugin"),
+            ExecPolicyDecision::Allow
+        ));
+    }
+
+    #[test]
+    fn unmatched_command_is_ask_user() {
+        let policy = sample_policy();
+        // A user-configured MCP server binary not on any allow/deny list must
+        // surface as AskUser (audit-only), never silently Allow nor hard-block.
+        assert!(matches!(
+            policy.evaluate("my-custom-mcp-server --stdio"),
+            ExecPolicyDecision::AskUser(_)
+        ));
+    }
+}
+
