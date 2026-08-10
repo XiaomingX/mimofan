@@ -120,6 +120,11 @@ mod tui;
 mod utils;
 #[cfg(feature = "vector-memory")]
 pub mod vector_memory;
+pub mod repro;
+pub mod evolve;
+pub mod research_artifact;
+pub mod reviewer;
+pub mod research_ethics;
 mod vision;
 mod worker_profile;
 mod working_set;
