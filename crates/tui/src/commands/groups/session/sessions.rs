@@ -9,7 +9,7 @@ use super::CommandResult;
 pub(in crate::commands) const COMMAND_INFO: CommandInfo = CommandInfo {
     name: "sessions",
     aliases: &["resume"],
-    usage: "/sessions [show|prune <days>]",
+    usage: "/sessions [show|search <query>|prune <days>]",
     description_id: MessageId::CmdSessionsDescription,
 };
 
