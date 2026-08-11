@@ -248,6 +248,10 @@ impl ToolSpec for GitCommitTool {
                 "amend": {
                     "type": "boolean",
                     "description": "When true, amend the previous commit instead of creating a new one."
+                },
+                "co_authored_by": {
+                    "type": "boolean",
+                    "description": "When true (default), append a 'Co-Authored-By: mimofan' trailer so GitHub credits mimofan as a co-author (mirrors Claude Code's includeCoAuthoredBy). Set false to omit."
                 }
             },
             "required": ["message"],
@@ -279,6 +283,8 @@ impl ToolSpec for GitCommitTool {
         }
         let amend = optional_bool(&input, "amend", false);
         let add_all = optional_bool(&input, "add_all", false);
+        // 默认开启 Co-Authored-By 署名（参考 Claude Code 的 includeCoAuthoredBy）。
+        let co_authored_by = optional_bool(&input, "co_authored_by", true);
 
         let files: Vec<String> = input
             .get("files")
@@ -345,6 +351,7 @@ impl ToolSpec for GitCommitTool {
         }
 
         // 3) Commit. The message is passed via stdin to avoid shell-quoting issues.
+        let final_message = append_co_authored_by(message, co_authored_by);
         let mut args = vec![
             "-c".to_string(),
             "core.quotepath=false".to_string(),
@@ -370,7 +377,7 @@ impl ToolSpec for GitCommitTool {
         use std::io::Write;
         if let Some(mut stdin) = child.stdin.take() {
             stdin
-                .write_all(message.as_bytes())
+                .write_all(final_message.as_bytes())
                 .map_err(|e| ToolError::execution_failed(format!("Failed to write message: {e}")))?;
         }
         let output = child.wait_with_output().map_err(|e| {
@@ -515,4 +522,66 @@ fn char_boundary_index(text: &str, max_chars: usize) -> usize {
         }
     }
     text.len()
+}
+
+// === Co-Authored-By attribution (mirrors Claude Code's includeCoAuthoredBy) ===
+
+/// mimofan 在 GitHub 上的共同作者署名 trailer。
+///
+/// 当 AI 通过 `git_commit` 提交代码时，默认在消息末尾追加此 trailer，使 GitHub
+/// 把 mimofan 显示为共同作者（co-author），与 Claude Code / CodeBuddy 的行为一致。
+/// GitHub 依据 `Co-Authored-By: <name> <email>` 在提交详情与贡献者列表里展示署名，
+/// 但不改变真正的 committer（committer 仍是运行 mimofan 的用户的 git 身份）。
+const MIMOFAN_CO_AUTHOR_TRAILER: &str =
+    "🤖 Generated with [mimofan](https://github.com/XiaomingX/mimofan)\n\n\
+     Co-Authored-By: mimofan <noreply@xiaoming.com>";
+
+/// 若 `enabled` 且消息尚未包含 mimofan 的 Co-Authored-By 署名，则追加 trailer。
+///
+/// 防重复：消息里已出现 `Co-Authored-By: mimofan` 时直接原样返回，避免 amend
+/// 同一条提交导致 trailer 叠加。
+pub fn append_co_authored_by(message: &str, enabled: bool) -> String {
+    if !enabled {
+        return message.to_string();
+    }
+    if message.contains("Co-Authored-By: mimofan") {
+        return message.to_string();
+    }
+    let trimmed = message.trim_end();
+    // 规范结尾：消息与 trailer 之间空一行。
+    format!("{trimmed}\n\n{MIMOFAN_CO_AUTHOR_TRAILER}")
+}
+
+#[cfg(test)]
+mod co_author_tests {
+    use super::*;
+
+    #[test]
+    fn appends_trailer_when_enabled() {
+        let out = append_co_authored_by("feat: add thing", true);
+        assert!(out.starts_with("feat: add thing\n\n"));
+        assert!(out.contains("Co-Authored-By: mimofan <noreply@xiaoming.com>"));
+        assert!(out.contains("Generated with [mimofan]"));
+    }
+
+    #[test]
+    fn omits_trailer_when_disabled() {
+        let out = append_co_authored_by("feat: add thing", false);
+        assert_eq!(out, "feat: add thing");
+    }
+
+    #[test]
+    fn does_not_duplicate_existing_trailer() {
+        let base = "feat: add thing\n\nCo-Authored-By: mimofan <noreply@xiaoming.com>";
+        let out = append_co_authored_by(base, true);
+        assert_eq!(out, base, "不应重复追加 trailer");
+        assert_eq!(out.matches("Co-Authored-By: mimofan").count(), 1);
+    }
+
+    #[test]
+    fn preserves_trailing_whitespace_normalization() {
+        let out = append_co_authored_by("feat: add thing\n\n\n", true);
+        assert!(out.starts_with("feat: add thing\n\n"));
+        assert!(!out.contains("\n\n\nCo-Authored-By"));
+    }
 }
