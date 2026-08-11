@@ -1,6 +1,7 @@
 //! Skill discovery and registry for local SKILL.md files.
 
 pub mod install;
+pub mod provenance;
 mod system;
 pub use system::{install_system_skills, is_bundled_skill_name};
 
