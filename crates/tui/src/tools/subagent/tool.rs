@@ -130,6 +130,11 @@ impl ToolSpec for AgentTool {
                     "type": "boolean",
                     "description": "false (default): fresh child context. true: include the current parent context prefix when the child needs it."
                 },
+                "fork_turns": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "When fork_context is true, cap how many trailing parent conversation turns the child inherits. Helps keep a forked child from ingesting the entire parent context. Omit to inherit the full history."
+                },
                 "max_depth": {
                     "type": "integer",
                     "minimum": 0,
@@ -401,6 +406,7 @@ async fn spawn_subagent_from_input(
                 model_route: Some(model_route),
                 nickname: None,
                 fork_context: spawn_request.fork_context,
+                fork_turns: spawn_request.fork_turns,
                 token_budget: spawn_request.token_budget,
             },
             spawn_request.custom_agent_def,

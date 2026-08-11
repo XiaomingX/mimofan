@@ -9,6 +9,7 @@ pub(crate) async fn run_subagent(
     assignment: SubAgentAssignment,
     allowed_tools: Option<Vec<String>>,
     fork_context: bool,
+    fork_turns: Option<usize>,
     started_at: Instant,
     max_steps: u32,
     token_budget: Option<u64>,
@@ -36,6 +37,7 @@ pub(crate) async fn run_subagent(
             system: Some(request_system.clone()),
             messages: messages.clone(),
             structured_state_block: None,
+            fork_turns,
         },
     );
     let tool_registry = Arc::new(SubAgentToolRegistry::new_with_owner(

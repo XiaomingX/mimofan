@@ -551,6 +551,10 @@ pub struct SubAgentForkContext {
     pub system: Option<SystemPrompt>,
     pub messages: Vec<Message>,
     pub structured_state_block: Option<String>,
+    /// When `Some(n)`, only the last `n` conversation turns of `messages` are
+    /// carried into the child, preventing a forked child from ingesting the
+    /// entire parent context. `None` keeps the full parent history.
+    pub fork_turns: Option<usize>,
 }
 
 /// Helper function to check if a boolean is false.

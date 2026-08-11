@@ -108,6 +108,7 @@ pub(crate) struct SubAgentSpawnOptions {
     pub model_route: Option<ModelRoute>,
     pub nickname: Option<String>,
     pub fork_context: bool,
+    pub fork_turns: Option<usize>,
     pub token_budget: Option<u64>,
 }
 
@@ -197,6 +198,9 @@ pub(crate) struct SpawnRequest {
     /// When true, seed the child with the parent's system prompt and message
     /// prefix before appending the child task.
     fork_context: bool,
+    /// Optional cap on how many trailing parent conversation turns a forked
+    /// child inherits. `None` inherits the full parent history.
+    fork_turns: Option<usize>,
     /// Legacy recursion budget for descendants. The model-facing child tool
     /// surface is leaf-only; this remains for persisted/internal records.
     max_depth: Option<u32>,
@@ -1157,7 +1161,13 @@ fn build_initial_subagent_messages(
     custom_agent_def: Option<&custom_agents::CustomAgentDef>,
 ) -> Vec<Message> {
     let mut messages = fork_context
-        .map(|context| context.messages.clone())
+        .map(|context| {
+            let mut msgs = context.messages.clone();
+            if let Some(turns) = context.fork_turns {
+                msgs = window_messages(msgs, turns);
+            }
+            msgs
+        })
         .unwrap_or_default();
 
     if let Some(context) = fork_context {
@@ -1199,6 +1209,28 @@ fn system_text_message(text: String) -> Message {
     }
 }
 
+/// Keep the leading run of `system` messages intact (they carry fork state and
+/// the sub-agent's own context block) and trim the remaining conversation to
+/// its last `turns` messages. This bounds how much parent history a forked
+/// child ingests.
+fn window_messages(messages: Vec<Message>, turns: usize) -> Vec<Message> {
+    if turns == 0 {
+        return messages;
+    }
+    let first_non_system = messages
+        .iter()
+        .position(|m| m.role != "system")
+        .unwrap_or(messages.len());
+    let (prefix, rest) = messages.split_at(first_non_system);
+    if rest.len() <= turns {
+        return messages;
+    }
+    let start = rest.len() - turns;
+    let mut out = prefix.to_vec();
+    out.extend_from_slice(&rest[start..]);
+    out
+}
+
 struct SubAgentTask {
     manager_handle: SharedSubAgentManager,
     runtime: SubAgentRuntime,
@@ -1210,6 +1242,7 @@ struct SubAgentTask {
     /// Approval-gated tools still require an auto-approved parent runtime.
     allowed_tools: Option<Vec<String>>,
     fork_context: bool,
+    fork_turns: Option<usize>,
     started_at: Instant,
     max_steps: u32,
     /// Per-worker token cap sourced from the spawn request's `token_budget`
@@ -1259,6 +1292,7 @@ async fn run_subagent_task(task: SubAgentTask) {
         task.assignment,
         task.allowed_tools,
         task.fork_context,
+        task.fork_turns,
         task.started_at,
         task.max_steps,
         task.token_budget,
