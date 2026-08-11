@@ -2352,6 +2352,11 @@ impl Engine {
                             .await
                         };
 
+                        // Aggregate this tool call's latency into the turn metrics
+                        // (#734): count + wall-clock duration, so diagnostics can
+                        // surface a real latency total/average rather than a boolean.
+                        turn.record_tool_call_timed(started_at.elapsed());
+
                         // #500: spill outsized tool outputs to disk before the
                         // result fans out to the model context and the UI cell.
                         // Both consumers see the same artifact reference block +
@@ -2586,7 +2591,6 @@ impl Engine {
                     }
                 }
 
-                turn.record_tool_call();
                 stop_after_plan_tool |= should_stop_this_turn;
             }
 

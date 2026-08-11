@@ -36,6 +36,11 @@ pub struct TurnContext {
     /// Number of tool calls made in this turn.
     tool_call_count: usize,
 
+    /// Total wall-clock time spent in tool calls this turn, accumulated across
+    /// every `record_tool_call_timed` call. Lets diagnostics/reporting surface
+    /// a real latency aggregate instead of only a boolean "did tools run".
+    tool_call_duration: Duration,
+
     /// Whether the turn has been cancelled
     pub cancelled: bool,
 
@@ -52,6 +57,7 @@ impl TurnContext {
             step: 0,
             max_steps,
             tool_call_count: 0,
+            tool_call_duration: Duration::ZERO,
             cancelled: false,
             usage: Usage {
                 input_tokens: 0,
@@ -72,9 +78,37 @@ impl TurnContext {
         self.step >= self.max_steps
     }
 
-    /// Record that a tool call occurred.
+    /// Record that a tool call occurred (count only). Kept for call sites that
+    /// do not measure latency; prefer [`TurnContext::record_tool_call_timed`].
     pub fn record_tool_call(&mut self) {
         self.tool_call_count += 1;
+    }
+
+    /// Record a tool call along with how long it took. Accumulates both the
+    /// count and the total duration so reporting can derive averages and a
+    /// latency total. Issue #734.
+    pub fn record_tool_call_timed(&mut self, duration: Duration) {
+        self.tool_call_count += 1;
+        self.tool_call_duration = self.tool_call_duration.saturating_add(duration);
+    }
+
+    /// Number of tool calls made so far this turn.
+    pub fn tool_call_count(&self) -> usize {
+        self.tool_call_count
+    }
+
+    /// Total wall-clock time spent in tool calls this turn.
+    pub fn tool_call_total_duration(&self) -> Duration {
+        self.tool_call_duration
+    }
+
+    /// Average duration per tool call, or `None` when no calls occurred.
+    pub fn tool_call_avg_duration(&self) -> Option<Duration> {
+        if self.tool_call_count == 0 {
+            None
+        } else {
+            Some(self.tool_call_duration / self.tool_call_count as u32)
+        }
     }
 
     /// Whether this turn has executed at least one tool call.
@@ -240,5 +274,37 @@ fn snapshot_with_label(
             tracing::warn!(target: "snapshot", "snapshot repo init failed: {e}");
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tool_call_metrics_accumulate_count_and_duration() {
+        let mut turn = TurnContext::new(100);
+        assert_eq!(turn.tool_call_count(), 0);
+        assert!(turn.tool_call_avg_duration().is_none());
+        assert_eq!(turn.tool_call_total_duration(), Duration::ZERO);
+
+        turn.record_tool_call_timed(Duration::from_millis(100));
+        turn.record_tool_call_timed(Duration::from_millis(300));
+
+        assert_eq!(turn.tool_call_count(), 2);
+        assert_eq!(turn.tool_call_total_duration(), Duration::from_millis(400));
+        assert_eq!(turn.tool_call_avg_duration(), Some(Duration::from_millis(200)));
+        assert!(turn.has_tool_calls());
+    }
+
+    #[test]
+    fn untimed_record_tool_call_still_counts_without_duration() {
+        let mut turn = TurnContext::new(100);
+        turn.record_tool_call();
+        assert_eq!(turn.tool_call_count(), 1);
+        // No timed call recorded yet, so total duration stays zero; average is
+        // zero (count > 0), not None.
+        assert_eq!(turn.tool_call_total_duration(), Duration::ZERO);
+        assert_eq!(turn.tool_call_avg_duration(), Some(Duration::ZERO));
     }
 }
