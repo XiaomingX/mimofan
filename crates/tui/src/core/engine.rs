@@ -875,16 +875,19 @@ impl Engine {
             let pre_cap = self.config.snapshots_max_workspace_bytes;
             let pre_prompt = snapshot_prompt.clone();
             let pre_conv = self.session.messages.len();
-            let _ = tokio::task::spawn_blocking(move || {
-                pre_turn_snapshot(
+            // Fire-and-forget: the pre-turn snapshot is a best-effort archive of
+            // the pre-turn state and must not block the turn from starting.
+            // This mirrors the post-turn snapshot path, which is already
+            // unsupervised (engine.rs post-turn call sites).
+            let _ = crate::utils::spawn_blocking_supervised("pre-turn-snapshot", move || {
+                let _ = pre_turn_snapshot(
                     &pre_workspace,
                     pre_seq,
                     pre_cap,
                     Some(&pre_prompt),
                     pre_conv,
-                )
-            })
-            .await;
+                );
+            });
         }
 
         let _ = self
@@ -1652,16 +1655,17 @@ impl Engine {
             let pre_seq = self.turn_counter;
             let pre_cap = self.config.snapshots_max_workspace_bytes;
             let pre_conv = self.session.messages.len();
-            let _ = tokio::task::spawn_blocking(move || {
-                pre_turn_snapshot(
+            // Fire-and-forget: archive the pre-turn state without blocking the
+            // turn start (mirrors the unsupervised post-turn snapshot path).
+            let _ = crate::utils::spawn_blocking_supervised("pre-turn-snapshot", move || {
+                let _ = pre_turn_snapshot(
                     &pre_workspace,
                     pre_seq,
                     pre_cap,
                     Some(&snapshot_prompt),
                     pre_conv,
-                )
-            })
-            .await;
+                );
+            });
         }
 
         // A new turn means any leftover retry banner (success cleared
