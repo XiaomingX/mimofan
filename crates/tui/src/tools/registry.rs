@@ -772,6 +772,13 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(InsightsTool))
     }
 
+    /// Include the `synthetic_output` structured-output tool (issue #729).
+    #[must_use]
+    pub fn with_synthetic_output_tool(self) -> Self {
+        use super::synthetic_output::SyntheticOutputTool;
+        self.with_tool(Arc::new(SyntheticOutputTool))
+    }
+
     /// Register the `image_analyze` vision tool.
     /// Only registered when `[vision_model]` is configured in config.toml.
     #[must_use]
@@ -988,7 +995,8 @@ impl ToolRegistryBuilder {
             .with_pandoc_tools()
             .with_image_ocr_tools()
             .with_finance_tool()
-            .with_insights_tool();
+            .with_insights_tool()
+            .with_synthetic_output_tool();
 
         if shell_policy.allows_shell() {
             builder.with_shell_tools().with_runtime_task_shell_tools()
