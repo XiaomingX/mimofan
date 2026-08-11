@@ -81,6 +81,7 @@ pub mod models;
 mod network_policy;
 pub mod palette;
 mod prefix_cache;
+mod prompt_injection;
 mod pricing;
 mod project_context;
 mod project_context_cache;
