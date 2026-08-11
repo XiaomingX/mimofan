@@ -1,12 +1,14 @@
 # 新增能力使用教程
 
-本教程介绍 mimofan 最近新增的三项能力，以及它们的使用方法与配置方式：
+本教程介绍 mimofan 最近新增的五项能力，以及它们的使用方法与配置方式：
 
 1. [`/evolve`](#一-evolve-可机评优化回路) —— 可机评优化回路（issue #751）
 2. [`/repro`](#二-repro-可复现性纪律) —— 可复现性纪律（issue #754）
-3. [GitHub 共同作者署名](#三-github-共同作者署名-co-authored-by-mimofan) —— `git_commit` 自动追加 mimofan 署名
+3. [`/artifact`](#三-artifact-研究成果物汇总) —— 研究成果物汇总（issue #750）
+4. [`/reviewer`](#四-reviewer-独立评审者) —— 独立评审者（issue #752）
+5. [GitHub 共同作者署名](#五-github-共同作者署名-co-authored-by-mimofan) —— `git_commit` 自动追加 mimofan 署名
 
-> 这三项能力均随 `main` 分支合入（commit `626feb1` 起）。若你的版本早于该提交，请先升级 mimofan。
+> 这五项能力均随 `main` 分支合入。若你的版本早于相关提交，请先升级 mimofan。
 
 ---
 
@@ -124,7 +126,102 @@ evaluator 脚本最后一行为一个 JSON 对象（前面可打印日志），m
 
 ---
 
-## 三、GitHub 共同作者署名（`Co-Authored-By: mimofan`）
+## 三、`/artifact` 研究成果物汇总
+
+### 能力简介
+
+`/artifact` 对标 open-discovery 的 Repository Artifact Builder，把一次研究 initiative（来自 `/repro`、`/evolve` 或 goal_loop 的产物）汇总为**单一可复现目录**：含 BRIEF 原文、可运行 setup、代表性正/负结果、以及通过评审的 claim 与 provenance 留痕。
+
+核心思想：研究成果不只是代码，还要有**可核验的证据链**。汇总时只收录经过 `/reviewer` 审核、verdict 为 Accepted 的 claim，未通过的不进入公开章节。
+
+### 使用方法
+
+```
+/artifact <initiative_id> [--publish]
+```
+
+别名：`/artifact`、`/publish`。
+
+示例：
+
+```
+/artifact paper-x-method-y
+```
+
+执行后 mimofan 会：
+
+1. 进入 **Agent 模式**；
+2. 读取本次 initiative 的 BRIEF、正/负结果、已通过 `/reviewer` 的 Accepted claim、复现步骤与 `crate::repro` 的 provenance；
+3. 调用 `crate::research_artifact::ArtifactInput::build(root, <id>)` 汇总到 `<工作区>/initiatives/<id>/`，写 `README.md` 与 `provenance.json`。
+
+生成结构：
+
+```
+<工作区>/
+└── initiatives/
+    └── <initiative_id>/
+        ├── README.md          # BRIEF + Setup + Results + 仅 Accepted 的 Claims
+        └── provenance.json    # 证据链留痕
+```
+
+### `--publish` 与研究副作用闸门（#753）
+
+带 `--publish` 时，汇总完成后会把目录初始化为 git 仓库并尝试推远程。**这是真实外部副作用**，受研究副作用闸门（`research_ethics`）约束：
+
+- `PublishRemote` 类动作默认 **AskUser**（需显式授权），Auto 模式不会自动推远程；
+- 若闸门拦截，`/artifact` 会提示你去掉 `--publish` 先生成本地目录。
+
+```
+/artifact paper-x-method-y --publish
+```
+
+### 配置方法
+
+`/artifact` 是命令层编排，无需独立开关。是否发布由你是否在命令中带 `--publish` 决定；发布授权由 `research_ethics` 的默认策略控制（见 [`/reviewer`](#四-reviewer-独立评审者) 与 #753）。
+
+---
+
+## 四、`/reviewer` 独立评审者
+
+### 能力简介
+
+`/reviewer` 对标 open-discovery 的 Scientific Reviewer，贯彻**执行者与评审者职责分离**：评审者依据**可核验证据**（而非 agent 自述）下结论，且**只读不写**——它不修改任何代码或产物。
+
+评审结果作为 `/artifact` 公开章节的**前置门**：只有 verdict 为 Accepted 的 claim 才会被 `/artifact` 收录。
+
+### 使用方法
+
+```
+/reviewer [<initiative_id>]
+```
+
+别名：`/reviewer`、`/review`。不传 `initiative_id` 时默认为 `current`。
+
+示例：
+
+```
+/reviewer paper-x-method-y
+```
+
+执行后 mimofan 会进入 **Agent 模式（只读）**，对每条 claim 调用 `crate::reviewer` 逻辑层判定：
+
+| 证据强度 | 条件 | 判定 |
+|----------|------|------|
+| Strong | 有外部 evaluator 通过 / 测试通过（如 `/evolve` 的 `EvaluatorOutput::is_winner`） | Accepted |
+| Medium | 有复现步骤且未被反驳 | Accepted |
+| Medium | 无复现步骤 / 被反驳 | Weak / Rejected |
+| Weak | 仅自述 | Weak |
+| 任何 | 被反驳（`contradicted=true`） | 直接 Rejected |
+
+最后调用 `crate::reviewer::accepted_only(&claims)` 过滤出可进入公开产物的 claim，并输出审核报告（每条 verdict + 理由）。
+
+### 配置方法
+
+`/reviewer` 是命令层编排，无独立开关。其判定逻辑由 `crate::reviewer` 的 `review()` / `accepted_only()` 决定，开箱即用。
+
+---
+
+## 五、GitHub 共同作者署名（`Co-Authored-By: mimofan`）
 
 ### 能力简介
 
@@ -169,12 +266,14 @@ Co-Authored-By: mimofan <noreply@xiaoming.com>
 
 ---
 
-## 四、小结
+## 六、小结
 
 | 能力 | 命令 / 参数 | 默认行为 | 如何关闭 |
 |------|-------------|----------|----------|
 | 可机评优化回路 | `/evolve <goal>` | 进入 Agent 模式跑回路 | 不调用即可 |
 | 可复现性纪律 | `/repro <brief>` | 落盘 BRIEF + 环境快照 + provenance | 不调用即可 |
+| 研究成果物汇总 | `/artifact <initiative_id> [--publish]` | 生成本地目录；`--publish` 受闸门需授权 | 不调用 / 去掉 `--publish` |
+| 独立评审者 | `/reviewer [<initiative_id>]` | 只读审核，Accepted claim 作为 /artifact 前置门 | 不调用即可 |
 | GitHub 共同作者署名 | `git_commit` 的 `co_authored_by` | `true`（追加 mimofan 署名） | 传 `false` |
 
-三项能力均已在 `main` 合入并通过单元测试，无需额外安装步骤，升级 mimofan 后即可用。
+五项能力均已在 `main` 合入并通过单元测试，无需额外安装步骤，升级 mimofan 后即可用。
