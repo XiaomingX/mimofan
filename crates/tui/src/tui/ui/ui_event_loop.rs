@@ -4184,14 +4184,17 @@ pub(crate) async fn apply_command_result(
                 history_len: _,
                 model,
                 mode,
+                local,
             } => {
                 let status = if app.api_messages.is_empty() {
                     "No session content to share.".to_string()
                 } else {
                     let history_json = serde_json::to_string_pretty(&app.api_messages)
                         .unwrap_or_else(|_| "[]".to_string());
-                    match crate::commands::share::perform_share(&history_json, &model, &mode).await
+                    match crate::commands::share::perform_share(&history_json, &model, &mode, local)
+                        .await
                     {
+                        Ok(url) if local => format!("Session exported to local file: {url}"),
                         Ok(url) => format!("Session shared! URL: {url}"),
                         Err(err) => format!("Share failed: {err}"),
                     }

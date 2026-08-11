@@ -1,45 +1,52 @@
-//! /share command — export the current session as a shareable web URL.
+//! /share command — export the current session.
 //!
-//! Renders the current session transcript as a static HTML page, uploads it
-//! to a GitHub Gist via the `gh` CLI, and displays the resulting URL.
+//! By default the session transcript is rendered as static HTML and uploaded
+//! to a GitHub Gist via the `gh` CLI, printing the resulting URL.
+//!
+//! With `/share --local` the session is written to a local Markdown file
+//! instead, so it can be exported without a `gh` CLI or any network upload.
 //!
 //! # Usage
 //!
 //! - `/share` — export the current session and print the Gist URL
+//! - `/share --local` — write the session to a local `.md` file
 //! - `/share help` — show usage
 
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::CommandResult;
 use crate::dependencies::ExternalTool;
 use crate::tui::app::{App, AppAction};
 
-/// Share the current session as a web URL.
+/// Share the current session as a web URL (or a local file with `--local`).
 pub fn share(app: &mut App, arg: Option<&str>) -> CommandResult {
     let raw = arg.map(str::trim).unwrap_or("");
 
     match raw {
-        "" => do_share(app),
+        "" => do_share(app, false),
+        "--local" | "-l" => do_share(app, true),
         "help" | "--help" | "-h" => CommandResult::message(
-            "/share — Export the current session as a shareable web URL.\n\
+            "/share — Export the current session.\n\
              \n\
              Usage:\n\
-             /share         Export and upload the current session\n\
+             /share           Export and upload the current session (GitHub Gist URL)\n\
+             /share --local   Write the session to a local Markdown file (no upload)\n\
+             /share help      Show this help\n\
              \n\
-             The session transcript is rendered as static HTML and uploaded\n\
-             to a GitHub Gist using the `gh` CLI. The Gist URL is displayed\n\
-             so you can paste it into Slack, GitHub, Twitter, etc."
+             The default mode renders the session as static HTML and uploads it\n\
+             to a GitHub Gist via the `gh` CLI. `--local` writes a `.md` file to\n\
+             the current directory instead, so no `gh` CLI or network is required."
                 .to_string(),
         ),
         _ => CommandResult::error(format!(
-            "Unknown /share argument `{raw}`. Use `/share` with no arguments or `/share help`."
+            "Unknown /share argument `{raw}`. Use `/share`, `/share --local`, or `/share help`."
         )),
     }
 }
 
-/// Export the session as HTML, upload to a Gist, and show the URL.
-fn do_share(app: &mut App) -> CommandResult {
+/// Export the session (as HTML+Gist, or as a local file) and show the result.
+fn do_share(app: &mut App, local: bool) -> CommandResult {
     // Check if there's any session content to share
     if app.history.is_empty() {
         return CommandResult::error("Nothing to share. The current session is empty.");
@@ -52,16 +59,24 @@ fn do_share(app: &mut App) -> CommandResult {
     let mode = app.mode.label();
 
     // Use an AppAction to signal the engine to perform the async work.
-    CommandResult::with_message_and_action(
+    let hint = if local {
+        format!(
+            "Exporting {history_len} cell(s) from {model} ({mode}) session to a local file..."
+        )
+    } else {
         format!(
             "Exporting {history_len} cell(s) from {model} ({mode}) session...\n\n\
              The session will be rendered as static HTML and uploaded to a GitHub Gist.\n\
              This requires the `gh` CLI to be installed and authenticated."
-        ),
+        )
+    };
+    CommandResult::with_message_and_action(
+        hint,
         AppAction::ShareSession {
             history_len,
             model: model.clone(),
             mode: mode.to_string(),
+            local,
         },
     )
 }
@@ -69,8 +84,21 @@ fn do_share(app: &mut App) -> CommandResult {
 /// Actually perform the share export.
 ///
 /// This is called from the engine after receiving the `ShareSession` action.
-/// It renders the session as HTML and uploads it via `gh gist create`.
-pub async fn perform_share(history_json: &str, model: &str, mode: &str) -> Result<String, String> {
+/// When `local` is true the session is written to a local Markdown file and
+/// its path is returned; otherwise it is rendered as HTML and uploaded via
+/// `gh gist create`, returning the Gist URL.
+pub async fn perform_share(
+    history_json: &str,
+    model: &str,
+    mode: &str,
+    local: bool,
+) -> Result<String, String> {
+    if local {
+        let md = render_session_markdown(history_json, model, mode);
+        let path = write_local_markdown(&md)?;
+        return Ok(path.to_string_lossy().to_string());
+    }
+
     // Build HTML from the session data
     let html = render_session_html(history_json, model, mode);
 
@@ -141,6 +169,33 @@ fn html_escape(s: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
+}
+
+/// Render the session as a standalone Markdown document (used by `/share --local`).
+fn render_session_markdown(history_json: &str, model: &str, mode: &str) -> String {
+    let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
+    let mut out = String::new();
+    out.push_str("# mimofan Session\n\n");
+    out.push_str(&format!("**Model:** {model} · **Mode:** {mode}  \n"));
+    out.push_str(&format!("**Exported:** {timestamp}\n\n"));
+    out.push_str("---\n\n");
+    out.push_str("```json\n");
+    out.push_str(history_json);
+    out.push_str("\n```\n");
+    out
+}
+
+/// Write the Markdown export to a local file named after the current timestamp.
+fn write_local_markdown(md: &str) -> Result<PathBuf, String> {
+    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+    let filename = format!("mimofan-session-{stamp}.md");
+    let path = std::env::current_dir()
+        .map_err(|e| format!("Cannot resolve current directory: {e}"))?
+        .join(&filename);
+    let mut file = std::fs::File::create(&path).map_err(|e| format!("Failed to create {filename}: {e}"))?;
+    file.write_all(md.as_bytes())
+        .map_err(|e| format!("Failed to write {filename}: {e}"))?;
+    Ok(path)
 }
 
 /// Write HTML to a secure temp file and keep it alive for upload.

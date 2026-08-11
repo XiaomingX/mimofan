@@ -114,6 +114,8 @@ pub enum AppAction {
         history_len: usize,
         model: String,
         mode: String,
+        /// When true, export the session to a local file instead of uploading to a Gist.
+        local: bool,
     },
     /// Spec has been frozen (#557).
     SpecFrozen,
