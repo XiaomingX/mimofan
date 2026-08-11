@@ -165,3 +165,142 @@ impl WorkshopVariables {
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tools::spec::ToolResult;
+
+    fn ok_result(content: &str) -> ToolResult {
+        ToolResult::success(content)
+    }
+
+    fn fail_result(content: &str) -> ToolResult {
+        let mut r = ToolResult::success(content);
+        r.success = false;
+        r
+    }
+
+    // ── threshold_for ──────────────────────────────────────────────────────
+
+    #[test]
+    fn threshold_defaults_to_constant() {
+        let cfg = WorkshopConfig::default();
+        assert_eq!(cfg.threshold_for("any_tool"), DEFAULT_LARGE_OUTPUT_THRESHOLD_TOKENS);
+    }
+
+    #[test]
+    fn threshold_uses_global_override() {
+        let cfg = WorkshopConfig {
+            large_output_threshold_tokens: Some(100),
+            per_tool_thresholds: None,
+        };
+        assert_eq!(cfg.threshold_for("any_tool"), 100);
+    }
+
+    #[test]
+    fn per_tool_override_beats_global() {
+        let mut per_tool = HashMap::new();
+        per_tool.insert("grep".to_string(), 50);
+        let cfg = WorkshopConfig {
+            large_output_threshold_tokens: Some(100),
+            per_tool_thresholds: Some(per_tool),
+        };
+        assert_eq!(cfg.threshold_for("grep"), 50);
+        // Tools not in the map fall back to the global override.
+        assert_eq!(cfg.threshold_for("read"), 100);
+    }
+
+    // ── route ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn route_passes_small_output_through() {
+        let router = LargeOutputRouter::default();
+        // Short ASCII text is well under the 4 096-token default threshold.
+        let decision = router.route("read", &ok_result("hello world"), false);
+        assert_eq!(decision, RouteDecision::PassThrough);
+    }
+
+    #[test]
+    fn route_synthesises_large_output() {
+        let router = LargeOutputRouter::default();
+        // 2 000 repetitions of an 8-char line comfortably exceeds 4 096 tokens.
+        let big = "line data\n".repeat(2_000);
+        let decision = router.route("read", &ok_result(&big), false);
+        match decision {
+            RouteDecision::Synthesise {
+                estimated_tokens,
+                threshold,
+            } => {
+                assert!(estimated_tokens > threshold);
+                assert_eq!(threshold, DEFAULT_LARGE_OUTPUT_THRESHOLD_TOKENS);
+            }
+            RouteDecision::PassThrough => panic!("expected Synthesise for large output"),
+        }
+    }
+
+    #[test]
+    fn route_bypasses_on_raw_flag() {
+        let router = LargeOutputRouter::default();
+        let big = "line data\n".repeat(2_000);
+        // Even when over threshold, raw=true must pass through unchanged.
+        let decision = router.route("read", &ok_result(&big), true);
+        assert_eq!(decision, RouteDecision::PassThrough);
+    }
+
+    #[test]
+    fn route_bypasses_on_failure() {
+        let router = LargeOutputRouter::default();
+        let big = "line data\n".repeat(2_000);
+        // Failed tool results are never synthesised.
+        let decision = router.route("read", &fail_result(&big), false);
+        assert_eq!(decision, RouteDecision::PassThrough);
+    }
+
+    #[test]
+    fn route_honors_per_tool_threshold() {
+        let mut per_tool = HashMap::new();
+        per_tool.insert("read".to_string(), 100); // per-tool limit of 100 tokens
+        let cfg = WorkshopConfig {
+            large_output_threshold_tokens: None,
+            per_tool_thresholds: Some(per_tool),
+        };
+        let router = LargeOutputRouter::new(cfg);
+        // A clearly over-100-token body must synthesise under the per-tool limit.
+        let big = "token data line\n".repeat(200);
+        let decision = router.route("read", &ok_result(&big), false);
+        assert!(matches!(decision, RouteDecision::Synthesise { .. }));
+    }
+
+    // ── wrap_synthesis ─────────────────────────────────────────────────────
+
+    #[test]
+    fn wrap_synthesis_includes_provenance() {
+        let wrapped = LargeOutputRouter::wrap_synthesis("grep", "summary text", 1234, 4096);
+        assert!(wrapped.contains("tool=grep"));
+        assert!(wrapped.contains("raw_tokens≈1234"));
+        assert!(wrapped.contains("threshold=4096"));
+        assert!(wrapped.contains(WORKSHOP_LAST_TOOL_RESULT_VAR));
+        assert!(wrapped.contains("summary text"));
+    }
+
+    // ── WorkshopVariables ──────────────────────────────────────────────────
+
+    #[test]
+    fn store_raw_records_tool_and_content() {
+        let mut vars = WorkshopVariables::default();
+        assert!(vars.last_tool_result.is_empty());
+        vars.store_raw("read", "big output body");
+        assert_eq!(vars.last_tool_result, "big output body");
+        assert_eq!(vars.last_tool_name, "read");
+    }
+
+    #[test]
+    fn store_raw_overwrites_previous() {
+        let mut vars = WorkshopVariables::default();
+        vars.store_raw("grep", "first");
+        vars.store_raw("read", "second");
+        assert_eq!(vars.last_tool_result, "second");
+        assert_eq!(vars.last_tool_name, "read");
+    }
+}
