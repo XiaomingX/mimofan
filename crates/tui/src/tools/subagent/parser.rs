@@ -250,6 +250,9 @@ pub(crate) fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolErr
     let fork_context =
         parse_optional_bool(input, &["fork_context", "forkContext", "inherit_context"])
             .unwrap_or(false);
+    let fork_turns =
+        parse_optional_positive_u64(input, &["fork_turns", "forkTurns", "window_turns"])?
+            .map(|n| n as usize);
     let max_depth = input
         .get("max_depth")
         .or_else(|| input.get("maxDepth"))
@@ -293,6 +296,7 @@ pub(crate) fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolErr
         worktree,
         resident_file,
         fork_context,
+        fork_turns,
         max_depth,
         token_budget,
         custom_agent_def,

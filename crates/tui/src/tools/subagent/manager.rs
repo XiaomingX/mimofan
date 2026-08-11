@@ -888,6 +888,7 @@ impl SubAgentManager {
             assignment,
             allowed_tools: tools,
             fork_context: options.fork_context,
+            fork_turns: options.fork_turns,
             started_at,
             max_steps,
             token_budget: options.token_budget,
