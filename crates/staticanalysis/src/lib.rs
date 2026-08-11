@@ -41,7 +41,12 @@ impl Language {
         } else if lower.ends_with(".m") && !lower.ends_with(".ts") {
             Language::ObjectiveC
         } else {
-            Language::Rust
+            // Unknown extension: do NOT silently fall back to Rust (that would
+            // parse e.g. a `.py` file as Rust and return wrong results). Surface
+            // `Auto` so the query path returns an explicit `Unsupported` error
+            // instead of a silent misparse. Grammar coverage beyond Rust is
+            // tracked in #586 / #715.
+            Language::Auto
         }
     }
 
@@ -141,15 +146,12 @@ pub fn named_query(key: &str) -> Option<&'static str> {
   function: [(identifier) @fn (#match? @fn \"exec$\")]) @call",
         // Rust: detect `unsafe` blocks.
         "rust.unsound.unsafe_block" => "(unsafe_block) @blk",
-        // Java: Runtime.exec family (the classic command-injection sink).
-        "java.sink.runtime_exec" => "(method_invocation
-  object: (identifier) @obj
-  name: (identifier) @m
-  (#eq? @m \"exec\")) @call",
-        // Java: @RequestMapping with a raw SQL string concatenation nearby.
-        "java.sink.sql_concat" => "(binary_expression
-  left: (string_literal) @l
-  operator: \"+\") @expr",
+        // NOTE: Java presets (`java.sink.runtime_exec`, `java.sink.sql_concat`)
+        // were removed: their grammars are not compiled (only `lang-rust` is
+        // enabled, see Cargo.toml), so invoking them always returns
+        // `AstError::Unsupported`. Leaving them in this table implied they were
+        // usable and misled the model. Re-add them once the Java/TS/Kotlin/Swift
+        // grammars land (tracked in #586 / #715).
         _ => return None,
     };
     Some(q)
