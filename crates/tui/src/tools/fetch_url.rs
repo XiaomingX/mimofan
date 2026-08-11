@@ -290,7 +290,10 @@ impl ToolSpec for FetchUrlTool {
 /// Check if an IP address is loopback, private, link-local, cloud-metadata,
 /// multicast, or reserved — all addresses that should not be reachable via
 /// an LLM-initiated fetch_url request (SSRF prevention).
-fn is_restricted_ip(ip: &std::net::IpAddr) -> bool {
+///
+/// Shared with `tools::browser` so browser automation reuses the exact same
+/// SSRF guard as `fetch_url` (issue #743).
+pub(crate) fn is_restricted_ip(ip: &std::net::IpAddr) -> bool {
     match ip {
         std::net::IpAddr::V4(v4) => {
             v4.is_loopback()
@@ -389,6 +392,55 @@ async fn validate_fetch_target(
         ));
     };
     Ok(Some((host, validated_ip)))
+}
+
+/// Resolve a URL host and reject SSRF-restricted addresses. Shared by network
+/// tools (browser automation, #743) so they apply the same guard as `fetch_url`.
+/// Returns the first resolved, non-restricted IP, or a `ToolError` if blocked.
+pub(crate) async fn resolve_and_check_target(url: &reqwest::Url) -> Result<std::net::IpAddr, ToolError> {
+    if url.scheme() != "http" && url.scheme() != "https" {
+        return Err(ToolError::invalid_input(
+            "only http:// and https:// URLs are supported",
+        ));
+    }
+    let host = url
+        .host_str()
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| ToolError::invalid_input("URL must include a host"))?;
+    if host == "localhost" || host == "localhost.localdomain" {
+        return Err(ToolError::permission_denied(
+            "requests to localhost are not allowed",
+        ));
+    }
+    let ip_candidate = host
+        .strip_prefix('[')
+        .and_then(|s| s.strip_suffix(']'))
+        .unwrap_or(host.as_str());
+    if let Ok(ip) = ip_candidate.parse::<std::net::IpAddr>() {
+        if is_restricted_ip(&ip) {
+            return Err(ToolError::permission_denied(format!(
+                "IP {ip} is a restricted address (private/loopback/link-local)"
+            )));
+        }
+        return Ok(ip);
+    }
+    let addrs = tokio::net::lookup_host((host.as_str(), 0u16))
+        .await
+        .map_err(|e| {
+            ToolError::permission_denied(format!("could not resolve host before request: {e}"))
+        })?;
+    for addr in addrs {
+        if is_restricted_ip(&addr.ip()) {
+            return Err(ToolError::permission_denied(format!(
+                "resolved IP {} for {host} is a restricted address",
+                addr.ip()
+            )));
+        }
+        return Ok(addr.ip());
+    }
+    Err(ToolError::permission_denied(
+        "host resolved to no addresses",
+    ))
 }
 
 fn validate_network_policy(host: &str, context: &ToolContext) -> Result<(), ToolError> {

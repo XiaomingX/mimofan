@@ -742,6 +742,7 @@ impl ToolRegistryBuilder {
     /// NOT gated behind the web-search feature.
     #[must_use]
     pub fn with_web_tools(self) -> Self {
+        use super::browser::BrowserTool;
         use super::dev_server_readiness::WaitForDevServerTool;
         use super::fetch_url::FetchUrlTool;
         use super::web_run::WebRunTool;
@@ -750,6 +751,7 @@ impl ToolRegistryBuilder {
             .with_tool(Arc::new(FetchUrlTool))
             .with_tool(Arc::new(WaitForDevServerTool))
             .with_tool(Arc::new(WebRunTool))
+            .with_tool(Arc::new(BrowserTool))
     }
 
     /// Include the `finance` market-data tool.
