@@ -8,7 +8,7 @@
 //! `update_goal` with `status: "complete"`.
 
 use crate::commands::traits::{CommandInfo, RegisterCommand};
-use crate::localization::{MessageId, tr};
+use crate::localization::MessageId;
 use crate::tui::app::{App, AppAction, HuntVerdict};
 use crate::tools::goal::{GoalStatus, LoopConfig};
 use crate::automation_manager::CreateAutomationRequest;
