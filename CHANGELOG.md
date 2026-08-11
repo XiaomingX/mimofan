@@ -2,6 +2,22 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.17] - 2026-08-11
+
+本轮（LoopX 续作）补齐研究编排范式全链路命令壳与 GitHub 共同作者署名。
+
+### Added
+- **可机评优化回路 `/evolve`（[#751](https://github.com/XiaomingX/mimofan/issues/751)）**：新增 `/evolve <goal>` 命令（别名 `/optimize`），进入 Agent 模式运行优化回路——锁定 baseline + evaluator（`evolve::lock_baseline`，拒绝覆盖、防篡改）、派发候选、由外部 evaluator 程序裁决 `valid && improved`（`evolve::run_evaluator_on` / `EvaluatorOutput::is_winner`）、胜出者经 `evolve::record_candidate` 留痕并作为下一轮父本。evaluator 拥有正确性，代理不自我报分。
+- **可复现性纪律 `/repro`（[#754](https://github.com/XiaomingX/mimofan/issues/754)）**：新增 `/repro <brief>` 命令（别名 `/reproducibility` `/brief`），固化 `BRIEF.md` 唯一事实源 + `env_snapshot.json` 环境快照（rust/python 版本与依赖锁哈希）+ `provenance.jsonl` 起点留痕（`repro::write_brief` / `snapshot_env` / `record_provenance`），默认零行为变更。
+- **研究成果物汇总 `/artifact`（[#750](https://github.com/XiaomingX/mimofan/issues/750)）**：新增 `/artifact <initiative_id> [--publish]` 命令（别名 `/publish`），进入 Agent 模式调用 `research_artifact::ArtifactInput::build` 汇总到 `initiatives/<id>/`（README.md + provenance.json）。`--publish` 走研究副作用闸门（[#753](https://github.com/XiaomingX/mimofan/issues/753)），`PublishRemote` 默认需显式授权，Auto 不自动推远程。
+- **独立评审者 `/reviewer`（[#752](https://github.com/XiaomingX/mimofan/issues/752)）**：新增 `/reviewer [<initiative_id>]` 命令（别名 `/review`），只读审核 claim，调用 `reviewer::review` / `accepted_only` 下 Accepted/Rejected/Weak 判定（被反驳直接 Rejected；Strong 且未反驳 / Medium 有复现步骤且未反驳 → Accepted），作为 `/artifact` 公开章节的前置门。
+- **GitHub 共同作者署名（对标 Claude Code `includeCoAuthoredBy`）**：`git_commit` 工具默认在 commit message 末尾追加 mimofan 共同作者 trailer（`🤖 Generated with [mimofan]` + `Co-Authored-By: mimofan <noreply@xiaoming.com>`），新增 `co_authored_by` 参数（默认 `true`，可关闭），并防重复追加（amend 安全）。GitHub 据此把 mimofan 显示为 co-author，真实 committer 不变。
+
+### Docs
+- 新增 `docs/NEW_CAPABILITIES_GUIDE.md`，介绍 `/evolve` `/repro` `/artifact` `/reviewer` 与 GitHub 共同作者署名的使用方法与配置方式。
+
+[0.0.17]: https://github.com/XiaomingX/mimofan/compare/v0.0.16...v0.0.17
+
 ## [0.0.16] - 2026-08-11
 
 本轮（LoopX 续作）落地代码库语义索引能力，补齐离线代码检索基础设施。

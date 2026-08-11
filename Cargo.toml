@@ -21,7 +21,7 @@ default-members = ["crates/app-server", "crates/tui"]
 resolver = "2"
 
 [workspace.package]
-version = "0.0.16"
+version = "0.0.17"
 edition = "2024"
 # The codebase itself only needs 1.88 (`let_chains` in `if`/`while`
 # conditions, used extensively). The binding constraint comes from
