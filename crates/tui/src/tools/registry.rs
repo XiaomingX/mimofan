@@ -765,6 +765,13 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(FinanceTool::new()))
     }
 
+    /// Include the `insights` usage/cost analytics tool (issue #744).
+    #[must_use]
+    pub fn with_insights_tool(self) -> Self {
+        use super::insights::InsightsTool;
+        self.with_tool(Arc::new(InsightsTool))
+    }
+
     /// Register the `image_analyze` vision tool.
     /// Only registered when `[vision_model]` is configured in config.toml.
     #[must_use]
@@ -980,7 +987,8 @@ impl ToolRegistryBuilder {
             .with_notebook_tools()
             .with_pandoc_tools()
             .with_image_ocr_tools()
-            .with_finance_tool();
+            .with_finance_tool()
+            .with_insights_tool();
 
         if shell_policy.allows_shell() {
             builder.with_shell_tools().with_runtime_task_shell_tools()

@@ -31,6 +31,7 @@ pub mod github;
 pub mod goal;
 pub mod handle;
 pub mod image_ocr;
+pub mod insights;
 pub mod js_execution;
 pub mod large_output_router;
 pub mod lsp_symbols;
