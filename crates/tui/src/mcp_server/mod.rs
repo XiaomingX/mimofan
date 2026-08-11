@@ -107,15 +107,18 @@ impl McpServer {
             internal_names.insert(tool.internal.clone());
         }
 
-        let mut builder = ToolRegistryBuilder::new()
-            .with_file_tools()
-            .with_search_tools();
-
+        // Issue #746: expose the mimofan agent tool surface to external MCP
+        // clients. Defaults to read-only (no shell) so clients get file/search/
+        // git/LSP/diagnostics without arbitrary command execution; shell tools
+        // are added only when the configured exposed-tools list opts in.
+        let shell_policy = if internal_names.contains("exec_shell") {
+            crate::worker_profile::ShellPolicy::Full
+        } else {
+            crate::worker_profile::ShellPolicy::ReadOnly
+        };
+        let mut builder = ToolRegistryBuilder::new().with_agent_tools_policy(shell_policy);
         if internal_names.contains("apply_patch") {
             builder = builder.with_patch_tools();
-        }
-        if internal_names.contains("exec_shell") {
-            builder = builder.with_shell_tools();
         }
 
         let context = ToolContext::new(workspace.clone());
@@ -591,4 +594,54 @@ fn respond_error(id: Option<&Value>, code: i64, message: String) -> Option<Value
 struct RpcError {
     code: i64,
     message: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    fn test_server() -> McpServer {
+        let settings = McpServerSettings {
+            expose_tools: default_expose_tools(),
+            require_approval: false,
+        };
+        let backend: Box<dyn McpBackend> = Box::new(RealMcpBackend);
+        // Use a throwaway temp dir as the workspace so file_read targets a
+        // known location.
+        let workspace = std::env::temp_dir().join(format!("mimofan_mcp_test_{}", std::process::id()));
+        std::fs::create_dir_all(&workspace).unwrap();
+        McpServer::new(workspace, settings, backend).unwrap()
+    }
+
+    #[test]
+    fn tools_list_includes_file_read() {
+        let server = test_server();
+        let resp = server.list_tools_response();
+        let tools = resp.get("tools").and_then(Value::as_array).expect("tools array");
+        let names: Vec<&str> = tools
+            .iter()
+            .filter_map(|t| t.get("name").and_then(Value::as_str))
+            .collect();
+        assert!(names.contains(&"file_read"), "tools/list must expose file_read, got {names:?}");
+    }
+
+    #[tokio::test]
+    async fn tools_call_executes_file_read() {
+        let server = test_server();
+        let target = server.workspace.join("hello.txt");
+        {
+            let mut f = std::fs::File::create(&target).unwrap();
+            f.write_all(b"reverse-mcp-ok").unwrap();
+        }
+        let result = server
+            .registry
+            .execute(
+                "read_file",
+                json!({ "path": target.to_string_lossy() }),
+            )
+            .await
+            .expect("read_file executes");
+        assert!(result.contains("reverse-mcp-ok"), "file content returned, got {result}");
+    }
 }

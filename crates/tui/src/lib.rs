@@ -417,8 +417,12 @@ pub async fn run() -> Result<()> {
                 cli_commands::run_auth_command(&mut store, args.command)
             }
             Commands::McpServer => {
-                let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;
-                cli_commands::run_mcp_server_command(&mut store)
+                // Reverse MCP server: expose mimofan's own tools (file/read,
+                // search, shell, etc.) to external MCP clients over stdio.
+                // See issue #746 — previously this arm wrongly invoked the
+                // forward-facing MCP *definition* manager.
+                let workspace = resolve_workspace(&cli);
+                crate::mcp_server::run_mcp_server(workspace)
             }
             Commands::Config(args) => {
                 let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;

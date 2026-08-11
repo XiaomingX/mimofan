@@ -21,7 +21,6 @@ use mimofan_app_server::{
 use mimofan_config::{
     CliRuntimeOverrides, ConfigStore, ProviderKind, ResolvedRuntimeOptions, RuntimeApiKeySource,
 };
-use mimofan_mcp::{McpServerDefinition, run_stdio_server};
 use mimofan_secrets::Secrets;
 use mimofan_state::{StateStore, ThreadListFilters};
 
@@ -244,8 +243,6 @@ pub(crate) struct InstallDepsArgs {
 }
 
 // ── Helper functions ────────────────────────────────────────────────────────
-
-const MCP_SERVER_DEFINITIONS_KEY: &str = "mcp.server_definitions";
 
 pub(crate) fn install_rustls_crypto_provider() {
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -726,50 +723,14 @@ pub(crate) fn app_server_token_from_env() -> Option<String> {
 
 // ── MCP Server command implementation ───────────────────────────────────────
 
-pub(crate) fn run_mcp_server_command(store: &mut ConfigStore) -> Result<()> {
-    let persisted = load_mcp_server_definitions(store);
-    let updated = run_stdio_server(persisted)?;
-    persist_mcp_server_definitions(store, &updated)
-}
-
-pub(crate) fn load_mcp_server_definitions(store: &ConfigStore) -> Vec<McpServerDefinition> {
-    let Some(raw) = store.config.get_value(MCP_SERVER_DEFINITIONS_KEY) else {
-        return Vec::new();
-    };
-
-    match parse_mcp_server_definitions(&raw) {
-        Ok(definitions) => definitions,
-        Err(err) => {
-            eprintln!(
-                "warning: failed to parse persisted MCP server definitions ({MCP_SERVER_DEFINITIONS_KEY}): {err}"
-            );
-            Vec::new()
-        }
-    }
-}
-
-pub(crate) fn parse_mcp_server_definitions(raw: &str) -> Result<Vec<McpServerDefinition>> {
-    if let Ok(parsed) = serde_json::from_str::<Vec<McpServerDefinition>>(raw) {
-        return Ok(parsed);
-    }
-
-    let unwrapped: String = serde_json::from_str(raw)
-        .with_context(|| format!("invalid JSON payload at key {MCP_SERVER_DEFINITIONS_KEY}"))?;
-    serde_json::from_str::<Vec<McpServerDefinition>>(&unwrapped).with_context(|| {
-        format!("invalid MCP server definition list in key {MCP_SERVER_DEFINITIONS_KEY}")
-    })
-}
-
-pub(crate) fn persist_mcp_server_definitions(
-    store: &mut ConfigStore,
-    definitions: &[McpServerDefinition],
-) -> Result<()> {
-    let encoded =
-        serde_json::to_string(definitions).context("failed to encode MCP server definitions")?;
-    store
-        .config
-        .set_value(MCP_SERVER_DEFINITIONS_KEY, &encoded)?;
-    store.save()
+pub(crate) fn run_mcp_server_command(_store: &mut ConfigStore) -> Result<()> {
+    // NOTE: The reverse MCP server (exposing mimofan's own tools) is now wired
+    // to `Commands::McpServer` in lib.rs, which calls `crate::mcp_server::run_mcp_server`.
+    // The previous interactive forward-facing definition manager that lived here
+    // was removed as dead code (issue #746 corrected the wiring).
+    bail!(
+        "Use `mimofan mcp-server` to start the reverse MCP server, or `mimofan mcp` for forward MCP client management."
+    )
 }
 
 // ── Login command implementation ────────────────────────────────────────────
