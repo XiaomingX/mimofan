@@ -26,6 +26,7 @@ mod acp_server;
 mod artifacts;
 mod audit;
 mod auto_reasoning;
+mod auto_classifier;
 mod automation_manager;
 mod child_env;
 pub mod cli_commands;
