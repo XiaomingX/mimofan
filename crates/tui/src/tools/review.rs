@@ -790,3 +790,246 @@ fn parse_pr_url(url: &str) -> Option<PullRequestRef> {
         number: (*number).to_string(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_output(summary: &str) -> ReviewOutput {
+        ReviewOutput {
+            summary: summary.to_string(),
+            issues: Vec::new(),
+            security_issues: Vec::new(),
+            suggestions: Vec::new(),
+            overall_assessment: String::new(),
+        }
+    }
+
+    // ── ReviewOutput::from_str ──────────────────────────────────────────────
+
+    #[test]
+    fn from_str_parses_well_formed_json() {
+        let raw = r#"{
+            "summary": "looks fine",
+            "issues": [{"severity": "ERROR", "title": "  leak  ", "description": "x"}],
+            "overall_assessment": "ship it"
+        }"#;
+        let out = ReviewOutput::from_str(raw);
+        assert_eq!(out.summary, "looks fine");
+        assert_eq!(out.issues.len(), 1);
+        // normalize() lowercases+trims severity and trims title.
+        assert_eq!(out.issues[0].severity, "error");
+        assert_eq!(out.issues[0].title, "leak");
+        assert_eq!(out.overall_assessment, "ship it");
+    }
+
+    #[test]
+    fn from_str_extracts_json_block_from_markdown() {
+        let raw = "Here is the review:\n```json\n{\"summary\":\"ok\",\"issues\":[]}\n```\n";
+        let out = ReviewOutput::from_str(raw);
+        assert_eq!(out.summary, "ok");
+        assert!(out.issues.is_empty());
+    }
+
+    #[test]
+    fn from_str_falls_back_on_garbage() {
+        let out = ReviewOutput::from_str("not json at all");
+        assert!(out.issues.is_empty());
+        assert!(out.summary.contains("not json at all"));
+    }
+
+    #[test]
+    fn from_str_fallback_on_empty_is_explanatory() {
+        let out = ReviewOutput::from_str("   ");
+        assert!(out.summary.contains("no structured output"));
+    }
+
+    // ── build_review_receipt ────────────────────────────────────────────────
+
+    #[test]
+    fn receipt_marks_unresolved_when_issues_present() {
+        let output = ReviewOutput {
+            summary: "s".into(),
+            issues: vec![ReviewIssue {
+                severity: "warning".into(),
+                title: "t".into(),
+                description: "d".into(),
+                path: None,
+                line: None,
+            }],
+            security_issues: Vec::new(),
+            suggestions: Vec::new(),
+            overall_assessment: String::new(),
+        };
+        let receipt = build_review_receipt(
+            "src/foo.rs",
+            "diff text",
+            "deepseek",
+            "deepseek-chat",
+            &output,
+            "review content",
+            vec![],
+        );
+        assert!(receipt.unresolved_risk.unresolved);
+        assert_eq!(receipt.unresolved_risk.level, "warning");
+        assert_eq!(receipt.findings.issue_count, 1);
+        assert_eq!(receipt.findings.highest_severity, "warning");
+    }
+
+    #[test]
+    fn receipt_no_risk_when_no_issues() {
+        let output = empty_output("s");
+        let receipt = build_review_receipt(
+            "src/foo.rs",
+            "diff text",
+            "deepseek",
+            "deepseek-chat",
+            &output,
+            "review content",
+            vec![],
+        );
+        assert!(!receipt.unresolved_risk.unresolved);
+        assert_eq!(receipt.unresolved_risk.level, "none");
+    }
+
+    #[test]
+    fn receipt_highest_severity_picks_max() {
+        let mut issues = vec![
+            ReviewIssue {
+                severity: "info".into(),
+                title: "a".into(),
+                description: String::new(),
+                path: None,
+                line: None,
+            },
+            ReviewIssue {
+                severity: "error".into(),
+                title: "b".into(),
+                description: String::new(),
+                path: None,
+                line: None,
+            },
+            ReviewIssue {
+                severity: "warning".into(),
+                title: "c".into(),
+                description: String::new(),
+                path: None,
+                line: None,
+            },
+        ];
+        // ReviewOutput::from_str normalizes; build directly so severity stays as given.
+        let output = ReviewOutput {
+            summary: "s".into(),
+            issues: std::mem::take(&mut issues),
+            security_issues: Vec::new(),
+            suggestions: Vec::new(),
+            overall_assessment: String::new(),
+        };
+        let receipt = build_review_receipt(
+            "f",
+            "d",
+            "p",
+            "m",
+            &output,
+            "c",
+            vec![],
+        );
+        assert_eq!(receipt.findings.highest_severity, "error");
+    }
+
+    // ── diff_fingerprint ────────────────────────────────────────────────────
+
+    #[test]
+    fn diff_fingerprint_is_stable_sha256() {
+        let a = diff_fingerprint("hello");
+        let b = diff_fingerprint("hello");
+        assert_eq!(a, b);
+        assert!(a.starts_with("sha256:"));
+        assert_ne!(diff_fingerprint("world"), a);
+    }
+
+    // ── validate_review_receipt_for_diff ────────────────────────────────────
+
+    fn sample_receipt(diff: &str) -> ReviewReceipt {
+        build_review_receipt(
+            "f",
+            diff,
+            "p",
+            "m",
+            &empty_output("s"),
+            "c",
+            vec![ReviewReceiptCheck {
+                name: "fmt".into(),
+                status: "passed".into(),
+            }],
+        )
+    }
+
+    #[test]
+    fn validate_passes_for_matching_clean_receipt() {
+        let diff = "some diff";
+        let receipt = sample_receipt(diff);
+        let v = validate_review_receipt_for_diff(diff, &receipt, None);
+        assert!(v.passed);
+    }
+
+    #[test]
+    fn validate_fails_on_schema_mismatch() {
+        let diff = "some diff";
+        let mut receipt = sample_receipt(diff);
+        receipt.schema_version = REVIEW_RECEIPT_SCHEMA_VERSION + 1;
+        let v = validate_review_receipt_for_diff(diff, &receipt, None);
+        assert!(!v.passed);
+        assert!(v.reason.contains("schema version"));
+    }
+
+    #[test]
+    fn validate_fails_on_diff_fingerprint_mismatch() {
+        let receipt = sample_receipt("original diff");
+        let v = validate_review_receipt_for_diff("different diff", &receipt, None);
+        assert!(!v.passed);
+        assert!(v.reason.contains("fingerprint"));
+    }
+
+    #[test]
+    fn validate_fails_when_risk_unresolved() {
+        let diff = "some diff";
+        let output = ReviewOutput {
+            summary: "s".into(),
+            issues: vec![ReviewIssue {
+                severity: "error".into(),
+                title: "t".into(),
+                description: String::new(),
+                path: None,
+                line: None,
+            }],
+            security_issues: Vec::new(),
+            suggestions: Vec::new(),
+            overall_assessment: String::new(),
+        };
+        let receipt = build_review_receipt("f", diff, "p", "m", &output, "c", vec![]);
+        let v = validate_review_receipt_for_diff(diff, &receipt, None);
+        assert!(!v.passed);
+        assert!(receipt.unresolved_risk.unresolved);
+    }
+
+    #[test]
+    fn validate_fails_when_check_not_passed() {
+        let diff = "some diff";
+        let receipt = build_review_receipt(
+            "f",
+            diff,
+            "p",
+            "m",
+            &empty_output("s"),
+            "c",
+            vec![ReviewReceiptCheck {
+                name: "fmt".into(),
+                status: "failed".into(),
+            }],
+        );
+        let v = validate_review_receipt_for_diff(diff, &receipt, None);
+        assert!(!v.passed);
+        assert!(v.reason.contains("fmt"));
+    }
+}
