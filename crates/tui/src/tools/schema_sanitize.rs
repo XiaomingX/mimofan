@@ -319,6 +319,150 @@ pub fn sanitize_for_kimi(schema: &mut serde_json::Value) {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn collapses_nullable_anyof_union() {
+        let mut schema = json!({
+            "type": "object",
+            "properties": {
+                "name": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+            }
+        });
+        sanitize(&mut schema);
+        let prop = &schema["properties"]["name"];
+        assert_eq!(prop["type"], json!("string"));
+        assert_eq!(prop["nullable"], json!(true));
+        assert!(!prop.as_object().unwrap().contains_key("anyOf"));
+    }
+
+    #[test]
+    fn injects_properties_on_bare_object() {
+        let mut schema = json!({"type": "object"});
+        sanitize(&mut schema);
+        assert_eq!(schema["properties"], json!({}));
+    }
+
+    #[test]
+    fn prunes_dangling_required() {
+        let mut schema = json!({
+            "type": "object",
+            "properties": {"a": {"type": "string"}},
+            "required": ["a", "ghost"]
+        });
+        sanitize(&mut schema);
+        let required = schema["required"].as_array().unwrap();
+        assert_eq!(required, &vec![json!("a")]);
+    }
+
+    #[test]
+    fn collapses_single_element_oneof() {
+        let mut schema = json!({
+            "type": "object",
+            "properties": {
+                "x": {"oneOf": [{"type": "string"}]}
+            }
+        });
+        sanitize(&mut schema);
+        assert_eq!(schema["properties"]["x"]["type"], json!("string"));
+        assert!(!schema["properties"]["x"].as_object().unwrap().contains_key("oneOf"));
+    }
+
+    #[test]
+    fn strict_mode_adds_additional_properties_false() {
+        let mut schema = json!({
+            "type": "object",
+            "properties": {
+                "a": {"type": "string"},
+                "b": {"type": "number"}
+            },
+            "required": ["a"]
+        });
+        sanitize_for_strict(&mut schema);
+        assert_eq!(schema["additionalProperties"], json!(false));
+        // Every property must be listed in required under strict mode.
+        let required: Vec<&str> = schema["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert!(required.contains(&"a"));
+        assert!(required.contains(&"b"));
+    }
+
+    #[test]
+    fn strict_mode_marks_optional_nullable() {
+        let mut schema = json!({
+            "type": "object",
+            "properties": {"a": {"type": "string"}, "b": {"type": "number"}},
+            "required": ["a"]
+        });
+        sanitize_for_strict(&mut schema);
+        assert_eq!(schema["properties"]["b"]["nullable"], json!(true));
+    }
+
+    #[test]
+    fn kimi_pushes_type_into_anyof_items() {
+        let mut schema = json!({
+            "type": "object",
+            "anyOf": [
+                {"properties": {"x": {"type": "string"}}},
+                {"properties": {"y": {"type": "number"}}}
+            ]
+        });
+        sanitize_for_kimi(&mut schema);
+        // Parent `type` removed; each anyOf item gained `type: object`.
+        assert!(!schema.as_object().unwrap().contains_key("type"));
+        assert_eq!(schema["anyOf"][0]["type"], json!("object"));
+        assert_eq!(schema["anyOf"][1]["type"], json!("object"));
+    }
+
+    #[test]
+    fn kimi_parameters_ensures_root_type_object() {
+        let mut params = json!({
+            "properties": {"a": {"type": "string"}},
+            "required": ["a"]
+        });
+        sanitize_for_kimi_parameters(&mut params);
+        assert_eq!(params["type"], json!("object"));
+    }
+
+    #[test]
+    fn kimi_parameters_wraps_bare_ref() {
+        let mut params = json!({"$ref": "#/definitions/FileArgs"});
+        sanitize_for_kimi_parameters(&mut params);
+        assert_eq!(params["type"], json!("object"));
+        assert!(params["allOf"].as_array().unwrap()[0]["$ref"].is_string());
+    }
+
+    #[test]
+    fn prepare_tools_marks_known_strict() {
+        let mut tools = vec![Tool {
+            tool_type: None,
+            name: "t".into(),
+            description: "d".into(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {"a": {"type": "string"}},
+                "required": ["a"]
+            }),
+            allowed_callers: None,
+            defer_loading: None,
+            input_examples: None,
+            strict: None,
+            cache_control: None,
+        }];
+        let all = prepare_tools_for_strict_mode(&mut tools);
+        assert!(all);
+        assert_eq!(tools[0].strict, Some(true));
+        assert_eq!(tools[0].input_schema["additionalProperties"], json!(false));
+    }
+}
+
 /// Normalize a complete Kimi / Moonshot `function.parameters` object.
 ///
 /// Kimi / Moonshot requires `"type": "object"` on the parameters root

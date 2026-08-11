@@ -325,3 +325,99 @@ fn apply_patch_permission_paths(input: &Value) -> Vec<String> {
         .map(|preflight| preflight.touched_files)
         .unwrap_or_default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::ops::UserInputProvenance;
+    use crate::tui::app::AppMode;
+    use crate::tui::approval::ApprovalMode;
+
+    /// #677: privilege-escalation interception baseline.
+    ///
+    /// Any provenance other than `ExternalUser` must NOT be allowed to
+    /// authorise work. Concretely, the four auto-authority signals —
+    /// Yolo mode, `trust_mode`, `auto_approve`, and `ApprovalMode::Auto` —
+    /// must all be stripped when the input did not come from an external user.
+    /// This is a determinism contract: the same (provenance, flags) always
+    /// produces the same downgraded policy.
+
+    fn baseline_for(provenance: UserInputProvenance, mode: AppMode, trust: bool, auto: bool, am: ApprovalMode) -> EffectiveInputPolicy {
+        effective_input_policy(provenance, mode, "do something", true, trust, auto, am)
+    }
+
+    #[test]
+    fn external_user_retains_authority() {
+        let p = baseline_for(
+            UserInputProvenance::ExternalUser,
+            AppMode::Yolo,
+            true,
+            true,
+            ApprovalMode::Auto,
+        );
+        assert_eq!(p.mode, AppMode::Yolo);
+        assert!(p.trust_mode);
+        assert!(p.auto_approve);
+        assert_eq!(p.approval_mode, ApprovalMode::Auto);
+    }
+
+    #[test]
+    fn non_external_strips_yolo_mode() {
+        let p = baseline_for(
+            UserInputProvenance::Runtime,
+            AppMode::Yolo,
+            false,
+            false,
+            ApprovalMode::Suggest,
+        );
+        assert_eq!(p.mode, AppMode::Agent, "Yolo must downgrade to Agent");
+        assert!(!p.trust_mode);
+        assert!(!p.auto_approve);
+    }
+
+    #[test]
+    fn non_external_strips_trust_and_auto_approve() {
+        let p = baseline_for(
+            UserInputProvenance::SubAgentHandoff,
+            AppMode::Agent,
+            true,
+            true,
+            ApprovalMode::Suggest,
+        );
+        assert!(!p.trust_mode);
+        assert!(!p.auto_approve);
+    }
+
+    #[test]
+    fn non_external_downgrades_auto_approval_mode() {
+        let p = baseline_for(
+            UserInputProvenance::ImportedTranscript,
+            AppMode::Agent,
+            false,
+            false,
+            ApprovalMode::Auto,
+        );
+        assert_eq!(p.approval_mode, ApprovalMode::Suggest);
+    }
+
+    #[test]
+    fn every_non_external_provenance_is_denied_authority() {
+        // Exhaustively assert the invariant across all non-external variants.
+        for provenance in [
+            UserInputProvenance::Runtime,
+            UserInputProvenance::SubAgentHandoff,
+            UserInputProvenance::ImportedTranscript,
+            UserInputProvenance::MemoryRecall,
+            UserInputProvenance::AssistantGenerated,
+        ] {
+            let p = baseline_for(provenance, AppMode::Yolo, true, true, ApprovalMode::Auto);
+            assert!(
+                !matches!(p.mode, AppMode::Yolo)
+                    && !p.trust_mode
+                    && !p.auto_approve
+                    && p.approval_mode != ApprovalMode::Auto,
+                "provenance {provenance:?} must not retain auto-authority"
+            );
+        }
+    }
+}

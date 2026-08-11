@@ -214,3 +214,106 @@ impl ResultAggregator {
             .join(separator)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merge_prefers_later_value_for_same_key() {
+        let results = vec![
+            ("a".into(), "status: open".into()),
+            ("b".into(), "status: closed".into()),
+        ];
+        let out = ResultAggregator::aggregate(&AggregationStrategy::Merge, &results).output;
+        // The later value wins in a merge.
+        assert!(out.contains("status: closed"));
+        assert!(!out.contains("status: open"));
+    }
+
+    #[test]
+    fn first_returns_first_non_empty() {
+        let results = vec![
+            ("a".into(), "".into()),
+            ("b".into(), "answer is 42".into()),
+            ("c".into(), "ignored".into()),
+        ];
+        let out = ResultAggregator::aggregate(&AggregationStrategy::First, &results).output;
+        assert_eq!(out, "answer is 42");
+    }
+
+    #[test]
+    fn vote_requires_quorum() {
+        let results = vec![
+            ("a".into(), "Paris".into()),
+            ("b".into(), "London".into()),
+            ("c".into(), "Paris".into()),
+        ];
+        // 2 of 3 agree on "Paris" but quorum=3 is not met.
+        let strict = ResultAggregator::aggregate(
+            &AggregationStrategy::Vote { quorum: 3 },
+            &results,
+        )
+        .output;
+        assert!(strict.contains("No consensus"));
+        // quorum=2 is met.
+        let reached = ResultAggregator::aggregate(
+            &AggregationStrategy::Vote { quorum: 2 },
+            &results,
+        )
+        .output;
+        assert_eq!(reached, "Paris");
+    }
+
+    #[test]
+    fn concatenate_joins_with_separator() {
+        let results = vec![
+            ("a".into(), "one".into()),
+            ("b".into(), "two".into()),
+        ];
+        let out = ResultAggregator::aggregate(
+            &AggregationStrategy::Concatenate {
+                separator: " | ".into(),
+            },
+            &results,
+        )
+        .output;
+        assert_eq!(out, "one | two");
+    }
+
+    #[test]
+    fn conflict_detector_finds_divergent_fields() {
+        let results = vec![
+            ("a".into(), "city: Paris\nyear: 2024".into()),
+            ("b".into(), "city: London\nyear: 2024".into()),
+        ];
+        let conflicts = ConflictDetector::detect(&results);
+        // `city` diverges; `year` agrees, so only one conflict.
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].field, "city");
+        assert_eq!(conflicts[0].values.len(), 2);
+        assert!(conflicts[0].resolution.is_none());
+    }
+
+    #[test]
+    fn conflict_detector_skips_agreement() {
+        let results = vec![
+            ("a".into(), "city: Paris".into()),
+            ("b".into(), "city: Paris".into()),
+        ];
+        assert!(ConflictDetector::detect(&results).is_empty());
+    }
+
+    #[test]
+    fn llm_aggregate_falls_back_to_concatenate() {
+        let results = vec![("a".into(), "part one".into())];
+        let out = ResultAggregator::aggregate(
+            &AggregationStrategy::LlmAggregate {
+                prompt: "summarize".into(),
+            },
+            &results,
+        )
+        .output;
+        assert_eq!(out, "part one");
+    }
+}

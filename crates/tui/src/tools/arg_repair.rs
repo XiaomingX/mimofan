@@ -179,3 +179,73 @@ fn strip_excess_closers(s: &str) -> String {
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn strict_parse_passthrough() {
+        let v = repair(r#"{"a":1,"b":"x"}"#).unwrap();
+        assert_eq!(v, json!({"a":1,"b":"x"}));
+    }
+
+    #[test]
+    fn empty_string_falls_back_to_object() {
+        // An empty string parses as nothing; the ladder falls back to `{}`.
+        let v = repair("").unwrap();
+        assert_eq!(v, json!({}));
+    }
+
+    #[test]
+    fn strips_trailing_comma_in_object() {
+        let v = repair(r#"{"a":1,"b":2,}"#).unwrap();
+        assert_eq!(v, json!({"a":1,"b":2}));
+    }
+
+    #[test]
+    fn strips_trailing_comma_in_array() {
+        let v = repair(r#"[1,2,3,]"#).unwrap();
+        assert_eq!(v, json!([1, 2, 3]));
+    }
+
+    #[test]
+    fn balances_unclosed_object() {
+        let v = repair(r#"{"a":1,"b":2"#).unwrap();
+        assert_eq!(v, json!({"a":1,"b":2}));
+    }
+
+    #[test]
+    fn balances_unclosed_array() {
+        let v = repair(r#"["x","y""#).unwrap();
+        assert_eq!(v, json!(["x", "y"]));
+    }
+
+    #[test]
+    fn strips_excess_closers() {
+        // More closers than openers: the ladder strips the extras.
+        let v = repair(r#"{"a":1}}}"#).unwrap();
+        assert_eq!(v, json!({"a":1}));
+    }
+
+    #[test]
+    fn strips_control_char_inside_string() {
+        // A literal control char (0x01) inside a string value is dropped.
+        let raw = "{\"a\":\"x\u{1}y\"}";
+        let v = repair(raw).unwrap();
+        assert_eq!(v, json!({"a":"xy"}));
+    }
+
+    #[test]
+    fn refuses_oversized_input() {
+        let big = "a".repeat(MAX_ARG_LEN + 1);
+        assert!(matches!(repair(&big), Err(ArgRepairError::TooLarge(_))));
+    }
+
+    #[test]
+    fn deeply_nested_unclosed_is_balanced() {
+        let v = repair(r#"{"outer":{"inner":[1,2"#).unwrap();
+        assert_eq!(v, json!({"outer":{"inner":[1,2]}}));
+    }
+}
