@@ -32,6 +32,8 @@ mod provider;
 mod research_cmd;
 mod evolve_cmd;
 mod repro_cmd;
+mod artifact_cmd;
+mod reviewer_cmd;
 pub mod queue;
 mod rlm;
 pub mod schedule;
@@ -195,6 +197,14 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 repro_cmd::ReproCmd::info(),
                 repro_cmd::ReproCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                artifact_cmd::ArtifactCmd::info(),
+                artifact_cmd::ArtifactCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                reviewer_cmd::ReviewerCmd::info(),
+                reviewer_cmd::ReviewerCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 translate::TranslateCmd::info(),

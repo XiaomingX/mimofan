@@ -86,6 +86,29 @@ pub fn requires_explicit_authorization(action: &str) -> bool {
     default_policy(class) != SideEffectPolicy::Allow
 }
 
+/// 端到端闸门建议：给定动作返回默认策略，以及一句话人类可读建议。
+/// 编排层（如 `/artifact --publish`）用它向用户解释为何需要授权。
+#[must_use]
+pub fn advice_for(action: &str) -> (SideEffectPolicy, String) {
+    let class = classify_action(action);
+    let policy = default_policy(class);
+    let advice = match policy {
+        SideEffectPolicy::Allow => {
+            format!("动作 {class:?} 默认自动放行（本地、零成本、非破坏）。")
+        }
+        SideEffectPolicy::AskUser => {
+            format!(
+                "动作 {class:?} 属于研究副作用类，默认需显式授权（Auto 不自动执行）。\
+                 请在交互 / yolo 模式下确认，或去掉该副作用只做本地部分。"
+            )
+        }
+        SideEffectPolicy::Deny => {
+            format!("动作 {class:?} 默认拒绝。")
+        }
+    };
+    (policy, advice)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,5 +157,20 @@ mod tests {
             ResearchActionClass::CredentialRead
         );
         assert!(requires_explicit_authorization("read-secret"));
+    }
+
+    #[test]
+    fn advice_for_publish_asks_with_human_text() {
+        let (policy, advice) = advice_for("--publish");
+        assert_eq!(policy, SideEffectPolicy::AskUser);
+        assert!(advice.contains("PublishRemote"));
+        assert!(advice.contains("需显式授权"));
+    }
+
+    #[test]
+    fn advice_for_local_safe_allows() {
+        let (policy, advice) = advice_for("cargo test");
+        assert_eq!(policy, SideEffectPolicy::Allow);
+        assert!(advice.contains("自动放行"));
     }
 }
