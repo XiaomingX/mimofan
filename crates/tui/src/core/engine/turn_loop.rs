@@ -1300,6 +1300,12 @@ impl Engine {
                 if let Some(status) = shell_completion_status_text(&shell_completions, "") {
                     let _ = self.tx_event.send(Event::status(status)).await;
                 }
+                // #696: inject a `<task-notification>` runtime event so the
+                // model sees the background job result, not just a UI status.
+                if let Some(notification) = shell_completion_notification_text(&shell_completions) {
+                    self.add_session_message(self.user_text_message_with_turn_metadata(notification))
+                        .await;
+                }
 
                 // Sub-agent completion handoff (issue #756). The model finished
                 // streaming with no tool calls — but if it has direct children
@@ -1454,6 +1460,14 @@ impl Engine {
                 if let Some(status) = shell_completion_status_text(&late_shell_completions, "late")
                 {
                     let _ = self.tx_event.send(Event::status(status)).await;
+                }
+                // #696: same completion-notification injection as the main
+                // drain site, for jobs that finished during the late check.
+                if let Some(notification) =
+                    shell_completion_notification_text(&late_shell_completions)
+                {
+                    self.add_session_message(self.user_text_message_with_turn_metadata(notification))
+                        .await;
                 }
 
                 if self.drain_subagent_completion_events("late").await > 0 {
@@ -2997,6 +3011,57 @@ fn shell_completion_status_text(
     Some(status)
 }
 
+/// Build a `<task-notification>` runtime event for finished background shell
+/// jobs, mirroring the sub-agent completion hand-off convention. This fulfils
+/// issue #696: a background command's completion must be injected into the
+/// conversation (not only shown as a transient status line) so the model can
+/// react to the result during idle time. Returns `None` when there is nothing
+/// to report.
+fn shell_completion_notification_text(
+    events: &[crate::tools::shell::ShellCompletionEvent],
+) -> Option<String> {
+    if events.is_empty() {
+        return None;
+    }
+
+    let mut body = String::new();
+    for event in events {
+        let status_word = match event.status {
+            crate::tools::shell::ShellStatus::Completed => "completed",
+            _ => "failed",
+        };
+        let exit = event
+            .exit_code
+            .map(|code| format!("exit={code}"))
+            .unwrap_or_else(|| "exit=<unknown>".to_string());
+        body.push_str(&format!(
+            "- task {} ({}) {} [{}]: {}\n",
+            event.task_id,
+            status_word,
+            exit,
+            truncate_runtime_status_field(&event.command, 120),
+            truncate_runtime_status_field(
+                &if event.stderr_tail.is_empty() {
+                    &event.stdout_tail
+                } else {
+                    &event.stderr_tail
+                },
+                200
+            ),
+        ));
+    }
+
+    Some(format!(
+        "<mimo:runtime_event kind=\"task_notification\" visibility=\"internal\">\n\
+This is an internal runtime event, not user input. It reports that one or more \
+background shell jobs you started have finished. Use the result below to decide \
+next steps (e.g. read artifacts, run follow-ups, or report to the user). Do not \
+tell the user they pasted sentinels, do not explain the sentinel protocol, and \
+do not quote the raw XML unless the user explicitly asks to debug internals.\n\n\
+{body}</mimo:runtime_event>"
+    ))
+}
+
 fn truncate_runtime_status_field(text: &str, max_chars: usize) -> String {
     let normalized = text.replace(['\n', '\r'], " ");
     let mut chars = normalized.chars();
@@ -3261,7 +3326,7 @@ fn is_turn_metadata_text(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::self_heal_hint;
+    use super::{self_heal_hint, shell_completion_notification_text};
 
     #[test]
     fn self_heal_hint_mentions_tool_name_and_category() {
@@ -3284,5 +3349,53 @@ mod tests {
         assert_ne!(a, b);
         assert!(a.contains("invalid_input"));
         assert!(b.contains("timeout"));
+    }
+
+    #[test]
+    fn shell_completion_notification_is_empty_when_no_events() {
+        assert!(shell_completion_notification_text(&[]).is_none());
+    }
+
+    #[test]
+    fn shell_completion_notification_reports_task_result() {
+        use crate::tools::shell::{ShellCompletionEvent, ShellStatus};
+        let event = ShellCompletionEvent {
+            task_id: "shell_ab12cd34".to_string(),
+            command: "cargo build".to_string(),
+            status: ShellStatus::Completed,
+            exit_code: Some(0),
+            duration_ms: 1234,
+            stdout_tail: "Compiling mimofan".to_string(),
+            stderr_tail: String::new(),
+            linked_task_id: None,
+            owner_agent_id: None,
+            owner_agent_name: None,
+        };
+        let text = shell_completion_notification_text(&[event]).expect("should produce text");
+        assert!(text.contains("kind=\"task_notification\""), "must be a task-notification event");
+        assert!(text.contains("shell_ab12cd34"), "must name the task id");
+        assert!(text.contains("exit=0"), "must report exit code");
+        assert!(text.contains("cargo build"), "must name the command");
+        assert!(text.contains("Compiling mimofan"), "must include output tail");
+    }
+
+    #[test]
+    fn shell_completion_notification_prefers_stderr_tail_on_failure() {
+        use crate::tools::shell::{ShellCompletionEvent, ShellStatus};
+        let event = ShellCompletionEvent {
+            task_id: "shell_ff".to_string(),
+            command: "false".to_string(),
+            status: ShellStatus::Failed,
+            exit_code: Some(1),
+            duration_ms: 1,
+            stdout_tail: String::new(),
+            stderr_tail: "boom".to_string(),
+            linked_task_id: None,
+            owner_agent_id: None,
+            owner_agent_name: None,
+        };
+        let text = shell_completion_notification_text(&[event]).expect("should produce text");
+        assert!(text.contains("failed"), "failed status must be labelled");
+        assert!(text.contains("boom"), "stderr tail should be surfaced on failure");
     }
 }
