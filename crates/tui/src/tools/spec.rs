@@ -869,11 +869,12 @@ impl ToolContext {
             self.workspace.join(raw)
         };
 
-        // In trust mode, allow any path without validation
-        if self.trust_mode {
-            // Still try to canonicalize for consistency, but don't require it
-            return Ok(candidate.canonicalize().unwrap_or(candidate));
-        }
+        // NOTE: trust mode only bypasses the *approval prompt* — it must NOT
+        // bypass workspace boundary validation. Decoupling "skip confirmation"
+        // from "skip path sandbox" prevents a信任模式 session from reading or
+        // writing arbitrary filesystem locations (e.g. /etc/shadow, ~/.ssh).
+        // The escape check below (and the trusted-external-path allowlist) runs
+        // unconditionally regardless of `trust_mode`.
 
         // Try to canonicalize the workspace
         let workspace_canonical = self
@@ -1243,6 +1244,51 @@ pub trait ToolSpec: Send + Sync {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trust_mode_still_enforces_workspace_boundary() {
+        // Regression for #733: trust mode must only skip the approval prompt,
+        // never the workspace path sandbox. An absolute path outside the
+        // workspace (e.g. /etc/passwd) must be rejected even in trust mode.
+        let dir = tempfile::TempDir::new().unwrap();
+        // Canonicalize the workspace root: on macOS `/var` is a symlink to
+        // `/private/var`, and `resolve_path` compares canonicalized paths.
+        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let ctx = ToolContext::new(ws.clone()).with_trust_mode(true);
+
+        let result = ctx.resolve_path("/etc/passwd");
+        assert!(
+            matches!(result, Err(ToolError::PathEscape { .. })),
+            "trust mode must not bypass path boundary validation, got {:?}",
+            result
+        );
+
+        // A relative path inside the workspace still resolves normally.
+        let inside = ctx.resolve_path("README.md").unwrap();
+        assert!(inside.starts_with(&ws));
+    }
+
+    #[test]
+    fn trust_mode_allows_trusted_external_path() {
+        // Trusted external roots (added via `/trust`) remain reachable in
+        // trust mode — the allowlist is independent of the boundary check.
+        let dir = tempfile::TempDir::new().unwrap();
+        let trusted = tempfile::TempDir::new().unwrap();
+        // The allowlist is compared against canonicalized candidate paths, so
+        // push the canonical root (macOS `/var` -> `/private/var`).
+        let trusted_root = trusted
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| trusted.path().to_path_buf());
+        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let mut ctx = ToolContext::new(ws).with_trust_mode(true);
+        ctx.trusted_external_paths.push(trusted_root.clone());
+
+        let inside = ctx
+            .resolve_path(trusted_root.join("x.txt").to_str().unwrap())
+            .unwrap();
+        assert!(inside.starts_with(&trusted_root));
+    }
 
     fn identity() -> FileIdentity {
         FileIdentity {
