@@ -320,6 +320,12 @@ async fn spawn_subagent_from_input(
         child_runtime.max_spawn_depth = child_runtime.spawn_depth.saturating_add(max_depth);
     }
     if let Some(workspace) = child_workspace {
+        // When the workspace is an isolated git worktree, record its path so the
+        // manager can `git worktree remove` it on teardown and stop the checkout
+        // (and its branch / .git metadata) from leaking (#691).
+        if spawn_request.worktree.is_some() {
+            child_runtime.worktree_path = Some(workspace.clone());
+        }
         child_runtime.context.workspace = workspace;
     }
     let configured_model = match spawn_request.model.clone() {

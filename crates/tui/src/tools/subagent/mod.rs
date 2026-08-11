@@ -303,6 +303,11 @@ pub struct SubAgentRuntime {
     /// Shared task-claim manager, attached from the parent manager so
     /// sub-agents can coordinate exclusive task ownership (#699).
     pub task_claims: Option<SharedTaskClaimManager>,
+    /// When this runtime was spawned with `worktree: true`, the isolated
+    /// worktree path created for the child. `None` for non-worktree spawns.
+    /// The manager uses this to `git worktree remove` the checkout on agent
+    /// teardown so sub-agent worktrees do not leak (#691).
+    pub worktree_path: Option<PathBuf>,
 }
 
 impl SubAgentRuntime {
@@ -345,6 +350,7 @@ impl SubAgentRuntime {
             todos: crate::tools::todo::new_shared_todo_list(),
             bus: None,
             task_claims: None,
+            worktree_path: None,
         }
     }
 
@@ -524,6 +530,10 @@ impl SubAgentRuntime {
             todos: self.todos.clone(),
             bus: self.bus.clone(),
             task_claims: self.task_claims.clone(),
+            // A child runtime does NOT inherit the parent's worktree path: each
+            // `worktree: true` spawn sets its own path in `spawn_subagent_from_input`,
+            // so we start clean and let the spawn layer populate it (#691).
+            worktree_path: None,
         }
     }
 
@@ -560,6 +570,10 @@ pub struct SubAgent {
     /// agent as in-session vs prior-session at list time.
     pub session_boot_id: String,
     pub workspace: PathBuf,
+    /// Isolated git worktree path created for this agent (only when spawned
+    /// with `worktree: true`). `None` for non-worktree spawns. Used by the
+    /// manager to `git worktree remove` the checkout on teardown (#691).
+    pub worktree_path: Option<PathBuf>,
     input_tx: Option<mpsc::UnboundedSender<SubAgentInput>>,
     task_handle: Option<JoinHandle<()>>,
 }
@@ -579,6 +593,7 @@ impl SubAgent {
         input_tx: mpsc::UnboundedSender<SubAgentInput>,
         workspace: PathBuf,
         session_boot_id: String,
+        worktree_path: Option<PathBuf>,
     ) -> Self {
         let session_name = id.clone();
 
@@ -602,6 +617,7 @@ impl SubAgent {
             allowed_tools,
             session_boot_id,
             workspace,
+            worktree_path,
             input_tx: Some(input_tx),
             task_handle: None,
         }

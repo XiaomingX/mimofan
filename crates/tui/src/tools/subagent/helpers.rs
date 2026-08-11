@@ -570,3 +570,54 @@ pub(crate) fn run_git(workspace: &Path, args: &[&str]) -> Option<String> {
         .success()
         .then(|| String::from_utf8_lossy(&output.stdout).to_string())
 }
+
+/// Best-effort removal of an isolated sub-agent git worktree (#691).
+///
+/// Resolves the owning repository root from the worktree path, then runs
+/// `git worktree remove --force <path>`. Failures are logged and swallowed:
+/// worktree cleanup must never abort the parent turn or panic on a missing /
+/// already-removed checkout. The branch created alongside the worktree is left
+/// in place (git refuses to remove a worktree whose branch is checked out
+/// elsewhere, and keeping it is harmless and useful for debugging).
+pub(crate) fn remove_worktree(worktree_path: &Path) {
+    let root = match run_git(worktree_path, &["rev-parse", "--show-toplevel"]) {
+        Some(root) if !root.trim().is_empty() => PathBuf::from(root.trim()),
+        _ => {
+            tracing::warn!(
+                target: "subagent",
+                path = %worktree_path.display(),
+                "could not resolve git root for worktree cleanup; skipping"
+            );
+            return;
+        }
+    };
+    match run_git(&root, &["worktree", "remove", "--force", &worktree_path.to_string_lossy()]) {
+        Some(_) => {
+            tracing::debug!(
+                target: "subagent",
+                path = %worktree_path.display(),
+                "removed isolated sub-agent worktree"
+            );
+        }
+        None => {
+            tracing::warn!(
+                target: "subagent",
+                path = %worktree_path.display(),
+                "git worktree remove failed; leaving checkout for manual cleanup"
+            );
+        }
+    }
+}
+
+/// Reclaim orphaned worktree metadata left by crashed / force-killed
+/// sub-agents. Safe to call on every spawn; `git worktree prune` only removes
+/// entries whose administrative directory is missing (#691).
+pub(crate) fn prune_orphan_worktrees(repo_workspace: &Path) {
+    if let Some(root) = run_git(repo_workspace, &["rev-parse", "--show-toplevel"]) {
+        let root = root.trim();
+        if !root.is_empty() {
+            // Fire-and-forget: prune failures are non-fatal.
+            let _ = run_git(Path::new(root), &["worktree", "prune"]);
+        }
+    }
+}
