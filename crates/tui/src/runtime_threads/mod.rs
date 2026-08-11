@@ -459,6 +459,8 @@ impl RuntimeThreadManager {
                 totals.reasoning_tokens += reasoning;
                 totals.cost_usd += cost;
                 totals.turns += 1;
+                totals.prefix_cache_hit_rate =
+                    requests::prefix_cache_hit_rate(totals.input_tokens, totals.cached_tokens);
 
                 let key = match group_by {
                     UsageGroupBy::Day => turn.created_at.format("%Y-%m-%d").to_string(),
@@ -476,6 +478,8 @@ impl RuntimeThreadManager {
                 bucket.reasoning_tokens += reasoning;
                 bucket.cost_usd += cost;
                 bucket.turns += 1;
+                bucket.prefix_cache_hit_rate =
+                    requests::prefix_cache_hit_rate(bucket.input_tokens, bucket.cached_tokens);
             }
         }
 

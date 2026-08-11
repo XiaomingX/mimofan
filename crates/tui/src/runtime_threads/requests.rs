@@ -147,6 +147,9 @@ pub struct UsageTotals {
     pub reasoning_tokens: u64,
     pub cost_usd: f64,
     pub turns: u64,
+    /// Prefix-cache hit rate in [0,1]: `cached_tokens / (input_tokens + cached_tokens)`.
+    /// Derived for #646 — `cached_tokens` was collected but never turned into a ratio.
+    pub prefix_cache_hit_rate: f64,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -158,6 +161,21 @@ pub struct UsageBucket {
     pub reasoning_tokens: u64,
     pub cost_usd: f64,
     pub turns: u64,
+    /// Prefix-cache hit rate in [0,1]. See `UsageTotals::prefix_cache_hit_rate`.
+    pub prefix_cache_hit_rate: f64,
+}
+
+/// Derive the prefix-cache hit rate from prompt-input vs. cache-hit token counts.
+///
+/// Returns `0.0` when there are no prompt tokens at all (neither fresh input nor
+/// cache hits), so callers never divide by zero. See #646.
+pub fn prefix_cache_hit_rate(input_tokens: u64, cached_tokens: u64) -> f64 {
+    let denom = input_tokens.saturating_add(cached_tokens);
+    if denom == 0 {
+        0.0
+    } else {
+        cached_tokens as f64 / denom as f64
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -181,5 +199,44 @@ pub fn provider_label_for_model(model: &str) -> &'static str {
         "openrouter"
     } else {
         "unknown"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prefix_cache_hit_rate_basic() {
+        // 100 fresh input + 300 cache hits => 75% hit rate.
+        assert!((prefix_cache_hit_rate(100, 300) - 0.75).abs() < 1e-9);
+    }
+
+    #[test]
+    fn prefix_cache_hit_rate_all_cached() {
+        assert!((prefix_cache_hit_rate(0, 500) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn prefix_cache_hit_rate_none_cached() {
+        assert!((prefix_cache_hit_rate(500, 0) - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn prefix_cache_hit_rate_zero_denominator_is_safe() {
+        // No tokens at all: must not divide by zero, returns 0.0.
+        assert_eq!(prefix_cache_hit_rate(0, 0), 0.0);
+    }
+
+    #[test]
+    fn usage_totals_default_hit_rate_is_zero() {
+        let t = UsageTotals::default();
+        assert_eq!(t.prefix_cache_hit_rate, 0.0);
+    }
+
+    #[test]
+    fn usage_bucket_default_hit_rate_is_zero() {
+        let b = UsageBucket::default();
+        assert_eq!(b.prefix_cache_hit_rate, 0.0);
     }
 }
