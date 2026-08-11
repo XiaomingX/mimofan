@@ -486,6 +486,7 @@ async fn auto_route_inventory_recommendation(
 
     let response =
         tokio::time::timeout(Duration::from_secs(4), client.create_message(request)).await??;
+    crate::cost_status::report(&response.model, &response.usage);
     Ok(parse_inventory_auto_route_recommendation(
         &message_response_text(&response),
         inventory,
