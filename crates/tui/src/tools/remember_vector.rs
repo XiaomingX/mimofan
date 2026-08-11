@@ -95,6 +95,18 @@ impl ToolSpec for RememberVectorTool {
         let obs_kind = parse_memory_category(kind)
             .map_err(|err| ToolError::execution_failed(err.to_string()))?;
         let kind_str = obs_kind.as_str();
+
+        // #718: refuse to persist secrets into the semantic memory store.
+        // The vector store is recalled by similarity and could otherwise
+        // surface a pasted credential back to the model or to other sessions.
+        if mimofan_secrets::is_sensitive_content(content) {
+            return Err(ToolError::execution_failed(
+                "refusing to store: content looks like it contains a secret \
+                 (API key, token, private key, etc.). Secrets must not be \
+                 written into semantic memory.",
+            ));
+        }
+
         let project = context
             .workspace
             .file_name()

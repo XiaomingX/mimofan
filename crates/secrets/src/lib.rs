@@ -19,6 +19,8 @@ use std::sync::{Arc, Mutex};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+mod scanner;
+
 /// Default OS keychain service name. Kept as `deepseek` for compatibility
 /// with credentials saved before the mimofan rename. macOS users can verify
 /// entries with `security find-generic-password -s deepseek -a <provider>`.
@@ -48,6 +50,15 @@ pub enum SecretsError {
         path: PathBuf,
         /// Observed unix permission mode.
         mode: u32,
+    },
+    /// Caught when a secret-store path escapes its intended directory via an
+    /// absolute path or a `..` (path-traversal) component (#648).
+    #[error("refusing secret store path '{path}': {reason}")]
+    UnsafePath {
+        /// The rejected path, as supplied by the caller.
+        path: PathBuf,
+        /// Human-readable reason (absolute path or `..` traversal).
+        reason: String,
     },
 }
 
@@ -282,6 +293,23 @@ impl FileKeyringStore {
     #[must_use]
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self { path: path.into() }
+    }
+
+    /// Build a store backed by a path that is validated to stay within the
+    /// secrets directory (#648).
+    ///
+    /// Rejects absolute paths and any `..` (path-traversal) component so a
+    /// caller cannot point the store at an arbitrary filesystem location such
+    /// as `/etc/passwd` or `../../id_rsa`. Prefer this over [`new`] when the
+    /// path originates from user input or a configuration file.
+    pub fn try_new(path: impl AsRef<Path>) -> Result<Self, SecretsError> {
+        match sanitize_secrets_path(path.as_ref()) {
+            Ok(normalized) => Ok(Self { path: normalized }),
+            Err(reason) => Err(SecretsError::UnsafePath {
+                path: path.as_ref().to_path_buf(),
+                reason,
+            }),
+        }
     }
 
     /// Default path: `<home>/.mimofan/secrets/secrets.json`. Honours
@@ -669,6 +697,16 @@ impl Secrets {
         }
     }
 }
+
+/// Content-level secret scanning and redaction primitives.
+///
+/// These operate on *content* (tool output, memory observations) rather than
+/// stored credentials, and implement a dependency-free subset of gitleaks
+/// rule families. See [`scanner`] for the full API.
+pub use scanner::{
+    SecretKind, SecretMatch, is_sensitive_content, redact_line, redact_stream,
+    sanitize_secrets_path, scan_line,
+};
 
 /// Map a canonical provider name to its environment variable(s), returning
 /// the first non-empty value found.
