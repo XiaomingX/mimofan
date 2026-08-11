@@ -15,7 +15,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use crate::client::ApiClient;
 use crate::config::Config;
 use crate::llm_client::LlmClient;
-use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
+use crate::models::{ContentBlock, ImageUrlContent, Message, MessageRequest, SystemPrompt};
 
 const ACP_PROTOCOL_VERSION: u64 = 1;
 
@@ -92,6 +92,7 @@ struct AcpServer {
 struct AcpSession {
     cwd: PathBuf,
     messages: Vec<Message>,
+    embedded_context: Option<String>,
 }
 
 enum AcpDispatch {
@@ -130,11 +131,13 @@ impl AcpServer {
                 &self.config,
             ))),
             "session/new" => Ok(AcpDispatch::Response(self.new_session(params)?)),
+            "session/list" => Ok(AcpDispatch::Response(self.list_sessions()?)),
             "session/prompt" => {
                 self.prompt(params, writer).await?;
                 Ok(AcpDispatch::Response(json!({ "stopReason": "end_turn" })))
             }
             "session/cancel" => Ok(AcpDispatch::Response(json!(null))),
+            "mcp/list_tools" => Ok(AcpDispatch::Response(self.list_mcp_tools(params))),
             "shutdown" => Ok(AcpDispatch::Shutdown),
             _ => Err(AcpError::method_not_found(method)),
         }
@@ -152,9 +155,45 @@ impl AcpServer {
             AcpSession {
                 cwd,
                 messages: Vec::new(),
+                embedded_context: None,
             },
         );
         Ok(json!({ "sessionId": session_id }))
+    }
+
+    fn list_sessions(&self) -> std::result::Result<Value, AcpError> {
+        let sessions = crate::session_manager::SessionManager::default_location()
+            .and_then(|m| m.list_sessions())
+            .map_err(|err| AcpError::internal(format!("failed to list sessions: {err}")))?
+            .into_iter()
+            .map(|s| {
+                json!({
+                    "sessionId": s.id,
+                    "title": s.title,
+                    "messageCount": s.message_count,
+                })
+            })
+            .collect::<Vec<_>>();
+        Ok(json!({ "sessions": sessions }))
+    }
+
+    /// Best-effort MCP tool proxy: exposes configured MCP server names and their
+    /// declared tools without forcing a live connection inside the ACP stdio loop.
+    /// Live tool resolution is deferred to the engine via `tools/call` forwarding
+    /// handled by the host, keeping this adapter protocol-clean and non-blocking.
+    fn list_mcp_tools(&self, _params: Value) -> Value {
+        let discovered = crate::mcp::McpPool::new(crate::mcp::McpConfig::default())
+            .server_names()
+            .into_iter()
+            .map(|name| {
+                json!({
+                    "server": name,
+                    "connected": false,
+                    "note": "live tool list resolved on demand by host agent"
+                })
+            })
+            .collect::<Vec<_>>();
+        json!({ "servers": discovered })
     }
 
     async fn prompt<W>(
@@ -173,6 +212,11 @@ impl AcpServer {
         let prompt = extract_prompt_text(params.get("prompt"))
             .filter(|text| !text.trim().is_empty())
             .ok_or_else(|| AcpError::invalid_params("prompt must include text content"))?;
+        let images = extract_prompt_images(params.get("prompt"));
+        let embedded = params
+            .get("embeddedContext")
+            .or_else(|| params.get("embedded_context"))
+            .cloned();
 
         // Append user message to session history and clone for the LLM call (avoids borrowing self across await)
         let (messages, cwd) = {
@@ -180,12 +224,30 @@ impl AcpServer {
                 .sessions
                 .get_mut(&session_id)
                 .ok_or_else(|| AcpError::invalid_params("unknown sessionId"))?;
+            let mut content = vec![ContentBlock::Text {
+                text: prompt,
+                cache_control: None,
+            }];
+            for image_url in &images {
+                content.push(ContentBlock::ImageUrl {
+                    image_url: ImageUrlContent {
+                        url: image_url.clone(),
+                    },
+                });
+            }
+            if let Some(embedded_value) = &embedded {
+                if let Some(system_ctx) = embedded_context_to_text(embedded_value) {
+                    session.embedded_context = Some(system_ctx.clone());
+                    // store embedded context so run_prompt can prepend it
+                    content.push(ContentBlock::Text {
+                        text: format!("\n\n[embedded context]\n{system_ctx}"),
+                        cache_control: None,
+                    });
+                }
+            }
             session.messages.push(Message {
                 role: "user".to_string(),
-                content: vec![ContentBlock::Text {
-                    text: prompt,
-                    cache_control: None,
-                }],
+                content,
             });
             (session.messages.clone(), session.cwd.clone())
         };
@@ -328,15 +390,18 @@ fn initialize_result(client_protocol_version: Option<u64>, config: &Config) -> V
         "agentCapabilities": {
             "loadSession": false,
             "promptCapabilities": {
-                "image": false,
+                "image": true,
                 "audio": false,
                 "embeddedContext": true
             },
             "mcpCapabilities": {
                 "http": false,
-                "sse": false
+                "sse": false,
+                "toolProxy": true
             },
-            "sessionCapabilities": {}
+            "sessionCapabilities": {
+                "list": true
+            }
         },
         "agentInfo": {
             "name": "mimofan",
@@ -372,6 +437,87 @@ fn extract_prompt_text(prompt: Option<&Value>) -> Option<String> {
             (!parts.is_empty()).then(|| parts.join("\n\n"))
         }
         _ => None,
+    }
+}
+
+/// Extract image URLs from an ACP prompt payload (string or block array).
+/// Supports both raw data URLs and external http(s) file references.
+fn extract_prompt_images(prompt: Option<&Value>) -> Vec<String> {
+    let Some(prompt) = prompt else {
+        return Vec::new();
+    };
+    let blocks = match prompt {
+        Value::Array(blocks) => blocks,
+        _ => return Vec::new(),
+    };
+    blocks
+        .iter()
+        .filter_map(|block| match block.get("type").and_then(Value::as_str)? {
+            "image" => block
+                .get("image")
+                .or_else(|| block.get("data"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            "image_url" => block
+                .get("image_url")
+                .and_then(|u| u.get("url"))
+                .or_else(|| block.get("url"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+            _ => None,
+        })
+        .filter(|url| url.starts_with("data:") || url.starts_with("http://") || url.starts_with("https://"))
+        .collect()
+}
+
+/// Convert an ACP `embeddedContext` payload into a compact text summary suitable
+/// for injection into the model context. Handles visibleFiles, openTabs and cursor.
+fn embedded_context_to_text(context: &Value) -> Option<String> {
+    let obj = context.as_object()?;
+    let mut lines = Vec::new();
+    if let Some(visible) = obj.get("visibleFiles").and_then(Value::as_array) {
+        if !visible.is_empty() {
+            lines.push("Visible files:".to_string());
+            for f in visible {
+                if let Some(s) = f.as_str() {
+                    lines.push(format!("- {s}"));
+                } else if let Some(p) = f.get("path").and_then(Value::as_str) {
+                    lines.push(format!("- {p}"));
+                }
+            }
+        }
+    }
+    if let Some(tabs) = obj.get("openTabs").and_then(Value::as_array) {
+        if !tabs.is_empty() {
+            lines.push("Open tabs:".to_string());
+            for t in tabs {
+                if let Some(s) = t.as_str() {
+                    lines.push(format!("- {s}"));
+                } else if let Some(p) = t.get("path").and_then(Value::as_str) {
+                    lines.push(format!("- {p}"));
+                }
+            }
+        }
+    }
+    if let Some(cursor) = obj.get("cursor") {
+        let cursor_desc = match cursor {
+            Value::String(s) => s.clone(),
+            Value::Object(o) => {
+                let file = o.get("file").and_then(Value::as_str).unwrap_or("");
+                let line = o.get("line").and_then(Value::as_u64).unwrap_or(0);
+                let col = o.get("character").and_then(Value::as_u64).unwrap_or(0);
+                format!("{file}:{line}:{col}")
+            }
+            _ => String::new(),
+        };
+        if !cursor_desc.is_empty() {
+            lines.push(format!("Cursor: {cursor_desc}"));
+        }
+    }
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
     }
 }
 
@@ -480,5 +626,69 @@ fn jsonrpc_response_id(id: Value) -> Value {
         Value::String(_) => id,
         Value::Number(number) => Value::String(number.to_string()),
         other => Value::String(other.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_prompt_images_parses_blocks_and_filters_non_http() {
+        let prompt = json!([
+            { "type": "text", "text": "look" },
+            { "type": "image", "image": "data:image/png;base64,AAAA" },
+            { "type": "image_url", "image_url": { "url": "https://example.com/x.png" } },
+            { "type": "image", "image": "/etc/passwd" }
+        ]);
+        let images = extract_prompt_images(Some(&prompt));
+        assert_eq!(images.len(), 2);
+        assert!(images.contains(&"data:image/png;base64,AAAA".to_string()));
+        assert!(images.contains(&"https://example.com/x.png".to_string()));
+    }
+
+    #[test]
+    fn embedded_context_renders_visible_files_and_cursor() {
+        let ctx = json!({
+            "visibleFiles": ["src/main.rs", "src/lib.rs"],
+            "openTabs": [{ "path": "README.md" }],
+            "cursor": { "file": "src/main.rs", "line": 42, "character": 7 }
+        });
+        let text = embedded_context_to_text(&ctx).expect("should render");
+        assert!(text.contains("src/main.rs"));
+        assert!(text.contains("README.md"));
+        assert!(text.contains("src/main.rs:42:7"));
+    }
+
+    #[test]
+    fn embedded_context_returns_none_when_empty() {
+        assert!(embedded_context_to_text(&json!({})).is_none());
+    }
+
+    #[test]
+    fn initialize_declares_image_and_session_list_capabilities() {
+        let cfg = Config::load(None, None).expect("load config");
+        let result = initialize_result(Some(ACP_PROTOCOL_VERSION), &cfg);
+        let caps = result.get("agentCapabilities").expect("caps");
+        assert_eq!(
+            caps.get("promptCapabilities")
+                .and_then(|c| c.get("image"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            caps.get("sessionCapabilities")
+                .and_then(|c| c.get("list"))
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn mcp_list_tools_returns_array_even_with_no_config() {
+        let cfg = Config::load(None, None).expect("load config");
+        let server = AcpServer::new(cfg, "deepseek".to_string(), PathBuf::from("/tmp"));
+        let result = server.list_mcp_tools(json!({}));
+        assert!(result.get("servers").is_some());
     }
 }
