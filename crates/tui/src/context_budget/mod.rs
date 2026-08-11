@@ -276,6 +276,75 @@ impl ContextBudget {
     pub fn is_over_budget(&self) -> bool {
         self.window_tokens > 0 && self.available_input_tokens == 0
     }
+
+    /// Effective context utilization: what fraction of the committed input
+    /// tokens is actually *useful* to the model, as opposed to low-value
+    /// filler (unreferenced attachments, verbose tool logs, stale history).
+    ///
+    /// `effective_input_tokens` is the caller's estimate of tokens that were
+    /// genuinely used — e.g. retrieved chunks that got cited, tool outputs the
+    /// model acted on, or conversation the model referenced. The ratio is
+    /// `effective / input`, clamped to `0.0..=1.0`. A zero input reports `0.0`
+    /// rather than dividing by zero, so a small but fully-used context is not
+    /// mistaken for waste.
+    ///
+    /// This complements [`ContextBudget::usage_percent`] (raw water level): a
+    /// window can be 90% full yet 90% effective (healthy, saturated) or 90%
+    /// full but 10% effective (bloated — compaction should drop the dead
+    /// weight, not just summarize). Issue #735.
+    #[must_use]
+    pub fn effective_utilization(&self, effective_input_tokens: u64) -> f64 {
+        if self.input_tokens == 0 {
+            return 0.0;
+        }
+        let effective = effective_input_tokens.min(self.input_tokens) as f64;
+        (effective / self.input_tokens as f64).clamp(0.0, 1.0)
+    }
+}
+
+/// Coarse classification of how well the committed context is being used.
+///
+/// Derived from [`ContextBudget::effective_utilization`]. Ordered least to most
+/// healthy so variants compare (`level >= EffectiveContextLevel::Healthy`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EffectiveContextLevel {
+    /// Most of the context is filler the model never used. Compaction should
+    /// drop dead weight (unreferenced attachments, stale logs) before summarizing.
+    Wasted,
+    /// Under half the context is actively used. Worth a light prune.
+    Thin,
+    /// Majority of the context is useful. Healthy.
+    Healthy,
+    /// Nearly all committed tokens are used. Saturated but well-spent.
+    Saturated,
+}
+
+impl EffectiveContextLevel {
+    /// Classify an effective-utilization ratio (`0.0..=1.0`) into a level.
+    #[must_use]
+    pub fn from_ratio(ratio: f64) -> Self {
+        let ratio = ratio.clamp(0.0, 1.0);
+        if ratio < 0.25 {
+            EffectiveContextLevel::Wasted
+        } else if ratio < 0.50 {
+            EffectiveContextLevel::Thin
+        } else if ratio < 0.85 {
+            EffectiveContextLevel::Healthy
+        } else {
+            EffectiveContextLevel::Saturated
+        }
+    }
+
+    /// Lowercase, stable label for status lines and logs.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            EffectiveContextLevel::Wasted => "wasted",
+            EffectiveContextLevel::Thin => "thin",
+            EffectiveContextLevel::Healthy => "healthy",
+            EffectiveContextLevel::Saturated => "saturated",
+        }
+    }
 }
 
 /// The reason a compaction decision came back positive.
@@ -475,5 +544,60 @@ mod tests {
         assert!(UI_WARNING_PERCENT > HIGH_PRESSURE_PERCENT);
         assert!(UI_CRITICAL_PERCENT > UI_WARNING_PERCENT);
         assert!(UI_SUGGEST_COMPACT_PERCENT < UI_WARNING_PERCENT);
+    }
+
+    #[test]
+    fn effective_utilization_ratios() {
+        let budget = ContextBudget::new(200_000, 160_000, 8_192);
+        // 10% effective: mostly filler despite a full window.
+        assert!((budget.effective_utilization(16_000) - 0.10).abs() < 1e-9);
+        // 90% effective: saturated but well-spent.
+        assert!((budget.effective_utilization(144_000) - 0.90).abs() < 1e-9);
+        // Cannot exceed 1.0 even if caller over-reports effective tokens.
+        assert_eq!(budget.effective_utilization(999_999), 1.0);
+    }
+
+    #[test]
+    fn effective_utilization_zero_input_is_zero() {
+        let budget = ContextBudget::new(200_000, 0, 8_192);
+        assert_eq!(budget.effective_utilization(0), 0.0);
+        assert_eq!(budget.effective_utilization(50), 0.0);
+    }
+
+    #[test]
+    fn effective_context_level_bands() {
+        assert_eq!(EffectiveContextLevel::from_ratio(0.0), EffectiveContextLevel::Wasted);
+        assert_eq!(EffectiveContextLevel::from_ratio(0.24), EffectiveContextLevel::Wasted);
+        assert_eq!(EffectiveContextLevel::from_ratio(0.25), EffectiveContextLevel::Thin);
+        assert_eq!(EffectiveContextLevel::from_ratio(0.49), EffectiveContextLevel::Thin);
+        assert_eq!(EffectiveContextLevel::from_ratio(0.50), EffectiveContextLevel::Healthy);
+        assert_eq!(EffectiveContextLevel::from_ratio(0.84), EffectiveContextLevel::Healthy);
+        assert_eq!(EffectiveContextLevel::from_ratio(0.85), EffectiveContextLevel::Saturated);
+        assert_eq!(EffectiveContextLevel::from_ratio(1.0), EffectiveContextLevel::Saturated);
+        assert_eq!(EffectiveContextLevel::from_ratio(2.0), EffectiveContextLevel::Saturated);
+    }
+
+    #[test]
+    fn effective_context_level_labels() {
+        assert_eq!(EffectiveContextLevel::Wasted.label(), "wasted");
+        assert_eq!(EffectiveContextLevel::Thin.label(), "thin");
+        assert_eq!(EffectiveContextLevel::Healthy.label(), "healthy");
+        assert_eq!(EffectiveContextLevel::Saturated.label(), "saturated");
+    }
+
+    #[test]
+    fn utilization_distinguishes_full_but_bloated_from_full_but_healthy() {
+        // Two windows at identical 80% water level, opposite effectiveness.
+        let bloated = ContextBudget::new(200_000, 160_000, 8_192);
+        let healthy = ContextBudget::new(200_000, 160_000, 8_192);
+        assert_eq!(bloated.usage_percent(), healthy.usage_percent());
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(bloated.effective_utilization(16_000)),
+            EffectiveContextLevel::Wasted
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(healthy.effective_utilization(152_000)),
+            EffectiveContextLevel::Saturated
+        );
     }
 }
