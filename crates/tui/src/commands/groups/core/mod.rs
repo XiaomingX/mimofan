@@ -30,6 +30,8 @@ mod plan;
 mod profile;
 mod provider;
 mod research_cmd;
+mod evolve_cmd;
+mod repro_cmd;
 pub mod queue;
 mod rlm;
 pub mod schedule;
@@ -185,6 +187,14 @@ impl CommandGroup for CoreCommands {
             Box::new(FunctionCommand::new(
                 research_cmd::ResearchCmd::info(),
                 research_cmd::ResearchCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                evolve_cmd::EvolveCmd::info(),
+                evolve_cmd::EvolveCmd::execute,
+            )),
+            Box::new(FunctionCommand::new(
+                repro_cmd::ReproCmd::info(),
+                repro_cmd::ReproCmd::execute,
             )),
             Box::new(FunctionCommand::new(
                 translate::TranslateCmd::info(),
