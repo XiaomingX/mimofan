@@ -188,6 +188,10 @@ fn kill_child_process_group(child: &mut Child) -> std::io::Result<()> {
         return child.kill();
     }
 
+    // SAFETY: `pgid` comes from the spawned child's process-group id (set via
+    // `setsid`/`setpgid` on fork), is non-negative, and refers to a live group we
+    // own. Sending SIGKILL to the whole group terminates the command and any
+    // grandchildren; the return value and `errno` are checked below.
     let result = unsafe { libc::kill(-pgid, libc::SIGKILL) };
     if result == 0 {
         Ok(())
