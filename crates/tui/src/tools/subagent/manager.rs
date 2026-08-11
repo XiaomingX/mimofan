@@ -257,6 +257,9 @@ impl SubAgentManager {
                 workspace: persisted
                     .workspace
                     .unwrap_or_else(|| self.workspace.clone()),
+                // Restored agents have no tracked worktree; legacy records
+                // predate worktree tracking (#691).
+                worktree_path: None,
                 agent_type: persisted.agent_type,
                 prompt: persisted.prompt,
                 assignment: persisted.assignment,
@@ -751,6 +754,10 @@ impl SubAgentManager {
     ) -> Result<SubAgentResult> {
         self.cleanup(COMPLETED_AGENT_RETENTION);
 
+        // Reclaim orphaned worktree metadata from crashed / force-killed
+        // sub-agents before we add a new one (#691).
+        prune_orphan_worktrees(&self.workspace);
+
         self.check_admission_capacity()?;
 
         if let Some(model) = options.model.as_deref() {
@@ -784,6 +791,7 @@ impl SubAgentManager {
             input_tx,
             runtime.context.workspace.clone(),
             self.current_session_boot_id.clone(),
+            runtime.worktree_path.clone(),
         );
         if let Some(name) = options
             .name
@@ -1042,6 +1050,12 @@ impl SubAgentManager {
                     timeout.as_secs()
                 ));
                 release_resident_leases_for(&agent.id);
+                // Auto-cancelled agents have been silent past the heartbeat
+                // timeout; reclaim their isolated worktree now rather than
+                // waiting out the retention window (#691).
+                if let Some(path) = agent.worktree_path.clone() {
+                    remove_worktree(&path);
+                }
                 if let Some(handle) = agent.task_handle.take() {
                     handle.abort();
                 }
@@ -1063,6 +1077,19 @@ impl SubAgentManager {
                 None,
             );
         }
+        // Collect worktree paths of terminal agents about to be evicted so we
+        // can `git worktree remove` them after the retain (avoiding a borrow of
+        // `self` inside the closure). Only terminal agents past `max_age` are
+        // removed here; in-retention worktrees stay so the parent can still read
+        // the child's output / files (#691).
+        let mut removed_worktrees: Vec<PathBuf> = self
+            .agents
+            .iter()
+            .filter(|(_, agent)| {
+                agent.status != SubAgentStatus::Running && agent.started_at.elapsed() >= max_age
+            })
+            .filter_map(|(_, agent)| agent.worktree_path.clone())
+            .collect();
         self.agents.retain(|_, agent| {
             if agent.status == SubAgentStatus::Running {
                 true
@@ -1070,6 +1097,9 @@ impl SubAgentManager {
                 agent.started_at.elapsed() < max_age
             }
         });
+        for path in removed_worktrees.drain(..) {
+            remove_worktree(&path);
+        }
         if self.agents.len() != before || auto_cancelled > 0 {
             self.persist_state_best_effort();
         }
@@ -1160,5 +1190,19 @@ impl SubAgentManager {
         );
         self.persist_state_best_effort();
         Ok(snapshot)
+    }
+}
+
+impl Drop for SubAgentManager {
+    fn drop(&mut self) {
+        // Best-effort reclamation of any isolated worktrees still tracked at
+        // manager teardown (e.g. a parent exiting within the retention window).
+        // `remove_worktree` swallows failures, so this never panics. Mirrors the
+        // cleanup done in `cleanup` / auto-cancel (#691).
+        for agent in self.agents.values() {
+            if let Some(path) = agent.worktree_path.as_ref() {
+                remove_worktree(path);
+            }
+        }
     }
 }
