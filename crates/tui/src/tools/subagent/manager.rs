@@ -26,6 +26,7 @@ impl SubAgentManager {
             last_persist_at: None,
             persist_pending: false,
             bus: Arc::new(AgentBus::new()),
+            task_claims: new_shared_task_claim_manager(),
         }
     }
 
@@ -49,6 +50,11 @@ impl SubAgentManager {
     /// Return a reference to the shared agent bus.
     pub fn bus(&self) -> &Arc<AgentBus> {
         &self.bus
+    }
+
+    /// Return a reference to the shared task-claim manager (#699).
+    pub fn task_claims(&self) -> &SharedTaskClaimManager {
+        &self.task_claims
     }
 
     /// Set the default aggregate token budget for root sub-agent runs.

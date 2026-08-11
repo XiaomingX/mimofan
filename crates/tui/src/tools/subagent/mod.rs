@@ -300,6 +300,9 @@ pub struct SubAgentRuntime {
     /// Shared agent bus for inter-agent pub/sub communication and shared
     /// state. All agents spawned by the same manager share this instance.
     pub bus: Option<Arc<AgentBus>>,
+    /// Shared task-claim manager, attached from the parent manager so
+    /// sub-agents can coordinate exclusive task ownership (#699).
+    pub task_claims: Option<SharedTaskClaimManager>,
 }
 
 impl SubAgentRuntime {
@@ -341,6 +344,7 @@ impl SubAgentRuntime {
             speech_output_dir: None,
             todos: crate::tools::todo::new_shared_todo_list(),
             bus: None,
+            task_claims: None,
         }
     }
 
@@ -357,6 +361,14 @@ impl SubAgentRuntime {
     #[must_use]
     pub fn with_bus(mut self, bus: Arc<AgentBus>) -> Self {
         self.bus = Some(bus);
+        self
+    }
+
+    /// Attach the shared task-claim manager so this runtime's sub-agents can
+    /// claim exclusive ownership of work items (#699).
+    #[must_use]
+    pub fn with_task_claims(mut self, claims: SharedTaskClaimManager) -> Self {
+        self.task_claims = Some(claims);
         self
     }
 
@@ -511,6 +523,7 @@ impl SubAgentRuntime {
             speech_output_dir: self.speech_output_dir.clone(),
             todos: self.todos.clone(),
             bus: self.bus.clone(),
+            task_claims: self.task_claims.clone(),
         }
     }
 
@@ -661,6 +674,10 @@ pub struct SubAgentManager {
     persist_pending: bool,
     /// Shared agent bus for inter-agent communication.
     bus: Arc<AgentBus>,
+    /// Shared task-claim manager so sub-agents can coordinate exclusive
+    /// ownership of work items (#699). Sub-agents spawned by the same manager
+    /// share this instance.
+    task_claims: SharedTaskClaimManager,
 }
 
 /// Thread-safe wrapper for `SubAgentManager`.

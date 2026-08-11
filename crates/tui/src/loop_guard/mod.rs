@@ -86,11 +86,28 @@ pub const DEFAULT_NO_PROGRESS_THRESHOLD: usize = 4;
 /// context, and `max_steps` remains as the terminal backstop.
 pub const DEFAULT_MAX_NUDGES_PER_PATTERN: usize = 2;
 
+/// Minimum number of times a single line/text fragment must repeat *within
+/// one tool output* to be flagged as a streaming self-repetition.
+///
+/// Streaming self-repetition is a distinct pathology from the cross-call
+/// detectors: the model emits a single response that is mostly the same
+/// sentence copied over and over (a degenerate generation, not a retry loop).
+/// Three identical lines inside one output is a clear signal.
+pub const DEFAULT_INTRA_REPEAT_LINES: usize = 3;
+
+/// Minimum token-overlap (Jaccard) between two *distinct* consecutive outputs
+/// to be flagged as a semantic echo.
+///
+/// `0.8` means the two outputs share 80% of their tokens: the model is
+/// restating essentially the same content rather than advancing. Set below
+/// `1.0` so trivial wording changes don't defeat the check.
+pub const DEFAULT_SEMANTIC_ECHO_SIMILARITY: f64 = 0.8;
+
 /// How many recent fingerprints to retain for alternation analysis.
 const HISTORY_CAPACITY: usize = 16;
 
 /// Tunable thresholds for [`LoopGuard`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LoopGuardConfig {
     /// Leading tool calls exempt from detection. See [`DEFAULT_WARMUP_CALLS`].
     pub warmup_calls: usize,
@@ -102,6 +119,12 @@ pub struct LoopGuardConfig {
     pub no_progress_threshold: usize,
     /// Per-pattern nudge cap for a single turn.
     pub max_nudges_per_pattern: usize,
+    /// Identical-line count within a single output that trips
+    /// [`LoopPattern::StreamingRepetition`].
+    pub intra_repeat_lines: usize,
+    /// Token-overlap (Jaccard) between distinct consecutive outputs that trips
+    /// [`LoopPattern::SemanticEcho`].
+    pub semantic_echo_similarity: f64,
     /// Master switch. When `false`, [`LoopGuard::observe`] always returns
     /// `None`.
     pub enabled: bool,
@@ -115,6 +138,8 @@ impl Default for LoopGuardConfig {
             alternation_cycles: DEFAULT_ALTERNATION_CYCLES,
             no_progress_threshold: DEFAULT_NO_PROGRESS_THRESHOLD,
             max_nudges_per_pattern: DEFAULT_MAX_NUDGES_PER_PATTERN,
+            intra_repeat_lines: DEFAULT_INTRA_REPEAT_LINES,
+            semantic_echo_similarity: DEFAULT_SEMANTIC_ECHO_SIMILARITY,
             enabled: true,
         }
     }
@@ -129,6 +154,12 @@ pub enum LoopPattern {
     Alternating,
     /// Calls keep landing but nothing observable changes.
     NoProgress,
+    /// A single tool output repeats the same text fragment many times over
+    /// (degenerate generation, not a retry loop).
+    StreamingRepetition,
+    /// Two consecutive *distinct* outputs are near-duplicates, suggesting the
+    /// model is restating the same content rather than advancing.
+    SemanticEcho,
 }
 
 impl LoopPattern {
@@ -138,6 +169,8 @@ impl LoopPattern {
             Self::RepeatedCall => "repeated_call",
             Self::Alternating => "alternating",
             Self::NoProgress => "no_progress",
+            Self::StreamingRepetition => "streaming_repetition",
+            Self::SemanticEcho => "semantic_echo",
         }
     }
 }
@@ -247,6 +280,46 @@ fn short_name(name: &str) -> String {
     format!("{truncated}…")
 }
 
+/// Count the longest run of identical non-empty lines within a single output.
+///
+/// A degenerate generation often copies the same sentence many times; this
+/// surfaces that within one tool result rather than across calls.
+fn max_identical_line_run(output: &str) -> usize {
+    let mut best = 0usize;
+    let mut current = 0usize;
+    let mut prev: Option<&str> = None;
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        match prev {
+            Some(p) if p == trimmed => current += 1,
+            _ => current = 1,
+        }
+        best = best.max(current);
+        prev = Some(trimmed);
+    }
+    best
+}
+
+/// Jaccard similarity between two token sets, treating whitespace-separated
+/// words as tokens. Used as a cheap proxy for "semantic" near-duplication
+/// without invoking an embedding model.
+fn token_jaccard(a: &str, b: &str) -> f64 {
+    let set_a: std::collections::HashSet<&str> = a.split_whitespace().collect();
+    let set_b: std::collections::HashSet<&str> = b.split_whitespace().collect();
+    if set_a.is_empty() && set_b.is_empty() {
+        return 0.0;
+    }
+    let intersection = set_a.intersection(&set_b).count();
+    let union = set_a.union(&set_b).count();
+    if union == 0 {
+        return 0.0;
+    }
+    intersection as f64 / union as f64
+}
+
 /// Detects repetition, oscillation and stalling across a single turn.
 ///
 /// Construct one per turn (state is turn-scoped by design — a fresh user
@@ -270,6 +343,8 @@ pub struct LoopGuard {
     stall_digest: Option<u64>,
     /// Nudges already emitted, per pattern.
     fired: HashMap<LoopPattern, usize>,
+    /// Most recent *distinct* output text, for semantic-echo detection.
+    last_distinct_output: Option<String>,
 }
 
 impl LoopGuard {
@@ -284,6 +359,7 @@ impl LoopGuard {
             stall_run: 0,
             stall_digest: None,
             fired: HashMap::new(),
+            last_distinct_output: None,
         }
     }
 
@@ -351,6 +427,12 @@ impl LoopGuard {
             return Some(loop_break);
         }
         if let Some(loop_break) = self.check_alternating() {
+            return Some(loop_break);
+        }
+        if let Some(loop_break) = self.check_streaming_repetition(observation) {
+            return Some(loop_break);
+        }
+        if let Some(loop_break) = self.check_semantic_echo(observation) {
             return Some(loop_break);
         }
         self.check_no_progress(observation)
@@ -445,8 +527,7 @@ impl LoopGuard {
         })
     }
 
-    fn check_no_progress(&mut self, observation: &ToolObservation<'_>) -> Option<LoopBreak> {
-        if self.config.no_progress_threshold == 0
+    fn check_no_progress(&mut self, observation: &ToolObservation<'_>) -> Option<LoopBreak> {        if self.config.no_progress_threshold == 0
             || self.stall_run < self.config.no_progress_threshold
         {
             return None;
@@ -470,6 +551,78 @@ impl LoopGuard {
                  know, and pick an action that would actually change the state or reveal \
                  something new. If nothing would, report what you found and ask the user \
                  for direction."
+            ),
+        })
+    }
+
+    /// Detect a single output that repeats the same text fragment many times
+    /// over — a degenerate generation rather than a retry loop.
+    fn check_streaming_repetition(&mut self, observation: &ToolObservation<'_>) -> Option<LoopBreak> {
+        if self.config.intra_repeat_lines == 0 {
+            return None;
+        }
+        let run = max_identical_line_run(observation.output);
+        if run < self.config.intra_repeat_lines {
+            return None;
+        }
+        if !self.claim_budget(LoopPattern::StreamingRepetition) {
+            return None;
+        }
+        let name = short_name(observation.name);
+        // Reset so the next nudge needs a fresh degenerate output.
+        self.last_distinct_output = None;
+        Some(LoopBreak {
+            pattern: LoopPattern::StreamingRepetition,
+            occurrences: run,
+            tools: vec![observation.name.to_string()],
+            nudge: format!(
+                "[Loop guard] The output of `{name}` repeats the same line {run} times in a \
+                 single response. This is a degenerate generation, not useful work: the model \
+                 is stuck echoing itself. Stop and re-plan: produce a response that actually \
+                 changes state, or if the task is genuinely complete, summarise the result \
+                 concisely instead of repeating it. If repetition is unavoidable, tell the user \
+                 what is blocking progress."
+            ),
+        })
+    }
+
+    /// Detect two consecutive *distinct* outputs that are near-duplicates,
+    /// suggesting the model is restating the same content rather than advancing.
+    fn check_semantic_echo(&mut self, observation: &ToolObservation<'_>) -> Option<LoopBreak> {
+        if self.config.semantic_echo_similarity <= 0.0 {
+            return None;
+        }
+        // Record the distinct output, comparing against the previous one.
+        let previous = self.last_distinct_output.clone();
+        self.last_distinct_output = Some(observation.output.to_string());
+
+        let Some(prev) = previous else {
+            return None;
+        };
+        // An exact repeat is owned by the NoProgress/RepeatedCall detectors;
+        // only near-duplicates (high but not total overlap) trip here.
+        if prev == observation.output {
+            return None;
+        }
+        let similarity = token_jaccard(&prev, observation.output);
+        if similarity < self.config.semantic_echo_similarity {
+            return None;
+        }
+        if !self.claim_budget(LoopPattern::SemanticEcho) {
+            return None;
+        }
+        let name = short_name(observation.name);
+        self.last_distinct_output = None;
+        Some(LoopBreak {
+            pattern: LoopPattern::SemanticEcho,
+            occurrences: 2,
+            tools: vec![observation.name.to_string()],
+            nudge: format!(
+                "[Loop guard] Your last two `{name}` outputs are {:.0}% the same (near-duplicate \
+                 content). You are echoing yourself rather than making progress. Stop and \
+                 re-plan: identify what specifically still needs to change, take a distinct \
+                 action, or report what you have and ask the user how to proceed.",
+                similarity * 100.0
             ),
         })
     }
@@ -797,5 +950,104 @@ mod tests {
         assert_eq!(LoopPattern::RepeatedCall.as_str(), "repeated_call");
         assert_eq!(LoopPattern::Alternating.as_str(), "alternating");
         assert_eq!(LoopPattern::NoProgress.as_str(), "no_progress");
+        assert_eq!(LoopPattern::StreamingRepetition.as_str(), "streaming_repetition");
+        assert_eq!(LoopPattern::SemanticEcho.as_str(), "semantic_echo");
+    }
+
+    #[test]
+    fn streaming_repetition_trips_on_repeated_lines() {
+        let mut guard = guard();
+        finish_warmup(&mut guard);
+        // A single output that copies the same line 4 times.
+        let repeated = "step done\nstep done\nstep done\nstep done";
+        let observation = ToolObservation {
+            name: "exec_shell",
+            args: &json!({ "cmd": "run" }),
+            success: true,
+            output: repeated,
+            progress: false,
+        };
+        let loop_break = guard
+            .observe(&observation)
+            .expect("intra-output line repetition must trip the guard");
+        assert_eq!(loop_break.pattern, LoopPattern::StreamingRepetition);
+        assert_eq!(loop_break.occurrences, 4);
+    }
+
+    #[test]
+    fn streaming_repetition_ignores_varied_output() {
+        let mut guard = guard();
+        finish_warmup(&mut guard);
+        let varied = "line one\nline two\nline three";
+        let observation = ToolObservation {
+            name: "exec_shell",
+            args: &json!({ "cmd": "run" }),
+            success: true,
+            output: varied,
+            progress: false,
+        };
+        assert_eq!(guard.observe(&observation), None);
+    }
+
+    #[test]
+    fn semantic_echo_trips_on_near_duplicate_outputs() {
+        let mut guard = guard();
+        finish_warmup(&mut guard);
+        let first = ToolObservation {
+            name: "read_file",
+            args: &json!({ "path": "a" }),
+            success: true,
+            output: "the build failed because the module is missing and the import is broken",
+            progress: false,
+        };
+        assert_eq!(guard.observe(&first), None, "first output recorded, no echo yet");
+        let second = ToolObservation {
+            name: "read_file",
+            args: &json!({ "path": "b" }),
+            success: true,
+            output: "the build failed because the module is missing and the import is broken now",
+            progress: false,
+        };
+        let loop_break = guard
+            .observe(&second)
+            .expect("near-duplicate consecutive outputs must trip the echo detector");
+        assert_eq!(loop_break.pattern, LoopPattern::SemanticEcho);
+    }
+
+    #[test]
+    fn semantic_echo_ignores_distinct_outputs() {
+        let mut guard = guard();
+        finish_warmup(&mut guard);
+        let first = ToolObservation {
+            name: "read_file",
+            args: &json!({ "path": "a" }),
+            success: true,
+            output: "the config file lists three servers in the eu region",
+            progress: false,
+        };
+        assert_eq!(guard.observe(&first), None);
+        let second = ToolObservation {
+            name: "read_file",
+            args: &json!({ "path": "b" }),
+            success: true,
+            output: "the test suite reported two passing cases and one failure in parsing",
+            progress: false,
+        };
+        assert_eq!(guard.observe(&second), None, "distinct outputs are not an echo");
+    }
+
+    #[test]
+    fn semantic_echo_requires_two_distinct_observations() {
+        let mut guard = guard();
+        finish_warmup(&mut guard);
+        // Only one observation so far: no previous to compare against.
+        let solo = ToolObservation {
+            name: "read_file",
+            args: &json!({ "path": "a" }),
+            success: true,
+            output: "identical text repeated many times over and over again",
+            progress: false,
+        };
+        assert_eq!(guard.observe(&solo), None);
     }
 }

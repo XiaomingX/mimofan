@@ -1246,6 +1246,13 @@ impl Engine {
                             None
                         };
 
+                        // Share the parent manager's bus and task-claim manager
+                        // with the spawned sub-agent runtime (#699).
+                        let (shared_bus, shared_claims) = {
+                            let guard = self.subagent_manager.read().await;
+                            (Arc::clone(guard.bus()), Arc::clone(guard.task_claims()))
+                        };
+
                         let mut runtime = SubAgentRuntime::new(
                             client,
                             self.session.model.clone(),
@@ -1266,6 +1273,8 @@ impl Engine {
                         .with_speech_output_dir(self.config.speech_output_dir.clone())
                         .with_mcp_pool(mcp_pool)
                         .with_todos(self.config.todos.clone())
+                        .with_bus(shared_bus)
+                        .with_task_claims(shared_claims)
                         .background_runtime();
                         let route = resolve_subagent_assignment_route(
                             &runtime,
@@ -1858,6 +1867,13 @@ impl Engine {
             None
         };
 
+        // Share the parent manager's bus and task-claim manager with the
+        // spawned sub-agent runtime (#699).
+        let (shared_bus, shared_claims) = {
+            let guard = self.subagent_manager.read().await;
+            (Arc::clone(guard.bus()), Arc::clone(guard.task_claims()))
+        };
+
         let mut tool_registry = match input_policy.mode {
             AppMode::Agent | AppMode::Yolo => {
                 if subagents_available {
@@ -1881,6 +1897,8 @@ impl Engine {
                         .with_speech_output_dir(self.config.speech_output_dir.clone())
                         .with_mcp_pool(mcp_pool.clone())
                         .with_todos(self.config.todos.clone())
+                        .with_bus(shared_bus)
+                        .with_task_claims(shared_claims)
                         .with_parent_completion_tx(self.tx_subagent_completion.clone());
                         if let Some(context) = fork_context_for_runtime.clone() {
                             rt = rt.with_fork_context(context);
