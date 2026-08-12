@@ -109,20 +109,27 @@ def judge_hit(cfg: dict, question: str, ground_truth: str, answer: str,
                       ["无法", "不能", "没有足够", "不确定", "cannot", "don't know",
                        "not have", "no information", "unable", "insufficient"])
         return refused
+    # 截断过长 ground_truth，避免干扰 judge；聚焦核心事实是否出现。
+    gt = ground_truth.strip()[:300]
     prompt = (
-        "You are a strict grader. Given a QUESTION, the CORRECT ANSWER, and a "
-        "MODEL RESPONSE, answer 'yes' if the MODEL RESPONSE contains the correct "
-        "answer (it may use different wording, but must convey the same fact); "
-        "otherwise answer 'no'. Respond with a single word: yes or no.\n\n"
+        "You are a grader for a long-term memory QA task. Given a QUESTION, the "
+        "CORRECT ANSWER (a fact or rubric), and a MODEL RESPONSE, answer 'yes' "
+        "ONLY if the MODEL RESPONSE conveys the same core fact as the CORRECT "
+        "ANSWER — different wording, extra detail, or a more verbose phrasing are "
+        "all fine. Answer 'no' only if the response is wrong, contradicts the "
+        "answer, or fails to address the question. Respond with a single word: "
+        "yes or no.\n\n"
         f"QUESTION: {question}\n\n"
-        f"CORRECT ANSWER: {ground_truth}\n\n"
+        f"CORRECT ANSWER: {gt}\n\n"
         f"MODEL RESPONSE: {answer}\n\n"
         "Grade (yes/no only):"
     )
+    # 注意：mimo 端点每个响应先有 thinking 块，需足够 max_tokens 让 thinking
+    # 之后还能输出 yes/no，否则 text 为空导致 judge 失败。
     r = call_messages(
         cfg,
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=8,
+        max_tokens=512,
     )
     if r.get("error"):
         return None
@@ -173,11 +180,13 @@ def run(cfg: dict, data_path: Path, binary: str, limit: int | None,
             if recalled
             else "（未检索到相关历史记忆）"
         )
+        # 注意：mimo 端点先 thinking 再回答，max_tokens 需足够大（1024）让
+        # thinking 之后还有空间输出实际答案，否则 text 为空。
         r = call_messages(
             cfg,
             messages=[{"role": "user", "content": q}],
             system=system,
-            max_tokens=512,
+            max_tokens=1024,
         )
         a["total"] += 1
         if r.get("error"):
@@ -230,6 +239,7 @@ def run(cfg: dict, data_path: Path, binary: str, limit: int | None,
 
 
 def write_report(result: dict, out_json: Path):
+    out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(result, ensure_ascii=False, indent=2),
                         encoding="utf-8")
     md = out_json.with_suffix(".md")
