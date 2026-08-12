@@ -21,6 +21,7 @@ use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
+use crate::knowledge::CorpusSource;
 
 /// A signal that contributed to a hybrid retrieval score.
 ///
@@ -34,12 +35,87 @@ pub enum RetrievalSource {
     FullText,
     /// Lightweight in-chunk term-frequency lexical signal (offline).
     Lexical,
-    /// Reserved for vector/semantic recall (requires an `Embedder`).
+    /// Vector/semantic recall. Populated by adapting a `KnowledgeAgent`
+    /// (`CorpusSource`) vector query via [`RetrievalHit`] (see #714 slice B).
+    /// Requires an `Embedder` to produce the query vector.
     Vector,
     /// Reserved for time-proximity decay.
     Recency,
     /// Reserved for importance (reference/edit frequency or external score).
     Importance,
+}
+
+/// A unified retrieval hit that can carry *any* of the hybrid signals
+/// (`FullText`, `Lexical`, `Vector`, and later `Recency`/`Importance`).
+///
+/// This is the common currency for the four-way fusion planned in #714 slice
+/// E: each backend (`CodebaseIndex` for FTS/lexical, `KnowledgeAgent` for
+/// vector) adapts its native result into a `RetrievalHit`, and the fusion
+/// stage only ever sees this type. Keeping all signals behind one struct is
+/// what lets `score_breakdown` stay explainable across backends.
+#[derive(Debug, Clone)]
+pub struct RetrievalHit {
+    /// Which signal produced this hit (dominant source).
+    pub source_kind: RetrievalSource,
+    /// Final score for this hit (sum of `score_breakdown` contributions).
+    pub score: f64,
+    /// The retrievable text (chunk content or corpus snippet).
+    pub text: String,
+    /// Opaque origin identifier (e.g. observation id, file path) for
+    /// de-duplication across backends.
+    pub origin_id: Option<String>,
+    /// Per-source contribution, mirroring [`SearchHit::score_breakdown`].
+    pub score_breakdown: HashMap<RetrievalSource, f64>,
+}
+
+impl RetrievalHit {
+    /// Total score across all contributing sources.
+    pub fn total_score(&self) -> f64 {
+        self.score_breakdown.values().sum()
+    }
+}
+
+impl From<&CorpusSource> for RetrievalHit {
+    /// Adapt a `KnowledgeAgent` vector recall result into the unified hit.
+    /// The vector relevance becomes the dominant `Vector` signal.
+    fn from(src: &CorpusSource) -> Self {
+        let mut breakdown = HashMap::new();
+        breakdown.insert(RetrievalSource::Vector, src.relevance_score);
+        RetrievalHit {
+            source_kind: RetrievalSource::Vector,
+            score: src.relevance_score,
+            text: src.content.clone(),
+            origin_id: Some(src.observation_id.to_string()),
+            score_breakdown: breakdown,
+        }
+    }
+}
+
+impl From<&SearchHit> for RetrievalHit {
+    /// Adapt a codebase FTS/lexical hit into the unified hit, preserving its
+    /// `score_breakdown` so fusion can combine it with vector signals.
+    fn from(hit: &SearchHit) -> Self {
+        let score = if hit.score_breakdown.is_empty() {
+            // Plain `search` path: no breakdown yet; use bm25-normalized proxy.
+            normalize_bm25(hit.rank)
+        } else {
+            hit.score_breakdown.values().sum()
+        };
+        // Dominant source = the one with the highest contribution.
+        let source_kind = hit
+            .score_breakdown
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(k, _)| *k)
+            .unwrap_or(RetrievalSource::FullText);
+        RetrievalHit {
+            source_kind,
+            score,
+            text: hit.content.clone(),
+            origin_id: Some(hit.file_path.clone()),
+            score_breakdown: hit.score_breakdown.clone(),
+        }
+    }
 }
 
 /// Number of source lines per chunk before overlap.
@@ -592,6 +668,7 @@ pub fn extract_symbols(text: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::knowledge::CorpusSource;
     use tempfile::TempDir;
 
     fn open_tmp() -> (TempDir, CodebaseIndex) {
@@ -821,5 +898,49 @@ impl Tokenizer {
             .hybrid_search("compute_hash", &SearchFilters::default(), 2, 60.0)
             .unwrap();
         assert_eq!(hits.len(), 2);
+    }
+
+    #[test]
+    fn corpus_source_adapts_to_vector_retrieval_hit() {
+        // KnowledgeAgent vector recall -> unified RetrievalHit carrying the
+        // Vector signal (slice B of #714).
+        let src = CorpusSource {
+            observation_id: 42,
+            content: "use std::collections::HashMap;".to_string(),
+            relevance_score: 0.87,
+            created_at: 1_700_000_000,
+        };
+        let hit: RetrievalHit = (&src).into();
+        assert_eq!(hit.source_kind, RetrievalSource::Vector);
+        assert_eq!(hit.score, 0.87);
+        assert_eq!(hit.text, "use std::collections::HashMap;");
+        assert_eq!(hit.origin_id.as_deref(), Some("42"));
+        assert_eq!(hit.score_breakdown[&RetrievalSource::Vector], 0.87);
+        assert_eq!(hit.total_score(), 0.87);
+    }
+
+    #[test]
+    fn search_hit_adapts_to_unified_retrieval_hit() {
+        // Codebase FTS/lexical hit -> unified RetrievalHit, breakdown preserved
+        // so the four-way fusion stage can later combine it with vector.
+        let mut breakdown = HashMap::new();
+        breakdown.insert(RetrievalSource::FullText, 0.9);
+        breakdown.insert(RetrievalSource::Lexical, 0.4);
+        let search_hit = SearchHit {
+            file_path: "src/a.rs".into(),
+            language: "rust".into(),
+            start_line: 1,
+            end_line: 3,
+            content: "fn compute_hash() {}".into(),
+            symbols: vec![],
+            rank: 1.0,
+            snippet: String::new(),
+            score_breakdown: breakdown,
+        };
+        let hit: RetrievalHit = (&search_hit).into();
+        assert_eq!(hit.source_kind, RetrievalSource::FullText, "max contributor wins");
+        assert!((hit.score - 1.3).abs() < 1e-9, "score is sum of breakdown");
+        assert_eq!(hit.origin_id.as_deref(), Some("src/a.rs"));
+        assert!(hit.score_breakdown.contains_key(&RetrievalSource::Lexical));
     }
 }
