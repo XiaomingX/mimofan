@@ -3240,6 +3240,7 @@ dependencies = [
  "mimofan-secrets",
  "mimofan-state",
  "mimofan-staticanalysis",
+ "mimofan-telemetry",
  "mimofan-tools",
  "multimap",
  "oauth2",

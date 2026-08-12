@@ -456,6 +456,7 @@ impl RuntimeThreadManager {
                 totals.input_tokens += input;
                 totals.output_tokens += output;
                 totals.cached_tokens += cached;
+                totals.prefix_cache_hits += cached;
                 totals.reasoning_tokens += reasoning;
                 totals.cost_usd += cost;
                 totals.turns += 1;
@@ -475,6 +476,7 @@ impl RuntimeThreadManager {
                 bucket.input_tokens += input;
                 bucket.output_tokens += output;
                 bucket.cached_tokens += cached;
+                bucket.prefix_cache_hits += cached;
                 bucket.reasoning_tokens += reasoning;
                 bucket.cost_usd += cost;
                 bucket.turns += 1;
@@ -490,6 +492,9 @@ impl RuntimeThreadManager {
             UsageGroupBy::Thread => "thread",
         }
         .to_string();
+
+        // #20 / #708：聚合完成后上报 prefix-cache 命中指标，供运行期观测。
+        requests::record_prefix_cache_metrics(&totals);
 
         Ok(requests::UsageAggregation {
             since,

@@ -46,6 +46,36 @@ pub struct MemoryInjection {
     pub estimated_tokens: usize,
 }
 
+/// #628：记忆注入的可观测性统计快照。
+///
+/// 每次 [`MemoryInjector::inject`] 完成后产出一份 `MemoryStats`，供运行时上报
+/// （如接 `mimofan_telemetry::record_metric`）与调试，覆盖三个维度：
+/// - `estimated_tokens`：注入内容占用的估算 token 数（省 token 评估依据）；
+/// - `last_recall`：本次检索召回的条目数（记忆召回质量评估依据）；
+/// - `integration_cost_ms`：注入管线耗时（性能评估依据）。
+///
+/// 纯数据结构、可序列化，便于落盘或跨进程传递。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryStats {
+    /// 注入内容的估算 token 数。
+    pub estimated_tokens: usize,
+    /// 本次检索召回的条目数（上一次 recall 结果规模）。
+    pub last_recall: usize,
+    /// 注入管线端到端耗时（毫秒）。
+    pub integration_cost_ms: u128,
+}
+
+impl MemoryStats {
+    /// 构造零值快照（无召回、零 token、零耗时）。
+    pub fn empty() -> Self {
+        Self {
+            estimated_tokens: 0,
+            last_recall: 0,
+            integration_cost_ms: 0,
+        }
+    }
+}
+
 /// Memory injector for cross-session context
 pub struct MemoryInjector {
     vector_store: VectorStore,

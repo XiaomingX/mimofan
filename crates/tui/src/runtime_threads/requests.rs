@@ -150,6 +150,9 @@ pub struct UsageTotals {
     /// Prefix-cache hit rate in [0,1]: `cached_tokens / (input_tokens + cached_tokens)`.
     /// Derived for #646 — `cached_tokens` was collected but never turned into a ratio.
     pub prefix_cache_hit_rate: f64,
+    /// #20 / #708: 累计 prefix-cache 命中 token 数（cache-read tokens 的真实累加）。
+    /// 与 `prefix_cache_hit_rate`（比率）互补，提供绝对命中规模，便于绘制命中趋势。
+    pub prefix_cache_hits: u64,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -163,6 +166,8 @@ pub struct UsageBucket {
     pub turns: u64,
     /// Prefix-cache hit rate in [0,1]. See `UsageTotals::prefix_cache_hit_rate`.
     pub prefix_cache_hit_rate: f64,
+    /// #20 / #708: 同 `UsageTotals::prefix_cache_hits`，按分组维度聚合。
+    pub prefix_cache_hits: u64,
 }
 
 /// Derive the prefix-cache hit rate from prompt-input vs. cache-hit token counts.
@@ -176,6 +181,26 @@ pub fn prefix_cache_hit_rate(input_tokens: u64, cached_tokens: u64) -> f64 {
     } else {
         cached_tokens as f64 / denom as f64
     }
+}
+
+/// #20 / #708：把本次用量聚合的 prefix-cache 指标上报到本地指标管线。
+///
+/// 通过 `mimofan_telemetry` 暴露为 Prometheus 风格计数器/直方图，便于运行期
+/// 观测命中趋势（接 `/metrics` 或 `PrometheusRecorder::to_text`）。无遥测后端时
+/// `record_metric` 为空操作，调用安全幂等。
+///
+/// 上报指标：
+/// - `mimofan_prefix_cache_hits_total`（counter）：累计命中 token 数；
+/// - `mimofan_prefix_cache_hit_rate`（gauge）：命中比率 `[0,1]`。
+pub fn record_prefix_cache_metrics(totals: &UsageTotals) {
+    mimofan_telemetry::record_metric(
+        "mimofan_prefix_cache_hits_total",
+        mimofan_telemetry::MetricValue::Counter(totals.prefix_cache_hits as f64),
+    );
+    mimofan_telemetry::record_metric(
+        "mimofan_prefix_cache_hit_rate",
+        mimofan_telemetry::MetricValue::Histogram(totals.prefix_cache_hit_rate),
+    );
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -238,5 +263,28 @@ mod tests {
     fn usage_bucket_default_hit_rate_is_zero() {
         let b = UsageBucket::default();
         assert_eq!(b.prefix_cache_hit_rate, 0.0);
+    }
+
+    #[test]
+    fn prefix_cache_hits_accumulates_absolute_count() {
+        // prefix_cache_hits 是与 ratio 互补的绝对命中 token 数。
+        let mut t = UsageTotals::default();
+        t.cached_tokens = 300;
+        t.prefix_cache_hits = 300;
+        t.input_tokens = 100;
+        t.prefix_cache_hit_rate = prefix_cache_hit_rate(t.input_tokens, t.cached_tokens);
+        assert_eq!(t.prefix_cache_hits, 300, "absolute hits tracked separately");
+        assert!((t.prefix_cache_hit_rate - 0.75).abs() < 1e-9, "ratio derived independently");
+    }
+
+    #[test]
+    fn record_prefix_cache_metrics_is_safe_noop_when_zero() {
+        // 无遥测后端时不应 panic；零值聚合也安全。
+        let t = UsageTotals::default();
+        record_prefix_cache_metrics(&t);
+        let mut t2 = UsageTotals::default();
+        t2.prefix_cache_hits = 1234;
+        t2.prefix_cache_hit_rate = 0.5;
+        record_prefix_cache_metrics(&t2);
     }
 }

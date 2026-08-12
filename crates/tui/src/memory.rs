@@ -29,6 +29,10 @@ use regex::Regex;
 // `mrates/memory/src/category.rs`），消除底层 crate 反向依赖 tui 类型的架构
 // 异味。此处 re-export 以保持 `crate::memory::MemoryCategory` 调用点不变。
 pub use mimofan_memory::MemoryCategory;
+// #732/#659: re-export the cross-session `UserProfile` API so the engine can
+// inject/distill it via `crate::memory::UserProfile` / `inject_user_profile` /
+// `distill_session` (consistent with the `MemoryCategory` re-export above).
+pub use mimofan_memory::{distill_session, inject_user_profile, UserProfile};
 
 /// 兼容旧调用点的分类名列表（由 [`MemoryCategory`] 派生）。
 pub const CATEGORIES: &[&str] = &["user", "feedback", "project", "reference"];

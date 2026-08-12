@@ -1,0 +1,44 @@
+{
+  "_comment": "P0 专项静态能力矩阵（记忆/省token/性能三类）。本文件不修改冻结的 capability_matrix.json，专为 P0 优化前后对比设计。探针指向『优化将新增的精确符号』，优化前系数应为 0/0.5，优化后变 1.0。各探针的 files 路径与 patterns 符号名即优化阶段的实现契约，必须严格落地。",
+  "version": "1.0.0",
+  "frozen_at": "2026-08-12",
+  "scope": "P0_memory_token_perf",
+  "total_weight": 30,
+  "domains": [
+    {
+      "id": "P0-M",
+      "name": "P0 记忆闭环",
+      "weight": 12,
+      "probes": [
+        { "id": "P0-M1", "desc": "UserProfile 注入 system prompt（#732）", "patterns": ["inject_user_profile"], "files": ["crates/memory/src/user_profile.rs", "crates/tui/src/core/engine/engine.rs"], "require_all": false },
+        { "id": "P0-M2", "desc": "记忆巩固 decay + evict（#716，consolidation.rs 内）", "patterns": ["fn decay", "fn evict"], "files": ["crates/memory/src/consolidation.rs"], "require_all": true },
+        { "id": "P0-M3", "desc": "记忆巩固 dedup + rollup（#716）", "patterns": ["fn dedup", "fn rollup"], "files": ["crates/memory/src/consolidation.rs"], "require_all": true },
+        { "id": "P0-M4", "desc": "经验学习闭环：会话结束蒸馏回写（#659）", "patterns": ["distill_session", "fn auto_distill"], "files": ["crates/memory/src"], "require_all": false },
+        { "id": "P0-M5", "desc": "混合检索四路融合（向量+全文+时近+重要性，#714）", "patterns": ["fn fuse_retrieval_hits", "fuse_all_sources"], "files": ["crates/memory/src/codebase.rs"], "require_all": false },
+        { "id": "P0-M6", "desc": "记忆可观测 Stats 字段（注入token/last recall，#628）", "patterns": ["MemoryStats", "last_recall"], "files": ["crates/memory/src/injector.rs"], "require_all": false },
+        { "id": "P0-M7", "desc": "context Retriever trait 抽象（检索可插拔，#645）", "patterns": ["trait Retriever", "trait Assembler"], "files": ["crates/memory/src"], "require_all": false }
+      ]
+    },
+    {
+      "id": "P0-T",
+      "name": "P0 省 token",
+      "weight": 8,
+      "probes": [
+        { "id": "P0-T1", "desc": "渐进工具披露 select_tools：基线+增量公告（#708）", "patterns": ["fn select_tools", "fn baseline_tools"], "files": ["crates/tui/src/core/engine/tool_catalog.rs"], "require_all": true },
+        { "id": "P0-T2", "desc": "prefix cache 命中指标埋点（#708/#646）", "patterns": ["prefix_cache_hits", "cache_hit_count"], "files": ["crates/tui/src/runtime_threads/requests.rs"], "require_all": false },
+        { "id": "P0-T3", "desc": "次级模型统一抽象 SecondaryModel（#653）", "patterns": ["enum SecondaryModel", "struct SecondaryModel"], "files": ["crates/tui/src/model_routing/mod.rs"], "require_all": false }
+      ]
+    },
+    {
+      "id": "P0-P",
+      "name": "P0 性能",
+      "weight": 10,
+      "probes": [
+        { "id": "P0-P1", "desc": "trace_id 跨模块串联（#637）", "patterns": ["trace_id"], "files": ["crates/tui/src/core/engine/turn_loop.rs", "crates/tui/src/runtime_threads/requests.rs"], "require_all": false },
+        { "id": "P0-P2", "desc": "Prometheus 指标采集（#726）", "patterns": ["fn record_metric", "PrometheusRecorder", "prometheus"], "files": ["crates/telemetry/src/lib.rs"], "require_all": false },
+        { "id": "P0-P3", "desc": "电路熔断 CircuitBreaker（#619）", "patterns": ["struct CircuitBreaker", "fn trip", "fn record_failure"], "files": ["crates/tui/src"], "require_all": false },
+        { "id": "P0-P4", "desc": "统一 VFS trait（#639）", "patterns": ["trait Vfs", "trait VFS", "Vfs"], "files": ["crates/tui/src/tools/vfs.rs", "crates/tui/src/tools/file.rs"], "require_all": false }
+      ]
+    }
+  ]
+}

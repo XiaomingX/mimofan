@@ -133,6 +133,13 @@ impl Engine {
         crate::tui::notifications::set_taskbar_progress_busy();
         crate::tui::notifications::start_title_animation("mimofan");
 
+        // #637: every turn gets a stable trace_id threaded through its spans so
+        // that engine → tool execution → model client logs correlate by id.
+        let trace_id = crate::core::engine::trace::TraceId::new();
+        let _turn_span = crate::core::engine::trace::trace_span_for(trace_id);
+        let _turn_enter = _turn_span.enter();
+        tracing::debug!(trace_id = %trace_id.as_hex(), "turn started");
+
         let client = self
             .deepseek_client
             .clone()
@@ -2784,6 +2791,45 @@ impl Engine {
                         }
                     }
                     Err(err) => tracing::warn!(?err, "auto memory: vector open failed"),
+                }
+            }
+        }
+
+        // #659 经验学习闭环: distill the session transcript into UserProfile
+        // corrections and persist them so stable preferences/constraints survive
+        // across sessions. We only act when a profile already exists (the model
+        // or a prior session seeded one) to avoid writing on every no-signal
+        // turn; new profiles are still created when a genuine correction appears.
+        let transcript: Vec<String> = self
+            .session
+            .messages
+            .iter()
+            .flat_map(|m| {
+                m.content
+                    .iter()
+                    .filter_map(|b| match b {
+                        crate::models::ContentBlock::Text { text, .. } => Some(text.clone()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        if !transcript.is_empty() {
+            let candidates = crate::memory::distill_session(&transcript);
+            if !candidates.is_empty() {
+                let mut profile = self
+                    .user_profile
+                    .clone()
+                    .unwrap_or_else(crate::memory::UserProfile::empty);
+                for (bucket, entry) in candidates {
+                    profile.apply_correction(bucket, entry);
+                }
+                if let Some(path) = crate::memory::UserProfile::default_path() {
+                    if let Err(err) = profile.save(&path) {
+                        tracing::warn!(?err, "auto memory: failed to save user profile");
+                    } else {
+                        self.user_profile = profile.into_non_empty();
+                    }
                 }
             }
         }

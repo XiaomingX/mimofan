@@ -1,0 +1,14 @@
+{
+  "_comment": "P0 性能评测样本：延迟/吞吐基准任务。供 p0_dynamic.py 真模型端到端测 P50/P95 延迟与 TTFT。冻结后不得修改。",
+  "version": "1.0.0",
+  "frozen_at": "2026-08-12",
+  "scope": "P0_perf_baseline",
+  "warmup_rounds": 1,
+  "measure_rounds": 10,
+  "tasks": [
+    { "id": "P1", "name": "短问答延迟", "prompt": "用一句话解释 Rust 的 ownership。", "max_output_tokens": 64 },
+    { "id": "P2", "name": "中长度代码生成", "prompt": "写一个 Rust 函数，用二分查找在有序 Vec<i64> 中定位目标，返回 Option<usize>。包含单元测试用例。", "max_output_tokens": 512 }
+  ],
+  "expect_p50_latency_ms_max": 4000,
+  "expect_p95_latency_ms_max": 9000
+}

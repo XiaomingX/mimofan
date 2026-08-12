@@ -40,6 +40,48 @@ impl RouterCandidates {
     }
 }
 
+/// Unified secondary-model contract (#653).
+///
+/// Previously `seam_model` (compression), `cheap_tier` (`RouterCandidates.cheap`),
+/// and the subagent override (`config.subagent.*`) were three separate notions of
+/// "the cheaper model to use for auxiliary/background work". This enum collapses
+/// them into one concept: every provider has a primary model and optionally a
+/// `Secondary` model used for cheap/background tasks (compaction, subagents,
+/// `/fast`). Callers that used to read `seam_model` or `cheap` now read
+/// `SecondaryModel::secondary_id()`, centralizing the resolution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SecondaryModel {
+    /// No secondary model: auxiliary work reuses the primary model.
+    None,
+    /// Explicit secondary model id (resolved from config: seam_model, then
+    /// cheap sibling, then subagent override).
+    Explicit(String),
+}
+
+impl SecondaryModel {
+    /// The model id to use for secondary/background work, falling back to
+    /// `primary` when no secondary is configured.
+    pub fn secondary_id<'a>(&'a self, primary: &'a str) -> &'a str {
+        match self {
+            SecondaryModel::None => primary,
+            SecondaryModel::Explicit(id) => id.as_str(),
+        }
+    }
+
+    /// Build from a config: prefer `seam_model`, then `cheap_sibling` of the
+    /// primary, then an explicit subagent override string.
+    pub fn from_parts(seam_model: Option<&str>, cheap_sibling: Option<&str>, subagent_override: Option<&str>) -> Self {
+        let id = seam_model
+            .filter(|s| !s.is_empty())
+            .or_else(|| cheap_sibling.filter(|s| !s.is_empty()))
+            .or_else(|| subagent_override.filter(|s| !s.is_empty()));
+        match id {
+            Some(s) => SecondaryModel::Explicit(s.to_string()),
+            None => SecondaryModel::None,
+        }
+    }
+}
+
 /// Known cheap-tier siblings for common OpenAI-compatible models (#3018).
 ///
 /// Maps a "big" model id to its faster/cheaper same-family sibling. Only
@@ -635,5 +677,37 @@ mod tests {
 
         let c = provider_router_candidates(ApiProvider::GeminiCompatible, "gemini-2.5-pro");
         assert_eq!(c.cheap, None);
+    }
+
+    #[test]
+    fn secondary_model_falls_back_to_primary() {
+        let s = SecondaryModel::None;
+        assert_eq!(s.secondary_id("big-model"), "big-model");
+    }
+
+    #[test]
+    fn secondary_model_explicit_overrides() {
+        let s = SecondaryModel::Explicit("flash".to_string());
+        assert_eq!(s.secondary_id("big-model"), "flash");
+    }
+
+    #[test]
+    fn secondary_model_from_parts_prefers_seam() {
+        let s = SecondaryModel::from_parts(
+            Some("seam-model"),
+            Some("cheap-sibling"),
+            Some("subagent-override"),
+        );
+        assert_eq!(s, SecondaryModel::Explicit("seam-model".to_string()));
+    }
+
+    #[test]
+    fn secondary_model_from_parts_falls_through() {
+        // No seam → cheap sibling wins.
+        let s = SecondaryModel::from_parts(None, Some("cheap-sibling"), None);
+        assert_eq!(s, SecondaryModel::Explicit("cheap-sibling".to_string()));
+        // All empty → None (reuse primary).
+        let s2 = SecondaryModel::from_parts(None, None, None);
+        assert_eq!(s2, SecondaryModel::None);
     }
 }

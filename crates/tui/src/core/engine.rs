@@ -348,6 +348,11 @@ pub struct Engine {
     /// refresh would otherwise drop the injected block.
     #[cfg(feature = "vector-memory")]
     vector_memory_block: Option<String>,
+    /// Cross-session `UserProfile` (#732): loaded once at engine init and
+    /// injected into the system prompt so the model "remembers" stable user
+    /// preferences/constraints across sessions. Distilled and saved back at
+    /// session end via `auto_capture_memory`.
+    user_profile: Option<crate::memory::UserProfile>,
     /// Post-edit LSP diagnostics injection (#136). Populated unconditionally
     /// — when LSP is disabled in config, this is an inert manager that
     /// always returns `None` from `diagnostics_for`.
@@ -805,6 +810,11 @@ impl Engine {
             vector_memory_injected: false,
             #[cfg(feature = "vector-memory")]
             vector_memory_block: None,
+            user_profile: crate::memory::UserProfile::load(
+                crate::memory::UserProfile::default_path()
+                    .unwrap_or_else(|| std::path::PathBuf::from(".mimofan/user_profile.json")),
+            )
+            .into_non_empty(),
             lsp_manager,
             pending_lsp_blocks: Vec::new(),
             slop_ledger_gate_cache: None,
@@ -2789,6 +2799,21 @@ impl Engine {
             prompt_text.push_str(block);
         }
 
+        // #732 slice C: inject the cross-session UserProfile into the system
+        // prompt so the model "remembers" stable user preferences/constraints.
+        // Skipped when no profile exists (keeps the prompt byte-stable and
+        // prefix-cache friendly). Rendered with a token budget so a large
+        // profile cannot blow the context window.
+        if let Some(ref profile) = self.user_profile
+            && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
+        {
+            let block = crate::memory::inject_user_profile(profile);
+            if !block.is_empty() {
+                prompt_text.push_str("\n\n");
+                prompt_text.push_str(&block);
+            }
+        }
+
         let stable_hash = system_prompt_hash(stable_prompt.as_ref());
         if self.session.system_prompt_override {
             return;
@@ -3001,7 +3026,9 @@ mod token_estimate_cache;
 mod tool_catalog;
 mod tool_execution;
 mod tool_setup;
+mod trace;
 mod turn_loop;
+mod circuit_breaker;
 pub(crate) use token_estimate_cache::TokenEstimateCache;
 
 pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;

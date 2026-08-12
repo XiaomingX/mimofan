@@ -20,6 +20,8 @@ pub mod diagnostics;
 pub mod diff_format;
 pub mod dynamic;
 pub mod file;
+/// #639：统一 VFS 抽象（文件工具 IO 出入口）。
+pub mod vfs;
 pub mod file_search;
 pub mod finance;
 

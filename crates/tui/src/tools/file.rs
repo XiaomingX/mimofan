@@ -236,9 +236,15 @@ impl ToolSpec for ReadFileTool {
             return read_image_via_ocr(&file_path, path_str);
         }
 
-        let contents = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
-            ToolError::execution_failed(format!("Failed to read {}: {}", file_path.display(), e))
-        })?;
+        let contents = crate::tools::vfs::active_vfs()
+            .read_text(&file_path)
+            .map_err(|e| {
+                ToolError::execution_failed(format!(
+                    "Failed to read {}: {}",
+                    file_path.display(),
+                    e
+                ))
+            })?;
 
         let total_lines = contents.lines().count();
         let total_bytes = contents.len();
@@ -695,17 +701,16 @@ impl ToolSpec for WriteFileTool {
             context.require_fresh_file_read_for("write_file", &file_path, path_str)?;
         }
 
+        let vfs = crate::tools::vfs::active_vfs();
         let prior_contents = if existed_before {
-            tokio::fs::read_to_string(&file_path)
-                .await
-                .unwrap_or_default()
+            vfs.read_text(&file_path).unwrap_or_default()
         } else {
             String::new()
         };
 
         // Create parent directories if needed
         if let Some(parent) = file_path.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+            vfs.create_dir_all(parent).map_err(|e| {
                 ToolError::execution_failed(format!(
                     "Failed to create directory {}: {}",
                     parent.display(),
@@ -714,7 +719,7 @@ impl ToolSpec for WriteFileTool {
             })?;
         }
 
-        tokio::fs::write(&file_path, file_content).await.map_err(|e| {
+        vfs.write_text(&file_path, file_content).map_err(|e| {
             ToolError::execution_failed(format!("Failed to write {}: {}", file_path.display(), e))
         })?;
         context.note_file_read(&file_path);
@@ -841,9 +846,15 @@ impl ToolSpec for EditFileTool {
         let file_path = context.resolve_path(path_str)?;
         context.require_fresh_file_read(&file_path, path_str)?;
 
-        let raw_contents = tokio::fs::read_to_string(&file_path).await.map_err(|e| {
-            ToolError::execution_failed(format!("Failed to read {}: {}", file_path.display(), e))
-        })?;
+        let raw_contents = crate::tools::vfs::active_vfs()
+            .read_text(&file_path)
+            .map_err(|e| {
+                ToolError::execution_failed(format!(
+                    "Failed to read {}: {}",
+                    file_path.display(),
+                    e
+                ))
+            })?;
         // Match against a normalized (BOM-stripped, LF-only) body so search
         // strings written with plain \n still match CRLF files; the original
         // byte formatting is restored before writing.
@@ -968,9 +979,15 @@ impl ToolSpec for EditFileTool {
         // Restore the original BOM and line-ending style so untouched lines
         // keep their exact original bytes.
         let to_write = fidelity.restore(&updated);
-        tokio::fs::write(&file_path, &to_write).await.map_err(|e| {
-            ToolError::execution_failed(format!("Failed to write {}: {}", file_path.display(), e))
-        })?;
+        crate::tools::vfs::active_vfs()
+            .write_text(&file_path, &to_write)
+            .map_err(|e| {
+                ToolError::execution_failed(format!(
+                    "Failed to write {}: {}",
+                    file_path.display(),
+                    e
+                ))
+            })?;
         context.note_file_read(&file_path);
 
         let display = file_path.display().to_string();
@@ -1226,23 +1243,26 @@ fn list_dir_entries(
 
     let mut entries = Vec::new();
 
-    for entry in fs::read_dir(dir_path).map_err(|e| {
-        ToolError::execution_failed(format!(
-            "Failed to read directory {}: {}",
-            dir_path.display(),
-            e
-        ))
-    })? {
+    let dir_entries = crate::tools::vfs::active_vfs()
+        .list_dir(dir_path)
+        .map_err(|e| {
+            ToolError::execution_failed(format!(
+                "Failed to read directory {}: {}",
+                dir_path.display(),
+                e
+            ))
+        })?;
+    for entry in dir_entries {
         check_list_dir_cancelled(cancel_token)?;
 
-        let entry = entry.map_err(|e| ToolError::execution_failed(e.to_string()))?;
-        let file_type = entry
-            .file_type()
+        let is_dir = entry
+            .metadata()
+            .map(|m| m.is_dir())
             .map_err(|e| ToolError::execution_failed(e.to_string()))?;
 
         entries.push(json!({
-            "name": entry.file_name().to_string_lossy().to_string(),
-            "is_dir": file_type.is_dir(),
+            "name": entry.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+            "is_dir": is_dir,
         }));
     }
 

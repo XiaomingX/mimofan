@@ -34,6 +34,12 @@ pub mod client;
 mod command_safety;
 pub mod commands;
 pub mod compaction;
+// 评估设施：把 mimofan-memory crate 以 `mimofan::mem_store` 路径 re-export，
+// 供 examples（probe_recall 等）作为外部 crate 引用其公开的 VectorStore 等符号。
+// 注意：tui 内部已有 `mod memory`（文件型记忆模块），故此处改用 `mem_store` 避免
+// 重名。与 `vector_memory` 模块同为 feature-gated 默认开启，不影响未配置用户。
+#[cfg(feature = "vector-memory")]
+pub use mimofan_memory as mem_store;
 mod composer_history;
 mod composer_stash;
 pub mod config;

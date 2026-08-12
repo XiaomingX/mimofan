@@ -333,6 +333,45 @@ pub(super) fn active_tools_for_step(
     active_tool_list_from_catalog(catalog, active)
 }
 
+/// The always-on baseline tool set (#708 / prefix-cache friendly disclosure).
+///
+/// These tools are present in every turn's `tools[]` so the serialized prefix
+/// (up to the first dynamically-activated tool) stays byte-stable across turns,
+/// preserving the provider's prompt-cache hit. Deferred tools are intentionally
+/// excluded: they are announced incrementally (see [`select_tools`]) only after
+/// ToolSearch activates them.
+pub fn baseline_tools(catalog: &[Tool]) -> Vec<Tool> {
+    catalog
+        .iter()
+        .filter(|tool| !tool.defer_loading.unwrap_or(false))
+        .cloned()
+        .collect()
+}
+
+/// Progressive tool disclosure (#708): split the active tool set into a stable
+/// `baseline` (always sent, prefix-cache preserving) and an `incremental`
+/// announcement (names only) for tools activated mid-conversation.
+///
+/// The caller sends `baseline` in `tools[]` every turn, and surfaces the
+/// `incremental` names via a system-prompt note (not by mutating `tools[]`),
+/// so activating a deferred tool never shifts the cached `tools[]` prefix.
+///
+/// Returns `(baseline_tools, incremental_names)`.
+pub fn select_tools(catalog: &[Tool], active: &HashSet<String>) -> (Vec<Tool>, Vec<String>) {
+    let baseline = baseline_tools(catalog);
+    let baseline_names: HashSet<String> =
+        baseline.iter().map(|t| t.name.clone()).collect();
+    let incremental: Vec<String> = catalog
+        .iter()
+        .filter(|tool| {
+            tool.defer_loading.unwrap_or(false) && active.contains(&tool.name)
+        })
+        .map(|tool| tool.name.clone())
+        .filter(|name| !baseline_names.contains(name))
+        .collect();
+    (baseline, incremental)
+}
+
 fn tool_search_haystack(tool: &Tool) -> String {
     format!(
         "{}\n{}\n{}",
@@ -1032,8 +1071,8 @@ pub(super) async fn execute_code_execution_tool(
 #[cfg(test)]
 mod bm25_tests {
     use super::{
-        DEFAULT_ACTIVE_NATIVE_TOOLS, discover_tools_with_bm25_like,
-        should_default_defer_tool, tool_catalog_consistency_issues,
+        DEFAULT_ACTIVE_NATIVE_TOOLS, baseline_tools, discover_tools_with_bm25_like,
+        select_tools, should_default_defer_tool, tool_catalog_consistency_issues,
     };
     use crate::models::Tool;
     use serde_json::json;
@@ -1205,5 +1244,45 @@ mod bm25_tests {
             DEFAULT_ACTIVE_NATIVE_TOOLS.contains(&"ast_query"),
             "ast_query must be in DEFAULT_ACTIVE_NATIVE_TOOLS for dual-track consistency"
         );
+    }
+
+    #[test]
+    fn baseline_tools_excludes_deferred() {
+        let catalog = vec![
+            tool("read_file", "read"),
+            tool("edit_file", "edit"),
+            tool("tool_search", "search"),
+        ];
+        // Mark tool_search as deferred.
+        let mut deferred = catalog;
+        deferred[2].defer_loading = Some(true);
+        let base = baseline_tools(&deferred);
+        let names: Vec<&str> = base.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"read_file"));
+        assert!(names.contains(&"edit_file"));
+        assert!(!names.contains(&"tool_search"), "deferred tools excluded from baseline");
+    }
+
+    #[test]
+    fn select_tools_splits_baseline_and_incremental() {
+        let mut catalog = vec![
+            tool("read_file", "read"),
+            tool("edit_file", "edit"),
+            tool("tool_search", "search"),
+        ];
+        catalog[2].defer_loading = Some(true);
+        let active = {
+            let mut s = HashSet::new();
+            s.insert("read_file".to_string());
+            s.insert("edit_file".to_string());
+            s.insert("tool_search".to_string()); // activated mid-conversation
+            s
+        };
+        let (baseline, incremental) = select_tools(&catalog, &active);
+        let base_names: Vec<&str> = baseline.iter().map(|t| t.name.as_str()).collect();
+        assert!(base_names.contains(&"read_file"));
+        assert!(base_names.contains(&"edit_file"));
+        assert!(!base_names.contains(&"tool_search"), "deferred not in baseline tools[]");
+        assert_eq!(incremental, vec!["tool_search".to_string()], "activated deferred announced incrementally");
     }
 }

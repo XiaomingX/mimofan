@@ -1,0 +1,14 @@
+{
+  "_comment": "P0 省 token 评测样本：工具集变化场景（#708 select_tools 渐进披露）。测工具目录稳定时 prefix cache 命中率，以及工具集变化后是否仍保住前缀。供 p0_dynamic.py 与离线探针参考。冻结后不得修改。",
+  "version": "1.0.0",
+  "frozen_at": "2026-08-12",
+  "scope": "P0_prefix_cache",
+  "baseline_tools": ["read_file", "edit_file", "apply_patch", "shell", "grep", "glob", "remember", "todo"],
+  "incremental_tools": ["web_fetch", "lsp", "subagent_spawn", "pandoc", "mcp__*"],
+  "rounds": [
+    { "id": "R1", "active_tool_subset": ["read_file", "edit_file", "shell", "grep"], "prompt": "查看 src/main.rs 并修复编译错误。" },
+    { "id": "R2", "active_tool_subset": ["read_file", "edit_file", "shell", "grep"], "prompt": "再检查测试是否通过。" },
+    { "id": "R3", "active_tool_subset": ["read_file", "edit_file", "shell", "grep", "web_fetch"], "prompt": "如果本地查不到，上网查这个 API 的用法。" }
+  ],
+  "expect_prefix_cache_hit_rate_min": 0.6
+}

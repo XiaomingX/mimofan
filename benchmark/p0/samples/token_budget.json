@@ -1,0 +1,24 @@
+{
+  "_comment": "P0 省 token 评测样本：压缩阈值/预算场景。供 p0_dynamic.py 真模型端到端验证压缩前后 token 消耗对比。冻结后不得修改。",
+  "version": "1.0.0",
+  "frozen_at": "2026-08-12",
+  "scope": "P0_token_budget",
+  "tasks": [
+    {
+      "id": "T1",
+      "name": "长上下文代码解释任务",
+      "description": "给定一段长代码与多轮上下文，测开启 compaction 前后 input token 差",
+      "context_chars": 18000,
+      "prompt": "阅读下面这段约 18000 字符的 Rust 模块，总结它的三个最主要的设计权衡，并给出一处可改进点。只输出总结，不要重复代码。",
+      "expect_compression_saving_pct_min": 30
+    },
+    {
+      "id": "T2",
+      "name": "重复工具集下的 prefix cache 收益",
+      "description": "在同一长 system 提示（工具目录）下多发几次请求，测 cache_read token 占比",
+      "context_chars": 6000,
+      "prompt": "用一句话解释什么是前缀缓存（prefix cache），以及它如何降低 token 成本。",
+      "expect_cache_read_ratio_min": 0.5
+    }
+  ]
+}

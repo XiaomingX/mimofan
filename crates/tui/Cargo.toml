@@ -45,6 +45,9 @@ mimofan-staticanalysis = { path = "../staticanalysis" }
 # 始终链接：共享的 `MemoryCategory` 分类需要被始终编译的模块无条件引用，
 # 故不再 optional（原 `vector-memory` feature 现在只 gate 向量记忆运行时代码）。
 mimofan-memory = { path = "../memory" }
+# 始终链接：省 token / 性能指标的本地 Prometheus 风格埋点（无外部依赖，
+# `otlp` feature 才拉 OpenTelemetry 栈）。用于 #20 prefix cache 命中指标上报。
+mimofan-telemetry = { path = "../telemetry" }
 schemaui = { version = "0.12.0", default-features = false, optional = true }
 async-stream = "0.3.6"
 async-trait.workspace = true
