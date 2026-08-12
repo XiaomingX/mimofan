@@ -34,7 +34,7 @@ pub mod vector;
 pub use backend::{MemoryBackend, SharedMemoryBackend};
 pub use category::MemoryCategory;
 pub use compressor::{CompressionStrategy, ObservationCompressor, SessionSummary};
-pub use embedding::{EmbeddingConfig, EmbeddingService};
+pub use embedding::{ApiEmbedder, Embedder, EmbeddingConfig, EmbeddingService};
 pub use error::MemoryError;
 pub use injector::{InjectionConfig, MemoryInjection, MemoryInjector};
 pub use knowledge::{CorpusAnswer, CorpusSource, KnowledgeAgent, KnowledgeCorpus};
