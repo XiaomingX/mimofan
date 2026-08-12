@@ -704,16 +704,18 @@ impl ToolRegistryBuilder {
             .with_tool(Arc::new(GithubClosePrTool))
     }
 
-    /// Include shell-related task tools (`task_shell_start`, `task_shell_wait`).
+    /// Include shell-related task tools (`task_shell_start`, `task_shell_wait`, `task_shell_stop`).
     ///
     /// These are gated behind `allow_shell` because `task_shell_start`
     /// delegates directly to `ExecShellTool`, providing the same shell
-    /// execution capability as `exec_shell`.
+    /// execution capability as `exec_shell`. `task_shell_stop` delegates to
+    /// the shared background-shell kill path (`ShellCancelTool`).
     #[must_use]
     pub fn with_runtime_task_shell_tools(self) -> Self {
-        use super::tasks::{TaskShellStartTool, TaskShellWaitTool};
+        use super::tasks::{TaskShellStartTool, TaskShellWaitTool, TaskShellStopTool};
         self.with_tool(Arc::new(TaskShellStartTool))
             .with_tool(Arc::new(TaskShellWaitTool))
+            .with_tool(Arc::new(TaskShellStopTool))
     }
 
     /// Include only read-only durable task, PR-attempt, GitHub, and automation

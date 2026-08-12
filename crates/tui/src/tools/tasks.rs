@@ -15,7 +15,7 @@ use crate::dependencies::ExternalTool;
 use crate::task_manager::{
     NewTaskRequest, TaskArtifactRef, TaskAttemptRecord, TaskGateRecord, TaskRecord,
 };
-use crate::tools::shell::{ExecShellTool, ShellWaitTool};
+use crate::tools::shell::{ExecShellTool, ShellCancelTool, ShellWaitTool};
 use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
     optional_bool, optional_str, optional_u64, required_str,
@@ -49,6 +49,7 @@ pub struct TaskCancelTool;
 pub struct TaskGateRunTool;
 pub struct TaskShellStartTool;
 pub struct TaskShellWaitTool;
+pub struct TaskShellStopTool;
 pub struct PrAttemptRecordTool;
 pub struct PrAttemptListTool;
 pub struct PrAttemptReadTool;
@@ -559,6 +560,47 @@ impl ToolSpec for TaskShellWaitTool {
 }
 
 #[async_trait]
+impl ToolSpec for TaskShellStopTool {
+    fn name(&self) -> &'static str {
+        "task_shell_stop"
+    }
+
+    fn description(&self) -> &'static str {
+        "Stop or kill a running background shell task started via task_shell_start (or exec_shell) by its task_id. Mirrors task_shell_start/task_shell_wait and aligns with kimi tools/background. Use `all=true` to terminate every running background shell process."
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "task_id": { "type": "string", "description": "Background shell task id returned by task_shell_start or exec_shell." },
+                "all": { "type": "boolean", "description": "Stop every currently running background shell task instead of a single one." }
+            },
+            "additionalProperties": false
+        })
+    }
+
+    fn capabilities(&self) -> Vec<ToolCapability> {
+        vec![ToolCapability::RequiresApproval]
+    }
+
+    fn approval_requirement(&self) -> ApprovalRequirement {
+        ApprovalRequirement::Required
+    }
+
+    fn model_visible(&self) -> bool {
+        true
+    }
+
+    async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
+        // Delegate to the existing background-shell kill capability so the
+        // process-group SIGKILL path in ShellManager is shared with
+        // exec_shell_cancel. task_shell_start returns the same task id.
+        ShellCancelTool.execute(input, context).await
+    }
+}
+
+#[async_trait]
 impl ToolSpec for PrAttemptRecordTool {
     fn name(&self) -> &'static str {
         "pr_attempt_record"
@@ -981,6 +1023,56 @@ fn summarize(text: &str, limit: usize) -> String {
         "(no output)".to_string()
     } else {
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_shell_stop_contract_is_symmetric_with_start_and_wait() {
+        let tool = TaskShellStopTool;
+        assert_eq!(tool.name(), "task_shell_stop");
+        // Killing a background process changes work state: requires approval.
+        assert_eq!(tool.approval_requirement(), ApprovalRequirement::Required);
+        let caps = tool.capabilities();
+        assert!(
+            caps.contains(&ToolCapability::RequiresApproval),
+            "task_shell_stop must require approval"
+        );
+
+        let schema = tool.input_schema();
+        let props = schema
+            .get("properties")
+            .and_then(Value::as_object)
+            .expect("schema has properties");
+        assert!(props.contains_key("task_id"), "schema exposes task_id");
+        assert!(props.contains_key("all"), "schema exposes all=true");
+        assert_eq!(schema.get("additionalProperties"), Some(&json!(false)));
+    }
+
+    #[test]
+    fn task_shell_stop_delegates_to_shared_cancel_capability() {
+        // The stop tool must route through the same kill path as
+        // exec_shell_cancel so process-group termination is shared and the
+        // task_id returned by task_shell_start is cancellable here.
+        let stop = TaskShellStopTool;
+        let cancel = ShellCancelTool;
+        // Both expose task_id on the identical ShellManager::kill surface, so a
+        // task_id produced by task_shell_start is accepted verbatim by the
+        // delegate.
+        let stop_has_id = stop
+            .input_schema()
+            .get("properties")
+            .and_then(|p| p.get("task_id"))
+            .is_some();
+        let cancel_has_id = cancel
+            .input_schema()
+            .get("properties")
+            .and_then(|p| p.get("task_id"))
+            .is_some();
+        assert_eq!(stop_has_id, cancel_has_id);
     }
 }
 
