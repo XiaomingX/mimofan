@@ -13,6 +13,7 @@ fn test_observation() -> Observation {
         created_at: chrono::Utc::now().timestamp(),
         access_count: 0,
         last_accessed_at: None,
+            expires_at: None,
     }
 }
 

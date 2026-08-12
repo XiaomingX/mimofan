@@ -231,6 +231,26 @@ pub struct TaskRecord {
     pub github_events: Vec<TaskGithubEvent>,
     pub tool_calls: Vec<TaskToolCallSummary>,
     pub timeline: Vec<TaskTimelineEntry>,
+    /// Dependency graph: ids of tasks that must complete before this task can
+    /// run. Defaults to empty so existing persisted records load unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocked_by: Vec<String>,
+    /// Dependency graph: ids of tasks blocked by this task. Maintained as the
+    /// inverse of `blocked_by`; defaults to empty for backward compatibility.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocks: Vec<String>,
+}
+
+impl TaskRecord {
+    /// Expose the dependency graph edges carried by this record.
+    ///
+    /// Returns `(&blocked_by, &blocks)` so callers (e.g. Kanban multi-agent
+    /// claim ordering, issue #665) can validate or render the dependency graph
+    /// without reaching into private fields.
+    #[must_use]
+    pub fn dependency_graph(&self) -> (&[String], &[String]) {
+        (&self.blocked_by, &self.blocks)
+    }
 }
 
 /// Lightweight task view.
@@ -887,6 +907,8 @@ impl TaskManager {
             artifacts: Vec::new(),
             github_events: Vec::new(),
             tool_calls: Vec::new(),
+            blocked_by: Vec::new(),
+            blocks: Vec::new(),
             timeline: vec![TaskTimelineEntry {
                 timestamp: Utc::now(),
                 kind: "queued".to_string(),
@@ -1714,6 +1736,81 @@ fn default_auto_approve() -> bool {
     true
 }
 
+/// Cycle detection over a task dependency graph.
+///
+/// `deps` maps each task id to the list of task ids it depends on (its
+/// `blocked_by` edges). Returns `true` if adding an edge from `task_id` to the
+/// existing `deps` (i.e. `task_id` would depend on something that transitively
+/// depends back on `task_id`) would create a cycle.
+///
+/// Implemented with a depth-first search that colors nodes
+/// (white = unvisited, gray = on the current DFS stack, black = fully
+/// explored). Reaching a gray node means a back-edge — a cycle. This guards
+/// atomic multi-agent `claim` operations (issue #665) and Goal queue governance
+/// (issue #654) from introducing unschedulable task graphs.
+#[must_use]
+pub fn cycle_detection(
+    task_id: &str,
+    deps: &std::collections::HashMap<String, Vec<String>>,
+) -> bool {
+    // `task_id` itself is always reachable from `task_id` (self edge), so start
+    // the DFS from the prospective new node and detect if we ever loop back.
+    let mut visited = std::collections::HashSet::new();
+    let mut on_stack = std::collections::HashSet::new();
+    let mut stack: Vec<String> = Vec::new();
+
+    // Seed the DFS with the new task's outgoing dependency edges. If `task_id`
+    // is not yet present in `deps`, treat it as having no outgoing edges yet
+    // (the new edge is what we are validating).
+    stack.extend(
+        deps.get(task_id)
+            .cloned()
+            .unwrap_or_default(),
+    );
+
+    while let Some(node) = stack.pop() {
+        if node == task_id {
+            // We reached back to the newly added node: a cycle is formed.
+            return true;
+        }
+        if on_stack.contains(&node) {
+            continue;
+        }
+        if visited.contains(&node) {
+            continue;
+        }
+        visited.insert(node.clone());
+        on_stack.insert(node.clone());
+        if let Some(neighbors) = deps.get(&node) {
+            for next in neighbors {
+                stack.push(next.clone());
+            }
+        }
+        on_stack.remove(&node);
+    }
+
+    false
+}
+
+/// Convenience wrapper that checks whether adding `new_dependency` to
+/// `task.deps` would create a cycle in the given dependency graph.
+#[must_use]
+pub fn detect_cycle(
+    task_id: &str,
+    new_dependency: &str,
+    deps: &std::collections::HashMap<String, Vec<String>>,
+) -> bool {
+    if task_id == new_dependency {
+        return true;
+    }
+    let mut extended = deps.clone();
+    extended
+        .entry(task_id.to_string())
+        .or_default()
+        .push(new_dependency.to_string());
+    cycle_detection(task_id, &extended)
+}
+
 /// Default task manager data location (`~/.mimofan/tasks`, falling back to
 /// existing installs when only that directory exists).
 #[must_use]
@@ -1738,4 +1835,120 @@ fn default_tasks_dir_for_home(home: &Path) -> PathBuf {
         return previous;
     }
     primary
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn record_with_deps(blocked_by: &[&str], blocks: &[&str]) -> TaskRecord {
+        TaskRecord {
+            schema_version: CURRENT_TASK_SCHEMA_VERSION,
+            id: "task_test".to_string(),
+            prompt: "test".to_string(),
+            model: "deepseek".to_string(),
+            workspace: PathBuf::from("/tmp"),
+            mode: "agent".to_string(),
+            allow_shell: false,
+            trust_mode: false,
+            auto_approve: false,
+            status: TaskStatus::Queued,
+            created_at: Utc::now(),
+            started_at: None,
+            ended_at: None,
+            duration_ms: None,
+            result_summary: None,
+            result_detail_path: None,
+            error: None,
+            thread_id: None,
+            turn_id: None,
+            runtime_event_count: 0,
+            checklist: TaskChecklistState::default(),
+            gates: Vec::new(),
+            attempts: Vec::new(),
+            artifacts: Vec::new(),
+            github_events: Vec::new(),
+            tool_calls: Vec::new(),
+            timeline: Vec::new(),
+            blocked_by: blocked_by.iter().map(|s| s.to_string()).collect(),
+            blocks: blocks.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn dependency_graph_fields_default_empty() {
+        let req = NewTaskRequest::from_prompt("do something");
+        // Build a minimal record to confirm the serde default keeps fields empty.
+        let mut task = record_with_deps(&[], &[]);
+        let (blocked_by, blocks) = task.dependency_graph();
+        assert!(blocked_by.is_empty());
+        assert!(blocks.is_empty());
+
+        // Serialize + deserialize round-trips and stays empty (backward compat).
+        let json = serde_json::to_string(&task).unwrap();
+        let parsed: TaskRecord = serde_json::from_str(&json).unwrap();
+        assert!(parsed.blocked_by.is_empty());
+        assert!(parsed.blocks.is_empty());
+        assert!(!json.contains("blocked_by"));
+
+        // NewTaskRequest itself doesn't set deps; ensure constructed record has empty deps.
+        let _ = req;
+    }
+
+    #[test]
+    fn dependency_graph_fields_roundtrip() {
+        let task = record_with_deps(&["task_a", "task_b"], &["task_c"]);
+        let (blocked_by, blocks) = task.dependency_graph();
+        assert_eq!(blocked_by, &["task_a".to_string(), "task_b".to_string()]);
+        assert_eq!(blocks, &["task_c".to_string()]);
+
+        let json = serde_json::to_string(&task).unwrap();
+        let parsed: TaskRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.blocked_by, vec!["task_a", "task_b"]);
+        assert_eq!(parsed.blocks, vec!["task_c"]);
+    }
+
+    #[test]
+    fn detect_cycle_finds_three_node_loop() {
+        // A -> B -> C -> A
+        let mut deps: HashMap<String, Vec<String>> = HashMap::new();
+        deps.insert("task_a".to_string(), vec!["task_b".to_string()]);
+        deps.insert("task_b".to_string(), vec!["task_c".to_string()]);
+        deps.insert("task_c".to_string(), vec!["task_a".to_string()]);
+
+        // Adding edge task_a -> task_b already exists; check task_c depending
+        // on task_a again would close the loop (it already does).
+        assert!(cycle_detection("task_a", &deps));
+        assert!(cycle_detection("task_b", &deps));
+        assert!(cycle_detection("task_c", &deps));
+    }
+
+    #[test]
+    fn detect_cycle_no_loop_acyclic() {
+        // A -> B -> C (DAG, no back edge)
+        let mut deps: HashMap<String, Vec<String>> = HashMap::new();
+        deps.insert("task_a".to_string(), vec!["task_b".to_string()]);
+        deps.insert("task_b".to_string(), vec!["task_c".to_string()]);
+
+        assert!(!cycle_detection("task_a", &deps));
+        assert!(!cycle_detection("task_b", &deps));
+        assert!(!cycle_detection("task_c", &deps));
+    }
+
+    #[test]
+    fn detect_cycle_blocks_new_edge() {
+        // Existing DAG: A -> B -> C
+        let mut deps: HashMap<String, Vec<String>> = HashMap::new();
+        deps.insert("task_a".to_string(), vec!["task_b".to_string()]);
+        deps.insert("task_b".to_string(), vec!["task_c".to_string()]);
+
+        // Adding task_c -> task_a would create C -> A -> B -> C cycle.
+        assert!(detect_cycle("task_c", "task_a", &deps));
+        // Adding task_a -> task_b again (already exists) is still acyclic input
+        // path-wise but detect_cycle only adds a NEW edge, so a -> b is fine.
+        assert!(!detect_cycle("task_a", "task_c", &deps));
+        // Self dependency is always a cycle.
+        assert!(detect_cycle("task_a", "task_a", &deps));
+    }
 }

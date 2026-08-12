@@ -10,6 +10,8 @@
 //! - `LlmError`: Classified errors with retryability information
 
 //! - `with_retry`: Generic retry wrapper for any async operation
+//! - `CircuitBreaker`: Fault isolation that fails fast on an unhealthy provider
+//! - `StreamResume`: Resumable stream cursor for reconnecting interrupted responses
 //!
 //! # Example
 //!
@@ -21,6 +23,17 @@
 //!     client.create_message(request).await
 //! }, None).await;
 //! ```
+
+mod circuit_breaker;
+mod stream_resume;
+
+// Re-export the resilience primitives as the public surface of `llm_client`.
+// These are the intended entry points for the upcoming provider failover /
+// stream-resume integration (issues #619 / MECE D11.3.023–024).
+#[allow(unused_imports)]
+pub use circuit_breaker::{CircuitBreaker, CircuitBreakerState};
+#[allow(unused_imports)]
+pub use stream_resume::{StreamResume, StreamResumeState, StreamResumePoint};
 
 use crate::config::RetryPolicy;
 use crate::models::{MessageRequest, MessageResponse, StreamEvent};

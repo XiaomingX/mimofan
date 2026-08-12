@@ -15,6 +15,7 @@ fn test_observations() -> Vec<Observation> {
             created_at: now - 3600,
             access_count: 0,
             last_accessed_at: None,
+            expires_at: None,
         },
         Observation {
             id: 2,
@@ -27,6 +28,7 @@ fn test_observations() -> Vec<Observation> {
             created_at: now - 1800,
             access_count: 0,
             last_accessed_at: None,
+            expires_at: None,
         },
         Observation {
             id: 3,
@@ -39,6 +41,7 @@ fn test_observations() -> Vec<Observation> {
             created_at: now,
             access_count: 0,
             last_accessed_at: None,
+            expires_at: None,
         },
     ]
 }

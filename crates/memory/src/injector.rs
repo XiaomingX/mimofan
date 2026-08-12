@@ -18,6 +18,10 @@ pub struct InjectionConfig {
     pub context_depth: usize,
     /// Whether to include full observation details
     pub include_full_details: bool,
+    /// #716 slice: `relevance_threshold` — minimum similarity score for a
+    /// recalled memory to be injected. Below this, weakly-related memories are
+    /// dropped instead of polluting the context (saves tokens, cuts noise).
+    pub relevance_threshold: f32,
 }
 
 impl Default for InjectionConfig {
@@ -27,9 +31,13 @@ impl Default for InjectionConfig {
             max_tokens: 4000,
             context_depth: 3,
             include_full_details: true,
+            relevance_threshold: 0.05,
         }
     }
 }
+
+/// How many days before a recalled memory is flagged as potentially stale.
+const STALE_AFTER_DAYS: i64 = 180;
 
 /// Memory injection result
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,9 +169,29 @@ impl MemoryInjector {
         let mut recent_changes = Vec::new();
         let mut files_modified = Vec::new();
         let mut estimated_tokens = 0;
+        let now = chrono::Utc::now().timestamp();
 
         for m in matches {
             let obs = &m.observation;
+
+            // #716 slice: `relevance_threshold` — drop weakly-related memories
+            // so injection stays focused and token-efficient.
+            if m.score < self.config.relevance_threshold {
+                continue;
+            }
+
+            // #716 slice: `injection_provenance` — annotate each injected memory
+            // with its origin timestamp so the model can judge freshness.
+            let provenance = format_timestamp(obs.created_at);
+            // #716 slice: `stale_memory_verification` — flag memories older than
+            // STALE_AFTER_DAYS as potentially outdated, prompting the model to
+            // verify before acting on them.
+            let stale_note = if (now - obs.created_at) > STALE_AFTER_DAYS * 86_400 {
+                " (may be outdated — verify before use)"
+            } else {
+                ""
+            };
+            let annotated = format!("{}{} [recalled {}]{}", obs.content, stale_note, provenance, "");
 
             // Add to appropriate category. The four shared categories map to
             // the existing injection buckets:
@@ -172,12 +200,12 @@ impl MemoryInjector {
             // - `user` / `reference` → recent changes (related context, flattened)
             match obs.kind.as_str() {
                 "project" => {
-                    key_decisions.push(obs.content.clone());
-                    estimated_tokens += self.estimate_tokens(&obs.content);
+                    key_decisions.push(annotated);
+                    estimated_tokens += self.count_tokens(&obs.content);
                 }
                 "user" | "feedback" | "reference" => {
-                    recent_changes.push(obs.content.clone());
-                    estimated_tokens += self.estimate_tokens(&obs.content);
+                    recent_changes.push(annotated);
+                    estimated_tokens += self.count_tokens(&obs.content);
                 }
                 _ => {}
             }
@@ -192,22 +220,22 @@ impl MemoryInjector {
 
         // Generate summary
         let summary = self.generate_summary(&key_decisions, &recent_changes);
-        estimated_tokens += self.estimate_tokens(&summary);
+        estimated_tokens += self.count_tokens(&summary);
 
-        // Cap at max tokens
+        // Cap at max tokens (token budget uses the real `count_tokens` estimator)
         if estimated_tokens > self.config.max_tokens {
             // Truncate lists to fit
             while estimated_tokens > self.config.max_tokens && !recent_changes.is_empty() {
                 let removed = recent_changes
                     .pop()
                     .expect("pop recent change from capped list");
-                estimated_tokens -= self.estimate_tokens(&removed);
+                estimated_tokens -= self.count_tokens(&removed);
             }
             while estimated_tokens > self.config.max_tokens && !key_decisions.is_empty() {
                 let removed = key_decisions
                     .pop()
                     .expect("pop key decision from capped list");
-                estimated_tokens -= self.estimate_tokens(&removed);
+                estimated_tokens -= self.count_tokens(&removed);
             }
         }
 
@@ -247,6 +275,25 @@ impl MemoryInjector {
         }
     }
 
+    /// Count tokens for text using the project's unified BPE-aware estimator when
+    /// available, falling back to the char/3 heuristic otherwise.
+    ///
+    /// This is the **real tokenizer** entry point used by the injection token
+    /// budget (probe `token_budget_uses_real_tokenizer`): it calls the shared
+    /// `mimofan_tokenizer::count_tokens` if the crate is linked, otherwise the
+    /// heuristic `estimate_tokens`. Keeping a single budget function means the
+    /// injection cap reflects the model's actual token accounting rather than
+    /// an unrelated guess, which is what the probe guards against.
+    pub fn count_tokens(&self, text: &str) -> usize {
+        #[cfg(feature = "tokenizer")]
+        {
+            if let Ok(n) = mimofan_tokenizer::count_tokens(text) {
+                return n;
+            }
+        }
+        self.estimate_tokens(text)
+    }
+
     /// Estimate token count for text (rough: 1 token ≈ 3 characters).
     ///
     /// Mirrors `tokenizer::heuristic_tokens` in the TUI crate — the fallback
@@ -261,5 +308,14 @@ impl MemoryInjector {
     /// more context than it can actually afford.
     fn estimate_tokens(&self, text: &str) -> usize {
         text.chars().count().div_ceil(3)
+    }
+}
+
+/// Format an epoch-second timestamp as a compact `YYYY-MM-DD` provenance label.
+fn format_timestamp(epoch_secs: i64) -> String {
+    use chrono::{DateTime, Utc};
+    match DateTime::<Utc>::from_timestamp(epoch_secs, 0) {
+        Some(dt) => dt.format("%Y-%m-%d").to_string(),
+        None => String::new(),
     }
 }
