@@ -325,6 +325,11 @@ impl VectorStore {
         }
 
         let id = self.write_transaction(observation, embedding)?;
+        // Observability: report SQLite's last_insert_rowid (note — the
+        // file/concept sub-inserts in the same transaction advance the
+        // connection cursor, so the authoritative id is `id` captured above,
+        // not this value).
+        debug!("stored observation {}; sqlite last_insert_rowid={}", id, self.sqlite.last_insert_rowid());
         let _ = self.enforce_capacity_policy(self.capacity_limit);
         Ok(id)
     }
