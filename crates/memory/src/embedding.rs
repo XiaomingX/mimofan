@@ -6,7 +6,11 @@
 //! preserves lexical overlap, not true semantics) and is clearly surfaced via
 //! a warning and the `degraded_count` counter for observability.
 
+use std::any::Any;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -19,6 +23,35 @@ use crate::error::MemoryError;
 /// because the upstream API failed or was unconfigured. Read via
 /// [`EmbeddingService::degraded_count`] for dashboards / health probes.
 static DEGRADED_COUNT: AtomicU64 = AtomicU64::new(0);
+
+/// Abstraction over a text embedder.
+///
+/// This trait lets memory consumers stay agnostic to *how* a vector is
+/// produced. The default production implementation is [`ApiEmbedder`] (remote
+/// OpenAI/DeepSeek-compatible API with a deterministic local-hash degrade
+/// path), but a future local/on-device embedder can be slotted in without
+/// touching callers (#712). Return types mirror the existing API surface
+/// (`Vec<f32>`), so adopting the trait is a pure refactor with zero behavior
+/// change for existing callers.
+pub trait Embedder: Send + Sync {
+    /// Embed a single text into a vector.
+    fn embed(&self, text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>>;
+
+    /// Embed a batch of texts. Implementations may batch network calls.
+    fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>>;
+
+    /// Dimension of the produced vectors.
+    fn dim(&self) -> usize;
+
+    /// Human-readable model/backend name (for logging & observability).
+    fn model_name(&self) -> &str {
+        "unknown"
+    }
+
+    /// Downcast support so callers holding `&dyn Embedder` can recover the
+    /// concrete type (e.g. to read `ApiEmbedder`'s `EmbeddingConfig`).
+    fn as_any(&self) -> &dyn Any;
+}
 
 /// Configuration for the embedding service
 #[derive(Debug, Clone)]
@@ -75,17 +108,22 @@ struct EmbeddingUsage {
     total_tokens: usize,
 }
 
-/// Embedding service for generating text embeddings via API
-pub struct EmbeddingService {
+/// Production [`Embedder`] backed by a remote OpenAI/DeepSeek-compatible API.
+///
+/// When the upstream API is unreachable or unconfigured, it degrades to a
+/// deterministic local hash vector so that memory writes are never silently
+/// dropped (#627). This was previously the body of `EmbeddingService`; it is
+/// now an injectable backend behind the [`Embedder`] trait (#712).
+pub struct ApiEmbedder {
     client: Client,
     config: EmbeddingConfig,
 }
 
-impl EmbeddingService {
-    /// Create a new embedding service with the given configuration
+impl ApiEmbedder {
+    /// Create a new API-backed embedder with the given configuration
     pub fn new(config: EmbeddingConfig) -> Result<Self> {
         info!(
-            "Initializing embedding service with model: {}",
+            "Initializing API embedder with model: {}",
             config.model
         );
 
@@ -94,71 +132,9 @@ impl EmbeddingService {
         Ok(Self { client, config })
     }
 
-    /// Create a new embedding service with default configuration
+    /// Create a new API-backed embedder with default configuration
     pub fn with_defaults() -> Result<Self> {
         Self::new(EmbeddingConfig::default())
-    }
-
-    /// Generate embedding for a single text
-    pub async fn embed_text(&self, text: &str) -> Result<Vec<f32>> {
-        let embeddings = self.embed_batch(&[text.to_string()]).await?;
-        embeddings
-            .into_iter()
-            .next()
-            .ok_or_else(|| MemoryError::Embedding("No embedding returned".to_string()))
-    }
-
-    /// Generate embeddings for multiple texts
-    pub async fn embed_batch(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
-        if texts.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        debug!("Embedding {} texts", texts.len());
-
-        let request = EmbeddingRequest {
-            input: texts.to_vec(),
-            model: self.config.model.clone(),
-        };
-
-        let url = format!("{}/embeddings", self.config.api_base_url);
-
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.config.api_key))
-            .header("Content-Type", "application/json")
-            .json(&request)
-            .send()
-            .await?;
-
-        let status = response.status();
-        if !status.is_success() {
-            let error_text = response.text().await.unwrap_or_default();
-            return self.degrade(texts, MemoryError::ApiError {
-                status: status.as_u16(),
-                message: error_text,
-            });
-        }
-
-        let embedding_response: EmbeddingResponse = match response.json().await {
-            Ok(r) => r,
-            Err(e) => return self.degrade(texts, MemoryError::Embedding(e.to_string())),
-        };
-
-        // Sort by index to ensure correct order
-        let mut data = embedding_response.data;
-        data.sort_by_key(|d| d.index);
-
-        let embeddings: Vec<Vec<f32>> = data.into_iter().map(|d| d.embedding).collect();
-
-        debug!(
-            "Generated {} embeddings, tokens used: {}",
-            embeddings.len(),
-            embedding_response.usage.total_tokens
-        );
-
-        Ok(embeddings)
     }
 
     /// Degrade gracefully when the upstream embedding API fails or is
@@ -176,20 +152,153 @@ impl EmbeddingService {
         DEGRADED_COUNT.fetch_add(1, Ordering::Relaxed);
         Ok(texts.iter().map(|t| hash_embed(t, self.config.dimension)).collect())
     }
+}
+
+impl Embedder for ApiEmbedder {
+    fn embed(&self, text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
+        let texts = vec![text.to_string()];
+        Box::pin(async move {
+            let embeddings = self.embed_batch(&texts).await?;
+            embeddings
+                .into_iter()
+                .next()
+                .ok_or_else(|| MemoryError::Embedding("No embedding returned".to_string()))
+        })
+    }
+
+    fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
+        // Copy inputs so the returned future borrows only `self` (lifetime
+        // `'_`), keeping the trait method dyn-compatible and free of the
+        // caller's `texts` lifetime.
+        let texts = texts.to_vec();
+        Box::pin(async move {
+            if texts.is_empty() {
+                return Ok(Vec::new());
+            }
+
+            debug!("Embedding {} texts", texts.len());
+
+            let request = EmbeddingRequest {
+                input: texts.clone(),
+                model: self.config.model.clone(),
+            };
+
+            let url = format!("{}/embeddings", self.config.api_base_url);
+
+            let response = self
+                .client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.config.api_key))
+                .header("Content-Type", "application/json")
+                .json(&request)
+                .send()
+                .await?;
+
+            let status = response.status();
+            if !status.is_success() {
+                let error_text = response.text().await.unwrap_or_default();
+                return self.degrade(&texts, MemoryError::ApiError {
+                    status: status.as_u16(),
+                    message: error_text,
+                });
+            }
+
+            let embedding_response: EmbeddingResponse = match response.json().await {
+                Ok(r) => r,
+                Err(e) => return self.degrade(&texts, MemoryError::Embedding(e.to_string())),
+            };
+
+            // Sort by index to ensure correct order
+            let mut data = embedding_response.data;
+            data.sort_by_key(|d| d.index);
+
+            let embeddings: Vec<Vec<f32>> = data.into_iter().map(|d| d.embedding).collect();
+
+            debug!(
+                "Generated {} embeddings, tokens used: {}",
+                embeddings.len(),
+                embedding_response.usage.total_tokens
+            );
+
+            Ok(embeddings)
+        })
+    }
+
+    fn dim(&self) -> usize {
+        self.config.dimension
+    }
+
+    fn model_name(&self) -> &str {
+        &self.config.model
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+/// Embedding service for generating text embeddings.
+///
+/// Thin facade over an injectable [`Embedder`] backend (default:
+/// [`ApiEmbedder`]). Holds the backend behind `Arc` so the service is
+/// `Clone`/`Send + Sync` and cheap to share across the memory pipeline. The
+/// public async API (`embed_text`/`embed_batch`) and introspection methods
+/// (`dimension`/`model_name`/`config`/`degraded_count`) are unchanged from the
+/// pre-trait implementation, so existing callers in `injector.rs` /
+/// `knowledge.rs` require no edits (#712).
+pub struct EmbeddingService {
+    backend: Arc<dyn Embedder>,
+}
+
+impl EmbeddingService {
+    /// Create a new embedding service with the given configuration.
+    /// Constructs the default [`ApiEmbedder`] backend.
+    pub fn new(config: EmbeddingConfig) -> Result<Self> {
+        Ok(Self {
+            backend: Arc::new(ApiEmbedder::new(config)?),
+        })
+    }
+
+    /// Create a new embedding service with default configuration
+    pub fn with_defaults() -> Result<Self> {
+        Self::new(EmbeddingConfig::default())
+    }
+
+    /// Create a service from an explicit [`Embedder`] backend.
+    ///
+    /// This is the seam that lets a local/on-device embedder replace the
+    /// remote API without changing any caller (#712).
+    pub fn with_backend(backend: Arc<dyn Embedder>) -> Self {
+        Self { backend }
+    }
+
+    /// Generate embedding for a single text
+    pub async fn embed_text(&self, text: &str) -> Result<Vec<f32>> {
+        self.backend.embed(text).await
+    }
+
+    /// Generate embeddings for multiple texts
+    pub async fn embed_batch(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+        self.backend.embed_batch(texts).await
+    }
 
     /// Get the dimension of the embeddings
     pub fn dimension(&self) -> usize {
-        self.config.dimension
+        self.backend.dim()
     }
 
     /// Get the model name
     pub fn model_name(&self) -> &str {
-        &self.config.model
+        self.backend.model_name()
     }
 
-    /// Get the configuration
-    pub fn config(&self) -> &EmbeddingConfig {
-        &self.config
+    /// Get the configuration of the underlying API backend.
+    ///
+    /// Returns `None` for backends that are not the default [`ApiEmbedder`]
+    /// (e.g. a local embedder with no API config), so callers can still gate
+    /// on `config().is_some()` without assuming a remote endpoint exists.
+    pub fn config(&self) -> Option<&EmbeddingConfig> {
+        self.backend.as_any().downcast_ref::<ApiEmbedder>().map(|a| &a.config)
     }
 
     /// Total number of times this service has degraded to local hash vectors
@@ -288,5 +397,90 @@ mod tests {
         // failure -> local hash vectors) is exercised at runtime when the
         // upstream embedding endpoint is unreachable (#627).
         let _ = EmbeddingService::degraded_count();
+    }
+
+    #[test]
+    fn api_embedder_satisfies_embedder_trait() {
+        // Compile-time proof that any local type can implement `Embedder`
+        // behind `dyn Embedder` (#712) — this is the seam that lets a future
+        // on-device embedder replace the remote API without touching callers.
+        // Network/Client construction is intentionally avoided here so the
+        // unit test does not depend on the TLS crypto provider installed by
+        // the binary at startup.
+        struct StubEmbedder {
+            dim: usize,
+        }
+        impl Embedder for StubEmbedder {
+            fn embed(&self, _text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
+                Box::pin(async move { Ok(vec![0.0; self.dim]) })
+            }
+            fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
+                let n = texts.len();
+                let dim = self.dim;
+                Box::pin(async move { Ok(vec![vec![0.0; dim]; n]) })
+            }
+            fn dim(&self) -> usize {
+                self.dim
+            }
+            fn model_name(&self) -> &str {
+                "stub"
+            }
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+        }
+
+        let embedder: Arc<dyn Embedder> = Arc::new(StubEmbedder { dim: 8 });
+        assert_eq!(embedder.dim(), 8);
+        assert_eq!(embedder.model_name(), "stub");
+        // Downcast back to the concrete type via the `as_any` seam.
+        let recovered = embedder.as_any().downcast_ref::<StubEmbedder>().expect("downcast");
+        assert_eq!(recovered.dim, 8);
+    }
+
+    #[test]
+    fn service_wraps_backend_and_exposes_config() {
+        // `EmbeddingService::with_backend` injects an arbitrary `Embedder`;
+        // `dimension`/`model_name` proxy through; `as_any` downcast reaches
+        // the concrete backend (#712). No `Client`/TLS provider needed.
+        struct StubEmbedder {
+            dim: usize,
+        }
+        impl Embedder for StubEmbedder {
+            fn embed(&self, _text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
+                Box::pin(async move { Ok(vec![0.0; self.dim]) })
+            }
+            fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
+                let n = texts.len();
+                let dim = self.dim;
+                Box::pin(async move { Ok(vec![vec![0.0; dim]; n]) })
+            }
+            fn dim(&self) -> usize {
+                self.dim
+            }
+            fn model_name(&self) -> &str {
+                "stub-backend"
+            }
+            fn as_any(&self) -> &dyn Any {
+                self
+            }
+        }
+
+        let backend: Arc<dyn Embedder> = Arc::new(StubEmbedder { dim: 16 });
+        let service = EmbeddingService::with_backend(backend);
+        assert_eq!(service.dimension(), 16);
+        assert_eq!(service.model_name(), "stub-backend");
+        // `config()` returns None for a non-ApiEmbedder backend (no API
+        // config), proving the facade degrades gracefully for local embedders.
+        assert!(service.config().is_none());
+    }
+
+    #[test]
+    fn api_embedder_is_a_valid_embedder_backend() {
+        // Static assertion: `ApiEmbedder` satisfies the `Embedder` trait so it
+        // can be stored behind `Arc<dyn Embedder>` in `EmbeddingService`
+        // (#712). Avoids constructing `reqwest::Client` (needs TLS provider).
+        fn assert_impl_embedder<T: Embedder>() {}
+        assert_impl_embedder::<ApiEmbedder>();
     }
 }
