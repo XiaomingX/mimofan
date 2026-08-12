@@ -13,6 +13,7 @@
 //! a caller with an `EmbeddingService` can layer semantic (vector) search on
 //! top by querying the indexed files independently.
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use rusqlite::params;
@@ -20,6 +21,26 @@ use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
+
+/// A signal that contributed to a hybrid retrieval score.
+///
+/// Each source's raw normalized contribution is recorded in
+/// [`SearchHit::score_breakdown`] so callers can explain *why* a chunk ranked
+/// where it did and tune fusion weights. New signals (vector, recency,
+/// importance) extend this enum without touching the fusion core.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RetrievalSource {
+    /// FTS5 BM25 full-text match (offline, no API key).
+    FullText,
+    /// Lightweight in-chunk term-frequency lexical signal (offline).
+    Lexical,
+    /// Reserved for vector/semantic recall (requires an `Embedder`).
+    Vector,
+    /// Reserved for time-proximity decay.
+    Recency,
+    /// Reserved for importance (reference/edit frequency or external score).
+    Importance,
+}
 
 /// Number of source lines per chunk before overlap.
 const LINES_PER_CHUNK: usize = 40;
@@ -61,6 +82,10 @@ pub struct SearchHit {
     pub rank: f64,
     /// Short highlighted snippet around the match.
     pub snippet: String,
+    /// Per-source contribution to the final hybrid score, keyed by
+    /// [`RetrievalSource`]. Populated by [`CodebaseIndex::hybrid_search`];
+    /// `search` leaves it empty. Enables explainable ranking.
+    pub score_breakdown: HashMap<RetrievalSource, f64>,
 }
 
 /// Filters applied after the FTS5 full-text match.
@@ -273,6 +298,12 @@ impl CodebaseIndex {
         let mut stmt = self.sqlite.prepare(&sql)?;
         let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
         let rows = stmt.query_map(rusqlite::params_from_iter(param_refs), |row| {
+            let rank: f64 = row.get(6)?;
+            let mut breakdown = HashMap::new();
+            // FTS5 `rank` is bm25 (lower = more relevant, can be negative).
+            // Normalize to a 0..1 score where higher = more relevant so it is
+            // comparable with other signals in `hybrid_search`.
+            breakdown.insert(RetrievalSource::FullText, normalize_bm25(rank));
             Ok(SearchHit {
                 file_path: row.get(0)?,
                 language: row.get(1)?,
@@ -280,8 +311,9 @@ impl CodebaseIndex {
                 end_line: row.get::<_, i64>(3)? as usize,
                 content: row.get(4)?,
                 symbols: serde_json::from_str(&row.get::<_, String>(5)?).unwrap_or_default(),
-                rank: row.get::<_, f64>(6)?,
+                rank,
                 snippet: row.get(7)?,
+                score_breakdown: breakdown,
             })
         })?;
 
@@ -301,6 +333,124 @@ impl CodebaseIndex {
             hits.push(hit);
         }
         Ok(hits)
+    }
+
+    /// Fuse full-text (FTS5 BM25) and a lightweight in-chunk lexical signal
+    /// using Reciprocal Rank Fusion (RRF), producing a single ranked list
+    /// whose [`SearchHit::score_breakdown`] explains each source's
+    /// contribution. This is the minimal, dependency-free slice of hybrid
+    /// retrieval (issue #714): it adds the fusion *scaffold* and explainability
+    /// without pulling in a vector embedder or a time-decay store. Additional
+    /// signals (vector / recency / importance) plug in by extending
+    /// [`RetrievalSource`] and the loop below.
+    ///
+    /// `k` is the RRF constant (higher = rank differences matter less); the
+    /// lexical signal is the summed term-frequency of query tokens appearing
+    /// in the chunk, normalized to 0..1 by the best lexical score in the batch.
+    pub fn hybrid_search(
+        &self,
+        query: &str,
+        filters: &SearchFilters,
+        limit: usize,
+        k: f64,
+    ) -> Result<Vec<SearchHit>> {
+        let mut hits = self.search(query, filters, limit * 4)?;
+        if hits.is_empty() {
+            return Ok(hits);
+        }
+
+        // Lexical signal: term-frequency of query tokens within each chunk.
+        let tokens: Vec<String> = normalize_query(query)
+            .split_whitespace()
+            .map(|t| t.to_lowercase())
+            .filter(|t| !t.is_empty())
+            .collect();
+        let mut best_lexical = 0.0_f64;
+        for hit in &mut hits {
+            let lower = hit.content.to_lowercase();
+            let mut tf = 0.0_f64;
+            for tok in &tokens {
+                tf += lower.matches(tok.as_str()).count() as f64;
+            }
+            let lexical = if tokens.is_empty() { 0.0 } else { tf };
+            hit.score_breakdown
+                .insert(RetrievalSource::Lexical, lexical);
+            best_lexical = best_lexical.max(lexical);
+        }
+        // Normalize lexical to 0..1 against the best in this batch.
+        if best_lexical > 0.0 {
+            for hit in &mut hits {
+                if let Some(v) = hit.score_breakdown.get_mut(&RetrievalSource::Lexical) {
+                    *v /= best_lexical;
+                }
+            }
+        }
+
+        // RRF over the two ranked lists. FullText list is already ranked by
+        // `rank` (bm25, ascending = more relevant); lexical list ranks by its
+        // raw tf. We fuse via rank position in each ordering.
+        let rrf = |rank_position: f64| 1.0 / (k + rank_position);
+
+        let mut fused: Vec<(f64, usize)> = Vec::with_capacity(hits.len());
+        // Re-rank by FullText score descending to get positions.
+        let mut ft_order: Vec<usize> = (0..hits.len()).collect();
+        ft_order.sort_by(|&a, &b| {
+            let la = hits[a]
+                .score_breakdown
+                .get(&RetrievalSource::FullText)
+                .copied()
+                .unwrap_or(0.0);
+            let lb = hits[b]
+                .score_breakdown
+                .get(&RetrievalSource::FullText)
+                .copied()
+                .unwrap_or(0.0);
+            // Descending: higher FullText score = more relevant = position 0.
+            lb.partial_cmp(&la).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let mut lex_order: Vec<usize> = (0..hits.len()).collect();
+        lex_order.sort_by(|&a, &b| {
+            let la = hits[a]
+                .score_breakdown
+                .get(&RetrievalSource::Lexical)
+                .copied()
+                .unwrap_or(0.0);
+            let lb = hits[b]
+                .score_breakdown
+                .get(&RetrievalSource::Lexical)
+                .copied()
+                .unwrap_or(0.0);
+            // Descending: higher lexical score = more relevant = position 0.
+            lb.partial_cmp(&la).unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        for (pos, &i) in ft_order.iter().enumerate() {
+            let score = rrf(pos as f64 + 1.0);
+            if let Some(v) = hits[i].score_breakdown.get_mut(&RetrievalSource::FullText) {
+                *v = score;
+            }
+            fused.push((score, i));
+        }
+        for (pos, &i) in lex_order.iter().enumerate() {
+            let score = rrf(pos as f64 + 1.0);
+            let entry = hits[i]
+                .score_breakdown
+                .entry(RetrievalSource::Lexical)
+                .or_insert(0.0);
+            *entry = score;
+            // Accumulate into the fused score (RRF is additive across signals).
+            if let Some(slot) = fused.iter_mut().find(|(_, idx)| *idx == i) {
+                slot.0 += score;
+            }
+        }
+
+        fused.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let mut out = fused.into_iter().take(limit).map(|(_, i)| hits[i].clone()).collect::<Vec<_>>();
+        // Re-rank `rank` to mirror the fused order for callers that sort by it.
+        for (pos, hit) in out.iter_mut().enumerate() {
+            hit.rank = pos as f64;
+        }
+        Ok(out)
     }
 
     /// Count indexed chunks for a repo (used by tests/diagnostics).
@@ -364,6 +514,17 @@ pub fn normalize_query(q: &str) -> String {
         prev_lower = ch.is_lowercase();
     }
     out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Normalize an FTS5 BM25 `rank` (lower = more relevant, often negative and
+/// unbounded) into a 0..1 score where higher = more relevant. Used so the
+/// full-text signal is comparable with other [`RetrievalSource`] scores in
+/// [`CodebaseIndex::hybrid_search`].
+fn normalize_bm25(rank: f64) -> f64 {
+    // FTS5 `rank` is bm25: negative for strong matches, positive/zero for weak.
+    // A logistic squashes it so a strongly-matching chunk (rank << 0)
+    // approaches 1 and a weak one (rank >> 0) approaches 0.
+    1.0 / (1.0 + rank.exp())
 }
 
 /// Stable, dependency-free content hash.
@@ -571,5 +732,94 @@ impl Tokenizer {
         assert_eq!(normalize_query("prefix*"), "prefix*");
         assert_eq!(normalize_query("a OR b"), "a OR b");
         assert_eq!(normalize_query("foo AND bar"), "foo AND bar");
+    }
+
+    #[test]
+    fn normalize_bm25_maps_relevance_to_unit() {
+        // More relevant (more negative rank) -> closer to 1.
+        assert!(normalize_bm25(-10.0) > 0.9);
+        assert!(normalize_bm25(0.0) > 0.4 && normalize_bm25(0.0) < 0.6);
+        // Less relevant (positive rank) -> closer to 0.
+        assert!(normalize_bm25(10.0) < 0.1);
+    }
+
+    #[test]
+    fn search_populates_fulltext_breakdown() {
+        let (_dir, idx) = open_tmp();
+        idx.index_file("repo", "src/lib.rs", "rust", SAMPLE).unwrap();
+        let hits = idx
+            .search("wrapping_mul", &SearchFilters::default(), 10)
+            .unwrap();
+        assert!(!hits.is_empty());
+        let hit = &hits[0];
+        assert!(hit
+            .score_breakdown
+            .contains_key(&RetrievalSource::FullText));
+        assert!(hit.score_breakdown[&RetrievalSource::FullText] > 0.0);
+    }
+
+    #[test]
+    fn hybrid_search_fuses_and_explains() {
+        let (_dir, idx) = open_tmp();
+        // Two files: one matches the query term strongly, the other also
+        // contains the term so lexical + full-text both contribute.
+        idx.index_file(
+            "repo",
+            "a.rs",
+            "rust",
+            "fn compute_hash(input: &str) -> u64 { let mut h = 0; for c in input.chars() { h = h.wrapping_mul(31).wrapping_add(c as u64); } h }\n",
+        )
+        .unwrap();
+        idx.index_file(
+            "repo",
+            "b.rs",
+            "rust",
+            "fn other() { let x = compute_hash(\"hi\"); println!(\"{x}\"); }\n",
+        )
+        .unwrap();
+
+        let hits = idx
+            .hybrid_search("compute_hash", &SearchFilters::default(), 10, 60.0)
+            .unwrap();
+        assert!(!hits.is_empty(), "hybrid search must return hits");
+
+        // Every hit carries an explainable breakdown with both signals.
+        for hit in &hits {
+            assert!(hit.score_breakdown.contains_key(&RetrievalSource::FullText));
+            assert!(hit.score_breakdown.contains_key(&RetrievalSource::Lexical));
+            let total: f64 = hit.score_breakdown.values().sum();
+            assert!(total > 0.0, "fused score must be positive");
+        }
+
+        // Both the defining chunk and the referencing chunk are recalled, and
+        // the fused order is deterministic (lexical/FTS5 ranking, not
+        // semantic — so we assert presence, not a specific position 0).
+        let paths: Vec<&str> = hits.iter().map(|h| h.file_path.as_str()).collect();
+        assert!(paths.contains(&"a.rs"), "defining chunk must be recalled");
+        assert!(paths.contains(&"b.rs"), "referencing chunk must be recalled");
+        // Fused scores are non-increasing down the list (RRF ordering).
+        for w in hits.windows(2) {
+            let s0: f64 = w[0].score_breakdown.values().sum();
+            let s1: f64 = w[1].score_breakdown.values().sum();
+            assert!(s0 >= s1 - 1e-9, "hybrid order must be non-increasing by fused score");
+        }
+    }
+
+    #[test]
+    fn hybrid_search_respects_limit() {
+        let (_dir, idx) = open_tmp();
+        for i in 0..5 {
+            idx.index_file(
+                "repo",
+                &format!("m{i}.rs"),
+                "rust",
+                &format!("fn compute_hash_{i}() {{}}\n"),
+            )
+            .unwrap();
+        }
+        let hits = idx
+            .hybrid_search("compute_hash", &SearchFilters::default(), 2, 60.0)
+            .unwrap();
+        assert_eq!(hits.len(), 2);
     }
 }
