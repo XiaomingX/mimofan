@@ -6,6 +6,8 @@
 
 use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator};
 
+pub mod callgraph;
+
 /// Supported source languages. Grammars are feature-gated to keep the default
 /// build lean.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
