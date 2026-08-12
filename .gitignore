@@ -178,3 +178,5 @@ settings.example.json
 # Local agent runtimes & caches
 .gemini/
 .antigravity/
+# #777 LongMemEval 评测数据集（277MB，从 HuggingFace 下载，不入库）
+benchmark/agentbench/samples/longmemeval/

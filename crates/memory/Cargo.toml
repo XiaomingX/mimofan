@@ -43,3 +43,8 @@ path = "examples/memory_benchmark.rs"
 [[example]]
 name = "probe_recall"
 path = "examples/probe_recall.rs"
+
+# #777 LongMemEval 记忆接入探针：把 LongMemEval 样本灌入 VectorStore 并召回
+[[example]]
+name = "longmemeval_ingest"
+path = "examples/longmemeval_ingest.rs"
