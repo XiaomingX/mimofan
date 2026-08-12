@@ -40,6 +40,7 @@ pub use error::MemoryError;
 pub use injector::{InjectionConfig, MemoryInjection, MemoryInjector};
 pub use user_profile::{Bucket, ProfileEntry, UserProfile};
 pub use knowledge::{CorpusAnswer, CorpusSource, KnowledgeAgent, KnowledgeCorpus};
+pub use codebase::{RetrievalHit, RetrievalSource};
 pub use optimization::{
     BatchProcessor, LongTaskManager, LongTaskResult, ObservationStore, RateLimiter, SearchCache,
 };
