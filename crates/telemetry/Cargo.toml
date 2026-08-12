@@ -1,0 +1,36 @@
+[package]
+name = "mimofan-telemetry"
+description = "Optional OpenTelemetry tracing bridge for mimofan (feature-gated)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# Default build carries NO OpenTelemetry dependency: the bridge is inert and
+# `init_otel` returns a disabled handle. Enable `otlp` to pull in the
+# `opentelemetry` stack and actually export spans.
+default = []
+otlp = [
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+    "dep:opentelemetry-otlp",
+    "dep:tracing-opentelemetry",
+    "dep:tracing-subscriber",
+]
+
+[dependencies]
+anyhow.workspace = true
+tracing.workspace = true
+
+# The OpenTelemetry stack is entirely opt-in. tracing-opentelemetry 0.28
+# pins the 0.27 opentelemetry line, so we align the whole stack to 0.27.
+opentelemetry = { version = "0.27", optional = true }
+opentelemetry_sdk = { version = "0.27", optional = true }
+opentelemetry-otlp = { version = "0.27", optional = true, features = ["grpc-tonic", "trace"] }
+tracing-opentelemetry = { version = "0.28", optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
