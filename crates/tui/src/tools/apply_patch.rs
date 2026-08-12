@@ -1310,4 +1310,144 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&read_file).unwrap(), "alpha\n");
         assert_eq!(std::fs::read_to_string(&unread_file).unwrap(), "beta\n");
     }
+
+    /// One first-try application of a single-hunk unified diff.
+    ///
+    /// Returns the parsed [`PatchResult`] on success, or the tool error string
+    /// when the guard refuses the mutation. The caller decides what counts as
+    /// a "first try" success: `success && hunks_applied == hunks_total &&
+    /// fuzz_used == 0`.
+    async fn apply_first_try(
+        dir: &TempDir,
+        rel_path: &str,
+        original: &str,
+        patch: &str,
+    ) -> Result<PatchResult, String> {
+        let path = dir.path().join(rel_path);
+        std::fs::write(&path, original).unwrap();
+        let ctx = ctx(dir);
+        // Resolve the same canonicalized path the guard compares against so the
+        // read snapshot key matches regardless of /var vs /private/var symlinks.
+        let resolved = ctx.resolve_path(rel_path).unwrap();
+        ctx.note_file_read(&resolved);
+
+        let result = ApplyPatchTool
+            .execute(json!({ "path": rel_path, "patch": patch }), &ctx)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // `ToolResult::json` serialises the `PatchResult` into `content`.
+        serde_json::from_str::<PatchResult>(&result.content)
+            .map_err(|e| format!("failed to parse PatchResult from content: {e}"))
+    }
+
+    /// #689 — Edit/Apply first-try success-rate benchmark.
+    ///
+    /// Constructs a small polyglot corpus of *correct* single- and multi-hunk
+    /// unified diffs (the kind a model would emit on a clean read) and measures
+    /// how many apply without fuzzing on the very first attempt. This is the
+    /// empirical floor for "one-shot edit success", distinct from fuzzy-recovery
+    /// (which only kicks in after a first try has already failed).
+    ///
+    /// A sample counts as first-try success when the tool reports
+    /// `success && hunks_applied == hunks_total && fuzz_used == 0`. The benchmark
+    /// asserts a high floor (>= 0.9) so a regression in the patch parser (e.g.
+    /// stricter header handling) is caught here rather than in production.
+    #[tokio::test]
+    async fn edit_apply_first_try_benchmark() {
+        // (rel_path, original_content, unified_diff)
+        let samples: &[(&str, &str, &str)] = &[
+            // Rust: replace a function body line.
+            (
+                "lib.rs",
+                "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n",
+                "@@ -1,3 +1,3 @@\n fn add(a: i32, b: i32) -> i32 {\n-    a + b\n+    a.wrapping_add(b)\n }\n",
+            ),
+            // Python: change a return value.
+            (
+                "main.py",
+                "def greet(name):\n    return 'hi ' + name\n",
+                "@@ -1,2 +1,2 @@\n def greet(name):\n-    return 'hi ' + name\n+    return f'hi {name}'\n",
+            ),
+            // JavaScript: swap an assignment.
+            (
+                "app.js",
+                "const x = 1;\nconst y = 2;\n",
+                "@@ -1,2 +1,2 @@\n const x = 1;\n-const y = 2;\n+const y = 3;\n",
+            ),
+            // Go: change a constant.
+            (
+                "svc.go",
+                "package main\n\nconst port = 8080\n",
+                "@@ -1,3 +1,3 @@\n package main\n\n-const port = 8080\n+const port = 9090\n",
+            ),
+            // JSON: change a field value.
+            (
+                "cfg.json",
+                "{\n  \"name\": \"x\",\n  \"version\": 1\n}\n",
+                "@@ -1,3 +1,3 @@\n {\n   \"name\": \"x\",\n-  \"version\": 1\n+  \"version\": 2\n }\n",
+            ),
+            // YAML: change a scalar.
+            (
+                "vals.yaml",
+                "database:\n  host: localhost\n  port: 5432\n",
+                "@@ -1,3 +1,3 @@\n database:\n   host: localhost\n-  port: 5432\n+  port: 6432\n",
+            ),
+            // Markdown: replace a heading line.
+            (
+                "README.md",
+                "# Title\n\nSome intro text.\n",
+                "@@ -1,2 +1,2 @@\n-# Title\n+# New Title\n\n Some intro text.\n",
+            ),
+            // Multi-hunk Rust: two non-adjacent edits.
+            (
+                "multi.rs",
+                "fn a() {}\n\nfn b() {}\n\nfn c() {}\n",
+                "@@ -1,1 +1,1 @@\n-fn a() {}\n+fn a() -> () {}\n@@ -3,1 +3,1 @@\n-fn b() {}\n+fn b() -> () {}\n",
+            ),
+        ];
+
+        let mut first_try_ok = 0usize;
+        let mut failures: Vec<(String, String)> = Vec::new();
+
+        for (rel_path, original, patch) in samples {
+            let dir = dir_for_sample();
+            match apply_first_try(&dir, rel_path, original, patch).await {
+                Ok(pr) if pr.success && pr.hunks_applied == pr.hunks_total && pr.fuzz_used == 0 => {
+                    first_try_ok += 1;
+                }
+                Ok(pr) => {
+                    failures.push((
+                        (*rel_path).to_string(),
+                        format!(
+                            "success={} hunks={}/{} fuzz={} msg={}",
+                            pr.success, pr.hunks_applied, pr.hunks_total, pr.fuzz_used, pr.message
+                        ),
+                    ));
+                }
+                Err(e) => failures.push(((*rel_path).to_string(), e)),
+            }
+        }
+
+        let total = samples.len();
+        let rate = first_try_ok as f64 / total as f64;
+        println!(
+            "[#689 benchmark] first-try success {first_try_ok}/{total} = {:.2}",
+            rate
+        );
+        for (p, why) in &failures {
+            println!("  miss {p}: {why}");
+        }
+
+        assert!(
+            rate >= 0.9,
+            "edit/apply first-try success rate {rate:.2} below 0.9 floor; misses: {failures:?}"
+        );
+    }
+
+    /// Private helper that builds a fresh TempDir per sample so each attempt is
+    /// fully isolated (no cross-sample filesystem state).
+    fn dir_for_sample() -> TempDir {
+        TempDir::new().unwrap()
+    }
 }
