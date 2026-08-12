@@ -3318,6 +3318,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "chrono",
+ "dirs",
  "hnsw_rs",
  "reqwest",
  "rusqlite",

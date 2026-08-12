@@ -29,6 +29,7 @@ pub mod error;
 pub mod injector;
 pub mod knowledge;
 pub mod optimization;
+pub mod user_profile;
 pub mod vector;
 
 pub use backend::{MemoryBackend, SharedMemoryBackend};
@@ -37,6 +38,7 @@ pub use compressor::{CompressionStrategy, ObservationCompressor, SessionSummary}
 pub use embedding::{ApiEmbedder, Embedder, EmbeddingConfig, EmbeddingService};
 pub use error::MemoryError;
 pub use injector::{InjectionConfig, MemoryInjection, MemoryInjector};
+pub use user_profile::{Bucket, ProfileEntry, UserProfile};
 pub use knowledge::{CorpusAnswer, CorpusSource, KnowledgeAgent, KnowledgeCorpus};
 pub use optimization::{
     BatchProcessor, LongTaskManager, LongTaskResult, ObservationStore, RateLimiter, SearchCache,
