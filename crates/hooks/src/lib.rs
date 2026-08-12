@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -74,6 +74,23 @@ pub enum HookEvent {
     GenericEventFrame {
         /// The raw event frame to forward.
         frame: Box<EventFrame>,
+    },
+    /// An automation run has transitioned to a new terminal/critical phase.
+    ///
+    /// Emitted by the automation scheduler when a run reaches `Completed`,
+    /// `Failed`, or `Canceled`, so external systems (webhooks, log sinks) can
+    /// observe recurring-job outcomes. See #671.
+    AutomationLifecycle {
+        /// Unique identifier of the automation that produced the run.
+        automation_id: String,
+        /// Human-readable automation name.
+        name: String,
+        /// Unique identifier of the run.
+        run_id: String,
+        /// Current phase of the run (e.g. `"completed"`, `"failed"`, `"canceled"`).
+        phase: String,
+        /// Optional error detail when the run failed.
+        error: Option<String>,
     },
 }
 
@@ -179,7 +196,10 @@ impl HookSink for JsonlHookSink {
 /// (200 ms, 400 ms). After exhausting retries the error is propagated.
 pub struct WebhookHookSink {
     url: String,
-    client: reqwest::Client,
+    // Built lazily on first `emit` so `new` does not require a TLS crypto
+    // provider to be installed (callers that never deliver never pay for it,
+    // and construction is safe in tests / before runtime init).
+    client: OnceLock<reqwest::Client>,
 }
 
 impl WebhookHookSink {
@@ -187,7 +207,7 @@ impl WebhookHookSink {
     pub fn new(url: String) -> Self {
         Self {
             url,
-            client: reqwest::Client::new(),
+            client: OnceLock::new(),
         }
     }
 }
@@ -195,10 +215,12 @@ impl WebhookHookSink {
 #[async_trait]
 impl HookSink for WebhookHookSink {
     async fn emit(&self, event: &HookEvent) -> Result<()> {
+        let client = self
+            .client
+            .get_or_init(|| reqwest::Client::new());
         let mut retries = 0usize;
         loop {
-            let resp = self
-                .client
+            let resp = client
                 .post(&self.url)
                 .json(&json!({
                     "at": Utc::now().to_rfc3339(),

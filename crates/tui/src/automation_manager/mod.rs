@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 use crate::task_manager::{NewTaskRequest, SharedTaskManager, TaskStatus};
 use crate::utils::spawn_supervised;
+use mimofan_hooks::{HookDispatcher, WebhookHookSink};
 
 const CURRENT_AUTOMATION_SCHEMA_VERSION: u32 = 1;
 const CURRENT_RUN_SCHEMA_VERSION: u32 = 1;
@@ -50,6 +51,19 @@ pub enum AutomationRunStatus {
     Completed,
     Failed,
     Canceled,
+}
+
+impl AutomationRunStatus {
+    /// Stable lowercase string used in hook event phases and logs.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Running => "running",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Canceled => "canceled",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -394,10 +408,26 @@ fn parse_byday(value: &str) -> Result<Vec<Weekday>> {
     Ok(days)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AutomationManager {
     automations_dir: PathBuf,
     runs_dir: PathBuf,
+    /// Optional hook dispatcher for delivering run-lifecycle events (e.g. a
+    /// configured webhook). Best-effort; `None` means no delivery is wired.
+    hook_dispatcher: Option<HookDispatcher>,
+}
+
+impl std::fmt::Debug for AutomationManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AutomationManager")
+            .field("automations_dir", &self.automations_dir)
+            .field("runs_dir", &self.runs_dir)
+            .field(
+                "hook_dispatcher",
+                &self.hook_dispatcher.is_some(),
+            )
+            .finish()
+    }
 }
 
 impl AutomationManager {
@@ -411,6 +441,9 @@ impl AutomationManager {
         Ok(Self {
             automations_dir,
             runs_dir,
+            // #671: wire a webhook sink if MIMOFAN_AUTOMATION_WEBHOOK_URL is set,
+            // turning the previously-dead WebhookHookSink into a real delivery path.
+            hook_dispatcher: build_webhook_dispatcher(),
         })
     }
 
@@ -869,12 +902,88 @@ impl AutomationManager {
                         updated_automation.last_run_at = run.ended_at.or(Some(Utc::now()));
                         updated_automation.updated_at = Utc::now();
                         self.save_automation(&updated_automation)?;
+
+                        // #671: deliver a run-lifecycle event to the wired webhook
+                        // (if any). Clone the dispatcher out so the network I/O in
+                        // `emit` does not hold the manager mutex; spawn fire-and-forget
+                        // best-effort delivery (delivery failures are non-fatal).
+                        if let Some(dispatcher) = self.hook_dispatcher.clone() {
+                            let event = mimofan_hooks::HookEvent::AutomationLifecycle {
+                                automation_id: automation.id.clone(),
+                                name: automation.name.clone(),
+                                run_id: run.id.clone(),
+                                phase: run.status.as_str().to_string(),
+                                error: run.error.clone(),
+                            };
+                            // HookDispatcher::emit is best-effort and swallows
+                            // sink errors internally; spawn fire-and-forget so the
+                            // webhook network I/O does not hold the manager mutex.
+                            spawn_supervised(
+                                "automation-webhook-deliver",
+                                std::panic::Location::caller(),
+                                async move {
+                                    dispatcher.emit(event).await;
+                                },
+                            );
+                        }
                     }
                 }
             }
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const WEBHOOK_ENV: &str = "MIMOFAN_AUTOMATION_WEBHOOK_URL";
+
+    #[test]
+    fn webhook_dispatcher_none_when_env_unset() {
+        unsafe { std::env::remove_var(WEBHOOK_ENV) };
+        assert!(build_webhook_dispatcher().is_none());
+    }
+
+    #[test]
+    fn webhook_dispatcher_none_when_env_empty() {
+        unsafe { std::env::set_var(WEBHOOK_ENV, "") };
+        assert!(build_webhook_dispatcher().is_none());
+        unsafe { std::env::remove_var(WEBHOOK_ENV) };
+    }
+
+    #[test]
+    fn webhook_dispatcher_some_when_env_set() {
+        unsafe { std::env::set_var(WEBHOOK_ENV, "https://example.com/hooks/automation") };
+        let dispatcher = build_webhook_dispatcher();
+        assert!(dispatcher.is_some());
+        unsafe { std::env::remove_var(WEBHOOK_ENV) };
+    }
+
+    #[test]
+    fn run_status_as_str_is_stable() {
+        assert_eq!(AutomationRunStatus::Completed.as_str(), "completed");
+        assert_eq!(AutomationRunStatus::Failed.as_str(), "failed");
+        assert_eq!(AutomationRunStatus::Canceled.as_str(), "canceled");
+        assert_eq!(AutomationRunStatus::Queued.as_str(), "queued");
+        assert_eq!(AutomationRunStatus::Running.as_str(), "running");
+    }
+
+    #[test]
+    fn automation_lifecycle_event_serializes_with_discriminator() {
+        let event = mimofan_hooks::HookEvent::AutomationLifecycle {
+            automation_id: "auto-1".to_string(),
+            name: "nightly backup".to_string(),
+            run_id: "run-9".to_string(),
+            phase: "completed".to_string(),
+            error: None,
+        };
+        let value = serde_json::to_value(&event).unwrap();
+        assert_eq!(value["type"], "automation_lifecycle");
+        assert_eq!(value["automation_id"], "auto-1");
+        assert_eq!(value["phase"], "completed");
     }
 }
 
@@ -943,6 +1052,24 @@ pub fn default_automations_dir() -> PathBuf {
 }
 
 pub type SharedAutomationManager = Arc<Mutex<AutomationManager>>;
+
+/// Build a [`HookDispatcher`] with a [`WebhookHookSink`] when the automation
+/// webhook URL is configured via `MIMOFAN_AUTOMATION_WEBHOOK_URL`.
+///
+/// Returns `None` when the variable is unset or empty, so automations run
+/// without any external delivery (backward-compatible, zero network).
+fn build_webhook_dispatcher() -> Option<HookDispatcher> {
+    let url = std::env::var("MIMOFAN_AUTOMATION_WEBHOOK_URL")
+        .ok()?
+        .trim()
+        .to_string();
+    if url.is_empty() {
+        return None;
+    }
+    let mut dispatcher = HookDispatcher::default();
+    dispatcher.add_sink(Arc::new(WebhookHookSink::new(url)));
+    Some(dispatcher)
+}
 
 #[derive(Debug, Clone)]
 pub struct AutomationSchedulerConfig {

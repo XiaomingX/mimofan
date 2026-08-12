@@ -3231,6 +3231,7 @@ dependencies = [
  "mimofan-config",
  "mimofan-core",
  "mimofan-execpolicy",
+ "mimofan-hooks",
  "mimofan-localization",
  "mimofan-mcp",
  "mimofan-memory",
