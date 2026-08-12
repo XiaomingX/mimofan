@@ -1641,3 +1641,108 @@ mod summary_instruction_tests {
         assert_eq!(bounded.chars().count(), MAX_CUSTOM_INSTRUCTION_CHARS);
     }
 }
+
+/// #629：压缩事实保留率断言。
+///
+/// 复现「长对话压缩可能静默丢事实」的风险：构造一条含 N 条已知关键事实的对话，
+/// 跑 `plan_compaction` 后验证**没有任何含事实的消息被丢弃**——每条事实要么被 pin
+/// （原样保留在活跃窗口），要么进入 `summarize_indices`（会被纳入压缩上下文喂给
+/// summary 生成，而非被 drop）。返回命中率供回归断言。
+///
+/// 这是确定性、不调模型的规划层检查，与 `probe_compaction`(B5) 的真模型保真探针互补：
+/// B5 验证 summary 生成后事实在输入里，本测试验证 plan 阶段零丢弃（更早、更快、可 CI）。
+#[cfg(test)]
+mod fact_retention_tests {
+    use super::*;
+    use crate::models::ContentBlock;
+
+    /// 构造一条 user 文本消息。
+    fn user_msg(text: &str) -> Message {
+        Message {
+            role: "user".to_string(),
+            content: vec![ContentBlock::Text {
+                text: text.to_string(),
+                cache_control: None,
+            }],
+        }
+    }
+
+    /// 计算事实保留率：每条 fact 是否出现在某 pinned 或 summarize 消息文本中。
+    /// 返回 `[0.0, 1.0]`，1.0 表示规划阶段零丢弃。
+    fn fact_retention_rate(messages: &[Message], facts: &[&str]) -> f64 {
+        let plan = plan_compaction(messages, None, KEEP_RECENT_MESSAGES, None, None);
+        let mut kept_text = String::new();
+        for &idx in plan.pinned_indices.iter().chain(plan.summarize_indices.iter()) {
+            kept_text.push_str(&message_text(&messages[idx]));
+            kept_text.push('\n');
+        }
+        let kept: usize = facts
+            .iter()
+            .filter(|f| kept_text.contains(**f))
+            .count();
+        if facts.is_empty() {
+            1.0
+        } else {
+            kept as f64 / facts.len() as f64
+        }
+    }
+
+    #[test]
+    fn compaction_plan_keeps_all_fact_messages() {
+        // 9 条关键事实（仿 memory_recall.json 的 M01/M02/M03）+ 4 条闲聊（填满 keep_recent）。
+        let facts = [
+            "数据库选型：PostgreSQL",
+            "认证方式：JWT",
+            "部署环境：Kubernetes",
+            "禁止引入新的第三方运行时依赖",
+            "需兼容 Rust 1.88",
+            "冷启动要求 100ms 以内",
+            "已排除网络超时",
+            "排除了文件锁冲突",
+            "真实根因是 sled",
+        ];
+        let mut messages: Vec<Message> = facts.iter().map(|f| user_msg(f)).collect();
+        // 闲聊填满 keep_recent 尾部，迫使前面事实进入 summarize 候选而非 pin。
+        for i in 0..KEEP_RECENT_MESSAGES {
+            messages.push(user_msg(&format!("好的，继续推进第 {i} 项任务")));
+        }
+
+        let rate = fact_retention_rate(&messages, &facts);
+        assert_eq!(
+            rate, 1.0,
+            "compaction plan must not silently drop any fact-bearing message (got {})",
+            rate
+        );
+
+        // 规划正确性：早期事实未被 pin（落在 summarize 候选），尾部闲聊被 pin。
+        let plan = plan_compaction(&messages, None, KEEP_RECENT_MESSAGES, None, None);
+        assert!(
+            plan.pinned_indices.len() >= KEEP_RECENT_MESSAGES,
+            "tail (keep_recent) must be pinned"
+        );
+        assert!(
+            !plan.summarize_indices.is_empty(),
+            "early fact messages must enter summarize set, not be dropped"
+        );
+    }
+
+    #[test]
+    fn external_pin_preserves_critical_fact_even_if_old() {
+        // 一条极早期关键事实，不在 keep_recent 尾部，也未命中 working-set 启发式。
+        let mut messages = vec![
+            user_msg("唯一根因：sled 数据库文件锁未释放"),
+            user_msg("中间讨论一些实现细节"),
+            user_msg("再讨论一些边界情况"),
+            user_msg("继续推进"),
+            user_msg("收尾工作"),
+        ];
+        // 用 external_pins 显式保住根因消息（idx 0）。
+        let plan = plan_compaction(&messages, None, KEEP_RECENT_MESSAGES, Some(&[0]), None);
+        assert!(
+            plan.pinned_indices.contains(&0),
+            "external pin must preserve the critical root-cause fact"
+        );
+        let rate = fact_retention_rate(&messages, &["唯一根因：sled 数据库文件锁未释放"]);
+        assert_eq!(rate, 1.0, "critical fact must be retained via external pin");
+    }
+}
