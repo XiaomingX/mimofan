@@ -869,6 +869,23 @@ impl ToolContext {
             self.workspace.join(raw)
         };
 
+        // ── 委托路径安全内核（#681）做确定性边界判定 ──
+        // 用真实 `Path::exists` 作为注入式闭包；内核给出词法越界/敏感/存在四态判定。
+        // 越界且不在可信外部路径白名单内 → 直接返回 PathEscape，与原行为一致。
+        // 内核不处理「可信外部路径例外 / 符号链接」，故此处仍保留既有二次校验。
+        let verdict = mimofan_execpolicy::path_guard::evaluate_path(
+            raw,
+            &self.workspace,
+            &|p: &Path| p.exists(),
+        );
+        if matches!(verdict, mimofan_execpolicy::path_guard::PathVerdict::EscapesWorkspace)
+            && !self.is_trusted_external_path(&candidate)
+        {
+            return Err(ToolError::PathEscape {
+                path: candidate.clone(),
+            });
+        }
+
         // NOTE: trust mode only bypasses the *approval prompt* — it must NOT
         // bypass workspace boundary validation. Decoupling "skip confirmation"
         // from "skip path sandbox" prevents a信任模式 session from reading or
