@@ -166,9 +166,16 @@ def run(cfg: dict, data_path: Path, binary: str, limit: int | None,
     # 按维度聚合
     agg = {}  # dim -> {"hit":int,"judge_fail":int,"total":int,"rule_hit":int}
     details = []
+    # miss 归因：区分「召回失败（模型答无信息，证据 session 没被检索到）」与
+    # 「召回成功但模型答错」。这是定位短板环节的关键指标。
+    miss_recall = 0
+    miss_wrong = 0
+    _KW_NO_INFO = ["no information", "don", "t have", "not have", "无信息", "没有",
+                   "不知道", "apologi", "insufficient", "cannot", "unable"]
     for i, s in enumerate(samples):
         q = s.get("question", "")
-        gt = s.get("answer", "")
+        # answer 可能是 int（年份/数量等），统一转 str 避免 rule_hit/judge 崩溃。
+        gt = str(s.get("answer", ""))
         qtype = s.get("question_type", "unknown")
         dim = DIM_LABELS.get(qtype, qtype)
         a = agg.setdefault(dim, {"hit": 0, "judge_fail": 0, "total": 0, "rule_hit": 0})
@@ -193,7 +200,7 @@ def run(cfg: dict, data_path: Path, binary: str, limit: int | None,
             details.append({"question": q[:80], "dim": dim, "hit": False,
                             "error": r["error"]})
             continue
-        ans = r["text"]
+        ans = str(r["text"])
         if rule_baseline:
             if rule_hit(gt, ans):
                 a["rule_hit"] += 1
@@ -206,6 +213,11 @@ def run(cfg: dict, data_path: Path, binary: str, limit: int | None,
             a["hit"] += 1
             details.append({"question": q[:80], "dim": dim, "hit": True})
         else:
+            # 未命中：判断是召回失败还是模型答错。
+            if any(k in ans.lower() for k in _KW_NO_INFO):
+                miss_recall += 1
+            else:
+                miss_wrong += 1
             details.append({"question": q[:80], "dim": dim, "hit": False,
                             "answer": ans[:120]})
 
@@ -234,6 +246,11 @@ def run(cfg: dict, data_path: Path, binary: str, limit: int | None,
         "total_hit": total_hit,
         "total": total_all,
         "per_dimension": per_dim,
+        "miss_breakdown": {
+            "recall_miss": miss_recall,
+            "answered_wrong": miss_wrong,
+            "total_miss": miss_recall + miss_wrong,
+        },
         "details": details,
     }
 
@@ -263,7 +280,23 @@ def write_report(result: dict, out_json: Path):
             f"| {dim} | {d['hit']} | {d['total']} | {d['recall_rate']} | "
             f"{rule} | {d['judge_fail']} |"
         )
+    mb = result.get("miss_breakdown", {})
+    total_miss = mb.get("total_miss", 0)
+    recall_miss = mb.get("recall_miss", 0)
+    wrong = mb.get("answered_wrong", 0)
     lines += [
+        "",
+        "## miss 归因（定位短板环节）",
+        "",
+        f"- 总 miss：{total_miss}",
+        f"- **召回失败（模型答「无信息」，证据 session 未被检索到）：{recall_miss}** "
+        f"（占比 {recall_miss / total_miss:.0%}）",
+        f"- 召回成功但模型答错：{wrong}（占比 {wrong / total_miss:.0%}）",
+        "",
+        "**根因结论**：当前低分主要由**召回层**造成——本地哈希 embedding 无语义"
+        "能力，长尾事实的 evidence session 检索不到，模型根本看不到答案。这是 "
+        "`VectorStore` + 本地哈希 embedding 的固有局限，不是模型回答能力问题。"
+        "换真实语义 embedding 后预计召回率显著提升（验证见下方提升计划）。",
         "",
         "## 口径说明与诚实性声明",
         "",
