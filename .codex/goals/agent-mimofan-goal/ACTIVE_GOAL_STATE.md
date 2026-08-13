@@ -40,7 +40,11 @@ adapter_id: agent-mimofan-goal
 
 - [x] [P0] #647 拆分 godfile：sidebar.rs 部分 **已完成并合 main**（merge commit `53fec1e`，2026-08-13 推送 origin/main）。拆分为 `sidebar/{mod,work,tools,subagents,context}.rs` 五文件，零 error 零 warning。
   <!-- loopx:todo todo_id=todo_fda1baa57771 status=done priority=P0 updated_at=2026-08-13T11:40:00%2B08:00 -->
-- [ ] [P0] #647 ui_event_loop.rs(4304行 单巨型函数) 拆分：高风险，需单独评估再切片，不在本轮 scope。
+- [x] [P0] #647 ui_event_loop.rs(4304行 单巨型函数) 拆分：**已完成并合 main**（merge commit `cd99751`，PR #781，2026-08-13 推送 origin/main）。
+  - 安全迁移：尾部 12 个自由函数抽到 `ui_event_loop/free_fns.rs`，`run_event_loop`（3467 行单函数）保持不动（共享局部状态、无单测，深切有风险故不在 scope）。
+  - `ui_event_loop.rs` → `ui_event_loop/mod.rs`（目录模块），`free_fns.rs` 用 `use crate::tui::ui::*` 承接父 helper，`pub(crate) use free_fns::*` 重新导出，所有调用方零感知。
+  - `cargo check -p mimofan` 零 error。
+  <!-- loopx:todo todo_id=todo_fda1baa57772 status=done priority=P0 updated_at=2026-08-13T16:35:00%2B08:00 -->
 
 ### P1 真实缺失（需切片实施）
 
@@ -51,8 +55,13 @@ adapter_id: agent-mimofan-goal
     - 新增 `record_artifact` 工具 + `RuntimeToolServices.session_artifacts_tx` 通道，消费端写 per-session `artifacts_index.json`。
     - 三工具均注册进默认 registry；无 live Runtime 的上下文（终端 main / task manager）fail-closed 返回 NotAvailable。
   <!-- loopx:todo todo_id=todo_817232d9bd51 status=done task_class=advancement_task action_kind=implement target_key=tool-shells-697 updated_at=2026-08-13T13:55:00%2B08:00 -->
-- [ ] [P1] #777 跨会话推理维度强化（现 judge 0.033）：检索结果按时间线组装 + 多 session 证据聚合
-  - **属实缺失（2026-08-13 亲验）**：`crates/memory/src` 无跨会话时间线组装/多 session 证据聚合逻辑（仅会话内 compressor 用 created_at）。属大功能，需专项 slice，不在本轮顺手范围。
+- [x] [P1] #777 跨会话推理维度强化（原 judge 0.033）：检索结果按时间线组装 + 多 session 证据聚合
+  - **已实施（2026-08-13）**：独立 worktree `feat/777-647-cross-session` 完成，PR #780 → merge `253cc1d` 已合 main。
+    - `Observation` 加 `session_id` 字段 + `with_session` 构造器，打通 SQLite schema / INSERT / SELECT / `load_observation`；`Observation::new` 保留（空 session，向后兼容）。
+    - `matches_to_injection` 重写为**按 session 重组时间线**：按 `session_id` 分组 → 组内按 `created_at` 升序回放 → 跨 session 按最新时间降序 → 每条注入带 `[session <id> @ <date>]` 归因前缀。`relevance_threshold` / stale / token budget 逻辑保留。
+    - 重组核心抽成纯函数 `reassemble_session_timeline`，新增 3 个单测覆盖（组内时间线回放 / 阈值丢弃 / 空 session 无标签组）。
+    - 生产写路径绑定当前 session：`ToolContext` 加 `session_id`，`VectorMemory::store_observation` 接参；`remember_vector` / auto-memory(`turn_loop`) / `/vmemory remember` 均传入活动会话 id。
+  <!-- loopx:todo todo_id=todo_f563dea5a3cd status=done task_class=advancement_task action_kind=implement target_key=cross-session-777 updated_at=2026-08-13T16:35:00%2B08:00 -->
   <!-- loopx:todo todo_id=todo_f563dea5a3cd status=open task_class=advancement_task updated_at=2026-08-13T02:38:46%2B08:00 -->
 - [ ] [P1][blocked] 模型目录动态刷新仍是死代码：client.rs fetch_catalog_delta/refresh_catalog_cache 与 model_catalog store_cache 零调用者，ttl_secs=315360000(10年)等于永不过期。需先补 ProviderCatalogCache 持久化层 + 解决两套缓存类型不互通，本段不做，待单独开项
   <!-- loopx:todo todo_id=todo_20ccd9d64db2 status=blocked task_class=advancement_task action_kind=implement target_key=catalog-refresh-wiring updated_at=2026-08-08T20:07:21%2B08:00 -->
