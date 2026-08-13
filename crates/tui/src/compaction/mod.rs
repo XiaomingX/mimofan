@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use crate::client::ApiClient;
 use crate::config::DEFAULT_TEXT_MODEL;
+use crate::context_budget::PressureLevel;
 use crate::llm_client::LlmClient;
 use crate::logging;
 use crate::models::{
@@ -936,6 +937,22 @@ pub async fn compact_messages_safe(
         external_pins,
         external_working_set_paths,
     );
+
+    // Budget-pressure signal: classify the current input against the configured
+    // token threshold as a normalized window-usage percentage, then route
+    // through the shared `PressureLevel::suggests_compaction` taxonomy. This is
+    // the same pressure API the engine gate (`context_budget::compaction_decision`)
+    // uses, so the "is the context full enough to compact?" decision stays in
+    // one place rather than re-deriving thresholds here.
+    let input_tokens = estimate_tokens(messages) as f64;
+    let normalized_usage = if config.token_threshold > 0 {
+        (input_tokens / config.token_threshold as f64) * 100.0
+    } else {
+        0.0
+    };
+    let budget_pressure_suggests = PressureLevel::from_usage_percent(normalized_usage)
+        .suggests_compaction();
+
     let mut pruned_messages = messages.to_vec();
     let mut now_under_threshold = false;
     let mut next_stop_check_bytes = 0usize;
@@ -1011,18 +1028,13 @@ pub async fn compact_messages_safe(
         {
             Ok((msgs, prompt, removed)) => {
                 // no_progress guard: if the session was over threshold and a
-                // successful summary removed nothing (and is still over
-                // threshold), further re-compaction cannot help — stop rather
-                // than letting the turn loop re-trigger compaction endlessly.
+                // successful summary removed nothing (and the budget pressure
+                // still suggests compaction), further re-compaction cannot help
+                // — stop rather than letting the turn loop re-trigger
+                // compaction endlessly.
                 if was_over_threshold
                     && removed.is_empty()
-                    && should_compact(
-                        &msgs,
-                        config,
-                        workspace,
-                        external_pins,
-                        external_working_set_paths,
-                    )
+                    && budget_pressure_suggests
                 {
                     logging::warn(
                         "Compaction made no progress (still over threshold, 0 messages removed); "
