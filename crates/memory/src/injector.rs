@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::Result;
 use crate::embedding::EmbeddingService;
-use crate::vector::{Observation, SearchFilters, VectorMatch, VectorStore};
+use crate::vector::{SearchFilters, VectorMatch, VectorStore};
 
 /// Memory injection configuration
 #[derive(Debug, Clone)]
@@ -386,6 +386,7 @@ pub(crate) fn reassemble_session_timeline(
 #[cfg(test)]
 mod cross_session_tests {
     use super::*;
+    use crate::vector::Observation;
 
     /// Build a VectorMatch with the given session, content, created_at, score.
     fn mk(session_id: &str, content: &str, created_at: i64, score: f32) -> VectorMatch {
