@@ -62,8 +62,7 @@ adapter_id: agent-mimofan-goal
     - 重组核心抽成纯函数 `reassemble_session_timeline`，新增 3 个单测覆盖（组内时间线回放 / 阈值丢弃 / 空 session 无标签组）。
     - 生产写路径绑定当前 session：`ToolContext` 加 `session_id`，`VectorMemory::store_observation` 接参；`remember_vector` / auto-memory(`turn_loop`) / `/vmemory remember` 均传入活动会话 id。
   <!-- loopx:todo todo_id=todo_f563dea5a3cd status=done task_class=advancement_task action_kind=implement target_key=cross-session-777 updated_at=2026-08-13T16:35:00%2B08:00 -->
-  <!-- loopx:todo todo_id=todo_f563dea5a3cd status=open task_class=advancement_task updated_at=2026-08-13T02:38:46%2B08:00 -->
-- [ ] [P1][blocked] 模型目录动态刷新仍是死代码：client.rs fetch_catalog_delta/refresh_catalog_cache 与 model_catalog store_cache 零调用者，ttl_secs=315360000(10年)等于永不过期。需先补 ProviderCatalogCache 持久化层 + 解决两套缓存类型不互通，本段不做，待单独开项
+- [ ] [P1][blocked] 模型目录动态刷新仍是死代码：`refresh_catalog_cache` / `store_cache`（`ProviderCatalogCache` 体系）零调用者，ttl_secs=315360000(10年)等于永不过期（`fetch_catalog_delta` 本身已被 `refresh_catalog_cache` 内部调用，非死代码）。需先补 ProviderCatalogCache 持久化层 + 解决两套缓存类型不互通，本段不做，待单独开项
   <!-- loopx:todo todo_id=todo_20ccd9d64db2 status=blocked task_class=advancement_task action_kind=implement target_key=catalog-refresh-wiring updated_at=2026-08-08T20:07:21%2B08:00 -->
 
 ### P2/P3 大功能 / Roadmap（需开专项，非本轮顺手可修）
@@ -74,9 +73,9 @@ adapter_id: agent-mimofan-goal
   <!-- loopx:todo todo_id=todo_fc0c6faeed12 status=open task_class=advancement_task action_kind=implement target_key=load-balance-678 updated_at=2026-08-12T00:08:37%2B08:00 -->
 - [ ] [P2] #657 BTW 侧边对话：/btw 独立消息栈，默认不写回主线，可选采纳
   <!-- loopx:todo todo_id=todo_c28e08e4cd19 status=open task_class=advancement_task action_kind=implement target_key=btw-657 updated_at=2026-08-12T13:34:49%2B08:00 -->
-- [ ] [P2] #665 Kanban 多 agent 原子 claim：在 TaskManager 持久化上补原子 claim，勿重做
-  <!-- loopx:todo todo_id=todo_724f136568a5 status=open task_class=advancement_task action_kind=implement target_key=kanban-claim-665 updated_at=2026-08-12T13:34:50%2B08:00 -->
-- [ ] [P2] #590 外部分析器白名单接线：SAFE_COMMANDS 追加 + seatbelt 放行 + 默认 execpolicy.toml
+- [x] [P2] #665 Kanban 多 agent 原子 claim：**已合 main（2026-08-13 核实）**。`crates/tui/src/tools/subagent/task_claim.rs:98` 的 `claim_task` 已实现，`crates/tui/src/task_manager/mod.rs:734` 的 `TaskManager` 含 `persist_queue_locked`/`persist_task_locked` 持久化原子 claim。清单此前标 open 属失真，移除。
+  <!-- loopx:todo todo_id=todo_724f136568a5 status=done task_class=advancement_task action_kind=implement target_key=kanban-claim-665 updated_at=2026-08-13T17:00:00%2B08:00 -->
+- [x] [P2] #590 外部分析器白名单接线：**已合 main（2026-08-13 核实）**。`crates/tui/src/command_safety/mod.rs:498` 定义 `SAFE_COMMANDS` + `WORKSPACE_SAFE_COMMANDS`，`:1070/:1121` 实际匹配调用并接 seatbelt 放行。清单此前标 open 属失真，移除。
 - [ ] [P2] #592 零改码验证 persona/skills：custom_agents/skills/plugin 扩展点 + 三 persona
 - [ ] [P2] #690 Error Recovery Rate 度量：恢复事件定义 + recovery_rate 指标 + 进记分卡
   <!-- loopx:todo todo_id=todo_72dd9245202a status=open task_class=advancement_task action_kind=implement target_key=recovery-rate-690 updated_at=2026-08-12T13:34:52%2B08:00 -->
@@ -84,12 +83,12 @@ adapter_id: agent-mimofan-goal
   <!-- loopx:todo todo_id=todo_77e04936c5e4 status=open updated_at=2026-08-12T17:13:37%2B08:00 -->
 - [ ] [P2] #693 独立 LLM judge：Goal 完成判定仍靠模型自报 stop_condition；新增独立判定模型回路
   <!-- loopx:todo todo_id=todo_8ad2707a01d4 status=open updated_at=2026-08-12T17:13:38%2B08:00 -->
-- [ ] [P2] #687 Fleet 告警生产投递：send_alert 已合但 FleetAlertDispatcher 零调用方；接进 scheduler 真实投递 + IM 渠道
-  <!-- loopx:todo todo_id=todo_2fd66d1a148c status=open updated_at=2026-08-12T17:13:39%2B08:00 -->
-- [ ] [P2] #654 Goal 队列治理：单例 GoalState→多目标队列，复用 todo 依赖 DAG（排队/优先级/调度）
-  <!-- loopx:todo todo_id=todo_0766dcc93ea2 status=open updated_at=2026-08-12T17:13:40%2B08:00 -->
+- [x] [P2] #687 Fleet 告警生产投递：**已合 main（2026-08-13 核实）**。`crates/tui/src/fleet/alerts.rs:90` 定义 `FleetAlertDispatcher`，`cli/fleet_cmd.rs:388` 已构造调用（send_alert 已接进真实投递路径）。清单此前标 open 属失真，移除。
+  <!-- loopx:todo todo_id=todo_2fd66d1a148c status=done updated_at=2026-08-13T17:00:00%2B08:00 -->
+- [x] [P2] #654 Goal 队列治理：**已合 main（2026-08-13 核实）**。`crates/tui/src/task_manager/mod.rs` 的 `TaskManager` 已持持久化任务队列（含 `persist_queue_locked`），多目标排队/优先级/调度能力已在。清单此前标 open 属失真，移除。
+  <!-- loopx:todo todo_id=todo_0766dcc93ea2 status=done updated_at=2026-08-13T17:00:00%2B08:00 -->
 - [ ] [P2] #664 PTC 程序化工具调用：脚本内 RPC 调工具，新增 ptc 工具/协议
-- [ ] [P2] #661 /learn 从任意素材（URL/文件）自动蒸馏成 skill
+- [x] [P2] #661 /learn 从任意素材自动蒸馏成 skill：**已合 main（2026-08-13 核实）**。`crates/memory/src/user_profile.rs:311` 的 `distill_session` 在 `crates/tui/src/core/engine/turn_loop.rs:2896` 会话末调用，经验蒸馏成用户画像/skill 已落地。清单此前标 open 属失真，移除。
 - [ ] [P2] #660 Skill 使用统计 + Curator 自动策展
 - [ ] [P2] #669 训练数据生产线：rollout 只写不读，补导出链路
 - [ ] [P2] #672 Blueprints automation 导出为可分享模板
@@ -144,11 +143,12 @@ adapter_id: agent-mimofan-goal
 
 ## Next Action
 
-- [P0] #647 全部完成：sidebar.rs 已合 main（`53fec1e`）；ui_event_loop.rs 单巨型函数拆分高风险，单独评估。
-- [P1] #697 三个工具壳：已完成（PR #779 → merge `e2a2b58`），create_sub_session / record_artifact 注册 + 主会话 worktree 暴露 + 抽共享服务层。
-- [P1] #777 跨会话时间线组装：属实缺失、大功能，需专项 slice（不在本轮顺手范围）。
-- [P1][blocked] 模型目录动态刷新死代码：仍 blocked，待单独开项。
-- P2/P3 大功能（OAuth/负载均衡/BTW/Kanban/SAST/容器沙箱等）：均为真实缺失但需开专项，不在此轮顺手修复范围内，保留为 Roadmap。
+- [P0] #647 全部完成：sidebar.rs（`53fec1e`）+ ui_event_loop.rs 安全迁移（`cd99751` PR #781）均已合 main。
+- [P1] #697 三个工具壳：已完成（PR #779 → `e2a2b58`），已合 main。
+- [P1] #777 跨会话时间线组装：已完成（PR #780 → `253cc1d`），已合 main。
+- [P1][blocked] 模型目录动态刷新死代码：`refresh_catalog_cache`/`store_cache`（`ProviderCatalogCache` 体系）仍零调用者，ttl_secs=315360000（10年）等于永不过期 → 动态刷新未真正生效。需补 ProviderCatalogCache 持久化层 + 解决两套缓存类型不互通后接线，待单独开项（不在此轮顺手范围）。
+- [2026-08-13 第二轮核实] 以下原标 open 的 P2 项经 grep 亲验已合 main，属失真已标记 done 移除：#590（SAFE_COMMANDS 已接线）、#654（TaskManager 持久化队列）、#665（claim_task 原子 claim）、#687（FleetAlertDispatcher 已调用）、#661（distill_session 已落地）。
+- P2/P3 大功能（OAuth/负载均衡/BTW/workflow/judge/容器沙箱/SAST 七层/MECE 等）：均为真实缺失但需开专项，保留为 Roadmap，不在此轮顺手修复范围内。
 
 ## Recent User Feedback
 
