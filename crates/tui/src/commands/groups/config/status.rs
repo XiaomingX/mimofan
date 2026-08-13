@@ -115,6 +115,9 @@ fn format_status(app: &App) -> String {
         "not available from provider telemetry",
     );
     let _ = writeln!(out);
+    let mem_stats = crate::memory_stats::compute_memory_stats(app.use_memory, &app.memory_dir);
+    push_row(&mut out, "Memory:", &mem_stats.one_line());
+    let _ = writeln!(out);
     let _ = writeln!(out, "Use /statusline to configure footer items.");
 
     out
