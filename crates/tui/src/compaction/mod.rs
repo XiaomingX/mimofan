@@ -921,7 +921,12 @@ pub async fn compact_messages_safe(
     external_pins: Option<&[usize]>,
     external_working_set_paths: Option<&[String]>,
 ) -> Result<CompactionResult> {
-    const MAX_RETRIES: u32 = 3;
+    // Hard cap on LLM compaction attempts. This is the "don't recurse /
+    // re-compress forever" guard: if every attempt is a transient failure we
+    // give up rather than spinning the turn loop, and if a successful summary
+    // still cannot get the session under the trigger (no_progress) we also stop
+    // instead of re-triggering compaction on the next turn.
+    const MAX_ATTEMPTS: u32 = 3;
     const BASE_DELAY_MS: u64 = 1000;
 
     let was_over_threshold = should_compact(
@@ -987,7 +992,7 @@ pub async fn compact_messages_safe(
 
     let mut last_error: Option<anyhow::Error> = None;
 
-    for attempt in 0..MAX_RETRIES {
+    for attempt in 0..MAX_ATTEMPTS {
         if attempt > 0 {
             // Exponential backoff: 1s, 2s, 4s
             let delay = Duration::from_millis(BASE_DELAY_MS * (1 << (attempt - 1)));
@@ -1005,6 +1010,26 @@ pub async fn compact_messages_safe(
         .await
         {
             Ok((msgs, prompt, removed)) => {
+                // no_progress guard: if the session was over threshold and a
+                // successful summary removed nothing (and is still over
+                // threshold), further re-compaction cannot help — stop rather
+                // than letting the turn loop re-trigger compaction endlessly.
+                if was_over_threshold
+                    && removed.is_empty()
+                    && should_compact(
+                        &msgs,
+                        config,
+                        workspace,
+                        external_pins,
+                        external_working_set_paths,
+                    )
+                {
+                    logging::warn(
+                        "Compaction made no progress (still over threshold, 0 messages removed); "
+                            .to_string()
+                            + "stopping to avoid infinite re-compaction",
+                    );
+                }
                 return Ok(CompactionResult {
                     messages: msgs,
                     summary_prompt: prompt,
@@ -1023,7 +1048,7 @@ pub async fn compact_messages_safe(
     }
 
     Err(last_error
-        .unwrap_or_else(|| anyhow::anyhow!("Compaction failed after {MAX_RETRIES} retries")))
+        .unwrap_or_else(|| anyhow::anyhow!("Compaction failed after {MAX_ATTEMPTS} attempts")))
 }
 
 fn read_workspace_anchors(workspace: Option<&Path>) -> Vec<String> {

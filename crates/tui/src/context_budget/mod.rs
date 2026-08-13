@@ -15,9 +15,11 @@
 //!
 //! This module is the budget-math *foundation*. It is intentionally pure (no
 //! I/O, no clock, no engine/config types) so it can be unit-tested in isolation
-//! and later consumed by the engine capacity checkpoints and the TUI pressure
-//! indicator. Those consumers are wired in a separate pass; nothing here calls
-//! into them.
+//! and consumed by the engine capacity checkpoints
+//! (`core::engine/turn_loop.rs` → [`compaction_decision`]) and the TUI pressure
+//! indicator. The engine gate and the TUI warning band both derive from the
+//! same [`PressureLevel`] classification, so the trigger can be tuned in one
+//! place.
 //!
 //! ### Why the output reservation is window-dependent
 //!
@@ -31,16 +33,16 @@
 //! always clamped to leave at least [`MIN_INPUT_BUDGET_TOKENS`] of input room,
 //! so the budget can never collapse to zero on a legitimately sized window.
 
-// Foundation module: the public surface is exercised by unit tests but is not
-// yet referenced by the engine capacity checkpoints or the TUI pressure
-// indicator (those consumers are wired in a later pass). Allow dead_code so the
-// substrate can land warning-clean ahead of its callers, matching how other
-// not-yet-wired primitives in this crate are gated.
-//
-// Note: the context report now consumes `PressureLevel::from_usage_percent` and
-// `label`, but the rest of the substrate (`ContextBudget` and its methods,
-// `PressureLevel::suggests_compaction`) is still pending its engine/TUI
-// consumers, so the blanket allow stays until those land.
+// Wiring status (accurate as of this change):
+//   * The engine turn loop (`core::engine/turn_loop.rs`) is the real consumer
+//     of [`compaction_decision`], which routes the compaction trigger through
+//     [`PressureLevel::suggests_compaction`]. That makes `suggests_compaction`
+//     a production-exercised API, not test-only.
+//   * The TUI pressure indicator (`tui/ui/mod.rs`, `tui/widgets/header.rs`,
+//     `tui/context_inspector.rs`) renders `PressureLevel` via the shared
+//     `UI_*_PERCENT` thresholds rather than calling `suggests_compaction`
+//     directly — intentional, since the UI warning band is a more conservative
+//     band than the engine's compaction trigger.
 
 /// Fraction of the window, expressed as a percentage, at or above which
 /// compaction should be suggested. Mirrors the "high" pressure boundary the
@@ -374,7 +376,14 @@ pub fn compaction_decision(budget: &ContextBudget, enabled: bool) -> Option<Comp
     if budget.is_over_budget() {
         return Some(CompactionTrigger::BudgetExhausted);
     }
-    if budget.should_compact() {
+    // Route the threshold signal through `PressureLevel::suggests_compaction`
+    // so the pressure classification is the single source of truth for "the
+    // window is full enough to compact". At the default thresholds High
+    // coincides with the compaction trigger, so this is behaviour-preserving
+    // versus the prior `should_compact()` token check, but now exercises the
+    // shared pressure API consumed by both the engine gate below and the TUI
+    // pressure indicator.
+    if budget.pressure.suggests_compaction() {
         return Some(CompactionTrigger::ThresholdReached);
     }
     None
