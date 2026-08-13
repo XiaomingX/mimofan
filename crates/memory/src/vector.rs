@@ -812,48 +812,6 @@ impl VectorStore {
         Ok(n > 0)
     }
 
-    /// #716 slice: `hybrid_bm25` — lexical fallback fused with vector similarity.
-    ///
-    /// For queries that contain rare exact tokens (proper nouns, error codes)
-    /// vector recall is weak, so we run a keyword substring scan over stored
-    /// content and fuse the lexical hit with the vector `VectorMatch` scores via
-    /// Reciprocal Rank Fusion (RRF). Returns matches whose content contains any
-    /// query token, scored by `rrf(vector_rank) + rrf(lexical_rank)`.
-    pub fn hybrid_bm25(&self, query: &str, base: &[VectorMatch], limit: usize) -> Result<Vec<VectorMatch>> {
-        let tokens: Vec<String> = query
-            .split(|c: char| !c.is_alphanumeric())
-            .map(|t| t.to_lowercase())
-            .filter(|t| t.len() >= 3)
-            .collect();
-        if tokens.is_empty() {
-            return Ok(base.to_vec());
-        }
-        // Lexical rank: content containing the most query tokens ranks first.
-        let mut lexical: Vec<(i64, f32)> = {
-            let rows = self.list_recent(None, usize::MAX)?;
-            rows.into_iter()
-                .map(|o| {
-                    let lower = o.content.to_lowercase();
-                    let hits = tokens.iter().filter(|t| lower.contains(*t)).count() as f32;
-                    (o.id, hits)
-                })
-                .filter(|(_, h)| *h > 0.0)
-                .collect()
-        };
-        lexical.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        let rrf = |rank: usize| 1.0 / (60.0 + rank as f32 + 1.0);
-        let mut fused: Vec<VectorMatch> = base.to_vec();
-        // Augment existing vector matches with lexical boost when present.
-        for (rank, (id, hits)) in lexical.iter().enumerate() {
-            if let Some(m) = fused.iter_mut().find(|m| m.observation.id == *id) {
-                m.score = (m.score as f32 + rrf(rank) * (1.0 + hits * 0.1)).min(1.0);
-            }
-        }
-        fused.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        fused.truncate(limit);
-        Ok(fused)
-    }
-
     /// Delete an observation by ID
     pub fn delete_observation(&self, id: i64) -> Result<()> {
         debug!("Deleting observation: {}", id);
