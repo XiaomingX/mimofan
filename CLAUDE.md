@@ -351,7 +351,12 @@ pub async fn start_task(&self, task_id: &str) -> Result {
 
 ## Worktree 开发约定
 
+> 多 subagent / 多 worktree 并发协调与防冲突的**完整操作规范**见 `AGENTS.md`
+> （含冲突根因、文件归属隔离、共享任务列表、取证优先、git 禁忌、编译/测试锁隔离、
+> 可直接复用的协调提示词模板）。本节约为要点，遇到矛盾以 `AGENTS.md` 为准。
+
 - 大型重构或多模式收敛类任务，应在独立 git worktree 中进行（例如 `git worktree add ../agent-mimofan-worktree -b refactor/xxx`），避免污染主工作区、便于并行验证。
+- **多 agent 并行时**：每个 agent 只负责互不相交的文件集合；用共享 Task List 协调认领；编辑必须用 worktree 绝对路径；共享 worktree 内禁止裸 `git reset --hard` / `git stash push-pop`（全局 stash 会波及全员）；完成即 commit，缩短未提交改动共存窗口。
 - worktree 内的开发完成后，先在 worktree 中确保 `cargo build`（零 warning）与 `cargo test`（全 workspace 零失败）通过，再合并回主干。
 - 合并方式：在**主仓库**中 `git merge <worktree 分支>` 到 `main`（worktree 本身不持有 `main`，合并必须在主工作区执行）。确认无冲突且构建/测试仍绿后，再 `git push origin main`。
 - **合并到主干后，必须删除该 worktree 分支**（本地 + 远程均过期即清理）：本地 `git branch -d <branch>`，远程 `git push origin --delete <branch>`；对应 worktree 目录用 `git worktree remove <path> --force` 清理。不要长期保留已合并的特性分支，避免分支堆积与混淆。
