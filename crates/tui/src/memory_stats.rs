@@ -12,6 +12,7 @@
 //! - 向量式记忆（需 `vector-memory` feature + embedding 配置）的统计由
 //!   `/vmemory` 命令覆盖，本快照不重复造数，避免假指标。
 
+use std::fmt::Write as _;
 use std::path::Path;
 
 use crate::compaction::estimate_text_tokens_conservative;
