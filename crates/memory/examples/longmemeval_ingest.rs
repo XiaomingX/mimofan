@@ -104,12 +104,14 @@ fn main() {
 
     // 把每条 session 拼成带时间戳 header 的文本块。
     // 时间戳在 haystack_dates（按 session 索引），无则省略。
-    let mut session_texts: Vec<String> = Vec::new();
+    // 同时保留 session_id（取自日期或索引），供跨会话聚合使用。
+    let mut session_texts: Vec<(String, String)> = Vec::new();
     for (i, sess) in sessions.iter().enumerate() {
-        let header = dates
+        let sid = dates
             .get(i)
-            .map(|d| format!("[session @ {d}]\n"))
-            .unwrap_or_else(|| format!("[session #{i}]\n"));
+            .cloned()
+            .unwrap_or_else(|| format!("session-{i}"));
+        let header = format!("[session @ {sid}]\n");
         let mut body = String::new();
         if let Some(turns) = sess.as_array() {
             for turn in turns {
@@ -118,7 +120,7 @@ fn main() {
                 body.push_str(&format!("{role}: {content}\n"));
             }
         }
-        session_texts.push(format!("{header}{body}"));
+        session_texts.push((sid, format!("{header}{body}")));
     }
 
     let tmp = match tempfile::tempdir() {
@@ -140,8 +142,13 @@ fn main() {
                 return;
             }
         };
-        for text in &session_texts {
-            let obs = Observation::new(project.clone(), "project", text.clone());
+        for (sid, text) in &session_texts {
+            let obs = Observation::with_session(
+                project.clone(),
+                "project",
+                text.clone(),
+                sid.clone(),
+            );
             let emb = embed_local(text);
             if let Err(e) = store.store_observation(&obs, &emb) {
                 emit_error(&format!("写入 observation 失败: {e}"));

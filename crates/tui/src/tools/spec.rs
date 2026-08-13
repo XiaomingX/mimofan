@@ -556,6 +556,10 @@ pub struct ToolContext {
     pub workshop_vars: Option<
         std::sync::Arc<tokio::sync::Mutex<crate::tools::large_output_router::WorkshopVariables>>,
     >,
+    /// The active session/thread id (#777). Memory written through tools is
+    /// tagged with this so cross-session retrieval can group and reassemble a
+    /// timeline per session. Empty in non-session contexts (e.g. unit tests).
+    pub session_id: String,
 }
 
 impl ToolContext {
@@ -600,6 +604,7 @@ impl ToolContext {
             search_api_key: None,
             search_base_url: None,
             workshop_vars: None,
+            session_id: String::new(),
         }
     }
 
@@ -644,6 +649,7 @@ impl ToolContext {
             search_api_key: None,
             search_base_url: None,
             workshop_vars: None,
+            session_id: String::new(),
         }
     }
 
@@ -689,6 +695,7 @@ impl ToolContext {
             search_api_key: None,
             search_base_url: None,
             workshop_vars: None,
+            session_id: String::new(),
         }
     }
 
@@ -1210,6 +1217,15 @@ impl ToolContext {
     /// Set the namespace used for session-scoped tool state.
     pub fn with_state_namespace(mut self, namespace: impl Into<String>) -> Self {
         self.state_namespace = namespace.into();
+        self
+    }
+
+    /// Stamp memory written through tools with the active session id (#777),
+    /// so cross-session retrieval can group and reassemble a per-session
+    /// timeline. Empty when the context has no session (e.g. unit tests).
+    #[must_use]
+    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
+        self.session_id = session_id.into();
         self
     }
 

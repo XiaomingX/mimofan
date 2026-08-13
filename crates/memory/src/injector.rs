@@ -163,7 +163,15 @@ impl MemoryInjector {
         Ok(injection)
     }
 
-    /// Convert search matches to memory injection
+    /// Convert search matches to memory injection.
+    ///
+    /// #777 — cross-session reasoning. Memories are first grouped by
+    /// `session_id` and each session's entries are sorted by `created_at`
+    /// ascending, so a recalled session replays as a coherent timeline.
+    /// Sessions are ordered most-recent-first (by the latest entry in the
+    /// session). Every injected line is prefixed with its source session and
+    /// date so the model can attribute and reassemble knowledge across
+    /// sessions instead of blending unrelated past work.
     fn matches_to_injection(&self, matches: &[VectorMatch]) -> Result<MemoryInjection> {
         let mut key_decisions = Vec::new();
         let mut recent_changes = Vec::new();
@@ -171,33 +179,30 @@ impl MemoryInjector {
         let mut estimated_tokens = 0;
         let now = chrono::Utc::now().timestamp();
 
-        for m in matches {
+        // #777: reassemble as a per-session timeline (group by session, replay
+        // each chronologically, order sessions most-recent-first).
+        let timeline = reassemble_session_timeline(matches, self.config.relevance_threshold);
+
+        for m in &timeline {
             let obs = &m.observation;
-
-            // #716 slice: `relevance_threshold` — drop weakly-related memories
-            // so injection stays focused and token-efficient.
-            if m.score < self.config.relevance_threshold {
-                continue;
-            }
-
-            // #716 slice: `injection_provenance` — annotate each injected memory
-            // with its origin timestamp so the model can judge freshness.
             let provenance = format_timestamp(obs.created_at);
-            // #716 slice: `stale_memory_verification` — flag memories older than
-            // STALE_AFTER_DAYS as potentially outdated, prompting the model to
-            // verify before acting on them.
             let stale_note = if (now - obs.created_at) > STALE_AFTER_DAYS * 86_400 {
                 " (may be outdated — verify before use)"
             } else {
                 ""
             };
-            let annotated = format!("{}{} [recalled {}]{}", obs.content, stale_note, provenance, "");
+            // #777: prefix every line with its source session so cross-session
+            // retrieval stays attributable. Empty session_id → untagged.
+            let session_tag = if obs.session_id.is_empty() {
+                String::new()
+            } else {
+                format!("[session {} @ {}] ", obs.session_id, provenance)
+            };
+            let annotated = format!(
+                "{}{}{} [recalled {}]{}",
+                session_tag, obs.content, stale_note, provenance, ""
+            );
 
-            // Add to appropriate category. The four shared categories map to
-            // the existing injection buckets:
-            // - `project`  → key decisions / project background (was Decision + changes)
-            // - `feedback` → recent changes (collaboration preferences as context)
-            // - `user` / `reference` → recent changes (related context, flattened)
             match obs.kind.as_str() {
                 "project" => {
                     key_decisions.push(annotated);
@@ -210,7 +215,6 @@ impl MemoryInjector {
                 _ => {}
             }
 
-            // Collect modified files
             for file in &obs.files_modified {
                 if !files_modified.contains(file) {
                     files_modified.push(file.clone());
@@ -317,5 +321,136 @@ fn format_timestamp(epoch_secs: i64) -> String {
     match DateTime::<Utc>::from_timestamp(epoch_secs, 0) {
         Some(dt) => dt.format("%Y-%m-%d").to_string(),
         None => String::new(),
+    }
+}
+
+/// #777 — cross-session reassembly core.
+///
+/// Given recalled matches, produce a reordered stream ready for injection:
+/// 1. Drop any match below `threshold` (weakly related memories).
+/// 2. Group by `session_id`. Legacy / non-session writes with an empty
+///    `session_id` form one untagged group.
+/// 3. Within each session, replay **chronologically** (oldest `created_at`
+///    first) so a recalled session reads as a coherent timeline.
+/// 4. Order sessions **most-recent-first** (by the latest `created_at` in the
+///    session) so the freshest context surfaces first.
+///
+/// Pure and embedder-free on purpose: the grouping/sorting logic is the heart
+/// of cross-session reasoning and is unit-tested in isolation (see the
+/// `cross_session` tests below) without standing up a `VectorStore`.
+pub(crate) fn reassemble_session_timeline(
+    matches: &[VectorMatch],
+    threshold: f32,
+) -> Vec<VectorMatch> {
+    use std::collections::BTreeMap;
+
+    // Group by session_id, keeping only matches at or above the threshold.
+    let mut by_session: BTreeMap<String, Vec<&VectorMatch>> = BTreeMap::new();
+    for m in matches {
+        if m.score < threshold {
+            continue;
+        }
+        by_session
+            .entry(m.observation.session_id.clone())
+            .or_default()
+            .push(m);
+    }
+
+    // Rank sessions by their latest entry (most recent first).
+    let mut session_order: Vec<(String, i64)> = by_session
+        .iter()
+        .map(|(sid, ms)| {
+            let latest = ms
+                .iter()
+                .map(|m| m.observation.created_at)
+                .max()
+                .unwrap_or(0);
+            (sid.clone(), latest)
+        })
+        .collect();
+    session_order.sort_by(|a, b| b.1.cmp(&a.1));
+
+    // Flatten: for each session (most-recent-first), replay its entries
+    // chronologically (oldest first).
+    let mut out = Vec::new();
+    for (sid, _) in session_order {
+        let mut group: Vec<&&VectorMatch> = by_session.get(&sid).expect("session group").iter().collect();
+        group.sort_by_key(|m| m.observation.created_at);
+        for m in group {
+            out.push((*m).clone());
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod cross_session_tests {
+    use super::*;
+    use crate::vector::Observation;
+
+    /// Build a VectorMatch with the given session, content, created_at, score.
+    fn mk(session_id: &str, content: &str, created_at: i64, score: f32) -> VectorMatch {
+        VectorMatch {
+            observation: Observation {
+                id: 0,
+                content: content.to_string(),
+                kind: "project".to_string(),
+                project: Some("p".to_string()),
+                files_read: Vec::new(),
+                files_modified: Vec::new(),
+                concepts: Vec::new(),
+                created_at,
+                access_count: 0,
+                last_accessed_at: None,
+                expires_at: None,
+                session_id: session_id.to_string(),
+            },
+            score,
+        }
+    }
+
+    #[test]
+    fn groups_by_session_and_replays_chronologically() {
+        // Two sessions; within each, entries are out of order.
+        let matches = vec![
+            mk("s1", "s1-latest", 200, 0.9),
+            mk("s1", "s1-earliest", 100, 0.9),
+            mk("s2", "s2-latest", 400, 0.9),
+            mk("s2", "s2-earliest", 300, 0.9),
+        ];
+        let out = reassemble_session_timeline(&matches, 0.05);
+        let contents: Vec<&str> = out.iter().map(|m| m.observation.content.as_str()).collect();
+        // s2 (latest entry 400) first, then s1 (latest entry 200).
+        // Within each session, oldest-first.
+        assert_eq!(
+            contents,
+            vec!["s2-earliest", "s2-latest", "s1-earliest", "s1-latest"]
+        );
+    }
+
+    #[test]
+    fn drops_below_threshold() {
+        let matches = vec![
+            mk("s1", "kept", 100, 0.9),
+            mk("s1", "dropped", 200, 0.01),
+        ];
+        let out = reassemble_session_timeline(&matches, 0.05);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].observation.content, "kept");
+    }
+
+    #[test]
+    fn empty_session_is_untagged_group() {
+        let matches = vec![
+            mk("", "legacy-b", 200, 0.9),
+            mk("", "legacy-a", 100, 0.9),
+            mk("s1", "sessioned", 150, 0.9),
+        ];
+        let out = reassemble_session_timeline(&matches, 0.05);
+        // Empty-session group has latest=200 → ranks above s1 (latest=150).
+        assert_eq!(out[0].observation.session_id, "");
+        assert_eq!(out[0].observation.content, "legacy-a");
+        assert_eq!(out[1].observation.content, "legacy-b");
+        assert_eq!(out[2].observation.session_id, "s1");
     }
 }

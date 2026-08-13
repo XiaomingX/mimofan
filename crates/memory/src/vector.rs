@@ -42,11 +42,23 @@ pub struct Observation {
     /// observation is a TTL-eviction candidate (#716 M4 `ttl_expiry`). `None`
     /// means no expiry.
     pub expires_at: Option<i64>,
+    /// Session identifier this observation originated from. Enables
+    /// cross-session reasoning (#777): memories are grouped and assembled by
+    /// session so the model can follow a timeline across multiple sessions.
+    /// Empty for observations without a session dimension (treated as
+    /// `"default"` at assembly time).
+    pub session_id: String,
 }
 
 impl Observation {
     /// Create a new observation
     pub fn new(project: String, kind: &str, content: String) -> Self {
+        Self::with_session(project, kind, content, String::new())
+    }
+
+    /// Create a new observation tagged with the session it originated from
+    /// (#777 cross-session reasoning).
+    pub fn with_session(project: String, kind: &str, content: String, session_id: String) -> Self {
         Self {
             id: 0, // Will be set by the storage layer
             content,
@@ -59,6 +71,7 @@ impl Observation {
             access_count: 0,
             last_accessed_at: None,
             expires_at: None,
+            session_id,
         }
     }
 
@@ -191,13 +204,15 @@ impl VectorStore {
                 created_at INTEGER NOT NULL,
                 access_count INTEGER NOT NULL DEFAULT 0,
                 last_accessed_at INTEGER,
-                expires_at INTEGER
+                expires_at INTEGER,
+                session_id TEXT NOT NULL DEFAULT ''
             );
 
             CREATE INDEX IF NOT EXISTS idx_observations_kind ON observations(kind);
             CREATE INDEX IF NOT EXISTS idx_observations_project ON observations(project);
             CREATE INDEX IF NOT EXISTS idx_observations_created_at ON observations(created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_observations_expires_at ON observations(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_observations_session_id ON observations(session_id);
 
             CREATE TABLE IF NOT EXISTS observation_files (
                 observation_id INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
@@ -367,8 +382,8 @@ impl VectorStore {
         let result: Result<i64> = (|| {
             self.sqlite.execute(
                 r#"
-                INSERT INTO observations (content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                INSERT INTO observations (content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
                 "#,
                 rusqlite::params![
                     observation.content,
@@ -381,6 +396,7 @@ impl VectorStore {
                     observation.access_count,
                     observation.last_accessed_at,
                     observation.expires_at,
+                    observation.session_id,
                 ],
             )?;
 
@@ -624,6 +640,7 @@ impl VectorStore {
                 access_count: row.get(8)?,
                 last_accessed_at: row.get(9)?,
                 expires_at: row.get(10).ok().unwrap_or(None),
+                session_id: row.get(11).unwrap_or_default(),
             })
         }
     }
@@ -635,14 +652,14 @@ impl VectorStore {
     ) -> Result<Vec<Observation>> {
         let sql = match project {
             Some(_) => r#"
-                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
                 FROM observations
                 WHERE project = ?1
                 ORDER BY created_at DESC
                 LIMIT ?2
                 "#,
             None => r#"
-                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
                 FROM observations
                 ORDER BY created_at DESC
                 LIMIT ?1
@@ -666,7 +683,7 @@ impl VectorStore {
     pub fn load_observation(&self, id: i64) -> Result<Option<Observation>> {
         let mut stmt = self.sqlite.prepare(
             r#"
-            SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at
+            SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
             FROM observations
             WHERE id = ?1
             "#,
@@ -690,6 +707,7 @@ impl VectorStore {
                 access_count: row.get(8)?,
                 last_accessed_at: row.get(9)?,
                 expires_at: row.get(10).ok().unwrap_or(None),
+                session_id: row.get(11).unwrap_or_default(),
             })
         });
 
@@ -873,7 +891,6 @@ impl VectorStore {
 #[cfg(test)]
 mod enhancement_tests {
     use super::*;
-    use std::path::Path;
 
     fn tmp_store() -> (tempfile::TempDir, VectorStore) {
         let dir = tempfile::tempdir().unwrap();
@@ -882,7 +899,12 @@ mod enhancement_tests {
     }
 
     fn obs(project: &str, content: &str) -> Observation {
-        let mut o = Observation::new(project.to_string(), "project", content.to_string());
+        let mut o = Observation::with_session(
+            project.to_string(),
+            "project",
+            content.to_string(),
+            "test".to_string(),
+        );
         o.expires_at = None;
         o
     }

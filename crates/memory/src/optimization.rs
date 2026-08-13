@@ -389,7 +389,8 @@ mod tests {
                 created_at: 0,
                 access_count: 0,
                 last_accessed_at: None,
-            expires_at: None,
+                expires_at: None,
+                session_id: "test".to_string(),
             },
             score,
         }

@@ -65,10 +65,11 @@ fn benchmark_vector_store() {
     let iterations = 1000_usize;
     let start = Instant::now();
     for i in 0..iterations {
-        let obs = Observation::new(
+        let obs = Observation::with_session(
             "bench-project".to_string(),
             "project",
             format!("Benchmark observation {}", i),
+            "bench".to_string(),
         );
         let embedding = generate_embedding(i as u64);
         store
@@ -114,10 +115,11 @@ fn benchmark_batch_processor() {
     let iterations = 10_000_usize;
     let start = Instant::now();
     for i in 0..iterations {
-        let obs = Observation::new(
+        let obs = Observation::with_session(
             "batch-project".to_string(),
             "project",
             format!("Batch observation {}", i),
+            "bench".to_string(),
         );
         processor.enqueue(obs).expect("enqueue observation");
     }
@@ -184,10 +186,11 @@ fn benchmark_compressor() {
     // Generate test observations
     let observations: Vec<Observation> = (0..1000)
         .map(|i| {
-            Observation::new(
+            Observation::with_session(
                 "compress-project".to_string(),
                 "project",
                 format!("Compression test observation {}", i),
+                "bench".to_string(),
             )
         })
         .collect();
