@@ -14,8 +14,13 @@ use std::time::SystemTime;
 
 use async_trait::async_trait;
 use serde_json::{Value, json};
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
+use mimofan_protocol::{ThreadRequest, ThreadResponse};
+
+use crate::artifacts::ArtifactRecord;
 use crate::features::Features;
 use crate::lsp::LspManager;
 use crate::network_policy::NetworkPolicyDecider;
@@ -176,6 +181,16 @@ pub struct RuntimeToolServices {
     pub handle_store: SharedHandleStore,
     /// Per-session persistent RLM kernels, keyed by caller-chosen context name.
     pub rlm_sessions: SharedRlmSessionStore,
+    /// Channel for tools to spawn sibling sessions (issue #697 `create_sub_session`).
+    /// The engine consumes `(ThreadRequest, reply)` pairs and answers via the
+    /// oneshot sender. `None` outside the live engine (test contexts cannot spawn).
+    pub thread_request_tx:
+        Option<UnboundedSender<(ThreadRequest, oneshot::Sender<Result<ThreadResponse, String>>)>>,
+    /// Channel for tools to append durable artifact records to the session index
+    /// (issue #697 `record_artifact`). The engine consumes records and persists
+    /// them alongside `app.session_artifacts`. `None` when no session index is
+    /// attached.
+    pub session_artifacts_tx: Option<UnboundedSender<ArtifactRecord>>,
 }
 
 impl Default for RuntimeToolServices {
@@ -191,6 +206,8 @@ impl Default for RuntimeToolServices {
             hook_executor: None,
             handle_store: new_shared_handle_store(),
             rlm_sessions: new_shared_rlm_session_store(),
+            thread_request_tx: None,
+            session_artifacts_tx: None,
         }
     }
 }
@@ -211,6 +228,8 @@ impl std::fmt::Debug for RuntimeToolServices {
             .field("hook_executor", &self.hook_executor.is_some())
             .field("handle_store", &true)
             .field("rlm_sessions", &true)
+            .field("thread_request_tx", &self.thread_request_tx.is_some())
+            .field("session_artifacts_tx", &self.session_artifacts_tx.is_some())
             .finish()
     }
 }

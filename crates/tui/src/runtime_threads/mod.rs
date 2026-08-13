@@ -22,7 +22,10 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::Utc;
 use serde_json::{Value, json};
-use tokio::sync::{Mutex, broadcast, oneshot};
+use std::io;
+use dirs;
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{Mutex, RwLock, broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
@@ -38,9 +41,11 @@ use crate::models::{
 use crate::tools::plan::new_shared_plan_state;
 use crate::tools::subagent::SubAgentStatus;
 use crate::tools::todo::new_shared_todo_list;
+use mimofan_core::Runtime;
 use mimofan_protocol::runtime::{
     DynamicToolCallContent, DynamicToolCallParams, DynamicToolCallResult,
 };
+use mimofan_protocol::{ThreadRequest, ThreadResponse};
 
 pub use self::requests::{
     CompactThreadRequest, CreateThreadRequest, RuntimeThreadManagerConfig, StartTurnRequest,
@@ -130,6 +135,16 @@ pub struct RuntimeThreadManager {
     automations: Arc<StdMutex<Option<crate::automation_manager::SharedAutomationManager>>>,
     pending_approvals: Arc<StdMutex<HashMap<String, oneshot::Sender<ExternalApprovalDecision>>>>,
     pending_dynamic_tools: Arc<StdMutex<HashMap<String, oneshot::Sender<DynamicToolCallResult>>>>,
+    /// Sender side of the `create_sub_session` thread-request channel (#697).
+    /// When `Some`, model-visible tools can spawn sibling sessions via the
+    /// core `Runtime`. `None` in contexts without a live `Runtime`
+    /// (e.g. standalone task manager) — `create_sub_session` fails closed there.
+    thread_request_tx:
+        Option<UnboundedSender<(ThreadRequest, oneshot::Sender<Result<ThreadResponse, String>>)>>,
+    /// Sender side of the `record_artifact` session-index channel (#697).
+    /// Records are appended to a per-session artifact index on disk so they
+    /// survive resume. `None` disables artifact indexing.
+    session_artifacts_tx: Option<UnboundedSender<crate::artifacts::ArtifactRecord>>,
 }
 
 impl RuntimeThreadManager {
@@ -137,9 +152,41 @@ impl RuntimeThreadManager {
         config: Config,
         workspace: std::path::PathBuf,
         manager_cfg: RuntimeThreadManagerConfig,
+        runtime: Option<Arc<RwLock<Runtime>>>,
     ) -> Result<Self> {
         let store = RuntimeThreadStore::open(manager_cfg.data_dir.clone())?;
         let (event_tx, _event_rx) = broadcast::channel(EVENT_CHANNEL_CAPACITY);
+
+        // Wire the `create_sub_session` thread-request channel (#697). When a
+        // live core `Runtime` is supplied we spawn a consumer that forwards
+        // requests to `Runtime::handle_thread` and answers via the oneshot.
+        let thread_request_tx = runtime.as_ref().map(|runtime| {
+            let (tx, mut rx) = mpsc::unbounded_channel::<(ThreadRequest, oneshot::Sender<Result<ThreadResponse, String>>)>();
+            let runtime = runtime.clone();
+            tokio::spawn(async move {
+                while let Some((req, reply)) = rx.recv().await {
+                    let mut guard = runtime.write().await;
+                    let response = guard.handle_thread(req).await;
+                    let _ = reply.send(response.map_err(|err| err.to_string()));
+                }
+            });
+            tx
+        });
+
+        // Wire the `record_artifact` session-index channel (#697). Records are
+        // appended to a per-session artifact index file so they survive resume.
+        let session_artifacts_tx = {
+            let (tx, mut rx) = mpsc::unbounded_channel::<crate::artifacts::ArtifactRecord>();
+            tokio::spawn(async move {
+                while let Some(record) = rx.recv().await {
+                    if let Err(err) = append_artifact_index(&record).await {
+                        tracing::warn!("failed to index artifact {}: {err}", record.id);
+                    }
+                }
+            });
+            tx
+        };
+
         let manager = Self {
             config,
             workspace,
@@ -152,6 +199,8 @@ impl RuntimeThreadManager {
             automations: Arc::new(StdMutex::new(None)),
             pending_approvals: Arc::new(StdMutex::new(HashMap::new())),
             pending_dynamic_tools: Arc::new(StdMutex::new(HashMap::new())),
+            thread_request_tx,
+            session_artifacts_tx: Some(session_artifacts_tx),
         };
         manager.recover_interrupted_state()?;
         Ok(manager)
@@ -1720,6 +1769,8 @@ impl RuntimeThreadManager {
                 hook_executor: None,
                 handle_store: crate::tools::handle::new_shared_handle_store(),
                 rlm_sessions: crate::rlm::session::new_shared_rlm_session_store(),
+                thread_request_tx: self.thread_request_tx.clone(),
+                session_artifacts_tx: self.session_artifacts_tx.clone(),
             },
             subagent_model_overrides: self.config.subagent_model_overrides(),
             subagent_api_timeout: std::time::Duration::from_secs(
@@ -2946,4 +2997,29 @@ impl crate::tools::spec::DynamicToolExecutor for RuntimeThreadManager {
             }
         }
     }
+}
+
+/// Append an [`ArtifactRecord`] to the per-session artifact index on disk so it
+/// survives resume. Mirrors the shape persisted into `SavedSession.artifacts`.
+async fn append_artifact_index(record: &crate::artifacts::ArtifactRecord) -> io::Result<()> {
+    let home = dirs::home_dir().ok_or_else(|| {
+        io::Error::new(io::ErrorKind::NotFound, "no home directory for artifact index")
+    })?;
+    let path = home
+        .join(".mimofan")
+        .join("sessions")
+        .join(&record.session_id)
+        .join("artifacts_index.json");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut records: Vec<crate::artifacts::ArtifactRecord> = if path.exists() {
+        let data = std::fs::read_to_string(&path)?;
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    records.push(record.clone());
+    std::fs::write(&path, serde_json::to_string_pretty(&records)?)?;
+    Ok(())
 }

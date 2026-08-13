@@ -789,6 +789,28 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(ImageAnalyzeTool::new(config)))
     }
 
+    /// Include the `enter_worktree` / `exit_worktree` main-session tools (#697).
+    #[must_use]
+    pub fn with_worktree_tools(self) -> Self {
+        use super::worktree::{EnterWorktreeTool, ExitWorktreeTool};
+        self.with_tool(Arc::new(EnterWorktreeTool))
+            .with_tool(Arc::new(ExitWorktreeTool))
+    }
+
+    /// Include the `create_sub_session` sibling-session tool (#697 item 1).
+    #[must_use]
+    pub fn with_create_sub_session_tool(self) -> Self {
+        use super::create_sub_session::CreateSubSessionTool;
+        self.with_tool(Arc::new(CreateSubSessionTool))
+    }
+
+    /// Include the `record_artifact` durable-artifact tool (#697 item 2).
+    #[must_use]
+    pub fn with_record_artifact_tool(self) -> Self {
+        use super::record_artifact::RecordArtifactTool;
+        self.with_tool(Arc::new(RecordArtifactTool))
+    }
+
     /// Previously registered the OpenAI-style `multi_tool_use.parallel`
     /// meta-tool. DeepSeek-V4 has native parallel tool calls (multiple
     /// `tool_calls` entries in one assistant turn) and the meta-tool name
@@ -998,7 +1020,10 @@ impl ToolRegistryBuilder {
             .with_image_ocr_tools()
             .with_finance_tool()
             .with_insights_tool()
-            .with_synthetic_output_tool();
+            .with_synthetic_output_tool()
+            .with_worktree_tools()
+            .with_create_sub_session_tool()
+            .with_record_artifact_tool();
 
         if shell_policy.allows_shell() {
             builder.with_shell_tools().with_runtime_task_shell_tools()
