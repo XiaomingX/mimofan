@@ -6,14 +6,14 @@ use crate::config::{
     ApiProvider, Config, DEFAULT_TEXT_MODEL, SavedCredential, has_api_key, has_api_key_for,
     save_api_key,
 };
+use crate::cost_budget::{CostBudgetKind, CostBudgetLevel};
 use crate::hooks::{HookContext, HookEvent, HookExecutor, HookResult};
 use crate::localization::{MessageId, resolve_locale, tr};
 use crate::models::{auto_compact_default_for_model, compaction_threshold_for_model_at_percent};
 use crate::palette;
 use crate::pricing::{CostCurrency, CostEstimate};
-use crate::cost_budget::{CostBudgetKind, CostBudgetLevel};
-use crate::settings::Settings;
 use crate::session_manager::PlanAndTodoState;
+use crate::settings::Settings;
 use crate::tools::plan::new_shared_plan_state;
 use crate::tools::shell::new_shared_shell_manager;
 use crate::tools::spec::RuntimeToolServices;
@@ -215,7 +215,10 @@ impl App {
             _ => CostCurrency::from_setting(&settings.cost_currency).unwrap_or(CostCurrency::Usd),
         };
         let cost_budget = crate::cost_budget::CostBudget::from_toml(
-            config.cost_budget.as_ref().unwrap_or(&mimofan_config::CostBudgetToml::default()),
+            config
+                .cost_budget
+                .as_ref()
+                .unwrap_or(&mimofan_config::CostBudgetToml::default()),
         );
         let composer_density = ComposerDensity::from_setting(&settings.composer_density);
         let composer_border = settings.composer_border;
@@ -286,8 +289,7 @@ impl App {
         let start_fast = settings.fast_mode;
         let (model, auto_model, reasoning_effort, fast_saved_model, fast_saved_effort) =
             if start_fast {
-                let candidates =
-                    crate::model_routing::provider_router_candidates(provider, &model);
+                let candidates = crate::model_routing::provider_router_candidates(provider, &model);
                 let cheap = candidates.cheap_or_big().to_string();
                 (
                     cheap,
@@ -909,7 +911,10 @@ impl App {
         self.session.session_cost += estimate.usd;
         self.session.session_cost_cny += estimate.cny;
         self.refresh_displayed_cost_high_water();
-        self.check_cost_budget(CostBudgetKind::Session, self.session.displayed_cost_high_water);
+        self.check_cost_budget(
+            CostBudgetKind::Session,
+            self.session.displayed_cost_high_water,
+        );
     }
 
     /// Add `delta` to the running sub-agent cost and bump the displayed
@@ -925,7 +930,10 @@ impl App {
         self.refresh_displayed_cost_high_water();
         // Sub-agent spend counts toward both the session high-water ceiling and
         // the rolling daily ceiling.
-        self.check_cost_budget(CostBudgetKind::Session, self.session.displayed_cost_high_water);
+        self.check_cost_budget(
+            CostBudgetKind::Session,
+            self.session.displayed_cost_high_water,
+        );
         let daily_total = self.accrue_daily_cost(estimate.usd);
         self.check_cost_budget(CostBudgetKind::Daily, daily_total);
     }

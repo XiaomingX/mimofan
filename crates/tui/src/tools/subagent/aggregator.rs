@@ -250,27 +250,18 @@ mod tests {
             ("c".into(), "Paris".into()),
         ];
         // 2 of 3 agree on "Paris" but quorum=3 is not met.
-        let strict = ResultAggregator::aggregate(
-            &AggregationStrategy::Vote { quorum: 3 },
-            &results,
-        )
-        .output;
+        let strict =
+            ResultAggregator::aggregate(&AggregationStrategy::Vote { quorum: 3 }, &results).output;
         assert!(strict.contains("No consensus"));
         // quorum=2 is met.
-        let reached = ResultAggregator::aggregate(
-            &AggregationStrategy::Vote { quorum: 2 },
-            &results,
-        )
-        .output;
+        let reached =
+            ResultAggregator::aggregate(&AggregationStrategy::Vote { quorum: 2 }, &results).output;
         assert_eq!(reached, "Paris");
     }
 
     #[test]
     fn concatenate_joins_with_separator() {
-        let results = vec![
-            ("a".into(), "one".into()),
-            ("b".into(), "two".into()),
-        ];
+        let results = vec![("a".into(), "one".into()), ("b".into(), "two".into())];
         let out = ResultAggregator::aggregate(
             &AggregationStrategy::Concatenate {
                 separator: " | ".into(),

@@ -127,9 +127,9 @@ impl ToolSpec for NotebookEditTool {
                 let new_type = validated_cell_type(&input)?;
                 let idx = locate_cell(&notebook, &input, &display)?;
                 let cells = cells_mut(&mut notebook, &display)?;
-                let cell = cells[idx]
-                    .as_object_mut()
-                    .ok_or_else(|| ToolError::invalid_input(format!("cell {idx} is not an object")))?;
+                let cell = cells[idx].as_object_mut().ok_or_else(|| {
+                    ToolError::invalid_input(format!("cell {idx} is not an object"))
+                })?;
                 cell.insert("source".to_string(), write_source(&source));
                 if let Some(cell_type) = new_type {
                     cell.insert("cell_type".to_string(), json!(cell_type));
@@ -267,7 +267,9 @@ fn locate_cell(notebook: &Value, input: &Value, display: &str) -> Result<usize, 
         return cells
             .iter()
             .position(|c| c.get("id").and_then(Value::as_str) == Some(id))
-            .ok_or_else(|| ToolError::invalid_input(format!("no cell with id '{id}' in {display}")));
+            .ok_or_else(|| {
+                ToolError::invalid_input(format!("no cell with id '{id}' in {display}"))
+            });
     }
     let idx = optional_index(input, "index")?.ok_or_else(|| {
         ToolError::invalid_input("either 'index' or 'cell_id' is required to locate a cell")
@@ -446,7 +448,10 @@ mod tests {
         let nb = load(&dir);
         assert_eq!(read_source(&nb["cells"][1]), "# New Title");
         // 未指定的 cell 不受影响。
-        assert_eq!(read_source(&nb["cells"][0]), "print('hello')\nprint('world')");
+        assert_eq!(
+            read_source(&nb["cells"][0]),
+            "print('hello')\nprint('world')"
+        );
     }
 
     #[tokio::test]

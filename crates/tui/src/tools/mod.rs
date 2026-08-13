@@ -10,8 +10,8 @@
 
 pub mod apply_patch;
 pub mod approval_cache;
-pub mod ast_query;
 pub mod arg_repair;
+pub mod ast_query;
 pub mod automation;
 pub mod browser;
 pub mod cargo_failure_summary;
@@ -20,10 +20,10 @@ pub mod diagnostics;
 pub mod diff_format;
 pub mod dynamic;
 pub mod file;
-/// #639：统一 VFS 抽象（文件工具 IO 出入口）。
-pub mod vfs;
 pub mod file_search;
 pub mod finance;
+/// #639：统一 VFS 抽象（文件工具 IO 出入口）。
+pub mod vfs;
 
 pub mod fetch_url;
 pub mod fim;
@@ -58,9 +58,9 @@ pub mod shell;
 mod shell_output;
 pub mod skill;
 pub mod spec;
-pub mod synthetic_output;
 pub mod speech;
 pub mod subagent;
+pub mod synthetic_output;
 pub mod tasks;
 pub mod test_runner;
 pub mod todo;

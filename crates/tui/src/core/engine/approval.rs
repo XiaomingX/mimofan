@@ -167,10 +167,7 @@ impl Engine {
                 let mut state = self.config.plan_state.lock().await;
                 state.set_approved_plan(plan.clone());
             }
-            let _ = self
-                .tx_event
-                .send(Event::PlanModeApproved { plan })
-                .await;
+            let _ = self.tx_event.send(Event::PlanModeApproved { plan }).await;
             Ok(ToolResult::success(
                 "用户已批准计划，已退出 Plan 模式，可以开始实施。".to_string(),
             ))

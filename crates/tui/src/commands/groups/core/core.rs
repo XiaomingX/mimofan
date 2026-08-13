@@ -4,8 +4,7 @@ use std::fmt::Write;
 use std::path::PathBuf;
 
 use crate::config::{
-    ApiProvider, COMMON_MODELS, normalize_custom_model_id,
-    normalize_model_name_for_provider,
+    ApiProvider, COMMON_MODELS, normalize_custom_model_id, normalize_model_name_for_provider,
 };
 use crate::localization::{MessageId, tr};
 use crate::route_runtime::resolve_route_candidate;
@@ -169,8 +168,8 @@ pub fn model(app: &mut App, model_name: Option<&str>) -> CommandResult {
             };
             model_id
         };
-        let strict_direct_custom_endpoint =
-            app.accepts_custom_model_ids() && matches!(app.api_provider, ApiProvider::OpenAiCompatible);
+        let strict_direct_custom_endpoint = app.accepts_custom_model_ids()
+            && matches!(app.api_provider, ApiProvider::OpenAiCompatible);
         let route_limits = if strict_direct_custom_endpoint {
             None
         } else {

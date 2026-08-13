@@ -90,7 +90,11 @@ fn tail_chars(s: &str, max: usize) -> String {
 fn build_summary_input(messages: &[Message]) -> String {
     let mut text = String::new();
     for msg in messages {
-        let role = if msg.role == "user" { "User" } else { "Assistant" };
+        let role = if msg.role == "user" {
+            "User"
+        } else {
+            "Assistant"
+        };
         for block in &msg.content {
             if let ContentBlock::Text { text: t, .. } = block {
                 text.push_str(role);

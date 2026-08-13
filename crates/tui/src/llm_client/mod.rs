@@ -33,7 +33,7 @@ mod stream_resume;
 #[allow(unused_imports)]
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerState};
 #[allow(unused_imports)]
-pub use stream_resume::{StreamResume, StreamResumeState, StreamResumePoint};
+pub use stream_resume::{StreamResume, StreamResumePoint, StreamResumeState};
 
 use crate::config::RetryPolicy;
 use crate::models::{MessageRequest, MessageResponse, StreamEvent};

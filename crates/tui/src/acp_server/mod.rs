@@ -466,7 +466,9 @@ fn extract_prompt_images(prompt: Option<&Value>) -> Vec<String> {
                 .map(str::to_string),
             _ => None,
         })
-        .filter(|url| url.starts_with("data:") || url.starts_with("http://") || url.starts_with("https://"))
+        .filter(|url| {
+            url.starts_with("data:") || url.starts_with("http://") || url.starts_with("https://")
+        })
         .collect()
 }
 

@@ -304,6 +304,46 @@ impl ContextBudget {
     }
 }
 
+/// Permissive token estimator used as a fallback when the shared tiktoken
+/// BPE tokenizer is unavailable (e.g. offline, or before the tokenizer model
+/// has loaded).
+///
+/// It deliberately over-estimates rather than under-estimates: counting
+/// `max(1, len/4)` bytes as tokens is a generous, language-agnostic heuristic
+/// that errs toward reserving more context than strictly necessary, so a turn
+/// is never accidentally packed past the window because the real counter was
+/// missing. Bounds: a non-empty string is at least 1 token, and the result
+/// saturates at `usize::MAX` for pathological inputs.
+#[must_use]
+pub fn estimate_tokens_permissive(text: &str) -> usize {
+    let bytes = text.len();
+    if bytes == 0 {
+        return 0;
+    }
+    // ~4 bytes per token is the long-standing rough average for English/
+    // code; round up so we never report 0 for non-empty content.
+    bytes.div_ceil(4)
+}
+
+/// Build a budget snapshot from raw text, estimating the committed input
+/// tokens with [`estimate_tokens_permissive`].
+///
+/// This is the budget-estimation entry point for the common case where the
+/// caller has the turn's text but no structured token count yet (e.g. a
+/// preflight capacity check before the real tokenizer has produced a number).
+/// It routes the estimate through [`ContextBudget::new`] so the same clamping,
+/// compaction-trigger and pressure logic applied to measured inputs applies
+/// here.
+#[must_use]
+pub fn context_budget_permissive(
+    window_tokens: u64,
+    input_text: &str,
+    configured_output_cap: u64,
+) -> ContextBudget {
+    let input_tokens = estimate_tokens_permissive(input_text) as u64;
+    ContextBudget::new(window_tokens, input_tokens, configured_output_cap)
+}
+
 /// Coarse classification of how well the committed context is being used.
 ///
 /// Derived from [`ContextBudget::effective_utilization`]. Ordered least to most
@@ -446,13 +486,19 @@ mod tests {
             PressureLevel::from_usage_percent(CRITICAL_PRESSURE_PERCENT),
             PressureLevel::Critical
         );
-        assert_eq!(PressureLevel::from_usage_percent(100.0), PressureLevel::Critical);
+        assert_eq!(
+            PressureLevel::from_usage_percent(100.0),
+            PressureLevel::Critical
+        );
     }
 
     #[test]
     fn pressure_level_clamps_out_of_range() {
         assert_eq!(PressureLevel::from_usage_percent(-50.0), PressureLevel::Low);
-        assert_eq!(PressureLevel::from_usage_percent(250.0), PressureLevel::Critical);
+        assert_eq!(
+            PressureLevel::from_usage_percent(250.0),
+            PressureLevel::Critical
+        );
     }
 
     #[test]
@@ -487,7 +533,9 @@ mod tests {
     fn context_budget_never_underflows_on_small_window() {
         let budget = ContextBudget::new(4_096, 1_000, 262_144);
         assert!(budget.output_cap_tokens <= budget.window_tokens);
-        assert!(!budget.should_compact() || budget.input_tokens >= budget.compaction_trigger_tokens);
+        assert!(
+            !budget.should_compact() || budget.input_tokens >= budget.compaction_trigger_tokens
+        );
     }
 
     #[test]
@@ -575,15 +623,42 @@ mod tests {
 
     #[test]
     fn effective_context_level_bands() {
-        assert_eq!(EffectiveContextLevel::from_ratio(0.0), EffectiveContextLevel::Wasted);
-        assert_eq!(EffectiveContextLevel::from_ratio(0.24), EffectiveContextLevel::Wasted);
-        assert_eq!(EffectiveContextLevel::from_ratio(0.25), EffectiveContextLevel::Thin);
-        assert_eq!(EffectiveContextLevel::from_ratio(0.49), EffectiveContextLevel::Thin);
-        assert_eq!(EffectiveContextLevel::from_ratio(0.50), EffectiveContextLevel::Healthy);
-        assert_eq!(EffectiveContextLevel::from_ratio(0.84), EffectiveContextLevel::Healthy);
-        assert_eq!(EffectiveContextLevel::from_ratio(0.85), EffectiveContextLevel::Saturated);
-        assert_eq!(EffectiveContextLevel::from_ratio(1.0), EffectiveContextLevel::Saturated);
-        assert_eq!(EffectiveContextLevel::from_ratio(2.0), EffectiveContextLevel::Saturated);
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(0.0),
+            EffectiveContextLevel::Wasted
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(0.24),
+            EffectiveContextLevel::Wasted
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(0.25),
+            EffectiveContextLevel::Thin
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(0.49),
+            EffectiveContextLevel::Thin
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(0.50),
+            EffectiveContextLevel::Healthy
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(0.84),
+            EffectiveContextLevel::Healthy
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(0.85),
+            EffectiveContextLevel::Saturated
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(1.0),
+            EffectiveContextLevel::Saturated
+        );
+        assert_eq!(
+            EffectiveContextLevel::from_ratio(2.0),
+            EffectiveContextLevel::Saturated
+        );
     }
 
     #[test]

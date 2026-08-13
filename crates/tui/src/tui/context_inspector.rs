@@ -153,11 +153,7 @@ pub fn build_context_inspector_text(app: &App, locale: Locale) -> String {
             tr(locale, MessageId::CtxInspReservedForCompaction),
         );
     } else {
-        let _ = writeln!(
-            out,
-            "{}",
-            tr(locale, MessageId::CtxInspAutocompactDisabled),
-        );
+        let _ = writeln!(out, "{}", tr(locale, MessageId::CtxInspAutocompactDisabled),);
         let _ = writeln!(
             out,
             "{}: {trigger_pct:.0}% (~{trigger_tokens} {tokens_unit})",

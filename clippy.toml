@@ -1,0 +1,4 @@
+# clippy.toml — workspace-wide clippy tuning.
+# Keep these conservative; heavy-handed thresholds cause noisy diffs.
+msrv = "1.95"
+cognitive-complexity-threshold = 30

@@ -118,10 +118,7 @@ fn main() {
     }
 
     // 开一个隔离的临时记忆库，绝不污染用户真实记忆。
-    let tmp = std::env::temp_dir().join(format!(
-        "mimofan_probe_recall_{}",
-        std::process::id()
-    ));
+    let tmp = std::env::temp_dir().join(format!("mimofan_probe_recall_{}", std::process::id()));
     let _ = std::fs::create_dir_all(&tmp);
     let store = match VectorStore::open(&tmp, DIM) {
         Ok(s) => s,

@@ -70,7 +70,11 @@ impl SecondaryModel {
 
     /// Build from a config: prefer `seam_model`, then `cheap_sibling` of the
     /// primary, then an explicit subagent override string.
-    pub fn from_parts(seam_model: Option<&str>, cheap_sibling: Option<&str>, subagent_override: Option<&str>) -> Self {
+    pub fn from_parts(
+        seam_model: Option<&str>,
+        cheap_sibling: Option<&str>,
+        subagent_override: Option<&str>,
+    ) -> Self {
         let id = seam_model
             .filter(|s| !s.is_empty())
             .or_else(|| cheap_sibling.filter(|s| !s.is_empty()))
@@ -91,7 +95,10 @@ impl SecondaryModel {
 /// (see [`provider_router_candidates`]), so an Anthropic/Gemini provider is
 /// never handed a sibling it cannot serve.
 const CHEAP_SIBLINGS: &[(&str, &str)] = &[
-    (crate::config::ZAI_GLM_5_2_MODEL, crate::config::ZAI_GLM_5_TURBO_MODEL),
+    (
+        crate::config::ZAI_GLM_5_2_MODEL,
+        crate::config::ZAI_GLM_5_TURBO_MODEL,
+    ),
     ("deepseek-v4-pro", "deepseek-v4-flash"),
     ("gpt-4o", "gpt-4o-mini"),
     ("gemini-2.5-pro", "gemini-2.0-flash"),

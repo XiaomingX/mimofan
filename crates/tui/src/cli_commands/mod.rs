@@ -1,13 +1,13 @@
 #![allow(clippy::uninlined_format_args)]
 
-pub mod metrics;
 pub(crate) mod install_deps;
+pub mod metrics;
 pub(crate) mod update;
 
 use std::io::{self, Read, Write};
+use std::net::SocketAddr;
 #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
 use std::os::unix::process::CommandExt;
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -744,7 +744,10 @@ pub(crate) fn run_login_command_with_secrets(
     args: LoginArgs,
     secrets: &Secrets,
 ) -> Result<()> {
-    let provider: ProviderKind = args.provider.unwrap_or(ProviderArg::OpenAiCompatible).into();
+    let provider: ProviderKind = args
+        .provider
+        .unwrap_or(ProviderArg::OpenAiCompatible)
+        .into();
     store.config.provider = provider;
 
     let api_key = match args.api_key {

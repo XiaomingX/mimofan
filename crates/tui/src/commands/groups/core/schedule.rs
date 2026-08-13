@@ -37,18 +37,14 @@ fn resolve_automation_id(app: &App, needle: &str) -> Result<String, String> {
         .runtime_services
         .automations
         .clone()
-        .ok_or_else(|| {
-            "Automation manager is not available in this session.".to_string()
-        })?;
+        .ok_or_else(|| "Automation manager is not available in this session.".to_string())?;
     tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current().block_on(async {
             let guard = automations.lock().await;
             if guard.get_automation(needle).is_ok() {
                 return Ok(needle.to_string());
             }
-            let all = guard
-                .list_automations()
-                .map_err(|e| e.to_string())?;
+            let all = guard.list_automations().map_err(|e| e.to_string())?;
             let matches: Vec<String> = all
                 .into_iter()
                 .filter(|a| a.id.starts_with(needle) || a.name == needle)
@@ -64,7 +60,6 @@ fn resolve_automation_id(app: &App, needle: &str) -> Result<String, String> {
         })
     })
 }
-
 
 pub(in crate::commands) const NIGHT_COMMAND_INFO: CommandInfo = CommandInfo {
     name: "night",
@@ -156,10 +151,7 @@ fn night(app: &mut App, arg: Option<&str>) -> CommandResult {
             let mut text = "✅ 已创建每日定时任务\n\n".to_string();
             text.push_str(&format!("**ID**: {}\n", record.id));
             text.push_str(&format!("**时间**: 每天 {}:{:02}\n", hour, minute));
-            text.push_str(&format!(
-                "**提示**: {}\n",
-                truncate_preview(&prompt, 80)
-            ));
+            text.push_str(&format!("**提示**: {}\n", truncate_preview(&prompt, 80)));
             text.push_str("\n使用 `/time list` 查看全部，`/time cancel <id>` 取消。");
             CommandResult::message(text)
         }
@@ -215,7 +207,10 @@ fn list_scheduled_tasks(app: &mut App) -> CommandResult {
             },
             a.rrule,
             a.next_run_at
-                .map(|t| t.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string())
+                .map(|t| t
+                    .with_timezone(&chrono::Local)
+                    .format("%Y-%m-%d %H:%M")
+                    .to_string())
                 .unwrap_or_else(|| "-".to_string()),
         ));
     }

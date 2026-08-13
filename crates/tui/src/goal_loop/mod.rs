@@ -226,10 +226,7 @@ mod tests {
             },
             budget(Some(8), Some(5)),
         );
-        assert_eq!(
-            decision,
-            ContinuationDecision::Stop(StopReason::NoProgress)
-        );
+        assert_eq!(decision, ContinuationDecision::Stop(StopReason::NoProgress));
     }
 
     #[test]
@@ -264,10 +261,7 @@ mod tests {
                 repeated_error_rounds: None,
             },
         );
-        assert_eq!(
-            decision,
-            ContinuationDecision::Stop(StopReason::TimeBudget)
-        );
+        assert_eq!(decision, ContinuationDecision::Stop(StopReason::TimeBudget));
     }
 
     #[test]

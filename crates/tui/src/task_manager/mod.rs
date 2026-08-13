@@ -50,7 +50,10 @@ pub enum TaskStatus {
 }
 
 impl TaskStatus {
-    #[cfg(test)]
+    /// Whether the task has reached a terminal state (completed, failed, or
+    /// canceled) — i.e. it will not transition further and no worker is still
+    /// attached. Production-visible (no `#[cfg(test)]` shim) so callers (UI,
+    /// completion injection, dashboard counters) can gate on it directly.
     #[must_use]
     pub fn is_terminal(self) -> bool {
         matches!(self, Self::Completed | Self::Failed | Self::Canceled)
@@ -1762,11 +1765,7 @@ pub fn cycle_detection(
     // Seed the DFS with the new task's outgoing dependency edges. If `task_id`
     // is not yet present in `deps`, treat it as having no outgoing edges yet
     // (the new edge is what we are validating).
-    stack.extend(
-        deps.get(task_id)
-            .cloned()
-            .unwrap_or_default(),
-    );
+    stack.extend(deps.get(task_id).cloned().unwrap_or_default());
 
     while let Some(node) = stack.pop() {
         if node == task_id {

@@ -813,7 +813,8 @@ mod dependency_tests {
     fn blocked_item_cannot_be_started() {
         let mut list = list_with_dependency();
         assert_eq!(
-            list.try_update_status(2, TodoStatus::InProgress).unwrap_err(),
+            list.try_update_status(2, TodoStatus::InProgress)
+                .unwrap_err(),
             vec![1]
         );
         // The rejected item must not have been mutated.

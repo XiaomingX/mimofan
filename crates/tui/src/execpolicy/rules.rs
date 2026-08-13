@@ -158,4 +158,3 @@ allow = ["node *", "python3 *"]
         ));
     }
 }
-

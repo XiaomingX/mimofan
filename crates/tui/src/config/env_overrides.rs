@@ -30,22 +30,32 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
         config.provider = Some(value);
     }
     if let Ok(value) = env_nonempty("MIMOFAN_BASE_URL") {
-        config.provider_config_for_mut(config.api_provider()).base_url = Some(value);
+        config
+            .provider_config_for_mut(config.api_provider())
+            .base_url = Some(value);
     }
     // 各厂商专用 env 变量统一归入对应线协议槽位（不再绑定具体产品）。
     let set_base_url = |config: &mut Config, field: &str, value: String| {
-        let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
+        let providers = config
+            .providers
+            .get_or_insert_with(ProvidersConfig::default);
         match field {
             "openai_compatible" => providers.openai_compatible.base_url = Some(value),
             "anthropic_compatible" => providers.anthropic_compatible.base_url = Some(value),
             "gemini_compatible" => providers.gemini_compatible.base_url = Some(value),
             name => {
-                providers.custom.entry(name.to_string()).or_default().base_url = Some(value);
+                providers
+                    .custom
+                    .entry(name.to_string())
+                    .or_default()
+                    .base_url = Some(value);
             }
         }
     };
     let set_model = |config: &mut Config, field: &str, value: String| {
-        let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
+        let providers = config
+            .providers
+            .get_or_insert_with(ProvidersConfig::default);
         match field {
             "openai_compatible" => providers.openai_compatible.model = Some(value),
             "anthropic_compatible" => providers.anthropic_compatible.model = Some(value),
@@ -55,13 +65,22 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
             }
         }
     };
-    if let Some(value) = std::env::var("OPENAI_BASE_URL").ok().filter(|v| !v.trim().is_empty()) {
+    if let Some(value) = std::env::var("OPENAI_BASE_URL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+    {
         set_base_url(config, "openai_compatible", value);
     }
-    if let Some(value) = std::env::var("ANTHROPIC_BASE_URL").ok().filter(|v| !v.trim().is_empty()) {
+    if let Some(value) = std::env::var("ANTHROPIC_BASE_URL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+    {
         set_base_url(config, "anthropic_compatible", value);
     }
-    if let Some(value) = std::env::var("GEMINI_BASE_URL").ok().filter(|v| !v.trim().is_empty()) {
+    if let Some(value) = std::env::var("GEMINI_BASE_URL")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+    {
         set_base_url(config, "gemini_compatible", value);
     }
     // 其余历史厂商 endpoint 变量按 OpenAI 兼容自定义端点收口。
@@ -94,7 +113,9 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
         config.http_headers = Some(root_headers);
 
         let provider = config.api_provider();
-        let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
+        let providers = config
+            .providers
+            .get_or_insert_with(ProvidersConfig::default);
         let entry = match provider {
             ApiProvider::OpenAiCompatible => &mut providers.openai_compatible,
             ApiProvider::AnthropicCompatible => &mut providers.anthropic_compatible,
@@ -130,18 +151,17 @@ pub(crate) fn apply_env_overrides(config: &mut Config) {
             set_model(config, slot, value);
         }
     }
-    if let Some(value) = env_nonempty("MIMOFAN_MODEL")
-        .ok()
-        .or_else(|| {
-            std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL")
-                .ok()
-                .filter(|value| !value.trim().is_empty())
-        })
-    {
+    if let Some(value) = env_nonempty("MIMOFAN_MODEL").ok().or_else(|| {
+        std::env::var("MIMOFAN_DEFAULT_TEXT_MODEL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+    }) {
         let provider = config.api_provider();
         match provider {
             ApiProvider::OpenAiCompatible => {
-                let providers = config.providers.get_or_insert_with(ProvidersConfig::default);
+                let providers = config
+                    .providers
+                    .get_or_insert_with(ProvidersConfig::default);
                 if let Some(name) = config.provider.clone()
                     && providers.custom.contains_key(&name)
                 {

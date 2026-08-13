@@ -24,9 +24,13 @@ impl Engine {
         match self.config.goal_queue.lock() {
             Ok(state) => {
                 let snapshot = state.active_snapshot();
-                snapshot
-                    .filter(|s| s.objective.is_some())
-                    .or_else(|| state.list_snapshot().entries.first().map(|e| e.goal.clone()))
+                snapshot.filter(|s| s.objective.is_some()).or_else(|| {
+                    state
+                        .list_snapshot()
+                        .entries
+                        .first()
+                        .map(|e| e.goal.clone())
+                })
             }
             Err(err) => {
                 tracing::warn!("goal queue lock poisoned while emitting goal update: {err}");
@@ -326,12 +330,8 @@ impl Engine {
                     state.sync_active_from_host(None, None, GoalStatus::Active);
                 } else {
                     // 仅更新状态；保留目标与预算（pause/resume 不应重置计数）。
-                    let objective = state
-                        .active_snapshot()
-                        .and_then(|s| s.objective.clone());
-                    let budget = state
-                        .active_snapshot()
-                        .and_then(|s| s.token_budget);
+                    let objective = state.active_snapshot().and_then(|s| s.objective.clone());
+                    let budget = state.active_snapshot().and_then(|s| s.token_budget);
                     state.sync_active_from_host(objective.as_deref(), budget, status);
                 }
                 // `/loop` 配置：应用到活动 goal（其 GoalState 自带 loop 字段）。

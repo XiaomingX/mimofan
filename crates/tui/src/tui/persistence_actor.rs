@@ -28,9 +28,7 @@ use std::sync::OnceLock;
 
 use tokio::sync::mpsc;
 
-use crate::session_manager::{
-    OfflineQueueState, PlanAndTodoState, SavedSession, SessionManager,
-};
+use crate::session_manager::{OfflineQueueState, PlanAndTodoState, SavedSession, SessionManager};
 use crate::utils::spawn_supervised;
 
 // ---------------------------------------------------------------------------

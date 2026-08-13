@@ -15,7 +15,9 @@ use serde_json::{Value, json};
 
 use crate::models::Usage;
 use crate::pricing::calculate_turn_cost_estimate_from_usage;
-use crate::tools::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec};
+use crate::tools::spec::{
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
+};
 
 /// A single observed LLM usage event, tagged with the dimensions we analyze.
 #[derive(Debug, Clone, Default)]
@@ -73,12 +75,18 @@ impl InsightsAggregator {
             model,
             usage,
         } = &record;
-        self.by_tool.entry(tool.clone()).or_default().add(model, usage);
+        self.by_tool
+            .entry(tool.clone())
+            .or_default()
+            .add(model, usage);
         self.by_session
             .entry(session_id.clone())
             .or_default()
             .add(model, usage);
-        self.by_model.entry(model.clone()).or_default().add(model, usage);
+        self.by_model
+            .entry(model.clone())
+            .or_default()
+            .add(model, usage);
         self.totals.add(model, usage);
     }
 
@@ -117,10 +125,7 @@ impl InsightsAggregator {
         out.push_str("=== mimofan insights ===\n");
         out.push_str(&format!(
             "total: {} calls, {} in / {} out tokens, ${:.4} USD\n",
-            t.calls,
-            t.input_tokens,
-            t.output_tokens,
-            t.usd
+            t.calls, t.input_tokens, t.output_tokens, t.usd
         ));
 
         out.push_str("\nTop tools by cost:\n");
@@ -137,10 +142,7 @@ impl InsightsAggregator {
 
         out.push_str("\nBy model:\n");
         for (model, s) in self.by_model() {
-            out.push_str(&format!(
-                "  {} — {} calls, ${:.4}\n",
-                model, s.calls, s.usd
-            ));
+            out.push_str(&format!("  {} — {} calls, ${:.4}\n", model, s.calls, s.usd));
         }
         out
     }
@@ -157,11 +159,13 @@ impl InsightsAggregator {
 }
 
 fn sort_by_cost(map: &BTreeMap<String, DimensionStats>) -> Vec<(String, DimensionStats)> {
-    let mut items: Vec<(String, DimensionStats)> = map
-        .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect();
-    items.sort_by(|a, b| b.1.usd.partial_cmp(&a.1.usd).unwrap_or(std::cmp::Ordering::Equal));
+    let mut items: Vec<(String, DimensionStats)> =
+        map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    items.sort_by(|a, b| {
+        b.1.usd
+            .partial_cmp(&a.1.usd)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     items
 }
 

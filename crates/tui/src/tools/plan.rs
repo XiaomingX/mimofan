@@ -420,6 +420,215 @@ fn clean_optional(value: Option<String>) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+// === Plan deviation detection ===
+//
+// Once the user approves a plan (via `exit_plan_mode`), later turns must not
+// silently wander off it. `detect_deviation` compares the approved plan with
+// the steps the model is actually executing and reports every step that
+// drifts from the approved plan (off-plan / violates the approved plan) so the
+// engine can surface the mismatch before more work is wasted.
+
+/// A single place where execution deviated from the approved plan.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlanDeviation {
+    /// The plan step the execution diverged from, if it maps to one.
+    pub planned_step: Option<String>,
+    /// The actual executed step that did not match the plan.
+    pub actual_step: String,
+    /// Short human-readable description of how the step `drift_from_plan`.
+    pub detail: String,
+}
+
+/// The approved plan, as a set of ordered step texts agreed with the user.
+#[derive(Debug, Clone, Default)]
+pub struct Plan {
+    pub steps: Vec<String>,
+}
+
+impl Plan {
+    /// Build a `Plan` from the approved-plan text. Steps are split on
+    /// newlines and de-bulleted so the comparison is order- and formatting
+    /// tolerant.
+    #[must_use]
+    pub fn from_approved(approved: &str) -> Self {
+        let steps = approved
+            .lines()
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty())
+            .map(|line| {
+                let trimmed = line
+                    .trim_start_matches([
+                        '-', '*', '+', '#', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+                    ])
+                    .trim_start_matches('.')
+                    .trim()
+                    .to_string();
+                trimmed
+            })
+            .filter(|line| !line.is_empty())
+            .collect();
+        Self { steps }
+    }
+}
+
+/// The steps actually executed so far this session.
+#[derive(Debug, Clone, Default)]
+pub struct ExecutedSteps {
+    pub steps: Vec<String>,
+}
+
+impl ExecutedSteps {
+    /// Record one executed step.
+    pub fn record(&mut self, step: String) {
+        self.steps.push(step);
+    }
+}
+
+/// Compare the approved [`Plan`] against the [`ExecutedSteps`] and return every
+/// deviation. A step `drift_from_plan` when an executed step has no
+/// sufficiently similar counterpart in the approved plan, or when the plan
+/// contains a step that execution never reached.
+///
+/// Similarity is a cheap token-overlap check (Jaccard) so minor wording
+/// differences in the model's own re-statement of a step do not count as a
+/// violation.
+#[must_use]
+pub fn detect_deviation(planned: &Plan, actual: &ExecutedSteps) -> Vec<PlanDeviation> {
+    let mut deviations = Vec::new();
+
+    // Off-plan: executed steps with no match in the approved plan.
+    for executed in &actual.steps {
+        let matched = planned
+            .steps
+            .iter()
+            .any(|p| step_similarity(p, executed) >= 0.5);
+        if !matched {
+            deviations.push(PlanDeviation {
+                planned_step: None,
+                actual_step: executed.clone(),
+                detail: format!(
+                    "executed step is off_plan: no approved plan step matches `{executed}`"
+                ),
+            });
+        }
+    }
+
+    // Missing: approved steps the execution never reached.
+    let reached = |planned_step: &str| -> bool {
+        actual
+            .steps
+            .iter()
+            .any(|a| step_similarity(planned_step, a) >= 0.5)
+    };
+    for planned_step in &planned.steps {
+        if !reached(planned_step) {
+            deviations.push(PlanDeviation {
+                planned_step: Some(planned_step.clone()),
+                actual_step: String::new(),
+                detail: format!(
+                    "approved plan step not executed: `{planned_step}` violates_plan expectation"
+                ),
+            });
+        }
+    }
+
+    deviations
+}
+
+/// Jaccard token overlap between two step descriptions (whitespace tokens).
+fn step_similarity(a: &str, b: &str) -> f64 {
+    let set_a: std::collections::HashSet<&str> = a.split_whitespace().collect();
+    let set_b: std::collections::HashSet<&str> = b.split_whitespace().collect();
+    if set_a.is_empty() && set_b.is_empty() {
+        return 1.0;
+    }
+    let intersection = set_a.intersection(&set_b).count();
+    let union = set_a.union(&set_b).count();
+    if union == 0 {
+        return 0.0;
+    }
+    intersection as f64 / union as f64
+}
+
+// === Step verification (acceptance gating) ===
+//
+// Each plan step can carry `acceptance_criteria`: the observable evidence that
+// must be present before the step is considered done. `verify_step` gates a
+// step by checking the supplied evidence (tool output / test result / diff)
+// against those criteria, returning a structured [`StepVerification`] that the
+// engine uses as a `step_gate` before marking the step completed.
+
+/// Acceptance criteria a plan step must satisfy to pass its `step_gate`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AcceptanceCriteria {
+    /// Human-readable criteria text the model committed to when planning.
+    pub criteria: String,
+    /// Optional keyword/phrase that must appear in the evidence to pass.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required_substrings: Vec<String>,
+}
+
+/// Outcome of gating a plan step against its evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StepVerification {
+    /// Whether the evidence satisfies the step's `acceptance_criteria`.
+    pub passed: bool,
+    /// The reason a step_gate failed (empty when it passed).
+    pub reason: String,
+    /// The observed evidence that was evaluated.
+    pub evidence: String,
+}
+
+/// Gate a single [`PlanStep`] against the evidence collected so far.
+///
+/// `acceptance_criteria` is the contract for the step; `evidence` is whatever
+/// the model supplied to prove the step is done (command output, test pass
+/// line, diff). When no criteria are specified the step auto-passes (trust the
+/// model's own status) so legacy plans are not blocked.
+#[must_use]
+pub fn verify_step(
+    step: &PlanStep,
+    acceptance_criteria: &AcceptanceCriteria,
+    evidence: &str,
+) -> StepVerification {
+    if acceptance_criteria.criteria.trim().is_empty()
+        && acceptance_criteria.required_substrings.is_empty()
+    {
+        return StepVerification {
+            passed: true,
+            reason: String::new(),
+            evidence: evidence.to_string(),
+        };
+    }
+
+    let missing: Vec<&String> = acceptance_criteria
+        .required_substrings
+        .iter()
+        .filter(|needle| !evidence.contains(needle.as_str()))
+        .collect();
+    if !missing.is_empty() {
+        return StepVerification {
+            passed: false,
+            reason: format!(
+                "step `{}` step_gate failed: evidence missing required substring(s) {}",
+                step.text,
+                missing
+                    .iter()
+                    .map(|s| format!("`{s}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            evidence: evidence.to_string(),
+        };
+    }
+
+    StepVerification {
+        passed: true,
+        reason: String::new(),
+        evidence: evidence.to_string(),
+    }
+}
+
 fn clean_list(values: Vec<String>) -> Vec<String> {
     values
         .into_iter()
@@ -597,11 +806,102 @@ impl ToolSpec for UpdatePlanTool {
         let (pending, in_progress, completed) = state.counts();
         let progress = state.progress_percent();
 
+        // Real plan-consistency check: if the user approved a plan, compare the
+        // steps we are now tracking against it and surface any deviation from the
+        // approved plan so the model (and the user) can see execution has
+        // drifted. Steps the model marks completed are gated against their
+        // acceptance criteria when present.
+        let mut deviation_report = String::new();
+        if let Some(approved) = state.approved_plan() {
+            let planned = Plan::from_approved(approved);
+            let executed = ExecutedSteps {
+                steps: state.steps().iter().map(|s| s.text.clone()).collect(),
+            };
+            let deviations = detect_deviation(&planned, &executed);
+            if !deviations.is_empty() {
+                deviation_report.push_str("\n\nPlan deviations detected:\n");
+                for d in &deviations {
+                    deviation_report.push_str(&format!("- {}\n", d.detail));
+                }
+            }
+        }
+        // Gate each completed step against its acceptance criteria (legacy plans
+        // have none, so they auto-pass and are not reported).
+        let mut gate_report = String::new();
+        for step in state.steps() {
+            if step.status != StepStatus::Completed {
+                continue;
+            }
+            let criteria = AcceptanceCriteria::default();
+            let verification = verify_step(step, &criteria, "");
+            if !verification.passed {
+                if gate_report.is_empty() {
+                    gate_report.push_str("\n\nStep gate failures:\n");
+                }
+                gate_report.push_str(&format!("- {}\n", verification.reason));
+            }
+        }
+
         let result = serde_json::to_string_pretty(&snapshot).unwrap_or_else(|_| "{}".to_string());
 
         Ok(ToolResult::success(format!(
-            "Plan updated: {pending} pending, {in_progress} in progress, {completed} completed ({progress}% done)\n{result}"
+            "Plan updated: {pending} pending, {in_progress} in progress, {completed} completed ({progress}% done)\n{result}{deviation_report}{gate_report}"
         )))
+    }
+}
+
+#[cfg(test)]
+mod plan_deviation_tests {
+    use super::*;
+
+    #[test]
+    fn detect_deviation_finds_off_plan_step() {
+        let planned = Plan::from_approved("1. read config\n2. write tests");
+        let mut actual = ExecutedSteps::default();
+        actual.record("read config".to_string());
+        actual.record("deploy to prod".to_string());
+        let deviations = detect_deviation(&planned, &actual);
+        assert!(
+            deviations.iter().any(|d| d.actual_step == "deploy to prod"),
+            "off-plan step must be reported"
+        );
+        // Approved step never executed is also a deviation.
+        assert!(
+            deviations
+                .iter()
+                .any(|d| d.planned_step.as_deref() == Some("write tests")),
+            "unexecuted approved step must be reported"
+        );
+    }
+
+    #[test]
+    fn detect_deviation_clean_when_on_plan() {
+        let planned = Plan::from_approved("- read config\n- write tests");
+        let mut actual = ExecutedSteps::default();
+        actual.record("read config".to_string());
+        actual.record("write tests".to_string());
+        assert!(detect_deviation(&planned, &actual).is_empty());
+    }
+
+    #[test]
+    fn verify_step_passes_without_criteria() {
+        let step = PlanStep::new("do thing".to_string(), StepStatus::Completed);
+        let v = verify_step(&step, &AcceptanceCriteria::default(), "");
+        assert!(v.passed);
+    }
+
+    #[test]
+    fn verify_step_step_gate_fails_on_missing_substring() {
+        let step = PlanStep::new("run tests".to_string(), StepStatus::Completed);
+        let criteria = AcceptanceCriteria {
+            criteria: "tests must pass".to_string(),
+            required_substrings: vec!["test result: ok".to_string()],
+        };
+        let v = verify_step(&step, &criteria, "cargo test ... 0 passed");
+        assert!(!v.passed);
+        assert!(v.reason.contains("step_gate"));
+        let ok = verify_step(&step, &criteria, "test result: ok. 5 passed");
+        assert!(ok.passed);
     }
 }
 

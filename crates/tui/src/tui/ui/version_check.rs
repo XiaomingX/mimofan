@@ -15,8 +15,7 @@ enum StartupVersionCheckSource {
 ///
 /// GitHub 未认证 API 限流为 60 req/h，重度用户一天开几十次会话就会被限。
 /// CodeBuddy 的 marketplace 自动更新用的是同一量级（24h）。
-const VERSION_CHECK_INTERVAL: std::time::Duration =
-    std::time::Duration::from_secs(24 * 60 * 60);
+const VERSION_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(24 * 60 * 60);
 
 /// 上次检查时间戳的落盘位置（`$MIMOFAN_HOME/last-version-check`）。
 fn version_check_stamp_path() -> Option<std::path::PathBuf> {

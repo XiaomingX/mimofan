@@ -18,7 +18,11 @@ pub(crate) fn list_sessions(limit: usize, search: Option<String>) -> Result<()> 
     let manager = SessionManager::default_location()?;
 
     let sessions: Vec<SessionSearchHit> = if let Some(query) = search {
-        manager.search_sessions_fulltext(&query)?.into_iter().map(Into::into).collect()
+        manager
+            .search_sessions_fulltext(&query)?
+            .into_iter()
+            .map(Into::into)
+            .collect()
     } else {
         manager
             .list_sessions()?

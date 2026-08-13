@@ -40,8 +40,8 @@
 //! fires at most [`LoopGuardConfig::max_nudges_per_pattern`] times per turn so
 //! a stubborn model can't be fed an unbounded stream of identical nudges.
 
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 /// Number of leading tool calls in a turn that are recorded but never trip a
@@ -146,7 +146,7 @@ impl Default for LoopGuardConfig {
 }
 
 /// Which pathology a [`LoopBreak`] describes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LoopPattern {
     /// The same tool with the same arguments, repeatedly.
     RepeatedCall,
@@ -412,7 +412,8 @@ impl LoopGuard {
             self.stall_run = 1;
         }
 
-        self.history.push((fingerprint, observation.name.to_string()));
+        self.history
+            .push((fingerprint, observation.name.to_string()));
         if self.history.len() > HISTORY_CAPACITY {
             let overflow = self.history.len() - HISTORY_CAPACITY;
             self.history.drain(..overflow);
@@ -527,7 +528,8 @@ impl LoopGuard {
         })
     }
 
-    fn check_no_progress(&mut self, observation: &ToolObservation<'_>) -> Option<LoopBreak> {        if self.config.no_progress_threshold == 0
+    fn check_no_progress(&mut self, observation: &ToolObservation<'_>) -> Option<LoopBreak> {
+        if self.config.no_progress_threshold == 0
             || self.stall_run < self.config.no_progress_threshold
         {
             return None;
@@ -557,7 +559,10 @@ impl LoopGuard {
 
     /// Detect a single output that repeats the same text fragment many times
     /// over — a degenerate generation rather than a retry loop.
-    fn check_streaming_repetition(&mut self, observation: &ToolObservation<'_>) -> Option<LoopBreak> {
+    fn check_streaming_repetition(
+        &mut self,
+        observation: &ToolObservation<'_>,
+    ) -> Option<LoopBreak> {
         if self.config.intra_repeat_lines == 0 {
             return None;
         }
@@ -633,6 +638,67 @@ impl Default for LoopGuard {
         Self::new(LoopGuardConfig::default())
     }
 }
+
+/// Serializable snapshot of a [`LoopGuard`]'s accumulated suspicion, persisted
+/// across agent turns so that a model that was looping at the end of one turn
+/// does not get a clean slate when the next turn begins. Only the fields that
+/// carry cross-turn signal are kept; the per-call `history` window is
+/// intentionally dropped (it is turn-local evidence, not durable suspicion).
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct LoopGuardState {
+    /// Total observations carried over from earlier turns.
+    pub observed: usize,
+    /// Length of the carry-over identical-call run.
+    pub repeat_run: usize,
+    /// Fingerprint the carry-over repeat run is counting (`None` = no run).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repeat_fingerprint: Option<u64>,
+    /// Length of the carry-over stall run.
+    pub stall_run: usize,
+    /// Digest the carry-over stall run is counting (`None` = no run).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stall_digest: Option<u64>,
+    /// Per-pattern nudge budgets already spent across turns.
+    #[serde(default)]
+    pub fired: std::collections::HashMap<LoopPattern, usize>,
+}
+
+impl LoopGuard {
+    /// Snapshot the durable parts of this guard for cross-turn persistence.
+    #[must_use]
+    pub fn snapshot_state(&self) -> LoopGuardState {
+        LoopGuardState {
+            observed: self.observed,
+            repeat_run: self.repeat_run,
+            repeat_fingerprint: self.repeat_fingerprint,
+            stall_run: self.stall_run,
+            stall_digest: self.stall_digest,
+            fired: self.fired.clone(),
+        }
+    }
+
+    /// Restore durable state carried over from a previous turn. Per-call
+    /// evidence (`history`, `last_distinct_output`) starts fresh for the new
+    /// turn; the suspicion counters and nudge budgets continue.
+    pub fn restore_state(&mut self, state: &LoopGuardState) {
+        self.observed = state.observed;
+        self.repeat_run = state.repeat_run;
+        self.repeat_fingerprint = state.repeat_fingerprint;
+        self.stall_run = state.stall_run;
+        self.stall_digest = state.stall_digest;
+        for (pattern, count) in &state.fired {
+            let entry = self.fired.entry(*pattern).or_insert(0);
+            *entry = (*entry).max(*count);
+        }
+    }
+}
+
+/// Shared, cross-turn loop-guard handle. The engine holds one per session and
+/// keeps feeding it every tool call; because the same `Arc<Mutex<LoopGuard>>`
+/// survives across turns, accumulated loop suspicion is continuous rather than
+/// reset on each new user message. The durable portion is also persisted to
+/// disk (see `crate::core::engine::turn_loop`) so it survives process restarts.
+pub type SharedLoopGuard = std::sync::Arc<tokio::sync::Mutex<LoopGuard>>;
 
 #[cfg(test)]
 mod tests {
@@ -780,7 +846,10 @@ mod tests {
         );
         // Tool name participates in the fingerprint.
         let args = json!({ "path": "x.rs" });
-        assert_ne!(fingerprint("read_file", &args), fingerprint("edit_file", &args));
+        assert_ne!(
+            fingerprint("read_file", &args),
+            fingerprint("edit_file", &args)
+        );
     }
 
     #[test]
@@ -824,7 +893,10 @@ mod tests {
                 "call {index} is inside the cold-start window"
             );
         }
-        assert!(guard.in_warmup(), "6 calls with warmup_calls=6 is still warmup");
+        assert!(
+            guard.in_warmup(),
+            "6 calls with warmup_calls=6 is still warmup"
+        );
         // The 7th call is the first eligible one, and the run is long enough.
         let loop_break = guard
             .observe(&stalled("read_file", &args))
@@ -950,7 +1022,10 @@ mod tests {
         assert_eq!(LoopPattern::RepeatedCall.as_str(), "repeated_call");
         assert_eq!(LoopPattern::Alternating.as_str(), "alternating");
         assert_eq!(LoopPattern::NoProgress.as_str(), "no_progress");
-        assert_eq!(LoopPattern::StreamingRepetition.as_str(), "streaming_repetition");
+        assert_eq!(
+            LoopPattern::StreamingRepetition.as_str(),
+            "streaming_repetition"
+        );
         assert_eq!(LoopPattern::SemanticEcho.as_str(), "semantic_echo");
     }
 
@@ -1000,7 +1075,11 @@ mod tests {
             output: "the build failed because the module is missing and the import is broken",
             progress: false,
         };
-        assert_eq!(guard.observe(&first), None, "first output recorded, no echo yet");
+        assert_eq!(
+            guard.observe(&first),
+            None,
+            "first output recorded, no echo yet"
+        );
         let second = ToolObservation {
             name: "read_file",
             args: &json!({ "path": "b" }),
@@ -1033,7 +1112,11 @@ mod tests {
             output: "the test suite reported two passing cases and one failure in parsing",
             progress: false,
         };
-        assert_eq!(guard.observe(&second), None, "distinct outputs are not an echo");
+        assert_eq!(
+            guard.observe(&second),
+            None,
+            "distinct outputs are not an echo"
+        );
     }
 
     #[test]

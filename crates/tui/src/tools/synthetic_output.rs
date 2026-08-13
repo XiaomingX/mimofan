@@ -75,7 +75,10 @@ fn validate_node(value: &Value, schema: &Value, path: &str) -> Result<(), String
         }
         "integer" => {
             if !value.is_u64() && !value.is_i64() {
-                return Err(format!("{path}: expected integer, got {}", type_name(value)));
+                return Err(format!(
+                    "{path}: expected integer, got {}",
+                    type_name(value)
+                ));
             }
             check_enum(value, schema, path)
         }
@@ -87,7 +90,10 @@ fn validate_node(value: &Value, schema: &Value, path: &str) -> Result<(), String
         }
         "boolean" => {
             if !value.is_boolean() {
-                return Err(format!("{path}: expected boolean, got {}", type_name(value)));
+                return Err(format!(
+                    "{path}: expected boolean, got {}",
+                    type_name(value)
+                ));
             }
             check_enum(value, schema, path)
         }
@@ -183,7 +189,11 @@ where
 
 /// Production model caller: routes through the same auto-route machinery as the
 /// CLI and one-shot paths, then extracts the text reply.
-pub async fn call_model_real(prompt: String, model: &str, config: &Config) -> Result<String, String> {
+pub async fn call_model_real(
+    prompt: String,
+    model: &str,
+    config: &Config,
+) -> Result<String, String> {
     let route = crate::resolve_cli_auto_route(config, model, &prompt)
         .await
         .map_err(|e| e.to_string())?;
@@ -216,7 +226,10 @@ pub async fn call_model_real(prompt: String, model: &str, config: &Config) -> Re
             "json_schema": { "name": "synthetic_output", "strict": true }
         })),
     };
-    let response = client.create_message(request).await.map_err(|e| e.to_string())?;
+    let response = client
+        .create_message(request)
+        .await
+        .map_err(|e| e.to_string())?;
     let mut out = String::new();
     for block in response.content {
         if let ContentBlock::Text { text, .. } = block {
@@ -303,14 +316,9 @@ impl ToolSpec for SyntheticOutputTool {
             .unwrap_or("deepseek")
             .to_string();
 
-        match run_structured(
-            &prompt,
-            &schema,
-            &model,
-            &config,
-            max_retries,
-            |p| call_model_real(p, &model, &config),
-        )
+        match run_structured(&prompt, &schema, &model, &config, max_retries, |p| {
+            call_model_real(p, &model, &config)
+        })
         .await
         {
             Ok(value) => Ok(ToolResult {
@@ -405,7 +413,10 @@ mod tests {
             },
         )
         .await;
-        assert!(result.is_ok(), "expected success after retry, got {result:?}");
+        assert!(
+            result.is_ok(),
+            "expected success after retry, got {result:?}"
+        );
         assert_eq!(result.unwrap()["age"], 42);
     }
 
@@ -437,7 +448,11 @@ mod tests {
     fn build_attempt_prompt_includes_errors_after_first() {
         let p0 = build_attempt_prompt("do it", &schema(), &[]);
         assert!(!p0.contains("previous attempt failed"));
-        let p1 = build_attempt_prompt("do it", &schema(), &["root: missing required field 'age'".to_string()]);
+        let p1 = build_attempt_prompt(
+            "do it",
+            &schema(),
+            &["root: missing required field 'age'".to_string()],
+        );
         assert!(p1.contains("missing required field 'age'"));
     }
 }

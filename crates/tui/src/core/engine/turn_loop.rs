@@ -154,13 +154,19 @@ impl Engine {
         // the repeated-error circuit breaker.
         let mut last_tool_error_text = String::new();
         // De-duplicates auto-captured memory signals within a single turn.
-        let mut seen_auto_memory: std::collections::HashSet<String> = std::collections::HashSet::new();
-        // In-turn repetition / oscillation / stall brake. Turn-scoped on
-        // purpose: a new user message is a new intent and should not inherit
-        // the previous turn's suspicion. Detections inject an advisory nudge
-        // (see below) rather than terminating, so the user never loses
-        // in-flight progress to a false positive.
-        let mut loop_guard = crate::loop_guard::LoopGuard::default();
+        let mut seen_auto_memory: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        // In-turn repetition / oscillation / stall brake. The guard is held in
+        // a `SharedLoopGuard` (Arc<Mutex<LoopGuard>>) so the *same* guard
+        // instance continues across turns within a session — accumulated loop
+        // suspicion is not wiped clean by a new user message. Its durable
+        // portion is also persisted to disk (loop_guard_state) so it survives
+        // process restarts; a new user message is still a fresh intent for
+        // per-call evidence, but the suspicion counters and nudge budgets
+        // carry over. Detections inject an advisory nudge (see below) rather
+        // than terminating, so the user never loses in-flight progress to a
+        // false positive.
+        let loop_guard = self.load_shared_loop_guard(&self.session.id);
         // Nudges detected during result folding, injected after the batch so
         // they land after the tool results the model is about to read.
         let mut pending_loop_nudges: Vec<String> = Vec::new();
@@ -197,6 +203,7 @@ impl Engine {
         loop {
             if self.cancel_token.is_cancelled() {
                 let _ = self.tx_event.send(Event::status("Request cancelled")).await;
+                self.persist_loop_guard_state(&self.session.id, &loop_guard);
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -434,6 +441,7 @@ impl Engine {
                             .tx_event
                             .send(Event::error(ErrorEnvelope::context_overflow(message)))
                             .await;
+                        self.persist_loop_guard_state(&self.session.id, &loop_guard);
                         return (TurnOutcomeStatus::Failed, turn_error);
                     }
 
@@ -614,6 +622,7 @@ impl Engine {
                 biased;
                 () = self.cancel_token.cancelled() => {
                     let _ = self.tx_event.send(Event::status("Request cancelled")).await;
+                    self.persist_loop_guard_state(&self.session.id, &loop_guard);
                     return (TurnOutcomeStatus::Interrupted, None);
                 }
                 result = client.create_message_stream(stream_request.clone()) => result,
@@ -639,6 +648,7 @@ impl Engine {
                         .tx_event
                         .send(Event::error(ErrorEnvelope::classify(message, true)))
                         .await;
+                    self.persist_loop_guard_state(&self.session.id, &loop_guard);
                     return (TurnOutcomeStatus::Failed, turn_error);
                 }
             };
@@ -1105,6 +1115,7 @@ impl Engine {
 
             if self.cancel_token.is_cancelled() {
                 let _ = self.tx_event.send(Event::status("Request cancelled")).await;
+                self.persist_loop_guard_state(&self.session.id, &loop_guard);
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -1310,8 +1321,10 @@ impl Engine {
                 // #696: inject a `<task-notification>` runtime event so the
                 // model sees the background job result, not just a UI status.
                 if let Some(notification) = shell_completion_notification_text(&shell_completions) {
-                    self.add_session_message(self.user_text_message_with_turn_metadata(notification))
-                        .await;
+                    self.add_session_message(
+                        self.user_text_message_with_turn_metadata(notification),
+                    )
+                    .await;
                 }
 
                 // Sub-agent completion handoff (issue #756). The model finished
@@ -1473,8 +1486,10 @@ impl Engine {
                 if let Some(notification) =
                     shell_completion_notification_text(&late_shell_completions)
                 {
-                    self.add_session_message(self.user_text_message_with_turn_metadata(notification))
-                        .await;
+                    self.add_session_message(
+                        self.user_text_message_with_turn_metadata(notification),
+                    )
+                    .await;
                 }
 
                 if self.drain_subagent_completion_events("late").await > 0 {
@@ -1530,6 +1545,7 @@ impl Engine {
                     .tx_event
                     .send(Event::status("Request was Paused"))
                     .await;
+                self.persist_loop_guard_state(&self.session.id, &loop_guard);
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -2432,7 +2448,8 @@ impl Engine {
             let mut stop_after_plan_tool = false;
             // Tool-use self-heal: ensures we append the recovery hint at most
             // once per tool call per step, preventing an infinite append loop.
-            let mut self_healed_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+            let mut self_healed_ids: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
 
             for outcome in outcomes.into_iter().flatten() {
                 let tool_input = outcome.input.clone();
@@ -2473,15 +2490,18 @@ impl Engine {
                         // that did not execute (blocked/denied) contributes no
                         // progress signal.
                         if let Some(loop_break) =
-                            loop_guard.observe(&crate::loop_guard::ToolObservation {
-                                name: &outcome.name,
-                                args: &tool_input,
-                                success: output.success,
-                                output: &output_for_context,
-                                progress: output.success
-                                    && tool_was_executed
-                                    && Self::is_file_write_tool(&outcome.name),
-                            })
+                            loop_guard
+                                .lock()
+                                .await
+                                .observe(&crate::loop_guard::ToolObservation {
+                                    name: &outcome.name,
+                                    args: &tool_input,
+                                    success: output.success,
+                                    output: &output_for_context,
+                                    progress: output.success
+                                        && tool_was_executed
+                                        && Self::is_file_write_tool(&outcome.name),
+                                })
                         {
                             tracing::warn!(
                                 target: "engine.loop_guard",
@@ -2501,10 +2521,8 @@ impl Engine {
                             && tool_was_executed
                             && self_healed_ids.insert(outcome.id.clone())
                         {
-                            output_for_context
-                                .push_str("\n\n");
-                            output_for_context
-                                .push_str(&self_heal_hint(&outcome.name, "tool"));
+                            output_for_context.push_str("\n\n");
+                            output_for_context.push_str(&self_heal_hint(&outcome.name, "tool"));
                         }
                         self.session.working_set.observe_tool_call(
                             &tool_name_for_ws,
@@ -2562,13 +2580,16 @@ impl Engine {
                         // *differently* still counts as converging and will not
                         // trip the stall detector.
                         if let Some(loop_break) =
-                            loop_guard.observe(&crate::loop_guard::ToolObservation {
-                                name: &outcome.name,
-                                args: &tool_input,
-                                success: false,
-                                output: &error,
-                                progress: false,
-                            })
+                            loop_guard
+                                .lock()
+                                .await
+                                .observe(&crate::loop_guard::ToolObservation {
+                                    name: &outcome.name,
+                                    args: &tool_input,
+                                    success: false,
+                                    output: &error,
+                                    progress: false,
+                                })
                         {
                             tracing::warn!(
                                 target: "engine.loop_guard",
@@ -2637,7 +2658,9 @@ impl Engine {
             for nudge in pending_loop_nudges.drain(..) {
                 let _ = self
                     .tx_event
-                    .send(Event::status("Loop detected — nudging the model to re-plan"))
+                    .send(Event::status(
+                        "Loop detected — nudging the model to re-plan",
+                    ))
                     .await;
                 self.add_session_message(self.user_text_message_with_turn_metadata(nudge))
                     .await;
@@ -2664,18 +2687,25 @@ impl Engine {
             // Anti-drift + automatic memory capture at the end of each step.
             // Runs inside the synchronous post-step region (no `.await` in the
             // goal-state lock guard) to respect the std::Mutex red line.
-            self.record_goal_progress_signal(turn_had_write, step_error_count, &last_tool_error_text);
+            self.record_goal_progress_signal(
+                turn_had_write,
+                step_error_count,
+                &last_tool_error_text,
+            );
             self.auto_capture_memory(&mut seen_auto_memory).await;
 
             turn.next_step();
         }
 
         if self.cancel_token.is_cancelled() {
+            self.persist_loop_guard_state(&self.session.id, &loop_guard);
             return (TurnOutcomeStatus::Interrupted, None);
         }
         if let Some(err) = turn_error {
+            self.persist_loop_guard_state(&self.session.id, &loop_guard);
             return (TurnOutcomeStatus::Failed, Some(err));
         }
+        self.persist_loop_guard_state(&self.session.id, &loop_guard);
         (TurnOutcomeStatus::Completed, None)
     }
 
@@ -2695,6 +2725,48 @@ impl Engine {
         )
     }
 
+    /// Load the cross-turn loop-guard state for `session_id` and return a
+    /// `SharedLoopGuard` (Arc<Mutex<LoopGuard>>). When a persisted
+    /// `loop_guard_state` exists it is restored into the guard so loop
+    /// suspicion accumulated in previous turns (and process runs) continues;
+    /// otherwise a fresh guard is returned.
+    fn load_shared_loop_guard(&self, session_id: &str) -> crate::loop_guard::SharedLoopGuard {
+        use crate::loop_guard::LoopGuard;
+        let mut guard = LoopGuard::default();
+        if let Ok(manager) = crate::session_manager::SessionManager::default_location() {
+            if let Ok(Some(state)) = manager.load_loop_guard_state(session_id) {
+                guard.restore_state(&state);
+                tracing::debug!(
+                    target: "engine.loop_guard",
+                    observed = state.observed,
+                    "restored persisted loop_guard_state across turns"
+                );
+            }
+        }
+        std::sync::Arc::new(tokio::sync::Mutex::new(guard))
+    }
+
+    /// Persist the durable portion of the session's `SharedLoopGuard` to disk
+    /// as `loop_guard_state`, so the loop suspicion survives process restarts
+    /// and continues into the next turn.
+    fn persist_loop_guard_state(
+        &self,
+        session_id: &str,
+        guard: &crate::loop_guard::SharedLoopGuard,
+    ) {
+        use crate::loop_guard::LoopGuardState;
+        let state: LoopGuardState = guard.blocking_lock().snapshot_state();
+        if let Ok(manager) = crate::session_manager::SessionManager::default_location() {
+            if let Err(err) = manager.save_loop_guard_state(session_id, &state) {
+                tracing::warn!(
+                    target: "engine.loop_guard",
+                    ?err,
+                    "failed to persist loop_guard_state for session {session_id}"
+                );
+            }
+        }
+    }
+
     /// Feed a per-step progress signal into the active goal's circuit breakers.
     ///
     /// Must be called synchronously — the `SharedGoalQueue` guard is never held
@@ -2710,7 +2782,11 @@ impl Engine {
         let signal = if step_error_count > 0 {
             // Bound the fingerprint so the breaker keys on the error class,
             // not unbounded text growth.
-            let fingerprint = last_tool_error_text.trim().chars().take(120).collect::<String>();
+            let fingerprint = last_tool_error_text
+                .trim()
+                .chars()
+                .take(120)
+                .collect::<String>();
             ProgressSignal::ToolError { fingerprint }
         } else if turn_had_write {
             ProgressSignal::FileChanged
@@ -2747,9 +2823,11 @@ impl Engine {
                 if !seen.insert(key) {
                     continue; // de-dupe within this turn
                 }
-                if let Err(err) =
-                    crate::memory::append_entry(&self.config.memory_dir, signal.category.as_str(), &signal.content)
-                {
+                if let Err(err) = crate::memory::append_entry(
+                    &self.config.memory_dir,
+                    signal.category.as_str(),
+                    &signal.content,
+                ) {
                     tracing::warn!(?err, "auto memory: failed to append entry");
                 }
             }
@@ -2775,12 +2853,12 @@ impl Engine {
                                 match embedder.embed_text(&content).await {
                                     Ok(embedding) => {
                                         if let Err(err) = vm.store_observation(
-                                            &project,
-                                            &kind,
-                                            &content,
-                                            &embedding,
+                                            &project, &kind, &content, &embedding,
                                         ) {
-                                            tracing::warn!(?err, "auto memory: vector store failed");
+                                            tracing::warn!(
+                                                ?err,
+                                                "auto memory: vector store failed"
+                                            );
                                         }
                                     }
                                     Err(err) => {
@@ -2857,7 +2935,12 @@ impl Engine {
         let mut snapshot = match snapshot {
             Some(snap) => snap,
             None => {
-                let promoted = self.config.goal_queue.lock().ok().and_then(|mut q| q.promote_next_ready());
+                let promoted = self
+                    .config
+                    .goal_queue
+                    .lock()
+                    .ok()
+                    .and_then(|mut q| q.promote_next_ready());
                 if promoted.is_none() {
                     return None;
                 }
@@ -2958,12 +3041,7 @@ impl Engine {
             let ck_round = snapshot.continuation_count;
             let ck_conv = self.session.messages.len();
             let _ = tokio::task::spawn_blocking(move || {
-                crate::core::turn::loop_round_snapshot(
-                    &ck_workspace,
-                    ck_round,
-                    ck_cap,
-                    ck_conv,
-                )
+                crate::core::turn::loop_round_snapshot(&ck_workspace, ck_round, ck_cap, ck_conv)
             })
             .await;
         }
@@ -3435,11 +3513,17 @@ mod tests {
             owner_agent_name: None,
         };
         let text = shell_completion_notification_text(&[event]).expect("should produce text");
-        assert!(text.contains("kind=\"task_notification\""), "must be a task-notification event");
+        assert!(
+            text.contains("kind=\"task_notification\""),
+            "must be a task-notification event"
+        );
         assert!(text.contains("shell_ab12cd34"), "must name the task id");
         assert!(text.contains("exit=0"), "must report exit code");
         assert!(text.contains("cargo build"), "must name the command");
-        assert!(text.contains("Compiling mimofan"), "must include output tail");
+        assert!(
+            text.contains("Compiling mimofan"),
+            "must include output tail"
+        );
     }
 
     #[test]
@@ -3459,6 +3543,9 @@ mod tests {
         };
         let text = shell_completion_notification_text(&[event]).expect("should produce text");
         assert!(text.contains("failed"), "failed status must be labelled");
-        assert!(text.contains("boom"), "stderr tail should be surfaced on failure");
+        assert!(
+            text.contains("boom"),
+            "stderr tail should be surfaced on failure"
+        );
     }
 }

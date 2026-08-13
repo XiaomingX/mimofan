@@ -925,15 +925,7 @@ mod tests {
             suggestions: Vec::new(),
             overall_assessment: String::new(),
         };
-        let receipt = build_review_receipt(
-            "f",
-            "d",
-            "p",
-            "m",
-            &output,
-            "c",
-            vec![],
-        );
+        let receipt = build_review_receipt("f", "d", "p", "m", &output, "c", vec![]);
         assert_eq!(receipt.findings.highest_severity, "error");
     }
 

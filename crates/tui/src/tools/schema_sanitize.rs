@@ -368,7 +368,12 @@ mod tests {
         });
         sanitize(&mut schema);
         assert_eq!(schema["properties"]["x"]["type"], json!("string"));
-        assert!(!schema["properties"]["x"].as_object().unwrap().contains_key("oneOf"));
+        assert!(
+            !schema["properties"]["x"]
+                .as_object()
+                .unwrap()
+                .contains_key("oneOf")
+        );
     }
 
     #[test]

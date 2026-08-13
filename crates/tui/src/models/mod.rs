@@ -346,7 +346,9 @@ pub fn max_output_tokens_for_model(model: &str) -> Option<u32> {
 
 #[must_use]
 pub fn model_supports_reasoning(model: &str) -> bool {
-    if let Some(supports_reasoning) = mimofan_protocol::model_catalog::resolved_supports_reasoning(model) {
+    if let Some(supports_reasoning) =
+        mimofan_protocol::model_catalog::resolved_supports_reasoning(model)
+    {
         return supports_reasoning;
     }
     let lower = model.to_lowercase();

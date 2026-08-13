@@ -169,7 +169,8 @@ impl ToolSpec for BrowserTool {
             None => context.workspace.clone(),
         };
 
-        let instruction = build_browser_instruction(action, url, selector, text, script, &output_dir);
+        let instruction =
+            build_browser_instruction(action, url, selector, text, script, &output_dir);
 
         // Delegate to the Playwright driver subprocess. The driver reads the
         // JSON instruction on stdin and writes a JSON result on stdout.
@@ -178,10 +179,7 @@ impl ToolSpec for BrowserTool {
         Ok(ToolResult {
             content: serde_json::to_string_pretty(&output)
                 .map_err(|e| ToolError::execution_failed(format!("serialize result: {e}")))?,
-            success: output
-                .get("ok")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
+            success: output.get("ok").and_then(Value::as_bool).unwrap_or(false),
             metadata: None,
         })
     }
@@ -190,7 +188,10 @@ impl ToolSpec for BrowserTool {
 /// Invoke `npx playwright` (or `playwright` in PATH) with the JSON instruction.
 /// best-effort: if the driver is unavailable the error is surfaced to the model
 /// rather than silently succeeding.
-async fn run_playwright_driver(instruction: &Value, cwd: &std::path::Path) -> Result<Value, ToolError> {
+async fn run_playwright_driver(
+    instruction: &Value,
+    cwd: &std::path::Path,
+) -> Result<Value, ToolError> {
     let mut command = tokio::process::Command::new("npx");
     command
         .arg("playwright")
@@ -200,9 +201,11 @@ async fn run_playwright_driver(instruction: &Value, cwd: &std::path::Path) -> Re
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
 
-    let mut child = command
-        .spawn()
-        .map_err(|e| ToolError::execution_failed(format!("failed to launch playwright driver: {e}. Is `npx playwright` installed?")))?;
+    let mut child = command.spawn().map_err(|e| {
+        ToolError::execution_failed(format!(
+            "failed to launch playwright driver: {e}. Is `npx playwright` installed?"
+        ))
+    })?;
 
     use tokio::io::AsyncWriteExt;
     if let Some(mut stdin) = child.stdin.take() {
@@ -250,19 +253,15 @@ mod tests {
         assert_eq!(nav["action"], "navigate");
         assert_eq!(nav["url"], "https://example.com");
 
-        let shot = build_browser_instruction(
-            BrowserAction::Screenshot,
-            None,
-            None,
-            None,
-            None,
-            dir,
-        );
+        let shot =
+            build_browser_instruction(BrowserAction::Screenshot, None, None, None, None, dir);
         assert_eq!(shot["action"], "screenshot");
-        assert!(shot["outputPath"]
-            .as_str()
-            .unwrap()
-            .ends_with("screenshot.png"));
+        assert!(
+            shot["outputPath"]
+                .as_str()
+                .unwrap()
+                .ends_with("screenshot.png")
+        );
 
         let typed = build_browser_instruction(
             BrowserAction::Type,

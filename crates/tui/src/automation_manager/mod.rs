@@ -213,7 +213,9 @@ impl AutomationSchedule {
             Some("HOURLY") => AutomationFrequency::Hourly,
             Some("DAILY") => AutomationFrequency::Daily,
             Some("WEEKLY") => AutomationFrequency::Weekly,
-            Some(other) => bail!("Unsupported RRULE FREQ '{other}'. Supported: HOURLY, DAILY, WEEKLY"),
+            Some(other) => {
+                bail!("Unsupported RRULE FREQ '{other}'. Supported: HOURLY, DAILY, WEEKLY")
+            }
             None => bail!("RRULE must include FREQ"),
         };
 
@@ -345,7 +347,7 @@ impl AutomationSchedule {
                 for day_offset in 0..2 {
                     let date = local_after.date_naive() + Duration::days(i64::from(day_offset));
                     let Some(candidate_naive) = date.and_hms_opt(*byhour, *byminute, 0) else {
-                        continue
+                        continue;
                     };
                     if let Some(candidate) = resolve_local_datetime(candidate_naive)
                         && candidate > local_after
@@ -422,10 +424,7 @@ impl std::fmt::Debug for AutomationManager {
         f.debug_struct("AutomationManager")
             .field("automations_dir", &self.automations_dir)
             .field("runs_dir", &self.runs_dir)
-            .field(
-                "hook_dispatcher",
-                &self.hook_dispatcher.is_some(),
-            )
+            .field("hook_dispatcher", &self.hook_dispatcher.is_some())
             .finish()
     }
 }

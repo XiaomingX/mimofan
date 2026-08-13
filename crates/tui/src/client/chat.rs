@@ -176,7 +176,10 @@ impl ApiClient {
                 .collect();
             // Kimi / Moonshot enforces stricter JSON Schema: `type` must be
             // inside `anyOf` / `oneOf` items, not on the parent (#2438).
-            if matches!(self.api_provider, crate::config::ApiProvider::OpenAiCompatible) {
+            if matches!(
+                self.api_provider,
+                crate::config::ApiProvider::OpenAiCompatible
+            ) {
                 for t in &mut chat_tools {
                     if let Some(fn_obj) = t
                         .as_object_mut()
@@ -314,7 +317,10 @@ impl ApiClient {
                 .collect();
             // Kimi / Moonshot enforces stricter JSON Schema: `type` must be
             // inside `anyOf` / `oneOf` items, not on the parent (#2438).
-            if matches!(self.api_provider, crate::config::ApiProvider::OpenAiCompatible) {
+            if matches!(
+                self.api_provider,
+                crate::config::ApiProvider::OpenAiCompatible
+            ) {
                 for t in &mut chat_tools {
                     if let Some(fn_obj) = t
                         .as_object_mut()

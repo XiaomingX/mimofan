@@ -342,7 +342,13 @@ mod tests {
     /// This is a determinism contract: the same (provenance, flags) always
     /// produces the same downgraded policy.
 
-    fn baseline_for(provenance: UserInputProvenance, mode: AppMode, trust: bool, auto: bool, am: ApprovalMode) -> EffectiveInputPolicy {
+    fn baseline_for(
+        provenance: UserInputProvenance,
+        mode: AppMode,
+        trust: bool,
+        auto: bool,
+        am: ApprovalMode,
+    ) -> EffectiveInputPolicy {
         effective_input_policy(provenance, mode, "do something", true, trust, auto, am)
     }
 

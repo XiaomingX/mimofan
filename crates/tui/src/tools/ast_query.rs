@@ -13,7 +13,9 @@ use mimofan_staticanalysis::{AstError, AstHit, Language, named_query, query_sour
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec};
+use super::spec::{
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
+};
 
 /// Tool name for the model-facing API.
 pub const AST_QUERY_TOOL_NAME: &str = "ast_query";
@@ -235,8 +237,8 @@ impl ToolSpec for AstQueryTool {
             hits: shown,
         };
 
-        let mut result = ToolResult::json(&output)
-            .map_err(|e| ToolError::execution_failed(e.to_string()))?;
+        let mut result =
+            ToolResult::json(&output).map_err(|e| ToolError::execution_failed(e.to_string()))?;
 
         if truncated {
             result = result.with_metadata(json!({
@@ -274,10 +276,7 @@ mod tests {
             "named_query": "rust.sink.process_exec"
         });
         let ctx = ctx_with_workspace(dir.path());
-        let result = tool
-            .execute(input, &ctx)
-            .await
-            .expect("execute ok");
+        let result = tool.execute(input, &ctx).await.expect("execute ok");
 
         assert!(result.success, "ast_query should succeed");
         let parsed: AstQueryOutput =
@@ -318,7 +317,10 @@ mod tests {
         let tool = AstQueryTool;
         let input = json!({ "named_query": "rust.sink.process_exec" });
         let err = tool.execute(input, &ctx).await;
-        assert!(err.is_err(), "must reject input with neither path nor source");
+        assert!(
+            err.is_err(),
+            "must reject input with neither path nor source"
+        );
     }
 
     #[tokio::test]

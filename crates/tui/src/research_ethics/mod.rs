@@ -115,7 +115,10 @@ mod tests {
 
     #[test]
     fn local_safe_allowed_by_default() {
-        assert_eq!(classify_action("run pytest"), ResearchActionClass::LocalSafe);
+        assert_eq!(
+            classify_action("run pytest"),
+            ResearchActionClass::LocalSafe
+        );
         assert!(!requires_explicit_authorization("cargo test"));
         assert_eq!(
             default_policy(ResearchActionClass::LocalSafe),
@@ -129,7 +132,10 @@ mod tests {
             classify_action("gh repo create"),
             ResearchActionClass::PublishRemote
         );
-        assert_eq!(classify_action("git push origin"), ResearchActionClass::PublishRemote);
+        assert_eq!(
+            classify_action("git push origin"),
+            ResearchActionClass::PublishRemote
+        );
         assert!(requires_explicit_authorization("--publish"));
         assert_eq!(
             default_policy(ResearchActionClass::PublishRemote),

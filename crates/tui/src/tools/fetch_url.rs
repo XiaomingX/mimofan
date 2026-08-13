@@ -397,7 +397,9 @@ async fn validate_fetch_target(
 /// Resolve a URL host and reject SSRF-restricted addresses. Shared by network
 /// tools (browser automation, #743) so they apply the same guard as `fetch_url`.
 /// Returns the first resolved, non-restricted IP, or a `ToolError` if blocked.
-pub(crate) async fn resolve_and_check_target(url: &reqwest::Url) -> Result<std::net::IpAddr, ToolError> {
+pub(crate) async fn resolve_and_check_target(
+    url: &reqwest::Url,
+) -> Result<std::net::IpAddr, ToolError> {
     if url.scheme() != "http" && url.scheme() != "https" {
         return Err(ToolError::invalid_input(
             "only http:// and https:// URLs are supported",

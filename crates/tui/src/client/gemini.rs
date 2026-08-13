@@ -29,8 +29,7 @@ use serde_json::{Value, json};
 use crate::llm_client::StreamEventBox;
 use crate::logging;
 use crate::models::{
-    ContentBlock, Delta, Message, MessageRequest, MessageResponse, StreamEvent, SystemPrompt,
-    Usage,
+    ContentBlock, Delta, Message, MessageRequest, MessageResponse, StreamEvent, SystemPrompt, Usage,
 };
 
 use super::{ApiClient, ERROR_BODY_MAX_BYTES, bounded_error_text};
@@ -106,11 +105,11 @@ fn system_prompt_text(system: &SystemPrompt) -> String {
 }
 
 impl ApiClient {
-/// Build the native `generateContent` request body from a [`MessageRequest`].
-///
-/// Free function (not tied to `ApiClient`) so it can be unit-tested without a
-/// live client; `handle_gemini_*` call it with the request in scope.
-pub(super) fn build_gemini_body(request: &MessageRequest, _stream: bool) -> Value {
+    /// Build the native `generateContent` request body from a [`MessageRequest`].
+    ///
+    /// Free function (not tied to `ApiClient`) so it can be unit-tested without a
+    /// live client; `handle_gemini_*` call it with the request in scope.
+    pub(super) fn build_gemini_body(request: &MessageRequest, _stream: bool) -> Value {
         let mut body = json!({});
 
         if let Some(system) = request.system.as_ref() {
@@ -157,7 +156,12 @@ pub(super) fn build_gemini_body(request: &MessageRequest, _stream: bool) -> Valu
     }
 
     async fn send_gemini_request(&self, body: &Value, stream: bool) -> Result<reqwest::Response> {
-        let url = gemini_generate_content_url(&self.base_url, &body["model"].as_str().unwrap_or(""), stream, self.api_key());
+        let url = gemini_generate_content_url(
+            &self.base_url,
+            &body["model"].as_str().unwrap_or(""),
+            stream,
+            self.api_key(),
+        );
         self.wait_for_rate_limit().await;
         let response = self
             .http_client
@@ -179,17 +183,17 @@ pub(super) fn build_gemini_body(request: &MessageRequest, _stream: bool) -> Valu
     }
 
     /// Normalize a Gemini `finishReason` into mimofan's `stop_reason`.
-pub(super) fn gemini_stop_reason(finish_reason: Option<&str>) -> Option<String> {
-    match finish_reason {
-        Some("STOP") => Some("end_turn".to_string()),
-        Some("MAX_TOKENS") => Some("max_tokens".to_string()),
-        Some("SAFETY" | "RECITATION" | "OTHER") => Some("content_filter".to_string()),
-        _ => None,
+    pub(super) fn gemini_stop_reason(finish_reason: Option<&str>) -> Option<String> {
+        match finish_reason {
+            Some("STOP") => Some("end_turn".to_string()),
+            Some("MAX_TOKENS") => Some("max_tokens".to_string()),
+            Some("SAFETY" | "RECITATION" | "OTHER") => Some("content_filter".to_string()),
+            _ => None,
+        }
     }
-}
 
-/// Fold a Gemini `generateContent` response value into a [`MessageResponse`].
-pub(super) fn parse_gemini_response(value: Value, model: &str) -> Result<MessageResponse> {
+    /// Fold a Gemini `generateContent` response value into a [`MessageResponse`].
+    pub(super) fn parse_gemini_response(value: Value, model: &str) -> Result<MessageResponse> {
         let candidate = value
             .get("candidates")
             .and_then(Value::as_array)
@@ -217,9 +221,8 @@ pub(super) fn parse_gemini_response(value: Value, model: &str) -> Result<Message
             }]
         };
 
-        let stop_reason = Self::gemini_stop_reason(
-            candidate.get("finishReason").and_then(Value::as_str),
-        );
+        let stop_reason =
+            Self::gemini_stop_reason(candidate.get("finishReason").and_then(Value::as_str));
 
         let mut usage = Usage {
             input_tokens: 0,
@@ -258,33 +261,36 @@ pub(super) fn parse_gemini_response(value: Value, model: &str) -> Result<Message
         })
     }
 
-/// Extract the incremental text delta from one Gemini SSE `candidates` frame.
-pub(super) fn gemini_delta_text(value: &Value) -> String {
-    let mut text = String::new();
-    if let Some(candidate) = value
-        .get("candidates")
-        .and_then(Value::as_array)
-        .and_then(|c| c.first())
-        && let Some(parts) = candidate.get("content").and_then(|c| c.get("parts")).and_then(Value::as_array)
-    {
-        for part in parts {
-            if let Some(t) = part.get("text").and_then(Value::as_str) {
-                text.push_str(t);
+    /// Extract the incremental text delta from one Gemini SSE `candidates` frame.
+    pub(super) fn gemini_delta_text(value: &Value) -> String {
+        let mut text = String::new();
+        if let Some(candidate) = value
+            .get("candidates")
+            .and_then(Value::as_array)
+            .and_then(|c| c.first())
+            && let Some(parts) = candidate
+                .get("content")
+                .and_then(|c| c.get("parts"))
+                .and_then(Value::as_array)
+        {
+            for part in parts {
+                if let Some(t) = part.get("text").and_then(Value::as_str) {
+                    text.push_str(t);
+                }
             }
         }
+        text
     }
-    text
-}
 
-/// Whether a Gemini SSE frame carries a `finishReason` (signals end of stream).
-pub(super) fn gemini_frame_finished(value: &Value) -> bool {
-    value
-        .get("candidates")
-        .and_then(Value::as_array)
-        .and_then(|c| c.first())
-        .and_then(|c| c.get("finishReason"))
-        .is_some()
-}
+    /// Whether a Gemini SSE frame carries a `finishReason` (signals end of stream).
+    pub(super) fn gemini_frame_finished(value: &Value) -> bool {
+        value
+            .get("candidates")
+            .and_then(Value::as_array)
+            .and_then(|c| c.first())
+            .and_then(|c| c.get("finishReason"))
+            .is_some()
+    }
 
     /// Handle a non-streaming `generateContent` request.
     pub(super) async fn handle_gemini_message(
@@ -466,12 +472,7 @@ mod tests {
 
     #[test]
     fn url_omits_key_when_empty() {
-        let url = gemini_generate_content_url(
-            "https://example.com/v1beta",
-            "m",
-            false,
-            "",
-        );
+        let url = gemini_generate_content_url("https://example.com/v1beta", "m", false, "");
         assert_eq!(url, "https://example.com/v1beta/models/m:generateContent");
     }
 
@@ -506,14 +507,17 @@ mod tests {
 
         // systemInstruction is top-level and NOT inside contents.
         assert_eq!(body["systemInstruction"]["parts"][0]["text"], "be terse");
-        assert!(contents
-            .iter()
-            .all(|c| c.get("parts").map_or(true, |p| p
-                .as_array()
-                .map_or(true, |a| a.iter().all(|part| part.get("text").map_or(
-                    false,
-                    |t| t.as_str().map_or(true, |s| s != "be terse")
-                ))))));
+        assert!(
+            contents
+                .iter()
+                .all(|c| c
+                    .get("parts")
+                    .map_or(true, |p| p.as_array().map_or(true, |a| a.iter().all(
+                        |part| part
+                            .get("text")
+                            .map_or(false, |t| t.as_str().map_or(true, |s| s != "be terse"))
+                    ))))
+        );
 
         // generationConfig carries maxOutputTokens from max_tokens.
         assert_eq!(body["generationConfig"]["maxOutputTokens"], 512);
@@ -525,10 +529,13 @@ mod tests {
     fn body_skips_empty_messages() {
         let request = MessageRequest {
             model: "m".to_string(),
-            messages: vec![text_message("user", "real"), Message {
-                role: "user".to_string(),
-                content: vec![], // would produce no text parts → dropped
-            }],
+            messages: vec![
+                text_message("user", "real"),
+                Message {
+                    role: "user".to_string(),
+                    content: vec![], // would produce no text parts → dropped
+                },
+            ],
             max_tokens: 10,
             system: None,
             tools: None,
@@ -629,4 +636,3 @@ mod tests {
         assert!(ApiClient::gemini_frame_finished(&end));
     }
 }
-

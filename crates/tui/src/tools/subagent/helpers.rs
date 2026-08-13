@@ -591,7 +591,15 @@ pub(crate) fn remove_worktree(worktree_path: &Path) {
             return;
         }
     };
-    match run_git(&root, &["worktree", "remove", "--force", &worktree_path.to_string_lossy()]) {
+    match run_git(
+        &root,
+        &[
+            "worktree",
+            "remove",
+            "--force",
+            &worktree_path.to_string_lossy(),
+        ],
+    ) {
         Some(_) => {
             tracing::debug!(
                 target: "subagent",

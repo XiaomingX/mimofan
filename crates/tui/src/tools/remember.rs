@@ -139,11 +139,12 @@ impl ToolSpec for RememberTool {
             }
             RememberAction::Forget => {
                 let matcher = required_str(&input, "match")?;
-                let removed = crate::memory::remove_entry(dir, &category, matcher).map_err(|err| {
-                    ToolError::execution_failed(format!(
-                        "failed to forget from {category}.md: {err}"
-                    ))
-                })?;
+                let removed =
+                    crate::memory::remove_entry(dir, &category, matcher).map_err(|err| {
+                        ToolError::execution_failed(format!(
+                            "failed to forget from {category}.md: {err}"
+                        ))
+                    })?;
                 if removed {
                     Ok(ToolResult::success(format!(
                         "forgot ({category}): removed bullet matching `{matcher}`"
@@ -157,8 +158,8 @@ impl ToolSpec for RememberTool {
             RememberAction::Update => {
                 let note = required_str(&input, "note")?;
                 let matcher = required_str(&input, "match")?;
-                let replaced =
-                    crate::memory::replace_entry(dir, &category, matcher, note).map_err(|err| {
+                let replaced = crate::memory::replace_entry(dir, &category, matcher, note)
+                    .map_err(|err| {
                         ToolError::execution_failed(format!(
                             "failed to update {category}.md: {err}"
                         ))

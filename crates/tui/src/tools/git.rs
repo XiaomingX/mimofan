@@ -260,7 +260,10 @@ impl ToolSpec for GitCommitTool {
     }
 
     fn capabilities(&self) -> Vec<ToolCapability> {
-        vec![ToolCapability::WritesFiles, ToolCapability::RequiresApproval]
+        vec![
+            ToolCapability::WritesFiles,
+            ToolCapability::RequiresApproval,
+        ]
     }
 
     fn approval_requirement(&self) -> ApprovalRequirement {
@@ -276,8 +279,8 @@ impl ToolSpec for GitCommitTool {
     }
 
     async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
-        let message = optional_str(&input, "message")
-            .ok_or_else(|| ToolError::missing_field("message"))?;
+        let message =
+            optional_str(&input, "message").ok_or_else(|| ToolError::missing_field("message"))?;
         if message.trim().is_empty() {
             return Err(ToolError::invalid_input("message must not be empty"));
         }
@@ -362,9 +365,8 @@ impl ToolSpec for GitCommitTool {
         if amend {
             args.push("--amend".to_string());
         }
-        let mut cmd = crate::dependencies::Git::command().ok_or_else(|| {
-            ToolError::not_available("git is not installed or not in PATH")
-        })?;
+        let mut cmd = crate::dependencies::Git::command()
+            .ok_or_else(|| ToolError::not_available("git is not installed or not in PATH"))?;
         cmd.args(&args).current_dir(working_dir);
         cmd.stdin(std::process::Stdio::piped());
         let mut child = cmd.spawn().map_err(|e| {
@@ -376,13 +378,13 @@ impl ToolSpec for GitCommitTool {
         })?;
         use std::io::Write;
         if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(final_message.as_bytes())
-                .map_err(|e| ToolError::execution_failed(format!("Failed to write message: {e}")))?;
+            stdin.write_all(final_message.as_bytes()).map_err(|e| {
+                ToolError::execution_failed(format!("Failed to write message: {e}"))
+            })?;
         }
-        let output = child.wait_with_output().map_err(|e| {
-            ToolError::execution_failed(format!("Failed to run git commit: {e}"))
-        })?;
+        let output = child
+            .wait_with_output()
+            .map_err(|e| ToolError::execution_failed(format!("Failed to run git commit: {e}")))?;
         if !output.status.success() {
             return Err(ToolError::execution_failed(format!(
                 "git commit failed: {}",
@@ -391,21 +393,24 @@ impl ToolSpec for GitCommitTool {
         }
 
         // 4) Report the new HEAD so the user can verify the committed message.
-        let hash_out = run_git_command(working_dir, &["rev-parse".to_string(), "HEAD".to_string()])?;
+        let hash_out =
+            run_git_command(working_dir, &["rev-parse".to_string(), "HEAD".to_string()])?;
         let head = if hash_out.status.success() {
             String::from_utf8_lossy(&hash_out.stdout).trim().to_string()
         } else {
             String::new()
         };
 
-        Ok(ToolResult::success(format!("Committed: {head}\n\n{message}")).with_metadata(json!({
-            "working_dir": working_dir,
-            "head": head,
-            "message": message,
-            "amend": amend,
-            "staged_files": files,
-            "add_all": add_all,
-        })))
+        Ok(
+            ToolResult::success(format!("Committed: {head}\n\n{message}")).with_metadata(json!({
+                "working_dir": working_dir,
+                "head": head,
+                "message": message,
+                "amend": amend,
+                "staged_files": files,
+                "add_all": add_all,
+            })),
+        )
     }
 }
 
@@ -532,8 +537,7 @@ fn char_boundary_index(text: &str, max_chars: usize) -> usize {
 /// 把 mimofan 显示为共同作者（co-author），与 Claude Code / CodeBuddy 的行为一致。
 /// GitHub 依据 `Co-Authored-By: <name> <email>` 在提交详情与贡献者列表里展示署名，
 /// 但不改变真正的 committer（committer 仍是运行 mimofan 的用户的 git 身份）。
-const MIMOFAN_CO_AUTHOR_TRAILER: &str =
-    "🤖 Generated with [mimofan](https://github.com/XiaomingX/mimofan)\n\n\
+const MIMOFAN_CO_AUTHOR_TRAILER: &str = "🤖 Generated with [mimofan](https://github.com/XiaomingX/mimofan)\n\n\
      Co-Authored-By: mimofan <noreply@xiaoming.com>";
 
 /// 若 `enabled` 且消息尚未包含 mimofan 的 Co-Authored-By 署名，则追加 trailer。

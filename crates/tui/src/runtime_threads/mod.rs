@@ -1569,9 +1569,7 @@ impl RuntimeThreadManager {
         .await?;
 
         engine
-            .send(Op::CompactContext {
-                instructions: None,
-            })
+            .send(Op::CompactContext { instructions: None })
             .await
             .map_err(|e| anyhow!("Failed to trigger compaction: {e}"))?;
 

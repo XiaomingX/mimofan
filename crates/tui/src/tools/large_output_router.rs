@@ -186,7 +186,10 @@ mod tests {
     #[test]
     fn threshold_defaults_to_constant() {
         let cfg = WorkshopConfig::default();
-        assert_eq!(cfg.threshold_for("any_tool"), DEFAULT_LARGE_OUTPUT_THRESHOLD_TOKENS);
+        assert_eq!(
+            cfg.threshold_for("any_tool"),
+            DEFAULT_LARGE_OUTPUT_THRESHOLD_TOKENS
+        );
     }
 
     #[test]

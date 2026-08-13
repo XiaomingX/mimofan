@@ -113,14 +113,13 @@ pub fn restore(app: &mut App, arg: Option<&str>) -> CommandResult {
 
     // Roll back the conversation too when the snapshot recorded a conversation
     // length (combined code+chat revert, matching CodeBuddy's third mode).
-    let conversation_reverted = if target.conversation_len > 0
-        && target.conversation_len <= app.api_messages.len()
-    {
-        revert_conversation_to(app, target.conversation_len);
-        true
-    } else {
-        false
-    };
+    let conversation_reverted =
+        if target.conversation_len > 0 && target.conversation_len <= app.api_messages.len() {
+            revert_conversation_to(app, target.conversation_len);
+            true
+        } else {
+            false
+        };
 
     let mut msg = String::new();
     if !preview.is_empty() {
@@ -220,11 +219,7 @@ fn format_preview(changes: &[(NameStatus, PathBuf)]) -> String {
     // cap the listing for large ones.
     let listed = changes.len().min(50);
     for (status, path) in changes.iter().take(listed) {
-        out.push_str(&format!(
-            "\n  [{}] {}",
-            status.as_str(),
-            path.display()
-        ));
+        out.push_str(&format!("\n  [{}] {}", status.as_str(), path.display()));
     }
     if changes.len() > listed {
         out.push_str(&format!("\n  … and {} more", changes.len() - listed));

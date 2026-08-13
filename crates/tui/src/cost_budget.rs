@@ -216,19 +216,27 @@ mod tests {
     #[test]
     fn warn_at_threshold() {
         let b = budget(100.0, 0.0, 0.8);
-        let alert = b.evaluate(CostBudgetKind::Session, 80.0).expect("should warn");
+        let alert = b
+            .evaluate(CostBudgetKind::Session, 80.0)
+            .expect("should warn");
         assert_eq!(alert.level, CostBudgetLevel::Warn);
         // Still below the hard limit, so a slightly-higher value stays a warn.
-        let alert2 = b.evaluate(CostBudgetKind::Session, 99.0).expect("should warn");
+        let alert2 = b
+            .evaluate(CostBudgetKind::Session, 99.0)
+            .expect("should warn");
         assert_eq!(alert2.level, CostBudgetLevel::Warn);
     }
 
     #[test]
     fn hard_at_and_over_limit() {
         let b = budget(100.0, 0.0, 0.8);
-        let alert = b.evaluate(CostBudgetKind::Session, 100.0).expect("should hard-alert");
+        let alert = b
+            .evaluate(CostBudgetKind::Session, 100.0)
+            .expect("should hard-alert");
         assert_eq!(alert.level, CostBudgetLevel::Hard);
-        let over = b.evaluate(CostBudgetKind::Session, 250.0).expect("should hard-alert");
+        let over = b
+            .evaluate(CostBudgetKind::Session, 250.0)
+            .expect("should hard-alert");
         assert_eq!(over.level, CostBudgetLevel::Hard);
     }
 
@@ -237,7 +245,9 @@ mod tests {
         let b = budget(0.0, 50.0, 0.5);
         assert!(b.is_active());
         assert_eq!(b.evaluate(CostBudgetKind::Session, 1_000.0), None);
-        let alert = b.evaluate(CostBudgetKind::Daily, 30.0).expect("daily warn at 50%");
+        let alert = b
+            .evaluate(CostBudgetKind::Daily, 30.0)
+            .expect("daily warn at 50%");
         assert_eq!(alert.kind, CostBudgetKind::Daily);
         assert_eq!(alert.level, CostBudgetLevel::Warn);
     }

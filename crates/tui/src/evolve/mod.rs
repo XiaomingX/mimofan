@@ -143,7 +143,11 @@ pub fn lock_baseline(
 }
 
 /// 校验锁定后 baseline / evaluator 未被改写（哈希对比）。
-pub fn verify_baseline_unchanged(lock: &BaselineLock, baseline: &Path, evaluator: &Path) -> Result<()> {
+pub fn verify_baseline_unchanged(
+    lock: &BaselineLock,
+    baseline: &Path,
+    evaluator: &Path,
+) -> Result<()> {
     let cur_baseline = hash_file(baseline)?;
     let cur_evaluator = hash_file(evaluator)?;
     if cur_baseline != lock.baseline_hash {
@@ -286,7 +290,10 @@ mod tests {
         let baseline = d.join("prog.py");
         let eval = d.join("eval.sh");
         std::fs::write(&baseline, "print(1)").unwrap();
-        write_script(&eval, "#!/bin/sh\necho '{\"valid\":true,\"improved\":false}'\n");
+        write_script(
+            &eval,
+            "#!/bin/sh\necho '{\"valid\":true,\"improved\":false}'\n",
+        );
         let out = d.join("lockout");
         let _lock = lock_baseline(&baseline, &eval, "goal", &out).unwrap();
         // 第二次锁定同目录必须拒绝
@@ -301,7 +308,10 @@ mod tests {
         let baseline = d.join("prog.py");
         let eval = d.join("eval.sh");
         std::fs::write(&baseline, "print(1)").unwrap();
-        write_script(&eval, "#!/bin/sh\necho '{\"valid\":true,\"improved\":false}'\n");
+        write_script(
+            &eval,
+            "#!/bin/sh\necho '{\"valid\":true,\"improved\":false}'\n",
+        );
         let out = d.join("lockout");
         let lock = lock_baseline(&baseline, &eval, "goal", &out).unwrap();
         // 改写 baseline
@@ -317,7 +327,8 @@ mod tests {
             id: "cand-1".into(),
             parent_id: None,
             path: PathBuf::from("candidates/cand-1/prog.py"),
-            evaluator_output: EvaluatorOutput::from_stdout("{\"valid\":true,\"improved\":true}").unwrap(),
+            evaluator_output: EvaluatorOutput::from_stdout("{\"valid\":true,\"improved\":true}")
+                .unwrap(),
             patch_summary: "use two-token lookup".into(),
         };
         let p = record_candidate(&d, &cand).unwrap();

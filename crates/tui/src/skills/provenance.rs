@@ -180,7 +180,10 @@ mod tests {
 
     #[test]
     fn bundled_gets_full_isolation() {
-        assert_eq!(SkillSource::Bundled.default_isolation(), IsolationLevel::Full);
+        assert_eq!(
+            SkillSource::Bundled.default_isolation(),
+            IsolationLevel::Full
+        );
     }
 
     #[test]

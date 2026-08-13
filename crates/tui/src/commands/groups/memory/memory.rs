@@ -30,8 +30,7 @@ use crate::memory::{
 };
 use crate::tui::app::App;
 
-const MEMORY_USAGE: &str =
-    "/memory [show [category]|path|clear [category]|delete <category> <substring>|edit [category]|help]";
+const MEMORY_USAGE: &str = "/memory [show [category]|path|clear [category]|delete <category> <substring>|edit [category]|help]";
 
 fn memory_help(dir: &std::path::Path) -> String {
     format!(
@@ -182,9 +181,7 @@ pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
             let cat = parts.next().unwrap_or("").trim();
             let needle = parts.next().unwrap_or("").trim();
             if cat.is_empty() || needle.is_empty() {
-                return CommandResult::error(
-                    "usage: /memory delete <category> <substring>",
-                );
+                return CommandResult::error("usage: /memory delete <category> <substring>");
             }
             if !is_category(cat) {
                 return CommandResult::error(format!(
@@ -197,14 +194,12 @@ pub fn memory(app: &mut App, arg: Option<&str>) -> CommandResult {
                     "deleted a bullet from {}.md matching `{needle}` (index refreshed)",
                     cat
                 )),
-                Ok(false) => CommandResult::message(format!(
-                    "no bullet in {}.md matched `{needle}`",
-                    cat
-                )),
-                Err(err) => CommandResult::error(format!(
-                    "failed to delete from {}.md: {err}",
-                    cat
-                )),
+                Ok(false) => {
+                    CommandResult::message(format!("no bullet in {}.md matched `{needle}`", cat))
+                }
+                Err(err) => {
+                    CommandResult::error(format!("failed to delete from {}.md: {err}", cat))
+                }
             }
         }
         _ => CommandResult::error(format!(
