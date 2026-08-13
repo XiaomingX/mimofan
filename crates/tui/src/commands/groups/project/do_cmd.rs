@@ -71,9 +71,9 @@ impl RegisterCommand for DoCmd {
             // `/do auto` — autonomous end-to-end execution of the whole plan.
             //
             // Reuses the existing `/goal` continuation pipeline: the model first
-            // calls `create_goal` to stand up a persistent objective ("execute
+            // calls `goal_enqueue` to stand up a persistent objective ("execute
             // the plan"), then works through every pending checklist step, and
-            // finally calls `update_goal` with `status: "complete"` once all
+            // finally calls `goal_update` with `status: "complete"` once all
             // steps are done. The engine's goal continuation re-dispatches turns
             // automatically between steps — no manual `/do next` needed. This is
             // the parity path for CodeBuddy's one-click "make plan + do it".
@@ -88,7 +88,7 @@ impl RegisterCommand for DoCmd {
 
             // Seed the UI-side hunt state so status surfaces and the loop/goal
             // controls stay consistent; the engine truth (GoalState) is created
-            // by the model's `create_goal` call on the first turn.
+            // by the model's `goal_enqueue` call on the first turn.
             let objective = "Execute the full plan: work through every pending checklist step until all are complete.".to_string();
             app.hunt.quarry = Some(objective.clone());
             app.hunt.token_budget = None;
@@ -115,17 +115,17 @@ impl RegisterCommand for DoCmd {
 
             let prompt = format!(
                 "You are now in Agent mode and running the plan autonomously. \
-                 First call `create_goal` with objective \"{}\" to stand up a persistent goal. \
+                 First call `goal_enqueue` with objective \"{}\" to stand up a persistent goal. \
                  Then execute every pending checklist step in order, updating each step's status to completed via checklist_write as you finish it.\n\n\
                  Pending steps:\n{}\n\n\
-                 When ALL steps are completed, call `update_goal` with `status: \"complete\"`, \
+                 When ALL steps are completed, call `goal_update` with `status: \"complete\"`, \
                  concrete evidence of completion, and `verification: {{\"status\":\"passed\",\"check\":\"all steps done\",\"summary\":\"...\"}}` to end the run. \
-                 If you hit a real blocker, call `update_goal` with `status: \"blocked\"` and the blocker instead.",
+                 If you hit a real blocker, call `goal_update` with `status: \"blocked\"` and the blocker instead.",
                 objective, pending_summary
             );
 
             CommandResult::with_message_and_action(
-                "Switched to Agent mode. Autonomous plan execution started (create_goal → run all steps → update_goal complete).".to_string(),
+                "Switched to Agent mode. Autonomous plan execution started (goal_enqueue → run all steps → goal_update complete).".to_string(),
                 AppAction::SendMessage(prompt),
             )
         } else if target == "next" {

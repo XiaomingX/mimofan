@@ -612,7 +612,7 @@ impl Engine {
 
         if let Some(objective) = normalized_goal_objective(config.goal_objective.as_deref()) {
             sync_goal_state_from_host(
-                &config.goal_state,
+                &config.goal_queue,
                 Some(&objective),
                 config.goal_token_budget,
                 config.goal_status,
@@ -658,8 +658,8 @@ impl Engine {
         let user_memory_block =
             crate::memory::compose_index_block(config.memory_enabled, &config.memory_dir, None);
         let prompt_goal_objective =
-            goal_objective_for_prompt(config.goal_objective.as_deref(), &config.goal_state);
-        let goal_contract = crate::core::engine::goal::goal_contract_for_prompt(&config.goal_state);
+            goal_objective_for_prompt(config.goal_objective.as_deref(), &config.goal_queue);
+        let goal_contract = crate::core::engine::goal::goal_contract_for_prompt(&config.goal_queue);
         let system_prompt =
             prompts::system_prompt_for_mode_with_context_skills_session_and_approval(
                 &config.workspace,
@@ -1773,7 +1773,7 @@ impl Engine {
             || previous_goal_status != goal_status
         {
             sync_goal_state_from_host(
-                &self.config.goal_state,
+                &self.config.goal_queue,
                 normalized_goal_objective(goal_objective.as_deref()).as_deref(),
                 goal_token_budget,
                 goal_status,
@@ -2747,9 +2747,9 @@ impl Engine {
         );
         let prompt_goal_objective = goal_objective_for_prompt(
             self.config.goal_objective.as_deref(),
-            &self.config.goal_state,
+            &self.config.goal_queue,
         );
-        let goal_contract = crate::core::engine::goal::goal_contract_for_prompt(&self.config.goal_state);
+        let goal_contract = crate::core::engine::goal::goal_contract_for_prompt(&self.config.goal_queue);
         let base = prompts::system_prompt_for_mode_with_context_skills_session_and_approval(
             &self.config.workspace,
             None,

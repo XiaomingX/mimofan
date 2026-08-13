@@ -1092,13 +1092,22 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(ExitPlanModeTool))
     }
 
-    /// Include runtime goal tools (`create_goal`, `get_goal`, `update_goal`).
+    /// Include runtime goal-queue tools: `goal_enqueue`, `goal_get`, `goal_update`,
+    /// `goal_list`, `goal_pause`, `goal_resume`, `goal_cancel`, `goal_promote`.
     #[must_use]
-    pub fn with_goal_tools(self, goal_state: super::goal::SharedGoalState) -> Self {
-        use super::goal::{CreateGoalTool, GetGoalTool, UpdateGoalTool};
-        self.with_tool(Arc::new(CreateGoalTool::new(goal_state.clone())))
-            .with_tool(Arc::new(GetGoalTool::new(goal_state.clone())))
-            .with_tool(Arc::new(UpdateGoalTool::new(goal_state)))
+    pub fn with_goal_tools(self, goal_queue: super::goal::SharedGoalQueue) -> Self {
+        use super::goal::{
+            GoalCancelTool, GoalEnqueueTool, GoalGetTool, GoalListTool, GoalPauseTool,
+            GoalPromoteTool, GoalResumeTool, GoalUpdateTool,
+        };
+        self.with_tool(Arc::new(GoalEnqueueTool::new(goal_queue.clone())))
+            .with_tool(Arc::new(GoalGetTool::new(goal_queue.clone())))
+            .with_tool(Arc::new(GoalUpdateTool::new(goal_queue.clone())))
+            .with_tool(Arc::new(GoalListTool::new(goal_queue.clone())))
+            .with_tool(Arc::new(GoalPauseTool::new(goal_queue.clone())))
+            .with_tool(Arc::new(GoalResumeTool::new(goal_queue.clone())))
+            .with_tool(Arc::new(GoalCancelTool::new(goal_queue.clone())))
+            .with_tool(Arc::new(GoalPromoteTool::new(goal_queue)))
     }
 
     /// Include sub-agent management tools.

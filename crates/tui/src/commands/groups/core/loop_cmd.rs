@@ -5,7 +5,7 @@
 //! goal whose stop condition is a user-written natural-language predicate and
 //! whose round cap is explicit. The model self-judges the stop condition each
 //! round (injected into the continuation prompt) and ends the loop by calling
-//! `update_goal` with `status: "complete"`.
+//! `goal_update` with `status: "complete"`.
 
 use crate::commands::traits::{CommandInfo, RegisterCommand};
 use crate::localization::MessageId;

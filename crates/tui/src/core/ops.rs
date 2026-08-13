@@ -124,7 +124,7 @@ pub enum Op {
 
     /// Set the runtime goal status without dispatching a model turn. Used by
     /// `/goal pause`, `/goal resume`, `/goal clear`, etc. so the engine's
-    /// `SharedGoalState` learns the new status immediately and a queued
+    /// `SharedGoalQueue` learns the new status immediately and a queued
     /// continuation doesn't overwrite it back to Active. `loop_config`, when
     /// `Some`, carries `/loop`-specific fields written into the goal state when
     /// the objective is (re)created.

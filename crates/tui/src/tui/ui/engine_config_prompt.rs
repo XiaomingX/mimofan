@@ -39,7 +39,7 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         compaction: app.compaction_config(),
         todos: app.todos.clone(),
         plan_state: app.plan_state.clone(),
-        goal_state: crate::tools::goal::new_shared_goal_state_from_host_status(
+        goal_queue: crate::tools::goal::new_shared_goal_queue_from_host_status(
             app.hunt.quarry.clone(),
             app.hunt.token_budget,
             app.hunt.verdict.goal_status(),

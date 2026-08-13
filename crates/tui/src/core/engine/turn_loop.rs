@@ -2697,7 +2697,7 @@ impl Engine {
 
     /// Feed a per-step progress signal into the active goal's circuit breakers.
     ///
-    /// Must be called synchronously — the `SharedGoalState` guard is never held
+    /// Must be called synchronously — the `SharedGoalQueue` guard is never held
     /// across an `.await` (see `ARCHITECTURE_STABILITY.md` §8.3).
     fn record_goal_progress_signal(
         &self,
@@ -2705,8 +2705,8 @@ impl Engine {
         step_error_count: usize,
         last_tool_error_text: &str,
     ) {
-        use crate::tools::goal::{ProgressSignal, SharedGoalState};
-        let state: &SharedGoalState = &self.config.goal_state;
+        use crate::tools::goal::{ProgressSignal, SharedGoalQueue};
+        let state: &SharedGoalQueue = &self.config.goal_queue;
         let signal = if step_error_count > 0 {
             // Bound the fingerprint so the breaker keys on the error class,
             // not unbounded text growth.
@@ -2841,15 +2841,30 @@ impl Engine {
         continuations_this_turn: &mut u32,
     ) -> Option<String> {
         let registry = tool_registry?;
-        if !registry.contains("update_goal") {
+        if !registry.contains("goal_update") {
             return None;
         }
 
-        let mut snapshot = match self.config.goal_state.lock() {
-            Ok(state) => state.snapshot(),
+        let mut snapshot = match self.config.goal_queue.lock() {
+            Ok(state) => state.active_snapshot(),
             Err(err) => {
-                tracing::warn!("goal state lock poisoned during continuation check: {err}");
+                tracing::warn!("goal queue lock poisoned during continuation check: {err}");
                 return None;
+            }
+        };
+
+        // 无活动 goal（全部完成/阻塞/取消）→ 尝试提升下一个就绪 goal。
+        let mut snapshot = match snapshot {
+            Some(snap) => snap,
+            None => {
+                let promoted = self.config.goal_queue.lock().ok().and_then(|mut q| q.promote_next_ready());
+                if promoted.is_none() {
+                    return None;
+                }
+                match self.config.goal_queue.lock() {
+                    Ok(state) => state.active_snapshot()?,
+                    Err(_) => return None,
+                }
             }
         };
 
@@ -2923,13 +2938,15 @@ impl Engine {
         }
 
         *continuations_this_turn = (*continuations_this_turn).saturating_add(1);
-        match self.config.goal_state.lock() {
+        match self.config.goal_queue.lock() {
             Ok(mut state) => {
                 state.record_continuation();
-                snapshot = state.snapshot();
+                if let Some(snap) = state.active_snapshot() {
+                    snapshot = snap;
+                }
             }
             Err(err) => {
-                tracing::warn!("goal state lock poisoned while recording continuation: {err}")
+                tracing::warn!("goal queue lock poisoned while recording continuation: {err}")
             }
         }
 

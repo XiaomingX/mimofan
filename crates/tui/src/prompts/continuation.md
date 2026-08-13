@@ -12,8 +12,8 @@ Completion is unproven until you verify it against current-state evidence:
    current sources.
 3. Treat uncertain or indirect evidence as not complete. Continue work or gather
    stronger evidence.
-4. Only when the full objective is satisfied, call `update_goal` with
+4. Only when the full objective is satisfied, call `goal_update` with
    `status: "complete"` and concise evidence.
 
-If the goal cannot continue because of a real blocker, call `update_goal` with
+If the goal cannot continue because of a real blocker, call `goal_update` with
 `status: "blocked"` and explain the blocker. Otherwise continue making progress.
