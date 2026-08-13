@@ -26,10 +26,11 @@ async fn main() {
         .collect();
 
     for (i, emb) in embeddings.iter().enumerate().take(1000) {
-        let obs = Observation::new(
+        let obs = Observation::with_session(
             "benchmark-project".to_string(),
             "project",
             format!("Benchmark observation {}", i),
+            "bench".to_string(),
         );
         observation_store
             .store_observation(&obs, emb)
@@ -53,10 +54,11 @@ async fn main() {
 
     let start = std::time::Instant::now();
     for i in 0..10_000 {
-        let obs = Observation::new(
+        let obs = Observation::with_session(
             "batch-project".to_string(),
             "project",
             format!("Batch observation {}", i),
+            "bench".to_string(),
         );
         batch_proc.enqueue(obs).expect("enqueue observation");
     }

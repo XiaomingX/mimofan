@@ -75,6 +75,9 @@ pub fn vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
     let sub = arg.unwrap_or("status").trim();
     let mem_dir = memory_dir(app);
     let project = project_name(app);
+    // #777: tag manually remembered memory with the active session so it joins
+    // the same cross-session timeline as auto-captured memories.
+    let session_id = app.current_session_id.clone().unwrap_or_default();
 
     // Status / help are read-only and cheap — don't open the store (avoids
     // creating the sled DB on a mere inspection).
@@ -128,7 +131,7 @@ pub fn vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
                         .await
                         .map_err(|e| format!("embedding failed: {e}"))?;
                     let id = vm
-                        .store_observation(&project, kind_str, content, &embedding)
+                        .store_observation(&project, kind_str, content, &session_id, &embedding)
                         .map_err(|e| format!("failed to store: {e}"))?;
                     Ok(format!(
                         "remembered (vector id {id}): [{kind_str}] {content}"

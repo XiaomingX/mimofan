@@ -43,10 +43,11 @@ async fn main() {
             3 => "project",
             _ => "project",
         };
-        let obs = Observation::new(
+        let obs = Observation::with_session(
             "integration-project".to_string(),
             kind,
             format!("Integration test observation {}", i),
+            "integration".to_string(),
         );
         let embedding = generate_embedding(i);
         obs_store
@@ -71,10 +72,11 @@ async fn main() {
     println!("\n3. Compress observations");
     let observations: Vec<Observation> = (0..100)
         .map(|i| {
-            Observation::new(
+            Observation::with_session(
                 "integration-project".to_string(),
                 "project",
                 format!("Observation {}", i),
+                "integration".to_string(),
             )
         })
         .collect();

@@ -2573,6 +2573,7 @@ impl Engine {
             mode == AppMode::Yolo || auto_approve,
         )
         .with_state_namespace(self.session.id.clone())
+        .with_session_id(self.session.id.clone())
         .with_features(self.config.features.clone())
         .with_shell_manager(self.shell_manager.clone())
         .with_runtime_services(self.config.runtime_services.clone())

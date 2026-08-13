@@ -163,7 +163,15 @@ impl MemoryInjector {
         Ok(injection)
     }
 
-    /// Convert search matches to memory injection
+    /// Convert search matches to memory injection.
+    ///
+    /// #777 — cross-session reasoning. Memories are first grouped by
+    /// `session_id` and each session's entries are sorted by `created_at`
+    /// ascending, so a recalled session replays as a coherent timeline.
+    /// Sessions are ordered most-recent-first (by the latest entry in the
+    /// session). Every injected line is prefixed with its source session and
+    /// date so the model can attribute and reassemble knowledge across
+    /// sessions instead of blending unrelated past work.
     fn matches_to_injection(&self, matches: &[VectorMatch]) -> Result<MemoryInjection> {
         let mut key_decisions = Vec::new();
         let mut recent_changes = Vec::new();
@@ -171,49 +179,73 @@ impl MemoryInjector {
         let mut estimated_tokens = 0;
         let now = chrono::Utc::now().timestamp();
 
+        // Group matches by session_id, keeping (score, observation) so we can
+        // sort within and across sessions. Sessions with an empty session_id
+        // are treated as a single untagged group (legacy writes / non-session
+        // contexts).
+        let mut by_session: std::collections::BTreeMap<String, Vec<&VectorMatch>> =
+            std::collections::BTreeMap::new();
         for m in matches {
-            let obs = &m.observation;
-
-            // #716 slice: `relevance_threshold` — drop weakly-related memories
-            // so injection stays focused and token-efficient.
             if m.score < self.config.relevance_threshold {
                 continue;
             }
+            by_session.entry(m.observation.session_id.clone()).or_default().push(m);
+        }
 
-            // #716 slice: `injection_provenance` — annotate each injected memory
-            // with its origin timestamp so the model can judge freshness.
-            let provenance = format_timestamp(obs.created_at);
-            // #716 slice: `stale_memory_verification` — flag memories older than
-            // STALE_AFTER_DAYS as potentially outdated, prompting the model to
-            // verify before acting on them.
-            let stale_note = if (now - obs.created_at) > STALE_AFTER_DAYS * 86_400 {
-                " (may be outdated — verify before use)"
-            } else {
-                ""
-            };
-            let annotated = format!("{}{} [recalled {}]{}", obs.content, stale_note, provenance, "");
+        // Order sessions most-recent-first: a session's rank is its latest
+        // created_at. Ties (e.g. both empty) keep insertion order via BTreeMap.
+        let mut session_order: Vec<(String, i64)> = by_session
+            .iter()
+            .map(|(sid, ms)| {
+                let latest = ms.iter().map(|m| m.observation.created_at).max().unwrap_or(0);
+                (sid.clone(), latest)
+            })
+            .collect();
+        session_order.sort_by(|a, b| b.1.cmp(&a.1));
 
-            // Add to appropriate category. The four shared categories map to
-            // the existing injection buckets:
-            // - `project`  → key decisions / project background (was Decision + changes)
-            // - `feedback` → recent changes (collaboration preferences as context)
-            // - `user` / `reference` → recent changes (related context, flattened)
-            match obs.kind.as_str() {
-                "project" => {
-                    key_decisions.push(annotated);
-                    estimated_tokens += self.count_tokens(&obs.content);
+        for (sid, _) in session_order {
+            let group = by_session.get(&sid).expect("session group exists");
+            // Within a session, replay chronologically (oldest first) so the
+            // timeline reads in order.
+            let mut ordered: Vec<&&VectorMatch> = group.iter().collect();
+            ordered.sort_by_key(|m| m.observation.created_at);
+
+            for m in ordered {
+                let obs = &m.observation;
+                let provenance = format_timestamp(obs.created_at);
+                let stale_note = if (now - obs.created_at) > STALE_AFTER_DAYS * 86_400 {
+                    " (may be outdated — verify before use)"
+                } else {
+                    ""
+                };
+                // #777: prefix every line with its source session so cross-session
+                // retrieval stays attributable. Empty session_id → untagged.
+                let session_tag = if sid.is_empty() {
+                    String::new()
+                } else {
+                    format!("[session {} @ {}] ", sid, provenance)
+                };
+                let annotated = format!(
+                    "{}{}{} [recalled {}]{}",
+                    session_tag, obs.content, stale_note, provenance, ""
+                );
+
+                match obs.kind.as_str() {
+                    "project" => {
+                        key_decisions.push(annotated);
+                        estimated_tokens += self.count_tokens(&obs.content);
+                    }
+                    "user" | "feedback" | "reference" => {
+                        recent_changes.push(annotated);
+                        estimated_tokens += self.count_tokens(&obs.content);
+                    }
+                    _ => {}
                 }
-                "user" | "feedback" | "reference" => {
-                    recent_changes.push(annotated);
-                    estimated_tokens += self.count_tokens(&obs.content);
-                }
-                _ => {}
-            }
 
-            // Collect modified files
-            for file in &obs.files_modified {
-                if !files_modified.contains(file) {
-                    files_modified.push(file.clone());
+                for file in &obs.files_modified {
+                    if !files_modified.contains(file) {
+                        files_modified.push(file.clone());
+                    }
                 }
             }
         }

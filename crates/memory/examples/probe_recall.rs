@@ -171,7 +171,7 @@ fn main() {
                 if stmt.is_empty() {
                     continue;
                 }
-                let obs = Observation::new(sid.to_string(), "project", stmt.clone());
+                let obs = Observation::with_session(sid.to_string(), "project", stmt.clone(), sid.to_string());
                 let emb = embed_local(&stmt);
                 if let Err(e) = store.store_observation(&obs, &emb) {
                     bail(&format!("写入事实失败: {e}"));
@@ -182,7 +182,7 @@ fn main() {
             // 写入干扰项：同一 project 下混入噪声，
             // 确保召回不是「库里只有一条所以必中」的假阳性。
             for d in &distractors {
-                let obs = Observation::new(sid.to_string(), "project", d.clone());
+                let obs = Observation::with_session(sid.to_string(), "project", d.clone(), sid.to_string());
                 let emb = embed_local(d);
                 if let Err(e) = store.store_observation(&obs, &emb) {
                     bail(&format!("写入干扰项失败: {e}"));

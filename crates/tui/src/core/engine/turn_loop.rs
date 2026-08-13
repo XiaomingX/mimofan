@@ -2853,7 +2853,7 @@ impl Engine {
                                 match embedder.embed_text(&content).await {
                                     Ok(embedding) => {
                                         if let Err(err) = vm.store_observation(
-                                            &project, &kind, &content, &embedding,
+                                            &project, &kind, &content, &self.session.id, &embedding,
                                         ) {
                                             tracing::warn!(
                                                 ?err,

@@ -14,7 +14,7 @@ use std::time::Duration;
 
 /// Helper to create test observation
 fn create_observation(project: &str, kind: &str, content: &str) -> Observation {
-    Observation::new(project.to_string(), kind, content.to_string())
+    Observation::with_session(project.to_string(), kind, content.to_string(), "func".to_string())
 }
 
 /// Helper to generate embedding
