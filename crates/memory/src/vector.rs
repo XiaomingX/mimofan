@@ -891,7 +891,6 @@ impl VectorStore {
 #[cfg(test)]
 mod enhancement_tests {
     use super::*;
-    use std::path::Path;
 
     fn tmp_store() -> (tempfile::TempDir, VectorStore) {
         let dir = tempfile::tempdir().unwrap();

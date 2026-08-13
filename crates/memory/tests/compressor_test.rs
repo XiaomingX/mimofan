@@ -16,6 +16,7 @@ fn test_observations() -> Vec<Observation> {
             access_count: 0,
             last_accessed_at: None,
             expires_at: None,
+            session_id: "test".to_string(),
         },
         Observation {
             id: 2,
@@ -29,6 +30,7 @@ fn test_observations() -> Vec<Observation> {
             access_count: 0,
             last_accessed_at: None,
             expires_at: None,
+            session_id: "test".to_string(),
         },
         Observation {
             id: 3,
@@ -42,6 +44,7 @@ fn test_observations() -> Vec<Observation> {
             access_count: 0,
             last_accessed_at: None,
             expires_at: None,
+            session_id: "test".to_string(),
         },
     ]
 }
