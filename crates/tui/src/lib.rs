@@ -635,6 +635,10 @@ pub async fn run() -> Result<()> {
                             mobile: args.mobile,
                             show_qr: args.qr,
                         },
+                        // Terminal main has no core `Runtime` instance, so
+                        // `create_sub_session` fails closed here. App-server
+                        // paths that own a `Runtime` pass `Some(..)`.
+                        None::<std::sync::Arc<tokio::sync::RwLock<mimofan_core::Runtime>>>,
                     )
                     .await
                 } else if args.acp {

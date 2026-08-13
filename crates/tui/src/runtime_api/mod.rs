@@ -534,6 +534,7 @@ pub(crate) async fn run_http_server(
     config: Config,
     workspace: PathBuf,
     options: RuntimeApiOptions,
+    runtime: Option<std::sync::Arc<tokio::sync::RwLock<mimofan_core::Runtime>>>,
 ) -> Result<()> {
     if options.port == 0 {
         bail!("Port must be > 0");
@@ -549,6 +550,7 @@ pub(crate) async fn run_http_server(
         config.clone(),
         workspace.clone(),
         RuntimeThreadManagerConfig::from_task_data_dir(task_cfg.data_dir.clone()),
+        runtime,
     )?);
     let task_manager =
         TaskManager::start_with_runtime_manager(task_cfg, config.clone(), runtime_threads.clone())

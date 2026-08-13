@@ -46,6 +46,8 @@ pub mod plugin;
 pub mod project;
 pub mod registry;
 pub mod remember;
+pub mod record_artifact;
+pub mod create_sub_session;
 #[cfg(feature = "vector-memory")]
 pub mod remember_vector;
 pub mod revert_turn;
@@ -69,6 +71,7 @@ pub mod truncate;
 pub mod user_input;
 pub mod validate_data;
 pub mod verifier;
+pub mod worktree;
 pub mod web_run;
 pub mod web_search;
 

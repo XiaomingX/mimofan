@@ -772,6 +772,7 @@ impl TaskManager {
             api_config.clone(),
             cfg.default_workspace.clone(),
             RuntimeThreadManagerConfig::from_task_data_dir(cfg.data_dir.clone()),
+            None::<std::sync::Arc<tokio::sync::RwLock<mimofan_core::Runtime>>>,
         )?);
         Self::start_with_runtime_manager(cfg, api_config, runtime_threads).await
     }
