@@ -619,7 +619,7 @@ pub(crate) async fn run_exec_agent(
         compaction,
         todos: new_shared_todo_list(),
         plan_state: new_shared_plan_state(),
-        goal_state: crate::tools::goal::new_shared_goal_state(),
+        goal_queue: crate::tools::goal::new_shared_goal_queue(),
         max_spawn_depth: execution_config.subagent_max_spawn_depth_for_provider(effective_provider),
         subagent_token_budget: execution_config
             .subagent_token_budget_for_provider(effective_provider),

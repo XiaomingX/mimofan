@@ -74,7 +74,7 @@ impl Engine {
                 .with_todo_tool(todo_list)
                 .with_plan_tool(plan_state)
                 .with_exit_plan_mode_tool()
-                .with_goal_tools(self.config.goal_state.clone());
+                .with_goal_tools(self.config.goal_queue.clone());
             if shell_policy.allows_shell() {
                 builder.with_shell_tools().with_runtime_task_shell_tools()
             } else {
@@ -84,8 +84,8 @@ impl Engine {
             ToolRegistryBuilder::new()
                 .with_agent_tools_policy(shell_policy)
                 .with_todo_tool(todo_list)
-                .with_plan_tool(plan_state)
-                .with_goal_tools(self.config.goal_state.clone())
+            .with_plan_tool(plan_state)
+            .with_goal_tools(self.config.goal_queue.clone())
         };
 
         builder = builder

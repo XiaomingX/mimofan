@@ -7,7 +7,7 @@ use std::time::Duration;
 use crate::compaction::CompactionConfig;
 use crate::config::{DEFAULT_MAX_SUBAGENTS, DEFAULT_TEXT_MODEL};
 use crate::features::Features;
-use crate::tools::goal::{GoalStatus, SharedGoalState, new_shared_goal_state};
+use crate::tools::goal::{GoalStatus, SharedGoalQueue, new_shared_goal_queue};
 use crate::tools::plan::{SharedPlanState, new_shared_plan_state};
 use crate::tools::spec::RuntimeToolServices;
 use crate::tools::todo::SharedTodoList;
@@ -76,8 +76,8 @@ pub struct EngineConfig {
     pub todos: SharedTodoList,
     /// Shared Plan state.
     pub plan_state: SharedPlanState,
-    /// Shared runtime goal state for model-visible goal tools.
-    pub goal_state: SharedGoalState,
+    /// Shared goal queue (multi-objective scheduling) for model-visible goal tools.
+    pub goal_queue: SharedGoalQueue,
     /// Maximum sub-agent recursion depth (default 3). See
     /// `SubAgentRuntime::max_spawn_depth`. Override via
     /// `[subagents] max_depth = N` in `~/.mimofan/config.toml`.
@@ -212,7 +212,7 @@ impl Default for EngineConfig {
             compaction: CompactionConfig::default(),
             todos: new_shared_todo_list(),
             plan_state: new_shared_plan_state(),
-            goal_state: new_shared_goal_state(),
+            goal_queue: new_shared_goal_queue(),
             max_spawn_depth: crate::tools::subagent::DEFAULT_MAX_SPAWN_DEPTH,
             subagent_token_budget: None,
             network_policy: None,

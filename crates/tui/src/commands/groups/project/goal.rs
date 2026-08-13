@@ -124,7 +124,7 @@ fn close_hunt(app: &mut App, verdict: HuntVerdict, status: GoalStatus) -> Comman
     }
     app.hunt.verdict = verdict;
 
-    // Push the new status to the engine's SharedGoalState so the cross-turn
+    // Push the new status to the engine's SharedGoalQueue so the cross-turn
     // continuation loop respects it: pause/blocked stops the loop, complete
     // ends it, resume restarts it.
     let action = AppAction::SetGoalStatus {

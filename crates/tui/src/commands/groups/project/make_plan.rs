@@ -40,7 +40,7 @@ impl RegisterCommand for MakePlanCmd {
         if execute {
             // Plan-then-execute in one shot (CodeBuddy auto-plan/do parity).
             // The model first drafts the plan via checklist_write, then runs
-            // every step and closes the goal with `update_goal complete`,
+            // every step and closes the goal with `goal_update complete`,
             // reusing the `/goal` continuation pipeline for autonomous stepping.
             app.hunt.quarry = Some(task.to_string());
             app.hunt.token_budget = None;
@@ -62,10 +62,10 @@ impl RegisterCommand for MakePlanCmd {
                  immediately execute every planned step in order, updating each step's status \
                  to completed via checklist_write as you finish it.\n\n\
                  Task: {}\n\n\
-                 When ALL steps are completed, call `update_goal` with `status: \"complete\"`, \
+                 When ALL steps are completed, call `goal_update` with `status: \"complete\"`, \
                  concrete evidence of completion, and \
                  `verification: {{\"status\":\"passed\",\"check\":\"all steps done\",\"summary\":\"...\"}}` \
-                 to end the run. If you hit a real blocker, call `update_goal` with \
+                 to end the run. If you hit a real blocker, call `goal_update` with \
                  `status: \"blocked\"` and the blocker instead.",
                 task
             );

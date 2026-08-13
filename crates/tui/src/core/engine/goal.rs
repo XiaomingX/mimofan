@@ -1,4 +1,4 @@
-use crate::tools::goal::{GoalStatus, SharedGoalState};
+use crate::tools::goal::{GoalStatus, SharedGoalQueue};
 
 pub(super) fn normalized_goal_objective(value: Option<&str>) -> Option<String> {
     value
@@ -8,30 +8,36 @@ pub(super) fn normalized_goal_objective(value: Option<&str>) -> Option<String> {
 }
 
 pub(super) fn sync_goal_state_from_host(
-    goal_state: &SharedGoalState,
+    goal_queue: &SharedGoalQueue,
     objective: Option<&str>,
     token_budget: Option<u32>,
     status: GoalStatus,
 ) {
-    match goal_state.lock() {
-        Ok(mut state) => state.sync_from_host_status(objective, token_budget, status),
-        Err(err) => tracing::warn!("goal state lock poisoned while syncing host goal: {err}"),
+    match goal_queue.lock() {
+        Ok(mut queue) => {
+            // 将 host 目标落到「active」条目（若没有则入队一个新条目并提升）。
+            queue.sync_active_from_host(objective, token_budget, status);
+        }
+        Err(err) => tracing::warn!("goal queue lock poisoned while syncing host goal: {err}"),
     }
 }
 
 pub(super) fn goal_objective_for_prompt(
     configured_goal: Option<&str>,
-    goal_state: &SharedGoalState,
+    goal_queue: &SharedGoalQueue,
 ) -> Option<String> {
-    match goal_state.lock() {
-        Ok(state) => {
-            if let Some(objective) = state.objective() {
-                // Preserve original behavior: return None (not fallback) when
-                // objective exists but goal is inactive.
-                return state.is_active().then(|| objective.to_string());
+    match goal_queue.lock() {
+        Ok(queue) => {
+            if let Some(snapshot) = queue.active_snapshot() {
+                if let Some(objective) = snapshot.objective.as_ref() {
+                    // 仅当 active goal 仍在进行中才注入（与旧 is_active 行为一致）。
+                    if snapshot.status == GoalStatus::Active.as_str() {
+                        return Some(objective.clone());
+                    }
+                }
             }
         }
-        Err(err) => tracing::warn!("goal state lock poisoned while building prompt: {err}"),
+        Err(err) => tracing::warn!("goal queue lock poisoned while building prompt: {err}"),
     }
     normalized_goal_objective(configured_goal)
 }
@@ -47,27 +53,28 @@ pub(super) struct GoalContract {
     pub progress_checklist: Option<String>,
 }
 
-pub(super) fn goal_contract_for_prompt(goal_state: &SharedGoalState) -> Option<GoalContract> {
-    match goal_state.lock() {
-        Ok(state) => {
-            let objective = state.objective()?;
-            if !state.is_active() {
+pub(super) fn goal_contract_for_prompt(goal_queue: &SharedGoalQueue) -> Option<GoalContract> {
+    match goal_queue.lock() {
+        Ok(queue) => {
+            let snapshot = queue.active_snapshot()?;
+            let objective = snapshot.objective?;
+            if snapshot.status != GoalStatus::Active.as_str() {
                 return None;
             }
             Some(GoalContract {
-                objective: objective.to_string(),
-                completion_check: state
-                    .completion_verification()
+                objective,
+                completion_check: snapshot
+                    .completion_verification
+                    .as_ref()
                     .filter(|v| !v.check.trim().is_empty())
                     .map(|v| v.check.clone()),
-                progress_checklist: state
-                    .progress_checklist()
-                    .filter(|p| !p.trim().is_empty())
-                    .map(str::to_string),
+                progress_checklist: snapshot
+                    .progress_checklist
+                    .filter(|p| !p.trim().is_empty()),
             })
         }
         Err(err) => {
-            tracing::warn!("goal state lock poisoned while building goal contract: {err}");
+            tracing::warn!("goal queue lock poisoned while building goal contract: {err}");
             None
         }
     }

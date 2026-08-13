@@ -21,13 +21,15 @@ impl Engine {
     }
 
     pub(crate) fn goal_snapshot_for_event(&self) -> Option<GoalSnapshot> {
-        match self.config.goal_state.lock() {
+        match self.config.goal_queue.lock() {
             Ok(state) => {
-                let snapshot = state.snapshot();
-                snapshot.objective.is_some().then_some(snapshot)
+                let snapshot = state.active_snapshot();
+                snapshot
+                    .filter(|s| s.objective.is_some())
+                    .or_else(|| state.list_snapshot().entries.first().map(|e| e.goal.clone()))
             }
             Err(err) => {
-                tracing::warn!("goal state lock poisoned while emitting goal update: {err}");
+                tracing::warn!("goal queue lock poisoned while emitting goal update: {err}");
                 None
             }
         }
@@ -46,7 +48,7 @@ impl Engine {
         if token_delta == 0 && time_delta_seconds == 0 {
             return;
         }
-        match self.config.goal_state.lock() {
+        match self.config.goal_queue.lock() {
             Ok(mut state) => state.record_usage(token_delta, time_delta_seconds),
             Err(err) => tracing::warn!("goal state lock poisoned while recording usage: {err}"),
         }
@@ -242,7 +244,14 @@ impl Engine {
     /// done/blocked, the user pauses or clears, or an optional token/time
     /// budget is exhausted. The loop is "until done," not "until N turns."
     pub(crate) fn goal_continuation_if_active(&self) -> Option<String> {
-        let snapshot = self.config.goal_state.lock().ok()?.snapshot();
+        let snapshot = {
+            let mut queue = self.config.goal_queue.lock().ok()?;
+            // 无活动 goal 时尝试提升下一个就绪项。
+            if queue.active_id().is_none() {
+                queue.promote_next_ready();
+            }
+            queue.active_snapshot()?
+        };
         if !snapshot.is_active() {
             return None;
         }
@@ -299,47 +308,43 @@ impl Engine {
     }
 
     /// Handle `/goal pause|resume|clear|complete|blocked` (and `/loop` start)
-    /// by writing the new status to `SharedGoalState` so the cross-turn
+    /// by writing the new status to `SharedGoalQueue` so the cross-turn
     /// continuation loop respects it. This does NOT dispatch a model turn —
     /// it's a control-plane update. When `loop_config` is `Some`, the `/loop`-
     /// specific fields are applied (or staged if the objective does not exist
-    /// yet and will be created by `create_goal` on the first turn).
+    /// yet and will be created by `goal_enqueue` on the first turn).
     pub(crate) async fn handle_set_goal_status(
         &mut self,
         status: GoalStatus,
         clear: bool,
         loop_config: Option<crate::tools::goal::LoopConfig>,
     ) {
-        match self.config.goal_state.lock() {
+        match self.config.goal_queue.lock() {
             Ok(mut state) => {
                 if clear {
-                    // `/goal clear` — wipe the objective entirely.
-                    state.sync_from_host_status(None, None, GoalStatus::Active);
+                    // `/goal clear` — 清空整个队列。
+                    state.sync_active_from_host(None, None, GoalStatus::Active);
                 } else {
-                    // Update only the status; keep the objective and budget.
-                    // `sync_from_host_status` resets usage when the objective
-                    // changes, but here we pass the existing objective so usage
-                    // is preserved (pause/resume shouldn't reset the counter).
-                    let objective = state.objective().map(str::to_string);
-                    let budget = state.token_budget();
-                    state.sync_from_host_status(objective.as_deref(), budget, status);
+                    // 仅更新状态；保留目标与预算（pause/resume 不应重置计数）。
+                    let objective = state
+                        .active_snapshot()
+                        .and_then(|s| s.objective.clone());
+                    let budget = state
+                        .active_snapshot()
+                        .and_then(|s| s.token_budget);
+                    state.sync_active_from_host(objective.as_deref(), budget, status);
                 }
-                // `/loop` config: apply now if the objective exists, otherwise
-                // stage it so `create_goal` applies it once the objective is made.
+                // `/loop` 配置：应用到活动 goal（其 GoalState 自带 loop 字段）。
                 if let Some(cfg) = loop_config {
-                    if state.objective().is_some() {
-                        state.configure_loop(
-                            cfg.stop_condition,
-                            cfg.max_rounds,
-                            cfg.checkpoint_each_round,
-                        );
-                    } else {
-                        state.pending_loop_config = Some(cfg);
-                    }
+                    state.configure_active_loop(
+                        cfg.stop_condition,
+                        cfg.max_rounds,
+                        cfg.checkpoint_each_round,
+                    );
                 }
             }
             Err(err) => {
-                tracing::warn!("goal state lock poisoned during SetGoalStatus: {err}");
+                tracing::warn!("goal queue lock poisoned during SetGoalStatus: {err}");
             }
         }
         let label = if clear {

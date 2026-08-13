@@ -50,7 +50,7 @@ pub enum AppAction {
     /// dispatching a model turn. The UI layer translates this into
     /// `Op::SetGoalStatus`. `loop_config`, when `Some`, carries `/loop`-specific
     /// fields (stop condition, round cap, per-round checkpoint) written into the
-    /// engine's `SharedGoalState` when the goal is (re)created.
+    /// engine's `SharedGoalQueue` when the goal is (re)created.
     SetGoalStatus {
         status: crate::tools::goal::GoalStatus,
         clear: bool,

@@ -75,7 +75,7 @@ pub enum Event {
     },
 
     /// Runtime goal state changed inside the engine, usually from model-visible
-    /// `create_goal` or `update_goal` tool calls.
+    /// `goal_enqueue` or `goal_update` tool calls.
     GoalUpdated { snapshot: GoalSnapshot },
 
     /// Context compaction started.

@@ -1084,7 +1084,7 @@ pub fn system_prompt_for_mode_with_context_skills_session_and_approval(
             block = format!("{block}\n\n## Progress\n\n{progress}");
         }
         block = format!(
-            "{block}\n\n## Guardrails (anti-drift)\n\n- Stay scoped to the objective above. Do not expand scope or start unrelated work.\n- You will be stopped automatically if {} consecutive turns make no file changes, or if the same tool error repeats {} consecutive turns.\n- Report progress against the checklist each turn; when the Completion Criteria pass, call `update_goal` with `status: \"complete\"` and a concrete verifier result.",
+            "{block}\n\n## Guardrails (anti-drift)\n\n- Stay scoped to the objective above. Do not expand scope or start unrelated work.\n- You will be stopped automatically if {} consecutive turns make no file changes, or if the same tool error repeats {} consecutive turns.\n- Report progress against the checklist each turn; when the Completion Criteria pass, call `goal_update` with `status: \"complete\"` and a concrete verifier result.",
             crate::tools::goal::DEFAULT_NO_PROGRESS_ROUNDS,
             crate::tools::goal::DEFAULT_REPEATED_ERROR_ROUNDS,
         );

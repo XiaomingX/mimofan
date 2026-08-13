@@ -11,7 +11,7 @@
 //! committing.
 //!
 //! Scope: **decision logic + types**. The engine (`core/engine.rs`) reads the
-//! `SharedGoalState` snapshot after each turn and calls `decide_continuation`
+//! `SharedGoalQueue` snapshot after each turn and calls `decide_continuation`
 //! to decide whether to re-dispatch. There is **no continuation cap** — a goal
 //! runs until the model self-reports complete/blocked, the user pauses or
 //! clears, or an optional token/time budget is exhausted. This matches how a
