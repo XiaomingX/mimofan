@@ -78,6 +78,7 @@ pub(crate) mod mcp;
 mod mcp_server;
 mod mcp_server_backend;
 mod memory;
+mod memory_stats;
 mod turn_memory;
 mod model_inventory;
 mod model_profile;
