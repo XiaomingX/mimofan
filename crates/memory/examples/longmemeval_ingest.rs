@@ -161,15 +161,24 @@ fn main() {
         }
     };
 
-    // 检索阶段：用 question 的向量召回 Top-K session。
+    // 检索阶段：先用向量召回 Top-K 作为 base，再用 hybrid_bm25 叠加关键词
+    // 召回（claude-mem 路线：弱 embedding 下关键词兜底能救回向量漏掉的证据
+    // session）。这是 #777 评测 79% miss 的根因修复点。
     let filters = SearchFilters {
         project: Some(project.clone()),
         ..Default::default()
     };
-    let results = match store.search(&embed_local(&question), top_k, &filters) {
+    let base = match store.search(&embed_local(&question), top_k, &filters) {
         Ok(r) => r,
         Err(e) => {
             emit_error(&format!("检索失败: {e}"));
+            return;
+        }
+    };
+    let results = match store.hybrid_bm25(&question, &base, top_k) {
+        Ok(r) => r,
+        Err(e) => {
+            emit_error(&format!("混合检索失败: {e}"));
             return;
         }
     };

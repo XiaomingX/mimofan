@@ -328,6 +328,71 @@ impl VectorStore {
         Ok(matches)
     }
 
+    /// Hybrid retrieval: fuse vector similarity (`base`) with a lexical keyword
+    /// scan over ALL stored observations via Reciprocal Rank Fusion (RRF).
+    ///
+    /// This is the cheap, zero-dependency lexical fallback that makes recall
+    /// robust under a *weak* embedding (e.g. the local hash embedding used in
+    /// offline eval): when the vector index misses an evidence session whose
+    /// tokens nonetheless appear verbatim in the query, the keyword pass
+    /// recovers it. claude-mem's architecture confirms the same lesson — its
+    /// primary recall path is SQLite FTS5 keyword search, with semantic
+    /// embedding only an optional hybrid layer.
+    ///
+    /// Unlike an earlier boost-only variant, this implementation **independently
+    /// recalls** observations that match query tokens even when the vector index
+    /// returned nothing for them, then fuses the two rankings. That is what lets
+    /// it rescue vector-missed evidence rather than merely re-ranking hits.
+    pub fn hybrid_bm25(&self, query: &str, base: &[VectorMatch], limit: usize) -> Result<Vec<VectorMatch>> {
+        let tokens: Vec<String> = query
+            .split(|c: char| !c.is_alphanumeric())
+            .map(|t| t.to_lowercase())
+            .filter(|t| t.len() >= 3)
+            .collect();
+        if tokens.is_empty() {
+            return Ok(base.to_vec());
+        }
+        // Lexical rank over ALL observations: count query-token hits per content.
+        let rows = self.list_recent(None, usize::MAX)?;
+        let mut lexical: Vec<(i64, f32)> = rows
+            .into_iter()
+            .map(|o| {
+                let lower = o.content.to_lowercase();
+                let hits = tokens.iter().filter(|t| lower.contains(*t)).count() as f32;
+                (o.id, hits)
+            })
+            .filter(|(_, h)| *h > 0.0)
+            .collect();
+        lexical.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let rrf = |rank: usize| 1.0 / (60.0 + rank as f32 + 1.0);
+
+        // Seed with vector matches, preserving their similarity score.
+        let mut fused: Vec<VectorMatch> = base.to_vec();
+        let mut idx_of: std::collections::HashMap<i64, usize> = fused
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (m.observation.id, i))
+            .collect();
+        // Overlay lexical hits: boost existing matches; **insert** vector-missed
+        // matches so they are actually recalled, not just re-ranked.
+        for (rank, (id, hits)) in lexical.iter().enumerate() {
+            let lex_score = rrf(rank) * (1.0 + hits * 0.1);
+            if let Some(&i) = idx_of.get(id) {
+                fused[i].score = (fused[i].score + lex_score).min(1.0);
+            } else if let Some(obs) = self.load_observation(*id)? {
+                fused.push(VectorMatch {
+                    observation: obs,
+                    score: lex_score.min(1.0),
+                });
+                idx_of.insert(*id, fused.len() - 1);
+            }
+        }
+        fused.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        fused.truncate(limit);
+        Ok(fused)
+    }
+
     /// M7 access reinforcement: record that an observation was recalled by
     /// incrementing `access_count` and refreshing `last_accessed_at`. Errors are
     /// swallowed by callers (best-effort telemetry that must never break search).
