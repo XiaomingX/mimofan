@@ -609,7 +609,8 @@ mod tests {
         let backend: Box<dyn McpBackend> = Box::new(RealMcpBackend);
         // Use a throwaway temp dir as the workspace so file_read targets a
         // known location.
-        let workspace = std::env::temp_dir().join(format!("mimofan_mcp_test_{}", std::process::id()));
+        let workspace =
+            std::env::temp_dir().join(format!("mimofan_mcp_test_{}", std::process::id()));
         std::fs::create_dir_all(&workspace).unwrap();
         McpServer::new(workspace, settings, backend).unwrap()
     }
@@ -618,12 +619,18 @@ mod tests {
     fn tools_list_includes_file_read() {
         let server = test_server();
         let resp = server.list_tools_response();
-        let tools = resp.get("tools").and_then(Value::as_array).expect("tools array");
+        let tools = resp
+            .get("tools")
+            .and_then(Value::as_array)
+            .expect("tools array");
         let names: Vec<&str> = tools
             .iter()
             .filter_map(|t| t.get("name").and_then(Value::as_str))
             .collect();
-        assert!(names.contains(&"file_read"), "tools/list must expose file_read, got {names:?}");
+        assert!(
+            names.contains(&"file_read"),
+            "tools/list must expose file_read, got {names:?}"
+        );
     }
 
     #[tokio::test]
@@ -636,12 +643,12 @@ mod tests {
         }
         let result = server
             .registry
-            .execute(
-                "read_file",
-                json!({ "path": target.to_string_lossy() }),
-            )
+            .execute("read_file", json!({ "path": target.to_string_lossy() }))
             .await
             .expect("read_file executes");
-        assert!(result.contains("reverse-mcp-ok"), "file content returned, got {result}");
+        assert!(
+            result.contains("reverse-mcp-ok"),
+            "file content returned, got {result}"
+        );
     }
 }

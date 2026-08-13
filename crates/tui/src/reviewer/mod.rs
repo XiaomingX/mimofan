@@ -81,7 +81,10 @@ pub fn review(claim: &ClaimForReview) -> ReviewVerdict {
 
 /// 过滤：只保留可进入公开产物的 claim（Accepted）。
 pub fn accepted_only(claims: &[ClaimForReview]) -> Vec<&ClaimForReview> {
-    claims.iter().filter(|c| review(c) == ReviewVerdict::Accepted).collect()
+    claims
+        .iter()
+        .filter(|c| review(c) == ReviewVerdict::Accepted)
+        .collect()
 }
 
 #[cfg(test)]

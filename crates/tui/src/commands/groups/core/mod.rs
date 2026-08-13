@@ -8,8 +8,10 @@ mod clear;
 // This group dir intentionally has a `core.rs` child module with the same
 // name. The module_inception allow is a permanent structure rationale, not
 // migration scaffolding; see docs/architecture/command-dispatch.md.
+mod artifact_cmd;
 #[allow(clippy::module_inception)]
 mod core;
+mod evolve_cmd;
 mod exit;
 mod exit_plan;
 mod fast;
@@ -29,12 +31,10 @@ mod models;
 mod plan;
 mod profile;
 mod provider;
-mod research_cmd;
-mod evolve_cmd;
-mod repro_cmd;
-mod artifact_cmd;
-mod reviewer_cmd;
 pub mod queue;
+mod repro_cmd;
+mod research_cmd;
+mod reviewer_cmd;
 mod rlm;
 pub mod schedule;
 mod stash;

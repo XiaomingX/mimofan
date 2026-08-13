@@ -26,9 +26,7 @@ impl RegisterCommand for MakePlanCmd {
         let task = match task {
             Some(t) => t,
             None => {
-                return CommandResult::error(
-                    "Usage: /make-plan [--execute|-x] <task_description>",
-                );
+                return CommandResult::error("Usage: /make-plan [--execute|-x] <task_description>");
             }
         };
 
@@ -149,4 +147,3 @@ mod tests {
         assert_eq!(parse_make_plan_args(Some("   ")), (false, None));
     }
 }
-

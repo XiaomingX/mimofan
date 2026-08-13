@@ -234,19 +234,17 @@ fn parse_hunks(diff: &str) -> Vec<(String, Vec<DiffRow>)> {
             continue;
         }
 
-        let (kind, content, advance_old, advance_new) = if raw
-            .starts_with('+')
-            && !raw.starts_with("+++")
-        {
-            (LineKind::Added, raw.trim_start_matches('+'), false, true)
-        } else if raw.starts_with('-') && !raw.starts_with("---") {
-            (LineKind::Deleted, raw.trim_start_matches('-'), true, false)
-        } else if raw.starts_with(' ') {
-            (LineKind::Context, raw.trim_start_matches(' '), true, true)
-        } else {
-            // Unknown line (e.g. blank) — treat as context-less filler, skip.
-            continue;
-        };
+        let (kind, content, advance_old, advance_new) =
+            if raw.starts_with('+') && !raw.starts_with("+++") {
+                (LineKind::Added, raw.trim_start_matches('+'), false, true)
+            } else if raw.starts_with('-') && !raw.starts_with("---") {
+                (LineKind::Deleted, raw.trim_start_matches('-'), true, false)
+            } else if raw.starts_with(' ') {
+                (LineKind::Context, raw.trim_start_matches(' '), true, true)
+            } else {
+                // Unknown line (e.g. blank) — treat as context-less filler, skip.
+                continue;
+            };
 
         let row = DiffRow {
             kind,
@@ -401,12 +399,18 @@ fn render_side_by_side_pair(
         };
 
         let prefix_left = if i == 0 {
-            Span::styled(left_prefix.clone(), Style::default().fg(palette::TEXT_MUTED))
+            Span::styled(
+                left_prefix.clone(),
+                Style::default().fg(palette::TEXT_MUTED),
+            )
         } else {
             Span::raw(" ".repeat(left_prefix.width()))
         };
         let prefix_right = if i == 0 {
-            Span::styled(right_prefix.clone(), Style::default().fg(palette::TEXT_MUTED))
+            Span::styled(
+                right_prefix.clone(),
+                Style::default().fg(palette::TEXT_MUTED),
+            )
         } else {
             Span::raw(" ".repeat(right_prefix.width()))
         };

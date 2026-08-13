@@ -362,6 +362,54 @@ impl SessionManager {
         }
     }
 
+    /// Resolved path for a session's persisted loop-guard state file. Shares
+    /// the session id validation rules with
+    /// [`SessionManager::validated_session_path`].
+    pub fn loop_guard_path(&self, id: &str) -> std::io::Result<PathBuf> {
+        let session_path = self.validated_session_path(id)?;
+        Ok(session_path.with_extension("loop_guard.json"))
+    }
+
+    /// Persist a session's cross-turn loop-guard state to disk, so loop
+    /// suspicion continues across turns and process restarts.
+    pub fn save_loop_guard_state(
+        &self,
+        id: &str,
+        state: &crate::loop_guard::LoopGuardState,
+    ) -> std::io::Result<PathBuf> {
+        let path = self.loop_guard_path(id)?;
+        let content = serde_json::to_string_pretty(state)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        write_atomic(&path, content.as_bytes())?;
+        Ok(path)
+    }
+
+    /// Load a session's persisted loop-guard state, if any.
+    ///
+    /// Returns `Ok(None)` when the file is absent, and `Ok(None)` (with a
+    /// warning) when it is present but unparseable — the loop guard is purely
+    /// advisory, so a corrupt state file must never block a turn from starting.
+    pub fn load_loop_guard_state(
+        &self,
+        id: &str,
+    ) -> std::io::Result<Option<crate::loop_guard::LoopGuardState>> {
+        let path = self.loop_guard_path(id)?;
+        if !path.exists() {
+            return Ok(None);
+        }
+        let content = fs::read_to_string(&path).map_err(|e| {
+            tracing::warn!("failed to read loop_guard state {path:?}: {e}");
+            e
+        })?;
+        match serde_json::from_str::<crate::loop_guard::LoopGuardState>(&content) {
+            Ok(state) => Ok(Some(state)),
+            Err(e) => {
+                tracing::warn!("failed to parse loop_guard state {path:?}, skipping: {e}");
+                Ok(None)
+            }
+        }
+    }
+
     /// Save offline queue state (queued + draft messages).
     pub fn save_offline_queue_state(
         &self,

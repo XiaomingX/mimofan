@@ -121,3 +121,17 @@ split-debuginfo = "unpacked"
 strip = true
 lto = "thin"
 codegen-units = 16
+
+# ── Workspace-wide lints (inherited via `lints = "workspace"` per crate) ──
+[workspace.lints.rust]
+unsafe_code = "deny"
+dead_code = "warn"
+unreachable_pub = "warn"
+unused_lifetimes = "warn"
+rust_2018_idioms = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"

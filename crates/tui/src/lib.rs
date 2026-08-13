@@ -11,7 +11,7 @@
 // deliberately kept as the public surface for not-yet-wired consumers.
 // If a specific module's scaffolding is retired, delete it rather than
 // re-allowing it here.
-#![allow(dead_code)]
+#![allow(dead_code, unused)]
 
 use std::io;
 use std::path::PathBuf;
@@ -25,8 +25,8 @@ use dotenvy::dotenv;
 mod acp_server;
 mod artifacts;
 mod audit;
-mod auto_reasoning;
 mod auto_classifier;
+mod auto_reasoning;
 mod automation_manager;
 mod child_env;
 pub mod cli_commands;
@@ -71,6 +71,7 @@ mod hooks;
 mod llm_client;
 mod llm_response_cache;
 pub use mimofan_localization as localization;
+pub mod evolve;
 mod logging;
 pub mod loop_guard;
 mod lsp;
@@ -79,7 +80,6 @@ mod mcp_server;
 mod mcp_server_backend;
 mod memory;
 mod memory_stats;
-mod turn_memory;
 mod model_inventory;
 mod model_profile;
 mod model_registry;
@@ -88,19 +88,23 @@ pub mod models;
 mod network_policy;
 pub mod palette;
 mod prefix_cache;
-mod prompt_injection;
 mod pricing;
 mod project_context;
 mod project_context_cache;
 mod project_doc;
+mod prompt_injection;
 mod prompt_zones;
 mod prompts;
 mod purge;
 mod remote_setup;
 pub mod repl;
+pub mod repro;
 mod request_tuning;
+pub mod research_artifact;
+pub mod research_ethics;
 mod resource_telemetry;
 mod retry_status;
+pub mod reviewer;
 pub mod rlm;
 mod route_budget;
 mod route_runtime;
@@ -126,14 +130,10 @@ mod tokenizer;
 mod tool_output_receipts;
 pub mod tools;
 mod tui;
+mod turn_memory;
 mod utils;
 #[cfg(feature = "vector-memory")]
 pub mod vector_memory;
-pub mod repro;
-pub mod evolve;
-pub mod research_artifact;
-pub mod reviewer;
-pub mod research_ethics;
 mod vision;
 mod worker_profile;
 mod working_set;
@@ -489,14 +489,12 @@ pub async fn run() -> Result<()> {
                 Ok(())
             }
             Commands::Metrics(args) => cli_commands::run_metrics_command(args),
-            Commands::Update(args) => {
-                cli_commands::update::run_update(
-                    args.beta,
-                    args.check,
-                    args.proxy,
-                    args.allow_unverified,
-                )
-            }
+            Commands::Update(args) => cli_commands::update::run_update(
+                args.beta,
+                args.check,
+                args.proxy,
+                args.allow_unverified,
+            ),
             Commands::InstallDeps(args) => cli_commands::install_deps::run_install_deps(args.yes),
             Commands::Models(args) => {
                 let config = load_config_from_cli(&cli)?;

@@ -359,13 +359,10 @@ pub fn baseline_tools(catalog: &[Tool]) -> Vec<Tool> {
 /// Returns `(baseline_tools, incremental_names)`.
 pub fn select_tools(catalog: &[Tool], active: &HashSet<String>) -> (Vec<Tool>, Vec<String>) {
     let baseline = baseline_tools(catalog);
-    let baseline_names: HashSet<String> =
-        baseline.iter().map(|t| t.name.clone()).collect();
+    let baseline_names: HashSet<String> = baseline.iter().map(|t| t.name.clone()).collect();
     let incremental: Vec<String> = catalog
         .iter()
-        .filter(|tool| {
-            tool.defer_loading.unwrap_or(false) && active.contains(&tool.name)
-        })
+        .filter(|tool| tool.defer_loading.unwrap_or(false) && active.contains(&tool.name))
         .map(|tool| tool.name.clone())
         .filter(|name| !baseline_names.contains(name))
         .collect();
@@ -1071,8 +1068,8 @@ pub(super) async fn execute_code_execution_tool(
 #[cfg(test)]
 mod bm25_tests {
     use super::{
-        DEFAULT_ACTIVE_NATIVE_TOOLS, baseline_tools, discover_tools_with_bm25_like,
-        select_tools, should_default_defer_tool, tool_catalog_consistency_issues,
+        DEFAULT_ACTIVE_NATIVE_TOOLS, baseline_tools, discover_tools_with_bm25_like, select_tools,
+        should_default_defer_tool, tool_catalog_consistency_issues,
     };
     use crate::models::Tool;
     use serde_json::json;
@@ -1099,7 +1096,10 @@ mod bm25_tests {
             tool("read_file", "read a file from disk"),
             tool("write_file", "write a file to disk"),
             tool("grep_files", "search text inside files"),
-            tool("semantic_search", "perform semantic vector search over the codebase"),
+            tool(
+                "semantic_search",
+                "perform semantic vector search over the codebase",
+            ),
         ];
         let results = discover_tools_with_bm25_like(&catalog, "semantic", 10);
         assert!(!results.is_empty(), "query must return at least one hit");
@@ -1124,10 +1124,7 @@ mod bm25_tests {
         // catalog; if it is deferred the model cannot request approval and
         // Plan mode becomes a dead end.
         let always_load = HashSet::new();
-        assert!(!should_default_defer_tool(
-            "exit_plan_mode",
-            &always_load
-        ));
+        assert!(!should_default_defer_tool("exit_plan_mode", &always_load));
     }
 
     #[test]
@@ -1151,9 +1148,9 @@ mod bm25_tests {
     // 这些测试锁定 `tool_catalog_consistency_issues` 的双向契约，确保新增工具
     // 漏接一路（catalog 或 registry 任一侧）时 CI 失败，而非仅靠运行时 warn。
 
-    use crate::tools::spec::ToolContext;
     use crate::tools::ToolRegistry;
     use crate::tools::ToolRegistryBuilder;
+    use crate::tools::spec::ToolContext;
     use tempfile::TempDir;
 
     fn file_tools_registry() -> ToolRegistry {
@@ -1174,7 +1171,10 @@ mod bm25_tests {
         ];
         let registry = file_tools_registry();
         let issues = tool_catalog_consistency_issues(&catalog, &registry);
-        assert!(issues.is_empty(), "symmetric catalog/registry must be consistent: {issues:?}");
+        assert!(
+            issues.is_empty(),
+            "symmetric catalog/registry must be consistent: {issues:?}"
+        );
     }
 
     #[test]
@@ -1187,7 +1187,10 @@ mod bm25_tests {
         let registry = file_tools_registry();
         let issues = tool_catalog_consistency_issues(&catalog, &registry);
         let joined = issues.join("; ");
-        assert!(joined.contains("catalog advertises"), "missing-handler branch must be reported: {joined}");
+        assert!(
+            joined.contains("catalog advertises"),
+            "missing-handler branch must be reported: {joined}"
+        );
     }
 
     #[test]
@@ -1260,7 +1263,10 @@ mod bm25_tests {
         let names: Vec<&str> = base.iter().map(|t| t.name.as_str()).collect();
         assert!(names.contains(&"read_file"));
         assert!(names.contains(&"edit_file"));
-        assert!(!names.contains(&"tool_search"), "deferred tools excluded from baseline");
+        assert!(
+            !names.contains(&"tool_search"),
+            "deferred tools excluded from baseline"
+        );
     }
 
     #[test]
@@ -1282,7 +1288,14 @@ mod bm25_tests {
         let base_names: Vec<&str> = baseline.iter().map(|t| t.name.as_str()).collect();
         assert!(base_names.contains(&"read_file"));
         assert!(base_names.contains(&"edit_file"));
-        assert!(!base_names.contains(&"tool_search"), "deferred not in baseline tools[]");
-        assert_eq!(incremental, vec!["tool_search".to_string()], "activated deferred announced incrementally");
+        assert!(
+            !base_names.contains(&"tool_search"),
+            "deferred not in baseline tools[]"
+        );
+        assert_eq!(
+            incremental,
+            vec!["tool_search".to_string()],
+            "activated deferred announced incrementally"
+        );
     }
 }

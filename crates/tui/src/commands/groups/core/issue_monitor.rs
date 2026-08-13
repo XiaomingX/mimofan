@@ -324,12 +324,7 @@ fn handle_resume(app: &mut App, args: &[&str]) -> CommandResult {
     set_status(app, args, MonitorStatus::Active, "resume")
 }
 
-fn set_status(
-    app: &mut App,
-    args: &[&str],
-    status: MonitorStatus,
-    verb: &str,
-) -> CommandResult {
+fn set_status(app: &mut App, args: &[&str], status: MonitorStatus, verb: &str) -> CommandResult {
     if args.is_empty() {
         return CommandResult::message(format!("用法: /monitor {verb} <id>"));
     }

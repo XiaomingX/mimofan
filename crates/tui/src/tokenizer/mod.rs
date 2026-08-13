@@ -208,7 +208,10 @@ mod tests {
 
     #[test]
     fn counts_english_prose() {
-        assert_eq!(count_tokens("The quick brown fox jumps over the lazy dog."), 10);
+        assert_eq!(
+            count_tokens("The quick brown fox jumps over the lazy dog."),
+            10
+        );
     }
 
     #[test]
@@ -248,7 +251,9 @@ mod tests {
     #[test]
     fn counts_mixed_chinese_english() {
         assert_eq!(
-            count_tokens("在 Rust 中使用 tokio::spawn 启动异步任务时，需要注意 Send + 'static 约束。"),
+            count_tokens(
+                "在 Rust 中使用 tokio::spawn 启动异步任务时，需要注意 Send + 'static 约束。"
+            ),
             27
         );
     }
@@ -280,7 +285,13 @@ mod tests {
 
     #[test]
     fn openai_o200k_family_is_detected() {
-        for model in ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "openai/o1-preview"] {
+        for model in [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "o1",
+            "o3-mini",
+            "openai/o1-preview",
+        ] {
             assert_eq!(
                 Encoding::for_model(model),
                 Encoding::O200kBase,

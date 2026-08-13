@@ -274,7 +274,10 @@ mod tests {
         t.input_tokens = 100;
         t.prefix_cache_hit_rate = prefix_cache_hit_rate(t.input_tokens, t.cached_tokens);
         assert_eq!(t.prefix_cache_hits, 300, "absolute hits tracked separately");
-        assert!((t.prefix_cache_hit_rate - 0.75).abs() < 1e-9, "ratio derived independently");
+        assert!(
+            (t.prefix_cache_hit_rate - 0.75).abs() < 1e-9,
+            "ratio derived independently"
+        );
     }
 
     #[test]

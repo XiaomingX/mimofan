@@ -817,7 +817,10 @@ pub struct App {
     pub daily_cost_date: String,
     /// Highest budget alert level already surfaced per ceiling, so the same
     /// threshold doesn't re-toast on every subsequent accrual.
-    pub cost_budget_alerts: std::collections::HashMap<crate::cost_budget::CostBudgetKind, crate::cost_budget::CostBudgetLevel>,
+    pub cost_budget_alerts: std::collections::HashMap<
+        crate::cost_budget::CostBudgetKind,
+        crate::cost_budget::CostBudgetLevel,
+    >,
     pub composer_density: ComposerDensity,
     pub composer_border: bool,
     /// Voice input state — toggled by `/voice` and the voice hotbar action.

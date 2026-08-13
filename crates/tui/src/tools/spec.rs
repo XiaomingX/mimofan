@@ -26,9 +26,117 @@ use crate::tools::handle::{SharedHandleStore, new_shared_handle_store};
 use crate::tools::shell::{SharedShellManager, new_shared_shell_manager};
 use crate::worker_profile::ShellPolicy;
 pub use mimofan_tools::{
-    ApprovalRequirement, ToolCapability, ToolError, ToolResult, optional_bool, optional_str,
-    optional_u64, required_str, required_u64,
+    ApprovalRequirement, ToolCapability, ToolResult, optional_bool, optional_str, optional_u64,
+    required_str, required_u64,
 };
+
+/// Errors that can occur during tool execution.
+///
+/// This is the canonical tool-error taxonomy for the TUI crate. It mirrors the
+/// variant set exposed by `mimofan_tools::ToolError` (the library crate's
+/// definition) so every tool in `crates/tui/src/tools/*` continues to
+/// construct and match against the same machine-readable failure modes —
+/// notably [`ToolError::PathEscape`] (a path left the workspace sandbox) and
+/// [`ToolError::MissingField`] (a required tool argument was absent), which the
+/// engine and error-taxonomy layers branch on.
+///
+/// Kept as a real `enum` (not a type alias) so the TUI crate owns the decision
+/// surface for tool failures and can attach TUI-specific helpers without
+/// touching the library crate. The variant shapes are kept byte-for-byte
+/// compatible with `mimofan_tools::ToolError` so the cross-crate `From` impl in
+/// `error_taxonomy` and the ~60 construction sites compile unchanged.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ToolError {
+    /// Input validation failed for a tool-specific reason.
+    #[error("Failed to validate input: {message}")]
+    InvalidInput { message: String },
+    /// A required tool argument was missing.
+    #[error("Failed to validate input: missing required field '{field}'")]
+    MissingField { field: String },
+    /// A resolved path escaped the workspace boundary.
+    #[error("Failed to resolve path '{}': path escapes workspace", path.display())]
+    PathEscape { path: PathBuf },
+    /// The tool ran but its execution failed.
+    #[error("Failed to execute tool: {message}")]
+    ExecutionFailed { message: String },
+    /// The tool exceeded its allotted execution time.
+    #[error("Failed to execute tool: operation timed out after {seconds}s")]
+    Timeout { seconds: u64 },
+    /// The tool could not be located/initialized.
+    #[error("Failed to locate tool: {message}")]
+    NotAvailable { message: String },
+    /// The tool was denied authorization to run.
+    #[error("Failed to authorize tool execution: {message}")]
+    PermissionDenied { message: String },
+}
+
+impl ToolError {
+    /// Build a [`ToolError::InvalidInput`].
+    #[must_use]
+    pub fn invalid_input(msg: impl Into<String>) -> Self {
+        Self::InvalidInput {
+            message: msg.into(),
+        }
+    }
+
+    /// Build a [`ToolError::MissingField`].
+    #[must_use]
+    pub fn missing_field(field: impl Into<String>) -> Self {
+        Self::MissingField {
+            field: field.into(),
+        }
+    }
+
+    /// Build a [`ToolError::ExecutionFailed`].
+    #[must_use]
+    pub fn execution_failed(msg: impl Into<String>) -> Self {
+        Self::ExecutionFailed {
+            message: msg.into(),
+        }
+    }
+
+    /// Build a [`ToolError::PathEscape`].
+    #[must_use]
+    pub fn path_escape(path: impl Into<PathBuf>) -> Self {
+        Self::PathEscape { path: path.into() }
+    }
+
+    /// Build a [`ToolError::NotAvailable`].
+    #[must_use]
+    pub fn not_available(msg: impl Into<String>) -> Self {
+        Self::NotAvailable {
+            message: msg.into(),
+        }
+    }
+
+    /// Build a [`ToolError::PermissionDenied`].
+    #[must_use]
+    pub fn permission_denied(msg: impl Into<String>) -> Self {
+        Self::PermissionDenied {
+            message: msg.into(),
+        }
+    }
+}
+
+// The library crate (`mimofan_tools`) still defines its own `ToolError` and
+// the parser helpers (`required_str`, `optional_*`, …) return *that* type.
+// Tool implementations in this crate use `?` to convert those into this
+// crate's `ToolError`, so we provide the 1:1 mapping. The variant shapes are
+// identical, so each arm is a straight field move.
+impl From<mimofan_tools::ToolError> for ToolError {
+    fn from(other: mimofan_tools::ToolError) -> Self {
+        use mimofan_tools::ToolError as Upstream;
+        match other {
+            Upstream::InvalidInput { message } => Self::InvalidInput { message },
+            Upstream::MissingField { field } => Self::MissingField { field },
+            Upstream::PathEscape { path } => Self::PathEscape { path },
+            Upstream::ExecutionFailed { message } => Self::ExecutionFailed { message },
+            Upstream::Timeout { seconds } => Self::Timeout { seconds },
+            Upstream::NotAvailable { message } => Self::NotAvailable { message },
+            Upstream::PermissionDenied { message } => Self::PermissionDenied { message },
+        }
+    }
+}
 
 /// Universal default timeout (in ms) for network tools (fetch_url, web_run, web_search).
 pub const DEFAULT_NETWORK_TIMEOUT_MS: u64 = 15_000;
@@ -873,13 +981,14 @@ impl ToolContext {
         // 用真实 `Path::exists` 作为注入式闭包；内核给出词法越界/敏感/存在四态判定。
         // 越界且不在可信外部路径白名单内 → 直接返回 PathEscape，与原行为一致。
         // 内核不处理「可信外部路径例外 / 符号链接」，故此处仍保留既有二次校验。
-        let verdict = mimofan_execpolicy::path_guard::evaluate_path(
-            raw,
-            &self.workspace,
-            &|p: &Path| p.exists(),
-        );
-        if matches!(verdict, mimofan_execpolicy::path_guard::PathVerdict::EscapesWorkspace)
-            && !self.is_trusted_external_path(&candidate)
+        let verdict =
+            mimofan_execpolicy::path_guard::evaluate_path(raw, &self.workspace, &|p: &Path| {
+                p.exists()
+            });
+        if matches!(
+            verdict,
+            mimofan_execpolicy::path_guard::PathVerdict::EscapesWorkspace
+        ) && !self.is_trusted_external_path(&candidate)
         {
             return Err(ToolError::PathEscape {
                 path: candidate.clone(),
@@ -1270,7 +1379,10 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         // Canonicalize the workspace root: on macOS `/var` is a symlink to
         // `/private/var`, and `resolve_path` compares canonicalized paths.
-        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let ws = dir
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| dir.path().to_path_buf());
         let ctx = ToolContext::new(ws.clone()).with_trust_mode(true);
 
         let result = ctx.resolve_path("/etc/passwd");
@@ -1297,7 +1409,10 @@ mod tests {
             .path()
             .canonicalize()
             .unwrap_or_else(|_| trusted.path().to_path_buf());
-        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let ws = dir
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| dir.path().to_path_buf());
         let mut ctx = ToolContext::new(ws).with_trust_mode(true);
         ctx.trusted_external_paths.push(trusted_root.clone());
 

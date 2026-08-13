@@ -269,3 +269,121 @@ pub fn is_beta_tag(tag_name: &str) -> bool {
 fn version_is_beta(version: &semver::Version) -> bool {
     version.pre.as_str().to_ascii_lowercase().contains("beta")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn channel_from_beta_flag() {
+        assert_eq!(ReleaseChannel::from_beta_flag(true), ReleaseChannel::Beta);
+        assert_eq!(ReleaseChannel::from_beta_flag(false), ReleaseChannel::Stable);
+    }
+
+    #[test]
+    fn channel_label() {
+        assert_eq!(ReleaseChannel::Stable.label(), "stable");
+        assert_eq!(ReleaseChannel::Beta.label(), "beta");
+    }
+
+    #[test]
+    fn mirror_asset_url_joins_without_double_slash() {
+        assert_eq!(
+            mirror_asset_url("https://mirror.example.com/", "mimofan"),
+            "https://mirror.example.com/mimofan"
+        );
+        assert_eq!(
+            mirror_asset_url("https://mirror.example.com", "mimofan"),
+            "https://mirror.example.com/mimofan"
+        );
+    }
+
+    #[test]
+    fn beta_tag_detection_is_case_insensitive() {
+        assert!(is_beta_tag("v1.2.3-beta"));
+        assert!(is_beta_tag("BETA-1"));
+        assert!(!is_beta_tag("v1.2.3"));
+        assert!(!is_beta_tag("v1.2.3-stable"));
+    }
+
+    #[test]
+    fn parse_release_version_strips_prefix_and_build() {
+        assert_eq!(
+            parse_release_version("v1.2.3").unwrap(),
+            semver::Version::new(1, 2, 3)
+        );
+        assert_eq!(
+            parse_release_version("v1.2.3 (abc123)").unwrap(),
+            semver::Version::new(1, 2, 3)
+        );
+    }
+
+    #[test]
+    fn compare_release_versions_orders_correctly() {
+        assert_eq!(
+            compare_release_versions("v1.0.0", "v1.1.0").unwrap(),
+            std::cmp::Ordering::Less
+        );
+        assert_eq!(
+            compare_release_versions("v1.1.0", "v1.0.0").unwrap(),
+            std::cmp::Ordering::Greater
+        );
+        assert_eq!(
+            compare_release_versions("v1.0.0", "v1.0.0").unwrap(),
+            std::cmp::Ordering::Equal
+        );
+    }
+
+    #[test]
+    fn update_is_needed_stable() {
+        assert!(update_is_needed(ReleaseChannel::Stable, "v1.0.0", "v1.1.0").unwrap());
+        assert!(!update_is_needed(ReleaseChannel::Stable, "v1.1.0", "v1.0.0").unwrap());
+        assert!(!update_is_needed(ReleaseChannel::Stable, "v1.0.0", "v1.0.0").unwrap());
+    }
+
+    #[test]
+    fn latest_tag_parses_single_release() {
+        let body = r#"{"tag_name":"v2.3.4"}"#;
+        assert_eq!(latest_tag_from_release_json(body).unwrap(), "v2.3.4");
+    }
+
+    #[test]
+    fn latest_beta_tag_finds_first_beta() {
+        let body = r#"[{"tag_name":"v1.0.0"},{"tag_name":"v1.1.0-beta"},{"tag_name":"v2.0.0-beta"}]"#;
+        assert_eq!(
+            latest_beta_tag_from_release_list_json(body).unwrap(),
+            "v1.1.0-beta"
+        );
+    }
+
+    #[test]
+    fn latest_beta_tag_errors_when_none() {
+        let body = r#"[{"tag_name":"v1.0.0"},{"tag_name":"v1.1.0"}]"#;
+        assert!(latest_beta_tag_from_release_list_json(body).is_err());
+    }
+
+    #[test]
+    fn resolve_release_query_stable_uses_github_latest() {
+        // Without env overrides, the stable channel queries the GitHub latest
+        // release endpoint.
+        match resolve_release_query(ReleaseChannel::Stable) {
+            ReleaseQuery::GitHubLatest { url } => assert_eq!(url, LATEST_RELEASE_URL),
+            other => panic!("expected GitHubLatest, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_release_query_beta_uses_github_release_list() {
+        match resolve_release_query(ReleaseChannel::Beta) {
+            ReleaseQuery::GitHubReleaseList { url } => assert_eq!(url, RELEASES_URL),
+            other => panic!("expected GitHubReleaseList, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn fallback_hint_mentions_env_vars() {
+        let hint = update_network_fallback_hint();
+        assert!(hint.contains(RELEASE_BASE_URL_ENV));
+        assert!(hint.contains(UPDATE_VERSION_ENV));
+    }
+}

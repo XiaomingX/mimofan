@@ -7,11 +7,11 @@
 //! round (injected into the continuation prompt) and ends the loop by calling
 //! `goal_update` with `status: "complete"`.
 
+use crate::automation_manager::CreateAutomationRequest;
 use crate::commands::traits::{CommandInfo, RegisterCommand};
 use crate::localization::MessageId;
-use crate::tui::app::{App, AppAction, HuntVerdict};
 use crate::tools::goal::{GoalStatus, LoopConfig};
-use crate::automation_manager::CreateAutomationRequest;
+use crate::tui::app::{App, AppAction, HuntVerdict};
 
 use super::CommandResult;
 
@@ -41,7 +41,9 @@ fn loop_cmd(app: &mut App, arg: Option<&str>) -> CommandResult {
     // Sub-commands reuse the `/goal` control surface (shared verdict mapping).
     match arg {
         "clear" | "reset" => return clear_loop(app),
-        "done" | "complete" | "stop" => return close_loop(app, HuntVerdict::Hunted, GoalStatus::Complete),
+        "done" | "complete" | "stop" => {
+            return close_loop(app, HuntVerdict::Hunted, GoalStatus::Complete);
+        }
         "pause" | "paused" => return close_loop(app, HuntVerdict::Wounded, GoalStatus::Paused),
         "resume" | "continue" => return resume_loop(app),
         "block" | "blocked" => return close_loop(app, HuntVerdict::Escaped, GoalStatus::Blocked),
@@ -104,7 +106,10 @@ fn loop_cmd(app: &mut App, arg: Option<&str>) -> CommandResult {
     }
 
     CommandResult::with_message_and_action(
-        format!("Loop started: \"{}\"{detail} - repeating until the stop condition is met.", parsed.prompt),
+        format!(
+            "Loop started: \"{}\"{detail} - repeating until the stop condition is met.",
+            parsed.prompt
+        ),
         AppAction::SetGoalStatus {
             status: GoalStatus::Active,
             clear: false,
@@ -286,7 +291,13 @@ fn close_loop(app: &mut App, verdict: HuntVerdict, status: GoalStatus) -> Comman
 }
 
 fn resume_loop(app: &mut App) -> CommandResult {
-    let Some(objective) = app.hunt.quarry.as_deref().map(str::trim).filter(|o| !o.is_empty()) else {
+    let Some(objective) = app
+        .hunt
+        .quarry
+        .as_deref()
+        .map(str::trim)
+        .filter(|o| !o.is_empty())
+    else {
         return CommandResult::error("No paused loop set. Use /loop <prompt> first.");
     };
     app.hunt.verdict = HuntVerdict::Hunting;
@@ -361,7 +372,8 @@ mod tests {
 
     #[test]
     fn parses_until_max_checkpoint() {
-        let p = parse_loop_args("optimize foo --until \"all tests pass\" --max 5 --checkpoint").unwrap();
+        let p = parse_loop_args("optimize foo --until \"all tests pass\" --max 5 --checkpoint")
+            .unwrap();
         assert_eq!(p.prompt, "optimize foo");
         assert_eq!(p.stop_condition.as_deref(), Some("all tests pass"));
         assert_eq!(p.max_rounds, Some(5));

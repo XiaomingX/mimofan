@@ -1181,7 +1181,10 @@ ignored
 
     #[test]
     fn returns_none_when_section_missing_or_empty() {
-        assert_eq!(extract_compact_instructions("# Build\n\ncargo build\n"), None);
+        assert_eq!(
+            extract_compact_instructions("# Build\n\ncargo build\n"),
+            None
+        );
         assert_eq!(
             extract_compact_instructions("# Compact Instructions\n\n# Next\nbody\n"),
             None

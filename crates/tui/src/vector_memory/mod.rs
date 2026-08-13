@@ -30,13 +30,13 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "vector-memory")]
 use anyhow::{Context, Result};
 #[cfg(feature = "vector-memory")]
+use mimofan_memory::MemoryCategory;
+#[cfg(feature = "vector-memory")]
 use mimofan_memory::optimization::SearchCache;
 #[cfg(feature = "vector-memory")]
-use mimofan_memory::{
-    EmbeddingConfig, EmbeddingService, Observation, SearchFilters, VectorStore,
-};
+use mimofan_memory::compressor::{CompressionStrategy, ObservationCompressor};
 #[cfg(feature = "vector-memory")]
-use mimofan_memory::MemoryCategory;
+use mimofan_memory::{EmbeddingConfig, EmbeddingService, Observation, SearchFilters, VectorStore};
 
 /// 向量记忆后端：持有 embedding 服务与向量库，提供 remember/recall/list/inject 的
 /// 构建块。
@@ -153,7 +153,17 @@ impl VectorMemory {
         let store = self.store.as_ref().ok_or_else(|| {
             anyhow::anyhow!("vector-memory 未启用：请配置 MIMOFAN_MEMORY_API_KEY 后重启")
         })?;
-        let obs = Observation::new(project.to_string(), kind, content.to_string());
+        let mut obs = Observation::new(project.to_string(), kind, content.to_string());
+        // #716 slice: run the observation through `ObservationCompressor` on the
+        // production write path. Low-value / redundant memories are marked
+        // `Discard` and skipped, keeping the long-term store focused on
+        // high-signal memories (the `compression_applied_in_prod` guarantee).
+        let compressor = ObservationCompressor::new();
+        let strategy = compressor.analyze_observations(std::slice::from_ref(&obs));
+        if matches!(strategy.first(), Some(CompressionStrategy::Discard)) {
+            tracing::debug!("vector-memory: observation compressed away (discarded)");
+            return Ok(0);
+        }
         let id = store.store_observation(&obs, embedding)?;
         self.search_cache.borrow_mut().clear();
         Ok(id)
@@ -178,12 +188,7 @@ impl VectorMemory {
         // Build a cache key from the query shape + filters (not the raw
         // embedding, which is high-dimensional; the shape is what makes a
         // search result reusable).
-        let cache_key = format!(
-            "{:?}:{}:{}",
-            embedding.len(),
-            top_k,
-            project.unwrap_or("")
-        );
+        let cache_key = format!("{:?}:{}:{}", embedding.len(), top_k, project.unwrap_or(""));
 
         if let Some(cached) = self.search_cache.borrow().get(&cache_key) {
             tracing::debug!("vector-memory search cache hit for key {cache_key}");
@@ -198,7 +203,9 @@ impl VectorMemory {
             ..Default::default()
         };
         let matches = store.search(embedding, top_k, &filters)?;
-        self.search_cache.borrow_mut().insert(cache_key, matches.clone());
+        self.search_cache
+            .borrow_mut()
+            .insert(cache_key, matches.clone());
         Ok(matches
             .into_iter()
             .map(|m| (m.observation, m.score))
@@ -227,8 +234,23 @@ impl VectorMemory {
         if matches.is_empty() {
             return None;
         }
-        let mut lines = Vec::with_capacity(matches.len() + 2);
+        // #716 slice: produce a session-level summary of the recalled memories
+        // via `ObservationCompressor::summarize_session`, surfacing the key
+        // project decisions/background above the raw entries so the model gets
+        // both the compressed gist and the individual hits.
+        let observations: Vec<Observation> = matches.iter().map(|(o, _)| o.clone()).collect();
+        let compressor = ObservationCompressor::new();
+        let summary_line = compressor
+            .summarize_session(project, &observations)
+            .ok()
+            .map(|s| s.summary)
+            .filter(|s| !s.is_empty());
+
+        let mut lines = Vec::with_capacity(matches.len() + 3);
         lines.push(format!("<vector_memory project=\"{project}\">"));
+        if let Some(summary) = summary_line {
+            lines.push(format!("- (summary) {summary}"));
+        }
         for (obs, score) in matches {
             lines.push(format!(
                 "- [{}] {}  (score {:.2})",
@@ -254,8 +276,9 @@ impl VectorMemory {
 /// 权威分类 [`MemoryCategory`]。
 #[cfg(feature = "vector-memory")]
 pub fn parse_memory_category(s: &str) -> Result<MemoryCategory> {
-    MemoryCategory::from_str(s)
-        .ok_or_else(|| anyhow::anyhow!("无效的记忆分类 `{s}`，应为 user/feedback/project/reference 之一"))
+    MemoryCategory::from_str(s).ok_or_else(|| {
+        anyhow::anyhow!("无效的记忆分类 `{s}`，应为 user/feedback/project/reference 之一")
+    })
 }
 
 #[cfg(all(test, feature = "vector-memory"))]
@@ -284,13 +307,17 @@ mod tests {
     fn is_configured_false_without_api_key() {
         // Ensure the key is unset for this assertion; tests run in a clean
         // environment, but guard against CI leaking it.
-        unsafe { std::env::remove_var("MIMOFAN_MEMORY_API_KEY"); };
+        unsafe {
+            std::env::remove_var("MIMOFAN_MEMORY_API_KEY");
+        };
         assert!(!VectorMemory::is_configured());
     }
 
     #[test]
     fn open_without_backend_is_disabled_and_safe() {
-        unsafe { std::env::remove_var("MIMOFAN_MEMORY_API_KEY"); };
+        unsafe {
+            std::env::remove_var("MIMOFAN_MEMORY_API_KEY");
+        };
         let vm = VectorMemory::open(std::path::Path::new("/tmp/__vm_test_none")).unwrap();
         assert!(!vm.enabled());
     }
@@ -354,4 +381,3 @@ mod tests {
         assert!(cache.get(&other_key).is_none());
     }
 }
-

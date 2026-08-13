@@ -1450,4 +1450,3 @@ mod tests {
         assert_eq!(HookEvent::PostCompact.as_str(), "post_compact");
     }
 }
-

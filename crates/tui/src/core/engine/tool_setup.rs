@@ -84,8 +84,8 @@ impl Engine {
             ToolRegistryBuilder::new()
                 .with_agent_tools_policy(shell_policy)
                 .with_todo_tool(todo_list)
-            .with_plan_tool(plan_state)
-            .with_goal_tools(self.config.goal_queue.clone())
+                .with_plan_tool(plan_state)
+                .with_goal_tools(self.config.goal_queue.clone())
         };
 
         builder = builder

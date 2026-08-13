@@ -75,10 +75,12 @@ impl RiskBucket {
     #[must_use]
     pub fn from_tool_name(tool_name: &str) -> Self {
         match tool_name {
-            "read_file" | "list_dir" | "grep" | "search" | "session_search"
-            | "web_search" => RiskBucket::ReadOnly,
-            "write_file" | "edit_file" | "apply_patch" | "exec_shell" | "git_commit"
-            | "git" => RiskBucket::Mutating,
+            "read_file" | "list_dir" | "grep" | "search" | "session_search" | "web_search" => {
+                RiskBucket::ReadOnly
+            }
+            "write_file" | "edit_file" | "apply_patch" | "exec_shell" | "git_commit" | "git" => {
+                RiskBucket::Mutating
+            }
             "delete_file" | "git_reset" | "git_clean" | "drop_database" => RiskBucket::Destructive,
             "web_fetch" | "mcp_call" | "fetch_url" | "exec_shell_remote" => {
                 RiskBucket::NetworkEgress
@@ -194,7 +196,13 @@ pub fn classify_tool_call(
         return AutoPermissionDecision::Allow;
     }
     // Mutating/destructive/egress: refine via stage2, fail-closed to `Ask`.
-    classify_with_timeout(stage2, tool_name, input_summary, stage2_timeout, AutoPermissionDecision::Ask)
+    classify_with_timeout(
+        stage2,
+        tool_name,
+        input_summary,
+        stage2_timeout,
+        AutoPermissionDecision::Ask,
+    )
 }
 
 #[cfg(test)]
@@ -204,7 +212,12 @@ mod tests {
     #[test]
     fn readonly_tools_allowed_by_stage1() {
         assert_eq!(
-            classify_tool_call(&RuleBasedBackend, "read_file", "", Duration::from_millis(50)),
+            classify_tool_call(
+                &RuleBasedBackend,
+                "read_file",
+                "",
+                Duration::from_millis(50)
+            ),
             AutoPermissionDecision::Allow
         );
         assert_eq!(
@@ -217,11 +230,21 @@ mod tests {
     fn mutating_tools_escalate_under_rule_backend() {
         // No small model configured -> rule backend ceiling for mutating is `Ask`.
         assert_eq!(
-            classify_tool_call(&RuleBasedBackend, "write_file", "content", Duration::from_millis(50)),
+            classify_tool_call(
+                &RuleBasedBackend,
+                "write_file",
+                "content",
+                Duration::from_millis(50)
+            ),
             AutoPermissionDecision::Ask
         );
         assert_eq!(
-            classify_tool_call(&RuleBasedBackend, "exec_shell", "ls", Duration::from_millis(50)),
+            classify_tool_call(
+                &RuleBasedBackend,
+                "exec_shell",
+                "ls",
+                Duration::from_millis(50)
+            ),
             AutoPermissionDecision::Ask
         );
     }
@@ -234,7 +257,12 @@ mod tests {
             RiskBucket::Mutating
         );
         assert_eq!(
-            classify_tool_call(&RuleBasedBackend, "mystery_tool", "", Duration::from_millis(50)),
+            classify_tool_call(
+                &RuleBasedBackend,
+                "mystery_tool",
+                "",
+                Duration::from_millis(50)
+            ),
             AutoPermissionDecision::Ask
         );
     }
@@ -302,7 +330,13 @@ mod tests {
         }
         // With a working backend that returns Allow, we get Allow (not the fallback).
         assert_eq!(
-            classify_with_timeout(&AllowBackend, "write_file", "", Duration::from_millis(50), AutoPermissionDecision::Ask),
+            classify_with_timeout(
+                &AllowBackend,
+                "write_file",
+                "",
+                Duration::from_millis(50),
+                AutoPermissionDecision::Ask
+            ),
             AutoPermissionDecision::Allow
         );
     }

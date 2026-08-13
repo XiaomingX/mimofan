@@ -51,6 +51,103 @@ const DEFAULT_LOG_RETENTION_DAYS: u64 = 7;
 const LOG_RETENTION_ENV: &str = "MIMOFAN_LOG_RETENTION_DAYS";
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 
+/// Redact likely secrets from a single log line before it is written to disk.
+///
+/// The TUI log file lives under `~/.mimofan/logs/` and may be readable by
+/// anyone who can read that directory. Tool calls, config dumps and proxy
+/// traffic routinely embed provider API keys, OAuth tokens and bearer
+/// credentials, so every formatted log line is scrubbed through this function
+/// in the subscriber's writer layer (see [`RedactingWriter`]).
+///
+/// The scrubber is deliberately conservative: it never drops the whole line,
+/// only replaces the sensitive span with a fixed `***REDACTED***` placeholder,
+/// so debugging context (which tool, which host) survives while the credential
+/// does not. Patterns covered:
+///   * `sk-…` / `pk-…` style provider keys (OpenAI/DeepSeek/MiMo, 20+ base58 chars)
+///   * bearer / basic authorization headers
+///   * `key=`, `token=`, `secret=`, `password=`, `api_key=` assignments in URLs/JSON
+///   * AWS-style `AKIA[0-9A-Z]{16}` access key IDs
+///   * generic long bearer tokens following `Bearer `
+#[must_use]
+pub fn redact_secrets(line: &str) -> String {
+    const PLACEHOLDER: &str = "***REDACTED***";
+
+    // Pre-compiled once per process; cheap to clone for each call.
+    use regex::Regex;
+    use std::sync::OnceLock;
+
+    fn patterns() -> &'static [Regex] {
+        static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+        PATTERNS.get_or_init(|| {
+            vec![
+                // Provider API keys: sk-, pk-, or MiMo-style prefixes with a long secret body.
+                Regex::new(r"(?i)\b(sk|pk|rk|ss|org)-[A-Za-z0-9_\-]{20,}\b").unwrap(),
+                // AWS access key IDs.
+                Regex::new(r"\bAKIA[0-9A-Z]{16}\b").unwrap(),
+                // Authorization / Proxy-Authorization header values.
+                Regex::new(r"(?i)\b(authorization|proxy-authorization)\s*:\s*").unwrap(),
+                // Bearer tokens.
+                Regex::new(r"(?i)\bBearer\s+[A-Za-z0-9._\-+/=]{12,}").unwrap(),
+                // Basic auth credentials (user:pass@host) in URLs.
+                Regex::new(r"(?i)\bBasic\s+[A-Za-z0-9+/=]{8,}").unwrap(),
+                // key=/token=/secret=/password=/api_key=/access_token= assignments.
+                Regex::new(r#"(?i)\b(access[_-]?token|api[_-]?key|secret|token|password|client[_-]?secret|private[_-]?key)\s*=\s*("?)([^\s"',}]+)("?)"#).unwrap(),
+                // URL userinfo credentials: scheme://user:pass@host
+                Regex::new(r"(?i)([a-z][a-z0-9+.\-]*://)[^/\s:@]+:[^/\s:@]+@").unwrap(),
+            ]
+        })
+    }
+
+    let mut out = line.to_string();
+    for re in patterns() {
+        out = re
+            .replace_all(&out, |caps: &regex::Captures| {
+                // For the assignment pattern, keep the key name and surrounding
+                // quotes but replace only the value span.
+                if let Some(whole) = caps.get(0) {
+                    let s = whole.as_str();
+                    if let Some(eq) = s.find('=') {
+                        let prefix = &s[..eq + 1];
+                        return format!("{prefix}{PLACEHOLDER}");
+                    }
+                    // Authorization-header / url-userinfo patterns: replace the
+                    // whole matched credential run.
+                    return PLACEHOLDER.to_string();
+                }
+                PLACEHOLDER.to_string()
+            })
+            .into_owned();
+    }
+    out
+}
+
+/// A `tracing-subscriber` writer that scrubs secrets from every line before it
+/// reaches the underlying non-blocking file sink.
+///
+/// Wrapping the subscriber's writer (rather than post-processing the file)
+/// guarantees secrets are never written to disk in the first place, including
+/// from third-party crates that log request URLs or auth headers.
+struct RedactingWriter<W> {
+    inner: W,
+}
+
+impl<W: std::io::Write> std::io::Write for RedactingWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        // Tracing emits complete, newline-terminated records; scrub each line.
+        let text = String::from_utf8_lossy(buf);
+        let mut scrubbed = String::with_capacity(text.len());
+        for line in text.lines() {
+            scrubbed.push_str(&redact_secrets(line));
+            scrubbed.push('\n');
+        }
+        self.inner.write(scrubbed.as_bytes())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
 /// Owns the active tracing subscriber and (on Unix/Windows) a saved copy of
 /// the original `stderr` handle/fd so it can be restored on drop. Dropped when
 /// the TUI exits the alt-screen.
@@ -119,7 +216,12 @@ pub fn init() -> Result<TuiLogGuard> {
 
     let subscriber = tracing_subscriber::registry().with(env_filter).with(
         fmt::layer()
-            .with_writer(non_blocking)
+            // `with_writer` accepts a `Fn() -> impl Write`; each emitted record
+            // gets a fresh `RedactingWriter` over a clone of the non-blocking
+            // sink, so secrets are scrubbed from every line before it hits disk.
+            .with_writer(move || RedactingWriter {
+                inner: non_blocking.clone(),
+            })
             .with_ansi(false)
             .with_target(true)
             .with_thread_ids(false),

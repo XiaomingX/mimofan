@@ -1766,8 +1766,14 @@ mod tests {
 
     #[test]
     fn is_pdf_detects_content_type_and_extension() {
-        assert!(is_pdf(&Some("application/pdf".to_string()), "https://x.com/a"));
-        assert!(is_pdf(&Some("Application/PDF; charset=utf-8".to_string()), "https://x.com/a"));
+        assert!(is_pdf(
+            &Some("application/pdf".to_string()),
+            "https://x.com/a"
+        ));
+        assert!(is_pdf(
+            &Some("Application/PDF; charset=utf-8".to_string()),
+            "https://x.com/a"
+        ));
         assert!(is_pdf(&None, "https://x.com/report.PDF"));
         assert!(!is_pdf(&Some("text/html".to_string()), "https://x.com/a"));
         assert!(!is_pdf(&None, "https://x.com/a.txt"));

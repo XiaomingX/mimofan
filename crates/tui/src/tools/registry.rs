@@ -712,7 +712,7 @@ impl ToolRegistryBuilder {
     /// the shared background-shell kill path (`ShellCancelTool`).
     #[must_use]
     pub fn with_runtime_task_shell_tools(self) -> Self {
-        use super::tasks::{TaskShellStartTool, TaskShellWaitTool, TaskShellStopTool};
+        use super::tasks::{TaskShellStartTool, TaskShellStopTool, TaskShellWaitTool};
         self.with_tool(Arc::new(TaskShellStartTool))
             .with_tool(Arc::new(TaskShellWaitTool))
             .with_tool(Arc::new(TaskShellStopTool))

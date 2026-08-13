@@ -134,7 +134,9 @@ pub fn run_update(
         }
         None => {
             if allow_unverified {
-                println!("  (no SHA256 checksum manifest found; verification skipped via --allow-unverified)");
+                println!(
+                    "  (no SHA256 checksum manifest found; verification skipped via --allow-unverified)"
+                );
                 None
             } else {
                 bail!(
@@ -1219,8 +1221,10 @@ pub(crate) fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
                     )));
                 }
             }
-            return Err(anyhow::anyhow!(err)
-                .context(format!("failed to install new binary at {}", target.display())));
+            return Err(anyhow::anyhow!(err).context(format!(
+                "failed to install new binary at {}",
+                target.display()
+            )));
         }
 
         // 安装成功，备份不再需要。删不掉也不算错误（只是留个文件）。
@@ -1272,8 +1276,10 @@ pub(crate) fn replace_binary(target: &Path, new_bytes: &[u8]) -> Result<()> {
                     )));
                 }
             }
-            return Err(anyhow::anyhow!(err)
-                .context(format!("failed to install new binary at {}", target.display())));
+            return Err(anyhow::anyhow!(err).context(format!(
+                "failed to install new binary at {}",
+                target.display()
+            )));
         }
 
         // 旧文件仍被运行中的进程占用，此刻通常删不掉；删除失败不算错误，

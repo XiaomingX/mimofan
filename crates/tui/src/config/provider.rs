@@ -86,9 +86,7 @@ impl ApiProvider {
         match self {
             Self::OpenAiCompatible => Some("https://platform.openai.com/api-keys"),
             Self::AnthropicCompatible => Some("https://console.anthropic.com/settings/keys"),
-            Self::GeminiCompatible => {
-                Some("https://aistudio.google.com/app/apikey")
-            }
+            Self::GeminiCompatible => Some("https://aistudio.google.com/app/apikey"),
         }
     }
 

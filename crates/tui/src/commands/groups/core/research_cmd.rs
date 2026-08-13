@@ -69,7 +69,9 @@ fn research(app: &mut App, arg: Option<&str>) -> CommandResult {
     );
 
     CommandResult::with_message_and_action(
-        format!("Switched to Agent mode. Researching \"{topic}\" and persisting findings to memory..."),
+        format!(
+            "Switched to Agent mode. Researching \"{topic}\" and persisting findings to memory..."
+        ),
         AppAction::SendMessage(prompt),
     )
 }

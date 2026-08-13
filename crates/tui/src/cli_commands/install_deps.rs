@@ -9,8 +9,8 @@ use anyhow::Result;
 use std::process::Command;
 
 use crate::dependencies::{
-    probe_executable, resolve_node, resolve_pandoc, resolve_pdftotext,
-    resolve_python_interpreter, resolve_tesseract,
+    probe_executable, resolve_node, resolve_pandoc, resolve_pdftotext, resolve_python_interpreter,
+    resolve_tesseract,
 };
 
 /// 一个可被 mimofan 工具链使用的外部依赖。

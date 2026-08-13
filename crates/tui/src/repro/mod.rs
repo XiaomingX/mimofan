@@ -285,7 +285,8 @@ mod tests {
         let d = tmp();
         let snap = snapshot_env(&[]);
         let p = write_env_snapshot(&d, &snap).unwrap();
-        let back: EnvSnapshot = serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
+        let back: EnvSnapshot =
+            serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
         assert_eq!(back.rust_version, snap.rust_version);
         let _ = std::fs::remove_dir_all(&d);
     }

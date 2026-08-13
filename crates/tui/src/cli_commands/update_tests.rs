@@ -421,7 +421,10 @@ fn test_replace_binary_preserves_original_when_install_fails() {
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(original_mode))
         .expect("restore dir permissions");
 
-    assert!(result.is_err(), "replace must fail in a read-only directory");
+    assert!(
+        result.is_err(),
+        "replace must fail in a read-only directory"
+    );
     let content = std::fs::read_to_string(&target).expect("read binary after failed replace");
     assert_eq!(
         content, "old binary",

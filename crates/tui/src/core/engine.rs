@@ -669,8 +669,12 @@ impl Engine {
                 prompts::PromptSessionContext {
                     user_memory_block: user_memory_block.as_deref(),
                     goal_objective: prompt_goal_objective.as_deref(),
-                    goal_completion_check: goal_contract.as_ref().and_then(|c| c.completion_check.as_deref()),
-                    goal_progress_checklist: goal_contract.as_ref().and_then(|c| c.progress_checklist.as_deref()),
+                    goal_completion_check: goal_contract
+                        .as_ref()
+                        .and_then(|c| c.completion_check.as_deref()),
+                    goal_progress_checklist: goal_contract
+                        .as_ref()
+                        .and_then(|c| c.progress_checklist.as_deref()),
                     project_context_pack_enabled: config.project_context_pack_enabled,
                     locale_tag: &config.locale_tag,
                     translation_enabled: config.translation_enabled,
@@ -779,6 +783,50 @@ impl Engine {
             .map(std::sync::Arc::from);
 
         let active_route_limits = config.active_route_limits;
+
+        // ── Crash / interruption recovery (#D11.4) ──
+        // On startup, inspect the durable session transcript for a turn that
+        // was interrupted before completion (a dangling user prompt, or an
+        // assistant message with unfulfilled tool calls). If one is found,
+        // re-dispatch it as a fresh `SendMessage` so the user does not lose
+        // the in-flight request. Best-effort: if the channel is full or
+        // closed we fall back to logging the recovery signal and continue.
+        if let Some(resumable) = crate::core::engine::recovery::resume_interrupted_turn(&session) {
+            let prompt = resumable.prompt.clone();
+            tracing::warn!(
+                reason = %resumable.reason,
+                prompt_len = prompt.len(),
+                "resuming interrupted turn from durable session",
+            );
+            let resume_op = Op::SendMessage {
+                content: prompt,
+                mode: AppMode::Agent,
+                provider: None,
+                model: session.model.clone(),
+                goal_objective: config.goal_objective.clone(),
+                goal_token_budget: config.goal_token_budget,
+                goal_status: config.goal_status,
+                reasoning_effort: session.reasoning_effort.clone(),
+                reasoning_effort_auto: session.reasoning_effort_auto,
+                response_format: session.response_format.clone(),
+                auto_model: false,
+                allow_shell: config.allow_shell,
+                trust_mode: config.trust_mode,
+                auto_approve: session.auto_approve,
+                approval_mode: session.approval_mode,
+                translation_enabled: config.translation_enabled,
+                show_thinking: config.show_thinking,
+                allowed_tools: config.allowed_tools.clone(),
+                dynamic_tools: Vec::new(),
+                hook_executor: config.hook_executor.clone(),
+                verbosity: config.verbosity.clone(),
+                provenance: UserInputProvenance::Runtime,
+            };
+            if tx_op.try_send(resume_op).is_err() {
+                tracing::warn!("could not re-enqueue interrupted turn; recovery skipped");
+            }
+        }
+
         let engine = Engine {
             config,
             api_config: api_config.clone(),
@@ -1217,7 +1265,8 @@ impl Engine {
                         clear,
                         loop_config,
                     } => {
-                        self.handle_set_goal_status(status, clear, loop_config).await;
+                        self.handle_set_goal_status(status, clear, loop_config)
+                            .await;
                     }
                     Op::CancelRequest => {
                         self.cancel_token.cancel();
@@ -2354,12 +2403,11 @@ impl Engine {
     /// rules that can drift apart.
     fn route_compaction_budget(&mut self) -> Option<ContextBudget> {
         let input_tokens = self.estimated_input_tokens();
-        let window =
-            crate::route_budget::route_context_window_tokens(
-                self.api_provider,
-                &self.session.model,
-                self.active_route_limits,
-            );
+        let window = crate::route_budget::route_context_window_tokens(
+            self.api_provider,
+            &self.session.model,
+            self.active_route_limits,
+        );
         // A zero threshold means "no token budget configured" in
         // `compaction::should_compact`, which then falls back to a message-count
         // rule. Pass `None` so the budget gate uses its percent-of-window
@@ -2749,7 +2797,8 @@ impl Engine {
             self.config.goal_objective.as_deref(),
             &self.config.goal_queue,
         );
-        let goal_contract = crate::core::engine::goal::goal_contract_for_prompt(&self.config.goal_queue);
+        let goal_contract =
+            crate::core::engine::goal::goal_contract_for_prompt(&self.config.goal_queue);
         let base = prompts::system_prompt_for_mode_with_context_skills_session_and_approval(
             &self.config.workspace,
             None,
@@ -2758,8 +2807,12 @@ impl Engine {
             prompts::PromptSessionContext {
                 user_memory_block: user_memory_block.as_deref(),
                 goal_objective: prompt_goal_objective.as_deref(),
-                goal_completion_check: goal_contract.as_ref().and_then(|c| c.completion_check.as_deref()),
-                goal_progress_checklist: goal_contract.as_ref().and_then(|c| c.progress_checklist.as_deref()),
+                goal_completion_check: goal_contract
+                    .as_ref()
+                    .and_then(|c| c.completion_check.as_deref()),
+                goal_progress_checklist: goal_contract
+                    .as_ref()
+                    .and_then(|c| c.progress_checklist.as_deref()),
                 project_context_pack_enabled: self.config.project_context_pack_enabled,
                 locale_tag: &self.config.locale_tag,
                 translation_enabled: self.config.translation_enabled,
@@ -3010,6 +3063,8 @@ mod goal;
 mod handle;
 mod plugin_tools;
 mod policy;
+#[path = "engine/recovery.rs"]
+mod recovery;
 
 pub(crate) use context::compact_tool_result_for_context;
 use context::{
@@ -3019,6 +3074,7 @@ use context::{
 };
 pub use engine_config::EngineConfig;
 
+mod circuit_breaker;
 mod dispatch;
 mod lsp_hooks;
 mod streaming;
@@ -3028,7 +3084,6 @@ mod tool_execution;
 mod tool_setup;
 mod trace;
 mod turn_loop;
-mod circuit_breaker;
 pub(crate) use token_estimate_cache::TokenEstimateCache;
 
 pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;
@@ -3067,5 +3122,5 @@ use self::tool_catalog::{
 
 use self::tool_execution::emit_tool_audit;
 use self::tool_setup::{sandbox_policy_for_mode, shell_policy_for_mode};
-use crate::tools::plan::EXIT_PLAN_MODE_NAME;
 use crate::tools::js_execution::execute_js_execution_tool;
+use crate::tools::plan::EXIT_PLAN_MODE_NAME;

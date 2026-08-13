@@ -1211,10 +1211,7 @@ mod tests {
         let ctx = ctx(&dir);
 
         let err = ApplyPatchTool
-            .execute(
-                json!({ "path": "target.txt", "patch": patch_text() }),
-                &ctx,
-            )
+            .execute(json!({ "path": "target.txt", "patch": patch_text() }), &ctx)
             .await
             .expect_err("patching an unread file must be refused");
 
@@ -1238,10 +1235,7 @@ mod tests {
         ctx.note_file_read(&resolved);
 
         ApplyPatchTool
-            .execute(
-                json!({ "path": "target.txt", "patch": patch_text() }),
-                &ctx,
-            )
+            .execute(json!({ "path": "target.txt", "patch": patch_text() }), &ctx)
             .await
             .expect("patching after a read must be allowed");
 

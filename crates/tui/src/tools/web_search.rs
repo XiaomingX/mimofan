@@ -1581,12 +1581,9 @@ fn is_likely_spam_results(results: &[WebSearchEntry]) -> bool {
 /// domain is the last three labels, not the last two. This is a small curated
 /// set covering the common cases; a full public-suffix list would be heavier.
 const MULTI_LABEL_PUBLIC_SUFFIXES: &[&str] = &[
-    "co.uk", "org.uk", "ac.uk", "gov.uk", "ltd.uk", "me.uk", "net.uk", "sch.uk",
-    "com.au", "net.au", "org.au", "edu.au", "gov.au",
-    "com.cn", "net.cn", "org.cn", "gov.cn",
-    "com.br", "net.br", "org.br", "gov.br",
-    "co.nz", "ac.nz", "geek.nz",
-    "com.hk", "org.hk", "gov.hk",
+    "co.uk", "org.uk", "ac.uk", "gov.uk", "ltd.uk", "me.uk", "net.uk", "sch.uk", "com.au",
+    "net.au", "org.au", "edu.au", "gov.au", "com.cn", "net.cn", "org.cn", "gov.cn", "com.br",
+    "net.br", "org.br", "gov.br", "co.nz", "ac.nz", "geek.nz", "com.hk", "org.hk", "gov.hk",
 ];
 
 fn root_domain(url: &str) -> Option<String> {
@@ -1828,8 +1825,14 @@ mod tests {
             Some("example.co.uk".to_string())
         );
         // Two labels or fewer: bare host.
-        assert_eq!(root_domain("https://example.com"), Some("example.com".to_string()));
-        assert_eq!(root_domain("https://localhost:8080"), Some("localhost".to_string()));
+        assert_eq!(
+            root_domain("https://example.com"),
+            Some("example.com".to_string())
+        );
+        assert_eq!(
+            root_domain("https://localhost:8080"),
+            Some("localhost".to_string())
+        );
         // Strips credentials, port, query, fragment.
         assert_eq!(
             root_domain("https://user@example.com:443/p?q#f"),
@@ -1845,21 +1848,61 @@ mod tests {
     fn is_likely_spam_results_flags_domain_stuffing() {
         // 3-of-5 same root domain trips the 60% threshold.
         let spammy = vec![
-            WebSearchEntry { title: "a".into(), url: "https://x.forumgratuit.org/1".into(), snippet: None },
-            WebSearchEntry { title: "b".into(), url: "https://y.forumgratuit.org/2".into(), snippet: None },
-            WebSearchEntry { title: "c".into(), url: "https://z.forumgratuit.org/3".into(), snippet: None },
-            WebSearchEntry { title: "d".into(), url: "https://other.com/4".into(), snippet: None },
-            WebSearchEntry { title: "e".into(), url: "https://elsewhere.net/5".into(), snippet: None },
+            WebSearchEntry {
+                title: "a".into(),
+                url: "https://x.forumgratuit.org/1".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "b".into(),
+                url: "https://y.forumgratuit.org/2".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "c".into(),
+                url: "https://z.forumgratuit.org/3".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "d".into(),
+                url: "https://other.com/4".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "e".into(),
+                url: "https://elsewhere.net/5".into(),
+                snippet: None,
+            },
         ];
         assert!(is_likely_spam_results(&spammy));
 
         // 2-of-5 does not trip.
         let mixed = vec![
-            WebSearchEntry { title: "a".into(), url: "https://a.example.com".into(), snippet: None },
-            WebSearchEntry { title: "b".into(), url: "https://b.example.com".into(), snippet: None },
-            WebSearchEntry { title: "c".into(), url: "https://c.other.com".into(), snippet: None },
-            WebSearchEntry { title: "d".into(), url: "https://d.elsewhere.net".into(), snippet: None },
-            WebSearchEntry { title: "e".into(), url: "https://e.another.org".into(), snippet: None },
+            WebSearchEntry {
+                title: "a".into(),
+                url: "https://a.example.com".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "b".into(),
+                url: "https://b.example.com".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "c".into(),
+                url: "https://c.other.com".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "d".into(),
+                url: "https://d.elsewhere.net".into(),
+                snippet: None,
+            },
+            WebSearchEntry {
+                title: "e".into(),
+                url: "https://e.another.org".into(),
+                snippet: None,
+            },
         ];
         assert!(!is_likely_spam_results(&mixed));
 
@@ -1875,7 +1918,9 @@ mod tests {
         assert!(is_duckduckgo_challenge(
             "Unfortunately, bots use DuckDuckGo too"
         ));
-        assert!(!is_duckduckgo_challenge("<html><body>normal results</body></html>"));
+        assert!(!is_duckduckgo_challenge(
+            "<html><body>normal results</body></html>"
+        ));
     }
 
     #[test]
@@ -1884,7 +1929,10 @@ mod tests {
             normalize_url("https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com"),
             "https://example.com"
         );
-        assert_eq!(normalize_url("//cdn.example.com/a"), "https://cdn.example.com/a");
+        assert_eq!(
+            normalize_url("//cdn.example.com/a"),
+            "https://cdn.example.com/a"
+        );
         assert_eq!(
             normalize_url("/relative"),
             "https://duckduckgo.com/relative"
@@ -1922,7 +1970,10 @@ mod tests {
         // base64 of "https://real-example.com/page" with `-`/`_` alphabet + padding.
         let payload = "a1aHR0cHM6Ly9yZWFsLWV4YW1wbGUuY29tL3BhZ2U";
         let wrapped = format!("https://www.bing.com/ck/a?u={payload}");
-        assert_eq!(normalize_bing_url(&wrapped), "https://real-example.com/page");
+        assert_eq!(
+            normalize_bing_url(&wrapped),
+            "https://real-example.com/page"
+        );
 
         // Non-http decoded payload falls back to protocol-relative.
         assert_eq!(
@@ -1931,4 +1982,3 @@ mod tests {
         );
     }
 }
-

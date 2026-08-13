@@ -60,9 +60,7 @@ fn do_share(app: &mut App, local: bool) -> CommandResult {
 
     // Use an AppAction to signal the engine to perform the async work.
     let hint = if local {
-        format!(
-            "Exporting {history_len} cell(s) from {model} ({mode}) session to a local file..."
-        )
+        format!("Exporting {history_len} cell(s) from {model} ({mode}) session to a local file...")
     } else {
         format!(
             "Exporting {history_len} cell(s) from {model} ({mode}) session...\n\n\
@@ -192,7 +190,8 @@ fn write_local_markdown(md: &str) -> Result<PathBuf, String> {
     let path = std::env::current_dir()
         .map_err(|e| format!("Cannot resolve current directory: {e}"))?
         .join(&filename);
-    let mut file = std::fs::File::create(&path).map_err(|e| format!("Failed to create {filename}: {e}"))?;
+    let mut file =
+        std::fs::File::create(&path).map_err(|e| format!("Failed to create {filename}: {e}"))?;
     file.write_all(md.as_bytes())
         .map_err(|e| format!("Failed to write {filename}: {e}"))?;
     Ok(path)

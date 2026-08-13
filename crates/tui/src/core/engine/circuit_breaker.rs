@@ -96,7 +96,10 @@ impl CircuitBreaker {
 
     /// Record a failure at `now`; trips open after the threshold.
     pub fn record_failure(&mut self, key: &str, now: Instant) {
-        let s = self.states.entry(key.to_string()).or_insert_with(BreakerState::new);
+        let s = self
+            .states
+            .entry(key.to_string())
+            .or_insert_with(BreakerState::new);
         s.failures += 1;
         if s.failures >= self.failure_threshold {
             s.opened_at = Some(now);

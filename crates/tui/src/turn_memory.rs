@@ -86,7 +86,9 @@ fn rules() -> Vec<Rule<'static>> {
         },
         // Stable preference / "always / 以后 / 偏好".
         Rule {
-            pattern: compile(r"(?im)(?:我(?:的)?偏好|我习惯|以后|总是|一律|always|默认都|统一)\s*[:：]?\s*(.+)"),
+            pattern: compile(
+                r"(?im)(?:我(?:的)?偏好|我习惯|以后|总是|一律|always|默认都|统一)\s*[:：]?\s*(.+)",
+            ),
             category: MemoryCategory::Feedback,
             store_verbatim: true,
             _marker: std::marker::PhantomData,
@@ -100,7 +102,9 @@ fn rules() -> Vec<Rule<'static>> {
         },
         // Explicit decision / choice between options.
         Rule {
-            pattern: compile(r"(?im)(?:决定(?:用|采用|使用)?|采用|选定|选用|确定用)\s*[:：]?\s*(.+)"),
+            pattern: compile(
+                r"(?im)(?:决定(?:用|采用|使用)?|采用|选定|选用|确定用)\s*[:：]?\s*(.+)",
+            ),
             category: MemoryCategory::Project,
             store_verbatim: true,
             _marker: std::marker::PhantomData,
@@ -193,7 +197,9 @@ mod tests {
 
     #[test]
     fn extracts_explicit_remember() {
-        let msgs = vec![user_msg("请记住：我喜欢用 Rust 写工具，不要生成 Python 脚本")];
+        let msgs = vec![user_msg(
+            "请记住：我喜欢用 Rust 写工具，不要生成 Python 脚本",
+        )];
         let signals = extract_signals(&msgs);
         assert!(signals.iter().any(|s| s.category == MemoryCategory::User));
         assert!(
@@ -208,20 +214,20 @@ mod tests {
     fn extracts_decision() {
         let msgs = vec![user_msg("决定采用 SQLite 而不是 Postgres 作为本地存储")];
         let signals = extract_signals(&msgs);
-        assert!(signals
-            .iter()
-            .any(|s| s.category == MemoryCategory::Project
-                && s.content.contains("SQLite")
-                && s.content.contains("Postgres")));
+        assert!(signals.iter().any(|s| s.category == MemoryCategory::Project
+            && s.content.contains("SQLite")
+            && s.content.contains("Postgres")));
     }
 
     #[test]
     fn extracts_correction_as_feedback() {
         let msgs = vec![user_msg("不对，应该用异步调用，不要阻塞主线程")];
         let signals = extract_signals(&msgs);
-        assert!(signals
-            .iter()
-            .any(|s| s.category == MemoryCategory::Feedback && s.content.contains("异步")));
+        assert!(
+            signals
+                .iter()
+                .any(|s| s.category == MemoryCategory::Feedback && s.content.contains("异步"))
+        );
     }
 
     #[test]

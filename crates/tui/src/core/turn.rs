@@ -293,7 +293,10 @@ mod tests {
 
         assert_eq!(turn.tool_call_count(), 2);
         assert_eq!(turn.tool_call_total_duration(), Duration::from_millis(400));
-        assert_eq!(turn.tool_call_avg_duration(), Some(Duration::from_millis(200)));
+        assert_eq!(
+            turn.tool_call_avg_duration(),
+            Some(Duration::from_millis(200))
+        );
         assert!(turn.has_tool_calls());
     }
 

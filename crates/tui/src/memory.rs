@@ -25,14 +25,57 @@ use std::sync::OnceLock;
 use chrono::Utc;
 use regex::Regex;
 
-// `MemoryCategory` 的权威定义已提升到 `mimofan-memory` crate（见
-// `mrates/memory/src/category.rs`），消除底层 crate 反向依赖 tui 类型的架构
-// 异味。此处 re-export 以保持 `crate::memory::MemoryCategory` 调用点不变。
-pub use mimofan_memory::MemoryCategory;
+// `MemoryCategory` is the four-way long-term memory classification
+// (user / feedback / project / reference). It is declared locally here as the
+// authoritative `crate::memory::MemoryCategory` so the tui crate owns the type
+// and keeps call sites stable; `mimofan_memory::category` provides the
+// mirrored implementation for the storage layer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MemoryCategory {
+    /// Preferences, facts, and context about the user.
+    User,
+    /// Corrections, guidance, and how-to instructions.
+    Feedback,
+    /// Project-scoped state, decisions, and todos.
+    Project,
+    /// External references (docs, APIs, pointers).
+    Reference,
+}
+
+impl MemoryCategory {
+    /// All categories, in canonical order.
+    pub const ALL: &'static [MemoryCategory] = &[
+        MemoryCategory::User,
+        MemoryCategory::Feedback,
+        MemoryCategory::Project,
+        MemoryCategory::Reference,
+    ];
+
+    /// Stable string form (lowercase), used for file names and serialization.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MemoryCategory::User => "user",
+            MemoryCategory::Feedback => "feedback",
+            MemoryCategory::Project => "project",
+            MemoryCategory::Reference => "reference",
+        }
+    }
+
+    /// Parse a category from a string (case-insensitive).
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "user" => Some(MemoryCategory::User),
+            "feedback" => Some(MemoryCategory::Feedback),
+            "project" => Some(MemoryCategory::Project),
+            "reference" => Some(MemoryCategory::Reference),
+            _ => None,
+        }
+    }
+}
 // #732/#659: re-export the cross-session `UserProfile` API so the engine can
 // inject/distill it via `crate::memory::UserProfile` / `inject_user_profile` /
 // `distill_session` (consistent with the `MemoryCategory` re-export above).
-pub use mimofan_memory::{distill_session, inject_user_profile, UserProfile};
+pub use mimofan_memory::{UserProfile, distill_session, inject_user_profile};
 
 /// 兼容旧调用点的分类名列表（由 [`MemoryCategory`] 派生）。
 pub const CATEGORIES: &[&str] = &["user", "feedback", "project", "reference"];
@@ -174,7 +217,9 @@ pub fn split_paths_tag(line: &str) -> (String, Option<Vec<String>>) {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-        let text = format!("{}{}", &line[..m.start()], &line[m.end()..]).trim().to_string();
+        let text = format!("{}{}", &line[..m.start()], &line[m.end()..])
+            .trim()
+            .to_string();
         let globs = if globs.is_empty() { None } else { Some(globs) };
         (text, globs)
     } else {
@@ -233,9 +278,7 @@ fn strip_timestamp(body: &str) -> String {
 
 fn timestamp_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r"^\([^)]*\)\s*").expect("timestamp regex should compile")
-    })
+    RE.get_or_init(|| Regex::new(r"^\([^)]*\)\s*").expect("timestamp regex should compile"))
 }
 
 /// Compose the `<user_memory_index>` block for the system prompt, honouring
@@ -271,9 +314,7 @@ pub fn compose_index_block(
         content
     };
 
-    let mut block = format!(
-        "<user_memory_index source=\"{display}\">\n{payload}"
-    );
+    let mut block = format!("<user_memory_index source=\"{display}\">\n{payload}");
 
     // Conditionally inline path-scoped bullets when we know the active paths.
     if let Some(active) = active_paths {
@@ -396,7 +437,12 @@ pub fn remove_entry(dir: &Path, category: &str, matcher: &str) -> io::Result<boo
 /// The matched line keeps its `- (timestamp)` prefix but gets a fresh
 /// timestamp and the new body. Returns `true` when a line was replaced.
 /// Refreshes the index. Errors on an unknown category or I/O failure.
-pub fn replace_entry(dir: &Path, category: &str, matcher: &str, new_text: &str) -> io::Result<bool> {
+pub fn replace_entry(
+    dir: &Path,
+    category: &str,
+    matcher: &str,
+    new_text: &str,
+) -> io::Result<bool> {
     if !is_category(category) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -555,9 +601,8 @@ mod tests {
         assert_eq!(text2, "- plain note");
         assert!(paths2.is_none());
 
-        let (text3, paths3) = split_paths_tag(
-            "- (ts) multi <!-- paths: src/api/*.ts, **/auth*.ts --> trailing",
-        );
+        let (text3, paths3) =
+            split_paths_tag("- (ts) multi <!-- paths: src/api/*.ts, **/auth*.ts --> trailing");
         assert!(text3.contains("multi"));
         assert!(text3.contains("trailing"));
         assert_eq!(
@@ -570,27 +615,15 @@ mod tests {
     fn paths_match_behaviour() {
         let active = vec!["src/api/v1/login.ts".to_string(), "README.md".to_string()];
         // `src/api/**/*.ts` should match a file under src/api.
-        assert!(paths_match(
-            &["src/api/**/*.ts".to_string()],
-            &active
-        ));
+        assert!(paths_match(&["src/api/**/*.ts".to_string()], &active));
         // `**/auth*.ts` should NOT match the active set (no auth file present).
-        assert!(!paths_match(
-            &["**/auth*.ts".to_string()],
-            &active
-        ));
+        assert!(!paths_match(&["**/auth*.ts".to_string()], &active));
         // Non-matching glob.
-        assert!(!paths_match(
-            &["tests/**/*.rs".to_string()],
-            &active
-        ));
+        assert!(!paths_match(&["tests/**/*.rs".to_string()], &active));
         // Empty globs => always apply.
         assert!(paths_match(&[], &active));
         // Empty active => nothing matches (unless always-apply).
-        assert!(!paths_match(
-            &["src/api/**/*.ts".to_string()],
-            &[]
-        ));
+        assert!(!paths_match(&["src/api/**/*.ts".to_string()], &[]));
     }
 
     #[test]
@@ -612,8 +645,7 @@ mod tests {
         .unwrap();
 
         // No active paths => only index pointers, no <memory_paths_matches>.
-        let block_none =
-            compose_index_block(true, &dir, None).expect("block built");
+        let block_none = compose_index_block(true, &dir, None).expect("block built");
         assert!(block_none.contains("- [project](project.md)"));
         assert!(!block_none.contains("<memory_paths_matches>"));
 

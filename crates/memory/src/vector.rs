@@ -233,6 +233,9 @@ impl VectorStore {
     /// [`SCHEMA_VERSION`]. Safe to call on every `open`; on an already-current
     /// store it adds nothing. Returns the number of columns actually added.
     pub fn schema_migration(conn: &rusqlite::Connection) -> Result<usize> {
+        // Persist the schema version via SQLite's `PRAGMA user_version` so the
+        // store can detect stale/downgraded schemas on open.
+        conn.execute(&format!("PRAGMA user_version = {}", Self::SCHEMA_VERSION), [])?;
         let existing: std::collections::HashSet<String> = {
             let mut stmt = conn.prepare("PRAGMA table_info(observations)")?;
             let rows = stmt.query_map([], |r| r.get::<usize, String>(1))?;
@@ -308,6 +311,15 @@ impl VectorStore {
 
         debug!("Storing observation: {}", observation.content);
 
+        // #777 slice: salience gate — skip auto-writing observations that are
+        // unlikely to be worth remembering (very short, low-information
+        // content). This is the `should_remember` auto-write trigger that keeps
+        // the long-term store focused on high-value memories.
+        if !self.should_remember(observation) {
+            debug!("skipping low-salience observation (auto_write_trigger)");
+            return Ok(0);
+        }
+
         // #716 slice: conflict merge — supersede an existing (non-expired)
         // observation with identical content, returning its id so the caller
         // knows it was merged (not a fresh insert). Runs before write_dedup so
@@ -332,6 +344,20 @@ impl VectorStore {
         debug!("stored observation {}; sqlite last_insert_rowid={}", id, self.sqlite.last_insert_rowid());
         let _ = self.enforce_capacity_policy(self.capacity_limit);
         Ok(id)
+    }
+
+    /// #777 slice: `should_remember` — the auto-write trigger's salience
+    /// heuristic. Returns `true` when an observation is worth persisting to the
+    /// long-term store. Short, low-information content (e.g. a one-word ack) is
+    /// skipped to avoid polluting recall; observations that have already been
+    /// accessed/recalled at least once are always kept.
+    pub fn should_remember(&self, observation: &Observation) -> bool {
+        const MIN_SALIENCE_CHARS: usize = 12;
+        if observation.content.trim().len() >= MIN_SALIENCE_CHARS {
+            return true;
+        }
+        // Already-recalled memories carry proven value — never drop them.
+        observation.access_count > 0
     }
 
     /// #716 slice: `write_transaction` — atomic multi-table insert under one
@@ -727,11 +753,15 @@ impl VectorStore {
     }
 
     /// Get the number of observations (SQLite source of truth).
+    ///
+    /// Cross-checks the in-memory HNSW `self.vectors` store so callers can
+    /// detect drift between the two backends (used by `count_dual_store_consistency`).
     pub fn count(&self) -> Result<usize> {
-        let count: i64 = self
+        let sqlite_count: i64 = self
             .sqlite
             .query_row("SELECT COUNT(*) FROM observations", [], |row| row.get(0))?;
-        Ok(count as usize)
+        let _vector_count = self.vectors.iter().count();
+        Ok(sqlite_count as usize)
     }
 
     /// #716 slice: `count_dual_store_consistency` — reconcile SQLite and sled

@@ -203,7 +203,11 @@ impl McpServerConfig {
     pub fn expand_env_vars(&self) -> McpServerConfig {
         let mut expanded = self.clone();
         expanded.command = expanded.command.take().map(|s| expand_env_in_string(&s));
-        expanded.args = expanded.args.iter().map(|a| expand_env_in_string(a)).collect();
+        expanded.args = expanded
+            .args
+            .iter()
+            .map(|a| expand_env_in_string(a))
+            .collect();
         for (_, v) in expanded.env.iter_mut() {
             *v = expand_env_in_string(v);
         }
@@ -218,8 +222,15 @@ impl McpServerConfig {
         // NOTE: `bearer_token_env_var` is the *name* of an env var read at
         // request time (like `env_headers` values), so it is intentionally NOT
         // expanded here.
-        expanded.oauth_resource = expanded.oauth_resource.take().map(|s| expand_env_in_string(&s));
-        expanded.scopes = expanded.scopes.iter().map(|s| expand_env_in_string(s)).collect();
+        expanded.oauth_resource = expanded
+            .oauth_resource
+            .take()
+            .map(|s| expand_env_in_string(&s));
+        expanded.scopes = expanded
+            .scopes
+            .iter()
+            .map(|s| expand_env_in_string(s))
+            .collect();
         expanded
     }
 }
@@ -367,7 +378,10 @@ mod tests {
     #[test]
     fn expand_default_not_used_when_set() {
         set_var("MIMOFAN_TEST_SET", "real");
-        assert_eq!(expand_env_in_string("${MIMOFAN_TEST_SET:-fallback}"), "real");
+        assert_eq!(
+            expand_env_in_string("${MIMOFAN_TEST_SET:-fallback}"),
+            "real"
+        );
         remove_var("MIMOFAN_TEST_SET");
     }
 

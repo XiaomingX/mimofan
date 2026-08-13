@@ -40,7 +40,10 @@ pub(crate) async fn apply_provider_picker_api_key(
     // Built-in OpenAI-compatible (formerly XiaomiMimo) uses `config.api_key`
     // plus `providers.openai_compatible`. Distinguish by provider name.
     if matches!(provider, ApiProvider::OpenAiCompatible)
-        && !config.provider.as_deref().is_some_and(|p| p != "openai-compatible")
+        && !config
+            .provider
+            .as_deref()
+            .is_some_and(|p| p != "openai-compatible")
     {
         config.api_key = Some(api_key);
     } else {

@@ -669,7 +669,12 @@ impl GoalQueue {
             }
             _ => {
                 if objective.is_some_and(|o| !o.trim().is_empty()) {
-                    self.enqueue(objective.unwrap_or_default().to_string(), token_budget, 0, Vec::new());
+                    self.enqueue(
+                        objective.unwrap_or_default().to_string(),
+                        token_budget,
+                        0,
+                        Vec::new(),
+                    );
                 } else {
                     // 仅状态变更（如 clear）：清空队列。
                     self.entries.clear();
@@ -817,9 +822,7 @@ impl GoalQueue {
         }
         let unmet = self.unmet_dependencies(id);
         if !unmet.is_empty() {
-            return Err(format!(
-                "goal #{id} 仍被未完成的依赖阻塞：{unmet:?}",
-            ));
+            return Err(format!("goal #{id} 仍被未完成的依赖阻塞：{unmet:?}",));
         }
         let entry = self
             .entries
@@ -1238,12 +1241,11 @@ impl ToolSpec for GoalGetTool {
         true
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        _context: &ToolContext,
-    ) -> Result<ToolResult, ToolError> {
-        let id = input.get("id").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok());
+    async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
+        let id = input
+            .get("id")
+            .and_then(Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok());
         let snapshot = {
             let queue = lock_goal_queue(&self.goal_queue)?;
             match id {
@@ -1398,7 +1400,7 @@ impl ToolSpec for GoalUpdateTool {
                 "no active goal to update; enqueue one with goal_enqueue",
             ));
         };
-        let result = {
+        let result: std::result::Result<(), ToolError> = {
             let mut queue = lock_goal_queue(&self.goal_queue)?;
             match status.as_str() {
                 "complete" => {
@@ -1454,7 +1456,11 @@ impl ToolSpec for GoalUpdateTool {
 
 /// Helper: resolve an optional `id` arg or fall back to the active goal id.
 fn resolve_target_id(queue: &GoalQueue, input: &Value) -> Result<u32, ToolError> {
-    if let Some(id) = input.get("id").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()) {
+    if let Some(id) = input
+        .get("id")
+        .and_then(Value::as_u64)
+        .and_then(|v| u32::try_from(v).ok())
+    {
         return Ok(id);
     }
     queue
@@ -1817,11 +1823,15 @@ mod tests {
     fn completing_active_promotes_higher_priority_ready() {
         let mut q = queue_with_two();
         // 完成 id=1，应提升 id=2（优先级更高且在 queued）。
-        q.mark_complete(1, "done".to_string(), GoalCompletionVerification {
-            status: "passed".to_string(),
-            check: "x".to_string(),
-            summary: "y".to_string(),
-        })
+        q.mark_complete(
+            1,
+            "done".to_string(),
+            GoalCompletionVerification {
+                status: "passed".to_string(),
+                check: "x".to_string(),
+                summary: "y".to_string(),
+            },
+        )
         .unwrap();
         assert_eq!(q.get(1).unwrap().queue_status, QueueStatus::Done);
         assert_eq!(q.active_id(), Some(2), "高优先级就绪 goal 被提升");
@@ -1833,11 +1843,15 @@ mod tests {
         q.enqueue("up".to_string(), None, 0, Vec::new()); // id=1 active
         q.enqueue("down".to_string(), None, 0, vec![1]); // id=2 依赖 id=1
         // 完成 id=1 后，id=2 依赖满足，应被提升。
-        q.mark_complete(1, "ok".to_string(), GoalCompletionVerification {
-            status: "passed".to_string(),
-            check: "x".to_string(),
-            summary: "y".to_string(),
-        })
+        q.mark_complete(
+            1,
+            "ok".to_string(),
+            GoalCompletionVerification {
+                status: "passed".to_string(),
+                check: "x".to_string(),
+                summary: "y".to_string(),
+            },
+        )
         .unwrap();
         assert_eq!(q.active_id(), Some(2), "依赖完成后下游解锁并提升");
     }
@@ -1874,11 +1888,15 @@ mod tests {
         q.enqueue("b".to_string(), None, 0, Vec::new()); // queued id=2
         q.record_usage(20, 0); // 超过聚合预算
         assert!(q.aggregate_budget_exhausted());
-        q.mark_complete(1, "ok".to_string(), GoalCompletionVerification {
-            status: "passed".to_string(),
-            check: "x".to_string(),
-            summary: "y".to_string(),
-        })
+        q.mark_complete(
+            1,
+            "ok".to_string(),
+            GoalCompletionVerification {
+                status: "passed".to_string(),
+                check: "x".to_string(),
+                summary: "y".to_string(),
+            },
+        )
         .unwrap();
         // 预算耗尽，不再提升。
         assert_eq!(q.active_id(), None);

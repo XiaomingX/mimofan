@@ -26,10 +26,10 @@ use crate::llm_client::{
     sanitize_http_error_body, with_retry,
 };
 use crate::logging;
-use mimofan_protocol::model_catalog::resolved_supports_image;
 use crate::models::{
     ContentBlock, Message, MessageRequest, MessageResponse, ServerToolUsage, SystemPrompt, Usage,
 };
+use mimofan_protocol::model_catalog::resolved_supports_image;
 
 pub(super) fn to_api_tool_name(name: &str) -> String {
     let mut out = String::new();
@@ -1540,9 +1540,7 @@ pub(super) fn apply_reasoning_effort(
             ApiProvider::AnthropicCompatible => {
                 body["thinking"] = json!({ "type": "disabled" });
             }
-            ApiProvider::OpenAiCompatible | ApiProvider::GeminiCompatible
-                if is_reasoning_model =>
-            {
+            ApiProvider::OpenAiCompatible | ApiProvider::GeminiCompatible if is_reasoning_model => {
                 body["reasoning_effort"] = json!("none");
             }
             _ => {}
@@ -1552,9 +1550,7 @@ pub(super) fn apply_reasoning_effort(
                 body["reasoning_effort"] = json!(effort_value);
                 body["thinking"] = json!({ "type": "enabled" });
             }
-            ApiProvider::OpenAiCompatible | ApiProvider::GeminiCompatible
-                if is_reasoning_model =>
-            {
+            ApiProvider::OpenAiCompatible | ApiProvider::GeminiCompatible if is_reasoning_model => {
                 body["reasoning_effort"] = json!(effort_value);
             }
             _ => {}
@@ -1683,8 +1679,8 @@ impl ApiClient {
 }
 
 pub mod anthropic;
-pub mod gemini;
 mod chat;
+pub mod gemini;
 mod responses;
 
 fn extract_sse_data_value(line: &str) -> Option<&str> {

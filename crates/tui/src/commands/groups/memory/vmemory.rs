@@ -130,7 +130,9 @@ pub fn vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
                     let id = vm
                         .store_observation(&project, kind_str, content, &embedding)
                         .map_err(|e| format!("failed to store: {e}"))?;
-                    Ok(format!("remembered (vector id {id}): [{kind_str}] {content}"))
+                    Ok(format!(
+                        "remembered (vector id {id}): [{kind_str}] {content}"
+                    ))
                 }
                 Some("query") => {
                     let q = sub.trim_start_matches("query").trim();

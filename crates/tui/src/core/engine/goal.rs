@@ -68,9 +68,7 @@ pub(super) fn goal_contract_for_prompt(goal_queue: &SharedGoalQueue) -> Option<G
                     .as_ref()
                     .filter(|v| !v.check.trim().is_empty())
                     .map(|v| v.check.clone()),
-                progress_checklist: snapshot
-                    .progress_checklist
-                    .filter(|p| !p.trim().is_empty()),
+                progress_checklist: snapshot.progress_checklist.filter(|p| !p.trim().is_empty()),
             })
         }
         Err(err) => {

@@ -410,10 +410,7 @@ fn display_path(path: &Path, workspace: &Path) -> String {
 
 /// 递归统计符号总数（含嵌套子符号）。
 fn count_symbols(symbols: &[SymbolOut]) -> usize {
-    symbols
-        .iter()
-        .map(|s| 1 + count_symbols(&s.children))
-        .sum()
+    symbols.iter().map(|s| 1 + count_symbols(&s.children)).sum()
 }
 
 /// LSP `SymbolKind` 数字码到可读名称的映射（LSP 规范 3.17）。

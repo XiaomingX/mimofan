@@ -1321,7 +1321,10 @@ mod tests {
         assert_eq!(line_span_for_byte_range(text, idx, idx + 5), (3, 3));
         // A range spanning two lines reports both.
         let idx = text.find("two").unwrap();
-        assert_eq!(line_span_for_byte_range(text, idx, idx + "two\nthree".len()), (2, 3));
+        assert_eq!(
+            line_span_for_byte_range(text, idx, idx + "two\nthree".len()),
+            (2, 3)
+        );
         // A trailing newline does not pull in the following line.
         assert_eq!(line_span_for_byte_range(text, 0, 4), (1, 1));
     }
@@ -1353,7 +1356,10 @@ mod tests {
         let msg = err.to_string();
         assert!(msg.contains("never read"), "unexpected error: {msg}");
         // The error must be directly actionable: it names the exact recovery call.
-        assert!(msg.contains("start_line=300"), "missing recovery hint: {msg}");
+        assert!(
+            msg.contains("start_line=300"),
+            "missing recovery hint: {msg}"
+        );
         assert!(msg.contains("1-200"), "should report observed range: {msg}");
         // File must be untouched.
         let after = std::fs::read_to_string(dir.path().join("big.txt")).unwrap();
@@ -1472,7 +1478,10 @@ mod tests {
 
         let msg = err.to_string();
         assert!(msg.contains("matched 3 locations"), "missing count: {msg}");
-        assert!(msg.contains("replace_all=true"), "missing suggestion: {msg}");
+        assert!(
+            msg.contains("replace_all=true"),
+            "missing suggestion: {msg}"
+        );
         // Nothing should have been written.
         let after = std::fs::read_to_string(dir.path().join("a.txt")).unwrap();
         assert_eq!(after, "old\nmid\nold\nend\nold\n");
@@ -1533,9 +1542,18 @@ mod tests {
 
     #[test]
     fn restore_is_inverse_of_detect() {
-        for original in ["a\r\nb\r\n", "\u{feff}a\r\nb\r\n", "a\nb\n", "\u{feff}x\ny\n"] {
+        for original in [
+            "a\r\nb\r\n",
+            "\u{feff}a\r\nb\r\n",
+            "a\nb\n",
+            "\u{feff}x\ny\n",
+        ] {
             let (f, body) = FileFidelity::detect(original);
-            assert_eq!(f.restore(&body), original, "roundtrip failed for {original:?}");
+            assert_eq!(
+                f.restore(&body),
+                original,
+                "roundtrip failed for {original:?}"
+            );
         }
     }
 
@@ -1650,9 +1668,12 @@ mod tests {
         let ctx = ctx(&dir);
 
         // There is nothing to have read: creation must not be gated.
-        write(&ctx, json!({ "path": "brand_new.txt", "content": "hello\n" }))
-            .await
-            .expect("creating a new file must be allowed");
+        write(
+            &ctx,
+            json!({ "path": "brand_new.txt", "content": "hello\n" }),
+        )
+        .await
+        .expect("creating a new file must be allowed");
 
         assert_eq!(
             std::fs::read_to_string(dir.path().join("brand_new.txt")).unwrap(),

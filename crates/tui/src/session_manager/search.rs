@@ -63,9 +63,7 @@ fn block_text(block: &ContentBlock) -> Option<String> {
         ContentBlock::Text { text, .. } => Some(text.clone()),
         ContentBlock::Thinking { thinking, .. } => Some(thinking.clone()),
         ContentBlock::ToolUse { name, input, .. }
-        | ContentBlock::ServerToolUse { name, input, .. } => {
-            Some(format!("{name} {input}"))
-        }
+        | ContentBlock::ServerToolUse { name, input, .. } => Some(format!("{name} {input}")),
         ContentBlock::ToolResult { content, .. } => Some(content.clone()),
         ContentBlock::ToolSearchToolResult { content, .. }
         | ContentBlock::CodeExecutionToolResult { content, .. } => Some(content.to_string()),
@@ -107,10 +105,7 @@ fn contains_all_terms(haystack_lower: &str, terms: &[String]) -> bool {
 fn make_snippet(text: &str, terms: &[String], max_chars: usize) -> Option<String> {
     let lower = text.to_lowercase();
     // Byte offset of the earliest matching term.
-    let first = terms
-        .iter()
-        .filter_map(|t| lower.find(t.as_str()))
-        .min()?;
+    let first = terms.iter().filter_map(|t| lower.find(t.as_str())).min()?;
 
     // Convert byte offset to char index so we can window safely on chars.
     let char_idx = lower[..first].chars().count();
@@ -190,10 +185,7 @@ impl SessionManager {
     /// Multi-word queries are AND-combined. Results are ordered by relevance
     /// (more matching blocks first), breaking ties by most-recently-updated.
     /// Empty/whitespace-only queries return an empty result set.
-    pub fn search_sessions_fulltext(
-        &self,
-        query: &str,
-    ) -> std::io::Result<Vec<SessionSearchHit>> {
+    pub fn search_sessions_fulltext(&self, query: &str) -> std::io::Result<Vec<SessionSearchHit>> {
         let terms = query_terms(query);
         if terms.is_empty() {
             return Ok(Vec::new());
@@ -245,8 +237,14 @@ mod tests {
 
     #[test]
     fn contains_all_terms_is_and_combined() {
-        assert!(contains_all_terms("the quick brown fox", &["quick".into(), "fox".into()]));
-        assert!(!contains_all_terms("the quick brown fox", &["quick".into(), "cat".into()]));
+        assert!(contains_all_terms(
+            "the quick brown fox",
+            &["quick".into(), "fox".into()]
+        ));
+        assert!(!contains_all_terms(
+            "the quick brown fox",
+            &["quick".into(), "cat".into()]
+        ));
     }
 
     #[test]

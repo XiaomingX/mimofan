@@ -115,8 +115,13 @@ pub trait LspTransport: Send + Sync {
 
     /// Resolve the definition of the symbol at `(line, column)` in `path` via
     /// `textDocument/definition`. Best-effort: `None` on unsupported/failure.
-    async fn definition(&self, path: &Path, line: u32, column: u32, wait: Duration)
-    -> Option<LspLocation>;
+    async fn definition(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        wait: Duration,
+    ) -> Option<LspLocation>;
 }
 
 /// Stdio-backed transport. Spawns the LSP server as a child process and
@@ -234,7 +239,10 @@ impl StdioLspTransport {
         // lazily or degrade). Most servers reply within tens of ms.
         let init_reply = timeout(Duration::from_secs(10), Self::wait_for_reply(&pending, 1)).await;
         let capabilities = match init_reply {
-            Ok(Ok(reply)) => reply.get("result").and_then(|r| r.get("capabilities")).cloned(),
+            Ok(Ok(reply)) => reply
+                .get("result")
+                .and_then(|r| r.get("capabilities"))
+                .cloned(),
             Ok(Err(err)) => {
                 tracing::warn!(?err, "lsp: initialize reply error; capabilities unknown");
                 None
@@ -357,12 +365,18 @@ impl StdioLspTransport {
     /// support or the call fails — symbol queries are best-effort for static
     /// analysis and must not block the agent.
     pub async fn document_symbols(&self, path: &Path, wait: Duration) -> Vec<LspSymbol> {
-        if !self.capability_supported(&["textDocument", "documentSymbol"]).await {
+        if !self
+            .capability_supported(&["textDocument", "documentSymbol"])
+            .await
+        {
             return Vec::new();
         }
         let uri = uri_from_path(path);
         let params = json!({ "textDocument": { "uri": uri } });
-        let reply = match self.request_raw("textDocument/documentSymbol", params, wait).await {
+        let reply = match self
+            .request_raw("textDocument/documentSymbol", params, wait)
+            .await
+        {
             Ok(r) => r,
             Err(err) => {
                 tracing::debug!(?err, file = %path.display(), "lsp: documentSymbol failed");
@@ -400,7 +414,10 @@ impl StdioLspTransport {
             "position": { "line": line.saturating_sub(1), "character": column.saturating_sub(1) },
             "context": { "includeDeclaration": include_declaration }
         });
-        let reply = match self.request_raw("textDocument/references", params, wait).await {
+        let reply = match self
+            .request_raw("textDocument/references", params, wait)
+            .await
+        {
             Ok(r) => r,
             Err(err) => {
                 tracing::debug!(?err, file = %path.display(), "lsp: references failed");
@@ -425,7 +442,10 @@ impl StdioLspTransport {
         column: u32,
         wait: Duration,
     ) -> Option<LspLocation> {
-        if !self.capability_supported(&["textDocument", "definition"]).await {
+        if !self
+            .capability_supported(&["textDocument", "definition"])
+            .await
+        {
             return None;
         }
         let uri = uri_from_path(path);
@@ -433,7 +453,10 @@ impl StdioLspTransport {
             "textDocument": { "uri": uri },
             "position": { "line": line.saturating_sub(1), "character": column.saturating_sub(1) }
         });
-        let reply = match self.request_raw("textDocument/definition", params, wait).await {
+        let reply = match self
+            .request_raw("textDocument/definition", params, wait)
+            .await
+        {
             Ok(r) => r,
             Err(err) => {
                 tracing::debug!(?err, file = %path.display(), "lsp: definition failed");
@@ -586,7 +609,13 @@ impl LspTransport for StdioLspTransport {
         StdioLspTransport::references(self, path, line, column, include_declaration, wait).await
     }
 
-    async fn definition(&self, path: &Path, line: u32, column: u32, wait: Duration) -> Option<LspLocation> {
+    async fn definition(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        wait: Duration,
+    ) -> Option<LspLocation> {
         StdioLspTransport::definition(self, path, line, column, wait).await
     }
 }
@@ -727,7 +756,9 @@ fn parse_publish_diagnostics(value: &Value) -> Option<(PathBuf, Vec<Diagnostic>)
 fn parse_symbol(value: Value) -> Option<LspSymbol> {
     let name = value.get("name")?.as_str()?.to_string();
     let kind = value.get("kind").and_then(|k| k.as_u64()).unwrap_or(0);
-    let range = value.get("range").or_else(|| value.get("location").and_then(|l| l.get("range")))?;
+    let range = value
+        .get("range")
+        .or_else(|| value.get("location").and_then(|l| l.get("range")))?;
     let start = range.get("start")?;
     let line = start.get("line")?.as_u64()? as u32 + 1;
     let column = start.get("character")?.as_u64()? as u32 + 1;
@@ -882,7 +913,11 @@ mod tests {
             ]),
         );
         let reply = fake
-            .request("textDocument/documentSymbol", json!({}), Duration::from_millis(500))
+            .request(
+                "textDocument/documentSymbol",
+                json!({}),
+                Duration::from_millis(500),
+            )
             .await
             .unwrap();
         let raw = reply.get("result").and_then(|r| r.as_array()).unwrap();
@@ -898,14 +933,19 @@ mod tests {
     async fn request_timeout_surfaces_error() {
         let fake = FakeTransport::new().hanging();
         let err = fake
-            .request("textDocument/references", json!({}), Duration::from_millis(100))
+            .request(
+                "textDocument/references",
+                json!({}),
+                Duration::from_millis(100),
+            )
             .await;
         assert!(err.is_err(), "hung server must time out, got {err:?}");
     }
 
     #[test]
     fn parse_location_handles_bare_and_locationlink() {
-        let bare = json!({ "uri": "file:///a/b.rs", "range": { "start": { "line": 2, "character": 1 } } });
+        let bare =
+            json!({ "uri": "file:///a/b.rs", "range": { "start": { "line": 2, "character": 1 } } });
         let loc = parse_location(&bare).unwrap();
         assert_eq!(loc.line, 3);
         assert_eq!(loc.column, 2);

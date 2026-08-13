@@ -195,7 +195,9 @@ impl Engine {
                         .map_err(|e| ToolError::execution_failed(format!("MCP tool failed: {e}")))?
                 }
                 Err(err) => {
-                    return Err(ToolError::execution_failed(format!("MCP tool failed: {err}")));
+                    return Err(ToolError::execution_failed(format!(
+                        "MCP tool failed: {err}"
+                    )));
                 }
             },
         };

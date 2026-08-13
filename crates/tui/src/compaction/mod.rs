@@ -950,8 +950,8 @@ pub async fn compact_messages_safe(
     } else {
         0.0
     };
-    let budget_pressure_suggests = PressureLevel::from_usage_percent(normalized_usage)
-        .suggests_compaction();
+    let budget_pressure_suggests =
+        PressureLevel::from_usage_percent(normalized_usage).suggests_compaction();
 
     let mut pruned_messages = messages.to_vec();
     let mut now_under_threshold = false;
@@ -1032,10 +1032,7 @@ pub async fn compact_messages_safe(
                 // still suggests compaction), further re-compaction cannot help
                 // — stop rather than letting the turn loop re-trigger
                 // compaction endlessly.
-                if was_over_threshold
-                    && removed.is_empty()
-                    && budget_pressure_suggests
-                {
+                if was_over_threshold && removed.is_empty() && budget_pressure_suggests {
                     logging::warn(
                         "Compaction made no progress (still over threshold, 0 messages removed); "
                             .to_string()
@@ -1661,8 +1658,14 @@ mod summary_instruction_tests {
 
     #[test]
     fn blank_and_whitespace_guidance_is_ignored() {
-        assert_eq!(summary_instruction(500, Some("   ")), summary_instruction(500, None));
-        assert_eq!(summary_instruction(500, Some("")), summary_instruction(500, None));
+        assert_eq!(
+            summary_instruction(500, Some("   ")),
+            summary_instruction(500, None)
+        );
+        assert_eq!(
+            summary_instruction(500, Some("")),
+            summary_instruction(500, None)
+        );
         assert_eq!(normalize_custom_instructions(Some("\n\t ")), None);
         assert_eq!(normalize_custom_instructions(None), None);
     }
@@ -1709,14 +1712,15 @@ mod fact_retention_tests {
     fn fact_retention_rate(messages: &[Message], facts: &[&str]) -> f64 {
         let plan = plan_compaction(messages, None, KEEP_RECENT_MESSAGES, None, None);
         let mut kept_text = String::new();
-        for &idx in plan.pinned_indices.iter().chain(plan.summarize_indices.iter()) {
+        for &idx in plan
+            .pinned_indices
+            .iter()
+            .chain(plan.summarize_indices.iter())
+        {
             kept_text.push_str(&message_text(&messages[idx]));
             kept_text.push('\n');
         }
-        let kept: usize = facts
-            .iter()
-            .filter(|f| kept_text.contains(**f))
-            .count();
+        let kept: usize = facts.iter().filter(|f| kept_text.contains(**f)).count();
         if facts.is_empty() {
             1.0
         } else {

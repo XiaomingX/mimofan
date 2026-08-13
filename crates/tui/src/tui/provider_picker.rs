@@ -1106,7 +1106,8 @@ impl ModalView for ProviderPickerView {
                     let provider = self.selected_provider();
                     if self.selected_has_key() {
                         ViewAction::EmitAndClose(ViewEvent::ProviderPickerApplied { provider })
-                    } else if provider == ApiProvider::OpenAiCompatible && kimi_cli_credentials_present()
+                    } else if provider == ApiProvider::OpenAiCompatible
+                        && kimi_cli_credentials_present()
                     {
                         ViewAction::EmitAndClose(ViewEvent::ProviderPickerKimiOAuthEnabled {
                             provider,

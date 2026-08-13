@@ -915,7 +915,9 @@ pub(crate) async fn run_event_loop(
                         if let Ok(manager) = SessionManager::default_location() {
                             let session = build_session_snapshot(app, &manager);
                             app.current_session_id = Some(session.metadata.id.clone());
-                            persistence_actor::persist(PersistRequest::SessionSnapshot(session.clone()));
+                            persistence_actor::persist(PersistRequest::SessionSnapshot(
+                                session.clone(),
+                            ));
                             persistence_actor::persist_plan_state(
                                 session.metadata.id.clone(),
                                 app.current_plan_and_todo(),
@@ -2308,9 +2310,7 @@ pub(crate) async fn run_event_loop(
                 });
                 if !app.is_compacting {
                     let _ = engine_handle
-                        .send(Op::CompactContext {
-                            instructions: None,
-                        })
+                        .send(Op::CompactContext { instructions: None })
                         .await;
                 }
                 app.needs_redraw = true;
@@ -3729,7 +3729,9 @@ pub(crate) async fn apply_command_result(
                     if let Ok(manager) = SessionManager::default_location() {
                         let session = build_session_snapshot(app, &manager);
                         app.current_session_id = Some(session.metadata.id.clone());
-                        persistence_actor::persist(PersistRequest::SessionSnapshot(session.clone()));
+                        persistence_actor::persist(PersistRequest::SessionSnapshot(
+                            session.clone(),
+                        ));
                         persistence_actor::persist_plan_state(
                             session.metadata.id.clone(),
                             app.current_plan_and_todo(),

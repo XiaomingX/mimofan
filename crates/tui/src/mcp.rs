@@ -1213,7 +1213,10 @@ impl McpPool {
             if server_cfg.required
                 && server_cfg.is_enabled()
                 && !self.connections.get(name).is_some_and(|shared| {
-                    shared.try_lock().map(|conn| conn.is_ready()).unwrap_or(true)
+                    shared
+                        .try_lock()
+                        .map(|conn| conn.is_ready())
+                        .unwrap_or(true)
                 })
             {
                 errors.push((
@@ -1644,8 +1647,14 @@ impl McpPool {
         // Copy the global timeouts to avoid borrow conflict
         let global_timeouts = self.config.timeouts;
         let shared = self.get_or_connect(server_name).await?;
-        match Self::invoke_tool(&shared, server_name, tool_name, arguments.clone(), global_timeouts)
-            .await
+        match Self::invoke_tool(
+            &shared,
+            server_name,
+            tool_name,
+            arguments.clone(),
+            global_timeouts,
+        )
+        .await
         {
             Ok(result) => Ok(result),
             Err(err) if is_mcp_stale_session_error(&err) => {
@@ -1705,10 +1714,7 @@ impl McpPool {
 
     /// Re-resolve a connection after a stale-session failure, for the
     /// detached dispatch path.
-    pub async fn reconnect_for_retry(
-        &mut self,
-        server_name: &str,
-    ) -> Result<SharedMcpConnection> {
+    pub async fn reconnect_for_retry(&mut self, server_name: &str) -> Result<SharedMcpConnection> {
         self.drop_connection(server_name, "stale session retry");
         self.get_or_connect(server_name).await
     }
