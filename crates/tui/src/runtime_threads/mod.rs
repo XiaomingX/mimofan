@@ -1808,6 +1808,9 @@ impl RuntimeThreadManager {
             workspace_follow_symlinks: settings.workspace_follow_symlinks,
             exec_policy_engine: self.config.exec_policy_engine.clone(),
             frozen_spec: None,
+            catalog_cache: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::config_persistence::load_catalog_cache(),
+            )),
         };
 
         let engine = spawn_engine(engine_cfg, &self.config);

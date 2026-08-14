@@ -624,3 +624,72 @@ pub fn now_unix() -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A `ProviderCatalogCache` must round-trip through JSON so the on-disk
+    /// live-catalog cache (`~/.mimofan/catalog_cache.json`) can be written and
+    /// read back losslessly. This is the serialization contract that
+    /// `config_persistence::{load,save}_catalog_cache` depends on (#3385).
+    #[test]
+    fn catalog_cache_json_roundtrip() {
+        let mut cache = ProviderCatalogCache::new();
+        let delta = ProviderCatalogDelta {
+            provider: "deepseek".to_string(),
+            base_url_fingerprint: "fp123".to_string(),
+            fetched_at: 1_700_000_000,
+            offerings: vec![CatalogOffering {
+                provider: "deepseek".to_string(),
+                wire_model_id: "deepseek-chat".to_string(),
+                canonical_model: None,
+                endpoint_key: "chat".to_string(),
+                default_for_provider: false,
+                family: None,
+                limit: None,
+                cost: None,
+                reasoning: None,
+                reasoning_options: Vec::new(),
+                source: CatalogSource::Live {
+                    base_url_fingerprint: "fp123".to_string(),
+                    fetched_at: 1_700_000_000,
+                },
+            }],
+        };
+        cache.record_success(delta, 3600);
+
+        let json = serde_json::to_string(&cache).expect("cache serializes");
+        let back: ProviderCatalogCache =
+            serde_json::from_str(&json).expect("cache deserializes");
+        assert_eq!(cache, back);
+
+        // The cached entry must report Fresh within its TTL and surface the
+        // same offering after a round trip.
+        let now = 1_700_000_000 + 100;
+        assert!(matches!(
+            back.status("deepseek", "fp123", now),
+            CatalogStatus::Fresh
+        ));
+        assert_eq!(back.fresh_offerings("deepseek", "fp123", now).len(), 1);
+    }
+
+    /// A `Failed` refresh status must also survive a JSON round trip, so the
+    /// provider picker can persist and re-show the last failure reason.
+    #[test]
+    fn catalog_cache_failed_status_roundtrip() {
+        let mut cache = ProviderCatalogCache::new();
+        cache.record_failure("openai", "fp999", CatalogRefreshError::Unauthorized);
+
+        let json = serde_json::to_string(&cache).expect("cache serializes");
+        let back: ProviderCatalogCache =
+            serde_json::from_str(&json).expect("cache deserializes");
+        assert_eq!(cache, back);
+        assert!(matches!(
+            back.status("openai", "fp999", now_unix()),
+            CatalogStatus::Failed {
+                reason: CatalogRefreshError::Unauthorized
+            }
+        ));
+    }
+}

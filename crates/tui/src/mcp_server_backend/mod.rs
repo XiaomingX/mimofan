@@ -59,7 +59,7 @@ impl McpBackend for RealMcpBackend {
             // `create_message` 是定义在 `LlmClient` trait 上的方法，`ApiClient` 实现了它；
             // 在组合根这里引入 trait 作用域属合理（实现细节下沉点），传输层无需感知。
             let config = Config::load(None, None).context("Failed to load config")?;
-            let client = ApiClient::new(&config).context("Failed to create API client")?;
+            let client = ApiClient::new_detached(&config).context("Failed to create API client")?;
             client
                 .create_message(request)
                 .await

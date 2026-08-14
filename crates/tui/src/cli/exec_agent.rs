@@ -292,7 +292,7 @@ pub(crate) async fn run_one_shot(config: &Config, model: &str, prompt: &str) -> 
 
     let route = resolve_cli_auto_route(config, model, prompt).await?;
     let execution_config = config_for_cli_route(config, &route);
-    let client = ApiClient::new(&execution_config)?;
+    let client = ApiClient::new_detached(&execution_config)?;
     let reasoning_effort = route
         .reasoning_effort
         .and_then(|effort| cli_reasoning_effort_value(&execution_config, effort));
@@ -335,7 +335,7 @@ pub(crate) async fn run_one_shot_json(config: &Config, model: &str, prompt: &str
 
     let route = resolve_cli_auto_route(config, model, prompt).await?;
     let execution_config = config_for_cli_route(config, &route);
-    let client = ApiClient::new(&execution_config)?;
+    let client = ApiClient::new_detached(&execution_config)?;
     let model = route.model.clone();
     let reasoning_effort = route
         .reasoning_effort
@@ -672,6 +672,9 @@ pub(crate) async fn run_exec_agent(
         workspace_follow_symlinks: settings.workspace_follow_symlinks,
         exec_policy_engine: execution_config.exec_policy_engine.clone(),
         frozen_spec: None,
+        catalog_cache: std::sync::Arc::new(std::sync::Mutex::new(
+            crate::config_persistence::load_catalog_cache(),
+        )),
     };
 
     let engine_handle = spawn_engine(engine_config, &execution_config);

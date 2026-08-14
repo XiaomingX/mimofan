@@ -198,7 +198,7 @@ pub async fn call_model_real(
         .await
         .map_err(|e| e.to_string())?;
     let execution_config = crate::config_for_cli_route(config, &route);
-    let client = ApiClient::new(&execution_config).map_err(|e| e.to_string())?;
+    let client = ApiClient::new_detached(&execution_config).map_err(|e| e.to_string())?;
     let request = MessageRequest {
         model: route.model,
         messages: vec![Message {

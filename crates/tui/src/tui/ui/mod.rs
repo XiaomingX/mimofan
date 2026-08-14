@@ -642,7 +642,7 @@ pub async fn run_tui(config: &Config, options: TuiOptions) -> Result<()> {
     // startup, even when the API key is missing, the base URL is malformed,
     // or the network is unavailable.
     // Translations are skipped with a logged warning until a key is saved.
-    let translation_client = match ApiClient::new(config) {
+    let translation_client = match ApiClient::new_detached(config) {
         Ok(client) => Some(Arc::new(client)),
         Err(err) => {
             if app.onboarding == OnboardingState::None {

@@ -5,6 +5,10 @@
 
 use std::path::{Path, PathBuf};
 
+use anyhow::Context;
+use mimofan_config::catalog::ProviderCatalogCache;
+use mimofan_config::{ensure_state_dir, resolve_state_dir};
+
 use crate::config::{ApiProvider, StatusItem, effective_home_dir, expand_path};
 
 pub(crate) fn persist_status_items(items: &[StatusItem]) -> anyhow::Result<PathBuf> {
@@ -392,4 +396,61 @@ fn save_toml_preserving_comments(
     std::fs::write(path, body)
         .with_context(|| format!("failed to write config at {}", path.display()))?;
     Ok(())
+}
+
+/// Load the persisted live catalog cache (`~/.mimofan/catalog_cache.json`).
+///
+/// Non-fatal: if the file is missing, unreadable, or fails to deserialize, an
+/// empty cache is returned so the rest of startup is unaffected. The cache
+/// carries no secrets (it is the secret-free `#3385` live catalog), so reading
+/// it back verbatim is safe.
+pub(crate) fn load_catalog_cache() -> ProviderCatalogCache {
+    let path = match mimofan_config::resolve_state_dir("catalog_cache.json") {
+        Ok(path) => path,
+        Err(_) => return ProviderCatalogCache::new(),
+    };
+    if !path.exists() {
+        return ProviderCatalogCache::new();
+    }
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => serde_json::from_str(&raw).unwrap_or_else(|e| {
+            tracing::warn!("failed to parse catalog cache at {}, starting empty: {e:#}", path.display());
+            ProviderCatalogCache::new()
+        }),
+        Err(_) => ProviderCatalogCache::new(),
+    }
+}
+
+/// Persist the live catalog cache to `~/.mimofan/catalog_cache.json` (best-effort).
+///
+/// Any failure (missing home dir, unwritable state dir, serialization error) is
+/// logged as a warning and swallowed — dropping the on-disk cache must never
+/// abort a refresh or panic a CLI/UI path.
+pub(crate) fn save_catalog_cache(cache: &std::sync::Arc<std::sync::Mutex<ProviderCatalogCache>>) {
+    let guard = match cache.lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            tracing::warn!("catalog cache not persisted (lock poisoned)");
+            return;
+        }
+    };
+    let dir = match mimofan_config::ensure_state_dir(".") {
+        Ok(dir) => dir,
+        Err(e) => {
+            tracing::warn!("catalog cache not persisted (state dir unavailable): {e:#}");
+            return;
+        }
+    };
+    let path = dir.join("catalog_cache.json");
+    let body = match serde_json::to_string_pretty(&*guard) {
+        Ok(body) => body,
+        Err(e) => {
+            tracing::warn!("catalog cache not persisted (serialize failed): {e:#}");
+            return;
+        }
+    };
+    drop(guard);
+    if let Err(e) = std::fs::write(&path, body) {
+        tracing::warn!("catalog cache not persisted to {}: {e:#}", path.display());
+    }
 }

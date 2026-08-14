@@ -5,7 +5,7 @@ use super::*;
 pub(crate) async fn run_models(config: &Config, args: ModelsArgs) -> Result<()> {
     use crate::client::ApiClient;
 
-    let client = ApiClient::new(config)?;
+    let client = ApiClient::new_detached(config)?;
     let mut models = client.list_models().await?;
     models.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -120,7 +120,7 @@ pub(crate) async fn run_speech(config: &Config, args: SpeechArgs) -> Result<()> 
             .join(default_speech_output_name(&format))
     });
 
-    let client = ApiClient::new(config)?;
+    let client = ApiClient::new_detached(config)?;
     let response = client
         .synthesize_speech(SpeechSynthesisRequest {
             model: model.clone(),
@@ -170,7 +170,7 @@ pub(crate) async fn test_api_connectivity(config: &Config) -> Result<()> {
     use crate::client::ApiClient;
     use crate::models::{ContentBlock, Message, MessageRequest};
 
-    let client = ApiClient::new(config)?;
+    let client = ApiClient::new_detached(config)?;
     let model = client.model().to_string();
 
     // Minimal request: single word prompt, 1 max token

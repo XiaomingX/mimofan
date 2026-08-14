@@ -1,12 +1,45 @@
 //! session warmup 子系统（从 ui 上帝文件切片）
 use super::*;
+use std::sync::{Arc, Mutex as StdMutex};
 
-pub(crate) async fn fetch_available_models(config: &Config) -> Result<Vec<String>> {
+use mimofan_config::catalog::{
+    CatalogCompiler, ProviderCatalogCache, base_url_fingerprint, now_unix,
+};
+
+pub(crate) async fn fetch_available_models(
+    config: &Config,
+    catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
+) -> Result<Vec<String>> {
     use crate::client::ApiClient;
 
-    let client = ApiClient::new(config)?;
-    let models = tokio::time::timeout(Duration::from_secs(20), client.list_models()).await??;
-    let mut ids = models.into_iter().map(|model| model.id).collect::<Vec<_>>();
+    let client = ApiClient::new(config, catalog_cache.clone())?;
+    // Best-effort live refresh: non-fatal, bounded by a timeout so the UI
+    // never hangs on a slow/unreachable provider endpoint.
+    let _ = tokio::time::timeout(
+        Duration::from_secs(20),
+        client.refresh_catalog(crate::client::CATALOG_TTL_SECS),
+    )
+    .await;
+    crate::config_persistence::save_catalog_cache(&catalog_cache);
+
+    // Merge bundled offerings (network-free) with any fresh live rows from the
+    // shared cache for this provider + base URL. Live rows win on identity via
+    // the compiler's layered merge (#3385).
+    let provider = client.catalog_provider_id();
+    let fp = base_url_fingerprint(&client.base_url());
+    let cache = catalog_cache.lock().expect("catalog cache poisoned");
+    let live = cache.fresh_offerings(&provider, &fp, now_unix());
+    let snapshot = CatalogCompiler::new()
+        .with_bundled(mimofan_config::catalog::bundled_catalog_offerings())
+        .with_live(live)
+        .compile();
+    drop(cache);
+
+    let mut ids: Vec<String> = snapshot
+        .offerings
+        .into_iter()
+        .map(|offering| offering.wire_model_id)
+        .collect();
     ids.sort();
     ids.dedup();
     Ok(ids)
@@ -16,7 +49,7 @@ pub(crate) async fn run_cache_warmup(
     app: &App,
     config: &Config,
 ) -> Result<(Usage, String, PromptInspection)> {
-    let client = ApiClient::new(config)?;
+    let client = ApiClient::new_detached(config)?;
     let base_url = client.base_url().to_string();
     let reasoning_effort = if app.reasoning_effort == ReasoningEffort::Auto {
         app.last_effective_reasoning_effort

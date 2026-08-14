@@ -7,7 +7,9 @@ use std::time::Instant;
 use ratatui::layout::Rect;
 use serde_json::Value;
 
-use mimofan_config::{ProviderChain, route::RouteLimits};
+use mimofan_config::{
+    ProviderChain, catalog::ProviderCatalogCache, route::RouteLimits,
+};
 
 use crate::artifacts::ArtifactRecord;
 use crate::config::{ApiProvider, Config};
@@ -724,6 +726,10 @@ pub struct App {
     /// Pending provider transition for transactional rollback when the next
     /// auth failure indicates the new provider cannot be used.
     pub(crate) pending_provider_switch: Option<PendingProviderSwitch>,
+    /// Shared, process-wide live catalog cache (global, multi-provider). The
+    /// same `Arc` is handed to the `Engine` so a refresh from either side is
+    /// visible to the provider picker and the model list (#3385).
+    pub catalog_cache: std::sync::Arc<std::sync::Mutex<ProviderCatalogCache>>,
     /// Current reasoning-effort tier for DeepSeek thinking mode.
     /// Cycled via Shift+Tab; initialized from config at startup.
     pub reasoning_effort: ReasoningEffort,

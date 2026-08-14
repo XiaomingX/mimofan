@@ -299,7 +299,9 @@ pub(crate) async fn switch_provider(
     let next_config = resolved_route.config;
     let new_model = resolved_route.model;
 
-    if let Err(err) = ApiClient::from_candidate(&next_config, &resolved_route.candidate) {
+    if let Err(err) =
+        ApiClient::from_candidate(&next_config, &resolved_route.candidate, app.catalog_cache.clone())
+    {
         app.pending_provider_switch = None;
         app.add_message(HistoryCell::System {
             content: format!(
@@ -437,7 +439,9 @@ pub(crate) async fn apply_provider_fallback_switch(
     let next_config = resolved_route.config;
     let new_model = resolved_route.model;
 
-    if let Err(err) = ApiClient::from_candidate(&next_config, &resolved_route.candidate) {
+    if let Err(err) =
+        ApiClient::from_candidate(&next_config, &resolved_route.candidate, app.catalog_cache.clone())
+    {
         app.api_provider = previous_provider;
         app.last_fallback_reason = Some(format!(
             "Fallback provider {} was unavailable: {err}",

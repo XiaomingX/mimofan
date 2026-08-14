@@ -172,7 +172,15 @@ pub struct ApiClient {
     path_suffix: Option<String>,
     pub(super) reasoning_stream_style: Option<String>,
     pub(super) stream_idle_timeout: Duration,
+    /// Shared, in-memory live catalog cache (global, multi-provider). The same
+    /// `Arc<Mutex<_>>` is shared by every `ApiClient` in the process (App +
+    /// Engine), so a refresh from any path is visible to the provider picker
+    /// and the next listing. Persisted to disk best-effort by the caller (#3385).
+    pub(crate) catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
 }
+
+/// Default TTL (seconds) for a freshly fetched live catalog entry.
+pub(crate) const CATALOG_TTL_SECS: u64 = 3600;
 
 const CONNECTION_FAILURE_THRESHOLD: u32 = 2;
 const RECOVERY_PROBE_COOLDOWN: Duration = Duration::from_secs(15);
@@ -341,6 +349,7 @@ impl Clone for ApiClient {
             path_suffix: self.path_suffix.clone(),
             reasoning_stream_style: self.reasoning_stream_style.clone(),
             stream_idle_timeout: self.stream_idle_timeout,
+            catalog_cache: self.catalog_cache.clone(),
         }
     }
 }
@@ -671,8 +680,21 @@ impl ApiClient {
     }
 
     /// Create an API client from CLI configuration.
-    pub fn new(config: &Config) -> Result<Self> {
-        Self::from_parts(config.api_base_url(), config.default_model(), config)
+    pub fn new(
+        config: &Config,
+        catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
+    ) -> Result<Self> {
+        Self::from_parts(config.api_base_url(), config.default_model(), config, catalog_cache)
+    }
+
+    /// Create an API client with a *private, detached* catalog cache.
+    ///
+    /// Used by one-shot CLI subcommands (e.g. `model`, `review`) that do not
+    /// share the interactive `App`'s catalog cache and never surface a provider
+    /// picker. The cache is still valid for an ad-hoc refresh, it just isn't
+    /// shared with the UI.
+    pub fn new_detached(config: &Config) -> Result<Self> {
+        Self::new(config, Arc::new(StdMutex::new(ProviderCatalogCache::new())))
     }
 
     /// Create an API client whose transport is bound to a runtime-resolved
@@ -684,11 +706,16 @@ impl ApiClient {
     /// `Config`: `ReadyRouteCandidate` is secret-free by design (it carries only
     /// an auth-source *class*), so the API key and provider are still read from
     /// `config`.
-    pub fn from_candidate(config: &Config, candidate: &ReadyRouteCandidate) -> Result<Self> {
+    pub fn from_candidate(
+        config: &Config,
+        candidate: &ReadyRouteCandidate,
+        catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
+    ) -> Result<Self> {
         Self::from_parts(
             candidate.endpoint.base_url.clone(),
             candidate.wire_model_id.as_str().to_string(),
             config,
+            catalog_cache,
         )
     }
 
@@ -697,7 +724,13 @@ impl ApiClient {
     /// `base_url` and `default_model` are the only inputs that differ between
     /// the two entry points; everything else (auth, provider, retry, headers,
     /// timeouts) is derived from `config` so the two paths cannot drift.
-    fn from_parts(base_url: String, default_model: String, config: &Config) -> Result<Self> {
+    /// `catalog_cache` is the shared, process-wide live catalog cache.
+    fn from_parts(
+        base_url: String,
+        default_model: String,
+        config: &Config,
+        catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
+    ) -> Result<Self> {
         let api_key = config.api_key()?;
         let api_provider = config.api_provider();
         validate_base_url_security(&base_url)?;
@@ -756,6 +789,7 @@ impl ApiClient {
             path_suffix,
             reasoning_stream_style,
             stream_idle_timeout,
+            catalog_cache,
         })
     }
 
@@ -1016,7 +1050,7 @@ impl ApiClient {
     /// The catalog provider id for this client (the `ProviderKind` slug, falling
     /// back to the `ApiProvider` slug for legacy variants without a kind). This
     /// is the id used as the cache scope and `CatalogOffering.provider`.
-    fn catalog_provider_id(&self) -> String {
+    pub(crate) fn catalog_provider_id(&self) -> String {
         self.api_provider
             .kind()
             .map(|kind| kind.as_str().to_string())
@@ -1129,6 +1163,40 @@ impl ApiClient {
                 CatalogStatus::Failed { reason }
             }
         }
+    }
+
+    /// Refresh this client's *shared* catalog cache (#3385).
+    ///
+    /// Convenience entry point that locks the client's own `catalog_cache` (the
+    /// process-wide instance shared with the App and every other `ApiClient`),
+    /// so callers no longer need to own a `ProviderCatalogCache` themselves.
+    /// Returns the resulting [`CatalogStatus`] for immediate UI surfacing.
+    ///
+    /// The network fetch is performed *before* taking the lock, so the std
+    /// `Mutex` is only held for the brief write-back and never across an `.await`
+    /// (which would risk deadlocking other holders).
+    pub async fn refresh_catalog(&self, ttl_secs: u64) -> CatalogStatus {
+        let outcome = self.fetch_catalog_delta().await;
+        let mut cache = self.catalog_cache.lock().expect("catalog cache poisoned");
+        match outcome {
+            Ok(delta) => {
+                cache.record_success(delta, ttl_secs);
+                CatalogStatus::Fresh
+            }
+            Err(reason) => {
+                cache.record_failure(
+                    &self.catalog_provider_id(),
+                    &base_url_fingerprint(&self.base_url),
+                    reason,
+                );
+                CatalogStatus::Failed { reason }
+            }
+        }
+    }
+
+    /// Borrow the shared catalog cache handle owned by this client.
+    pub fn catalog_cache(&self) -> &Arc<StdMutex<ProviderCatalogCache>> {
+        &self.catalog_cache
     }
 
     /// Generate speech with Xiaomi MiMo TTS models.
