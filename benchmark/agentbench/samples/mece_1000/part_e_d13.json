@@ -1,0 +1,172 @@
+[
+ {
+  "id": "D13.1.001",
+  "domain": "D13",
+  "cluster": 1,
+  "assert_key": "crates/staticanalysis/src/taint.rs::analyze",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "污点分析引擎导出 analyze(facts, rules) 入口，返回 TaintFinding 列表",
+  "weight": 1.0,
+  "check": {
+   "kind": "tp",
+   "files": [
+    "crates/staticanalysis/src/taint.rs"
+   ],
+   "pattern": "pub fn analyze\\(facts: &ProgramFacts, rules: &RuleSet\\) -> Result<Vec<TaintFinding>>"
+  }
+ },
+ {
+  "id": "D13.1.002",
+  "domain": "D13",
+  "cluster": 1,
+  "assert_key": "crates/staticanalysis/src/taint.rs::field_sensitivity",
+  "view": "depth",
+  "tier": "T2",
+  "desc": "污点分析支持字段敏感度（FieldAssign/FieldRef 一级字段传播），源码存在字段赋值事实结构",
+  "weight": 1.0,
+  "check": {
+   "kind": "tp",
+   "files": [
+    "crates/staticanalysis/src/taint.rs"
+   ],
+   "pattern": "pub struct FieldAssign"
+  }
+ },
+ {
+  "id": "D13.1.003",
+  "domain": "D13",
+  "cluster": 1,
+  "assert_key": "crates/staticanalysis/src/taint.rs::no_cwe79_literal_in_engine",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "纯图可达性模块不内嵌任何污点规则字面量，源码不应出现 CWE-79 硬编码",
+  "weight": 1.0,
+  "check": {
+   "kind": "fp",
+   "files": [
+    "crates/staticanalysis/src/callgraph.rs"
+   ],
+   "pattern": "CWE-79"
+  }
+ },
+ {
+  "id": "D13.2.001",
+  "domain": "D13",
+  "cluster": 2,
+  "assert_key": "crates/staticanalysis/src/sca.rs::OsvClient",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "SCA 层定义同步 OsvClient trait，可被 InMemoryOsv 实现用于离线/测试",
+  "weight": 1.0,
+  "check": {
+   "kind": "tp",
+   "files": [
+    "crates/staticanalysis/src/sca.rs"
+   ],
+   "pattern": "pub trait OsvClient: Send \\+ Sync"
+  }
+ },
+ {
+  "id": "D13.2.002",
+  "domain": "D13",
+  "cluster": 2,
+  "assert_key": "crates/staticanalysis/src/sca.rs::parse_and_scan",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "SCA 同时提供 lockfile 解析与漏洞扫描两阶段能力（parse_lockfile + scan）",
+  "weight": 1.0,
+  "check": {
+   "kind": "tp",
+   "files": [
+    "crates/staticanalysis/src/sca.rs"
+   ],
+   "pattern": "pub fn parse_lockfile\\(path: &str, content: &str\\) -> Result<Vec<Dependency>>"
+  }
+ },
+ {
+  "id": "D13.3.001",
+  "domain": "D13",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/tools/security_audit.rs::semgrep",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "安全审计工具层包含真实 semgrep 命令构建与执行（非占位符）",
+  "weight": 1.0,
+  "check": {
+   "kind": "tp",
+   "files": [
+    "crates/tui/src/tools/security_audit.rs"
+   ],
+   "pattern": "semgrep"
+  }
+ },
+ {
+  "id": "D13.3.002",
+  "domain": "D13",
+  "cluster": 3,
+  "assert_key": "crates/tui/src/tools/run_in_disposable_sandbox.rs::disposable",
+  "view": "integration",
+  "tier": "T2",
+  "desc": "提供一次性可丢弃沙箱执行能力，用于安全 PoC 复现而不污染主环境",
+  "weight": 1.0,
+  "check": {
+   "kind": "tp",
+   "files": [
+    "crates/tui/src/tools/run_in_disposable_sandbox.rs"
+   ],
+   "pattern": "pub async fn run_in_disposable_sandbox"
+  }
+ },
+ {
+  "id": "D13.4.001",
+  "domain": "D13",
+  "cluster": 4,
+  "assert_key": "crates/staticanalysis/src/knowledge.rs::satisfied_chains",
+  "view": "existence",
+  "tier": "T1",
+  "desc": "知识库能根据当前发现的 gadget 计算满足的 gadget 链（如 C3P0/JNDI）",
+  "weight": 1.0,
+  "check": {
+   "kind": "tp",
+   "files": [
+    "crates/staticanalysis/src/knowledge.rs"
+   ],
+   "pattern": "pub fn satisfied_chains\\(&self, present: &\\[String\\]\\) -> Vec<&GadgetChain>"
+  }
+ },
+ {
+  "id": "D13.9.001",
+  "domain": "D13",
+  "cluster": 9,
+  "assert_key": "crates/staticanalysis/src/sca.rs::no_blocking_network_in_sync",
+  "view": "negative",
+  "tier": "T2",
+  "desc": "SCA 的同步 OsvClient 未在本文件内直接发起阻塞网络请求（不出现 reqwest/ureq 直接调用）",
+  "weight": 1.0,
+  "check": {
+   "kind": "fp",
+   "files": [
+    "crates/staticanalysis/src/sca.rs"
+   ],
+   "pattern": "reqwest::blocking::get|ureq::get"
+  }
+ },
+ {
+  "id": "D13.9.002",
+  "domain": "D13",
+  "cluster": 9,
+  "assert_key": "crates/staticanalysis/src/lib.rs::no_hardcoded_rules",
+  "view": "sanity",
+  "tier": "T2",
+  "desc": "编排层 lib.rs 不内嵌硬编码安全规则字面量，源码不应出现 CWE-79",
+  "weight": 1.0,
+  "check": {
+   "kind": "fp",
+   "files": [
+    "crates/staticanalysis/src/lib.rs"
+   ],
+   "pattern": "CWE-79"
+  }
+ }
+]

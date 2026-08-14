@@ -14,11 +14,14 @@
 //! `core::engine::tool_catalog::ensure_advanced_tooling` for the
 //! catalog-side dispatch.
 
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::dependencies::ExternalTool;
+use crate::sandbox::{CommandSpec, SandboxManager, SandboxType};
 use serde_json::{Value, json};
 
 use crate::models::Tool;
@@ -137,13 +140,60 @@ pub async fn execute_js_execution_tool(
         .await
         .map_err(|e| ToolError::execution_failed(format!("tempfile write failed: {e}")))?;
 
-    let mut cmd = crate::dependencies::Node::tokio_command().ok_or_else(|| {
+    let node_spec = crate::dependencies::Node::resolve().ok_or_else(|| {
         ToolError::execution_failed("js_execution: Node.js runtime became unavailable".to_string())
     })?;
+    let (node_program, node_fixed_args) =
+        crate::dependencies::split_interpreter_spec(&node_spec);
+
+    // #SECURITY-CAPABILITY T-15 — run the model-provided JavaScript inside the
+    // OS sandbox when one is available (macOS Seatbelt / Linux Landlock). The
+    // sandbox transforms the command into a restricted ExecEnv with a cleared
+    // environment (no inherited host credentials). When unavailable it falls
+    // back to an unsandboxed ExecEnv that preserves prior behavior.
+    let mut sandbox_manager = SandboxManager::new();
+    let sandbox_available = sandbox_manager.is_available();
+    let mut node_args = node_fixed_args.clone();
+    node_args.push(script_path.to_string_lossy().to_string());
+    let spec = CommandSpec::program(
+        &node_program,
+        node_args,
+        workspace.to_path_buf(),
+        Duration::from_secs(120),
+    )
+    .with_env(HashMap::new());
+    let exec_env = sandbox_manager.prepare(&spec);
+
+    let mut cmd = tokio::process::Command::new(exec_env.program());
+    cmd.args(exec_env.args());
+    cmd.current_dir(&exec_env.cwd);
+
+    // Apply the sandbox environment (empty base + allowlist + ephemeral token),
+    // never inheriting the host environment or its credentials. The allowlist
+    // (PATH, HOME, TMPDIR, …) keeps Node resolvable on all sandbox paths.
+    let sandbox_env = crate::sandbox::credentials::build_sandbox_env(&exec_env.env);
+    cmd.env_clear();
+    for (k, v) in &sandbox_env {
+        cmd.env(k, v);
+    }
     // Recent Node releases use this startup env to make fetch/http(s) honor
     // standard proxy variables; older runtimes ignore it and keep prior behavior.
+    // Re-apply only the proxy overrides (they are benign, non-secret).
     apply_node_execution_env(&mut cmd);
-    cmd.arg(&script_path).current_dir(workspace);
+
+    // Linux Landlock: attach the pre_exec restriction hook.
+    #[cfg(target_os = "linux")]
+    if matches!(exec_env.sandbox_type, SandboxType::Landlock) {
+        let ws = exec_env
+            .env
+            .get("MIMOFAN_LANDLOCK_WS")
+            .map(PathBuf::from);
+        crate::sandbox::landlock::apply_landlock_pre_exec_tokio(&mut cmd, ws.as_deref());
+    }
+
+    if sandbox_available {
+        tracing::debug!("js_execution routed through OS sandbox: {}", exec_env.sandbox_type);
+    }
 
     let output = tokio::time::timeout(Duration::from_secs(120), cmd.output())
         .await

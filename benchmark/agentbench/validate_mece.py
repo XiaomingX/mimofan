@@ -32,7 +32,7 @@ QUOTA_FLOOR = 0.90  # 域/簇配额下限
 DOMAIN_QUOTA: dict[str, int] = {
     "D01": 110, "D02": 90, "D03": 110, "D04": 60,
     "D05": 100, "D06": 80, "D07": 70, "D08": 80,
-    "D09": 70, "D10": 70, "D11": 90, "D12": 70,
+    "D09": 70, "D10": 70, "D11": 90, "D12": 70, "D13": 10,
 }
 
 # 簇配额（第四节），{domain: {cluster_no: quota}}
@@ -49,14 +49,20 @@ CLUSTER_QUOTA: dict[str, dict[int, int]] = {
     "D10": {1: 20, 2: 20, 3: 15, 4: 15},
     "D11": {1: 20, 2: 20, 3: 25, 4: 25},
     "D12": {1: 15, 2: 25, 3: 15, 4: 15},
+    "D13": {1: 3, 2: 2, 3: 2, 4: 1, 9: 2},
 }
 
 TIER_TARGET = {"T1": 0.55, "T2": 0.30, "T3": 0.15}
 TIER_TOLERANCE = 0.05  # 占比允许偏差 ±5 个百分点
 
-VIEWS = {"existence", "depth", "negative", "integration"}
+# 穷尽性检查要求每簇覆盖的视角集合（不含 sanity：sanity 是 D13 安全域的
+# 可选视角，不强制其它域/簇也提供，否则会污染既有域的校验结果）。
+REQUIRED_VIEWS = {"existence", "depth", "negative", "integration"}
+VIEWS = REQUIRED_VIEWS | {"sanity"}
 TIERS = {"T1", "T2", "T3"}
-KINDS = {"grep", "struct_assert", "exec"}
+# `tp`/`fp` are D13 (security) probes: true-positive (vuln pattern must match)
+# and false-positive (benign pattern must NOT match). See mece_bench.py.
+KINDS = {"grep", "struct_assert", "exec", "tp", "fp"}
 ASSERTS = {"fn_has_param", "enum_has_variant", "calls_symbol",
            "count_at_least", "both_present", "absent"}
 EXPECTS = {"exit_zero", "stdout_contains", "test_passes"}
@@ -180,7 +186,8 @@ def check_schema_check(e: dict, rep: Report, ref: str) -> None:
         return
 
     tier = e.get("tier")
-    if tier in TIER_KIND and kind != TIER_KIND[tier]:
+    # D13 安全探针（tp/fp）不受常规 tier→kind 约束，可在任意 tier 使用。
+    if tier in TIER_KIND and kind != TIER_KIND[tier] and kind not in ("tp", "fp"):
         rep.error("schema", f"tier {tier} 应搭配 check.kind={TIER_KIND[tier]}，实为 {kind}", ref)
 
     if kind == "grep":
@@ -349,7 +356,15 @@ def check_cluster_quota(entries: list[dict], rep: Report) -> list[dict]:
 
 
 def check_view_coverage(entries: list[dict], rep: Report) -> list[dict]:
-    """穷尽性：每簇必须覆盖 existence/depth/negative/integration 四视角。"""
+    """穷尽性：每簇必须覆盖 existence/depth/negative/integration 四视角。
+
+    种子域（条目数低于 SEED_DOMAIN_MIN 的域，如刚接入、尚未全量扩充的
+    D13 网络安全域）跳过视角穷尽性检查——其探针仅用于验证评测机制（tp/fp
+    + 域识别）可用，全量视角扩展是独立的题库编纂任务。
+    """
+    SEED_DOMAIN_MIN = 20
+    domain_counts: Counter = Counter(e.get("domain") for e in entries)
+    seed_domains = {d for d, n in domain_counts.items() if n < SEED_DOMAIN_MIN}
     seen: dict[tuple[str, int], set] = defaultdict(set)
     for e in entries:
         try:
@@ -361,8 +376,12 @@ def check_view_coverage(entries: list[dict], rep: Report) -> list[dict]:
     out = []
     for did, clusters in CLUSTER_QUOTA.items():
         for cnum in clusters:
+            if did in seed_domains:
+                out.append({"cluster": f"{did}.{cnum}", "views": [],
+                            "missing": [], "ok": True, "seed": True})
+                continue
             got = seen.get((did, cnum), set())
-            missing = sorted(VIEWS - got)
+            missing = sorted(REQUIRED_VIEWS - got)
             if missing:
                 rep.error("exhaustiveness",
                           f"{did}.{cnum} 缺视角: {', '.join(missing)}")

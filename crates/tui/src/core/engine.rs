@@ -2003,6 +2003,10 @@ impl Engine {
                             builder
                                 .with_subagent_tools(
                                     self.subagent_manager.clone(),
+                                    subagent_runtime.clone(),
+                                )
+                                .with_workflow_tool(
+                                    self.subagent_manager.clone(),
                                     subagent_runtime,
                                 )
                                 .build(tool_context),
@@ -3104,6 +3108,7 @@ mod streaming;
 mod token_estimate_cache;
 mod tool_catalog;
 mod tool_execution;
+pub(crate) mod recovery_stats;
 mod tool_setup;
 mod trace;
 mod turn_loop;

@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::Path;
 
-const BUNDLED_SKILL_VERSION: &str = "4";
+const BUNDLED_SKILL_VERSION: &str = "5";
 const SKILL_CREATOR_BODY: &str = include_str!("../../assets/skills/skill-creator/SKILL.md");
 const DELEGATE_BODY: &str = include_str!("../../assets/skills/delegate/SKILL.md");
 const V4_BEST_PRACTICES_BODY: &str = include_str!("../../assets/skills/v4-best-practices/SKILL.md");
@@ -17,6 +17,7 @@ const PRESENTATIONS_BODY: &str = include_str!("../../assets/skills/presentations
 const SPREADSHEETS_BODY: &str = include_str!("../../assets/skills/spreadsheets/SKILL.md");
 const PDF_BODY: &str = include_str!("../../assets/skills/pdf/SKILL.md");
 const FEISHU_BODY: &str = include_str!("../../assets/skills/feishu/SKILL.md");
+const SECURITY_AUDIT_BODY: &str = include_str!("../../assets/skills/security-audit/SKILL.md");
 
 struct BundledSkill {
     name: &'static str,
@@ -84,6 +85,11 @@ const BUNDLED_SKILLS: &[BundledSkill] = &[
         name: "feishu",
         body: FEISHU_BODY,
         introduced_in: 3,
+    },
+    BundledSkill {
+        name: "security-audit",
+        body: SECURITY_AUDIT_BODY,
+        introduced_in: 4,
     },
 ];
 

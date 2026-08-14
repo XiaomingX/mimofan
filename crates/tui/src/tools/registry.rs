@@ -585,6 +585,15 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(AstQueryTool))
     }
 
+    /// 注册调用图可达性工具（`call_graph`，issue #598 的 L1 基础能力）。只读、
+    /// 可并行，把同文件调用图的传递闭包可达性暴露给模型，支持
+    /// rust/java/tsx/javascript/kotlin/swift/objc（依构建 feature 而定）。
+    #[must_use]
+    pub fn with_call_graph_tool(self) -> Self {
+        use super::call_graph::CallGraphTool;
+        self.with_tool(Arc::new(CallGraphTool))
+    }
+
     /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
     #[must_use]
     pub fn with_notebook_tools(self) -> Self {
@@ -1091,11 +1100,12 @@ impl ToolRegistryBuilder {
     /// Include the todo tool with a shared `TodoList`.
     #[must_use]
     pub fn with_todo_tool(self, todo_list: super::todo::SharedTodoList) -> Self {
-        use super::todo::{TodoAddTool, TodoListTool, TodoUpdateTool, TodoWriteTool};
+        use super::todo::{TodoAddTool, TodoClaimTool, TodoListTool, TodoUpdateTool, TodoWriteTool};
         self.with_tool(Arc::new(TodoWriteTool::new(todo_list.clone())))
             .with_tool(Arc::new(TodoAddTool::new(todo_list.clone())))
             .with_tool(Arc::new(TodoUpdateTool::new(todo_list.clone())))
-            .with_tool(Arc::new(TodoListTool::new(todo_list)))
+            .with_tool(Arc::new(TodoListTool::new(todo_list.clone())))
+            .with_tool(Arc::new(TodoClaimTool::new(todo_list, None)))
     }
 
     /// Include the plan tool with a shared `PlanState`.
@@ -1146,6 +1156,22 @@ impl ToolRegistryBuilder {
 
         self.with_tool(Arc::new(AgentTool::new(manager.clone(), runtime.clone())))
             .with_tool(Arc::new(TaskGraphTool::new(manager, runtime)))
+    }
+
+    /// Include the declarative DAG `workflow` tool (#T-Q1). It drives the same
+    /// shared sub-agent `manager` / `runtime` as the `agent` tool so each node
+    /// is a real sub-agent that inherits the manager's token budget and can use
+    /// worktree isolation. The workflow engine adds DAG scheduling, stall→retry,
+    /// and journal resume on top of the existing dispatch path.
+    #[must_use]
+    pub fn with_workflow_tool(
+        self,
+        manager: super::subagent::SharedSubAgentManager,
+        runtime: super::subagent::SubAgentRuntime,
+    ) -> Self {
+        use super::workflow::WorkflowTool;
+
+        self.with_tool(Arc::new(WorkflowTool::new(manager, runtime)))
     }
 
     /// Build the registry with the given context.

@@ -15,6 +15,7 @@ use serde_json::{Value, json};
 use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, required_str,
 };
+use crate::reviewer::{self, ClaimForReview, EvidenceStrength, ReviewVerdict};
 
 /// Maximum number of automatic goal-continuation prompt injections in one
 /// engine turn. This is intra-turn granularity only — it prevents a stuck spin
@@ -1325,6 +1326,86 @@ impl GoalUpdateTool {
     pub fn new(goal_queue: SharedGoalQueue) -> Self {
         Self { goal_queue }
     }
+
+    /// Independent completion judge (#T-Q4).
+    ///
+    /// The model submits a self-reported `verification` when calling
+    /// `goal_update` with `status: "complete"`. This is an *independent*
+    /// second opinion: it scores the supplied `evidence` (and the verifier
+    /// `check` name) through the standalone [`reviewer`] module rather than
+    /// trusting the self-report. The judge only rejects when the evidence is
+    /// directly contradicted (e.g. the evidence still shows a failure while
+    /// the model claims success) — a `Rejected` verdict forces the model to
+    /// supply stronger, reproducible proof before the goal can close.
+    ///
+    /// Returns `Ok(())` when the independent judge agrees (or cannot
+    /// contradict) the completion, and `Err(reason)` when it must be rejected.
+    fn independent_judge(
+        &self,
+        objective: &str,
+        evidence: &str,
+        check: &str,
+    ) -> Result<(), String> {
+        let evidence_lower = evidence.to_lowercase();
+
+        // Contradiction: the model claims success but the evidence still shows
+        // a failure AND contains no corroborating pass signal. A log that
+        // mentions an error while also reporting a passing check is *not* a
+        // contradiction (e.g. "fixed the error; tests pass").
+        let has_pass_signal = evidence_lower.contains("pass")
+            || evidence_lower.contains("ok")
+            || evidence_lower.contains("success")
+            || evidence_lower.trim().is_empty();
+        let has_failure_signal = evidence_lower.contains("error")
+            || evidence_lower.contains("fail")
+            || evidence_lower.contains("panic")
+            || evidence_lower.contains("✗");
+        let contradicted = has_failure_signal && !has_pass_signal;
+
+        // Evidence strength: a verifier/check that passed (e.g. test run,
+        // build, lint) is strong; a reproduction path without a pass keyword is
+        // medium; bare assertion is weak.
+        let has_verifier_pass = evidence_lower.contains("test result: ok")
+            || evidence_lower.contains("passed")
+            || evidence_lower.contains("0 failed")
+            || evidence_lower.contains("build succeeded")
+            || check.to_lowercase().contains("verif")
+            || check.to_lowercase().contains("test");
+
+        let strength = if has_verifier_pass {
+            EvidenceStrength::Strong
+        } else if !evidence.trim().is_empty() {
+            EvidenceStrength::Medium
+        } else {
+            EvidenceStrength::Weak
+        };
+
+        // Reproducible steps: evidence references a concrete command, path, or
+        // script (heuristic: contains a path-like or shell token).
+        let has_repro_steps = evidence.contains('/')
+            || evidence.contains('\\')
+            || evidence_lower.contains("cargo ")
+            || evidence_lower.contains("npm ")
+            || evidence_lower.contains("pytest")
+            || evidence_lower.contains("run ")
+            || evidence.contains('`');
+
+        let claim = ClaimForReview {
+            title: objective.to_string(),
+            strength,
+            has_repro_steps,
+            contradicted,
+        };
+
+        match reviewer::review(&claim) {
+            ReviewVerdict::Rejected => Err(format!(
+                "evidence contradicts the claimed completion (objective: {objective}; evidence: {evidence})"
+            )),
+            // Accepted / Weak both let the goal close; the model's verifier
+            // receipt is accepted as the authority unless directly contradicted.
+            ReviewVerdict::Accepted | ReviewVerdict::Weak => Ok(()),
+        }
+    }
 }
 
 #[async_trait]
@@ -1416,6 +1497,22 @@ impl ToolSpec for GoalUpdateTool {
                         ));
                     }
                     let verification = parse_completion_verification(&input)?;
+                    // Independent LLM-as-judge gate (#T-Q4): do not take the
+                    // model's self-reported completion at face value. Run the
+                    // evidence through the standalone reviewer so a goal can
+                    // only be marked complete when an independent check agrees
+                    // the objective is actually met.
+                    let objective = {
+                        let q = lock_goal_queue(&self.goal_queue)?;
+                        q.active_snapshot()
+                            .and_then(|s| s.objective.clone())
+                            .unwrap_or_default()
+                    };
+                    if let Err(reason) = self.independent_judge(&objective, &evidence, &verification.check) {
+                        return Err(ToolError::invalid_input(format!(
+                            "independent judge rejected goal completion: {reason}. Provide stronger, reproducible evidence (e.g. a passing verifier/check) before marking complete."
+                        )));
+                    }
                     queue
                         .mark_complete(active_id, evidence, verification)
                         .map_err(ToolError::invalid_input)?;

@@ -39,6 +39,25 @@ pub struct ReviewIssue {
     pub path: Option<String>,
     #[serde(default)]
     pub line: Option<u32>,
+    /// Security category (OWASP Top 10 / Unsafe Rust / Secret Leakage /
+    /// Dependency Vulnerability / Input Validation / JNDI Injection /
+    /// Insecure Deserialization). Present on `security_issues` entries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    /// The rule id that produced this finding (e.g. a semgrep rule id, or a
+    /// taint/source/sink rule id from the static analyzer).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rule_id: Option<String>,
+    /// CWE identifiers associated with the finding.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cwe: Vec<String>,
+    /// Structured evidence chain (e.g. taint source -> propagator -> sink),
+    /// or other machine-readable provenance.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence: Vec<String>,
+    /// Reviewer confidence in the finding (`high`/`medium`/`low`). Optional.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +129,15 @@ impl ReviewOutput {
             issue.title = issue.title.trim().to_string();
             issue.description = issue.description.trim().to_string();
             issue.path = normalize_optional(issue.path.take());
+            issue.category = normalize_optional(issue.category.take());
+            issue.rule_id = normalize_optional(issue.rule_id.take());
+            issue.confidence = normalize_optional(issue.confidence.take());
+            for cwe in &mut issue.cwe {
+                *cwe = cwe.trim().to_string();
+            }
+            for ev in &mut issue.evidence {
+                *ev = ev.trim().to_string();
+            }
         }
         for suggestion in &mut self.suggestions {
             suggestion.suggestion = suggestion.suggestion.trim().to_string();
@@ -856,6 +884,11 @@ mod tests {
                 description: "d".into(),
                 path: None,
                 line: None,
+                category: None,
+                rule_id: None,
+                cwe: Vec::new(),
+                evidence: Vec::new(),
+                confidence: None,
             }],
             security_issues: Vec::new(),
             suggestions: Vec::new(),
@@ -901,6 +934,11 @@ mod tests {
                 description: String::new(),
                 path: None,
                 line: None,
+                category: None,
+                rule_id: None,
+                cwe: Vec::new(),
+                evidence: Vec::new(),
+                confidence: None,
             },
             ReviewIssue {
                 severity: "error".into(),
@@ -908,6 +946,11 @@ mod tests {
                 description: String::new(),
                 path: None,
                 line: None,
+                category: None,
+                rule_id: None,
+                cwe: Vec::new(),
+                evidence: Vec::new(),
+                confidence: None,
             },
             ReviewIssue {
                 severity: "warning".into(),
@@ -915,6 +958,11 @@ mod tests {
                 description: String::new(),
                 path: None,
                 line: None,
+                category: None,
+                rule_id: None,
+                cwe: Vec::new(),
+                evidence: Vec::new(),
+                confidence: None,
             },
         ];
         // ReviewOutput::from_str normalizes; build directly so severity stays as given.
@@ -994,6 +1042,11 @@ mod tests {
                 description: String::new(),
                 path: None,
                 line: None,
+                category: None,
+                rule_id: None,
+                cwe: Vec::new(),
+                evidence: Vec::new(),
+                confidence: None,
             }],
             security_issues: Vec::new(),
             suggestions: Vec::new(),

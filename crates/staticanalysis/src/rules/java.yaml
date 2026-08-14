@@ -1,0 +1,85 @@
+# Java security rules — declarative, hot-reloadable (T-4).
+# Matched by symbol suffix; `arg` selects which argument carries taint.
+# `neutralizes: []` = strong (full) sanitizer; `neutralizes: [xss]` = partial.
+
+sources:
+  - id: java-servlet-request
+    language: java
+    symbol: getParameter
+    category: untrusted-input
+    cwe: [CWE-20, CWE-79]
+  - id: java-http-request-body
+    language: java
+    symbol: getInputStream
+    category: untrusted-input
+    cwe: [CWE-20]
+  - id: java-jndi-name-setter
+    language: java
+    symbol: setJndiName
+    category: jndi-injection
+    cwe: [CWE-74, CWE-502]
+  - id: java-request-header
+    language: java
+    symbol: getHeader
+    category: untrusted-input
+    cwe: [CWE-20]
+
+sinks:
+  - id: java-jndi-lookup
+    language: java
+    symbol: InitialContext.lookup
+    category: jndi-injection
+    cwe: [CWE-74]
+    severity: error
+  - id: java-runtime-exec
+    language: java
+    symbol: Runtime.exec
+    category: command-injection
+    cwe: [CWE-78]
+    severity: error
+  - id: java-sql-statement
+    language: java
+    symbol: executeQuery
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-process-builder
+    language: java
+    symbol: ProcessBuilder
+    category: command-injection
+    cwe: [CWE-78]
+    severity: error
+
+sanitizers:
+  # Partial: only defeats XSS, leaves SQLi/command injection intact.
+  - id: java-esapi-encode-html
+    language: java
+    symbol: ESAPI.encoder.encodeForHTML
+    neutralizes: [xss]
+  # Strong: ESAPI canonicalization clears all classes.
+  - id: java-esapi-canonicalize
+    language: java
+    symbol: ESAPI.validator.getValidInput
+    neutralizes: []
+  # Strong: isAutoTypeDenyClass is a hard allow/deny gate.
+  - id: java-fastjson-autotype-deny
+    language: java
+    symbol: isAutoTypeDenyClass
+    neutralizes: []
+
+propagators:
+  - id: java-string-concat
+    language: java
+    symbol: concat
+    from_arg: 0
+    to_receiver: false
+  - id: java-stringbuilder-append
+    language: java
+    symbol: StringBuilder.append
+    from_arg: 0
+    to_receiver: true
+  - id: java-string-format
+    language: java
+    symbol: String.format
+    from_arg: 0
+    to_receiver: false

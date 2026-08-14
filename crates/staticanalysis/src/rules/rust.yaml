@@ -1,0 +1,53 @@
+# Rust security rules (T-4). Matched against call symbols extracted by the
+# Rust tree-sitter frontend (only `lang-rust` is compiled today).
+
+sources:
+  - id: rust-env-var
+    language: rust
+    symbol: env::var
+    category: untrusted-input
+    cwe: [CWE-20]
+  - id: rust-stdin
+    language: rust
+    symbol: stdin
+    category: untrusted-input
+    cwe: [CWE-20]
+
+sinks:
+  - id: rust-process-command
+    language: rust
+    symbol: Command::new
+    category: command-injection
+    cwe: [CWE-78]
+    severity: error
+  - id: rust-process-status
+    language: rust
+    symbol: status
+    category: command-injection
+    cwe: [CWE-78]
+    severity: warning
+  - id: rust-unsafe-block
+    language: rust
+    symbol: unsafe
+    category: memory-safety
+    cwe: [CWE-119]
+    severity: warning
+
+sanitizers:
+  # Strong: shell-escape clears all.
+  - id: rust-shell-escape
+    language: rust
+    symbol: shell_escape
+    neutralizes: []
+
+propagators:
+  - id: rust-string-push
+    language: rust
+    symbol: push_str
+    from_arg: 0
+    to_receiver: true
+  - id: rust-format
+    language: rust
+    symbol: format
+    from_arg: 0
+    to_receiver: false

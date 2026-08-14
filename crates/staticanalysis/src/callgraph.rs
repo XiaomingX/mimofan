@@ -114,27 +114,23 @@ impl CallGraph {
 
     /// Build a call graph from source text using tree-sitter.
     ///
-    /// Only Rust is supported in this skeleton (the `lang-rust` grammar is the
-    /// only one compiled; see `crate::Cargo.toml`). Other languages return
-    /// [`AstError::Unsupported`] rather than misparsing.
+    /// Multi-language resolution is feature-gated: a language whose grammar is
+    /// not compiled in this build returns [`AstError::Unsupported`] rather than
+    /// misparsing. See `crate::Cargo.toml` for the `lang-*` feature flags.
     pub fn build(file: &str, source: &str, lang: Language) -> Result<Self, AstError> {
         let mut parser = Parser::new();
-        let ts_lang = match lang {
-            Language::Rust => {
-                #[cfg(feature = "lang-rust")]
-                {
-                    let l = tree_sitter_rust::LANGUAGE;
-                    parser
-                        .set_language(&l.into())
-                        .map_err(|e| AstError::Parse(e.to_string()))?;
-                    l
-                }
-                #[cfg(not(feature = "lang-rust"))]
-                {
-                    return Err(AstError::Unsupported(lang));
-                }
-            }
-            other => return Err(AstError::Unsupported(other)),
+        let ts_lang: tree_sitter::Language = match lang {
+            Language::Rust => crate::set_grammar!(parser, lang, "lang-rust", tree_sitter_rust::LANGUAGE.into()),
+            Language::Java => crate::set_grammar!(parser, lang, "lang-java", tree_sitter_java::LANGUAGE.into()),
+            Language::TypeScript => crate::set_grammar!(parser, lang, "lang-typescript", tree_sitter_typescript::LANGUAGE_TSX.into()),
+            Language::JavaScript => crate::set_grammar!(parser, lang, "lang-javascript", tree_sitter_javascript::LANGUAGE.into()),
+            Language::Kotlin => crate::set_grammar!(parser, lang, "lang-kotlin", tree_sitter_kotlin_ng::LANGUAGE.into()),
+            Language::Swift => crate::set_grammar!(parser, lang, "lang-swift", tree_sitter_swift::LANGUAGE.into()),
+            Language::ObjectiveC => crate::set_grammar!(parser, lang, "lang-objc", tree_sitter_objc::LANGUAGE.into()),
+            // JSON has no function-call graph; the call_graph tool reports it as
+            // unsupported rather than misparsing.
+            Language::Json => return Err(AstError::Unsupported(lang)),
+            Language::Auto => return Err(AstError::Unsupported(lang)),
         };
 
         let tree = parser
@@ -334,9 +330,17 @@ fn start() {
         assert_eq!(g.reachable_from(start).len(), 1);
     }
 
+    #[cfg(not(feature = "lang-java"))]
     #[test]
     fn non_rust_language_is_rejected() {
         let res = CallGraph::build("x.java", "class A {}", Language::Java);
         assert!(matches!(res, Err(AstError::Unsupported(_))));
+    }
+
+    #[cfg(feature = "lang-java")]
+    #[test]
+    fn java_is_supported_with_feature() {
+        let res = CallGraph::build("x.java", "class A {}", Language::Java);
+        assert!(res.is_ok(), "Java should be supported with lang-java feature");
     }
 }

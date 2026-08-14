@@ -34,6 +34,8 @@ use crate::sandbox::{
     SandboxPolicy as ExecutionSandboxPolicy, // Rename to avoid conflict with spec::SandboxPolicy
     SandboxType,
 };
+#[cfg(target_os = "linux")]
+use crate::sandbox::landlock::apply_landlock_pre_exec;
 use crate::worker_profile::ShellPolicy;
 
 #[path = "shell_tools.rs"]
@@ -1004,6 +1006,19 @@ impl ShellManager {
         }
 
         child_env::apply_to_command(&mut cmd, child_env::string_map_env(&exec_env.env));
+
+        // Apply the Linux Landlock restriction in the child before exec. The
+        // writable root was stashed in MIMOFAN_LANDLOCK_WS by
+        // SandboxManager::prepare_landlock. If the restriction fails to apply,
+        // the child refuses to run (pre_exec returns Err) — never unsandboxed.
+        #[cfg(target_os = "linux")]
+        if matches!(sandbox_type, SandboxType::Landlock) {
+            let ws = exec_env
+                .env
+                .get("MIMOFAN_LANDLOCK_WS")
+                .map(std::path::PathBuf::from);
+            apply_landlock_pre_exec(&mut cmd, ws.as_deref());
+        }
 
         // Disable raw mode before spawn; restore only if raw mode was active
         // on entry (issue #1690).

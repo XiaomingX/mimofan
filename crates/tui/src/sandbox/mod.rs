@@ -26,6 +26,10 @@
 //! ```
 
 pub mod backend;
+pub mod container;
+pub mod credentials;
+#[cfg(target_os = "linux")]
+pub mod landlock;
 pub mod opensandbox;
 pub mod policy;
 pub mod process_hardening;
@@ -189,6 +193,10 @@ pub enum SandboxType {
     /// macOS Seatbelt (sandbox-exec) sandboxing.
     #[cfg(target_os = "macos")]
     MacosSeatbelt,
+
+    /// Linux Landlock (kernel 5.13+) file-access-control sandboxing.
+    #[cfg(target_os = "linux")]
+    Landlock,
 }
 
 impl std::fmt::Display for SandboxType {
@@ -197,6 +205,8 @@ impl std::fmt::Display for SandboxType {
             SandboxType::None => write!(f, "none"),
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => write!(f, "macos-seatbelt"),
+            #[cfg(target_os = "linux")]
+            SandboxType::Landlock => write!(f, "linux-landlock"),
         }
     }
 }
@@ -255,6 +265,13 @@ pub fn get_platform_sandbox() -> Option<SandboxType> {
     {
         if seatbelt::is_available() {
             return Some(SandboxType::MacosSeatbelt);
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if landlock::is_available() {
+            return Some(SandboxType::Landlock);
         }
     }
 
@@ -347,6 +364,9 @@ impl SandboxManager {
 
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => Self::prepare_seatbelt(spec),
+
+            #[cfg(target_os = "linux")]
+            SandboxType::Landlock => Self::prepare_landlock(spec),
         }
     }
 
@@ -394,6 +414,54 @@ impl SandboxManager {
         }
     }
 
+    /// Prepare a Landlock-sandboxed execution environment (Linux).
+    ///
+    /// The command runs locally but the child process applies a kernel-level
+    /// Landlock restriction (read+execute-only filesystem, with the workspace
+    /// granted write access per the policy's writable roots) via a `pre_exec`
+    /// hook. The host environment is cleared and rebuilt from the allowlist so
+    /// credentials are not inherited.
+    #[cfg(target_os = "linux")]
+    fn prepare_landlock(spec: &CommandSpec) -> ExecEnv {
+        // Determine the writable root(s): default to the command's cwd, plus
+        // any explicit writable roots from the policy. Landlock is applied with
+        // the *primary* writable root; additional roots are applied by the
+        // Landlock layer's own logic when invoked as a backend. Here we keep
+        // the OS-level path simple and grant the cwd write access.
+        let writable_root = spec.cwd.clone();
+
+        let mut command = vec![spec.program.clone()];
+        command.extend(spec.args.clone());
+
+        let mut env = crate::sandbox::credentials::build_sandbox_env(&spec.env);
+        // Marker so output can be attributed to the Landlock sandbox.
+        env.insert("MIMOFAN_SANDBOX".to_string(), "landlock".to_string());
+
+        ExecEnv {
+            command,
+            cwd: spec.cwd.clone(),
+            env,
+            timeout: spec.timeout,
+            sandbox_type: SandboxType::Landlock,
+            policy: spec.sandbox_policy.clone(),
+        }
+        .with_landlock_hook(writable_root)
+    }
+
+    /// Attach the Landlock `pre_exec` hook to the underlying command of an
+    /// `ExecEnv`. Since `ExecEnv` is a resolved plan (not a `Command`), the hook
+    /// is recorded here and applied by the executor when it spawns the process.
+    /// We store the writable root in a side-channel: the executor reads
+    /// `MIMOFAN_LANDLOCK_WS` to know where to grant writes.
+    #[cfg(target_os = "linux")]
+    fn with_landlock_hook(mut self, writable_root: PathBuf) -> ExecEnv {
+        self.env.insert(
+            "MIMOFAN_LANDLOCK_WS".to_string(),
+            writable_root.display().to_string(),
+        );
+        self
+    }
+
     /// Check if a command failure was due to sandbox denial.
     ///
     /// This helps distinguish between legitimate command failures and
@@ -407,6 +475,15 @@ impl SandboxManager {
 
             #[cfg(target_os = "macos")]
             SandboxType::MacosSeatbelt => seatbelt::detect_denial(exit_code, stderr),
+
+            #[cfg(target_os = "linux")]
+            SandboxType::Landlock => {
+                // Landlock denials surface as permission errors / EPERM.
+                exit_code != 0
+                    && (stderr.contains("Permission denied")
+                        || stderr.contains("Operation not permitted")
+                        || stderr.contains("landlock"))
+            }
         }
     }
 
@@ -430,6 +507,11 @@ impl SandboxManager {
                         stderr.lines().next().unwrap_or("unknown")
                     )
                 }
+            }
+
+            #[cfg(target_os = "linux")]
+            SandboxType::Landlock => {
+                "Landlock blocked a filesystem operation. The command tried to write outside the allowed workspace.".to_string()
             }
         }
     }

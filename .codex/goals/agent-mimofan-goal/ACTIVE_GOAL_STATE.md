@@ -2,7 +2,7 @@
 status: active
 owner_mode: goal
 objective: "实施 ARCHITECTURE_IMPROVEMENT_PLAN.md 的 DDD 存量优化（Phase A–D）：统一双重运行时、UI 层 IO 收口、execpolicy 去重、memory 决策。只影响底层、不新增功能、符合奥卡姆剃刀。"
-updated_at: 2026-08-13T12:25:00+08:00
+updated_at: 2026-08-15T00:18:30+08:00
 adapter_id: agent-mimofan-goal
 ---
 
@@ -145,6 +145,25 @@ adapter_id: agent-mimofan-goal
   - D11 韧性（circuit_breaker.rs / stream_resume.rs）→ `crates/tui/src/llm_client/` + `core/engine/` 已含（#619）
   - D06 任务规划一致性（dependency_graph / cycle_detection）→ `crates/tui/src/task_manager/mod.rs` 已含（#665）
   - #777 时序推理（created_at 已暴露到检索排序，time_decay 折叠进 score）→ `vector.rs` 已含
+
+## User Todo / Owner Review Reading Queue
+
+## Agent Todo
+
+- [ ] [P0] 验收上轮20任务：全树 cargo build + 关键单测（workflow/taint/goal-judge/plan-checkpoint/atomic-claim/secondary-model/container-sandbox），修复发现的编译/逻辑bug
+  <!-- loopx:todo todo_id=todo_2f4dba31360c status=open task_class=advancement_task action_kind=verify updated_at=2026-08-15T00:18:25%2B08:00 -->
+- [ ] [P0] 长程任务维度：#631 Plan checkpoint 落盘恢复验收+#690 Error Recovery Rate 自主恢复成功率度量实现
+  <!-- loopx:todo todo_id=todo_424bc4d06ba5 status=open task_class=advancement_task action_kind=implement updated_at=2026-08-15T00:18:26%2B08:00 -->
+- [ ] [P1] 性能/降本维度：#708 select_tools 增量披露保prefix cache、#657 BTW侧边对话、#697 低成本工具壳、#628 记忆可观测Stats、#653 统一次级模型抽象
+  <!-- loopx:todo todo_id=todo_dafc764e1b0e status=open task_class=advancement_task action_kind=implement updated_at=2026-08-15T00:18:26%2B08:00 -->
+- [ ] [P1] 安全漏洞挖掘基础：#599 SCA/OSV比对、#592 安全审计persona+semgrep插件、#651 运行时污点插桩(MCP外接)
+  <!-- loopx:todo todo_id=todo_456821d64406 status=open task_class=advancement_task action_kind=implement updated_at=2026-08-15T00:18:27%2B08:00 -->
+- [ ] [P1] 用户体验维度：#732 用户建模UserProfile层、#647 拆分超大文件ui_event_loop/sidebar、#701 Arena多模型对决
+  <!-- loopx:todo todo_id=todo_1b5504179aa0 status=open task_class=advancement_task action_kind=implement updated_at=2026-08-15T00:18:28%2B08:00 -->
+- [ ] [P2] 队列维度收尾：#700 workflow DAG(/已做验收)、#693 Goal独立judge(/已做验收)、#665 原子claim(/已做验收) 跑测试确认
+  <!-- loopx:todo todo_id=todo_5ce6abbeb4b4 status=open task_class=advancement_task action_kind=implement updated_at=2026-08-15T00:18:29%2B08:00 -->
+- [ ] [P2] 闭环：所有相关issue回填验收证据并close、分组成commit到main、push origin main（用户已授权）
+  <!-- loopx:todo todo_id=todo_763ac6b8d5ca status=open task_class=advancement_task action_kind=close updated_at=2026-08-15T00:18:30%2B08:00 -->
 
 ## Next Action
 

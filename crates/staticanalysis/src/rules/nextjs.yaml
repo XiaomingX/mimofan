@@ -1,0 +1,62 @@
+# Next.js / Node.js security rules (T-4). Symbol matching is suffix-based.
+
+sources:
+  - id: js-req-query
+    language: typescript
+    symbol: req.query
+    category: untrusted-input
+    cwe: [CWE-20]
+  - id: js-req-body
+    language: typescript
+    symbol: req.body
+    category: untrusted-input
+    cwe: [CWE-20]
+  - id: js-req-params
+    language: typescript
+    symbol: req.params
+    category: untrusted-input
+    cwe: [CWE-20]
+
+sinks:
+  - id: js-eval
+    language: typescript
+    symbol: eval
+    category: code-injection
+    cwe: [CWE-95]
+    severity: error
+  - id: js-child-process
+    language: typescript
+    symbol: exec
+    category: command-injection
+    cwe: [CWE-78]
+    severity: error
+  - id: js-react-dangerouslyset
+    language: typescript
+    symbol: dangerouslySetInnerHTML
+    category: xss
+    cwe: [CWE-79]
+    severity: warning
+
+sanitizers:
+  # Partial: escapes HTML only.
+  - id: js-escape-html
+    language: typescript
+    symbol: escape
+    neutralizes: [xss]
+  # Strong: DOMPurify sanitize clears all.
+  - id: js-dompurify
+    language: typescript
+    symbol: DOMPurify.sanitize
+    neutralizes: []
+
+propagators:
+  - id: js-template-literal
+    language: typescript
+    symbol: String.concat
+    from_arg: 0
+    to_receiver: false
+  - id: js-array-join
+    language: typescript
+    symbol: join
+    from_arg: 0
+    to_receiver: false

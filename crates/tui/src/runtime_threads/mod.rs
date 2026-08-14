@@ -38,7 +38,7 @@ use crate::models::{
     ContentBlock, Message, SystemPrompt, Usage, auto_compact_default_for_model,
     compaction_threshold_for_model_at_percent,
 };
-use crate::tools::plan::new_shared_plan_state;
+use crate::tools::plan::new_shared_plan_state_with_persistence;
 use crate::tools::subagent::SubAgentStatus;
 use crate::tools::todo::new_shared_todo_list;
 use mimofan_core::Runtime;
@@ -1746,7 +1746,11 @@ impl RuntimeThreadManager {
             auto_review_policy: self.config.auto_review_policy(),
             compaction,
             todos: new_shared_todo_list(),
-            plan_state: new_shared_plan_state(),
+            plan_state: {
+                let mut checkpoint = self.manager_cfg.task_data_dir.clone();
+                checkpoint.push("plan_checkpoint.json");
+                new_shared_plan_state_with_persistence(checkpoint)
+            },
             goal_queue: crate::tools::goal::new_shared_goal_queue(),
             max_spawn_depth: self.config.subagent_max_spawn_depth_for_provider(provider),
             subagent_token_budget: self.config.subagent_token_budget_for_provider(provider),

@@ -1,5 +1,7 @@
 //! Plan tool implementation with step tracking and validation
 
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
@@ -296,6 +298,11 @@ pub struct PlanState {
     /// Recorded so later turns can tell an approved plan apart from a draft
     /// the user never signed off on.
     approved_plan: Option<String>,
+    /// Optional on-disk checkpoint path. When set, every [`PlanState::update`]
+    /// persists a [`PlanSnapshot`] here so a subsequent process restart can
+    /// resume from the last checkpoint (cross-process durability, not just
+    /// in-session memory). `None` keeps the legacy in-memory-only behaviour.
+    persist_path: Option<PathBuf>,
 }
 
 impl PlanState {
@@ -432,6 +439,10 @@ impl PlanState {
         }
 
         self.steps = new_steps;
+
+        // Cross-process checkpoint: persist the snapshot to disk on every
+        // mutation so a later process restart can resume from this point.
+        self.try_persist();
     }
 
     pub fn snapshot(&self) -> PlanSnapshot {
@@ -492,6 +503,68 @@ impl PlanState {
                 s
             })
             .collect();
+    }
+
+    /// Configure the on-disk checkpoint path. Once set, every [`PlanState::update`]
+    /// writes a [`PlanSnapshot`] here so a later process restart can resume.
+    pub fn set_persist_path(&mut self, path: PathBuf) {
+        self.persist_path = Some(path);
+    }
+
+    /// Persist the current snapshot to `path` (overwriting). Errors are
+    /// returned to the caller, which may decide how to surface them.
+    pub fn persist_to(&self, path: &Path) -> std::io::Result<()> {
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+        let snap = self.snapshot();
+        let json = serde_json::to_string_pretty(&snap)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        fs::write(path, json)
+    }
+
+    /// Best-effort persist: used after every `update`. Failures are logged and
+    /// swallowed so a disk hiccup never aborts a plan update (the in-memory
+    /// state is still authoritative within the session).
+    pub fn try_persist(&self) {
+        if let Some(path) = &self.persist_path {
+            if let Err(e) = self.persist_to(path) {
+                tracing::warn!("plan checkpoint persist to {} failed: {e}", path.display());
+            }
+        }
+    }
+
+    /// Restore a previously persisted checkpoint into this state, if the file
+    /// exists and parses. Returns `true` when a checkpoint was loaded. A
+    /// missing or corrupt file is treated as "no checkpoint yet" and leaves the
+    /// state untouched (the in-memory default is valid).
+    pub fn restore_if_present(&mut self) -> bool {
+        let Some(path) = self.persist_path.clone() else {
+            return false;
+        };
+        if !path.exists() {
+            return false;
+        }
+        let Ok(json) = fs::read_to_string(&path) else {
+            tracing::warn!("plan checkpoint read {} failed; skipping restore", path.display());
+            return false;
+        };
+        match serde_json::from_str::<PlanSnapshot>(&json) {
+            Ok(snap) => {
+                self.apply_snapshot(snap);
+                true
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "plan checkpoint {} corrupted ({}); starting fresh",
+                    path.display(),
+                    e
+                );
+                false
+            }
+        }
     }
 
     pub fn explanation(&self) -> Option<&str> {
@@ -823,6 +896,17 @@ pub type SharedPlanState = Arc<Mutex<PlanState>>;
 /// Create a new shared `PlanState`
 pub fn new_shared_plan_state() -> SharedPlanState {
     Arc::new(Mutex::new(PlanState::default()))
+}
+
+/// Create a shared `PlanState` that checkpoints to `path` across process
+/// restarts. Any existing checkpoint at `path` is restored on creation, so a
+/// restarted process resumes from the last `update_plan` rather than a blank
+/// plan.
+pub fn new_shared_plan_state_with_persistence(path: PathBuf) -> SharedPlanState {
+    let mut state = PlanState::default();
+    state.set_persist_path(path);
+    state.restore_if_present();
+    Arc::new(Mutex::new(state))
 }
 
 /// Tool for updating the implementation plan

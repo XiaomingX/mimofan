@@ -1,11 +1,14 @@
 //! `/plugins` slash command — list and inspect script plugin tools.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::commands::CommandResult;
 use crate::config::Config;
 use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 use crate::localization::{MessageId, tr};
+use crate::sandbox::{CommandSpec, SandboxManager, SandboxType};
 use crate::tools::plugin::scan_plugin_dir;
 use crate::tui::app::App;
 
@@ -287,11 +290,58 @@ pub fn plugin_test(_app: &mut App, args: Option<&str>) -> CommandResult {
         }
     }
 
-    let mut child = std::process::Command::new(&interpreter);
-    child.args(&script_args);
+    // #SECURITY-CAPABILITY T-15 — route the plugin interpreter through the
+    // OS-level sandbox when one is available on this platform (macOS Seatbelt,
+    // Linux Landlock). The sandbox transforms the command into a restricted
+    // ExecEnv (cleared env, no inherited credentials). When no sandbox is
+    // available it falls back to an unsandboxed ExecEnv that preserves the
+    // previous behavior. execpolicy validation above remains a *policy* gate,
+    // not a substitute for this isolation.
+    let mut sandbox_manager = SandboxManager::new();
+    let sandbox_available = sandbox_manager.is_available();
+    let cwd = path
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
+    let spec = CommandSpec::program(&interpreter, script_args, cwd, Duration::from_secs(30))
+        .with_env(HashMap::new());
+    let exec_env = sandbox_manager.prepare(&spec);
+
+    if sandbox_available {
+        output.push_str(&format!(
+            "  ✓ plugin interpreter routed through OS sandbox ({}).\n",
+            exec_env.sandbox_type
+        ));
+    }
+
+    let mut child = std::process::Command::new(exec_env.program());
+    child.args(exec_env.args());
+    child.current_dir(&exec_env.cwd);
     child.stdin(std::process::Stdio::piped());
     child.stdout(std::process::Stdio::piped());
     child.stderr(std::process::Stdio::piped());
+
+    // Apply the sandbox environment. We start from an EMPTY environment
+    // (env_clear) and inject only the sandbox allowlist (PATH, HOME, TMPDIR,
+    // …) + ephemeral token built by `build_sandbox_env` — the host environment
+    // (and any credentials it carries) is never inherited. This is the "default
+    // no inherited host env" guarantee required for the sandbox credential
+    // pool. The allowlist ensures the interpreter can still resolve PATH.
+    let sandbox_env = crate::sandbox::credentials::build_sandbox_env(&exec_env.env);
+    child.env_clear();
+    for (k, v) in &sandbox_env {
+        child.env(k, v);
+    }
+    // Any Landlock pre_exec hook for the Linux path.
+    #[cfg(target_os = "linux")]
+    if matches!(exec_env.sandbox_type, SandboxType::Landlock) {
+        let ws = exec_env
+            .env
+            .get("MIMOFAN_LANDLOCK_WS")
+            .map(std::path::PathBuf::from);
+        crate::sandbox::landlock::apply_landlock_pre_exec(&mut child, ws.as_deref());
+    }
 
     let mut spawned = match child.spawn() {
         Ok(s) => s,

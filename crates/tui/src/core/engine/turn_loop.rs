@@ -449,8 +449,13 @@ impl Engine {
                         .recover_context_overflow(&client, "preflight token budget")
                         .await
                     {
+                        crate::core::engine::recovery_stats::record_attempt();
+                        crate::core::engine::recovery_stats::record_success();
                         context_recovery_attempts = context_recovery_attempts.saturating_add(1);
                         continue;
+                    } else {
+                        // A failure we tried to recover from but could not.
+                        crate::core::engine::recovery_stats::record_attempt();
                     }
                 }
             }
@@ -640,8 +645,15 @@ impl Engine {
                             .recover_context_overflow(&client, "provider context-length rejection")
                             .await
                     {
+                        crate::core::engine::recovery_stats::record_attempt();
+                        crate::core::engine::recovery_stats::record_success();
                         context_recovery_attempts = context_recovery_attempts.saturating_add(1);
                         continue;
+                    } else if is_context_length_error_message(&message)
+                        && context_recovery_attempts >= MAX_CONTEXT_RECOVERY_ATTEMPTS
+                    {
+                        // Exhausted recovery budget on a context-length error.
+                        crate::core::engine::recovery_stats::record_attempt();
                     }
                     turn_error = Some(message.clone());
                     let _ = self
@@ -825,6 +837,7 @@ impl Engine {
                             transparent_stream_retries,
                             self.cancel_token.is_cancelled(),
                         ) {
+                            crate::core::engine::recovery_stats::record_attempt();
                             transparent_stream_retries =
                                 transparent_stream_retries.saturating_add(1);
                             crate::logging::info(format!(

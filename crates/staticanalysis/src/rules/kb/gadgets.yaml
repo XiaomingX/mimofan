@@ -1,0 +1,69 @@
+# Gadget & vulnerability knowledge base (T-12). Data-driven so it can be
+# extended without Rust changes. `gadgets` describe exploitable pivots;
+# `chains` are satisfied when ALL `requires` gadgets are present; `patterns`
+# are source signatures for sinks beyond the rule files.
+gadgets:
+  - id: c3p0-jndi
+    library: com.mchange:c3p0
+    class: com.mchange.v2.c3p0.impl.JndiRefForwardingDataSource
+    pivot: setJndiName
+    enables: jndi-injection
+    references: [CVE-2019-5427]
+  - id: jndi-lookup
+    library: javax.naming
+    class: javax.naming.InitialContext
+    pivot: lookup
+    enables: jndi-injection
+    references: [CVE-2021-44228]
+  - id: log4j-jndilookup
+    library: org.apache.logging.log4j:log4j-core
+    class: org.apache.logging.log4j.core.lookup.JndiLookup
+    pivot: lookup
+    enables: jndi-injection
+    references: [CVE-2021-44228]
+  - id: fastjson-autotype
+    library: com.alibaba:fastjson
+    class: com.alibaba.fastjson.JSON
+    pivot: parseObject
+    enables: unsafe-deserialization
+    references: [CVE-2022-25845]
+  - id: commons-collections-invokertransformer
+    library: commons-collections:commons-collections
+    class: org.apache.commons.collections.functors.InvokerTransformer
+    pivot: transform
+    enables: rce-gadget
+    references: [CVE-2015-7501]
+
+chains:
+  - id: c3p0-log4shell
+    name: C3P0 JndiRefForwardingDataSource -> JNDI injection
+    enables: jndi-injection
+    requires: [c3p0-jndi, jndi-lookup]
+    severity: error
+    references: [CVE-2021-44228, CVE-2019-5427]
+  - id: log4j-log4shell
+    name: Log4j JndiLookup -> Log4Shell
+    enables: jndi-injection
+    requires: [log4j-jndilookup, jndi-lookup]
+    severity: critical
+    references: [CVE-2021-44228]
+  - id: commons-collections-gadget
+    name: Commons-Collections InvokerTransformer chain
+    enables: rce-gadget
+    requires: [commons-collections-invokertransformer]
+    severity: error
+    references: [CVE-2015-7501]
+
+patterns:
+  - id: pat-jndi-lookup
+    language: java
+    symbol: InitialContext.lookup
+    arg: 0
+    category: jndi-injection
+    cwe: [CWE-74]
+  - id: pat-fastjson-parseobject
+    language: java
+    symbol: JSON.parseObject
+    arg: 0
+    category: unsafe-deserialization
+    cwe: [CWE-502]

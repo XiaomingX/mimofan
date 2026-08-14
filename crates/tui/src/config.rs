@@ -1758,35 +1758,58 @@ impl Config {
 
     /// Raw sub-agent model override map. Values are validated at spawn time
     /// so an invalid role/type model fails before any partial agent spawn.
+    ///
+    /// When the user has not configured an explicit model for a role, the
+    /// cheapest known sibling of the active provider's model is filled in
+    /// automatically (#T-Q5) — so dispatching sub-agents uses a cheap model
+    /// with zero manual configuration. Explicit `subagents.*` overrides always
+    /// win (they are inserted first); the cheap default only backfills empty
+    /// roles, preserving the primary/secondary override contract.
     #[must_use]
     pub fn subagent_model_overrides(&self) -> HashMap<String, String> {
         let mut overrides = HashMap::new();
-        let Some(cfg) = self.subagents.as_ref() else {
-            return overrides;
-        };
 
-        let mut insert = |key: &str, value: &Option<String>| {
-            if let Some(model) = value.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
-                overrides.insert(key.to_string(), model.to_string());
-            }
-        };
-        insert("default", &cfg.default_model);
-        insert("worker", &cfg.worker_model);
-        insert("general", &cfg.worker_model);
-        insert("explorer", &cfg.explorer_model);
-        insert("explore", &cfg.explorer_model);
-        insert("awaiter", &cfg.awaiter_model);
-        insert("plan", &cfg.awaiter_model);
-        insert("review", &cfg.review_model);
-        insert("custom", &cfg.custom_model);
-
-        if let Some(models) = cfg.models.as_ref() {
-            for (key, model) in models {
-                let key = key.trim();
-                let model = model.trim();
-                if !key.is_empty() && !model.is_empty() {
-                    overrides.insert(key.to_ascii_lowercase(), model.to_string());
+        if let Some(cfg) = self.subagents.as_ref() {
+            let mut insert = |key: &str, value: &Option<String>| {
+                if let Some(model) = value.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+                    overrides.insert(key.to_string(), model.to_string());
                 }
+            };
+            insert("default", &cfg.default_model);
+            insert("worker", &cfg.worker_model);
+            insert("general", &cfg.worker_model);
+            insert("explorer", &cfg.explorer_model);
+            insert("explore", &cfg.explorer_model);
+            insert("awaiter", &cfg.awaiter_model);
+            insert("plan", &cfg.awaiter_model);
+            insert("review", &cfg.review_model);
+            insert("custom", &cfg.custom_model);
+
+            if let Some(models) = cfg.models.as_ref() {
+                for (key, model) in models {
+                    let key = key.trim();
+                    let model = model.trim();
+                    if !key.is_empty() && !model.is_empty() {
+                        overrides.insert(key.to_ascii_lowercase(), model.to_string());
+                    }
+                }
+            }
+        }
+
+        // Auto cheap-tier backfill: for every role still unset, use the known
+        // cheap sibling of the active model (e.g. GLM-5.2 → GLM-5-Turbo) so
+        // sub-agents automatically run on the cheaper model without the user
+        // having to configure anything. Non-OpenAI-compatible providers (or
+        // models with no known sibling) expose no cheap tier, so the role is
+        // left unset and the spawn path falls back to the primary model.
+        let candidates =
+            crate::model_routing::provider_router_candidates(self.api_provider(), &self.default_model());
+        if let Some(cheap) = candidates.cheap.as_deref() {
+            for role in [
+                "default", "worker", "general", "explorer", "explore", "awaiter", "plan",
+                "review", "custom",
+            ] {
+                overrides.entry(role.to_string()).or_insert_with(|| cheap.to_string());
             }
         }
 

@@ -28,6 +28,14 @@ pub enum SandboxKind {
     None,
     /// Alibaba OpenSandbox remote execution.
     OpenSandbox,
+    /// Local OCI container (podman preferred, docker fallback) execution.
+    ///
+    /// Commands run inside an ephemeral, restricted container: no network by
+    /// default, read-only workspace mount, non-root user, tmpfs scratch space,
+    /// all capabilities dropped, and CPU/memory/timeout ceilings. Network and
+    /// writable mounts must be enabled explicitly and per-item — there is no
+    /// "allow all" escape hatch.
+    Container,
 }
 
 impl SandboxKind {
@@ -37,6 +45,7 @@ impl SandboxKind {
         match value.trim().to_ascii_lowercase().as_str() {
             "none" | "" => Some(Self::None),
             "opensandbox" | "open-sandbox" | "open_sandbox" => Some(Self::OpenSandbox),
+            "container" | "podman" | "docker" => Some(Self::Container),
             _ => None,
         }
     }
@@ -47,6 +56,7 @@ impl SandboxKind {
         match self {
             Self::None => "none",
             Self::OpenSandbox => "opensandbox",
+            Self::Container => "container",
         }
     }
 }
@@ -72,7 +82,11 @@ use crate::config::Config;
 /// Returns `None` when no external sandbox backend is configured (i.e. the
 /// `sandbox_backend` key is absent, empty, or `"none"`). When `"opensandbox"`
 /// is set, constructs an [`OpenSandboxBackend`](super::opensandbox::OpenSandboxBackend) using `sandbox_url` and
-/// `sandbox_api_key`.
+/// `sandbox_api_key`. When `"container"` is set, probes for a local OCI
+/// runtime (podman preferred, then docker) and returns a
+/// [`ContainerBackend`](super::container::ContainerBackend). If neither
+/// runtime is installed, returns an error — this is **never** silently
+/// downgraded to no-sandbox.
 pub fn create_backend(config: &Config) -> Result<Option<Box<dyn SandboxBackend>>> {
     let kind = config
         .sandbox_backend
@@ -89,6 +103,10 @@ pub fn create_backend(config: &Config) -> Result<Option<Box<dyn SandboxBackend>>
                 .unwrap_or_else(|| "http://localhost:8080".to_string());
             let api_key = config.sandbox_api_key.clone();
             let backend = super::opensandbox::OpenSandboxBackend::new(base_url, api_key, 30)?;
+            Ok(Some(Box::new(backend)))
+        }
+        SandboxKind::Container => {
+            let backend = super::container::ContainerBackend::detect()?;
             Ok(Some(Box::new(backend)))
         }
     }

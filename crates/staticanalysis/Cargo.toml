@@ -7,9 +7,40 @@ license.workspace = true
 [dependencies]
 tree-sitter = "0.25"
 tree-sitter-rust = { version = "0.23", optional = true }
+tree-sitter-java = { version = "0.23", optional = true }
+tree-sitter-typescript = { version = "0.23", optional = true }
+tree-sitter-javascript = { version = "0.25", optional = true }
+tree-sitter-kotlin-ng = { version = "1.1", optional = true }
+tree-sitter-swift = { version = "0.7", optional = true }
+tree-sitter-objc = { version = "3", optional = true }
+tree-sitter-json = { version = "0.24", optional = true }
+rusqlite = { workspace = true, optional = true }
 serde_json = { workspace = true }
 anyhow = "1"
 
 [features]
+# Default build only compiles the Rust grammar to keep cold compile times low.
+# Multi-language SAST analysis is opt-in per deploy target via these flags.
 default = ["lang-rust"]
 lang-rust = ["dep:tree-sitter-rust"]
+lang-java = ["dep:tree-sitter-java"]
+lang-typescript = ["dep:tree-sitter-typescript"]
+lang-javascript = ["dep:tree-sitter-javascript"]
+lang-kotlin = ["dep:tree-sitter-kotlin-ng"]
+lang-swift = ["dep:tree-sitter-swift"]
+lang-objc = ["dep:tree-sitter-objc"]
+lang-json = ["dep:tree-sitter-json"]
+# Convenience meta-feature: all grammars (longer build, full coverage).
+lang-all = [
+    "lang-rust",
+    "lang-java",
+    "lang-typescript",
+    "lang-javascript",
+    "lang-kotlin",
+    "lang-swift",
+    "lang-objc",
+    "lang-json",
+]
+# Persistent symbol index (SQLite). Off by default so the default build does
+# not pull in the bundled SQLite compile. Enable for the SAST code-index.
+symbol-index = ["dep:rusqlite"]

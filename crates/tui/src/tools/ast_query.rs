@@ -88,6 +88,7 @@ fn parse_language(raw: &str) -> Language {
         "kotlin" => Language::Kotlin,
         "swift" => Language::Swift,
         "objc" | "objectivec" | "objective-c" => Language::ObjectiveC,
+        "json" => Language::Json,
         _ => Language::Auto,
     }
 }
@@ -100,9 +101,13 @@ impl ToolSpec for AstQueryTool {
 
     fn description(&self) -> &'static str {
         "Query a source file's AST with tree-sitter. Supports named presets \
-         (rust.sink.process_exec, rust.unsound.unsafe_block, java.sink.runtime_exec, \
-         java.sink.sql_concat) or a raw S-expression. Returns matched nodes with \
-         line/column locations. Read-only."
+         (rust.sink.process_exec, rust.unsound.unsafe_block, \
+         java.sink.runtime_exec, java.sink.sql_concat, java.sink.deserialization, \
+         js.sink.eval, js.sink.child_process_exec, js.sink.sql_concat, \
+         kotlin.sink.runtime_exec, swift.sink.process_run, objc.sink.system, \
+         webext.manifest.broad_host_permissions) or a raw S-expression. Returns \
+         matched nodes with line/column locations. Read-only. Preset availability \
+         depends on the build's lang-* grammar features."
     }
 
     fn input_schema(&self) -> Value {

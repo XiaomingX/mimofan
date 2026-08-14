@@ -540,6 +540,7 @@ const LOCALE_CLOSER_ZH_HANS: &str = include_str!("locale_closer_zh_hans.md");
 /// Personality overlays — voice and tone.
 pub const CALM_PERSONALITY: &str = include_str!("personalities/calm.md");
 pub const PLAYFUL_PERSONALITY: &str = include_str!("personalities/playful.md");
+pub const SECURITY_AUDITOR_PERSONALITY: &str = include_str!("personalities/security_auditor.md");
 
 /// Mode deltas — permissions, workflow expectations, mode-specific rules.
 pub const AGENT_MODE: &str = include_str!("modes/agent.md");
@@ -583,6 +584,11 @@ pub enum Personality {
     Calm,
     /// Warm, energetic, playful — alternative for fun mode.
     Playful,
+    /// Security-audit overlay: drives the model to act as a senior secure-code
+    /// reviewer, prioritizing SAST findings (semgrep / SARIF), dependency
+    /// advisories, and taint/deserialization risks. Used by the security-audit
+    /// skill and the `/code-review` security mode.
+    SecurityAuditor,
 }
 
 impl Personality {
@@ -604,6 +610,7 @@ impl Personality {
         match self {
             Self::Calm => CALM_PERSONALITY,
             Self::Playful => PLAYFUL_PERSONALITY,
+            Self::SecurityAuditor => SECURITY_AUDITOR_PERSONALITY,
         }
     }
 }

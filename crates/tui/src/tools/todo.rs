@@ -1,9 +1,14 @@
 //! Todo list tool and supporting data structures.
 
+use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use async_trait::async_trait;
+use chrono::Utc;
+use fd_lock::RwLock;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -103,6 +108,10 @@ pub struct TodoListSnapshot {
 pub struct TodoList {
     items: Vec<TodoItem>,
     next_id: u32,
+    /// In-memory advisory claim ownership (`task_id` → `agent_id`). The
+    /// cross-process source of truth lives in `TodoClaimStore`; this field is
+    /// only the single-process fallback used when no durable store is wired.
+    claims: HashMap<u32, String>,
 }
 
 impl TodoList {
@@ -112,7 +121,14 @@ impl TodoList {
         Self {
             items: Vec::new(),
             next_id: 1,
+            claims: HashMap::new(),
         }
+    }
+
+    /// Look up a todo item by id.
+    #[must_use]
+    pub fn get(&self, id: u32) -> Option<&TodoItem> {
+        self.items.iter().find(|item| item.id == id)
     }
 
     /// Return a snapshot of the list with computed metrics.
@@ -864,5 +880,346 @@ mod dependency_tests {
         list.add_with_dependencies("orphan".to_string(), TodoStatus::Pending, vec![42]);
         // Dependency ids that no longer exist count as satisfied.
         assert_eq!(list.ready_ids(), vec![1]);
+    }
+}
+
+// === Cross-process atomic claim ===
+//
+// The in-memory `TodoList` is session-scoped: two agents in *different*
+// processes (or different sub-agent runtimes sharing a `task_data_dir`) cannot
+// coordinate over it. `TodoClaimStore` persists claim ownership to
+// `todo_claims.json` under `task_data_dir` and guards every read-modify-write
+// with a process-wide advisory file lock (`fd_lock`), so racing `claim` calls
+// for the same task id resolve atomically — exactly one agent wins.
+//
+// `claim` / `reserve` / `take` are three spellings of the same atomic acquire;
+// they are kept distinct only so callers can express intent. `release` frees a
+// claim, but only the owning agent may do so.
+
+/// A single persisted claim: which agent owns `task_id` and when it grabbed it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ClaimRecord {
+    pub agent_id: String,
+    #[serde(default)]
+    pub claimed_at: String,
+}
+
+/// On-disk shape of the claim registry.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct TodoClaimsFile {
+    claims: HashMap<u32, ClaimRecord>,
+}
+
+/// Process-crossing claim coordinator backed by a file + advisory lock.
+///
+/// Cloning is cheap (just the directory path); the lock and JSON file are
+/// opened lazily on each operation, so two clones of the same store share the
+/// same on-disk state.
+#[derive(Debug, Clone)]
+pub struct TodoClaimStore {
+    dir: PathBuf,
+}
+
+impl TodoClaimStore {
+    /// Build a store rooted at `dir`. The directory is created lazily on first
+    /// write; a missing directory is not an error until an operation needs it.
+    #[must_use]
+    pub fn new(dir: PathBuf) -> Self {
+        Self { dir }
+    }
+
+    /// Store path for the claim registry.
+    fn claims_path(&self) -> PathBuf {
+        let mut p = self.dir.clone();
+        p.push("todo_claims.json");
+        p
+    }
+
+    /// Advisory lock file guarding the claim registry.
+    fn lock_path(&self) -> PathBuf {
+        let mut p = self.dir.clone();
+        p.push("todo_claims.lock");
+        p
+    }
+
+    /// Run `op` under the process-wide write lock, with the current claim map
+    /// loaded into memory. `op` may mutate the map; its final state is written
+    /// back to disk before the lock is released. The lock is a blocking
+    /// advisory lock, so callers should invoke this from `spawn_blocking`.
+    fn with_locked_claims<F, R>(&self, op: F) -> std::io::Result<R>
+    where
+        F: FnOnce(&mut HashMap<u32, ClaimRecord>) -> R,
+    {
+        let lock_path = self.lock_path();
+        if let Some(parent) = lock_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+        let file = fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)?;
+        let mut file_lock = RwLock::new(file);
+        let mut guard = file_lock
+            .write()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        let mut claims: HashMap<u32, ClaimRecord> = {
+            let path = self.claims_path();
+            if path.exists() {
+                let raw = fs::read_to_string(&path)?;
+                if raw.trim().is_empty() {
+                    HashMap::new()
+                } else {
+                    match serde_json::from_str::<TodoClaimsFile>(&raw) {
+                        Ok(f) => f.claims,
+                        // A corrupt registry should not wedge every claim; start
+                        // fresh rather than failing closed.
+                        Err(e) => {
+                            tracing::warn!(
+                                "todo_claims.json at {} corrupted ({}); starting fresh",
+                                path.display(),
+                                e
+                            );
+                            HashMap::new()
+                        }
+                    }
+                }
+            } else {
+                HashMap::new()
+            }
+        };
+
+        let result = op(&mut claims);
+
+        let serialized = serde_json::to_string_pretty(&TodoClaimsFile {
+            claims: claims.clone(),
+        })
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        // Truncate then rewrite so stale bytes from a longer previous version
+        // do not linger.
+        use std::io::{Seek, Write};
+        guard.set_len(0)?;
+        guard.seek(std::io::SeekFrom::Start(0))?;
+        guard.write_all(serialized.as_bytes())?;
+        guard.flush()?;
+
+        Ok(result)
+    }
+
+    /// Atomically acquire the claim for `task_id` on behalf of `agent_id`.
+    ///
+    /// Returns `true` if this call won the claim (first acquirer, or the same
+    /// agent re-claiming its own task). Returns `false` if another agent
+    /// already holds the claim. `reserve` and `take` are aliases with identical
+    /// semantics, kept for caller intent.
+    pub fn claim(&self, task_id: u32, agent_id: &str) -> std::io::Result<bool> {
+        self.with_locked_claims(|claims| match claims.get(&task_id) {
+            Some(existing) if existing.agent_id != agent_id => false,
+            _ => {
+                claims.insert(
+                    task_id,
+                    ClaimRecord {
+                        agent_id: agent_id.to_string(),
+                        claimed_at: Utc::now().to_rfc3339(),
+                    },
+                );
+                true
+            }
+        })
+    }
+
+    /// Alias for [`TodoClaimStore::claim`] — express a reservation intent.
+    pub fn reserve(&self, task_id: u32, agent_id: &str) -> std::io::Result<bool> {
+        self.claim(task_id, agent_id)
+    }
+
+    /// Alias for [`TodoClaimStore::claim`] — express a take/own intent.
+    pub fn take(&self, task_id: u32, agent_id: &str) -> std::io::Result<bool> {
+        self.claim(task_id, agent_id)
+    }
+
+    /// Release a claim. Only the owning `agent_id` may release; releasing a
+    /// task you do not own (or one not claimed) returns `false`.
+    pub fn release(&self, task_id: u32, agent_id: &str) -> std::io::Result<bool> {
+        self.with_locked_claims(|claims| match claims.get(&task_id) {
+            Some(existing) if existing.agent_id == agent_id => {
+                claims.remove(&task_id);
+                true
+            }
+            _ => false,
+        })
+    }
+
+    /// Current owner of `task_id`, if any (read-only; still lock-guarded).
+    pub fn owner_of(&self, task_id: u32) -> std::io::Result<Option<String>> {
+        self.with_locked_claims(|claims| claims.get(&task_id).map(|r| r.agent_id.clone()))
+    }
+}
+
+/// Tool that lets an agent atomically claim a todo item so two agents never
+/// work the same task. Backed by [`TodoClaimStore`] for cross-process safety.
+pub struct TodoClaimTool {
+    todo_list: SharedTodoList,
+    /// Optional shared claim store. When `None` (no `task_data_dir`), claims
+    /// degrade to an in-memory advisory check on `todo_list` only.
+    claim_store: Option<TodoClaimStore>,
+}
+
+impl TodoClaimTool {
+    pub fn new(todo_list: SharedTodoList, claim_store: Option<TodoClaimStore>) -> Self {
+        Self {
+            todo_list,
+            claim_store,
+        }
+    }
+}
+
+#[async_trait]
+impl ToolSpec for TodoClaimTool {
+    fn name(&self) -> &'static str {
+        "todo_claim"
+    }
+
+    fn description(&self) -> &'static str {
+        "Atomically claim a todo item so only one agent works it. Use before starting a todo item in a multi-agent setup. Returns whether the claim was acquired; a false result means another agent already owns it. Use `release` to free it when done. `action` may be `claim`, `reserve`, or `take` (all acquire)."
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "description": "Todo item id to claim (the numeric `id` from todo_write/todo_list)."
+                },
+                "action": {
+                    "type": "string",
+                    "enum": ["claim", "reserve", "take", "release"],
+                    "description": "claim/reserve/take acquire the item; release frees it. Default claim.",
+                    "default": "claim"
+                }
+            },
+            "required": ["id"],
+            "additionalProperties": false
+        })
+    }
+
+    fn capabilities(&self) -> Vec<ToolCapability> {
+        Vec::new()
+    }
+
+    fn approval_requirement(&self) -> ApprovalRequirement {
+        ApprovalRequirement::Auto
+    }
+
+    async fn execute(
+        &self,
+        input: serde_json::Value,
+        context: &ToolContext,
+    ) -> Result<ToolResult, ToolError> {
+        let id = input
+            .get("id")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok())
+            .ok_or_else(|| ToolError::invalid_input("`id` (a todo item id) is required"))?;
+        let action = input
+            .get("action")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("claim")
+            .to_ascii_lowercase();
+
+        // Validate the id exists (best-effort; skipped for release when the
+        // item may already be gone, and for any cross-process list we can't see).
+        {
+            let list = self.todo_list.lock().await;
+            if list.get(id).is_none() && action != "release" {
+                return Err(ToolError::invalid_input(format!(
+                    "todo item #{id} does not exist"
+                )));
+            }
+        }
+
+        // Resolve a stable agent identity for this process/runtime.
+        let agent_id = context
+            .runtime
+            .active_task_id
+            .clone()
+            .or_else(|| context.runtime.active_thread_id.clone())
+            .unwrap_or_else(|| "agent:unknown".to_string());
+
+        // Resolve the claim store: prefer the injected one; otherwise derive it
+        // from the tool context's task_data_dir so the tool works even when no
+        // store was threaded through construction.
+        let store = self.claim_store.clone().or_else(|| {
+            context
+                .runtime
+                .task_data_dir
+                .clone()
+                .map(TodoClaimStore::new)
+        });
+
+        let result: std::io::Result<bool> = match store {
+            Some(store) => {
+                let action_for_spawn = action.clone();
+                let agent_id_for_spawn = agent_id.clone();
+                tokio::task::spawn_blocking(move || match action_for_spawn.as_str() {
+                    "release" => store.release(id, &agent_id_for_spawn),
+                    _ => store.claim(id, &agent_id_for_spawn),
+                })
+                .await
+                .map_err(|e| ToolError::execution_failed(format!("claim task join: {e}")))?
+            }
+            None => {
+                // No durable store available: degrade to an in-memory advisory
+                // check so single-process callers still get a deterministic
+                // answer (no cross-process guarantee).
+                let mut list = self.todo_list.lock().await;
+                match action.as_str() {
+                    "release" => Ok(list.release_claim(id, &agent_id)),
+                    _ => Ok(list.claim(id, &agent_id)),
+                }
+            }
+        };
+
+        let acquired = result.map_err(|e| ToolError::execution_failed(format!("claim failed: {e}")))?;
+
+        let verb = match action.as_str() {
+            "release" => "released",
+            _ => "claimed",
+        };
+        Ok(ToolResult::success(format!(
+            "todo item #{id} {verb}: {acquired} (agent {agent_id})"
+        )))
+    }
+}
+
+// In-memory advisory claim helpers on `TodoList`, used only when no durable
+// store is available (single-process fallback). These satisfy the same
+// acquire/release contract as `TodoClaimStore` but are not cross-process safe.
+impl TodoList {
+    /// Advisory in-memory claim (see [`TodoClaimStore::claim`]).
+    pub fn claim(&mut self, id: u32, agent_id: &str) -> bool {
+        match self.claims.get(&id) {
+            Some(existing) if existing != agent_id => false,
+            _ => {
+                self.claims.insert(id, agent_id.to_string());
+                true
+            }
+        }
+    }
+
+    /// Advisory in-memory release (see [`TodoClaimStore::release`]).
+    pub fn release_claim(&mut self, id: u32, agent_id: &str) -> bool {
+        match self.claims.get(&id) {
+            Some(existing) if existing == agent_id => {
+                self.claims.remove(&id);
+                true
+            }
+            _ => false,
+        }
     }
 }

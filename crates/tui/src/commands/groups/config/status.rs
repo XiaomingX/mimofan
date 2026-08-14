@@ -117,6 +117,12 @@ fn format_status(app: &App) -> String {
     let _ = writeln!(out);
     let mem_stats = crate::memory_stats::compute_memory_stats(app.use_memory, &app.memory_dir);
     push_row(&mut out, "Memory:", &mem_stats.one_line());
+    let recovery = crate::core::engine::recovery_stats::recovery_rate();
+    let recovery_line = match recovery {
+        Some(rate) => format!("{rate}% recovered"),
+        None => "no recovery events yet".to_string(),
+    };
+    push_row(&mut out, "Self-heal:", &recovery_line);
     let _ = writeln!(out);
     let _ = writeln!(out, "Use /statusline to configure footer items.");
 

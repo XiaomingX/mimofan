@@ -34,6 +34,7 @@ DOMAIN_QUOTA: dict[str, int] = {
     "D01": 110, "D02": 90, "D03": 110, "D04": 60,
     "D05": 100, "D06": 80, "D07": 70, "D08": 80,
     "D09": 70, "D10": 70, "D11": 90, "D12": 70,
+    "D13": 10,
 }
 
 DOMAIN_NAME: dict[str, str] = {
@@ -49,6 +50,7 @@ DOMAIN_NAME: dict[str, str] = {
     "D10": "扩展性（MCP/hook/skill）",
     "D11": "可观测、错误恢复与韧性",
     "D12": "工程化与发布质量",
+    "D13": "网络安全与漏洞挖掘",
 }
 
 DEFAULT_EXEC_TIMEOUT = 180
@@ -587,6 +589,26 @@ def evaluate_entry(entry: dict, src: SourceCache, runner: ExecRunner) -> tuple[b
             return run_struct_assert(check, src)
         if kind == "exec":
             return run_exec(check, entry, runner)
+        # --- D13 网络安全评测：TP / FP 探针 ---
+        # `tp` (true-positive): the vulnerability pattern SHOULD be present in
+        # the target (the analyzer is expected to flag it). Passes when the
+        # inner grep pattern matches.
+        # `fp` (false-positive): the pattern should be ABSENT from benign code
+        # (the analyzer must stay silent). Passes when the inner grep pattern
+        # does NOT match. `pattern`/`path`/`glob` are forwarded to run_grep.
+        if kind in ("tp", "fp"):
+            if "pattern" not in check:
+                return False, f"check.kind={kind} 缺少 pattern 字段"
+            # 归一化：tp/fp 用单数 `pattern` 描述探针，run_grep 消费复数 `patterns`
+            probe = dict(check)
+            probe["patterns"] = check.get("patterns") or [check["pattern"]]
+            ok, reason = run_grep(probe, src)
+            if kind == "tp":
+                return ok, ("TP 命中（漏洞模式存在，符合预期）" if ok
+                            else f"TP 漏报：期望命中却未匹配 — {reason}")
+            # fp: 期望不匹配（误报探针应为阴性）
+            return (not ok, "FP 阴性（良性代码未被误标，符合预期）" if not ok
+                    else "FP 误报：良性代码被错误命中")
     except Exception as exc:  # 任何执行器异常都记失败，不让整轮评测崩掉
         return False, f"执行器异常 {type(exc).__name__}: {exc}"
     return False, f"未知 check.kind: {kind}"

@@ -47,7 +47,7 @@ mod config_persistence;
 mod config_ui;
 mod context_budget;
 mod context_report;
-mod core;
+pub(crate) mod core;
 mod cost_budget;
 mod cost_status;
 pub mod decision_gate;

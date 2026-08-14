@@ -1,0 +1,20 @@
+# Deserialization guard protocol (T-5 typestate). A sensitive readObject /
+# parse must only occur after safe-mode is enabled. Violations are ordering bugs.
+protocol: deserialization
+object: SafeObjectInputStream
+initial: created
+accepting: [ready]
+states: [created, safe_mode, ready, poisoned]
+transitions:
+  - from: created
+    on: enableSafeMode
+    to: safe_mode
+  - from: safe_mode
+    on: readObject
+    to: ready
+  - from: created
+    on: readObject
+    to: poisoned
+guards:
+  - on: readObject
+    require_state: safe_mode
