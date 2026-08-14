@@ -62,8 +62,13 @@ adapter_id: agent-mimofan-goal
     - 重组核心抽成纯函数 `reassemble_session_timeline`，新增 3 个单测覆盖（组内时间线回放 / 阈值丢弃 / 空 session 无标签组）。
     - 生产写路径绑定当前 session：`ToolContext` 加 `session_id`，`VectorMemory::store_observation` 接参；`remember_vector` / auto-memory(`turn_loop`) / `/vmemory remember` 均传入活动会话 id。
   <!-- loopx:todo todo_id=todo_f563dea5a3cd status=done task_class=advancement_task action_kind=implement target_key=cross-session-777 updated_at=2026-08-13T16:35:00%2B08:00 -->
-- [ ] [P1][blocked] 模型目录动态刷新仍是死代码：`refresh_catalog_cache` / `store_cache`（`ProviderCatalogCache` 体系）零调用者，ttl_secs=315360000(10年)等于永不过期（`fetch_catalog_delta` 本身已被 `refresh_catalog_cache` 内部调用，非死代码）。需先补 ProviderCatalogCache 持久化层 + 解决两套缓存类型不互通，本段不做，待单独开项
-  <!-- loopx:todo todo_id=todo_20ccd9d64db2 status=blocked task_class=advancement_task action_kind=implement target_key=catalog-refresh-wiring updated_at=2026-08-08T20:07:21%2B08:00 -->
+- [x] [P1] 模型目录动态刷新接线 + 磁盘持久化（原 blocked 死代码）：**已合 main（2026-08-14，PR #787 → merge `e72e62f`）**。
+    - `ApiClient` 新增共享 `Arc<Mutex<ProviderCatalogCache>>` 字段；新增 `refresh_catalog(ttl)` 便捷入口，`refresh_catalog_cache` 不再是零调用者死代码。
+    - `App` 持有进程级 cache（`~/.mimofan/catalog_cache.json` 启动时加载），经 `EngineConfig` 与 `Engine` 共享同一 Arc——解决"两套缓存不互通"：App 与 Engine 共用一个实例。
+    - 触发：Engine 启动 fire-and-forget 后台刷新当前 provider；`/models`(FetchModels) 也刷新；两者 best-effort 写回磁盘。
+    - `provider_picker` 新增 `Fresh` / `Failed(reason)` 状态，live offerings 叠加在 bundled 之上计数；CLI 子命令走 `new_detached` 独立 cache。
+    - 持久化层 `config_persistence::{load,save}_catalog_cache`（non-fatal JSON）；新增 `ProviderCatalogCache` JSON round-trip 单测（Fresh/Failed 均覆盖）。
+  <!-- loopx:todo todo_id=todo_20ccd9d64db2 status=done task_class=advancement_task action_kind=implement target_key=catalog-refresh-wiring updated_at=2026-08-14T02:00:00%2B08:00 -->
 
 ### P2/P3 大功能 / Roadmap（需开专项，非本轮顺手可修）
 
