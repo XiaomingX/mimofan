@@ -2221,7 +2221,7 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
     let brand = format!(">_ mimofan");
     let version = format!("v{}", env!("CARGO_PKG_VERSION"));
     let slogan = "你的终端 AI 编程伙伴";
-    let hints = "输入任务开始  ·  用 / 调出命令  ·  用 ↑ 查看历史";
+    let hints = "输入任务开始 · 用 / 命令 · ↑ 历史";
     let meta = format!("model: {}   directory: {}", app.model, workspace);
 
     // Measure the widest inner line to size the card.
@@ -2238,9 +2238,17 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
 
     // Card geometry: 2 border cols + 2 padding cols on each side.
     let card_width = inner_width + 6;
-    let card_height = 9usize; // top + brand + slogan + hint + meta + bottom + 2 gaps
+    let card_height = 9usize; // top + brand + sep + slogan + gap + hint + gap + meta + bottom
     let card_inner_w = card_width.saturating_sub(2) as usize;
     let content_w = card_inner_w.saturating_sub(4).max(1);
+
+    // Thin separator line (sky dots), capped so it never exceeds content rows.
+    let sep_width = content_w.min(12).min(UnicodeWidthStr::width(slogan));
+    let separator = "·".repeat(sep_width);
+
+    // Re-measure inner width including the separator so the card never
+    // overflows on narrow terminals.
+    let inner_width = inner_width.max(UnicodeWidthStr::width(separator.as_str())).max(24);
 
     let area_w = usize::from(area.width);
     let area_h = usize::from(area.height);
@@ -2282,10 +2290,24 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
         ]));
     }
 
-    lines.push(Line::from(Span::styled(
-        format!("{left_pad}│{}│", " ".repeat(card_inner_w)),
-        Style::default().fg(border),
-    )));
+    // Thin sky separator row (centered dots), adds brand polish.
+    {
+        let w = UnicodeWidthStr::width(separator.as_str());
+        let before = (content_w.saturating_sub(w)) / 2;
+        let after = content_w.saturating_sub(w).saturating_sub(before);
+        let row = format!(
+            "{}{}{}",
+            " ".repeat(before + 2),
+            separator,
+            " ".repeat(after + 2)
+        );
+        lines.push(Line::from(vec![
+            Span::styled(left_pad.clone(), Style::default()),
+            Span::styled("│", Style::default().fg(border)),
+            Span::styled(row, Style::default().fg(sky)),
+            Span::styled("│", Style::default().fg(border)),
+        ]));
+    }
 
     // Slogan row (sky, centered).
     {

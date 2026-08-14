@@ -362,7 +362,16 @@ pub(crate) fn run_auth_command_with_secrets(
 }
 
 pub(crate) fn auth_status_all_providers(store: &ConfigStore, secrets: &Secrets) -> Vec<String> {
-    let active_provider = store.config.provider;
+    // `MIMOFAN_PROVIDER` is applied at runtime by `apply_env_overrides`
+    // (see `Config::load`, which `exec`/`doctor` use), so the active provider
+    // resolved during a real run may differ from the persisted `config.toml`
+    // value. Reflect that env override here so `auth status` agrees with the
+    // provider actually used by `exec`/`doctor` — the header already claims
+    // "(set via config or MIMOFAN_PROVIDER)".
+    let active_provider = std::env::var("MIMOFAN_PROVIDER")
+        .ok()
+        .and_then(|v| ProviderKind::parse(v.trim()))
+        .unwrap_or(store.config.provider);
     let mut lines = Vec::new();
     lines.push(format!(
         "active provider: {} (set via config or MIMOFAN_PROVIDER)",
