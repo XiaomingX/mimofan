@@ -448,6 +448,9 @@ impl App {
             model_ids_passthrough,
             active_route_limits: None,
             pending_provider_switch: None,
+            catalog_cache: std::sync::Arc::new(std::sync::Mutex::new(
+                crate::config_persistence::load_catalog_cache(),
+            )),
             reasoning_effort,
             last_effective_reasoning_effort: None,
             fast_mode_active: start_fast,

@@ -31,7 +31,10 @@ use crate::model_profile::{SupportState, resolved_capability_profile};
 use crate::palette;
 use crate::tui::app::ReasoningEffort;
 use crate::tui::views::{ModalKind, ModalView, ViewAction, ViewEvent};
-use mimofan_config::catalog::{CatalogOffering, CatalogSnapshot};
+use mimofan_config::catalog::{
+    CatalogOffering, CatalogSnapshot, CatalogStatus, ProviderCatalogCache, base_url_fingerprint,
+    now_unix,
+};
 use mimofan_config::provider::WireFormat;
 use mimofan_config::route::{
     LogicalModelRef, PricingSku, RequestProtocol, RouteRequest, RouteResolver, bundled_offerings,
@@ -91,6 +94,12 @@ pub enum ProviderCatalogStatus {
     Bundled,
     DefaultOnly,
     Legacy,
+    /// Live `/models` refresh succeeded within TTL; the row count includes
+    /// live offerings on top of the bundled baseline (#3385).
+    Fresh,
+    /// Live `/models` refresh failed (auth/network/empty). Bundled rows are
+    /// still shown; the failure reason is surfaced in the picker.
+    Failed(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -265,7 +274,12 @@ pub enum ProviderReasoningStreamVisibility {
 }
 
 impl ProviderDashboardRow {
-    fn from_config(provider: ApiProvider, active: ApiProvider, config: &Config) -> Self {
+    fn from_config(
+        provider: ApiProvider,
+        active: ApiProvider,
+        config: &Config,
+        cache: &ProviderCatalogCache,
+    ) -> Self {
         let has_key = has_api_key_for(config, provider);
         let configured = config.provider_config_for(provider);
         let configured_base_url = configured
@@ -315,14 +329,34 @@ impl ProviderDashboardRow {
             };
         };
 
-        let available_model_count = bundled_offerings()
+        let bundled_count = bundled_offerings()
             .iter()
             .filter(|offering| offering.provider.as_str() == kind.as_str())
             .count();
-        let catalog_status = if available_model_count == 0 {
-            ProviderCatalogStatus::DefaultOnly
-        } else {
-            ProviderCatalogStatus::Bundled
+
+        // Merge live catalog cache (within-TTL) on top of the bundled baseline,
+        // keyed by provider + base-URL fingerprint (#3385). A failed refresh
+        // leaves bundled rows intact and surfaces the reason.
+        let live_base_url = configured_base_url
+            .clone()
+            .unwrap_or_else(|| provider.default_base_url().to_string());
+        let live_fp = base_url_fingerprint(&live_base_url);
+        let live_count = cache
+            .fresh_offerings(kind.as_str(), &live_fp, now_unix())
+            .len();
+        let available_model_count = bundled_count + live_count;
+        let catalog_status = match cache.status(kind.as_str(), &live_fp, now_unix()) {
+            CatalogStatus::Fresh => ProviderCatalogStatus::Fresh,
+            CatalogStatus::Failed { reason } => {
+                ProviderCatalogStatus::Failed(format!("{reason:?}"))
+            }
+            CatalogStatus::Stale { .. } | CatalogStatus::Unknown => {
+                if bundled_count == 0 {
+                    ProviderCatalogStatus::DefaultOnly
+                } else {
+                    ProviderCatalogStatus::Bundled
+                }
+            }
         };
         let route_request = RouteRequest {
             explicit_provider: Some(kind),
@@ -444,10 +478,14 @@ impl ProviderDashboardRow {
     }
 
     fn catalog_label(&self) -> String {
-        match self.catalog_status {
+        match &self.catalog_status {
             ProviderCatalogStatus::Bundled => format!("{} bundled", self.available_model_count),
             ProviderCatalogStatus::DefaultOnly => "default-only".to_string(),
             ProviderCatalogStatus::Legacy => "legacy".to_string(),
+            ProviderCatalogStatus::Fresh => format!("{} live", self.available_model_count),
+            ProviderCatalogStatus::Failed(reason) => {
+                format!("live-failed({reason})")
+            }
         }
     }
 }
@@ -792,13 +830,13 @@ fn compact_base_url(base_url: &str) -> String {
 
 impl ProviderPickerView {
     #[must_use]
-    pub fn new(active: ApiProvider, config: &Config) -> Self {
+    pub fn new(active: ApiProvider, config: &Config, cache: &ProviderCatalogCache) -> Self {
         // Present providers in the shared metadata display order (#3076). The
         // active provider is highlighted via `selected_idx` below, so it is
         // never lost in the list.
         let rows: Vec<ProviderDashboardRow> = ApiProvider::sorted_for_display()
             .into_iter()
-            .map(|p| ProviderDashboardRow::from_config(p, active, config))
+            .map(|p| ProviderDashboardRow::from_config(p, active, config, cache))
             .collect();
         let selected_idx = rows
             .iter()

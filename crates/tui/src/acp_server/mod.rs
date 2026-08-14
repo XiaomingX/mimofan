@@ -300,7 +300,7 @@ impl AcpServer {
         let route =
             crate::resolve_cli_auto_route(&self.config, &self.model, last_user_text).await?;
         let execution_config = crate::config_for_cli_route(&self.config, &route);
-        let client = ApiClient::new(&execution_config)?;
+        let client = ApiClient::new_detached(&execution_config)?;
         let reasoning_effort = route
             .reasoning_effort
             .and_then(|effort| effort.api_value_for_provider(execution_config.api_provider()))

@@ -38,7 +38,7 @@ Provide findings ordered by severity with file references, then open questions, 
     let user_prompt =
         format!("Review the following diff and provide feedback:\n\n{diff}\n\nEnd of diff.");
 
-    let client = ApiClient::new(&execution_config)?;
+    let client = ApiClient::new_detached(&execution_config)?;
     let request = MessageRequest {
         model: model.clone(),
         messages: vec![Message {

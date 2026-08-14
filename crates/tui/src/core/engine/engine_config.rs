@@ -2,7 +2,10 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
+
+use mimofan_config::catalog::ProviderCatalogCache;
 
 use crate::compaction::CompactionConfig;
 use crate::config::{DEFAULT_MAX_SUBAGENTS, DEFAULT_TEXT_MODEL};
@@ -178,6 +181,10 @@ pub struct EngineConfig {
     pub workspace_follow_symlinks: bool,
     /// Ask-only permission rules loaded from sibling `permissions.toml`.
     pub exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine,
+    /// Shared, process-wide live catalog cache (global, multi-provider). The
+    /// same `Arc` is shared with `App` so a refresh from the engine is visible
+    /// to the provider picker and vice versa (#3385).
+    pub catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
 }
 
 impl Default for EngineConfig {
@@ -254,6 +261,7 @@ impl Default for EngineConfig {
             workspace_follow_symlinks: false,
             exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine::new(Vec::new(), Vec::new()),
             frozen_spec: None,
+            catalog_cache: Arc::new(StdMutex::new(ProviderCatalogCache::new())),
         }
     }
 }

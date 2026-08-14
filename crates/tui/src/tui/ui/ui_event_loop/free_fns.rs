@@ -328,7 +328,7 @@ pub(crate) async fn apply_command_result(
             }
             AppAction::FetchModels => {
                 app.status_message = Some("Fetching models...".to_string());
-                match fetch_available_models(config).await {
+                match fetch_available_models(config, app.catalog_cache.clone()).await {
                     Ok(models) => {
                         app.add_message(HistoryCell::System {
                             content: format_helpers::available_models_message(&app.model, &models),
@@ -534,6 +534,7 @@ pub(crate) async fn apply_command_result(
                         .push(crate::tui::provider_picker::ProviderPickerView::new(
                             app.api_provider,
                             config,
+                            &app.catalog_cache.lock().expect("catalog cache poisoned"),
                         ));
                 }
             }

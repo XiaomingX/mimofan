@@ -583,7 +583,11 @@ impl Engine {
                 )
             })?;
         let route_config = route.config;
-        match ApiClient::from_candidate(&route_config, &route.candidate) {
+        match ApiClient::from_candidate(
+            &route_config,
+            &route.candidate,
+            self.config.catalog_cache.clone(),
+        ) {
             Ok(client) => {
                 self.api_provider = provider;
                 self.api_config = route_config;
@@ -632,7 +636,8 @@ impl Engine {
         let tool_exec_lock = Arc::new(RwLock::new(()));
 
         // Create clients for both providers
-        let (deepseek_client, deepseek_client_error) = match ApiClient::new(api_config) {
+        let (deepseek_client, deepseek_client_error) =
+            match ApiClient::new(api_config, config.catalog_cache.clone()) {
             Ok(client) => (Some(client), None),
             Err(err) => (None, Some(err.to_string())),
         };
@@ -827,6 +832,22 @@ impl Engine {
             }
         }
 
+        // Fire-and-forget background refresh of the live catalog for the
+        // active provider. Non-fatal: failures are recorded in the shared
+        // cache (visible to the picker) and the on-disk cache is rewritten
+        // best-effort. Does not block engine startup or the first turn.
+        // Cloned *before* the engine takes ownership of `deepseek_client` /
+        // `config` below.
+        if let Some(bg_client) = deepseek_client.clone() {
+            let bg_cache = config.catalog_cache.clone();
+            tokio::spawn(async move {
+                let _ = bg_client
+                    .refresh_catalog(crate::client::CATALOG_TTL_SECS)
+                    .await;
+                crate::config_persistence::save_catalog_cache(&bg_cache);
+            });
+        }
+
         let engine = Engine {
             config,
             api_config: api_config.clone(),
@@ -872,6 +893,7 @@ impl Engine {
             token_estimate_cache: TokenEstimateCache::new(),
             shared_paused: shared_paused.clone(),
         };
+
         let handle = EngineHandle {
             tx_op,
             rx_event: Arc::new(RwLock::new(rx_event)),

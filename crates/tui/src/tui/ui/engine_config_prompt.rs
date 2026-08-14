@@ -89,6 +89,7 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         workspace_follow_symlinks: app.workspace_follow_symlinks,
         exec_policy_engine: config.exec_policy_engine.clone(),
         frozen_spec: app.frozen_spec.clone(),
+        catalog_cache: app.catalog_cache.clone(),
     }
 }
 

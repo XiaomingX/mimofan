@@ -504,7 +504,7 @@ async fn auto_route_inventory_recommendation(
     router_config.provider = Some(ApiProvider::OpenAiCompatible.as_str().to_string());
     router_config.default_text_model = Some(inventory.router_model.to_string());
 
-    let client = ApiClient::new(&router_config)?;
+    let client = ApiClient::new_detached(&router_config)?;
     let router_system = inventory_auto_router_system_prompt(inventory);
     let request = MessageRequest {
         model: inventory.router_model.to_string(),
