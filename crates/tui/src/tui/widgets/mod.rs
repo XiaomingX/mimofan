@@ -2207,41 +2207,158 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
         return Vec::new();
     }
 
+    let theme = &app.ui_theme;
+    let border = theme.border;
+    let accent = theme.accent_primary;
+    let sky = palette::MIMOFAN_SKY;
+    let muted = theme.text_muted;
+    let dim = theme.text_dim;
+
     let workspace = crate::utils::display_path(&app.workspace);
-    let title = format!(">_ mimofan (v{})", env!("CARGO_PKG_VERSION"));
-    let model = format!("model: {}  /model to switch", app.model);
-    let directory = format!("directory: {workspace}");
-    let block_width = [&title, &model, &directory]
-        .into_iter()
-        .map(|line| UnicodeWidthStr::width(line.as_str()))
-        .max()
-        .unwrap_or(0);
-    let left_padding = usize::from(area.width).saturating_sub(block_width) / 2;
-    let inset = " ".repeat(left_padding);
 
-    let body = vec![
-        Line::from(Span::styled(
-            format!("{inset}{title}"),
-            Style::default().fg(palette::MIMOFAN_ACCENT_PRIMARY).bold(),
-        )),
-        Line::from(""),
-        Line::from(Span::styled(
-            format!("{inset}{model}"),
-            Style::default().fg(palette::TEXT_MUTED),
-        )),
-        Line::from(Span::styled(
-            format!("{inset}{directory}"),
-            Style::default().fg(palette::TEXT_MUTED),
-        )),
-    ];
+    // Inner content of the welcome card (each line is rendered padded to the
+    // card content width so the left/right borders line up).
+    let brand = format!(">_ mimofan");
+    let version = format!("v{}", env!("CARGO_PKG_VERSION"));
+    let slogan = "你的终端 AI 编程伙伴";
+    let hints = "输入任务开始  ·  用 / 调出命令  ·  用 ↑ 查看历史";
+    let meta = format!("model: {}   directory: {}", app.model, workspace);
 
-    // Keep the welcome block near the top of the chat pane (header is separate).
-    let top_padding = 2usize;
-    let mut lines = Vec::new();
-    for _ in 0..top_padding {
+    // Measure the widest inner line to size the card.
+    let inner_width = [
+        UnicodeWidthStr::width(brand.as_str()),
+        UnicodeWidthStr::width(slogan),
+        UnicodeWidthStr::width(hints),
+        UnicodeWidthStr::width(meta.as_str()),
+    ]
+    .into_iter()
+    .max()
+    .unwrap_or(0)
+    .max(24);
+
+    // Card geometry: 2 border cols + 2 padding cols on each side.
+    let card_width = inner_width + 6;
+    let card_height = 9usize; // top + brand + slogan + hint + meta + bottom + 2 gaps
+    let card_inner_w = card_width.saturating_sub(2) as usize;
+    let content_w = card_inner_w.saturating_sub(4).max(1);
+
+    let area_w = usize::from(area.width);
+    let area_h = usize::from(area.height);
+    let card_left = area_w.saturating_sub(card_width) / 2;
+    let left_pad = " ".repeat(card_left);
+    let top_pad = (area_h.saturating_sub(card_height) / 2).clamp(1, area_h);
+
+    // Build a single padded line as [left_pad][cell+padding][border/right].
+    let hbar = "─".repeat(card_inner_w);
+    let top_border = format!("{left_pad}┌{hbar}┐");
+    let bot_border = format!("{left_pad}└{hbar}┘");
+
+    let mut lines: Vec<Line<'static>> = Vec::new();
+    for _ in 0..top_pad {
         lines.push(Line::from(""));
     }
-    lines.extend(body);
+
+    lines.push(Line::from(Span::styled(
+        top_border,
+        Style::default().fg(border),
+    )));
+
+    // Brand row: brand (gold bold) + version (muted, right-aligned).
+    {
+        let brand_w = UnicodeWidthStr::width(brand.as_str());
+        let ver_w = UnicodeWidthStr::width(version.as_str());
+        let gap = content_w.saturating_sub(brand_w + ver_w);
+        let brand_before = " ".repeat(gap / 2 + 2);
+        let brand_after = " ".repeat(gap.saturating_sub(gap / 2));
+        lines.push(Line::from(vec![
+            Span::styled(left_pad.clone(), Style::default()),
+            Span::styled("│", Style::default().fg(border)),
+            Span::styled(brand_before, Style::default()),
+            Span::styled(brand.to_string(), Style::default().fg(accent).bold()),
+            Span::styled(brand_after, Style::default()),
+            Span::styled(version, Style::default().fg(dim)),
+            Span::styled("  ".to_string(), Style::default()),
+            Span::styled("│", Style::default().fg(border)),
+        ]));
+    }
+
+    lines.push(Line::from(Span::styled(
+        format!("{left_pad}│{}│", " ".repeat(card_inner_w)),
+        Style::default().fg(border),
+    )));
+
+    // Slogan row (sky, centered).
+    {
+        let w = UnicodeWidthStr::width(slogan);
+        let before = (content_w.saturating_sub(w)) / 2;
+        let after = content_w.saturating_sub(w).saturating_sub(before);
+        let row = format!(
+            "{}{}{}",
+            " ".repeat(before + 2),
+            slogan,
+            " ".repeat(after + 2)
+        );
+        lines.push(Line::from(vec![
+            Span::styled(left_pad.clone(), Style::default()),
+            Span::styled("│", Style::default().fg(border)),
+            Span::styled(row, Style::default().fg(sky)),
+            Span::styled("│", Style::default().fg(border)),
+        ]));
+    }
+
+    lines.push(Line::from(Span::styled(
+        format!("{left_pad}│{}│", " ".repeat(card_inner_w)),
+        Style::default().fg(border),
+    )));
+
+    // Hints row (muted, centered).
+    {
+        let w = UnicodeWidthStr::width(hints);
+        let before = (content_w.saturating_sub(w)) / 2;
+        let after = content_w.saturating_sub(w).saturating_sub(before);
+        let row = format!(
+            "{}{}{}",
+            " ".repeat(before + 2),
+            hints,
+            " ".repeat(after + 2)
+        );
+        lines.push(Line::from(vec![
+            Span::styled(left_pad.clone(), Style::default()),
+            Span::styled("│", Style::default().fg(border)),
+            Span::styled(row, Style::default().fg(muted)),
+            Span::styled("│", Style::default().fg(border)),
+        ]));
+    }
+
+    lines.push(Line::from(Span::styled(
+        format!("{left_pad}│{}│", " ".repeat(card_inner_w)),
+        Style::default().fg(border),
+    )));
+
+    // Meta row (dim, centered).
+    {
+        let w = UnicodeWidthStr::width(meta.as_str());
+        let before = (content_w.saturating_sub(w)) / 2;
+        let after = content_w.saturating_sub(w).saturating_sub(before);
+        let row = format!(
+            "{}{}{}",
+            " ".repeat(before + 2),
+            meta,
+            " ".repeat(after + 2)
+        );
+        lines.push(Line::from(vec![
+            Span::styled(left_pad.clone(), Style::default()),
+            Span::styled("│", Style::default().fg(border)),
+            Span::styled(row, Style::default().fg(dim)),
+            Span::styled("│", Style::default().fg(border)),
+        ]));
+    }
+
+    lines.push(Line::from(Span::styled(
+        bot_border,
+        Style::default().fg(border),
+    )));
+
     lines
 }
 
