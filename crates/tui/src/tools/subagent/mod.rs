@@ -51,6 +51,7 @@ pub mod aggregator;
 pub mod bus;
 pub mod custom_agents;
 pub mod decomposer;
+pub mod task_graph;
 pub mod events;
 pub mod helpers;
 pub mod mailbox;

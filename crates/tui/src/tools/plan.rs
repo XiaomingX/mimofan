@@ -6,6 +6,7 @@ use tokio::sync::Mutex;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_json::json;
 
 use crate::tools::spec::{
@@ -15,9 +16,10 @@ use crate::tools::spec::{
 // === Types ===
 
 /// Status of a plan step.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum StepStatus {
+    #[default]
     Pending,
     InProgress,
     Completed,
@@ -37,10 +39,31 @@ impl StepStatus {
 }
 
 /// Input representation for a plan item.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PlanItemArg {
     pub step: String,
     pub status: StepStatus,
+    /// Ids of other plan steps that must complete before this one (nac-style
+    /// `depends_on`). Optional; ignored for ordering today but persisted for
+    /// display and future scheduling.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub depends_on: Vec<String>,
+    /// Scope this step owns (file/module/system boundary), for non-overlapping
+    /// ownership. Optional.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+    /// Role this step plays (research/implementation/verification/...). Optional.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<String>,
+    /// Acceptance criteria the step must satisfy to be considered done. Phrases
+    /// wrapped in double or single quotes are treated as required evidence
+    /// substrings by the step gate. Optional.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceptance: Option<String>,
+    /// Evidence (command output / test result / diff) proving the step is done,
+    /// supplied when marking the step completed. Evaluated against `acceptance`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<String>,
 }
 
 /// Update payload used by the plan tool.
@@ -83,6 +106,18 @@ pub struct PlanStep {
     pub started_at: Option<Instant>,
     /// When the step was completed
     pub completed_at: Option<Instant>,
+    /// Ids of other steps that must complete before this one.
+    pub depends_on: Vec<String>,
+    /// Scope this step owns (file/module/system boundary).
+    pub scope: Option<String>,
+    /// Role this step plays (research/implementation/verification/...).
+    pub role: Option<String>,
+    /// Acceptance criteria text the step must satisfy to be done.
+    pub acceptance: Option<String>,
+    /// Evidence supplied when the step was marked completed.
+    pub evidence: Option<String>,
+    /// Whether the step gate (acceptance verification) failed.
+    pub verification_failed: bool,
 }
 
 impl PlanStep {
@@ -93,6 +128,12 @@ impl PlanStep {
             status,
             started_at: None,
             completed_at: None,
+            depends_on: Vec::new(),
+            scope: None,
+            role: None,
+            acceptance: None,
+            evidence: None,
+            verification_failed: false,
         }
     }
 
@@ -192,9 +233,29 @@ impl PlanSnapshot {
                     .and_then(|v| v.as_str())
                     .and_then(StepStatus::from_str)
                     .unwrap_or(StepStatus::Pending);
+                let depends_on = item
+                    .get("depends_on")
+                    .and_then(Value::as_array)
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str())
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                let scope = item.get("scope").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+                let role = item.get("role").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+                let acceptance = item.get("acceptance").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+                let evidence = item.get("evidence").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
                 items.push(PlanItemArg {
                     step: step.to_string(),
                     status,
+                    depends_on,
+                    scope,
+                    role,
+                    acceptance,
+                    evidence,
                 });
             }
         }
@@ -301,10 +362,49 @@ impl PlanState {
                 }
             }
 
+            // Resolve structured per-item fields: prefer the value supplied in
+            // this update; for an existing step, fall back to the previously
+            // stored value so a partial update doesn't wipe earlier metadata.
+            let depends_on = if item.depends_on.is_empty() {
+                existing
+                    .map(|e| e.depends_on.clone())
+                    .unwrap_or_default()
+            } else {
+                item.depends_on.clone()
+            };
+            let scope = item
+                .scope
+                .clone()
+                .or_else(|| existing.and_then(|e| e.scope.clone()));
+            let role = item
+                .role
+                .clone()
+                .or_else(|| existing.and_then(|e| e.role.clone()));
+            let acceptance = item
+                .acceptance
+                .clone()
+                .or_else(|| existing.and_then(|e| e.acceptance.clone()));
+            // Evidence is only meaningful when completing a step; always take the
+            // freshly supplied value (or clear it on a non-completed update).
+            let evidence = if status == StepStatus::Completed {
+                item.evidence.clone()
+            } else {
+                None
+            };
+
             let step = if let Some(old) = existing {
                 let mut s = old.clone();
                 let old_status = s.status.clone();
                 s.status = status.clone();
+                s.depends_on = depends_on;
+                s.scope = scope;
+                s.role = role;
+                s.acceptance = acceptance;
+                s.evidence = evidence;
+                // Re-evaluate the gate whenever re-completed with new evidence.
+                if status == StepStatus::Completed {
+                    s.verification_failed = false;
+                }
 
                 // Track timing transitions
                 if old_status == StepStatus::Pending && status == StepStatus::InProgress {
@@ -317,6 +417,11 @@ impl PlanState {
                 s
             } else {
                 let mut s = PlanStep::new(step_text.to_string(), status.clone());
+                s.depends_on = depends_on;
+                s.scope = scope;
+                s.role = role;
+                s.acceptance = acceptance;
+                s.evidence = evidence;
                 if status == StepStatus::InProgress {
                     s.started_at = Some(now);
                 }
@@ -348,6 +453,11 @@ impl PlanState {
                 .map(|s| PlanItemArg {
                     step: s.text.clone(),
                     status: s.status.clone(),
+                    depends_on: s.depends_on.clone(),
+                    scope: s.scope.clone(),
+                    role: s.role.clone(),
+                    acceptance: s.acceptance.clone(),
+                    evidence: s.evidence.clone(),
                 })
                 .collect(),
         }
@@ -372,7 +482,15 @@ impl PlanState {
             .items
             .into_iter()
             .filter(|item| !item.step.trim().is_empty())
-            .map(|item| PlanStep::new(item.step, item.status))
+            .map(|item| {
+                let mut s = PlanStep::new(item.step, item.status);
+                s.depends_on = item.depends_on.clone();
+                s.scope = item.scope.clone();
+                s.role = item.role.clone();
+                s.acceptance = item.acceptance.clone();
+                s.evidence = item.evidence.clone();
+                s
+            })
             .collect();
     }
 
@@ -629,6 +747,66 @@ pub fn verify_step(
     }
 }
 
+/// Evaluate a completed plan step's acceptance gate.
+///
+/// Returns `true` when the step passes (or has no acceptance criteria). A step
+/// with `acceptance` text is checked against the `evidence` it reported using
+/// [`verify_step`]; quote-wrapped phrases in the acceptance text become
+/// required evidence substrings. Intended to be callable from both the
+/// `update_plan` tool and unit tests without a full tool round-trip.
+#[must_use]
+pub fn evaluate_step_gate(step: &PlanStep) -> bool {
+    let Some(acc) = &step.acceptance else {
+        return true;
+    };
+    if acc.trim().is_empty() {
+        return true;
+    }
+    let criteria = AcceptanceCriteria {
+        criteria: acc.clone(),
+        required_substrings: extract_required_substrings(acc),
+    };
+    let evidence = step.evidence.clone().unwrap_or_default();
+    verify_step(step, &criteria, &evidence).passed
+}
+
+/// Extract required evidence substrings from an acceptance-criteria string.
+///
+/// Phrases wrapped in double (`"..."`) or single (`'...'`) quotes are treated
+/// as evidence that must appear for the step to pass its gate; free text is
+/// kept as the human-readable `criteria` but does not by itself block the
+/// step. This lets the model write, e.g.
+/// `acceptance: "tests pass" with output containing "test result: ok"`.
+fn extract_required_substrings(acceptance: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let bytes = acceptance.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let open = bytes[i] as char;
+        if open == '"' || open == '\'' {
+            let quote = open;
+            i += 1;
+            let start = i;
+            let mut end = i;
+            while i < bytes.len() && (bytes[i] as char) != quote {
+                end = i + 1;
+                i += 1;
+            }
+            if i < bytes.len() {
+                // Closed quote.
+                let phrase = acceptance[start..end].trim().to_string();
+                if !phrase.is_empty() {
+                    out.push(phrase);
+                }
+            }
+            i += 1;
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
 fn clean_list(values: Vec<String>) -> Vec<String> {
     values
         .into_iter()
@@ -733,6 +911,27 @@ impl ToolSpec for UpdatePlanTool {
                                 "type": "string",
                                 "enum": ["pending", "in_progress", "completed"],
                                 "description": "Step status"
+                            },
+                            "depends_on": {
+                                "type": "array",
+                                "items": { "type": "string" },
+                                "description": "Ids/names of other steps that must complete before this one. Optional."
+                            },
+                            "scope": {
+                                "type": "string",
+                                "description": "File/module/system boundary this step owns, to avoid overlapping ownership. Optional."
+                            },
+                            "role": {
+                                "type": "string",
+                                "description": "Role this step plays: research, implementation, verification, etc. Optional."
+                            },
+                            "acceptance": {
+                                "type": "string",
+                                "description": "Acceptance criteria the step must satisfy to be done. Phrases wrapped in double or single quotes are treated as required evidence substrings by the step gate. Optional."
+                            },
+                            "evidence": {
+                                "type": "string",
+                                "description": "Evidence (command output / test result / diff) proving the step is done, supplied when marking it completed. Evaluated against `acceptance`. Optional."
                             }
                         },
                         "required": ["step", "status"]
@@ -780,6 +979,11 @@ impl ToolSpec for UpdatePlanTool {
             plan_args.push(PlanItemArg {
                 step: step.to_string(),
                 status,
+                depends_on: Vec::new(),
+                scope: None,
+                role: None,
+                acceptance: None,
+                evidence: None,
             });
         }
 
@@ -825,20 +1029,35 @@ impl ToolSpec for UpdatePlanTool {
                 }
             }
         }
-        // Gate each completed step against its acceptance criteria (legacy plans
-        // have none, so they auto-pass and are not reported).
+        // Gate each completed step against its acceptance criteria. A step with
+        // no `acceptance` text auto-passes (trust the model, as before); a step
+        // with `acceptance` is checked against the evidence it reported when
+        // marked completed. Quote-wrapped phrases in the acceptance text become
+        // required evidence substrings.
         let mut gate_report = String::new();
-        for step in state.steps() {
+        for step in state.steps.iter_mut() {
             if step.status != StepStatus::Completed {
                 continue;
             }
-            let criteria = AcceptanceCriteria::default();
-            let verification = verify_step(step, &criteria, "");
-            if !verification.passed {
+            if !evaluate_step_gate(step) {
+                // Mark the step so future snapshots/reporting reflect the gate
+                // result, but do not revert the Completed status — the work is
+                // done, the model just hasn't supplied matching evidence yet.
+                step.verification_failed = true;
                 if gate_report.is_empty() {
                     gate_report.push_str("\n\nStep gate failures:\n");
                 }
-                gate_report.push_str(&format!("- {}\n", verification.reason));
+                let evidence = step.evidence.clone().unwrap_or_default();
+                gate_report.push_str(&format!(
+                    "- step `{}` step_gate failed:{} evidence supplied{}\n",
+                    step.text,
+                    if evidence.trim().is_empty() { " no" } else { "" },
+                    if evidence.trim().is_empty() {
+                        " — provide `evidence` when marking the step completed"
+                    } else {
+                        ""
+                    }
+                ));
             }
         }
 
@@ -902,6 +1121,67 @@ mod plan_deviation_tests {
         assert!(v.reason.contains("step_gate"));
         let ok = verify_step(&step, &criteria, "test result: ok. 5 passed");
         assert!(ok.passed);
+    }
+
+    #[test]
+    fn update_preserves_structured_fields_roundtrip() {
+        let mut state = PlanState::default();
+        let args = UpdatePlanArgs {
+            plan: vec![PlanItemArg {
+                step: "implement parser".to_string(),
+                status: StepStatus::Pending,
+                depends_on: vec!["design schema".to_string()],
+                scope: Some("src/parser.rs".to_string()),
+                role: Some("implementation".to_string()),
+                acceptance: Some("output contains \"parsed 3 records\"".to_string()),
+                evidence: None,
+            }],
+            ..Default::default()
+        };
+        state.update(args);
+
+        // snapshot round-trips the new fields
+        let snap = state.snapshot();
+        let item = &snap.items[0];
+        assert_eq!(item.depends_on, vec!["design schema".to_string()]);
+        assert_eq!(item.scope.as_deref(), Some("src/parser.rs"));
+        assert_eq!(item.role.as_deref(), Some("implementation"));
+        assert_eq!(item.acceptance.as_deref(), Some("output contains \"parsed 3 records\""));
+
+        // apply_snapshot rebuilds an equivalent state
+        let mut rebuilt = PlanState::default();
+        rebuilt.apply_snapshot(snap);
+        let rebuilt_item = &rebuilt.steps()[0];
+        assert_eq!(rebuilt_item.depends_on, vec!["design schema".to_string()]);
+        assert_eq!(rebuilt_item.scope.as_deref(), Some("src/parser.rs"));
+        assert_eq!(rebuilt_item.acceptance.as_deref(), Some("output contains \"parsed 3 records\""));
+    }
+
+    #[test]
+    fn completed_step_with_acceptance_gates_on_evidence() {
+        // Missing evidence phrase must fail the gate.
+        let mut step = PlanStep::new("run tests".to_string(), StepStatus::Completed);
+        step.acceptance = Some("output must contain \"test result: ok\"".to_string());
+        step.evidence = Some("cargo test ... 0 passed".to_string());
+        assert!(!evaluate_step_gate(&step), "missing evidence phrase must fail the gate");
+
+        // Matching evidence clears the gate failure.
+        step.evidence = Some("test result: ok. 5 passed".to_string());
+        assert!(evaluate_step_gate(&step), "matching evidence must pass the gate");
+
+        // No acceptance text auto-passes.
+        let mut no_criteria = PlanStep::new("write docs".to_string(), StepStatus::Completed);
+        no_criteria.evidence = None;
+        assert!(evaluate_step_gate(&no_criteria), "absent acceptance must auto-pass");
+    }
+
+    #[test]
+    fn extract_required_substrings_finds_quoted_phrases() {
+        let out = extract_required_substrings("output must contain \"test result: ok\" and '3 passed'");
+        assert_eq!(out, vec!["test result: ok".to_string(), "3 passed".to_string()]);
+        // Unquoted free text is not treated as a required substring.
+        let out2 = extract_required_substrings("tests should pass");
+        assert!(out2.is_empty());
     }
 }
 
@@ -1019,10 +1299,12 @@ mod plan_persist_tests {
                 PlanItemArg {
                     step: "first".to_string(),
                     status: StepStatus::Completed,
+                    ..Default::default()
                 },
                 PlanItemArg {
                     step: "second".to_string(),
                     status: StepStatus::InProgress,
+                    ..Default::default()
                 },
             ],
             ..Default::default()
@@ -1049,6 +1331,7 @@ mod plan_persist_tests {
             items: vec![PlanItemArg {
                 step: "   ".to_string(),
                 status: StepStatus::Pending,
+                ..Default::default()
             }],
             ..Default::default()
         };

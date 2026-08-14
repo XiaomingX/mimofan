@@ -1143,8 +1143,10 @@ impl ToolRegistryBuilder {
         runtime: super::subagent::SubAgentRuntime,
     ) -> Self {
         use super::subagent::AgentTool;
+        use super::subagent::task_graph::TaskGraphTool;
 
-        self.with_tool(Arc::new(AgentTool::new(manager, runtime)))
+        self.with_tool(Arc::new(AgentTool::new(manager.clone(), runtime.clone())))
+            .with_tool(Arc::new(TaskGraphTool::new(manager, runtime)))
     }
 
     /// Build the registry with the given context.

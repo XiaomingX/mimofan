@@ -1165,10 +1165,12 @@ mod plan_persist_tests {
                 PlanItemArg {
                     step: "do a".to_string(),
                     status: StepStatus::Completed,
+                    ..Default::default()
                 },
                 PlanItemArg {
                     step: "do b".to_string(),
                     status: StepStatus::Pending,
+                    ..Default::default()
                 },
             ],
             ..Default::default()

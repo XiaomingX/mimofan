@@ -287,7 +287,7 @@ async fn cancel_agent_from_input(
     Ok(tool_result)
 }
 
-async fn spawn_subagent_from_input(
+pub(crate) async fn spawn_subagent_from_input(
     input: Value,
     manager: SharedSubAgentManager,
     runtime: SubAgentRuntime,

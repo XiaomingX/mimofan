@@ -62,9 +62,26 @@ fn render_plan_snapshot_lines(snapshot: &PlanSnapshot, lines: &mut Vec<Line<'sta
             StepStatus::InProgress => "live",
             StepStatus::Pending => "next",
         };
+        // Surface structured dimensions (role/scope/acceptance) so the user
+        // can see non-overlapping ownership and verification gates at a glance.
+        let mut label_suffix = String::new();
+        if let Some(role) = step.role.as_deref().filter(|s| !s.trim().is_empty()) {
+            label_suffix.push_str(&format!(" [{role}"));
+            if let Some(scope) = step.scope.as_deref().filter(|s| !s.trim().is_empty()) {
+                label_suffix.push_str(&format!("@{scope}"));
+            }
+            label_suffix.push(']');
+        } else if let Some(scope) = step.scope.as_deref().filter(|s| !s.trim().is_empty()) {
+            label_suffix.push_str(&format!(" [@{scope}]"));
+        }
+        let mut value = step.step.clone();
+        if step.acceptance.as_deref().filter(|s| !s.trim().is_empty()).is_some() {
+            value.push_str(" ✓gate");
+        }
+        let marker_label = format!("{marker}{label_suffix}");
         lines.extend(render_compact_kv(
-            marker,
-            &step.step,
+            &marker_label,
+            &value,
             tool_value_style(),
             width,
         ));

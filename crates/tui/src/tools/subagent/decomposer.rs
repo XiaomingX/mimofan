@@ -30,6 +30,9 @@ pub enum TaskNodeStatus {
     Failed,
     /// Explicitly cancelled.
     Cancelled,
+    /// Not executed because an upstream dependency failed or was cancelled
+    /// (failure propagation in a DAG runner).
+    Skipped,
 }
 
 /// A single unit of work inside a [`TaskGraph`].
@@ -188,6 +191,54 @@ impl TaskGraph {
             .ok_or_else(|| DecomposerError::NodeNotFound(id.to_string()))?;
         node.status = TaskNodeStatus::Failed;
         Ok(())
+    }
+
+    /// Propagate a failure: mark `id` and every node reachable from it through
+    /// dependency edges as `Skipped`. Nodes already `Completed`/`Running` are
+    /// left untouched (a completed downstream node already satisfied its
+    /// dependency before the upstream failed, so it is not retroactively
+    /// invalidated). Returns the list of node ids that were newly skipped.
+    ///
+    /// Used by the DAG runner so a failed task does not leave orphan dependents
+    /// waiting forever (mirrors nac's failure-propagation behavior).
+    pub fn skip_downstream(&mut self, id: &str) -> Vec<String> {
+        let mut skipped = Vec::new();
+        // All edges are (dep, node); build the forward adjacency list.
+        let mut adjacency: HashMap<&str, Vec<&str>> = HashMap::new();
+        for (from, to) in &self.edges {
+            adjacency.entry(from.as_str()).or_default().push(to.as_str());
+        }
+        let mut stack: VecDeque<&str> = adjacency
+            .get(id)
+            .map(|v| v.iter().copied().collect())
+            .unwrap_or_default();
+        while let Some(next) = stack.pop_front() {
+            let node = match self.nodes.get_mut(next) {
+                Some(n) => n,
+                None => continue,
+            };
+            if !matches!(
+                node.status,
+                TaskNodeStatus::Pending | TaskNodeStatus::Skipped
+            ) {
+                // Already completed/running/failed — do not skip it, but still
+                // walk its children so transitively-pending nodes are skipped.
+                if let Some(children) = adjacency.get(next) {
+                    for child in children {
+                        stack.push_back(child);
+                    }
+                }
+                continue;
+            }
+            node.status = TaskNodeStatus::Skipped;
+            skipped.push(next.to_string());
+            if let Some(children) = adjacency.get(next) {
+                for child in children {
+                    stack.push_back(child);
+                }
+            }
+        }
+        skipped
     }
 
     /// Mark a node as running.
@@ -362,3 +413,70 @@ impl TaskDecomposer {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn node(id: &str, deps: &[&str]) -> TaskNode {
+        TaskNode {
+            id: id.to_string(),
+            description: id.to_string(),
+            agent_type: SubAgentType::General,
+            dependencies: deps.iter().map(|s| s.to_string()).collect(),
+            status: TaskNodeStatus::Pending,
+            result: None,
+        }
+    }
+
+    #[test]
+    fn skip_downstream_marks_transitive_dependents() {
+        // a -> b -> c ; a -> d
+        let mut g = TaskGraph::new();
+        g.add_node(node("a", &[])).unwrap();
+        g.add_node(node("b", &["a"])).unwrap();
+        g.add_node(node("c", &["b"])).unwrap();
+        g.add_node(node("d", &["a"])).unwrap();
+        g.build_edges().unwrap();
+
+        let skipped = g.skip_downstream("a");
+        let mut skipped = skipped;
+        skipped.sort();
+        assert_eq!(skipped, vec!["b".to_string(), "c".to_string(), "d".to_string()]);
+        assert_eq!(g.nodes["b"].status, TaskNodeStatus::Skipped);
+        assert_eq!(g.nodes["c"].status, TaskNodeStatus::Skipped);
+        assert_eq!(g.nodes["d"].status, TaskNodeStatus::Skipped);
+        // Root stays Pending (caller marks it Failed separately).
+        assert_eq!(g.nodes["a"].status, TaskNodeStatus::Pending);
+    }
+
+    #[test]
+    fn skip_downstream_skips_only_pending_not_completed() {
+        let mut g = TaskGraph::new();
+        g.add_node(node("a", &[])).unwrap();
+        g.add_node(node("b", &["a"])).unwrap();
+        g.build_edges().unwrap();
+        // b already completed before a failed: should NOT be downgraded.
+        g.complete_node("b", None).unwrap();
+        let skipped = g.skip_downstream("a");
+        assert!(skipped.is_empty(), "completed downstream must not be skipped");
+        assert_eq!(g.nodes["b"].status, TaskNodeStatus::Completed);
+    }
+
+    #[test]
+    fn parallel_groups_respect_dependencies() {
+        // a -> b, a -> c ; b/c independent (wave 2); a alone (wave 1)
+        let mut g = TaskGraph::new();
+        g.add_node(node("a", &[])).unwrap();
+        g.add_node(node("b", &["a"])).unwrap();
+        g.add_node(node("c", &["a"])).unwrap();
+        g.build_edges().unwrap();
+        let groups = g.parallel_groups().unwrap();
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0], vec!["a".to_string()]);
+        let mut wave2 = groups[1].clone();
+        wave2.sort();
+        assert_eq!(wave2, vec!["b".to_string(), "c".to_string()]);
+    }
+}
+
