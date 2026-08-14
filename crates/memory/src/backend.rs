@@ -233,7 +233,7 @@ mod tests {
         let store = open_store(&dir);
 
         store
-            .upsert(&observation("rebuild 前"), &[0.0; DIM])
+            .upsert(&observation("rebuild 前既有数据保留"), &[0.0; DIM])
             .expect("upsert");
         store.rebuild().expect("rebuild");
         assert_eq!(MemoryBackend::count(&store).expect("count after rebuild"), 1);

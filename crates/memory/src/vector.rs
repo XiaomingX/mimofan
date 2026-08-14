@@ -1007,10 +1007,10 @@ mod enhancement_tests {
     fn prune_removes_expired() {
         let (_d, store) = tmp_store();
         let emb = vec![0.4_f32; 8];
-        let mut expired = obs("p", "old news");
+        let mut expired = obs("p", "old news that expired");
         expired.expires_at = Some(chrono::Utc::now().timestamp() - 100);
         store.store_observation(&expired, &emb).unwrap();
-        let live = obs("p", "current news");
+        let live = obs("p", "current news still valid");
         store.store_observation(&live, &emb).unwrap();
         let removed = store.prune(0).unwrap();
         assert_eq!(removed, 1, "expired observation should be pruned");
@@ -1032,8 +1032,8 @@ mod enhancement_tests {
     fn count_dual_store_consistency_reports_both() {
         let (_d, store) = tmp_store();
         let emb = vec![0.6_f32; 8];
-        store.store_observation(&obs("p", "one"), &emb).unwrap();
-        store.store_observation(&obs("p", "two"), &emb).unwrap();
+        store.store_observation(&obs("p", "first observation"), &emb).unwrap();
+        store.store_observation(&obs("p", "second observation"), &emb).unwrap();
         let (sqlite_n, sled_n) = store.count_dual_store_consistency().unwrap();
         assert_eq!(sqlite_n, 2);
         assert_eq!(sled_n, 2, "sled vector store must mirror SQLite count");
