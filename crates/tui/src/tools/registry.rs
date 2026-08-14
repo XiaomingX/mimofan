@@ -1002,7 +1002,6 @@ impl ToolRegistryBuilder {
             .with_note_tool()
             .with_search_tools()
             .with_user_input_tool()
-            .with_parallel_tool()
             .with_git_tools()
             .with_git_history_tools()
             .with_diagnostics_tool()

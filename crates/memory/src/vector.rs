@@ -1,5 +1,7 @@
 //! Vector storage and search using hnsw-rs + sled
 
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::path::Path;
 
 use hnsw_rs::prelude::*;
@@ -146,6 +148,12 @@ pub struct VectorStore {
     vectors: Db,
     /// HNSW index for approximate nearest neighbor search
     index: Hnsw<f32, DistL2>,
+    /// Logical-deletion set for HNSW ids. `hnsw-rs` 0.1.x exposes no
+    /// single-point `remove`, so when an observation is deleted we record its
+    /// id here (a tombstone) and skip it at search time instead of rebuilding
+    /// the whole index. Entries are cleared on the next `open`, where the
+    /// index is rebuilt from sled (which no longer contains the deleted id).
+    tombstones: RefCell<HashSet<u64>>,
     /// Dimension of the embeddings
     dimension: usize,
     /// Capacity policy: soft cap on observation count. When exceeded,
@@ -186,6 +194,7 @@ impl VectorStore {
             index,
             dimension,
             capacity_limit: Self::DEFAULT_CAPACITY_LIMIT,
+            tombstones: RefCell::new(HashSet::new()),
         })
     }
 
@@ -508,8 +517,15 @@ impl VectorStore {
         let mut matches = Vec::new();
 
         let now = chrono::Utc::now().timestamp();
+        let tombstones = self.tombstones.borrow();
         for result in results {
             let id = result.d_id as i64;
+            // Skip logically-deleted ids (tombstones) left in the HNSW index.
+            // `hnsw-rs` has no `remove`, so we filter at search time rather
+            // than rebuilding the index.
+            if tombstones.contains(&(result.d_id as u64)) {
+                continue;
+            }
             let raw_similarity = 1.0 / (1.0 + result.distance); // distance → similarity
 
             // Load observation from SQLite
@@ -877,12 +893,12 @@ impl VectorStore {
         let key = bincode::serialize(&id)?;
         self.vectors.remove(key)?;
 
-        // The HNSW entry is left in place. hnsw-rs 0.1.x has no `remove`
-        // (lazy-deletion) API, and rebuilding the whole index here would be
-        // expensive; the SQLite-backed `search` filter above already excludes
-        // the deleted id, so correctness does not depend on the HNSW tombstone.
-        // The stale entry only costs an extra over-fetch slot until the next
-        // `open`, where it is dropped because it is absent from sled.
+        // hnsw-rs 0.1.x has no `remove` API, so mark the id as a tombstone.
+        // `search` skips tombstoned ids at recall time, preventing the stale
+        // HNSW entry from being returned as a (noise) neighbour. The tombstone
+        // set is cleared on the next `open`, where the index is rebuilt from
+        // sled — which no longer contains this id — so the entry is dropped.
+        self.tombstones.borrow_mut().insert(id as u64);
 
         Ok(())
     }
