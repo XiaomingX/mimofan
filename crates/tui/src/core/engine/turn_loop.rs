@@ -203,7 +203,7 @@ impl Engine {
         loop {
             if self.cancel_token.is_cancelled() {
                 let _ = self.tx_event.send(Event::status("Request cancelled")).await;
-                self.persist_loop_guard_state(&self.session.id, &loop_guard);
+                self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -441,7 +441,7 @@ impl Engine {
                             .tx_event
                             .send(Event::error(ErrorEnvelope::context_overflow(message)))
                             .await;
-                        self.persist_loop_guard_state(&self.session.id, &loop_guard);
+                        self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
                         return (TurnOutcomeStatus::Failed, turn_error);
                     }
 
@@ -622,7 +622,7 @@ impl Engine {
                 biased;
                 () = self.cancel_token.cancelled() => {
                     let _ = self.tx_event.send(Event::status("Request cancelled")).await;
-                    self.persist_loop_guard_state(&self.session.id, &loop_guard);
+                    self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
                     return (TurnOutcomeStatus::Interrupted, None);
                 }
                 result = client.create_message_stream(stream_request.clone()) => result,
@@ -648,7 +648,7 @@ impl Engine {
                         .tx_event
                         .send(Event::error(ErrorEnvelope::classify(message, true)))
                         .await;
-                    self.persist_loop_guard_state(&self.session.id, &loop_guard);
+                    self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
                     return (TurnOutcomeStatus::Failed, turn_error);
                 }
             };
@@ -1115,7 +1115,7 @@ impl Engine {
 
             if self.cancel_token.is_cancelled() {
                 let _ = self.tx_event.send(Event::status("Request cancelled")).await;
-                self.persist_loop_guard_state(&self.session.id, &loop_guard);
+                self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -1545,7 +1545,7 @@ impl Engine {
                     .tx_event
                     .send(Event::status("Request was Paused"))
                     .await;
-                self.persist_loop_guard_state(&self.session.id, &loop_guard);
+                self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -2749,13 +2749,13 @@ impl Engine {
     /// Persist the durable portion of the session's `SharedLoopGuard` to disk
     /// as `loop_guard_state`, so the loop suspicion survives process restarts
     /// and continues into the next turn.
-    fn persist_loop_guard_state(
+    async fn persist_loop_guard_state(
         &self,
         session_id: &str,
         guard: &crate::loop_guard::SharedLoopGuard,
     ) {
         use crate::loop_guard::LoopGuardState;
-        let state: LoopGuardState = guard.blocking_lock().snapshot_state();
+        let state: LoopGuardState = guard.lock().await.snapshot_state();
         if let Ok(manager) = crate::session_manager::SessionManager::default_location() {
             if let Err(err) = manager.save_loop_guard_state(session_id, &state) {
                 tracing::warn!(
