@@ -836,6 +836,14 @@ impl App {
     /// absent from the snapshot default to ready so an unknown entry is tried
     /// rather than silently skipped.
     fn fallback_provider_is_ready(&self, provider: ApiProvider) -> bool {
+        // Circuit breaker (#795): a provider that has tripped open after
+        // repeated recoverable failures is skipped during its cooldown window
+        // so the fallback chain probes a healthier candidate instead.
+        if let Ok(mut breaker) = self.provider_breaker.lock() {
+            if !breaker.allow_request(provider.as_str(), std::time::Instant::now()) {
+                return false;
+            }
+        }
         self.provider_readiness
             .iter()
             .find_map(|(candidate, ready)| (*candidate == provider).then_some(*ready))

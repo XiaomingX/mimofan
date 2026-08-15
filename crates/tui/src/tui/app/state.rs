@@ -716,6 +716,14 @@ pub struct App {
     /// ready)` pairs; lookups fall back to "ready" for providers not present so
     /// an unknown entry is tried rather than silently skipped.
     pub(crate) provider_readiness: Vec<(ApiProvider, bool)>,
+    /// Cross-provider circuit breaker (#619/#795): trips a provider open after
+    /// repeated recoverable failures so it is skipped during fallback cooldown
+    /// instead of being retried every turn. Keyed by `ApiProvider::as_str`.
+    /// Wrapped in a `Mutex` for interior mutability — consulted from `&self`
+    /// readiness checks while still being written from error/success paths.
+    pub(crate) provider_breaker: std::sync::Mutex<
+        crate::core::engine::circuit_breaker::CircuitBreaker,
+    >,
     /// Human-readable description of the last provider fallback event.
     pub last_fallback_reason: Option<String>,
     /// True when the active provider/base URL accepts arbitrary model IDs

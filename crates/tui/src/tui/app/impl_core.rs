@@ -444,6 +444,9 @@ impl App {
             api_provider: provider,
             provider_chain,
             provider_readiness,
+            provider_breaker: std::sync::Mutex::new(
+                crate::core::engine::circuit_breaker::CircuitBreaker::new(),
+            ),
             last_fallback_reason: None,
             model_ids_passthrough,
             active_route_limits: None,

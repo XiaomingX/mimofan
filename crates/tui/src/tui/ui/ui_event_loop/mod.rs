@@ -676,6 +676,16 @@ pub(crate) async fn run_event_loop(
                             app.flush_active_cell();
                         }
                         app.is_loading = false;
+                        // #795: a successfully completed turn (no error) resets
+                        // the circuit breaker for the active provider so a
+                        // transient outage doesn't keep it tripped open forever.
+                        if matches!(status, crate::core::events::TurnOutcomeStatus::Completed)
+                            && error.is_none()
+                        {
+                            if let Ok(mut breaker) = app.provider_breaker.lock() {
+                                breaker.record_success(app.api_provider.as_str());
+                            }
+                        }
                         app.dispatch_started_at = None;
                         app.pending_provider_switch = None;
                         app.offline_mode = false;

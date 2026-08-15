@@ -3133,7 +3133,7 @@ use context::{
 };
 pub use engine_config::EngineConfig;
 
-mod circuit_breaker;
+pub(crate) mod circuit_breaker;
 mod dispatch;
 mod lsp_hooks;
 mod streaming;
