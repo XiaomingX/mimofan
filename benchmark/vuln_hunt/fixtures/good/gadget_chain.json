@@ -1,0 +1,40 @@
+{
+  "sink": "InitialContext.lookup",
+  "chain_count": 3,
+  "satisfied_count": 1,
+  "chains": [
+    {
+      "chain_id": "c3p0-log4shell",
+      "name": "C3P0 JndiRefForwardingDataSource -> JNDI injection",
+      "enables": "jndi-injection",
+      "severity": "error",
+      "satisfied": true,
+      "present_gadgets": ["c3p0-jndi", "jndi-lookup"],
+      "missing_gadgets": [],
+      "pivot_reachable": null
+    },
+    {
+      "chain_id": "log4j-log4shell",
+      "name": "Log4j JndiLookup -> Log4Shell",
+      "enables": "jndi-injection",
+      "severity": "critical",
+      "satisfied": false,
+      "present_gadgets": ["log4j-jndilookup"],
+      "missing_gadgets": ["jndi-lookup"],
+      "pivot_reachable": null
+    },
+    {
+      "chain_id": "commons-collections-gadget",
+      "name": "Commons-Collections InvokerTransformer chain",
+      "enables": "rce-gadget",
+      "severity": "error",
+      "satisfied": false,
+      "present_gadgets": [],
+      "missing_gadgets": ["commons-collections-invokertransformer"],
+      "pivot_reachable": null
+    }
+  ],
+  "matched_patterns": [
+    { "id": "pat-jndi-lookup", "language": "java", "symbol": "InitialContext.lookup", "category": "jndi-injection", "cwe": ["CWE-74"] }
+  ]
+}
