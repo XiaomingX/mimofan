@@ -384,6 +384,10 @@ pub struct Engine {
     token_estimate_cache: TokenEstimateCache,
     /// Shared pause flag set by the TUI and read before tool execution.
     shared_paused: Arc<StdMutex<bool>>,
+    /// Turn-loop interceptors (W3, #836). Each hook point in `turn_loop.rs`
+    /// consults these; the default set is empty so existing behavior is
+    /// preserved when no interceptor is registered.
+    interceptors: Vec<Box<dyn crate::core::engine::interceptor::TurnInterceptor>>,
 }
 
 // === Internal tool helpers ===
@@ -892,6 +896,7 @@ impl Engine {
             current_mode: AppMode::Agent,
             token_estimate_cache: TokenEstimateCache::new(),
             shared_paused: shared_paused.clone(),
+            interceptors: Vec::new(),
         };
 
         let handle = EngineHandle {
@@ -906,6 +911,19 @@ impl Engine {
         };
 
         (engine, handle)
+    }
+
+    /// Register a turn-loop interceptor (W3, #836). Used by the plugin
+    /// assembly layer / eval harness to inject hooks without changing
+    /// `Engine::new`'s signature. Implementations are consulted at the three
+    /// wrap points in `turn_loop.rs`; the default (no interceptor) preserves
+    /// existing behavior.
+    pub fn with_interceptor(
+        &mut self,
+        interceptor: Box<dyn crate::core::engine::interceptor::TurnInterceptor>,
+    ) -> &mut Self {
+        self.interceptors.push(interceptor);
+        self
     }
 
     async fn handle_run_shell_command(
@@ -3112,6 +3130,7 @@ pub(crate) mod recovery_stats;
 mod tool_setup;
 mod trace;
 mod turn_loop;
+pub mod interceptor;
 pub(crate) use token_estimate_cache::TokenEstimateCache;
 
 pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;
