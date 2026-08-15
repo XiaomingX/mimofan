@@ -1,0 +1,8 @@
+{
+  "realized": true,
+  "exit_code": 0,
+  "matched_expect": "JNDI connection established",
+  "stdout_tail": "JNDI connection established\n",
+  "stderr_tail": "",
+  "note": "expect substring found in stdout"
+}

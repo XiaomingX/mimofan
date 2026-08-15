@@ -1,0 +1,8 @@
+{
+  "realized": false,
+  "exit_code": 1,
+  "matched_expect": null,
+  "stdout_tail": "no JNDI callback observed\n",
+  "stderr_tail": "",
+  "note": "expect substring not found"
+}

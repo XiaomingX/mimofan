@@ -1,0 +1,38 @@
+{
+  "sink": "InitialContext.lookup",
+  "chain_count": 3,
+  "satisfied_count": 0,
+  "chains": [
+    {
+      "chain_id": "c3p0-log4shell",
+      "name": "C3P0 JndiRefForwardingDataSource -> JNDI injection",
+      "enables": "jndi-injection",
+      "severity": "error",
+      "satisfied": false,
+      "present_gadgets": ["c3p0-jndi"],
+      "missing_gadgets": ["jndi-lookup"],
+      "pivot_reachable": null
+    },
+    {
+      "chain_id": "log4j-log4shell",
+      "name": "Log4j JndiLookup -> Log4Shell",
+      "enables": "jndi-injection",
+      "severity": "critical",
+      "satisfied": false,
+      "present_gadgets": [],
+      "missing_gadgets": ["log4j-jndilookup", "jndi-lookup"],
+      "pivot_reachable": null
+    },
+    {
+      "chain_id": "commons-collections-gadget",
+      "name": "Commons-Collections InvokerTransformer chain",
+      "enables": "rce-gadget",
+      "severity": "error",
+      "satisfied": false,
+      "present_gadgets": [],
+      "missing_gadgets": ["commons-collections-invokertransformer"],
+      "pivot_reachable": null
+    }
+  ],
+  "matched_patterns": []
+}
