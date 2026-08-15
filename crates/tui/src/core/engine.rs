@@ -2288,6 +2288,7 @@ impl Engine {
             Some(&self.session.workspace),
             Some(&compaction_pins),
             Some(&compaction_paths),
+            None,
         )
         .await
         {
@@ -2542,6 +2543,7 @@ impl Engine {
             &self.session.messages,
             &forced_config,
             Some(&self.session.workspace),
+            None,
             None,
             None,
         )

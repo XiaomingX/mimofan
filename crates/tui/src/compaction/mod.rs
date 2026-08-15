@@ -921,6 +921,7 @@ pub async fn compact_messages_safe(
     workspace: Option<&Path>,
     external_pins: Option<&[usize]>,
     external_working_set_paths: Option<&[String]>,
+    objective: Option<&str>,
 ) -> Result<CompactionResult> {
     // Hard cap on LLM compaction attempts. This is the "don't recurse /
     // re-compress forever" guard: if every attempt is a transient failure we
@@ -1023,6 +1024,7 @@ pub async fn compact_messages_safe(
             workspace,
             external_pins,
             external_working_set_paths,
+            objective,
         )
         .await
         {
@@ -1105,6 +1107,7 @@ pub async fn compact_messages(
     workspace: Option<&Path>,
     external_pins: Option<&[usize]>,
     external_working_set_paths: Option<&[String]>,
+    objective: Option<&str>,
 ) -> Result<(Vec<Message>, Option<SystemPrompt>, Vec<Message>)> {
     if messages.is_empty() {
         return Ok((Vec::new(), None, Vec::new()));
@@ -1141,11 +1144,31 @@ pub async fn compact_messages(
 
     let anchors_section = anchor_summary_section(workspace);
 
+    // Objective reinjection guard (#841): after compaction, the active goal/objective
+    // must survive in the compressed context. If the LLM summary dropped it, re-inject
+    // it explicitly so long-horizon tasks don't drift after multiple compactions.
+    let objective_section = if let Some(objective) = objective {
+        if !objective.trim().is_empty()
+            && !summary.contains(objective.trim())
+            && !anchors_section.contains(objective.trim())
+        {
+            format!(
+                "## 🎯 Objective (reinjected to prevent drift)\n\n{}\n\n---\n\n",
+                objective.trim()
+            )
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
+
     // Build new message list with enhanced summary as system block
     let summary_block = SystemBlock {
         block_type: "text".to_string(),
         text: format!(
             "{anchors_section}\
+             {objective_section}\
              ## 📋 Conversation Summary (Auto-Generated)\n\n\
              {summary}\n\n\
              ---\n\n\

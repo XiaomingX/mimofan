@@ -78,8 +78,9 @@ pub use naming::{assign_unique_whale_name, whale_name_for_id};
 #[allow(unused_imports)]
 pub(crate) use parser::*;
 pub use task_claim::{
-    ClaimResult, SharedTaskClaimManager, TaskClaim, TaskClaimManager, TaskClaimStatus,
-    new_shared_task_claim_manager,
+    ClaimResult, FileClaim, FileClaimManager, FileClaimResult, FileScopeAssignment,
+    SharedTaskClaimManager, TaskClaim, TaskClaimManager, TaskClaimStatus,
+    new_shared_task_claim_manager, plan_disjoint_file_sets,
 };
 pub use tool::AgentTool;
 pub use types::{

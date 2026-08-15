@@ -334,6 +334,19 @@ impl Engine {
                     }
                 }
 
+                // Re-inject the active objective into the compaction so long-horizon
+                // tasks don't drift after multiple context compactions (#841).
+                let active_objective = self
+                    .config
+                    .goal_queue
+                    .lock()
+                    .ok()
+                    .and_then(|g| {
+                        g.active_id()
+                            .and_then(|id| g.get(id))
+                            .and_then(|e| e.goal.objective().map(str::to_owned))
+                    });
+
                 match compact_messages_safe(
                     &client,
                     &self.session.messages,
@@ -341,6 +354,7 @@ impl Engine {
                     Some(&self.session.workspace),
                     Some(&compaction_pins),
                     Some(&compaction_paths),
+                    active_objective.as_deref(),
                 )
                 .await
                 {
