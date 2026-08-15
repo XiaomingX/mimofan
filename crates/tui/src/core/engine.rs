@@ -1905,7 +1905,8 @@ impl Engine {
         let tool_context = self.build_tool_context(input_policy.mode, input_policy.auto_approve);
         let builder = self
             .build_turn_tool_registry_builder(input_policy.mode, todo_list, plan_state)
-            .with_dynamic_tools(&dynamic_tools);
+            .with_dynamic_tools(&dynamic_tools)
+            .with_extra_tools(self.config.extra_tools.0.clone());
 
         let subagents_available =
             self.config.subagents_enabled && self.config.features.enabled(Feature::Subagents);
@@ -3116,7 +3117,7 @@ pub(crate) enum MockApprovalEvent {
 mod approval;
 mod catalog_filter;
 mod context;
-mod engine_config;
+pub mod engine_config;
 mod engine_messages;
 mod goal;
 mod handle;
