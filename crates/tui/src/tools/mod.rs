@@ -13,6 +13,7 @@ pub mod approval_cache;
 pub mod arg_repair;
 pub mod ast_query;
 pub mod call_graph;
+pub mod gadget_chain;
 pub mod automation;
 pub mod browser;
 pub mod cargo_failure_summary;
@@ -32,6 +33,8 @@ pub mod git;
 pub mod git_history;
 pub mod github;
 pub mod goal;
+/// #803：Hypothesis/Evidence/Verdict 一等公民（vuln-hunt 推理严谨性轴）。
+pub mod hypothesis;
 pub mod handle;
 pub mod image_ocr;
 pub mod insights;

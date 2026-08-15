@@ -594,6 +594,27 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(CallGraphTool))
     }
 
+    /// 注册 Hypothesis/Evidence/Verdict 跟踪工具（`hypothesis`，issue #803）。
+    /// 在 `.mimofan/hypotheses.json` 维护推理账本，并强制「先举证后结论」
+    /// 一致性门（零证据禁止 resolve），对应 vuln-hunt 长程 harness 的
+    /// 推理严谨性轴（axis B）。只写 workspace 本地状态目录，不会执行代码或
+    /// 发起网络请求，默认可自动批准，从而保持 harness 非交互。
+    #[must_use]
+    pub fn with_hypothesis_tools(self) -> Self {
+        use super::hypothesis::HypothesisTool;
+        self.with_tool(Arc::new(HypothesisTool))
+    }
+
+    /// 注册 gadget 链逆向追踪工具（`gadget_chain_trace`，issue #794 / #790
+    /// 的静态可追踪性 axis）。只读、可并行，把漏洞知识库里的已知 gadget chain
+    /// 反向追踪暴露给模型：给定 sink 符号与已确认存在的 gadget 集合，报告每条
+    /// 利用链是否完整、以及还缺哪些 gadget（推动跨过程数据流分析）。
+    #[must_use]
+    pub fn with_gadget_chain_tools(self) -> Self {
+        use super::gadget_chain::GadgetChainTraceTool;
+        self.with_tool(Arc::new(GadgetChainTraceTool))
+    }
+
     /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
     #[must_use]
     pub fn with_notebook_tools(self) -> Self {
@@ -1015,6 +1036,7 @@ impl ToolRegistryBuilder {
             .with_git_history_tools()
             .with_diagnostics_tool()
             .with_lsp_symbol_tools()
+            .with_hypothesis_tools()
             .with_project_tools()
             .with_skill_tools()
             .with_test_runner_tool()
