@@ -207,6 +207,12 @@ impl Engine {
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
+            // W3 (#836): notify interceptors a step is about to begin before
+            // draining the steering channel.
+            for ic in &self.interceptors {
+                ic.pre_step(&self.session.workspace.to_string_lossy());
+            }
+
             while let Ok(steer) = self.rx_steer.try_recv() {
                 let steer = steer.trim().to_string();
                 if steer.is_empty() {
@@ -592,7 +598,7 @@ impl Engine {
                 }
             }
 
-            let request = MessageRequest {
+            let mut request = MessageRequest {
                 model: self.session.model.clone(),
                 messages: self.messages_with_turn_metadata(),
                 max_tokens: effective_max_output_tokens_for_route(
@@ -618,6 +624,12 @@ impl Engine {
                 top_p: None,
                 response_format: self.session.response_format.clone(),
             };
+
+            // W3 (#836): give interceptors a chance to mutate the provider
+            // request before it is sent.
+            for ic in &self.interceptors {
+                ic.request(&mut request);
+            }
 
             // Stream the response. Keep the request around (cloned into the
             // first call) so we can resend it on a transparent retry below
@@ -747,6 +759,11 @@ impl Engine {
                 let Some(event_result) = poll_outcome else {
                     break;
                 };
+                // W3 (#836): notify interceptors before draining steer input
+                // queued mid-stream.
+                for ic in &self.interceptors {
+                    ic.pre_step(&self.session.workspace.to_string_lossy());
+                }
                 while let Ok(steer) = self.rx_steer.try_recv() {
                     let steer = steer.trim().to_string();
                     if steer.is_empty() {
@@ -2469,6 +2486,14 @@ impl Engine {
                 let tool_name_for_ws = outcome.name.clone();
                 let should_stop_this_turn =
                     should_stop_after_plan_tool(mode, &outcome.name, &outcome.result);
+                // W3 (#836): OR the existing stop decision with any
+                // interceptor that wants to force a stop. The base function's
+                // own logic is left untouched; we only widen the decision here.
+                let should_stop_this_turn = should_stop_this_turn
+                    || self
+                        .interceptors
+                        .iter()
+                        .any(|ic| ic.turn_stopping(self.turn_counter) == Some(true));
 
                 match outcome.result {
                     Ok(output) => {
@@ -2647,6 +2672,11 @@ impl Engine {
                 }
 
                 stop_after_plan_tool |= should_stop_this_turn;
+            }
+
+            // W3 (#836): notify interceptors a step has been processed.
+            for ic in &self.interceptors {
+                ic.post_step(self.turn_counter);
             }
 
             if stop_after_plan_tool {
