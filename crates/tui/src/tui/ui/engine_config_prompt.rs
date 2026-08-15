@@ -92,6 +92,9 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         catalog_cache: app.catalog_cache.clone(),
         extra_tools: crate::core::engine::engine_config::ExtraTools::default(),
         batch_mode: false,
+        task_budget_tokens: None,
+        resume_session: None,
+        validation_retry: None,
     }
 }
 

@@ -700,6 +700,9 @@ pub(crate) async fn run_exec_agent(
         )),
         extra_tools: crate::core::engine::engine_config::ExtraTools(json_schema_terminator),
         batch_mode: false,
+        task_budget_tokens: None,
+        resume_session: None,
+        validation_retry: None,
     };
 
     let engine_handle = spawn_engine(engine_config, &execution_config);

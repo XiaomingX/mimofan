@@ -1817,6 +1817,9 @@ impl RuntimeThreadManager {
             )),
             extra_tools: crate::core::engine::engine_config::ExtraTools::default(),
             batch_mode: false,
+            task_budget_tokens: None,
+            resume_session: None,
+            validation_retry: None,
         };
 
         let engine = spawn_engine(engine_cfg, &self.config);

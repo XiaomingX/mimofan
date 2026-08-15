@@ -388,6 +388,17 @@ pub struct Engine {
     /// consults these; the default set is empty so existing behavior is
     /// preserved when no interceptor is registered.
     interceptors: Vec<Box<dyn crate::core::engine::interceptor::TurnInterceptor>>,
+    /// Task token budget for the whole goal (#848). `None` means unbounded.
+    task_budget: Option<crate::core::engine::resilience::TaskBudget>,
+    /// Resume controller (#857): holds the checkpoint store + state file for
+    /// the session so per-turn completion can append checkpoints and `run()`
+    /// can restore prior progress. Best-effort, always present (may be empty).
+    resume_controller: crate::core::engine::resilience::SharedResumeController,
+    /// How many effort/model escalations have been applied via #845 retry.
+    escalations_applied: u32,
+    /// Whether the task token budget is exhausted (#848) — gates goal
+    /// continuation and halts the run.
+    budget_exhausted: bool,
 }
 
 // === Internal tool helpers ===
@@ -629,6 +640,11 @@ impl Engine {
     /// Create a new engine with the given configuration
     pub fn new(config: EngineConfig, api_config: &Config) -> (Self, EngineHandle) {
         crate::tls::ensure_rustls_crypto_provider();
+
+        // Capture the resume path before `config` is moved into the struct so
+        // the resume controller can be built from it (#857).
+        let resume_session_path = config.resume_session.clone();
+        let task_budget_tokens = config.task_budget_tokens;
 
         if let Some(objective) = normalized_goal_objective(config.goal_objective.as_deref()) {
             sync_goal_state_from_host(
@@ -909,6 +925,18 @@ impl Engine {
             token_estimate_cache: TokenEstimateCache::new(),
             shared_paused: shared_paused.clone(),
             interceptors: Vec::new(),
+            task_budget: crate::core::engine::resilience::TaskBudget::from_config(
+                task_budget_tokens,
+            ),
+            resume_controller: {
+                use crate::core::engine::resilience::ResumeController;
+                let controller = resume_session_path
+                    .as_ref()
+                    .map(|p| ResumeController::open_path(p.as_path()));
+                crate::core::engine::resilience::SharedResumeController::new(controller)
+            },
+            escalations_applied: 0,
+            budget_exhausted: false,
         };
 
         let handle = EngineHandle {
@@ -1229,6 +1257,13 @@ impl Engine {
             Operation(Box<Op>),
             SubAgentCompletion(SubAgentCompletion),
         }
+
+        // #857 — auto-resume: if a prior checkpoint/state file exists for this
+        // session, restore orchestration state (turn index, budget, objective)
+        // so the run continues from the last completed turn boundary instead
+        // of restarting from scratch. Best-effort: any error is swallowed and
+        // we fall back to a normal fresh start.
+        self.apply_resume_on_start().await;
 
         loop {
             let input = tokio::select! {
@@ -1670,6 +1705,271 @@ impl Engine {
         }
     }
 
+    // ── Engine resilience: budget / checkpoint / state / resume (#845/#848/#851/#856/#857) ──
+
+    /// #857 — apply a prior checkpoint/state at engine start.
+    ///
+    /// Restores `turn_counter`, the task budget, the objective, and the
+    /// escalation count from the serialized agent state. Best-effort: any
+    /// failure is logged and ignored so a corrupt state file never blocks a
+    /// fresh start.
+    async fn apply_resume_on_start(&mut self) {
+        use crate::core::engine::resilience::ResumeController;
+        let Some(mut controller) = self.resume_controller.take() else {
+            return;
+        };
+        if !controller.has_resume_point() {
+            // No prior progress; keep the (empty) controller for per-turn writes.
+            self.resume_controller.set(controller);
+            return;
+        }
+
+        // Resume the turn counter so the next turn continues after the last
+        // completed one (skipping already-done turns).
+        if let Some(last_turn) = controller.resume_from_turn() {
+            self.turn_counter = last_turn;
+        }
+
+        if let Some(state) = controller.load_state() {
+            if let Some(remaining) = state.budget_remaining {
+                if let Some(budget) = self.task_budget.as_mut() {
+                    budget.remaining = remaining;
+                    budget.consumed = state.tokens_consumed;
+                    if let Some(total) = state.budget_total {
+                        budget.total = total;
+                    }
+                }
+            }
+            self.escalations_applied = state.escalations_applied;
+            if !state.objective.is_empty() {
+                self.config.goal_objective = Some(state.objective.clone());
+            }
+        }
+
+        let _ = self
+            .tx_event
+            .send(Event::status(format!(
+                "Resumed session from turn {} (checkpoint: {})",
+                self.turn_counter,
+                controller.checkpoints().path().display()
+            )))
+            .await;
+
+        // Hand the controller back so per-turn completion can keep appending.
+        self.resume_controller.set(controller);
+    }
+
+    /// #856 — project the live engine state into a serializable view.
+    #[must_use]
+    pub fn snapshot_state(&self) -> crate::core::engine::resilience::SerializableAgentState {
+        use crate::core::engine::resilience::SerializableAgentState;
+        let mut state = SerializableAgentState::default();
+        state.objective = self.config.goal_objective.clone().unwrap_or_default();
+        state.turn_index = self.turn_counter;
+        state.escalations_applied = self.escalations_applied;
+        state.model = self.session.model.clone();
+        state.reasoning_effort = self.session.reasoning_effort.clone();
+        state.tokens_consumed = self
+            .session
+            .total_usage
+            .input_tokens
+            .saturating_add(self.session.total_usage.output_tokens) as usize;
+        if let Some(budget) = &self.task_budget {
+            state.budget_remaining = Some(budget.remaining);
+            state.budget_total = Some(budget.total);
+        }
+        // Active sub-agents are captured lazily: `SubAgentManager` is behind an
+        // async RwLock, and `snapshot_state` must stay sync. Callers needing
+        // the live sub-agent set can populate `active_subagents` separately.
+        state
+    }
+
+    /// #856 — best-effort restore of orchestration state from a snapshot.
+    ///
+    /// Only the fields safe to re-apply without a live LLM are restored
+    /// (objective, budget, turn index, escalations). The message transcript is
+    /// owned by the session on disk and is NOT touched here.
+    pub fn restore_state(&mut self, state: &crate::core::engine::resilience::SerializableAgentState) {
+        if !state.objective.is_empty() {
+            self.config.goal_objective = Some(state.objective.clone());
+        }
+        self.turn_counter = state.turn_index;
+        self.escalations_applied = state.escalations_applied;
+        if let (Some(remaining), Some(total)) = (state.budget_remaining, state.budget_total) {
+            self.task_budget = Some(crate::core::engine::resilience::TaskBudget {
+                total,
+                remaining,
+                consumed: state.tokens_consumed,
+            });
+        }
+        if !state.model.is_empty() {
+            self.session.model = state.model.clone();
+            self.config.model.clone_from(&state.model);
+        }
+        self.session.reasoning_effort = state.reasoning_effort.clone();
+    }
+
+    /// #851 — persist a turn checkpoint after a completed turn.
+    ///
+    /// Appends to the session's `.checkpoints.jsonl` (idempotent) and, when a
+    /// task budget is active, finalizes the serialized agent state so a crash
+    /// can resume. Best-effort: errors are logged, not fatal.
+    async fn record_turn_checkpoint(&mut self, summary: &str) {
+        let objective = self.config.goal_objective.clone().unwrap_or_default();
+        let tokens = self
+            .session
+            .total_usage
+            .input_tokens
+            .saturating_add(self.session.total_usage.output_tokens) as usize;
+        if let Err(e) = self.resume_controller.save_turn_checkpoint(
+            self.turn_counter,
+            summary,
+            &objective,
+            tokens,
+        ) {
+            tracing::warn!(target: "resilience", "turn checkpoint failed: {e}");
+            return;
+        }
+        // Persist the serializable agent state alongside the checkpoint.
+        let state = self.snapshot_state();
+        if let Err(e) = self.resume_controller.save_state(&state) {
+            tracing::warn!(target: "resilience", "agent state persist failed: {e}");
+        }
+    }
+
+    /// #848 — decrement the task budget by a turn's usage and report/halt.
+    ///
+    /// Returns `true` if the budget is now exhausted (caller should stop the
+    /// goal loop). Best-effort: when no budget is configured this is a no-op
+    /// returning `false`.
+    async fn spend_turn_budget(&mut self, usage: &Usage) -> bool {
+        let Some(budget) = self.task_budget.as_mut() else {
+            return false;
+        };
+        let exhausted = budget.spend_usage(usage);
+        if exhausted {
+            self.budget_exhausted = true;
+            let _ = self
+                .tx_event
+                .send(Event::status(format!(
+                    "Task token budget exhausted ({} / {} tokens). Stopping goal.",
+                    budget.consumed, budget.total
+                )))
+                .await;
+        } else {
+            let _ = self
+                .tx_event
+                .send(Event::status(budget.context_marker()))
+                .await;
+        }
+        exhausted
+    }
+
+    /// #848 — whether the model-facing budget marker should be injected.
+    #[must_use]
+    pub fn budget_context_marker(&self) -> Option<String> {
+        self.task_budget.as_ref().map(|b| b.context_marker())
+    }
+
+    /// #845 — validate the just-completed turn and, if it failed, escalate
+    /// effort/model and re-dispatch within the escalation cap.
+    ///
+    /// Returns `true` if the turn should be considered validated (either it
+    /// passed or escalations are exhausted), `false` if a retry was dispatched
+    /// (the caller should treat the current turn as not-yet-complete).
+    ///
+    /// The validation uses the `GoalGate` building blocks when an objective and
+    /// a success predicate / required substring are available; otherwise it is
+    /// a no-op (returns `true`).
+    async fn maybe_retry_on_validation_failure(&mut self, observed_output: Option<String>) -> bool {
+        let Some(retry_config) = self.config.validation_retry.clone() else {
+            return true;
+        };
+        let objective = retry_config
+            .objective
+            .clone()
+            .or_else(|| self.config.goal_objective.clone())
+            .unwrap_or_default();
+        if objective.is_empty() {
+            return true;
+        }
+
+        // Validate synchronously (no `!Send` `GoalGate` live across an `.await`
+        // — compute the verdict and the escalation step up front, then perform
+        // the channel sends afterwards so the engine future stays `Send`).
+        let (verdict_met, step) = {
+            use crate::tools::verifier::goal_gate::{GoalEvidence, GoalGate};
+            let mut evidence = GoalEvidence::default();
+            evidence.observed_output = observed_output;
+            let gate = GoalGate::default_set();
+            let verdict = gate.evaluate(&objective, &evidence);
+            if verdict.met {
+                return true;
+            }
+            use crate::core::engine::resilience::EffortTier;
+            let current_effort = self
+                .session
+                .reasoning_effort
+                .as_deref()
+                .map(EffortTier::parse)
+                .unwrap_or(EffortTier::Medium);
+            let step = retry_config
+                .policy
+                .escalate(&current_effort, &self.session.model, self.escalations_applied);
+            (verdict.met, step)
+        };
+
+        if !step.changed {
+            return true;
+        }
+        self.escalations_applied = self.escalations_applied.saturating_add(1);
+        self.session.reasoning_effort = Some(step.effort.as_str().to_string());
+        self.session.reasoning_effort_auto = false;
+        self.config.model.clone_from(&step.model);
+        self.session.model.clone_from(&step.model);
+        self.refresh_system_prompt();
+
+        let _ = self
+            .tx_event
+            .send(Event::status(format!(
+                "Validation failed; escalating (effort={}, model={}, escalations={}) and retrying turn.",
+                step.effort.as_str(),
+                step.model,
+                self.escalations_applied
+            )))
+            .await;
+
+        // Re-dispatch the same objective as a runtime continuation turn.
+        let _ = self
+            .tx_op
+            .send(Op::SendMessage {
+                content: objective.clone(),
+                mode: self.current_mode,
+                provider: Some(self.api_provider),
+                model: self.session.model.clone(),
+                goal_objective: Some(objective),
+                goal_token_budget: self.config.goal_token_budget,
+                goal_status: crate::tools::goal::GoalStatus::Active,
+                reasoning_effort: self.session.reasoning_effort.clone(),
+                reasoning_effort_auto: false,
+                response_format: self.session.response_format.clone(),
+                auto_model: self.session.auto_model,
+                allow_shell: self.session.allow_shell,
+                trust_mode: self.session.trust_mode,
+                auto_approve: self.session.auto_approve,
+                approval_mode: self.session.approval_mode,
+                translation_enabled: self.config.translation_enabled,
+                show_thinking: self.config.show_thinking,
+                allowed_tools: self.config.allowed_tools.clone(),
+                dynamic_tools: Vec::new(),
+                hook_executor: self.config.hook_executor.clone(),
+                verbosity: self.config.verbosity.clone(),
+                provenance: crate::core::ops::UserInputProvenance::Runtime,
+            })
+            .await;
+        false
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn handle_send_message(
         &mut self,
@@ -1722,6 +2022,12 @@ impl Engine {
         }
         // Reset cancel token for fresh turn (in case previous was cancelled)
         self.reset_cancel_token();
+
+        // #848 — a fresh user-initiated turn clears the budget-exhausted latch
+        // so a new goal is not blocked by a previous goal's exhaustion.
+        if provenance == crate::core::ops::UserInputProvenance::ExternalUser {
+            self.budget_exhausted = false;
+        }
 
         // Track current mode so mid-turn messages include the right mode in turn metadata.
         self.current_mode = input_policy.mode;
@@ -2147,16 +2453,48 @@ impl Engine {
         // Emit turn complete event — after all post-turn bookkeeping so
         // the terminal is immediately responsive when the UI receives it.
         self.emit_goal_updated().await;
+        let turn_usage_for_budget = turn.usage;
         let _ = self
             .tx_event
             .send(Event::TurnComplete {
-                usage: turn.usage,
+                usage: turn_usage_for_budget.clone(),
                 status,
                 error,
                 tool_catalog: tool_catalog_for_event,
                 base_url: base_url_for_event,
             })
             .await;
+
+        // ── Engine resilience hooks (#848/#851/#845) ──────────────────────
+        // 1. Decrement the task token budget by this turn's usage; halt if it
+        //    is now exhausted.
+        // 2. Persist a recoverable turn checkpoint so a crash can resume.
+        // 3. If the turn failed objective validation, escalate effort/model and
+        //    re-dispatch within the escalation cap (returns false when it did).
+        if status == TurnOutcomeStatus::Completed {
+            self.spend_turn_budget(&turn_usage_for_budget).await;
+            self.record_turn_checkpoint("turn completed").await;
+
+            // Derive an observed-output summary from the last assistant text
+            // block (best-effort) for the validation gate.
+            let observed_output = self
+                .session
+                .messages
+                .iter()
+                .rev()
+                .find(|m| m.role == "assistant")
+                .and_then(|m| {
+                    m.content.iter().rev().find_map(|b| match b {
+                        crate::models::ContentBlock::Text { text, .. } => Some(text.clone()),
+                        _ => None,
+                    })
+                });
+            if !self.maybe_retry_on_validation_failure(observed_output).await {
+                // A retry was dispatched; skip the normal goal continuation for
+                // this turn so we don't double-dispatch.
+                return;
+            }
+        }
 
         // Post-turn snapshot. Fire-and-forget: TurnComplete is already
         // emitted, so the UI is unblocked and the user can type / select /
@@ -2189,6 +2527,7 @@ impl Engine {
         // There is no continuation cap. A Failed or Interrupted turn does NOT
         // continue — Esc cancels the loop by interrupting the turn.
         if status == TurnOutcomeStatus::Completed
+            && !self.budget_exhausted
             && let Some(continuation) = self.goal_continuation_if_active()
         {
             // Re-dispatch with the same route/mode/approval settings as
@@ -2927,6 +3266,17 @@ impl Engine {
             }
         }
 
+        // #848 — expose the remaining task token budget to the model so an
+        // unattended run can pace itself. Injected only when a budget is
+        // configured; the marker is a plain HTML comment so it carries no
+        // semantic weight for non-budgeted sessions.
+        if let Some(ref marker) = self.budget_context_marker()
+            && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
+        {
+            prompt_text.push_str("\n\n");
+            prompt_text.push_str(marker);
+        }
+
         let stable_hash = system_prompt_hash(stable_prompt.as_ref());
         if self.session.system_prompt_override {
             return;
@@ -3119,6 +3469,7 @@ mod catalog_filter;
 mod context;
 pub mod engine_config;
 mod engine_messages;
+pub mod resilience;
 mod goal;
 mod handle;
 mod plugin_tools;

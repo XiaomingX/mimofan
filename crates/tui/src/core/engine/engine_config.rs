@@ -195,6 +195,20 @@ pub struct EngineConfig {
     /// cost (~50%). Added for #844 — purely additive: defaults to `false`, so
     /// existing field order, types, and construction sites are unchanged.
     pub batch_mode: bool,
+    /// When `Some`, an aggregate token budget for the whole task/goal the
+    /// engine decrements per turn and halts when exhausted (#848). Added for
+    /// #848 — purely additive: defaults to `None` (unbounded), so existing
+    /// field order, types, and construction sites are unchanged.
+    pub task_budget_tokens: Option<usize>,
+    /// Optional path to a prior session dir or state file; when set the engine
+    /// auto-resumes from the last completed turn boundary on start (#857).
+    /// Added for #857 — purely additive, defaults to `None`.
+    pub resume_session: Option<PathBuf>,
+    /// Optional validate-then-retry policy: when a turn fails an objective
+    /// validation check, the engine escalates effort/model and retries,
+    /// bounded by `policy.max_escalations` (#845). Added for #845 — purely
+    /// additive, defaults to `None` (no automatic retry).
+    pub validation_retry: Option<crate::core::engine::resilience::ValidationRetryConfig>,
 }
 
 /// Wrapper around a list of injected `ToolSpec` implementations so it can live
@@ -289,6 +303,9 @@ impl Default for EngineConfig {
             catalog_cache: Arc::new(StdMutex::new(ProviderCatalogCache::new())),
             extra_tools: ExtraTools::default(),
             batch_mode: false,
+            task_budget_tokens: None,
+            resume_session: None,
+            validation_retry: None,
         }
     }
 }
