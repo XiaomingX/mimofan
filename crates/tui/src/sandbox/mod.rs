@@ -39,9 +39,14 @@ pub mod seatbelt;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 use std::time::Duration;
 
+use async_trait::async_trait;
+
 pub use policy::SandboxPolicy;
+
+use crate::sandbox::backend::{SandboxBackend, SandboxOutput};
 
 /// Specification for a command to be executed, potentially within a sandbox.
 ///
@@ -514,5 +519,98 @@ impl SandboxManager {
                 "Landlock blocked a filesystem operation. The command tried to write outside the allowed workspace.".to_string()
             }
         }
+    }
+
+    /// Run a shell command locally through the OS-level sandbox path and
+    /// return `(stdout, stderr, exit_code)`.
+    ///
+    /// This is the single local-execution helper that backs both the legacy
+    /// `ShellManager` flow (via `prepare`) and the new `SandboxBackend` trait.
+    /// It wraps `prepare` rather than duplicating process-spawning logic.
+    fn run_local(&self, cmd: &str, env: &HashMap<String, String>) -> anyhow::Result<SandboxOutput> {
+        let spec = CommandSpec::shell(cmd, std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")), Duration::from_secs(60))
+            .with_env(env.clone());
+        let exec_env = self.prepare(&spec);
+
+        let mut command = Command::new(exec_env.program());
+        command
+            .args(exec_env.args())
+            .current_dir(&exec_env.cwd)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        for (k, v) in &exec_env.env {
+            command.env(k, v);
+        }
+
+        let output = command
+            .output()
+            .map_err(|e| anyhow::anyhow!("failed to run command `{cmd}`: {e}"))?;
+
+        Ok(SandboxOutput {
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            exit_code: output.status.code().unwrap_or(-1),
+        })
+    }
+}
+
+/// `SandboxManager` can act as a `SandboxBackend` by delegating to the
+/// OS-level execution path (Seatbelt / Landlock / unsandboxed). This lets the
+/// local OS sandbox be plugged into the same `SandboxBackend` seam used by the
+/// remote OpenSandbox / container backends (#835).
+#[async_trait]
+impl SandboxBackend for SandboxManager {
+    async fn exec(&self, cmd: &str, env: &HashMap<String, String>) -> anyhow::Result<SandboxOutput> {
+        self.run_local(cmd, env)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A mock `SandboxBackend` that records the command it was asked to run and
+    /// returns a canned `SandboxOutput`. Used to prove the trait is
+    /// dyn-compatible and that `SandboxManager` satisfies it.
+    struct MockBackend {
+        last_cmd: std::sync::Mutex<Option<String>>,
+    }
+
+    #[async_trait]
+    impl SandboxBackend for MockBackend {
+        async fn exec(&self, cmd: &str, _env: &HashMap<String, String>) -> anyhow::Result<SandboxOutput> {
+            *self.last_cmd.lock().unwrap() = Some(cmd.to_string());
+            Ok(SandboxOutput {
+                stdout: format!("mock:{cmd}"),
+                stderr: String::new(),
+                exit_code: 0,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn sandbox_manager_implements_sandbox_backend() {
+        // Construct a no-op/local policy manager (mirrors `SandboxManager::new`).
+        let manager = SandboxManager::new();
+        // Box it as the trait object the rest of the system stores.
+        let backend: Box<dyn SandboxBackend> = Box::new(manager);
+
+        let output = backend.exec("echo hello", &HashMap::new()).await.unwrap();
+        assert_eq!(output.exit_code, 0);
+        assert!(
+            output.stdout.contains("hello"),
+            "expected stdout to contain 'hello', got: {:?}",
+            output.stdout
+        );
+    }
+
+    #[tokio::test]
+    async fn mock_backend_passes_through() {
+        let backend: Box<dyn SandboxBackend> = Box::new(MockBackend {
+            last_cmd: std::sync::Mutex::new(None),
+        });
+        let output = backend.exec("echo hi", &HashMap::new()).await.unwrap();
+        assert_eq!(output.exit_code, 0);
+        assert_eq!(output.stdout, "mock:echo hi");
     }
 }
