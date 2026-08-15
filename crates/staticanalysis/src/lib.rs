@@ -423,5 +423,6 @@ pub mod typestate;
 pub mod sarif;
 pub mod sca;
 pub mod knowledge;
+pub mod kb_trace;
 pub mod attack_surface;
 pub mod recon;
