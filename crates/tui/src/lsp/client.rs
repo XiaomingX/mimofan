@@ -122,6 +122,28 @@ pub trait LspTransport: Send + Sync {
         column: u32,
         wait: Duration,
     ) -> Option<LspLocation>;
+
+    /// Prepare call-hierarchy items for the symbol at `(line, column)` in
+    /// `path` via `textDocument/prepareCallHierarchy`. Best-effort: empty list
+    /// on unsupported/failure. Returns raw `CallHierarchyItem` values.
+    async fn prepare_call_hierarchy(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        wait: Duration,
+    ) -> Vec<Value>;
+
+    /// Fetch inbound/outbound call edges for a prepared call-hierarchy `item`
+    /// via `callHierarchy/incomingCalls` or `callHierarchy/outgoingCalls`.
+    /// `direction` is `"incoming"` or `"outgoing"`. Best-effort: empty list
+    /// on unsupported/failure. Returns raw edge values.
+    async fn call_hierarchy_calls(
+        &self,
+        item: Value,
+        direction: &str,
+        wait: Duration,
+    ) -> Vec<Value>;
 }
 
 /// Stdio-backed transport. Spawns the LSP server as a child process and
@@ -432,6 +454,87 @@ impl StdioLspTransport {
         raw.into_iter().filter_map(|v| parse_location(&v)).collect()
     }
 
+    /// Prepare call-hierarchy items for the symbol at `(line, column)` in
+    /// `path` via `textDocument/prepareCallHierarchy`. Returns the raw
+    /// `CallHierarchyItem` array (possibly empty). Each item carries enough
+    /// identity (`uri` + `range` + `selectionRange`) to drive the recursive
+    /// `callHierarchy/incomingCalls` and `callHierarchy/outgoingCalls` steps.
+    ///
+    /// Best-effort: returns an empty list when the server does not advertise
+    /// `textDocument.prepareCallHierarchy` support or the call fails.
+    pub async fn prepare_call_hierarchy(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        wait: Duration,
+    ) -> Vec<Value> {
+        if !self
+            .capability_supported(&["textDocument", "prepareCallHierarchy"])
+            .await
+        {
+            return Vec::new();
+        }
+        let uri = uri_from_path(path);
+        let params = json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": line.saturating_sub(1), "character": column.saturating_sub(1) }
+        });
+        let reply = match self
+            .request_raw("textDocument/prepareCallHierarchy", params, wait)
+            .await
+        {
+            Ok(r) => r,
+            Err(err) => {
+                tracing::debug!(?err, file = %path.display(), "lsp: prepareCallHierarchy failed");
+                return Vec::new();
+            }
+        };
+        reply
+            .get("result")
+            .and_then(|r| r.as_array())
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Given a prepared call-hierarchy item (the `item` field from a
+    /// `prepareCallHierarchy` / `callHierarchy/*Calls` result entry), fetch its
+    /// inbound or outbound call edges via `callHierarchy/incomingCalls` /
+    /// `callHierarchy/outgoingCalls`. `direction` must be `"incoming"` or
+    /// `"outgoing"`. Returns the raw edge array (each entry has `from`/`to`
+    /// + a nested `fromRanges`/`toRanges`); empty on unsupported/failure.
+    pub async fn call_hierarchy_calls(
+        &self,
+        item: Value,
+        direction: &str,
+        wait: Duration,
+    ) -> Vec<Value> {
+        debug_assert!(matches!(direction, "incoming" | "outgoing"));
+        if !self
+            .capability_supported(&["textDocument", "callHierarchy"])
+            .await
+        {
+            return Vec::new();
+        }
+        let method = match direction {
+            "incoming" => "callHierarchy/incomingCalls",
+            _ => "callHierarchy/outgoingCalls",
+        };
+        let params = json!({ "item": item });
+        let reply = match self.request_raw(method, params, wait).await {
+            Ok(r) => r,
+            Err(err) => {
+                tracing::debug!(?err, method, "lsp: callHierarchy call failed");
+                return Vec::new();
+            }
+        };
+        reply
+            .get("result")
+            .and_then(|r| r.as_array())
+            .cloned()
+            .unwrap_or_default()
+    }
+
     /// Resolve the definition of the symbol at `(line, column)` in `path` via
     /// `textDocument/definition`. Returns `None` when there is no definition
     /// or the server does not support the method.
@@ -617,6 +720,25 @@ impl LspTransport for StdioLspTransport {
         wait: Duration,
     ) -> Option<LspLocation> {
         StdioLspTransport::definition(self, path, line, column, wait).await
+    }
+
+    async fn prepare_call_hierarchy(
+        &self,
+        path: &Path,
+        line: u32,
+        column: u32,
+        wait: Duration,
+    ) -> Vec<Value> {
+        StdioLspTransport::prepare_call_hierarchy(self, path, line, column, wait).await
+    }
+
+    async fn call_hierarchy_calls(
+        &self,
+        item: Value,
+        direction: &str,
+        wait: Duration,
+    ) -> Vec<Value> {
+        StdioLspTransport::call_hierarchy_calls(self, item, direction, wait).await
     }
 }
 
@@ -899,6 +1021,23 @@ mod tests {
             _wait: Duration,
         ) -> Option<LspLocation> {
             None
+        }
+        async fn prepare_call_hierarchy(
+            &self,
+            _path: &Path,
+            _line: u32,
+            _column: u32,
+            _wait: Duration,
+        ) -> Vec<Value> {
+            Vec::new()
+        }
+        async fn call_hierarchy_calls(
+            &self,
+            _item: Value,
+            _direction: &str,
+            _wait: Duration,
+        ) -> Vec<Value> {
+            Vec::new()
         }
     }
 

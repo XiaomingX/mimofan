@@ -26,7 +26,9 @@ use serde_json::{Value, json};
 use super::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
 };
-use crate::lsp::{LspLocation, LspManager, LspSymbol};
+use crate::lsp::{
+    CallHierarchyTree, CallNode, LspLocation, LspManager, LspSymbol,
+};
 
 /// `wait_ms` 缺省时的兜底等待时长（毫秒）。实际优先取
 /// `[lsp] poll_after_edit_ms`，两者都拿不到时用这个值。
@@ -329,6 +331,149 @@ impl ToolSpec for LspGotoDefinitionTool {
     }
 }
 
+// === lsp_call_hierarchy ===
+
+/// `max_depth` 缺省值，避免模型不传时只展开一层（信息量不足）。
+const DEFAULT_CALL_DEPTH: u32 = 2;
+
+/// `max_depth` 的上限，防止在递归调用图里疯狂展开把整个回合挂住或撑爆 token。
+const MAX_CALL_DEPTH: u32 = 5;
+
+/// 调用层级：给定符号位置，递归展开其入/出调用，返回一棵嵌套调用节点树。
+pub struct LspCallHierarchyTool;
+
+#[async_trait]
+impl ToolSpec for LspCallHierarchyTool {
+    fn name(&self) -> &'static str {
+        "lsp_call_hierarchy"
+    }
+
+    fn description(&self) -> &'static str {
+        "Compute the call hierarchy (incoming/outgoing calls) for the symbol at a given \
+         1-based line/column via the language server, recursively expanded to a bounded depth. \
+         Use this for impact analysis — 'who calls this?' and 'what does this call?' — during \
+         refactors or vulnerability gadget-chain tracing. Returns a nested tree of call nodes \
+         (name, kind, location). Returns an empty tree when no language server is available."
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "file": {
+                    "type": "string",
+                    "description": "Path to the source file, absolute or relative to the workspace root."
+                },
+                "line": {
+                    "type": "number",
+                    "description": "1-based line number of the symbol.",
+                    "minimum": 1
+                },
+                "character": {
+                    "type": "number",
+                    "description": "1-based column number of the symbol.",
+                    "minimum": 1
+                },
+                "direction": {
+                    "type": "string",
+                    "enum": ["incoming", "outgoing", "both"],
+                    "description": "Which edges to expand: 'incoming' (callers), 'outgoing' (callees), or 'both'. Defaults to 'both'."
+                },
+                "max_depth": {
+                    "type": "number",
+                    "description": "Maximum recursion depth for the call tree. Defaults to 2, capped at 5.",
+                    "minimum": 1,
+                    "maximum": MAX_CALL_DEPTH
+                },
+                "wait_ms": {
+                    "type": "number",
+                    "description": "Max milliseconds to wait for the language server. Defaults to the configured LSP poll timeout.",
+                    "minimum": 0,
+                    "maximum": MAX_WAIT_MS
+                }
+            },
+            "required": ["file", "line", "character"],
+            "additionalProperties": false
+        })
+    }
+
+    fn capabilities(&self) -> Vec<ToolCapability> {
+        vec![ToolCapability::ReadOnly]
+    }
+
+    fn approval_requirement(&self) -> ApprovalRequirement {
+        ApprovalRequirement::Auto
+    }
+
+    fn supports_parallel(&self) -> bool {
+        true
+    }
+
+    async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
+        let manager = require_manager(context)?;
+        let file = resolve_existing_file(&input, context)?;
+        let line = required_position(&input, "line")?;
+        let column = required_position(&input, "character")?;
+
+        let direction = input
+            .get("direction")
+            .and_then(Value::as_str)
+            .filter(|d| matches!(*d, "incoming" | "outgoing" | "both"))
+            .unwrap_or("both")
+            .to_string();
+
+        let max_depth = input
+            .get("max_depth")
+            .and_then(Value::as_u64)
+            .map(|d| (d as u32).clamp(1, MAX_CALL_DEPTH))
+            .unwrap_or(DEFAULT_CALL_DEPTH);
+
+        let wait = resolve_wait(&input, manager)?;
+
+        let tree = manager
+            .call_hierarchy_for(&file, line, column, &direction, max_depth, wait)
+            .await;
+
+        // 把内部调用树序列化成模型友好的 JSON 树。
+        let nodes: Vec<Value> = tree.children.iter().map(node_to_json).collect();
+
+        ToolResult::json(&json!({
+            "file": display_path(&file, &context.workspace),
+            "line": line,
+            "character": column,
+            "direction": direction,
+            "max_depth": max_depth,
+            "found": !tree.is_empty(),
+            "call_edges": nodes,
+            "edge_count": count_nodes(&tree.children),
+        }))
+        .map_err(|e| ToolError::execution_failed(e.to_string()))
+    }
+}
+
+/// 把 [`CallNode`] 递归序列化为 JSON（含 `children`）。
+fn node_to_json(node: &CallNode) -> Value {
+    let children: Vec<Value> = node.children.iter().map(node_to_json).collect();
+    json!({
+        "name": node.name,
+        "kind": node.kind,
+        "kind_name": symbol_kind_name(node.kind),
+        "path": node.path.display().to_string(),
+        "line": node.line,
+        "character": node.column,
+        "call_line": node.call_line,
+        "children": children,
+    })
+}
+
+/// 统计调用树节点总数（含嵌套）。
+fn count_nodes(nodes: &[CallNode]) -> usize {
+    nodes
+        .iter()
+        .map(|n| 1 + count_nodes(&n.children))
+        .sum()
+}
+
 // === 共用辅助函数 ===
 
 /// 取出 `lsp_manager`，未配置时给出明确错误而不是静默返回空结果——否则模型
@@ -540,6 +685,64 @@ mod tests {
         assert_eq!(LspDocumentSymbolsTool.name(), "lsp_document_symbols");
         assert_eq!(LspFindReferencesTool.name(), "lsp_find_references");
         assert_eq!(LspGotoDefinitionTool.name(), "lsp_goto_definition");
+        assert_eq!(LspCallHierarchyTool.name(), "lsp_call_hierarchy");
+    }
+
+    #[test]
+    fn call_hierarchy_schema_shape() {
+        let schema = LspCallHierarchyTool.input_schema();
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["additionalProperties"], false);
+        assert_eq!(schema["required"], json!(["file", "line", "character"]));
+        assert_eq!(schema["properties"]["file"]["type"], "string");
+        assert_eq!(
+            schema["properties"]["direction"]["enum"],
+            json!(["incoming", "outgoing", "both"])
+        );
+        assert_eq!(schema["properties"]["max_depth"]["maximum"], MAX_CALL_DEPTH);
+    }
+
+    #[test]
+    fn call_hierarchy_is_read_only_auto_and_parallel() {
+        let caps = LspCallHierarchyTool.capabilities();
+        let approval = LspCallHierarchyTool.approval_requirement();
+        let parallel = LspCallHierarchyTool.supports_parallel();
+        assert_eq!(caps, vec![ToolCapability::ReadOnly]);
+        assert_eq!(approval, ApprovalRequirement::Auto);
+        assert!(parallel);
+        assert!(LspCallHierarchyTool.is_read_only());
+    }
+
+    #[test]
+    fn count_nodes_includes_nested() {
+        let tree = CallHierarchyTree {
+            root_name: "main".to_string(),
+            direction: "both".to_string(),
+            max_depth: 2,
+            children: vec![CallNode {
+                name: "a".to_string(),
+                kind: 12,
+                path: Path::new("/x.rs").to_path_buf(),
+                line: 1,
+                column: 1,
+                call_line: 0,
+                children: vec![CallNode {
+                    name: "b".to_string(),
+                    kind: 12,
+                    path: Path::new("/x.rs").to_path_buf(),
+                    line: 2,
+                    column: 1,
+                    call_line: 0,
+                    children: vec![],
+                }],
+            }],
+        };
+        assert_eq!(count_nodes(&tree.children), 2);
+        let json = node_to_json(&tree.children[0]);
+        assert_eq!(json["name"], "a");
+        assert_eq!(json["kind_name"], "function");
+        assert_eq!(json["children"][0]["name"], "b");
+        assert_eq!(json["path"], "/x.rs");
     }
 
     // --- lsp_manager 为 None ---

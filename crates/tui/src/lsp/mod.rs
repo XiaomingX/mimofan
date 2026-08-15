@@ -37,6 +37,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Deserialize;
+use serde_json::{Value, json};
 use tokio::sync::Mutex as AsyncMutex;
 use tokio::time::timeout;
 
@@ -345,6 +346,47 @@ impl LspManager {
         transport.definition(file, line, column, wait).await
     }
 
+    /// 计算 `file` 中 `(line, column)` 处符号的调用层级（call hierarchy）。
+    ///
+    /// 通过 `textDocument/prepareCallHierarchy` 取起点 item，再按
+    /// `direction` 递归展开 `callHierarchy/incomingCalls` /
+    /// `callHierarchy/outgoingCalls`，深度上限为 `max_depth`。返回的
+    /// [`CallHierarchyTree`] 是嵌套的调用节点树，每个叶子/分支都带
+    /// `name` / `kind` / 位置，便于模型做影响分析（谁调用它 / 它调用谁）。
+    ///
+    /// 尽力而为：LSP 被禁用、语言不支持、服务端缺失、不支持该方法或查询失败
+    /// 时，返回空的 `CallHierarchyTree`（根节点无 children），绝不 panic。
+    ///
+    /// `direction` 取值 `"incoming"` / `"outgoing"` / `"both"`。
+    pub async fn call_hierarchy_for(
+        &self,
+        file: &Path,
+        line: u32,
+        column: u32,
+        direction: &str,
+        max_depth: u32,
+        wait: Duration,
+    ) -> CallHierarchyTree {
+        let transport = self.open_and_get_transport(file, wait).await;
+        let Some(transport) = transport else {
+            return CallHierarchyTree::empty(direction, max_depth);
+        };
+
+        let items = transport.prepare_call_hierarchy(file, line, column, wait).await;
+        let Some(root_item) = items.into_iter().next() else {
+            return CallHierarchyTree::empty(direction, max_depth);
+        };
+
+        CallHierarchyTree::build(
+            &*transport,
+            root_item,
+            direction,
+            max_depth,
+            wait,
+        )
+        .await
+    }
+
     async fn warn_missing_once(&self, lang: Language, cmd: &str, err: &anyhow::Error) {
         let mut warned = self.missing_warned.lock().await;
         if warned.insert(lang) {
@@ -388,9 +430,276 @@ impl LspManager {
     }
 }
 
+// === Call hierarchy ===
+
+/// 一次 `callHierarchy/*Calls` 递归展开后的结果树。
+///
+/// 根节点表示被查询的符号本身；`children` 为按 `direction` 展开得到的
+/// 入/出调用边。整棵树由 [`LspManager::call_hierarchy_for`] 构造，是纯粹的
+/// 数据产物——其 `build`/`limit_depth` 逻辑被单测覆盖（见本文件测试模块）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallHierarchyTree {
+    /// 根符号名称。
+    pub root_name: String,
+    /// 查询方向：`"incoming"` / `"outgoing"` / `"both"`。
+    pub direction: String,
+    /// 递归深度上限。
+    pub max_depth: u32,
+    /// 嵌套调用节点。
+    pub children: Vec<CallNode>,
+}
+
+impl CallHierarchyTree {
+    /// 空树——用于降级路径（LSP 不可用、符号无 call-hierarchy item）。
+    #[must_use]
+    pub fn empty(direction: &str, max_depth: u32) -> Self {
+        Self {
+            root_name: String::new(),
+            direction: direction.to_string(),
+            max_depth,
+            children: Vec::new(),
+        }
+    }
+
+    /// 判断整棵树是否为空（无任何调用边）。
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.root_name.is_empty() && self.children.is_empty()
+    }
+
+    /// 从一个已 prepare 好的根 item 递归构造调用树。
+    ///
+    /// 该方法是 `LspManager::call_hierarchy_for` 的实际实现：它把递归展开
+    /// 逻辑封装在这里（与 transport 解耦），便于对纯的 `expand_node` /
+    /// `limit_depth` 做确定性单测。`direction` 缺失或非法时退化为 `"both"`。
+    pub async fn build(
+        transport: &(dyn LspTransport),
+        root_item: Value,
+        direction: &str,
+        max_depth: u32,
+        wait: Duration,
+    ) -> Self {
+        let dir = match direction {
+            "incoming" | "outgoing" | "both" => direction.to_string(),
+            _ => "both".to_string(),
+        };
+        let root_name = root_item
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+
+        let mut tree = CallHierarchyTree {
+            root_name,
+            direction: dir.clone(),
+            max_depth,
+            children: Vec::new(),
+        };
+
+        if max_depth == 0 {
+            return tree;
+        }
+
+        // 展开根节点的入/出边。`both` 时两条都展开。
+        let mut root_nodes: Vec<CallNode> = Vec::new();
+        if dir == "incoming" || dir == "both" {
+            let edges = transport.call_hierarchy_calls(root_item.clone(), "incoming", wait).await;
+            for edge in edges {
+                if let Some(node) = CallNode::from_incoming(&edge) {
+                    root_nodes.push(node);
+                }
+            }
+        }
+        if dir == "outgoing" || dir == "both" {
+            let edges = transport.call_hierarchy_calls(root_item.clone(), "outgoing", wait).await;
+            for edge in edges {
+                if let Some(node) = CallNode::from_outgoing(&edge) {
+                    root_nodes.push(node);
+                }
+            }
+        }
+
+        // 逐节点递归到剩余深度。
+        let remaining = max_depth.saturating_sub(1);
+        for node in &mut root_nodes {
+            node.expand(transport, &dir, remaining, wait).await;
+        }
+        tree.children = root_nodes;
+        tree
+    }
+
+    /// 纯函数：把树裁剪到 `max_depth` 层。超过深度的子树被丢弃（根算第 0 层，
+    /// `children` 为第 1 层）。返回裁剪后的新树，不修改原树。
+    #[must_use]
+    pub fn limit_depth(&self, max_depth: u32) -> CallHierarchyTree {
+        let children = if max_depth == 0 {
+            Vec::new()
+        } else {
+            self.children
+                .iter()
+                .map(|c| c.limit_depth(max_depth.saturating_sub(1)))
+                .collect()
+        };
+        CallHierarchyTree {
+            root_name: self.root_name.clone(),
+            direction: self.direction.clone(),
+            max_depth,
+            children,
+        }
+    }
+}
+
+/// 调用树中的一个节点：代表一次 `callHierarchy/*Calls` 边所指向的符号。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallNode {
+    /// 被调用/调用方符号名称。
+    pub name: String,
+    /// LSP `SymbolKind` 数字码。
+    pub kind: u64,
+    /// 文件绝对路径。
+    pub path: PathBuf,
+    /// 1-based 行号。
+    pub line: u32,
+    /// 1-based 列号。
+    pub column: u32,
+    /// 与父节点的连接位置（edge 的 `fromRanges`/`toRanges` 第一个），1-based，
+    /// 用于溯源调用发生点；缺失时为 0。
+    pub call_line: u32,
+    /// 嵌套调用节点。
+    pub children: Vec<CallNode>,
+}
+
+impl CallNode {
+    /// 从一条 `callHierarchy/incomingCalls` 边解析节点。`from` 是被查询符号
+    /// 的调用方，`to` 是被查询符号本身。这里要的是调用方（`from`）。
+    fn from_incoming(edge: &Value) -> Option<Self> {
+        let item = edge.get("from")?;
+        Self::from_item(item, edge.get("fromRanges"))
+    }
+
+    /// 从一条 `callHierarchy/outgoingCalls` 边解析节点。`to` 是被调用符号。
+    fn from_outgoing(edge: &Value) -> Option<Self> {
+        let item = edge.get("to")?;
+        Self::from_item(item, edge.get("toRanges"))
+    }
+
+    fn from_item(item: &Value, ranges: Option<&Value>) -> Option<Self> {
+        let name = item.get("name")?.as_str()?.to_string();
+        let kind = item.get("kind").and_then(Value::as_u64).unwrap_or(0);
+        let uri = item.get("uri")?.as_str()?;
+        let path = path_from_uri_owned(uri)?;
+        let range = item.get("range")?;
+        let start = range.get("start")?;
+        let line = start.get("line")?.as_u64()? as u32 + 1;
+        let column = start.get("character")?.as_u64()? as u32 + 1;
+        // 连接位置取 edge 第一个 range 的起始行（1-based），缺失时归零。
+        let call_line = ranges
+            .and_then(|r| r.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|r| r.get("start"))
+            .and_then(|s| s.get("line"))
+            .and_then(Value::as_u64)
+            .map(|l| l as u32 + 1)
+            .unwrap_or(0);
+        Some(Self {
+            name,
+            kind,
+            path,
+            line,
+            column,
+            call_line,
+            children: Vec::new(),
+        })
+    }
+
+    /// 递归展开该节点的入/出调用边，深度上限 `remaining`。`direction` 为
+    /// `"both"` 时同时展开两条方向；否则只展开指定方向。
+    async fn expand(&mut self, transport: &(dyn LspTransport), direction: &str, remaining: u32, wait: Duration) {
+        if remaining == 0 {
+            return;
+        }
+        // 把当前节点还原成 prepareCallHierarchy 形态的 item（取回 uri/range/selectionRange）。
+        let item = json!({
+            "name": self.name,
+            "kind": self.kind,
+            "uri": uri_from_path_string(&self.path),
+            "range": {
+                "start": { "line": self.line.saturating_sub(1), "character": self.column.saturating_sub(1) },
+                "end": { "line": self.line.saturating_sub(1), "character": self.column.saturating_sub(1) }
+            },
+            "selectionRange": {
+                "start": { "line": self.line.saturating_sub(1), "character": self.column.saturating_sub(1) },
+                "end": { "line": self.line.saturating_sub(1), "character": self.column.saturating_sub(1) }
+            }
+        });
+
+        let mut kids: Vec<CallNode> = Vec::new();
+        if direction == "incoming" || direction == "both" {
+            let edges = transport.call_hierarchy_calls(item.clone(), "incoming", wait).await;
+            for edge in edges {
+                if let Some(mut node) = CallNode::from_incoming(&edge) {
+                    // 递归展开需要 `Box::pin` 引入间接层，避免无限大小的 future。
+                    Box::pin(node.expand(transport, direction, remaining.saturating_sub(1), wait)).await;
+                    kids.push(node);
+                }
+            }
+        }
+        if direction == "outgoing" || direction == "both" {
+            let edges = transport.call_hierarchy_calls(item.clone(), "outgoing", wait).await;
+            for edge in edges {
+                if let Some(mut node) = CallNode::from_outgoing(&edge) {
+                    Box::pin(node.expand(transport, direction, remaining.saturating_sub(1), wait)).await;
+                    kids.push(node);
+                }
+            }
+        }
+        self.children = kids;
+    }
+
+    /// 纯函数：裁剪当前子树到 `max_depth` 层（本节点算第 0 层，children 为第 1 层）。
+    #[must_use]
+    pub fn limit_depth(&self, max_depth: u32) -> CallNode {
+        let children = if max_depth == 0 {
+            Vec::new()
+        } else {
+            self.children
+                .iter()
+                .map(|c| c.limit_depth(max_depth.saturating_sub(1)))
+                .collect()
+        };
+        CallNode {
+            name: self.name.clone(),
+            kind: self.kind,
+            path: self.path.clone(),
+            line: self.line,
+            column: self.column,
+            call_line: self.call_line,
+            children,
+        }
+    }
+}
+
+/// `file://` URI 解码为 `PathBuf` 的 owned 版本（供 `CallNode::from_item` 使用）。
+fn path_from_uri_owned(uri: &str) -> Option<PathBuf> {
+    let stripped = uri.strip_prefix("file://")?;
+    Some(PathBuf::from(stripped))
+}
+
+/// 路径转 `file://` URI 的 string 版本（供 `CallNode::expand` 还原 item 时用）。
+fn uri_from_path_string(path: &Path) -> String {
+    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let s = canonical.to_string_lossy();
+    if s.starts_with('/') {
+        format!("file://{s}")
+    } else {
+        format!("file:///{}", s.trim_start_matches('/'))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
 
     /// 禁用状态下三个转发方法都应立即返回空结果，且不尝试拉起任何进程。
     #[tokio::test]
@@ -431,5 +740,304 @@ mod tests {
             PathBuf::from("/tmp"),
         );
         assert_eq!(manager.default_wait(), Duration::from_millis(1_234));
+    }
+
+    // --- call hierarchy 纯逻辑（build / limit_depth） ---
+    //
+    // 这些测试用一个 in-process fake transport 脚本化 `prepareCallHierarchy`
+    // 与 `callHierarchy/*Calls`，从而确定地覆盖递归展开与深度裁剪逻辑，
+    // 不依赖任何外部 LSP 二进制（issue #827）。
+
+    use std::collections::HashMap as Map;
+    use std::sync::Mutex as StdMutex;
+
+    /// Fake transport：按 `(item.name, direction)` 返回脚本化的调用边。
+    struct FakeHierarchyTransport {
+        /// `prepareCallHierarchy` 返回的起始 item 数组。
+        root: StdMutex<Vec<Value>>,
+        /// 按节点名称映射其 outgoing / incoming 边。
+        outgoing: StdMutex<Map<String, Vec<Value>>>,
+        incoming: StdMutex<Map<String, Vec<Value>>>,
+    }
+
+    impl FakeHierarchyTransport {
+        fn new(root: Vec<Value>) -> Self {
+            Self {
+                root: StdMutex::new(root),
+                outgoing: StdMutex::new(Map::new()),
+                incoming: StdMutex::new(Map::new()),
+            }
+        }
+        /// 给某名称的节点挂一条 outgoing 边：`to` 为被调用符号。
+        fn with_outgoing(mut self, name: &str, to: &str) -> Self {
+            self.outgoing
+                .lock()
+                .unwrap()
+                .entry(name.to_string())
+                .or_default()
+                .push(json!({
+                    "to": { "name": to, "kind": 12, "uri": "file:///x.rs",
+                            "range": { "start": { "line": 0, "character": 0 } },
+                            "selectionRange": { "start": { "line": 0, "character": 0 } } },
+                    "toRanges": [ { "start": { "line": 4, "character": 1 } } ]
+                }));
+            self
+        }
+        /// 给某名称的节点挂一条 incoming 边：`from` 为调用方符号。
+        fn with_incoming(mut self, name: &str, from: &str) -> Self {
+            self.incoming
+                .lock()
+                .unwrap()
+                .entry(name.to_string())
+                .or_default()
+                .push(json!({
+                    "from": { "name": from, "kind": 12, "uri": "file:///x.rs",
+                              "range": { "start": { "line": 0, "character": 0 } },
+                              "selectionRange": { "start": { "line": 0, "character": 0 } } },
+                    "fromRanges": [ { "start": { "line": 9, "character": 3 } } ]
+                }));
+            self
+        }
+    }
+
+    #[async_trait]
+    impl LspTransport for FakeHierarchyTransport {
+        async fn diagnostics_for(
+            &self,
+            _path: &Path,
+            _text: &str,
+            _wait: Duration,
+        ) -> anyhow::Result<Vec<crate::lsp::diagnostics::Diagnostic>> {
+            Ok(Vec::new())
+        }
+        async fn close_file(&self, _path: &Path) -> anyhow::Result<()> {
+            Ok(())
+        }
+        async fn request(&self, _method: &str, _params: Value, _wait: Duration) -> anyhow::Result<Value> {
+            Ok(Value::Null)
+        }
+        async fn document_symbols(&self, _path: &Path, _wait: Duration) -> Vec<LspSymbol> {
+            Vec::new()
+        }
+        async fn references(
+            &self,
+            _path: &Path,
+            _line: u32,
+            _column: u32,
+            _include_declaration: bool,
+            _wait: Duration,
+        ) -> Vec<LspLocation> {
+            Vec::new()
+        }
+        async fn definition(
+            &self,
+            _path: &Path,
+            _line: u32,
+            _column: u32,
+            _wait: Duration,
+        ) -> Option<LspLocation> {
+            None
+        }
+        async fn prepare_call_hierarchy(
+            &self,
+            _path: &Path,
+            _line: u32,
+            _column: u32,
+            _wait: Duration,
+        ) -> Vec<Value> {
+            self.root.lock().unwrap().clone()
+        }
+        async fn call_hierarchy_calls(
+            &self,
+            item: Value,
+            direction: &str,
+            _wait: Duration,
+        ) -> Vec<Value> {
+            let name = item.get("name").and_then(Value::as_str).unwrap_or("");
+            match direction {
+                "incoming" => self
+                    .incoming
+                    .lock()
+                    .unwrap()
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_default(),
+                _ => self
+                    .outgoing
+                    .lock()
+                    .unwrap()
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_default(),
+            }
+        }
+    }
+
+    #[test]
+    fn empty_tree_when_no_root_item() {
+        let t = CallHierarchyTree::empty("both", 2);
+        assert!(t.is_empty());
+        assert_eq!(t.direction, "both");
+        assert_eq!(t.max_depth, 2);
+    }
+
+    #[test]
+    fn limit_depth_drops_deep_subtrees() {
+        // 构造一棵三层深的树，裁剪到 1 层后应只保留第一层 children。
+        let deep = CallNode {
+            name: "a".into(),
+            kind: 12,
+            path: PathBuf::from("/x.rs"),
+            line: 1,
+            column: 1,
+            call_line: 0,
+            children: vec![CallNode {
+                name: "b".into(),
+                kind: 12,
+                path: PathBuf::from("/x.rs"),
+                line: 2,
+                column: 1,
+                call_line: 0,
+                children: vec![CallNode {
+                    name: "c".into(),
+                    kind: 12,
+                    path: PathBuf::from("/x.rs"),
+                    line: 3,
+                    column: 1,
+                    call_line: 0,
+                    children: vec![],
+                }],
+            }],
+        };
+        let clipped = deep.limit_depth(1);
+        assert_eq!(clipped.children.len(), 1);
+        assert_eq!(clipped.children[0].name, "b");
+        // 第 2 层被剪掉。
+        assert!(clipped.children[0].children.is_empty());
+    }
+
+    #[tokio::test]
+    async fn build_expands_outgoing_to_depth() {
+        let fake = FakeHierarchyTransport::new(vec![json!({
+            "name": "main", "kind": 12, "uri": "file:///x.rs",
+            "range": { "start": { "line": 0, "character": 0 } },
+            "selectionRange": { "start": { "line": 0, "character": 0 } }
+        })])
+        .with_outgoing("main", "helper")
+        .with_outgoing("helper", "leaf");
+
+        let root = fake
+            .prepare_call_hierarchy(Path::new("/x.rs"), 1, 1, Duration::from_millis(10))
+            .await
+            .into_iter()
+            .next()
+            .unwrap();
+
+        let tree = CallHierarchyTree::build(
+            &fake,
+            root,
+            "outgoing",
+            2,
+            Duration::from_millis(10),
+        )
+        .await;
+
+        assert_eq!(tree.root_name, "main");
+        assert_eq!(tree.children.len(), 1);
+        assert_eq!(tree.children[0].name, "helper");
+        // helper 还有 outgoing 边 leaf，深度 2 足够把它展开出来。
+        assert_eq!(tree.children[0].children.len(), 1);
+        assert_eq!(tree.children[0].children[0].name, "leaf");
+        // leaf 没有进一步边，其 children 为空。
+        assert!(tree.children[0].children[0].children.is_empty());
+    }
+
+    #[tokio::test]
+    async fn build_respects_max_depth() {
+        let fake = FakeHierarchyTransport::new(vec![json!({
+            "name": "main", "kind": 12, "uri": "file:///x.rs",
+            "range": { "start": { "line": 0, "character": 0 } },
+            "selectionRange": { "start": { "line": 0, "character": 0 } }
+        })])
+        .with_outgoing("main", "helper")
+        .with_outgoing("helper", "leaf");
+
+        let root = fake
+            .prepare_call_hierarchy(Path::new("/x.rs"), 1, 1, Duration::from_millis(10))
+            .await
+            .into_iter()
+            .next()
+            .unwrap();
+
+        // 深度 1：只能展开到 helper，leaf 看不到。
+        let tree = CallHierarchyTree::build(
+            &fake,
+            root,
+            "outgoing",
+            1,
+            Duration::from_millis(10),
+        )
+        .await;
+        assert_eq!(tree.children[0].name, "helper");
+        assert!(tree.children[0].children.is_empty());
+    }
+
+    #[tokio::test]
+    async fn build_expands_incoming_edges() {
+        let fake = FakeHierarchyTransport::new(vec![json!({
+            "name": "target", "kind": 12, "uri": "file:///x.rs",
+            "range": { "start": { "line": 0, "character": 0 } },
+            "selectionRange": { "start": { "line": 0, "character": 0 } }
+        })])
+        .with_incoming("target", "caller");
+
+        let root = fake
+            .prepare_call_hierarchy(Path::new("/x.rs"), 1, 1, Duration::from_millis(10))
+            .await
+            .into_iter()
+            .next()
+            .unwrap();
+
+        let tree = CallHierarchyTree::build(
+            &fake,
+            root,
+            "incoming",
+            2,
+            Duration::from_millis(10),
+        )
+        .await;
+        assert_eq!(tree.children.len(), 1);
+        assert_eq!(tree.children[0].name, "caller");
+        // 入边用 fromRanges 的第一个作为 call_line（1-based）。
+        assert_eq!(tree.children[0].call_line, 10);
+    }
+
+    #[test]
+    fn limit_depth_on_tree_keeps_root_level() {
+        let tree = CallHierarchyTree {
+            root_name: "main".into(),
+            direction: "outgoing".into(),
+            max_depth: 5,
+            children: vec![CallNode {
+                name: "a".into(),
+                kind: 12,
+                path: PathBuf::from("/x.rs"),
+                line: 1,
+                column: 1,
+                call_line: 0,
+                children: vec![CallNode {
+                    name: "b".into(),
+                    kind: 12,
+                    path: PathBuf::from("/x.rs"),
+                    line: 2,
+                    column: 1,
+                    call_line: 0,
+                    children: vec![],
+                }],
+            }],
+        };
+        let clipped = tree.limit_depth(0);
+        assert!(clipped.children.is_empty());
+        assert_eq!(clipped.root_name, "main");
     }
 }
