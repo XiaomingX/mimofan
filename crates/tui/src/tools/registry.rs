@@ -633,6 +633,18 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(NotebookEditTool))
     }
 
+    /// Append a batch of externally-supplied tools (e.g. resolved from a
+    /// plugin manifest's `extra` tool list, issue #834 / plan W1). Each entry
+    /// is registered through [`with_tool`], so behavior is identical to
+    /// registering them one-by-one. An empty `extra` vec is a no-op.
+    #[must_use]
+    pub fn with_extra_tools(mut self, extra: Vec<Arc<dyn ToolSpec>>) -> Self {
+        for tool in extra {
+            self = self.with_tool(tool);
+        }
+        self
+    }
+
     /// Include the `pandoc_convert` tool only when the `pandoc`
     /// binary is present on this host. Same probe-then-decide
     /// pattern v0.8.31 introduced for Python — when pandoc is

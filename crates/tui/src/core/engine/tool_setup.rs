@@ -96,6 +96,14 @@ impl Engine {
             .with_gadget_chain_tools()
             .with_run_poc_tools();
 
+        // W1 (issue #834): inject plugin-manifest-selected extra tools into the
+        // registry. With the default (empty) manifest this is a no-op, so legacy
+        // behavior is preserved. Loaded once here; W2/W4 will extend the manifest
+        // to also select `sandbox`/`llm` capabilities.
+        let manifest = crate::plugins::manifest::PluginManifest::from_defaults();
+        let assembled = crate::plugins::registry::assemble(&manifest);
+        builder = builder.with_extra_tools(assembled.tools);
+
         // SlopLedger: plan mode only gets read-only query + export,
         // agent/yolo get the full set including append + update.
         builder = if mode == AppMode::Plan {

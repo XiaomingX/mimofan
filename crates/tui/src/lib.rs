@@ -129,6 +129,8 @@ mod tls;
 mod tokenizer;
 mod tool_output_receipts;
 pub mod tools;
+/// #834 / plan W1：插件化能力装配入口（manifest 解析 + 能力组装）。
+pub mod plugins;
 mod tui;
 mod turn_memory;
 mod utils;
