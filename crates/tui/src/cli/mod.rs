@@ -274,6 +274,12 @@ pub(crate) struct ExecArgs {
     /// Enable tool-backed agent mode with auto-approvals
     #[arg(long, default_value_t = false)]
     pub(crate) auto: bool,
+    /// Run fully headless in unattended mode (#853/#863): restrict tools to a
+    /// safe read-only subset, never block on human input, and require a
+    /// termination bound (task budget or max turns) plus a failure log. The
+    /// engine exits non-zero on any unrecoverable error.
+    #[arg(long, default_value_t = false)]
+    pub(crate) unattended: bool,
     /// Emit machine-readable JSON output
     #[arg(long, default_value_t = false, conflicts_with = "output_format")]
     pub(crate) json: bool,

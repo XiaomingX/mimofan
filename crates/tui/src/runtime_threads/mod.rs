@@ -1820,6 +1820,9 @@ impl RuntimeThreadManager {
             task_budget_tokens: None,
             resume_session: None,
             validation_retry: None,
+            unattended: false,
+            consolidation_interval_turns: None,
+            failure_log_path: None,
         };
 
         let engine = spawn_engine(engine_cfg, &self.config);

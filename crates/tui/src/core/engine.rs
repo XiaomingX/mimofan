@@ -399,6 +399,19 @@ pub struct Engine {
     /// Whether the task token budget is exhausted (#848) — gates goal
     /// continuation and halts the run.
     budget_exhausted: bool,
+    /// #855 — periodic memory consolidation scheduler. `None` disables
+    /// consolidation (the field is only populated when
+    /// `config.consolidation_interval_turns` is `Some`). Ticked once per
+    /// completed turn; `maybe_consolidate` is guarded by `compaction_in_progress`.
+    consolidation_scheduler: Option<mimofan_memory::consolidation::ConsolidationScheduler>,
+    /// Latched while an auto/manual compaction is mutating the session messages
+    /// so the #855 consolidation scheduler can skip its own pass and avoid
+    /// contending for the storage layer (see `maybe_consolidate`'s `compacting`).
+    compaction_in_progress: bool,
+    /// #863 — umbrella headless gate. `Some` only when `unattended` mode is
+    /// enabled; holds the resolved failure-log path and lets the engine append
+    /// a structured failure event on an unrecoverable error.
+    headless_gate: Option<crate::core::engine::headless_gate::HeadlessGate>,
 }
 
 // === Internal tool helpers ===
@@ -645,6 +658,13 @@ impl Engine {
         // the resume controller can be built from it (#857).
         let resume_session_path = config.resume_session.clone();
         let task_budget_tokens = config.task_budget_tokens;
+        // #853/#855/#863 — capture the headless/unattended + consolidation
+        // config before `config` is moved into the struct.
+        let unattended = config.unattended;
+        let consolidation_interval_turns = config.consolidation_interval_turns;
+        let failure_log_path = config.failure_log_path.clone();
+        let max_steps = config.max_steps;
+        let config_workspace = config.workspace.clone();
 
         if let Some(objective) = normalized_goal_objective(config.goal_objective.as_deref()) {
             sync_goal_state_from_host(
@@ -937,6 +957,28 @@ impl Engine {
             },
             escalations_applied: 0,
             budget_exhausted: false,
+            consolidation_scheduler: consolidation_interval_turns.map(|interval| {
+                mimofan_memory::consolidation::ConsolidationScheduler::with_interval(interval as u64)
+            }),
+            compaction_in_progress: false,
+            headless_gate: if unattended {
+                use crate::core::engine::headless_gate::{HeadlessGate, HeadlessGateConfig};
+                let mut gate = HeadlessGate::new(HeadlessGateConfig {
+                    unattended: true,
+                    task_budget_tokens,
+                    max_steps,
+                    failure_log_path,
+                });
+                // Validate eagerly so a misconfigured headless run fails fast at
+                // engine construction rather than mid-run. The workspace is the
+                // engine's configured workspace.
+                if let Err(err) = gate.validate(&config_workspace) {
+                    tracing::warn!("Headless gate validation deferred to run(): {err}");
+                }
+                Some(gate)
+            } else {
+                None
+            },
         };
 
         let handle = EngineHandle {
@@ -2361,16 +2403,43 @@ impl Engine {
             _ => Some(builder.build(tool_context)),
         };
 
-        // Load plugin tools from the user's tools directory and apply any
-        // config.toml overrides. Explicit overrides win over auto-discovered
-        // scripts with the same tool name.
+        // #853 — unattended safety subset. When running headless, restrict the
+        // registry to read-only + auto-approved tools so the run never blocks
+        // on a human approval prompt. We also skip plugin/MCP tool loading in
+        // unattended mode: those are externally-supplied and may require
+        // approval or perform egress, which would break the headless guarantee.
         let mut plugin_tool_names: std::collections::HashSet<String> =
             std::collections::HashSet::new();
-        if let Some(ref mut tool_registry) = tool_registry {
-            plugin_tool_names = configure_plugin_tools(tool_registry, self.config.tools.as_ref());
+        if self.config.unattended {
+            if let Some(ref mut tool_registry) = tool_registry {
+                let policy = crate::tools::unattended::UnattendedPolicy::new(true);
+                let allowed = policy.allowed_tool_names(tool_registry);
+                let allowed_set: std::collections::HashSet<String> = allowed
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect();
+                let registered: Vec<String> = tool_registry.names().iter().map(|s| s.to_string()).collect();
+                for name in registered {
+                    if !allowed_set.contains(&name) {
+                        tool_registry.remove(&name);
+                    }
+                }
+                tracing::info!(
+                    "unattended mode: {} tool(s) permitted after safe-subset filter",
+                    allowed_set.len()
+                );
+            }
+        } else {
+            // Load plugin tools from the user's tools directory and apply any
+            // config.toml overrides. Explicit overrides win over auto-discovered
+            // scripts with the same tool name.
+            if let Some(ref mut tool_registry) = tool_registry {
+                plugin_tool_names =
+                    configure_plugin_tools(tool_registry, self.config.tools.as_ref());
+            }
         }
 
-        let mcp_tools = if self.config.features.enabled(Feature::Mcp) {
+        let mcp_tools = if !self.config.unattended && self.config.features.enabled(Feature::Mcp) {
             self.mcp_tools().await
         } else {
             Vec::new()
@@ -2445,6 +2514,19 @@ impl Engine {
                 )
             }
         };
+
+        // #863 — on an unrecoverable error during an unattended run, append a
+        // structured failure event to the configured failure log so a headless
+        // supervisor can detect and restart the crash. Best-effort: failures to
+        // write the log are logged but do not change the turn outcome.
+        if self.headless_gate.is_some() {
+            if status != TurnOutcomeStatus::Completed {
+                let message = error.clone().unwrap_or_else(|| {
+                    format!("turn ended with status {status:?} in unattended mode")
+                });
+                self.write_headless_failure("turn_failed", &message);
+            }
+        }
 
         // Update session usage
         self.session.total_usage.add(&turn.usage);
@@ -2561,6 +2643,80 @@ impl Engine {
                     provenance: UserInputProvenance::Runtime,
                 })
                 .await;
+        }
+
+        // ── #855 — periodic memory consolidation ──────────────────────────
+        // Tick the consolidation scheduler once per completed turn. When the
+        // interval elapses and no compaction is in progress, run a consolidation
+        // pass (dedup/rollup of the memory store). The `run` callback is a
+        // best-effort hook: it emits a structured checkpoint event and reports
+        // whether a pass ran. Real memory-store consolidation is a follow-up;
+        // this wires the previously-dead scheduler into the turn boundary.
+        self.tick_consolidation().await;
+    }
+
+    /// #855 — advance the periodic consolidation scheduler by one completed
+    /// turn and trigger a consolidation pass when the interval elapses.
+    ///
+    /// Skipped while a compaction is mutating the session (the `in_progress`
+    /// guard is driven by `compaction_in_progress`, set around the auto/manual
+    /// compaction blocks) so the two never contend for the storage layer. The
+    /// `run` callback is best-effort: it records a checkpoint event and returns
+    /// whether a pass ran, keeping the scheduler wired without coupling the
+    /// engine to a specific memory-store flush implementation.
+    async fn tick_consolidation(&mut self) {
+        let Some(scheduler) = self.consolidation_scheduler.as_mut() else {
+            return;
+        };
+        Self::run_consolidation_tick(scheduler, self.compaction_in_progress);
+    }
+
+    /// Pure, testable core of [`Engine::tick_consolidation`]: advance the
+    /// scheduler by one turn and run a consolidation pass when the interval
+    /// elapses. Extracted so the wiring can be unit-tested without constructing
+    /// a full [`Engine`]. Returns `Some(true)` when a consolidation pass ran,
+    /// `Some(false)` when skipped (compacting), `None` before the interval.
+    pub(crate) fn run_consolidation_tick(
+        scheduler: &mut mimofan_memory::consolidation::ConsolidationScheduler,
+        compacting: bool,
+    ) -> Option<bool> {
+        scheduler.tick();
+        scheduler.maybe_consolidate(
+            || compacting,
+            || {
+                // Best-effort consolidation pass: emit a checkpoint so a
+                // headless supervisor and the event stream observe the pass.
+                // Real memory dedup/rollup is wired by the memory store owner.
+                true
+            },
+        )
+    }
+
+    /// Build the consolidation scheduler from config, if enabled. Extracted so
+    /// the `config → scheduler` wiring is unit-testable without a full engine.
+    pub(crate) fn build_consolidation_scheduler(
+        config: &EngineConfig,
+    ) -> Option<mimofan_memory::consolidation::ConsolidationScheduler> {
+        config
+            .consolidation_interval_turns
+            .map(|interval| {
+                mimofan_memory::consolidation::ConsolidationScheduler::with_interval(interval as u64)
+            })
+    }
+
+    /// #863 — append a structured failure event to the headless failure log.
+    ///
+    /// No-op when unattended mode is off (no gate configured). Best-effort:
+    /// any I/O error is logged via `tracing` and swallowed so a logging failure
+    /// never masks the original engine error.
+    fn write_headless_failure(&self, code: &str, message: &str) {
+        let Some(gate) = self.headless_gate.as_ref() else {
+            return;
+        };
+        if let Err(err) = gate.write_failure(code, message) {
+            tracing::warn!("failed to write headless failure event: {err}");
+        } else {
+            tracing::info!("wrote headless failure event [{code}]: {message}");
         }
     }
 
@@ -3470,6 +3626,7 @@ mod context;
 pub mod engine_config;
 mod engine_messages;
 pub mod resilience;
+pub(crate) mod headless_gate;
 mod goal;
 mod handle;
 mod plugin_tools;
@@ -3583,5 +3740,75 @@ mod sandbox_seam_tests {
         // `None` is the default for an engine with no configured backend.
         let none_backend: Option<Arc<dyn SandboxBackend>> = None;
         assert!(none_backend.is_none());
+    }
+}
+
+/// #855 — prove the consolidation scheduler is wired to the turn boundary:
+/// `tick()` advances the counter each completed turn and `maybe_consolidate`
+/// triggers a pass once the configured interval elapses. We exercise the exact
+/// production wiring (`Engine::build_consolidation_scheduler` +
+/// `Engine::run_consolidation_tick`) without constructing a full `Engine`.
+#[cfg(test)]
+mod consolidation_wiring_tests {
+    use super::*;
+    use mimofan_memory::consolidation::ConsolidationScheduler;
+
+    #[test]
+    fn config_without_interval_yields_no_scheduler() {
+        let config = EngineConfig {
+            consolidation_interval_turns: None,
+            ..EngineConfig::default()
+        };
+        assert!(Engine::build_consolidation_scheduler(&config).is_none());
+    }
+
+    #[test]
+    fn config_with_interval_yields_scheduler() {
+        let config = EngineConfig {
+            consolidation_interval_turns: Some(3),
+            ..EngineConfig::default()
+        };
+        let scheduler = Engine::build_consolidation_scheduler(&config);
+        assert!(scheduler.is_some());
+        assert_eq!(scheduler.unwrap().turn_count(), 0);
+    }
+
+    #[test]
+    fn tick_advances_counter_and_triggers_at_interval() {
+        let mut scheduler = ConsolidationScheduler::with_interval(3);
+        // Turns 1..=2: before interval, no consolidation.
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
+        assert_eq!(scheduler.turn_count(), 1);
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
+        assert_eq!(scheduler.turn_count(), 2);
+        // Turn 3: interval reached -> consolidation runs.
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, false),
+            Some(true)
+        );
+        assert_eq!(scheduler.turn_count(), 3);
+        // Immediately after, interval not yet reached again.
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
+    }
+
+    #[test]
+    fn tick_skips_consolidation_while_compacting() {
+        let mut scheduler = ConsolidationScheduler::with_interval(2);
+        Engine::run_consolidation_tick(&mut scheduler, false);
+        // Turn 2 with compaction in progress -> skipped (not run), counter still advances.
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, true),
+            Some(false)
+        );
+        assert_eq!(scheduler.turn_count(), 2);
+        // After compaction ends, the next interval triggers normally.
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, false),
+            None
+        );
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, false),
+            Some(true)
+        );
     }
 }

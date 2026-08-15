@@ -209,6 +209,25 @@ pub struct EngineConfig {
     /// bounded by `policy.max_escalations` (#845). Added for #845 — purely
     /// additive, defaults to `None` (no automatic retry).
     pub validation_retry: Option<crate::core::engine::resilience::ValidationRetryConfig>,
+    /// Run the engine in fully headless / unattended mode (#853). When `true`
+    /// the tool registry is restricted to a SAFE subset (read-only + auto
+    /// approval; no human-approval or destructive tools) so the run never
+    /// blocks on input. Combined with #863's `HeadlessGate` (budget / max-turn
+    /// cap / failure log) to make the run terminate safely on any error.
+    /// Added for #853 — purely additive, defaults to `false`.
+    pub unattended: bool,
+    /// Period (in completed turns) at which the memory `ConsolidationScheduler`
+    /// triggers a consolidation pass (#855). `None` disables periodic
+    /// consolidation; otherwise overrides the scheduler's built-in default
+    /// interval. Added for #855 — purely additive, defaults to `None`
+    /// (scheduler default applies).
+    pub consolidation_interval_turns: Option<usize>,
+    /// Path to which the headless gate writes a structured failure event when
+    /// unattended mode ends on an unrecoverable error (#863). `None` falls back
+    /// to a default `<workspace>/.mimofan/failures.jsonl`. Validated by
+    /// `HeadlessGate` at startup when `unattended` is set.
+    /// Added for #863 — purely additive, defaults to `None`.
+    pub failure_log_path: Option<std::path::PathBuf>,
 }
 
 /// Wrapper around a list of injected `ToolSpec` implementations so it can live
@@ -306,6 +325,9 @@ impl Default for EngineConfig {
             task_budget_tokens: None,
             resume_session: None,
             validation_retry: None,
+            unattended: false,
+            consolidation_interval_turns: None,
+            failure_log_path: None,
         }
     }
 }

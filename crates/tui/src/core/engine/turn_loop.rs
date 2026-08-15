@@ -281,6 +281,10 @@ impl Engine {
                     Some(&compaction_paths),
                 )
             {
+                // #855 — mark compaction in progress so the periodic
+                // consolidation scheduler skips its own pass and avoids
+                // contending for the storage layer.
+                self.compaction_in_progress = true;
                 let compaction_id = format!("compact_{}", &uuid::Uuid::new_v4().to_string()[..8]);
                 self.emit_compaction_started(
                     compaction_id.clone(),
@@ -441,6 +445,10 @@ impl Engine {
                         let _ = self.tx_event.send(Event::status(message)).await;
                     }
                 }
+                // #855 — compaction finished; clear the in-progress latch so the
+                // periodic consolidation scheduler can run again on the next
+                // turn boundary.
+                self.compaction_in_progress = false;
             }
 
             if let Some(input_budget) = context_input_budget_for_route(

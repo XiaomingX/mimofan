@@ -546,7 +546,7 @@ pub async fn run() -> Result<()> {
                         || config.max_subagents_for_provider(provider),
                         |value| value.clamp(1, MAX_SUBAGENTS),
                     );
-                    let auto_mode = args.auto || yolo;
+                    let auto_mode = args.auto || yolo || args.unattended;
                     let max_turns = args.max_turns.unwrap_or(100);
                     let allowed_tools = args.allowed_tools.as_ref().map(|v| {
                         v.iter()
@@ -574,6 +574,7 @@ pub async fn run() -> Result<()> {
                         disallowed_tools,
                         args.append_system_prompt.clone(),
                         args.json_schema.clone(),
+                        args.unattended,
                     )
                     .await
                 } else if args.json {

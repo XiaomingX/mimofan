@@ -526,6 +526,7 @@ pub(crate) async fn run_exec_agent(
     disallowed_tools: Option<Vec<String>>,
     append_system_prompt: Option<String>,
     json_schema: Option<String>,
+    unattended: bool,
 ) -> Result<()> {
     use crate::compaction::CompactionConfig;
     use crate::core::engine::{EngineConfig, spawn_engine};
@@ -602,6 +603,29 @@ pub(crate) async fn run_exec_agent(
         }
         None => (Vec::new(), std::sync::Arc::new(std::sync::Mutex::new(None))),
     };
+
+    // #863 — validate unattended/headless coherence *before* starting the
+    // engine. Fail fast here (rather than mid-run) when the configuration
+    // cannot guarantee a safe, terminating headless run. The gate inspects the
+    // task budget (env/config), the max-turn cap, and the failure log path.
+    if unattended {
+        use crate::core::engine::headless_gate::{HeadlessGate, HeadlessGateConfig};
+        let task_budget_tokens = std::env::var("MIMOFAN_UNATTENDED_TASK_BUDGET")
+            .ok()
+            .and_then(|v| v.trim().parse::<usize>().ok());
+        let failure_log_path = std::env::var("MIMOFAN_UNATTENDED_FAILURE_LOG")
+            .ok()
+            .map(PathBuf::from);
+        let mut gate = HeadlessGate::new(HeadlessGateConfig {
+            unattended: true,
+            task_budget_tokens,
+            max_steps: max_turns,
+            failure_log_path,
+        });
+        gate
+            .validate(&workspace)
+            .map_err(|e| anyhow::anyhow!("headless gate rejected unattended run: {e}"))?;
+    }
 
     let engine_config = EngineConfig {
         model: effective_model.clone(),
@@ -700,9 +724,18 @@ pub(crate) async fn run_exec_agent(
         )),
         extra_tools: crate::core::engine::engine_config::ExtraTools(json_schema_terminator),
         batch_mode: false,
-        task_budget_tokens: None,
+        task_budget_tokens: std::env::var("MIMOFAN_UNATTENDED_TASK_BUDGET")
+            .ok()
+            .and_then(|v| v.trim().parse::<usize>().ok()),
         resume_session: None,
         validation_retry: None,
+        unattended,
+        consolidation_interval_turns: std::env::var("MIMOFAN_CONSOLIDATION_INTERVAL_TURNS")
+            .ok()
+            .and_then(|v| v.trim().parse::<usize>().ok()),
+        failure_log_path: std::env::var("MIMOFAN_UNATTENDED_FAILURE_LOG")
+            .ok()
+            .map(PathBuf::from),
     };
 
     let engine_handle = spawn_engine(engine_config, &execution_config);

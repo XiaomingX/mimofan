@@ -95,6 +95,9 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         task_budget_tokens: None,
         resume_session: None,
         validation_retry: None,
+        unattended: false,
+        consolidation_interval_turns: None,
+        failure_log_path: None,
     }
 }
 
