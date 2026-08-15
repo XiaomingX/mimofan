@@ -374,6 +374,14 @@ impl FileClaimManager {
     }
 }
 
+/// Shared file claim manager instance (#842).
+pub type SharedFileClaimManager = Arc<FileClaimManager>;
+
+/// Create a new shared file claim manager.
+pub fn new_shared_file_claim_manager() -> SharedFileClaimManager {
+    Arc::new(FileClaimManager::new())
+}
+
 /// A sub-agent's declared file scope for disjoint planning (#842).
 #[derive(Debug, Clone)]
 pub struct FileScopeAssignment {
@@ -521,5 +529,19 @@ mod tests {
                 assert!(seen.insert(f.clone()), "file {f} claimed twice");
             }
         }
+    }
+
+    #[test]
+    fn test_shared_file_claim_manager_alias() {
+        // #842 integration: the shared alias + constructor must exist and
+        // resolve to the same concrete type as the bare manager (used by
+        // SubAgentManager.file_claims()). Compile-time + smoke check.
+        let mgr: SharedFileClaimManager = new_shared_file_claim_manager();
+        let ptr = Arc::as_ptr(&mgr) as usize;
+        assert!(ptr != 0);
+        // The alias must be the Arc<FileClaimManager> form; this assertion
+        // only passes if the type alias resolves correctly.
+        fn assert_alias(_: &SharedFileClaimManager) {}
+        assert_alias(&mgr);
     }
 }

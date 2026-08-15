@@ -1313,4 +1313,129 @@ impl ToolSpec for McpToolAdapter {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use serde_json::json;
+
+    /// Minimal in-memory tool used to exercise the registry's bookkeeping
+    /// without touching the network or the filesystem (issue #798).
+    struct StubTool {
+        name: &'static str,
+        caps: Vec<ToolCapability>,
+    }
+
+    #[async_trait]
+    impl ToolSpec for StubTool {
+        fn name(&self) -> &str {
+            self.name
+        }
+
+        fn description(&self) -> &str {
+            "stub tool for registry unit tests"
+        }
+
+        fn input_schema(&self) -> Value {
+            json!({ "type": "object", "properties": {} })
+        }
+
+        fn capabilities(&self) -> Vec<ToolCapability> {
+            self.caps.clone()
+        }
+
+        async fn execute(&self, _input: Value, _ctx: &ToolContext) -> Result<ToolResult, ToolError> {
+            Ok(ToolResult::success(format!("ran {}", self.name)))
+        }
+    }
+
+    fn stub(name: &'static str, caps: Vec<ToolCapability>) -> Arc<dyn ToolSpec> {
+        Arc::new(StubTool { name, caps })
+    }
+
+    fn test_context() -> ToolContext {
+        ToolContext::new(std::env::temp_dir().join("mimofan_registry_test_ws"))
+    }
+
+    #[test]
+    fn register_and_lookup() {
+        let mut reg = ToolRegistry::new(test_context());
+        assert!(reg.is_empty());
+        reg.register(stub("alpha", vec![ToolCapability::ReadOnly]));
+
+        assert!(!reg.is_empty());
+        assert_eq!(reg.len(), 1);
+        assert!(reg.contains("alpha"));
+        assert!(!reg.contains("beta"));
+        assert_eq!(reg.get("alpha").unwrap().name(), "alpha");
+        assert!(reg.get("missing").is_none());
+    }
+
+    #[test]
+    fn register_all_and_names() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register_all(vec![
+            stub("a", vec![]),
+            stub("b", vec![]),
+            stub("c", vec![]),
+        ]);
+        assert_eq!(reg.len(), 3);
+        let mut names = reg.names();
+        names.sort_unstable();
+        assert_eq!(names, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn re_register_overwrites() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register(stub("dup", vec![ToolCapability::ReadOnly]));
+        reg.register(stub("dup", vec![ToolCapability::Network]));
+        // Name collision keeps a single entry but the latest tool wins.
+        assert_eq!(reg.len(), 1);
+        assert_eq!(reg.get("dup").unwrap().capabilities(), vec![ToolCapability::Network]);
+    }
+
+    #[test]
+    fn remove_and_clear() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register(stub("x", vec![]));
+        reg.register(stub("y", vec![]));
+        assert!(reg.remove("x").is_some());
+        assert!(reg.remove("x").is_none());
+        assert!(reg.contains("y"));
+        reg.clear();
+        assert!(reg.is_empty());
+    }
+
+    #[test]
+    fn filter_by_capability() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register(stub("ro", vec![ToolCapability::ReadOnly]));
+        reg.register(stub("net", vec![ToolCapability::Network]));
+        reg.register(stub("both", vec![ToolCapability::ReadOnly, ToolCapability::Network]));
+
+        let ro = reg.filter_by_capability(ToolCapability::ReadOnly);
+        let mut ro_names: Vec<&str> = ro.iter().map(|t| t.name()).collect();
+        ro_names.sort_unstable();
+        assert_eq!(ro_names, vec!["both", "ro"]);
+
+        let net = reg.filter_by_capability(ToolCapability::Network);
+        let mut net_names: Vec<&str> = net.iter().map(|t| t.name()).collect();
+        net_names.sort_unstable();
+        assert_eq!(net_names, vec!["both", "net"]);
+    }
+
+    #[tokio::test]
+    async fn execute_routes_to_registered_tool() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register(stub("echo", vec![ToolCapability::ReadOnly]));
+
+        let content = reg.execute("echo", json!({})).await.unwrap();
+        assert_eq!(content, "ran echo");
+
+        let err = reg.execute("missing", json!({})).await.unwrap_err();
+        assert!(err.to_string().contains("not registered"));
+    }
+}
+
 // === Unit Tests ===

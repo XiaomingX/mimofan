@@ -79,8 +79,9 @@ pub use naming::{assign_unique_whale_name, whale_name_for_id};
 pub(crate) use parser::*;
 pub use task_claim::{
     ClaimResult, FileClaim, FileClaimManager, FileClaimResult, FileScopeAssignment,
-    SharedTaskClaimManager, TaskClaim, TaskClaimManager, TaskClaimStatus,
-    new_shared_task_claim_manager, plan_disjoint_file_sets,
+    SharedFileClaimManager, SharedTaskClaimManager, TaskClaim, TaskClaimManager,
+    TaskClaimStatus, new_shared_file_claim_manager, new_shared_task_claim_manager,
+    plan_disjoint_file_sets,
 };
 pub use tool::AgentTool;
 pub use types::{
@@ -700,6 +701,10 @@ pub struct SubAgentManager {
     /// ownership of work items (#699). Sub-agents spawned by the same manager
     /// share this instance.
     task_claims: SharedTaskClaimManager,
+    /// Shared file-claim manager so concurrently-running sub-agents cannot
+    /// mutate the same file (#842). Pairs with `plan_concurrent_file_scopes`
+    /// to assign each parallel agent a non-overlapping file domain up front.
+    file_claims: SharedFileClaimManager,
 }
 
 /// Thread-safe wrapper for `SubAgentManager`.

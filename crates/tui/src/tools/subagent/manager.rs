@@ -27,6 +27,7 @@ impl SubAgentManager {
             persist_pending: false,
             bus: Arc::new(AgentBus::new()),
             task_claims: new_shared_task_claim_manager(),
+            file_claims: new_shared_file_claim_manager(),
         }
     }
 
@@ -55,6 +56,29 @@ impl SubAgentManager {
     /// Return a reference to the shared task-claim manager (#699).
     pub fn task_claims(&self) -> &SharedTaskClaimManager {
         &self.task_claims
+    }
+
+    /// Return a reference to the shared file-claim manager (#842).
+    pub fn file_claims(&self) -> &SharedFileClaimManager {
+        &self.file_claims
+    }
+
+    /// Plan non-overlapping file scopes for a set of agents that will run
+    /// concurrently (#842).
+    ///
+    /// Feed it each parallel agent's declared file intent
+    /// (`FileScopeAssignment { agent_id, files }`); it returns an
+    /// `agent_id -> files` map with no file owned by two agents. Pair this
+    /// with `file_claims()` so each agent only leases its assigned domain,
+    /// preventing concurrent edits to the same file. This is the conflict-safety
+    /// layer that makes mimofan's baseline multi-sub-agent concurrency safe by
+    /// default.
+    #[must_use]
+    pub fn plan_concurrent_file_scopes(
+        &self,
+        assignments: &[FileScopeAssignment],
+    ) -> std::collections::HashMap<String, Vec<String>> {
+        plan_disjoint_file_sets(assignments)
     }
 
     /// Set the default aggregate token budget for root sub-agent runs.
