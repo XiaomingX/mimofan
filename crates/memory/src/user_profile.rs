@@ -59,6 +59,14 @@ impl ProfileEntry {
 pub struct UserProfile {
     /// Schema version for forward/backward compatibility.
     pub version: u32,
+    /// #831: when `true`, this profile is exempt from the memory decay/eviction
+    /// sweep. Identity/who-the-user-is memories are low-frequency but
+    /// high-value, so they must NOT be forgotten by the time-decay or
+    /// budget-eviction logic in `consolidation.rs`. The caller (decay sweep)
+    /// skips any profile with `decay_exempt == true`. Defaults to `false` for
+    /// backward compatibility with older persisted profiles.
+    #[serde(default)]
+    pub decay_exempt: bool,
     /// Collaboration preferences (response length, explain-or-not, ask-first).
     #[serde(default)]
     pub preferences: Vec<ProfileEntry>,
@@ -77,6 +85,7 @@ impl Default for UserProfile {
     fn default() -> Self {
         Self {
             version: SCHEMA_VERSION,
+            decay_exempt: false,
             preferences: Vec::new(),
             languages: Vec::new(),
             project_contexts: Vec::new(),
@@ -89,6 +98,23 @@ impl UserProfile {
     /// An empty profile (versioned, ready to persist).
     pub fn empty() -> Self {
         Self::default()
+    }
+
+    /// Create an empty profile flagged as decay-exempt (#831). Identity/who-the-user-is
+    /// memories should generally use this so they survive the consolidation
+    /// decay/eviction sweep.
+    pub fn exempt() -> Self {
+        Self {
+            decay_exempt: true,
+            ..Self::default()
+        }
+    }
+
+    /// Mark (or unmark) this profile as decay-exempt. Returns `&mut self` for
+    /// chaining.
+    pub fn set_decay_exempt(&mut self, exempt: bool) -> &mut Self {
+        self.decay_exempt = exempt;
+        self
     }
 
     /// Replace (not append) an entry within a bucket by its tag. If the tag is
@@ -412,5 +438,44 @@ mod tests {
     fn distill_empty_on_no_signal() {
         let turns = vec!["hello".to_string(), "thanks".to_string()];
         assert!(distill_from_transcript(&turns).is_empty());
+    }
+
+    // ---- #831 用户画像免衰减 ----
+
+    #[test]
+    fn default_profile_is_decayable() {
+        let p = UserProfile::empty();
+        assert!(!p.decay_exempt, "profiles decay by default");
+    }
+
+    #[test]
+    fn exempt_constructor_and_setter() {
+        let mut p = UserProfile::exempt();
+        assert!(p.decay_exempt, "exempt() flags the profile");
+        p.set_decay_exempt(false);
+        assert!(!p.decay_exempt);
+        p.set_decay_exempt(true);
+        assert!(p.decay_exempt);
+    }
+
+    #[test]
+    fn decay_exempt_round_trips_through_json() {
+        let path = std::env::temp_dir().join(format!("mimofan_up_exempt_{}", uuid::Uuid::new_v4()));
+        let mut p = UserProfile::exempt();
+        p.apply_correction(Bucket::Preferences, ProfileEntry::new("response_length", "concise"));
+        p.save(&path).expect("save ok");
+        let loaded = UserProfile::load(&path);
+        assert!(loaded.decay_exempt, "exemption survives persist/load");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn legacy_profile_without_flag_defaults_to_decayable() {
+        // An older profile JSON that predates the `decay_exempt` field must
+        // deserialize with `decay_exempt == false` (serde default), never error.
+        let json = r#"{"version":1,"preferences":[{"tag":"x","value":"y"}]}"#;
+        let p: UserProfile = serde_json::from_str(json).expect("legacy json parses");
+        assert!(!p.decay_exempt);
+        assert_eq!(p.preferences.len(), 1);
     }
 }

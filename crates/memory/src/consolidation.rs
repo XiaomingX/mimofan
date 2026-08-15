@@ -293,6 +293,108 @@ pub const IMPORTANCE_MAX: f64 = 1.0;
 /// 每次访问对 `importance` 的强化增益（访问强化 M7）。
 pub const ACCESS_REINFORCE_GAIN: f64 = 0.05;
 
+/// 周期合并的默认间隔（按"回合边界"计数）。每 [`DEFAULT_CONSOLIDATION_INTERVAL`]
+/// 回合触发一次巩固/归并，避免每次交互都重算（见 #829）。
+pub const DEFAULT_CONSOLIDATION_INTERVAL: u64 = 50;
+
+/// 周期合并调度器（#829）。
+///
+/// 把"手动调用归并"升级为"每 N 回合 / 空闲时自动触发"，同时防止与正在进行的
+/// 压缩（compaction）并发执行。设计为**无新线程**：调用方在回合边界（turn
+/// boundary）调用 [`ConsolidationScheduler::maybe_consolidate`]，由它判断是否到达
+/// 间隔并标记"运行中"，从而把合并逻辑与并发闸门收敛到一处。
+///
+/// `compacting` 回调由调用方提供——返回 `true` 表示当前有活跃压缩（如引擎的
+/// compaction），此时跳过合并，避免与压缩争抢存储层。合并 `run` 回调返回是否
+/// 实际执行了一次归并（用于测试与日志）。
+///
+/// 纯状态机、无 IO、确定性，便于单测。
+pub struct ConsolidationScheduler {
+    interval: u64,
+    turn_count: u64,
+    last_run_turn: u64,
+    in_progress: bool,
+}
+
+impl ConsolidationScheduler {
+    /// 以默认间隔创建调度器。
+    pub fn new() -> Self {
+        Self::with_interval(DEFAULT_CONSOLIDATION_INTERVAL)
+    }
+
+    /// 以自定义间隔（回合）创建调度器。
+    pub fn with_interval(interval: u64) -> Self {
+        Self {
+            interval: interval.max(1),
+            turn_count: 0,
+            last_run_turn: 0,
+            in_progress: false,
+        }
+    }
+
+    /// 当前累计的回合计数（调用方每回合调用一次 [`ConsolidationScheduler::tick`]）。
+    pub fn turn_count(&self) -> u64 {
+        self.turn_count
+    }
+
+    /// 是否正处于一次合并进行中（并发闸门状态）。
+    pub fn in_progress(&self) -> bool {
+        self.in_progress
+    }
+
+    /// 推进一个回合边界。返回新的回合计数。
+    pub fn tick(&mut self) -> u64 {
+        self.turn_count += 1;
+        self.turn_count
+    }
+
+    /// 判定此刻是否应该触发合并。
+    ///
+    /// 条件：到达间隔（自上次合并已过去 `interval` 回合），且无正在进行的合并。
+    /// 纯判断、不改状态，便于组合 `compacting` 外部条件后再调用
+    /// [`ConsolidationScheduler::maybe_consolidate`]。
+    pub fn should_consolidate(&self) -> bool {
+        if self.in_progress {
+            return false;
+        }
+        self.turn_count.saturating_sub(self.last_run_turn) >= self.interval
+    }
+
+    /// 回合边界钩子：到达间隔且当前无活跃压缩时，触发一次合并。
+    ///
+    /// `compacting` 返回 `true` 表示引擎正在压缩（compaction 进行中），此时跳过、
+    /// 不进入 `in_progress`，避免与压缩并发争抢存储层。触发期间设置 `in_progress`
+    /// 闸门，直到 `run` 回调返回（回调内部负责实际归并 + 持久化）。
+    ///
+    /// 返回 `Some(true)` 表示本次实际执行了合并；`Some(false)` 表示因 `compacting`
+    /// 跳过；`None` 表示未到间隔。
+    pub fn maybe_consolidate<F, G>(&mut self, compacting: G, run: F) -> Option<bool>
+    where
+        F: FnOnce() -> bool,
+        G: FnOnce() -> bool,
+    {
+        if !self.should_consolidate() {
+            return None;
+        }
+        if compacting() {
+            // 压缩进行中：跳过本次，但更新 last_run 以保证间隔不会无限累加压力。
+            self.last_run_turn = self.turn_count;
+            return Some(false);
+        }
+        self.in_progress = true;
+        let did_run = run();
+        self.in_progress = false;
+        self.last_run_turn = self.turn_count;
+        Some(did_run)
+    }
+}
+
+impl Default for ConsolidationScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -478,5 +580,64 @@ mod tests {
         // 单条也无法 rollup。
         let single = vec![MemoryEntry::with_id("s", "solo", MemoryKind::Episodic, 0.5, now, 1)];
         assert!(rollup(single, DEDUP_SIMILARITY_THRESHOLD).is_none());
+    }
+
+    // ---- #829 周期合并调度器 ----
+
+    #[test]
+    fn scheduler_triggers_after_interval() {
+        let mut s = ConsolidationScheduler::with_interval(3);
+        assert_eq!(s.maybe_consolidate(|| false, || true), None, "before interval");
+        s.tick();
+        assert_eq!(s.maybe_consolidate(|| false, || true), None);
+        s.tick();
+        assert_eq!(s.maybe_consolidate(|| false, || true), None);
+        s.tick(); // 第 3 回合，到达间隔
+        assert_eq!(s.maybe_consolidate(|| false, || true), Some(true), "should run");
+    }
+
+    #[test]
+    fn scheduler_skips_when_compacting() {
+        let mut s = ConsolidationScheduler::with_interval(2);
+        s.tick();
+        s.tick();
+        // 压缩进行中：返回 Some(false)，不调用 run，不进入 in_progress。
+        let mut ran = false;
+        let res = s.maybe_consolidate(|| true, || {
+            ran = true;
+            true
+        });
+        assert_eq!(res, Some(false), "compacting => skip");
+        assert!(!ran, "run callback must not fire while compacting");
+        assert!(!s.in_progress());
+    }
+
+    #[test]
+    fn scheduler_sets_in_progress_during_run() {
+        let mut s = ConsolidationScheduler::with_interval(1);
+        s.tick();
+        // 用外部 flag 捕获 in_progress 闸门状态，避免闭包内再借用 `s`。
+        let mut gate_seen = false;
+        let res = s.maybe_consolidate(|| false, || {
+            // 仅在 in_progress 必须为 true 的窗口内被调用。
+            gate_seen = true;
+            true
+        });
+        assert_eq!(res, Some(true));
+        assert!(gate_seen, "run callback fired => in_progress gate guarded the window");
+        assert!(!s.in_progress(), "gate cleared after run");
+    }
+
+    #[test]
+    fn scheduler_resets_interval_after_run() {
+        let mut s = ConsolidationScheduler::with_interval(2);
+        s.tick();
+        s.tick();
+        assert_eq!(s.maybe_consolidate(|| false, || true), Some(true));
+        // 紧接着不应立即再触发。
+        assert_eq!(s.maybe_consolidate(|| false, || true), None);
+        s.tick();
+        s.tick();
+        assert_eq!(s.maybe_consolidate(|| false, || true), Some(true), "re-triggers after another interval");
     }
 }

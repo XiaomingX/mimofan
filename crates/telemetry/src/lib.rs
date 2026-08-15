@@ -207,10 +207,20 @@ impl PrometheusRecorder {
 ///
 /// Callers use [`record_metric`] to record into this shared instance without
 /// threading the recorder through every call site.
+static GLOBAL_RECORDER: std::sync::OnceLock<PrometheusRecorder> = std::sync::OnceLock::new();
+
+/// Return the process-wide [`PrometheusRecorder`] instance (idempotent).
+///
+/// Both [`record_metric`] and [`metrics_text`] resolve through this so all
+/// call sites share one backing store. Tests can read it directly to assert on
+/// recorded values.
+pub fn global_recorder() -> &'static PrometheusRecorder {
+    GLOBAL_RECORDER.get_or_init(PrometheusRecorder::new)
+}
+
+/// Record a metric into the process-wide [`PrometheusRecorder`].
 pub fn record_metric(name: &str, value: MetricValue) {
-    use std::sync::OnceLock;
-    static GLOBAL: OnceLock<PrometheusRecorder> = OnceLock::new();
-    let rec = GLOBAL.get_or_init(PrometheusRecorder::new);
+    let rec = global_recorder();
     match value {
         MetricValue::Counter(delta) => rec.record_counter(name, delta),
         MetricValue::Histogram(v) => rec.record_histogram(name, v),
@@ -226,6 +236,151 @@ pub enum MetricValue {
     Histogram(f64),
     /// Latency in seconds (histogram convenience).
     Latency(f64),
+}
+
+/// GenAI-style span/event emitted around an LLM call (#830, slice C/D).
+///
+/// This is the **v1 in-process emitter**: it does not require the `otlp`
+/// feature or any OpenTelemetry dependency. Instead it records the canonical
+/// GenAI semantic-convention signals into the shared [`PrometheusRecorder`]
+/// via [`record_metric`] (token counts, model label, latency). A future slice
+/// can mirror these counters into real OTLP spans without changing the call
+/// site, because the call site only depends on this struct.
+///
+/// Usage:
+/// ```ignore
+/// let mut span = GenAiSpan::new("deepseek-chat");
+/// // ... perform the LLM request ...
+/// span.finish(input_tokens, output_tokens, cached_tokens);
+/// ```
+///
+/// Metrics produced (Prometheus style, scraped via [`metrics_text`]):
+/// - `gen_ai_client_token_usage`{gen_ai_operation, gen_ai_token_type, gen_ai_request_model} (counter)
+/// - `gen_ai_client_operation_duration`{gen_ai_request_model} (histogram, seconds)
+/// - `gen_ai_client_requests`{gen_ai_request_model, status} (counter)
+pub struct GenAiSpan {
+    model: String,
+    start: std::time::Instant,
+}
+
+impl GenAiSpan {
+    /// Begin a GenAI span for a request to `model`.
+    pub fn new(model: impl Into<String>) -> Self {
+        Self {
+            model: model.into(),
+            start: std::time::Instant::now(),
+        }
+    }
+
+    /// Record token usage and latency for a completed (successful) request.
+    ///
+    /// `input_tokens` / `output_tokens` / `cached_tokens` are the per-request
+    /// usage counts reported by the provider. Latency is measured from span
+    /// creation to this call.
+    pub fn finish(&self, input_tokens: u64, output_tokens: u64, cached_tokens: u64) {
+        let labels = |op: &str, tok: &str| -> String {
+            format!(
+                "{{gen_ai_operation=\"{op}\",gen_ai_token_type=\"{tok}\",gen_ai_request_model=\"{}\"}}",
+                self.model
+            )
+        };
+        record_metric(
+            &format!("gen_ai_client_token_usage{}", labels("chat", "input")),
+            MetricValue::Counter(input_tokens as f64),
+        );
+        record_metric(
+            &format!("gen_ai_client_token_usage{}", labels("chat", "output")),
+            MetricValue::Counter(output_tokens as f64),
+        );
+        record_metric(
+            &format!("gen_ai_client_token_usage{}", labels("chat", "cache_read")),
+            MetricValue::Counter(cached_tokens as f64),
+        );
+        let dur = self.start.elapsed().as_secs_f64();
+        record_metric(
+            &format!(
+                "gen_ai_client_operation_duration{{gen_ai_request_model=\"{}\"}}",
+                self.model
+            ),
+            MetricValue::Latency(dur),
+        );
+        record_metric(
+            &format!(
+                "gen_ai_client_requests{{gen_ai_request_model=\"{}\",status=\"ok\"}}",
+                self.model
+            ),
+            MetricValue::Counter(1.0),
+        );
+    }
+
+    /// Record a failed request (latency + error counter, no token usage).
+    pub fn finish_err(&self) {
+        let dur = self.start.elapsed().as_secs_f64();
+        record_metric(
+            &format!(
+                "gen_ai_client_operation_duration{{gen_ai_request_model=\"{}\"}}",
+                self.model
+            ),
+            MetricValue::Latency(dur),
+        );
+        record_metric(
+            &format!(
+                "gen_ai_client_requests{{gen_ai_request_model=\"{}\",status=\"error\"}}",
+                self.model
+            ),
+            MetricValue::Counter(1.0),
+        );
+    }
+}
+
+/// Render all recorded metrics in Prometheus text exposition format.
+///
+/// This is the body of the `/metrics` HTTP endpoint. It delegates to the
+/// global [`PrometheusRecorder`] (via [`record_metric`]) so counters/histograms
+/// recorded anywhere in the process (tool latency, LLM token cost, memory
+/// writes, GenAI spans) are exposed together. The returned text is stable and
+/// diff-friendly (field order is sorted in [`PrometheusRecorder::to_text`]).
+///
+/// v1 ships a JSON-free Prometheus rendering to stay dependency-free. A future
+/// slice may also add a JSON variant, but the canonical scrape format is the
+/// Prometheus text exposition format.
+pub fn metrics_text() -> String {
+    global_recorder().to_text()
+}
+
+#[cfg(test)]
+mod genai_span_tests {
+    use super::*;
+
+    #[test]
+    fn genai_span_records_tokens_and_latency() {
+        let span = GenAiSpan::new("deepseek-chat");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        span.finish(120, 80, 40);
+
+        let text = global_recorder().to_text();
+        assert!(text.contains("gen_ai_client_token_usage{gen_ai_operation=\"chat\",gen_ai_token_type=\"input\",gen_ai_request_model=\"deepseek-chat\"} 120"));
+        assert!(text.contains("gen_ai_client_token_usage{gen_ai_operation=\"chat\",gen_ai_token_type=\"output\",gen_ai_request_model=\"deepseek-chat\"} 80"));
+        assert!(text.contains("gen_ai_client_token_usage{gen_ai_operation=\"chat\",gen_ai_token_type=\"cache_read\",gen_ai_request_model=\"deepseek-chat\"} 40"));
+        assert!(text.contains("gen_ai_client_requests{gen_ai_request_model=\"deepseek-chat\",status=\"ok\"} 1"));
+        assert!(text.contains("gen_ai_client_operation_duration{gen_ai_request_model=\"deepseek-chat\"}"));
+    }
+
+    #[test]
+    fn genai_span_records_error() {
+        let span = GenAiSpan::new("dummy");
+        span.finish_err();
+        let text = global_recorder().to_text();
+        assert!(text.contains("gen_ai_client_requests{gen_ai_request_model=\"dummy\",status=\"error\"} 1"));
+    }
+
+    #[test]
+    fn metrics_text_delegates_to_global_recorder() {
+        // Smoke test: metrics_text returns the Prometheus text format and is
+        // non-panicking. (Exact content may include other tests' counters.)
+        let text = metrics_text();
+        assert!(text.contains("# TYPE") || text.is_empty());
+    }
 }
 
 #[cfg(test)]

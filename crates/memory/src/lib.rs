@@ -38,9 +38,10 @@ pub use backend::{MemoryBackend, SharedMemoryBackend};
 pub use category::MemoryCategory;
 pub use compressor::{CompressionStrategy, ObservationCompressor, SessionSummary};
 pub use consolidation::{
-    content_similarity, dedup, evict_to_budget, rollup, DEDUP_SIMILARITY_THRESHOLD, MemoryEntry,
-    MemoryKind, ACCESS_REINFORCE_GAIN, DEFAULT_IMPORTANCE, DECAY_LAMBDA, IMPORTANCE_MAX,
-    IMPORTANCE_MIN, RETENTION_FREQ_WEIGHT,
+    content_similarity, dedup, evict_to_budget, rollup, ConsolidationScheduler,
+    DEFAULT_CONSOLIDATION_INTERVAL, DEDUP_SIMILARITY_THRESHOLD, MemoryEntry, MemoryKind,
+    ACCESS_REINFORCE_GAIN, DEFAULT_IMPORTANCE, DECAY_LAMBDA, IMPORTANCE_MAX, IMPORTANCE_MIN,
+    RETENTION_FREQ_WEIGHT,
 };
 pub use embedding::{ApiEmbedder, Embedder, EmbeddingConfig, EmbeddingService};
 pub use error::MemoryError;
