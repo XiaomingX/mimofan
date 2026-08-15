@@ -51,6 +51,7 @@ pub mod aggregator;
 pub mod bus;
 pub mod custom_agents;
 pub mod decomposer;
+pub mod adversarial;
 pub mod task_graph;
 pub mod events;
 pub mod helpers;
@@ -91,6 +92,10 @@ pub use types::{
     PersistedSubAgent, PersistedSubAgentState, SubAgentAssignment, SubAgentCheckpoint,
     SubAgentCompletion, SubAgentForkContext, SubAgentNeedsInput, SubAgentResult, SubAgentStatus,
     SubAgentType, is_false,
+};
+pub use adversarial::{
+    AdversarialVerdict, AdversarialVerifyConfig, SpawnedReviewerResolver, VerdictResolver,
+    adversarial_verify,
 };
 
 // === Constants ===
@@ -211,6 +216,11 @@ pub(crate) struct SpawnRequest {
     /// When unset, the child inherits the parent's budget pool or the
     /// configured root default.
     token_budget: Option<u64>,
+    /// Optional request/turn correlation id (#799). When the spawning tool
+    /// carries a `trace_id` in its `ToolContext`, it is propagated (or a child
+    /// span id derived from it) so the child shares the parent's correlation.
+    /// `None` lets the spawn layer fall back to the parent context's id.
+    trace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

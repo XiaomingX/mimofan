@@ -277,6 +277,10 @@ pub(crate) fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolErr
         .transpose()?;
     let token_budget =
         parse_optional_positive_u64(input, &["token_budget", "tokenBudget", "max_tokens"])?;
+    let trace_id = optional_input_str(input, &["trace_id", "traceId", "trace"])
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
 
     Ok(SpawnRequest {
         session_name,
@@ -300,6 +304,7 @@ pub(crate) fn parse_spawn_request(input: &Value) -> Result<SpawnRequest, ToolErr
         max_depth,
         token_budget,
         custom_agent_def,
+        trace_id,
     })
 }
 
@@ -911,5 +916,32 @@ pub(crate) fn role_posture_permits(
         ApprovalRequirement::Required => {
             matches!(profile.shell, crate::worker_profile::ShellPolicy::Full)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn spawn_request_carries_trace_id() {
+        let input = json!({
+            "prompt": "investigate the auth bug",
+            "trace_id": "parent-turn-42",
+        });
+        let req = parse_spawn_request(&input).expect("parse must succeed");
+        assert_eq!(
+            req.trace_id.as_deref(),
+            Some("parent-turn-42"),
+            "trace_id must round-trip from input"
+        );
+    }
+
+    #[test]
+    fn spawn_request_trace_id_absent_by_default() {
+        let input = json!({ "prompt": "do a thing" });
+        let req = parse_spawn_request(&input).expect("parse must succeed");
+        assert!(req.trace_id.is_none(), "trace_id defaults to None");
     }
 }

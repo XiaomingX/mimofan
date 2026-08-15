@@ -115,6 +115,11 @@ impl ToolRegistry {
             .get(name)
             .ok_or_else(|| ToolError::not_available(format!("tool '{name}' is not registered")))?;
 
+        tracing::debug!(
+            trace_id = %self.context.trace_id,
+            tool = name,
+            "dispatching tool execution"
+        );
         tool.execute(input, &self.context).await
     }
 
@@ -570,11 +575,13 @@ impl ToolRegistryBuilder {
     #[must_use]
     pub fn with_lsp_symbol_tools(self) -> Self {
         use super::lsp_symbols::{
-            LspDocumentSymbolsTool, LspFindReferencesTool, LspGotoDefinitionTool,
+            LspCallHierarchyTool, LspDocumentSymbolsTool, LspFindReferencesTool,
+            LspGotoDefinitionTool,
         };
         self.with_tool(Arc::new(LspDocumentSymbolsTool))
             .with_tool(Arc::new(LspFindReferencesTool))
             .with_tool(Arc::new(LspGotoDefinitionTool))
+            .with_tool(Arc::new(LspCallHierarchyTool))
     }
 
     /// 注册结构化 AST 检索工具（`ast_query`，issue #587）。只读、可并行，把

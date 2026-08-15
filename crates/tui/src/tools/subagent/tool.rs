@@ -294,6 +294,19 @@ pub(crate) async fn spawn_subagent_from_input(
 ) -> Result<SubAgentResult, ToolError> {
     let spawn_request = parse_spawn_request(&input)?;
 
+    // Propagate the request/turn correlation id (#799). If the caller did not
+    // supply an explicit `trace_id`, fall back to the parent tool context's id
+    // so the child shares the originating turn's correlation. The child then
+    // gets a derived span id (`<parent>.<child>`) stamped on its own context.
+    let parent_trace_id = spawn_request
+        .trace_id
+        .clone()
+        .unwrap_or_else(|| runtime.context.trace_id.clone());
+    tracing::debug!(
+        trace_id = %parent_trace_id,
+        "spawning sub-agent from parent turn"
+    );
+
     if runtime.would_exceed_depth() {
         return Err(ToolError::execution_failed(format!(
             "Sub-agent depth limit reached (current depth {}, max {}). \
@@ -321,6 +334,10 @@ pub(crate) async fn spawn_subagent_from_input(
     let child_workspace = prepare_child_workspace(&runtime.context.workspace, &spawn_request)?;
 
     let mut child_runtime = runtime.background_runtime();
+    // Derive a child span id from the parent trace_id so logs from the child
+    // can be correlated back to the parent turn while still being distinct.
+    let child_trace_id = format!("{parent_trace_id}.{}", Uuid::new_v4().simple());
+    child_runtime.context.trace_id = child_trace_id;
     if let Some(max_depth) = spawn_request.max_depth {
         child_runtime.max_spawn_depth = child_runtime.spawn_depth.saturating_add(max_depth);
     }

@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use async_trait::async_trait;
+use uuid::Uuid;
 use serde_json::{Value, json};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
@@ -560,6 +561,13 @@ pub struct ToolContext {
     /// tagged with this so cross-session retrieval can group and reassemble a
     /// timeline per session. Empty in non-session contexts (e.g. unit tests).
     pub session_id: String,
+    /// Request/turn correlation id (#799). Carried into every tool execution
+    /// so logs/metrics can tie a tool invocation (and any sub-agent it spawns)
+    /// back to the originating user turn/request. Defaults to a fresh uuid v4
+    /// when constructed; callers may stamp a parent's trace_id to correlate a
+    /// subtree. Never alters any other field's type or the `ToolSpec::execute`
+    /// signature.
+    pub trace_id: String,
 }
 
 impl ToolContext {
@@ -605,6 +613,7 @@ impl ToolContext {
             search_base_url: None,
             workshop_vars: None,
             session_id: String::new(),
+            trace_id: Uuid::new_v4().to_string(),
         }
     }
 
@@ -650,6 +659,7 @@ impl ToolContext {
             search_base_url: None,
             workshop_vars: None,
             session_id: String::new(),
+            trace_id: Uuid::new_v4().to_string(),
         }
     }
 
@@ -696,6 +706,7 @@ impl ToolContext {
             search_base_url: None,
             workshop_vars: None,
             session_id: String::new(),
+            trace_id: Uuid::new_v4().to_string(),
         }
     }
 
@@ -759,6 +770,21 @@ impl ToolContext {
     pub fn with_shell_policy(mut self, policy: ShellPolicy) -> Self {
         self.shell_policy = policy;
         self
+    }
+
+    /// Stamp the request/turn correlation id (#799). Callers propagate a
+    /// parent's `trace_id` here so a subtree of tool calls and sub-agents share
+    /// one correlation id. When unset, the constructor generates a fresh uuid.
+    #[must_use]
+    pub fn with_trace_id(mut self, trace_id: impl Into<String>) -> Self {
+        self.trace_id = trace_id.into();
+        self
+    }
+
+    /// Read the current trace id.
+    #[must_use]
+    pub fn trace_id(&self) -> &str {
+        &self.trace_id
     }
 
     /// Attach an external sandbox backend for remote shell execution.
@@ -1668,5 +1694,27 @@ mod tests {
         // No snapshot recorded: coverage stays silent so the caller's
         // read-before-edit error is the one the model sees.
         assert!(ctx.require_read_coverage(&path, "f.txt", 1, 1).is_ok());
+    }
+
+    #[test]
+    fn trace_id_defaults_to_nonempty_uuid() {
+        let ctx = ToolContext::new(std::env::temp_dir());
+        assert!(!ctx.trace_id.is_empty(), "trace_id must default to a uuid");
+        // A valid uuid v4 string is 36 chars (8-4-4-4-12).
+        assert_eq!(ctx.trace_id.len(), 36, "trace_id should be a uuid v4 string");
+        assert_ne!(ctx.trace_id, "00000000-0000-0000-0000-000000000000");
+    }
+
+    #[test]
+    fn two_fresh_contexts_have_distinct_trace_ids() {
+        let a = ToolContext::new(std::env::temp_dir());
+        let b = ToolContext::new(std::env::temp_dir());
+        assert_ne!(a.trace_id, b.trace_id, "fresh contexts must differ");
+    }
+
+    #[test]
+    fn with_trace_id_stamps_parent_id() {
+        let ctx = ToolContext::new(std::env::temp_dir()).with_trace_id("parent-123");
+        assert_eq!(ctx.trace_id(), "parent-123");
     }
 }
