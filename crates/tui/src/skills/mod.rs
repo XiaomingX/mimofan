@@ -1,5 +1,6 @@
 //! Skill discovery and registry for local SKILL.md files.
 
+pub mod herdr;
 pub mod install;
 pub mod provenance;
 mod system;
