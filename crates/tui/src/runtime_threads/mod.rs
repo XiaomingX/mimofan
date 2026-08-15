@@ -1816,6 +1816,7 @@ impl RuntimeThreadManager {
                 crate::config_persistence::load_catalog_cache(),
             )),
             extra_tools: crate::core::engine::engine_config::ExtraTools::default(),
+            batch_mode: false,
         };
 
         let engine = spawn_engine(engine_cfg, &self.config);

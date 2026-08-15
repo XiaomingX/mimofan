@@ -190,6 +190,11 @@ pub struct EngineConfig {
     /// runs to mount the synthetic terminator tool (#824). Empty by default,
     /// so legacy behavior is unchanged.
     pub extra_tools: ExtraTools,
+    /// When true, non-interactive LLM requests are collected and submitted via
+    /// the offline Batch API channel instead of synchronous calls, cutting
+    /// cost (~50%). Added for #844 — purely additive: defaults to `false`, so
+    /// existing field order, types, and construction sites are unchanged.
+    pub batch_mode: bool,
 }
 
 /// Wrapper around a list of injected `ToolSpec` implementations so it can live
@@ -283,6 +288,7 @@ impl Default for EngineConfig {
             frozen_spec: None,
             catalog_cache: Arc::new(StdMutex::new(ProviderCatalogCache::new())),
             extra_tools: ExtraTools::default(),
+            batch_mode: false,
         }
     }
 }

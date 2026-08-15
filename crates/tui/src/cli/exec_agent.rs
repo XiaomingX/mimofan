@@ -699,6 +699,7 @@ pub(crate) async fn run_exec_agent(
             crate::config_persistence::load_catalog_cache(),
         )),
         extra_tools: crate::core::engine::engine_config::ExtraTools(json_schema_terminator),
+        batch_mode: false,
     };
 
     let engine_handle = spawn_engine(engine_config, &execution_config);

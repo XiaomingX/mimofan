@@ -58,6 +58,9 @@ mod eval;
 pub mod evidence;
 pub mod execpolicy;
 pub(crate) mod features;
+/// #844: Batch API offline channel (cost lever). Client plumbing + types only;
+/// the engine wires it through `EngineConfig::batch_mode`.
+pub mod provider;
 pub mod fleet;
 pub mod issue_monitor;
 mod mimofan_theme;
@@ -129,6 +132,14 @@ mod tls;
 mod tokenizer;
 mod tool_output_receipts;
 pub mod tools;
+/// #846 / #847: new capability modules compiled alongside `tools` but mounted
+/// here (not in `tools/mod.rs`) so the central tool-registry wiring stays
+/// untouched. The registry/spec references inside resolve via absolute
+/// `crate::` paths regardless of mount point.
+#[path = "tools/prompt_audit.rs"]
+pub mod prompt_audit;
+#[path = "tools/advisor.rs"]
+pub mod advisor;
 /// #834 / plan W1：插件化能力装配入口（manifest 解析 + 能力组装）。
 pub mod plugins;
 mod tui;
