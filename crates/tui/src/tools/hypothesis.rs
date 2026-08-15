@@ -125,12 +125,19 @@ impl HypothesisStore {
     }
 
     /// Persist the store, creating `<workspace>/.mimofan/` if needed.
+    ///
+    /// Writes to a `.tmp` file in the same directory then atomically renames it
+    /// onto the final path. `rename` is atomic on a single filesystem, so a
+    /// concurrent reader never observes a partial file and a crash mid-write
+    /// leaves the previous store intact.
     fn save(&self, workspace: &Path) -> Result<(), StoreError> {
         let dir = workspace.join(".mimofan");
         std::fs::create_dir_all(&dir).map_err(StoreError::Dir)?;
         let path = dir.join(HYPOTHESIS_STORE_FILE);
+        let tmp = dir.join(format!("{HYPOTHESIS_STORE_FILE}.tmp"));
         let bytes = serde_json::to_vec_pretty(self).map_err(StoreError::Parse)?;
-        std::fs::write(&path, bytes).map_err(StoreError::Write)
+        std::fs::write(&tmp, bytes).map_err(StoreError::Write)?;
+        std::fs::rename(&tmp, &path).map_err(StoreError::Write)
     }
 
     /// Insert a new hypothesis and return its id.

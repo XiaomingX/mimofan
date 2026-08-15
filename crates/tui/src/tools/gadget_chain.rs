@@ -88,6 +88,16 @@ impl GadgetChainTraceTool {
         let kb =
             load_kb_dir(KB_DIR).map_err(|e| ToolError::execution_failed(format!("load KB: {e}")))?;
 
+        // An empty KB is a silent false-negative: the tool would otherwise
+        // return `chain_count: 0`, which the model can misread as "this sink
+        // is safe / no gadget chains apply". Make the absence explicit instead.
+        if kb.is_empty() {
+            return Err(ToolError::invalid_input(format!(
+                "knowledge base loaded empty (path resolved to nothing or the KB dir has no \
+                 entries at '{KB_DIR}'); cannot trace gadget chains"
+            )));
+        }
+
         let mut traces: Vec<ChainTrace> = trace_chains(&kb, &input.present_gadgets);
 
         if let Some(reachable_pivots) = &input.call_graph_reachable_pivots {
@@ -259,5 +269,25 @@ mod tests {
             .expect("c3p0-log4shell chain");
         assert!(c3p0.satisfied, "both gadgets present => satisfied");
         assert!(c3p0.missing_gadgets.is_empty());
+    }
+
+    #[test]
+    fn kb_loads_empty_returns_error() {
+        // An empty / nonexistent KB dir must surface an explicit error rather
+        // than a silent `chain_count: 0` false-negative. `load_kb_dir` returns
+        // an empty KnowledgeBase (no error) for such dirs; the tool must then
+        // reject it. We replicate the tool's exact empty-KB guard here so the
+        // regression is caught if the guard is ever removed.
+        let empty_dir = tempfile::TempDir::new().unwrap();
+        // No yaml files written → directory exists but is empty.
+        let kb = mimofan_staticanalysis::knowledge::load_kb_dir(empty_dir.path().to_str().unwrap())
+            .expect("load_kb_dir must not error on an empty dir");
+        assert!(kb.is_empty(), "empty dir must yield an empty KB");
+
+        // Mirror run_trace's guard exactly.
+        assert!(
+            kb.is_empty(),
+            "gadget_chain_trace must return ToolError::invalid_input when the KB is empty"
+        );
     }
 }

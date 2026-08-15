@@ -23,9 +23,6 @@ use crate::sandbox::backend::SandboxBackend;
 /// Tool name for the model-facing API.
 pub const RUN_POC_TOOL_NAME: &str = "run_poc";
 
-/// Default execution timeout (ms) for the PoC command.
-const DEFAULT_TIMEOUT_MS: u64 = 30_000;
-
 /// Maximum number of bytes of stdout/stderr tail to return in the result.
 const TAIL_MAX_LEN: usize = 2_048;
 
@@ -38,9 +35,6 @@ struct RunPocInput {
     /// A substring that, if present in stdout/stderr, means the vuln was
     /// realized (e.g. "JNDI connection", "RCE achieved", "uid=").
     expect: String,
-    /// Optional execution timeout in milliseconds. Defaults to 30s.
-    #[serde(default)]
-    timeout_ms: Option<u64>,
 }
 
 /// Output for [`RunPocTool`].
@@ -108,10 +102,6 @@ impl ToolSpec for RunPocTool {
                 "expect": {
                     "type": "string",
                     "description": "Substring that, if present in stdout/stderr, means the vuln was realized (e.g. \"JNDI connection\", \"RCE achieved\", \"uid=\")."
-                },
-                "timeout_ms": {
-                    "type": "integer",
-                    "description": "Optional execution timeout in milliseconds. Defaults to 30000."
                 }
             },
             "required": ["command", "expect"],
@@ -144,7 +134,6 @@ impl ToolSpec for RunPocTool {
             ));
         };
 
-        let _timeout = parsed.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS);
         let env: HashMap<String, String> = HashMap::new();
 
         debug!(
