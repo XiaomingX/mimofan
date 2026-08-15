@@ -17,7 +17,7 @@ use shlex::try_join;
 
 use crate::dependencies::ExternalTool;
 
-use super::spec::{
+use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
 };
 
