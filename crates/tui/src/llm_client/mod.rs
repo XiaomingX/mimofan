@@ -25,6 +25,7 @@
 //! ```
 
 mod circuit_breaker;
+pub mod mock;
 mod stream_resume;
 
 // Re-export the resilience primitives as the public surface of `llm_client`.

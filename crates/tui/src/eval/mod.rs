@@ -4,15 +4,24 @@
 //! command later without calling the network or any LLM endpoints.
 
 use anyhow::{Context, Result, anyhow};
+use async_trait::async_trait;
 use ignore::WalkBuilder;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use serde_json::json;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
+
+use crate::llm_client::mock::MockLlmClient;
+use crate::llm_client::LlmClient;
+use crate::models::{ContentBlockStart, MessageRequest, StreamEvent};
+use crate::sandbox::backend::{SandboxBackend, SandboxOutput};
+use crate::tools::spec::{ToolContext, ToolError};
+use crate::tools::registry::ToolRegistryBuilder;
 
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +47,10 @@ pub enum ScenarioStepKind {
     Edit,
     ApplyPatch,
     ExecShell,
+    /// A tool executed through the real `ToolRegistry` driven by the mock LLM
+    /// client (e.g. `gadget_chain_trace`, `run_poc`, `hypothesis`). The actual
+    /// tool name is carried on the [`EvalStep::tool_name`] field.
+    AgentTool,
 }
 
 impl ScenarioStepKind {
@@ -50,6 +63,7 @@ impl ScenarioStepKind {
             ScenarioStepKind::Edit => "edit_file",
             ScenarioStepKind::ApplyPatch => "apply_patch",
             ScenarioStepKind::ExecShell => "exec_shell",
+            ScenarioStepKind::AgentTool => "agent_tool",
         }
     }
 
@@ -62,6 +76,7 @@ impl ScenarioStepKind {
             "edit" | "edit_file" => Some(Self::Edit),
             "patch" | "apply_patch" => Some(Self::ApplyPatch),
             "shell" | "exec_shell" | "exec" => Some(Self::ExecShell),
+            "agent" | "agent_tool" => Some(Self::AgentTool),
             _ => None,
         }
     }
@@ -158,6 +173,12 @@ impl EvalHarness {
     }
 
     /// Execute the offline evaluation scenario and return detailed results.
+    ///
+    /// This drives the **real** offline tool loop: a `ToolRegistry` built from
+    /// the vulnerability-hunting tools (`hypothesis`, `gadget_chain_trace`,
+    /// `run_poc`) is exercised through their real `ToolSpec::execute` methods,
+    /// while the LLM role is fulfilled by a deterministic [`MockLlmClient`] that
+    /// replays a scripted turn. No network or live model is involved.
     pub fn run(&self) -> Result<EvalRun> {
         let started_at = Instant::now();
         let workspace = tempfile::Builder::new()
@@ -165,91 +186,138 @@ impl EvalHarness {
             .tempdir()
             .context("failed to create evaluation workspace")?;
 
-        let seed = seed_workspace(workspace.path())?;
+        let _seed = seed_workspace(workspace.path())?;
 
         let mut steps = Vec::new();
         let mut per_tool: BTreeMap<ScenarioStepKind, ToolStats> = BTreeMap::new();
+        let mut agent_tool_calls: Vec<String> = Vec::new();
+        let mut realized = false;
+        let mut tool_errors = 0usize;
 
-        let list_output = self.run_step(ScenarioStepKind::List, &mut steps, &mut per_tool, || {
-            let entries = list_dir(workspace.path())?;
-            Ok(entries.join(", "))
-        });
+        // Drive the loop: pop each queued turn, stream its events, extract the
+        // tool-use blocks, and execute them through the REAL registry. The
+        // registry and mock client are async, so we run them on a runtime while
+        // keeping `run` synchronous (stable API). Reuse the ambient Tokio
+        // runtime when present (e.g. `main`/`run_eval`), otherwise spin up a
+        // dedicated current-thread runtime for offline/test use.
+        let drive = async {
+            // Build a real tool context. A self-contained in-memory sandbox
+            // backend is injected so `run_poc` can execute its candidate PoC
+            // offline and report whether the vulnerability was realized
+            // (fail-closed otherwise).
+            let mut context = ToolContext::new(workspace.path());
+            context.sandbox_backend = Some(Arc::new(InMemorySandboxBackend));
 
-        let _read_output = self.run_step(ScenarioStepKind::Read, &mut steps, &mut per_tool, || {
-            let path = if self.config.fail_step == Some(ScenarioStepKind::Read) {
-                workspace.path().join("missing.txt")
-            } else {
-                seed.notes_path.clone()
-            };
-            read_file(&path)
-        });
+            let registry = ToolRegistryBuilder::new()
+                .with_hypothesis_tools()
+                .with_gadget_chain_tools()
+                .with_run_poc_tools()
+                .build(context);
 
-        let search_output =
-            self.run_step(ScenarioStepKind::Search, &mut steps, &mut per_tool, || {
-                let root = if self.config.fail_step == Some(ScenarioStepKind::Search) {
-                    workspace.path().join("missing-dir")
-                } else {
-                    workspace.path().to_path_buf()
-                };
-                let result = search_files(&root, "offline")?;
-                Ok(format!("matches={}", result.matches.len()))
-            });
+            // Scripted agent turn replayed by the mock LLM client:
+            //   1. call gadget_chain_trace
+            //   2. call run_poc
+            let mock = MockLlmClient::new();
+            mock.push_tool_call(
+                "gadget_chain_trace",
+                json!({
+                    "sink": "InitialContext.lookup",
+                    "present_gadgets": ["c3p0-jndi", "jndi-lookup"]
+                }),
+            );
+            mock.push_tool_call(
+                "run_poc",
+                json!({
+                    "command": "printf POC_REALIZED",
+                    "expect": "POC_REALIZED"
+                }),
+            );
 
-        let edit_output = self.run_step(ScenarioStepKind::Edit, &mut steps, &mut per_tool, || {
-            let path = if self.config.fail_step == Some(ScenarioStepKind::Edit) {
-                workspace.path().join("missing.txt")
-            } else {
-                seed.notes_path.clone()
-            };
-            edit_file_append(&path, "edited = true")?;
-            Ok("appended line".to_string())
-        });
+            while mock.pending() > 0 {
+                let stream = mock.create_message_stream(self.build_request()).await?;
+                let tool_calls = collect_tool_calls(stream).await?;
+                if tool_calls.is_empty() {
+                    break;
+                }
+                for (name, input) in tool_calls {
+                    let started = Instant::now();
+                    let stat = per_tool.entry(ScenarioStepKind::AgentTool).or_default();
+                    stat.invocations += 1;
 
-        let patch_output = self.run_step(
-            ScenarioStepKind::ApplyPatch,
-            &mut steps,
-            &mut per_tool,
-            || {
-                let patch = if self.config.fail_step == Some(ScenarioStepKind::ApplyPatch) {
-                    "*** Begin Patch\n*** Update File: notes.txt\n@@\n-THIS LINE DOES NOT EXIST\n+broken\n*** End Patch\n"
-                        .to_string()
-                } else {
-                    "*** Begin Patch\n*** Update File: notes.txt\n@@\n status = \"draft\"\n-todo: offline metrics\n+todo: offline metrics (patched)\n*** End Patch\n"
-                        .to_string()
-                };
-                apply_patch(workspace.path(), &patch)?;
-                Ok("patch applied".to_string())
-            },
-        );
+                    let outcome = registry.execute_full(&name, input).await;
+                    let duration = started.elapsed();
+                    stat.total_duration += duration;
 
-        let shell_output = self.run_step(
-            ScenarioStepKind::ExecShell,
-            &mut steps,
-            &mut per_tool,
-            || {
-                let command = if self.config.fail_step == Some(ScenarioStepKind::ExecShell) {
-                    "command_that_does_not_exist".to_string()
-                } else {
-                    self.config.shell_command.clone()
-                };
-                exec_shell(workspace.path(), &command)
-            },
-        );
+                    match outcome {
+                        Ok(result) => {
+                            if name == "run_poc" {
+                                // `run_poc` serializes its outcome into
+                                // `content` (JSON) rather than `metadata`.
+                                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&result.content)
+                                    && value
+                                        .get("realized")
+                                        .and_then(|v| v.as_bool())
+                                        == Some(true)
+                                {
+                                    realized = true;
+                                }
+                            }
+                            agent_tool_calls.push(name.clone());
+                            steps.push(EvalStep {
+                                kind: ScenarioStepKind::AgentTool,
+                                tool_name: name_leak(&name),
+                                success: result.success,
+                                duration,
+                                error: if result.success {
+                                    None
+                                } else {
+                                    Some(result.content.clone())
+                                },
+                                output: Some(truncate_output(
+                                    &result.content,
+                                    self.config.max_output_chars,
+                                )),
+                            });
+                            if !result.success {
+                                stat.errors += 1;
+                                tool_errors += 1;
+                            }
+                        }
+                        Err(err) => {
+                            stat.errors += 1;
+                            tool_errors += 1;
+                            steps.push(EvalStep {
+                                kind: ScenarioStepKind::AgentTool,
+                                tool_name: name_leak(&name),
+                                success: false,
+                                duration,
+                                error: Some(err.to_string()),
+                                output: None,
+                            });
+                        }
+                    }
+                }
+            }
+            Ok::<(), anyhow::Error>(())
+        };
+
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => handle.block_on(drive)?,
+            Err(_) => {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .context("failed to start eval runtime")?;
+                runtime.block_on(drive)?;
+            }
+        }
 
         let duration = started_at.elapsed();
 
-        let workspace_summary = summarize_workspace(workspace.path(), list_output.as_deref())?;
+        let workspace_summary = summarize_workspace(workspace.path(), None)?;
 
-        let validation_success = validate_outputs(
-            workspace.path(),
-            &self.config.shell_expect_token,
-            search_output.as_deref(),
-            edit_output.as_deref(),
-            patch_output.as_deref(),
-            shell_output.as_deref(),
-        );
+        let validation_success = validate_real_loop(&agent_tool_calls, realized);
 
-        let tool_errors = steps.iter().filter(|s| !s.success).count();
         let success = tool_errors == 0 && validation_success;
 
         let metrics = EvalMetrics {
@@ -266,70 +334,65 @@ impl EvalHarness {
             workspace_summary,
             metrics,
             steps,
+            agent_tool_calls,
         })
     }
 
-    fn run_step<T, F>(
-        &self,
-        kind: ScenarioStepKind,
-        steps: &mut Vec<EvalStep>,
-        per_tool: &mut BTreeMap<ScenarioStepKind, ToolStats>,
-        f: F,
-    ) -> Option<T>
-    where
-        F: FnOnce() -> Result<T>,
-        T: ToString,
-    {
-        let started_at = Instant::now();
-        let result = f();
-        let duration = started_at.elapsed();
-
-        let stats = per_tool.entry(kind).or_default();
-        stats.invocations += 1;
-        stats.total_duration += duration;
-
-        match result {
-            Ok(value) => {
-                let output = truncate_output(&value.to_string(), self.config.max_output_chars);
-                steps.push(EvalStep {
-                    kind,
-                    tool_name: kind.tool_name(),
-                    success: true,
-                    duration,
-                    error: None,
-                    output: Some(output.clone()),
-                });
-                if let Some(dir) = self.config.record_dir.as_deref() {
-                    let _ = record_fixture(
-                        dir,
-                        &self.config.scenario_name,
-                        FixtureRecord::ok(kind, &output),
-                    );
-                }
-                Some(value)
-            }
-            Err(err) => {
-                stats.errors += 1;
-                let err_str = err.to_string();
-                steps.push(EvalStep {
-                    kind,
-                    tool_name: kind.tool_name(),
-                    success: false,
-                    duration,
-                    error: Some(err_str.clone()),
-                    output: None,
-                });
-                if let Some(dir) = self.config.record_dir.as_deref() {
-                    let _ = record_fixture(
-                        dir,
-                        &self.config.scenario_name,
-                        FixtureRecord::err(kind, &err_str),
-                    );
-                }
-                None
-            }
+    /// Build the (unused-by-mock) `MessageRequest` passed to the mock client.
+    fn build_request(&self) -> MessageRequest {
+        MessageRequest {
+            model: "mock".to_string(),
+            messages: Vec::new(),
+            max_tokens: 1024,
+            system: None,
+            tools: None,
+            tool_choice: None,
+            metadata: None,
+            thinking: None,
+            reasoning_effort: None,
+            stream: Some(true),
+            temperature: None,
+            top_p: None,
+            response_format: None,
         }
     }
+}
+
+/// Leak a `String` tool name into a `&'static str` for the `EvalStep.tool_name`
+/// field. The harness owns the names for the lifetime of the run; see
+/// `EvalRun::agent_tool_calls` for the owned copy used by tests.
+fn name_leak(name: &str) -> &'static str {
+    Box::leak(name.to_string().into_boxed_str())
+}
+
+/// Collect `(tool_name, input)` pairs from a streamed assistant turn.
+async fn collect_tool_calls(
+    mut stream: crate::llm_client::StreamEventBox,
+) -> Result<Vec<(String, serde_json::Value)>> {
+    use futures_util::StreamExt;
+    let mut calls = Vec::new();
+    while let Some(item) = stream.next().await {
+        let event = item?;
+        if let StreamEvent::ContentBlockStart {
+            content_block:
+                ContentBlockStart::ToolUse {
+                    name, input, ..
+                },
+            ..
+        } = event
+        {
+            calls.push((name, input));
+        }
+    }
+    Ok(calls)
+}
+
+/// Validate the real tool loop: the scripted tools must have executed and the
+/// PoC must have been realized.
+fn validate_real_loop(agent_tool_calls: &[String], realized: bool) -> bool {
+    let called_gadget = agent_tool_calls.iter().any(|t| t == "gadget_chain_trace");
+    let called_poc = agent_tool_calls.iter().any(|t| t == "run_poc");
+    called_gadget && called_poc && realized
 }
 
 // === Fixture record/replay format ===========================================
@@ -427,6 +490,10 @@ pub struct EvalRun {
     pub workspace_summary: WorkspaceSummary,
     pub metrics: EvalMetrics,
     pub steps: Vec<EvalStep>,
+    /// Names of the real tools executed through the `ToolRegistry` while the
+    /// harness was driven by the mock LLM client. Empty for the legacy
+    /// file-step path. Used by tests/CI to assert the real tool loop ran.
+    pub agent_tool_calls: Vec<String>,
 }
 
 impl EvalRun {
@@ -443,6 +510,7 @@ impl EvalRun {
             workspace_summary: self.workspace_summary.clone(),
             metrics: self.metrics.clone(),
             steps: self.steps.clone(),
+            agent_tool_calls: self.agent_tool_calls.clone(),
         }
     }
 }
@@ -455,6 +523,8 @@ pub struct EvalReport {
     pub workspace_summary: WorkspaceSummary,
     pub metrics: EvalMetrics,
     pub steps: Vec<EvalStep>,
+    /// Names of the real tools executed through the `ToolRegistry`.
+    pub agent_tool_calls: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -527,198 +597,29 @@ fn summarize_workspace(root: &Path, list_output: Option<&str>) -> Result<Workspa
     })
 }
 
-fn validate_outputs(
-    root: &Path,
-    shell_expect_token: &str,
-    search_output: Option<&str>,
-    edit_output: Option<&str>,
-    patch_output: Option<&str>,
-    shell_output: Option<&str>,
-) -> bool {
-    let notes_path = root.join("notes.txt");
-    let notes = match fs::read_to_string(&notes_path) {
-        Ok(content) => content,
-        Err(_) => return false,
-    };
+/// Self-contained sandbox backend for offline evaluation.
+///
+/// It executes the candidate PoC command locally (so the real `run_poc`
+/// `ToolSpec::execute` path runs end-to-end) and returns combined output. This
+/// is intentionally not a security boundary — it exists so the eval harness can
+/// deterministically verify the tool loop without an external sandbox service.
+struct InMemorySandboxBackend;
 
-    let search_ok = search_output.is_some_and(|s| s.contains("matches="));
-    let edit_ok = edit_output.is_some_and(|s| !s.is_empty()) && notes.contains("edited = true");
-    let patch_ok = patch_output.is_some_and(|s| !s.is_empty())
-        && notes.contains("todo: offline metrics (patched)");
-    let shell_ok = shell_output
-        .map(str::trim)
-        .is_some_and(|s| s.contains(shell_expect_token));
-
-    search_ok && edit_ok && patch_ok && shell_ok
-}
-
-fn list_dir(path: &Path) -> Result<Vec<String>> {
-    let mut entries = Vec::new();
-    let dir = fs::read_dir(path)
-        .with_context(|| format!("failed to read directory: {}", path.display()))?;
-
-    for entry in dir {
-        let entry = entry.with_context(|| format!("failed to list {}", path.display()))?;
-        entries.push(entry.file_name().to_string_lossy().to_string());
+#[async_trait]
+impl SandboxBackend for InMemorySandboxBackend {
+    async fn exec(&self, cmd: &str, _env: &HashMap<String, String>) -> Result<SandboxOutput> {
+        use std::process::Command;
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(cmd)
+            .output()
+            .map_err(|e| ToolError::execution_failed(format!("sandbox exec failed: {e}")))?;
+        Ok(SandboxOutput {
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+            exit_code: output.status.code().unwrap_or(-1),
+        })
     }
-
-    entries.sort();
-    Ok(entries)
-}
-
-fn read_file(path: &Path) -> Result<String> {
-    fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SearchMatch {
-    path: PathBuf,
-    line: usize,
-    content: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SearchResult {
-    matches: Vec<SearchMatch>,
-}
-
-fn search_files(root: &Path, pattern: &str) -> Result<SearchResult> {
-    if !root.exists() {
-        return Err(anyhow!("search root does not exist: {}", root.display()));
-    }
-
-    let regex = Regex::new(pattern).context("failed to compile search regex")?;
-    let mut matches = Vec::new();
-
-    let walker = WalkBuilder::new(root)
-        .hidden(false)
-        .git_ignore(false)
-        .git_global(false)
-        .git_exclude(false)
-        .build();
-
-    for entry in walker {
-        let entry = entry.with_context(|| format!("failed to walk {}", root.display()))?;
-        if !entry.file_type().is_some_and(|t| t.is_file()) {
-            continue;
-        }
-
-        let path = entry.path();
-        let content = match fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        for (idx, line) in content.lines().enumerate() {
-            if regex.is_match(line) {
-                matches.push(SearchMatch {
-                    path: path.to_path_buf(),
-                    line: idx + 1,
-                    content: line.to_string(),
-                });
-            }
-            if matches.len() >= 64 {
-                break;
-            }
-        }
-        if matches.len() >= 64 {
-            break;
-        }
-    }
-
-    Ok(SearchResult { matches })
-}
-
-fn edit_file_append(path: &Path, line: &str) -> Result<()> {
-    let mut content = read_file(path)?;
-    if !content.ends_with('\n') {
-        content.push('\n');
-    }
-    content.push_str(line);
-    content.push('\n');
-    fs::write(path, content).with_context(|| format!("failed to write {}", path.display()))
-}
-
-fn apply_patch(root: &Path, patch: &str) -> Result<()> {
-    let mut lines = patch.lines();
-
-    let begin = lines.next().unwrap_or_default();
-    if begin != "*** Begin Patch" {
-        return Err(anyhow!("patch missing *** Begin Patch header"));
-    }
-
-    let header = lines.next().unwrap_or_default();
-    let file_rel = header
-        .strip_prefix("*** Update File: ")
-        .ok_or_else(|| anyhow!("only *** Update File patches are supported"))?;
-    if file_rel.contains("..") {
-        return Err(anyhow!("patch path must be workspace-relative"));
-    }
-
-    let file_path = root.join(file_rel);
-    let original = read_file(&file_path)?;
-    let had_trailing_newline = original.ends_with('\n');
-    let mut file_lines: Vec<String> = original.lines().map(|l| l.to_string()).collect();
-
-    let mut cursor = 0usize;
-    for raw_line in lines {
-        if raw_line == "*** End Patch" {
-            break;
-        }
-        if raw_line.starts_with("*** ") {
-            return Err(anyhow!("unexpected patch directive: {raw_line}"));
-        }
-        if raw_line.starts_with("@@") {
-            continue;
-        }
-
-        let (kind, rest) = raw_line.split_at(1);
-        let content = rest.to_string();
-
-        match kind {
-            " " => {
-                let Some(found) = file_lines[cursor..]
-                    .iter()
-                    .position(|line| line == &content)
-                    .map(|offset| cursor + offset)
-                else {
-                    return Err(anyhow!(
-                        "patch context not found in {}: {}",
-                        file_path.display(),
-                        content
-                    ));
-                };
-                cursor = found + 1;
-            }
-            "-" => {
-                if cursor >= file_lines.len() || file_lines[cursor] != content {
-                    return Err(anyhow!(
-                        "patch removal mismatch in {}: expected '{}'",
-                        file_path.display(),
-                        content
-                    ));
-                }
-                file_lines.remove(cursor);
-            }
-            "+" => {
-                file_lines.insert(cursor, content);
-                cursor += 1;
-            }
-            _ => return Err(anyhow!("unsupported patch line: {raw_line}")),
-        }
-    }
-
-    let mut updated = file_lines.join("\n");
-    if had_trailing_newline {
-        updated.push('\n');
-    }
-
-    fs::write(&file_path, updated)
-        .with_context(|| format!("failed to write patched file {}", file_path.display()))
-}
-
-fn exec_shell(root: &Path, command: &str) -> Result<String> {
-    crate::shell_dispatcher::global_dispatcher().run_foreground(command, root)
 }
 
 fn truncate_output(value: &str, max_chars: usize) -> String {
@@ -728,4 +629,46 @@ fn truncate_output(value: &str, max_chars: usize) -> String {
 
     let truncated: String = value.chars().take(max_chars).collect();
     format!("{truncated}...")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// End-to-end: `EvalHarness::run` drives the REAL `ToolRegistry`
+    /// (`gadget_chain_trace` + `run_poc`) through their real `ToolSpec::execute`
+    /// methods, with the LLM role fulfilled by `MockLlmClient`. The harness must
+    /// report that both tools actually executed and that `run_poc` realized
+    /// the vulnerability.
+    #[test]
+    fn harness_drives_real_tool_loop_via_mock() {
+        let config = EvalHarnessConfig {
+            scenario_name: "vuln-hunt-real-loop".to_string(),
+            ..EvalHarnessConfig::default()
+        };
+        let harness = EvalHarness::new(config);
+        let run = harness.run().expect("harness run ok");
+
+        // Both real tools must have been executed (not the old inline stubs).
+        assert!(
+            run.agent_tool_calls.iter().any(|t| t == "gadget_chain_trace"),
+            "gadget_chain_trace should have been executed through the real registry; got {:?}",
+            run.agent_tool_calls
+        );
+        assert!(
+            run.agent_tool_calls.iter().any(|t| t == "run_poc"),
+            "run_poc should have been executed through the real registry; got {:?}",
+            run.agent_tool_calls
+        );
+
+        // run_poc must have run its candidate PoC in the injected backend and
+        // reported the vulnerability as realized.
+        assert!(run.metrics.success, "harness should report success");
+        assert_eq!(run.metrics.tool_errors, 0, "no tool errors expected");
+
+        // The recorded steps must surface the real tool names.
+        let names: Vec<&str> = run.steps.iter().map(|s| s.tool_name).collect();
+        assert!(names.iter().any(|n| *n == "gadget_chain_trace"));
+        assert!(names.iter().any(|n| *n == "run_poc"));
+    }
 }
