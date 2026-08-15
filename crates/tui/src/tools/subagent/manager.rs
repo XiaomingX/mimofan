@@ -1,9 +1,16 @@
 use super::*;
+use super::lifecycle::{AgentLifecycleState, LifecycleTracker, StalledDetector, WaitCond};
+use super::notify::Notifier;
 
 impl SubAgentManager {
     /// Create a new manager for sub-agents.
     #[must_use]
     pub fn new(workspace: PathBuf, max_agents: usize) -> Self {
+        // The stalled detector (#866) must watch the SAME tracker instance
+        // the manager records into; `LifecycleTracker` derives `Clone` from
+        // its `Arc`, so cloning shares the inner map rather than copying it.
+        let lifecycle_tracker = LifecycleTracker::new();
+        let stalled_detector = StalledDetector::new(lifecycle_tracker.clone());
         Self {
             agents: HashMap::new(),
             worker_records: HashMap::new(),
@@ -28,6 +35,9 @@ impl SubAgentManager {
             bus: Arc::new(AgentBus::new()),
             task_claims: new_shared_task_claim_manager(),
             file_claims: new_shared_file_claim_manager(),
+            lifecycle_tracker,
+            stalled_detector,
+            notifier: Notifier::new(),
         }
     }
 
@@ -638,6 +648,8 @@ impl SubAgentManager {
             Some(snapshot.steps_taken),
             None,
         );
+        // #864: a cancelled agent is terminal → Done.
+        self.lifecycle_tracker.set(&agent_id, AgentLifecycleState::Done);
         self.persist_state_best_effort();
         Ok(snapshot)
     }
@@ -927,6 +939,10 @@ impl SubAgentManager {
         );
         agent.task_handle = Some(handle);
         self.agents.insert(agent_id.clone(), agent);
+        // #864: record the spawn in the lifecycle tracker. The child starts
+        // `Working` (it has been dispatched with a task handle). It will
+        // transition to `Blocked`/`Done` as the run_report hook reports.
+        self.lifecycle_tracker.set(&agent_id, AgentLifecycleState::Working);
         self.persist_state_best_effort();
 
         Ok(self
@@ -1147,6 +1163,8 @@ impl SubAgentManager {
             changed = true;
         }
         self.complete_worker_from_result(agent_id, &result);
+        // #864: any non-running terminal status advances the lifecycle to Done.
+        self.lifecycle_tracker.set(agent_id, AgentLifecycleState::Done);
         if changed {
             self.persist_state_best_effort();
         }
@@ -1162,6 +1180,8 @@ impl SubAgentManager {
             changed = true;
         }
         self.fail_worker(agent_id, error);
+        // #864: a failed agent can no longer progress → Done.
+        self.lifecycle_tracker.set(agent_id, AgentLifecycleState::Done);
         if changed {
             self.persist_state_best_effort();
         }
@@ -1178,6 +1198,12 @@ impl SubAgentManager {
         agent.steps_taken = checkpoint.steps_taken;
         agent.checkpoint = Some(checkpoint);
         agent.last_activity_at = Instant::now();
+        // #866: a per-step checkpoint is real progress. A paused/blocked
+        // agent that is producing checkpoints is NOT stalled, so refresh the
+        // lifecycle tracker timestamp without changing the coarse state.
+        if let Some(state) = self.lifecycle_tracker.state(&agent.id) {
+            self.lifecycle_tracker.set(&agent.id, state);
+        }
         // #freeze: hot per-step path — coalesce the full-fleet persist so 20
         // agents stepping concurrently do not serialize the whole fleet (with
         // full transcripts) to disk under the write lock on every step.
@@ -1206,6 +1232,16 @@ impl SubAgentManager {
             release_resident_leases_for(agent_id);
             agent.snapshot()
         };
+        // #864: an interrupt that is waiting on human input/approval is
+        // `Blocked`; a plain interrupt (no input requested) is terminal → Done.
+        if snapshot.needs_input.is_some() {
+            self.lifecycle_tracker.set(
+                agent_id,
+                AgentLifecycleState::Blocked(snapshot.result.clone().unwrap_or_else(|| "interrupted".to_string())),
+            );
+        } else {
+            self.lifecycle_tracker.set(agent_id, AgentLifecycleState::Done);
+        }
         self.record_worker_event(
             agent_id,
             AgentWorkerStatus::Interrupted,
@@ -1215,6 +1251,122 @@ impl SubAgentManager {
         );
         self.persist_state_best_effort();
         Ok(snapshot)
+    }
+}
+
+// === Unified lifecycle state machine (#864) + blocking wait (#865) ===
+// === + stalled detection (#866) + notifications (#867) ===
+
+impl SubAgentManager {
+    /// Query the current coarse lifecycle state of a spawned agent (#864).
+    ///
+    /// Returns `None` if the agent id is unknown (never spawned, or already
+    /// evicted). This is a cheap query that does not lock the manager's full
+    /// `agents` map.
+    #[must_use]
+    pub fn agent_state(&self, id: &str) -> Option<AgentLifecycleState> {
+        self.lifecycle_tracker.state(id)
+    }
+
+    /// Snapshot every tracked agent's id → lifecycle state (#864).
+    ///
+    /// Cheap and lock-free with respect to the manager's `agents` map; safe
+    /// to call from the engine turn loop or a UI renderer.
+    #[must_use]
+    pub fn all_agent_states(&self) -> HashMap<String, AgentLifecycleState> {
+        self.lifecycle_tracker.all_states()
+    }
+
+    /// Blocking-aware wait (#865).
+    ///
+    /// Polls the [`LifecycleTracker`] until `id` actually reaches `cond`
+    /// (`Blocked` or `Done`), or `timeout` elapses. This is NOT a fixed
+    /// `join`: it returns the moment the agent's coarse lifecycle satisfies
+    /// the condition, so a parent can wait for "child is truly blocked and
+    /// needs my input" rather than spinning on wall-clock.
+    ///
+    /// Returns `Err` (carrying the last observed state) when the agent is
+    /// unknown or the timeout elapses first.
+    pub fn wait_until(
+        &self,
+        id: &str,
+        cond: WaitCond,
+        timeout: Duration,
+    ) -> Result<AgentLifecycleState> {
+        let start = Instant::now();
+        // Poll cadence is a small fraction of the timeout, clamped so a very
+        // short timeout still polls a few times.
+        let poll = (timeout / 20).clamp(Duration::from_millis(5), Duration::from_millis(250));
+        loop {
+            match self.lifecycle_tracker.state(id) {
+                None => {
+                    if start.elapsed() >= timeout {
+                        return Err(anyhow!("agent {id} unknown while waiting"));
+                    }
+                }
+                Some(state @ AgentLifecycleState::Blocked(_)) if cond == WaitCond::Blocked => {
+                    return Ok(state);
+                }
+                Some(state @ AgentLifecycleState::Done) if cond == WaitCond::Done => {
+                    return Ok(state);
+                }
+                Some(other) => {
+                    if start.elapsed() >= timeout {
+                        return Err(anyhow!(
+                            "timed out waiting for {cond:?} on agent {id} (last state: {})",
+                            other.as_str()
+                        ));
+                    }
+                }
+            }
+            if start.elapsed() >= timeout {
+                // Final re-check after the loop body in case the state moved
+                // during the sleep below.
+                if let Some(state) = self.lifecycle_tracker.state(id) {
+                    if matches!((&state, cond), (AgentLifecycleState::Blocked(_), WaitCond::Blocked) | (AgentLifecycleState::Done, WaitCond::Done)) {
+                        return Ok(state);
+                    }
+                }
+                break;
+            }
+            std::thread::sleep(poll);
+        }
+        Err(anyhow!("timed out waiting for {cond:?} on agent {id}"))
+    }
+
+    /// Stalled detection (#866).
+    ///
+    /// Fails fast if `id` has shown NO lifecycle-state change within `window`
+    /// after a prompt/instruction was issued. Distinct from a long wall-clock
+    /// timeout: a long-running but *progressing* agent (which bumps its
+    /// state periodically) is never flagged; only a silent one is.
+    ///
+    /// Returns `Ok(())` when the agent is still making lifecycle progress,
+    /// `Err` enumerating the stall reason + elapsed time otherwise.
+    pub fn assert_not_stalled(&self, id: &str, window: Duration) -> Result<()> {
+        match self.stalled_detector.assert_not_stalled(id, window) {
+            Ok(()) => Ok(()),
+            Err(elapsed) => Err(anyhow!(
+                "agent {id} appears stalled: no lifecycle-state change in {}ms (window {}ms)",
+                elapsed.as_millis(),
+                window.as_millis()
+            )),
+        }
+    }
+
+    /// Push an external notification from an agent (#867).
+    ///
+    /// Agents call this when they are blocked and need human input, or on
+    /// completion, so the orchestrator/shell can surface it. The sink is
+    /// pluggable; the default writes to stderr (no network deps).
+    pub fn notify(&self, id: &str, msg: &str) {
+        self.notifier.notify(id, msg);
+    }
+
+    /// Replace the notification sink (#867). Primarily for tests and
+    /// alternative delivery backends; the default sink writes to stderr.
+    pub fn set_notifier(&mut self, notifier: Notifier) {
+        self.notifier = notifier;
     }
 }
 
@@ -1229,5 +1381,107 @@ impl Drop for SubAgentManager {
                 remove_worktree(path);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::*;
+    use crate::tools::subagent::notify::{CapturingSink, NotificationSink};
+
+    fn test_manager() -> SubAgentManager {
+        let dir = std::env::temp_dir().join(format!("mimofan-lifecycle-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).ok();
+        SubAgentManager::new(dir, 4)
+    }
+
+    #[test]
+    fn state_transitions_idle_to_done() {
+        let mut mgr = test_manager();
+        mgr.lifecycle_tracker.register("a1");
+        assert_eq!(mgr.agent_state("a1"), Some(AgentLifecycleState::Idle));
+
+        mgr.lifecycle_tracker.set("a1", AgentLifecycleState::Working);
+        assert_eq!(mgr.agent_state("a1"), Some(AgentLifecycleState::Working));
+
+        mgr.lifecycle_tracker.set(
+            "a1",
+            AgentLifecycleState::Blocked("needs_approval".to_string()),
+        );
+        match mgr.agent_state("a1") {
+            Some(AgentLifecycleState::Blocked(reason)) => assert_eq!(reason, "needs_approval"),
+            other => panic!("expected Blocked, got {other:?}"),
+        }
+
+        mgr.lifecycle_tracker.set("a1", AgentLifecycleState::Done);
+        assert_eq!(mgr.agent_state("a1"), Some(AgentLifecycleState::Done));
+
+        // Snapshot reflects both registered + transitioned entries.
+        mgr.lifecycle_tracker.register("a2");
+        let all = mgr.all_agent_states();
+        assert_eq!(all["a1"], AgentLifecycleState::Done);
+        assert_eq!(all["a2"], AgentLifecycleState::Idle);
+    }
+
+    #[test]
+    fn wait_until_returns_on_blocked() {
+        let mgr = test_manager();
+        mgr.lifecycle_tracker.set("b1", AgentLifecycleState::Working);
+        // Transition to Blocked shortly after, in a background thread.
+        let tracker = mgr.lifecycle_tracker.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(30));
+            tracker.set("b1", AgentLifecycleState::Blocked("input".to_string()));
+        });
+        let result = mgr.wait_until("b1", WaitCond::Blocked, Duration::from_secs(2));
+        match result {
+            Ok(AgentLifecycleState::Blocked(reason)) => assert_eq!(reason, "input"),
+            other => panic!("expected Blocked, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn wait_until_times_out_when_not_blocked() {
+        let mgr = test_manager();
+        mgr.lifecycle_tracker.set("c1", AgentLifecycleState::Working);
+        let result = mgr.wait_until(
+            "c1",
+            WaitCond::Blocked,
+            Duration::from_millis(80),
+        );
+        assert!(result.is_err(), "should time out while only Working");
+    }
+
+    #[test]
+    fn stalled_detector_fires_on_no_change() {
+        let mgr = test_manager();
+        mgr.lifecycle_tracker.set("s1", AgentLifecycleState::Working);
+        // Let the last-change timestamp age past the window.
+        std::thread::sleep(Duration::from_millis(20));
+        let result = mgr.assert_not_stalled("s1", Duration::from_millis(5));
+        assert!(result.is_err(), "expected stalled detection to fire");
+    }
+
+    #[test]
+    fn stalled_detector_ok_on_recent_change() {
+        let mgr = test_manager();
+        mgr.lifecycle_tracker.set("s2", AgentLifecycleState::Working);
+        // Re-set immediately to refresh the timestamp, then check wide window.
+        mgr.lifecycle_tracker.set("s2", AgentLifecycleState::Working);
+        let result = mgr.assert_not_stalled("s2", Duration::from_millis(50));
+        assert!(result.is_ok(), "recent change must not be flagged stalled");
+    }
+
+    #[test]
+    fn notifier_invokes_sink() {
+        let mut mgr = test_manager();
+        let sink = Arc::new(CapturingSink::default());
+        mgr.set_notifier(Notifier::with_sink(Arc::clone(&sink) as Arc<dyn NotificationSink>));
+        mgr.notify("n1", "blocked: needs approval");
+        assert!(sink.was_notified("n1"));
+        let captured = sink.captured();
+        assert_eq!(captured.len(), 1);
+        assert_eq!(captured[0].0, "n1");
+        assert_eq!(captured[0].1, "blocked: needs approval");
     }
 }

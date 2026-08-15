@@ -67,6 +67,10 @@ pub(crate) use helpers::*;
 pub mod manager;
 #[allow(unused_imports)]
 pub(crate) use manager::*;
+pub mod lifecycle;
+pub use lifecycle::{AgentLifecycleState, LifecycleTracker, StalledDetector, WaitCond};
+pub mod notify;
+pub use notify::Notifier;
 pub mod runner;
 #[allow(unused_imports)]
 pub(crate) use runner::*;
@@ -715,6 +719,16 @@ pub struct SubAgentManager {
     /// mutate the same file (#842). Pairs with `plan_concurrent_file_scopes`
     /// to assign each parallel agent a non-overlapping file domain up front.
     file_claims: SharedFileClaimManager,
+    /// Unified lifecycle state machine (#864). Records each spawned agent's
+    /// coarse lifecycle (Idle/Working/Blocked/Done) so it can be queried
+    /// cheaply without locking the manager's full `agents` map.
+    lifecycle_tracker: LifecycleTracker,
+    /// Cheap liveness guard (#866). Watches the lifecycle tracker's
+    /// last-state-change timestamps to fail fast on stalled agents.
+    stalled_detector: StalledDetector,
+    /// Pluggable notification dispatcher (#867). Agents push external
+    /// notifications (blocked / done) through this; default sink is stderr.
+    notifier: Notifier,
 }
 
 /// Thread-safe wrapper for `SubAgentManager`.
