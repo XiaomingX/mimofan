@@ -615,6 +615,17 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(GadgetChainTraceTool))
     }
 
+    /// 注册可复现 PoC 执行工具（`run_poc`，issue #833 的 axis C 可复现性门）。
+    /// 把候选 exploit 送进配置的 [`SandboxBackend`] 执行，并依据 `expect` 子串
+    /// 判定漏洞是否被实际触发（`realized`）。无 sandbox backend 时决绝失败
+    /// （fail-closed），对应 vuln-hunt 长程 harness 的可复现性轴。因执行代码，
+    /// 默认可执行类、需审批。
+    #[must_use]
+    pub fn with_run_poc_tools(self) -> Self {
+        use super::run_poc::RunPocTool;
+        self.with_tool(Arc::new(RunPocTool))
+    }
+
     /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
     #[must_use]
     pub fn with_notebook_tools(self) -> Self {

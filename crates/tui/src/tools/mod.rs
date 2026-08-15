@@ -57,6 +57,7 @@ pub mod remember_vector;
 pub mod revert_turn;
 pub mod review;
 pub mod rlm;
+pub mod run_poc;
 pub mod security_audit;
 pub mod run_in_disposable_sandbox;
 #[cfg(feature = "vector-memory")]

@@ -93,7 +93,8 @@ impl Engine {
             .with_user_input_tool()
             .with_ast_query_tool()
             .with_call_graph_tool()
-            .with_gadget_chain_tools();
+            .with_gadget_chain_tools()
+            .with_run_poc_tools();
 
         // SlopLedger: plan mode only gets read-only query + export,
         // agent/yolo get the full set including append + update.
