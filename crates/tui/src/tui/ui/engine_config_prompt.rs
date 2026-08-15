@@ -90,6 +90,7 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         exec_policy_engine: config.exec_policy_engine.clone(),
         frozen_spec: app.frozen_spec.clone(),
         catalog_cache: app.catalog_cache.clone(),
+        extra_tools: crate::core::engine::engine_config::ExtraTools::default(),
     }
 }
 

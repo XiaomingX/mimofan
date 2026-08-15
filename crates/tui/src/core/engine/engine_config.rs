@@ -12,7 +12,7 @@ use crate::config::{DEFAULT_MAX_SUBAGENTS, DEFAULT_TEXT_MODEL};
 use crate::features::Features;
 use crate::tools::goal::{GoalStatus, SharedGoalQueue, new_shared_goal_queue};
 use crate::tools::plan::{SharedPlanState, new_shared_plan_state};
-use crate::tools::spec::RuntimeToolServices;
+use crate::tools::spec::{RuntimeToolServices, ToolSpec};
 use crate::tools::todo::SharedTodoList;
 use crate::tools::todo::new_shared_todo_list;
 
@@ -185,6 +185,26 @@ pub struct EngineConfig {
     /// same `Arc` is shared with `App` so a refresh from the engine is visible
     /// to the provider picker and vice versa (#3385).
     pub catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
+    /// Caller-injected tools registered into every turn's tool registry
+    /// (in addition to the built-in set). Used by headless `--json-schema`
+    /// runs to mount the synthetic terminator tool (#824). Empty by default,
+    /// so legacy behavior is unchanged.
+    pub extra_tools: ExtraTools,
+}
+
+/// Wrapper around a list of injected `ToolSpec` implementations so it can live
+/// on the `Clone + Debug` `EngineConfig` without requiring every `ToolSpec`
+/// impl to also be `Debug`. `Debug` renders only the count (the tool set is
+/// owned by the caller, not the engine).
+#[derive(Clone, Default)]
+pub struct ExtraTools(pub Vec<Arc<dyn ToolSpec>>);
+
+impl std::fmt::Debug for ExtraTools {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExtraTools")
+            .field("count", &self.0.len())
+            .finish()
+    }
 }
 
 impl Default for EngineConfig {
@@ -262,6 +282,7 @@ impl Default for EngineConfig {
             exec_policy_engine: mimofan_execpolicy::ExecPolicyEngine::new(Vec::new(), Vec::new()),
             frozen_spec: None,
             catalog_cache: Arc::new(StdMutex::new(ProviderCatalogCache::new())),
+            extra_tools: ExtraTools::default(),
         }
     }
 }

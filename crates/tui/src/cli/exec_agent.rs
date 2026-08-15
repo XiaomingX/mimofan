@@ -525,6 +525,7 @@ pub(crate) async fn run_exec_agent(
     allowed_tools: Option<Vec<String>>,
     disallowed_tools: Option<Vec<String>>,
     append_system_prompt: Option<String>,
+    json_schema: Option<String>,
 ) -> Result<()> {
     use crate::compaction::CompactionConfig;
     use crate::core::engine::{EngineConfig, spawn_engine};
@@ -580,6 +581,28 @@ pub(crate) async fn run_exec_agent(
         .lsp
         .clone()
         .map(crate::config::LspConfigToml::into_runtime);
+
+    // `--json-schema` (#824): build the synthetic terminator tool and a shared
+    // submission slot. The tool is registered into the engine only when the
+    // flag is supplied; on a schema-valid submission it records the payload in
+    // `json_schema_submission` and the exec loop below terminates the run.
+    let (json_schema_terminator, json_schema_submission) = match json_schema {
+        Some(ref raw) => {
+            let schema = crate::tools::json_schema_terminator::parse_json_schema_arg(raw)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            let submission: crate::tools::json_schema_terminator::SubmissionSlot =
+                std::sync::Arc::new(std::sync::Mutex::new(None));
+            let tools: Vec<std::sync::Arc<dyn crate::tools::spec::ToolSpec>> = vec![
+                std::sync::Arc::new(crate::tools::json_schema_terminator::JsonSchemaTerminator::new(
+                    schema,
+                    submission.clone(),
+                )),
+            ];
+            (tools, submission)
+        }
+        None => (Vec::new(), std::sync::Arc::new(std::sync::Mutex::new(None))),
+    };
+
     let engine_config = EngineConfig {
         model: effective_model.clone(),
         active_route_limits: None,
@@ -675,6 +698,7 @@ pub(crate) async fn run_exec_agent(
         catalog_cache: std::sync::Arc::new(std::sync::Mutex::new(
             crate::config_persistence::load_catalog_cache(),
         )),
+        extra_tools: crate::core::engine::engine_config::ExtraTools(json_schema_terminator),
     };
 
     let engine_handle = spawn_engine(engine_config, &execution_config);
@@ -833,6 +857,21 @@ pub(crate) async fn run_exec_agent(
                 id, name, result, ..
             } => match result {
                 Ok(output) => {
+                    // `--json-schema` terminator (#824): when the model calls
+                    // the synthetic terminator with a schema-valid submission,
+                    // surface the submitted payload as the final output and end
+                    // the run immediately.
+                    if name == crate::tools::json_schema_terminator::JSON_SCHEMA_TERMINATOR_NAME
+                        && output.success
+                    {
+                        if let Some(submitted) = json_schema_submission.lock().unwrap().take() {
+                            summary.output = serde_json::to_string_pretty(&submitted)
+                                .unwrap_or_else(|_| submitted.to_string());
+                            summary.status = Some("completed".to_string());
+                            let _ = engine_handle.send(Op::Shutdown).await;
+                            break;
+                        }
+                    }
                     summary.tools.push(ExecToolEntry {
                         name: name.clone(),
                         success: output.success,

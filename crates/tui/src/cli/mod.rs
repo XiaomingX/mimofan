@@ -302,6 +302,12 @@ pub(crate) struct ExecArgs {
     /// Extra text appended to the system prompt for this run.
     #[arg(long)]
     pub(crate) append_system_prompt: Option<String>,
+    /// Register a synthetic terminator tool that the model MUST call to submit
+    /// its final result as JSON conforming to the given schema (inline JSON or
+    /// a path to a `.json` file). The first schema-valid submission ends the
+    /// run and is emitted as the final output (issue #824).
+    #[arg(long, value_name = "SCHEMA")]
+    pub(crate) json_schema: Option<String>,
     /// Prompt to send to the model
     #[arg(
         value_name = "PROMPT",

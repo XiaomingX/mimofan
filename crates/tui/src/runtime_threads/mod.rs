@@ -1815,6 +1815,7 @@ impl RuntimeThreadManager {
             catalog_cache: std::sync::Arc::new(std::sync::Mutex::new(
                 crate::config_persistence::load_catalog_cache(),
             )),
+            extra_tools: crate::core::engine::engine_config::ExtraTools::default(),
         };
 
         let engine = spawn_engine(engine_cfg, &self.config);

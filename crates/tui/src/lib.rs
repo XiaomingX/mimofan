@@ -527,7 +527,8 @@ pub async fn run() -> Result<()> {
                     || args.max_turns.is_some()
                     || args.allowed_tools.is_some()
                     || args.disallowed_tools.is_some()
-                    || args.append_system_prompt.is_some();
+                    || args.append_system_prompt.is_some()
+                || args.json_schema.is_some();
                 if needs_engine {
                     let provider = config.api_provider();
                     let max_subagents = cli.max_subagents.map_or_else(
@@ -561,6 +562,7 @@ pub async fn run() -> Result<()> {
                         allowed_tools,
                         disallowed_tools,
                         args.append_system_prompt.clone(),
+                        args.json_schema.clone(),
                     )
                     .await
                 } else if args.json {

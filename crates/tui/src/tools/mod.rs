@@ -71,6 +71,7 @@ pub mod spec;
 pub mod speech;
 pub mod subagent;
 pub mod synthetic_output;
+pub mod json_schema_terminator;
 pub mod tasks;
 pub mod test_runner;
 pub mod todo;
