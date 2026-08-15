@@ -19,6 +19,10 @@ pub mod browser;
 pub mod cargo_failure_summary;
 pub mod dev_server_readiness;
 pub mod diagnostics;
+/// #850：结构化事件流（jsonl）+ replay。模块声明在此；工具注册（registry/engine）延后，本文件不接线。
+pub mod event_stream;
+/// #850：EventStreamTool（ReadOnly，实现 ToolSpec，注册延后）。
+pub mod replay;
 pub mod diff_format;
 pub mod dynamic;
 pub mod file;
