@@ -23,7 +23,10 @@ use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
 
 use crate::client::ApiClient;
-use crate::compaction::{compact_messages_safe, merge_system_prompts, should_compact};
+use crate::compaction::{
+    compact_messages_safe, compact_messages_safe_with_objective, merge_system_prompts,
+    should_compact,
+};
 use crate::config::{ApiProvider, Config};
 use crate::context_budget::ContextBudget;
 use crate::error_taxonomy::{ErrorCategory, ErrorEnvelope, StreamError};
@@ -2794,7 +2797,7 @@ impl Engine {
         let mut turn_status = TurnOutcomeStatus::Completed;
         let mut turn_error = None;
 
-        match compact_messages_safe(
+        match compact_messages_safe_with_objective(
             &client,
             &self.session.messages,
             &compaction_config,
@@ -3051,7 +3054,7 @@ impl Engine {
         forced_config.enabled = true;
         forced_config.token_threshold = forced_trigger;
 
-        match compact_messages_safe(
+        match compact_messages_safe_with_objective(
             client,
             &self.session.messages,
             &forced_config,

@@ -222,6 +222,29 @@ pub fn drift_check(before: &Objective, after_summary: &str) -> f64 {
     score.clamp(0.0, 1.0)
 }
 
+/// Build an [`Objective`] from a single goal string (e.g. a `goal_queue`
+/// objective). The text carries the full statement; `key_points` is left empty
+/// so drift detection falls back to whole-text word-overlap. This keeps the
+/// original user goal usable with [`drift_check`] without requiring an LLM
+/// extraction pass.
+impl From<&str> for Objective {
+    fn from(text: &str) -> Self {
+        Objective {
+            text: text.to_string(),
+            key_points: Vec::new(),
+        }
+    }
+}
+
+impl From<String> for Objective {
+    fn from(text: String) -> Self {
+        Objective {
+            text,
+            key_points: Vec::new(),
+        }
+    }
+}
+
 /// Similarity below this is considered objective drift.
 pub const DRIFT_THRESHOLD: f64 = 0.6;
 

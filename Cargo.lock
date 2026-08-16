@@ -3539,7 +3539,9 @@ version = "0.0.20"
 dependencies = [
  "anyhow",
  "rusqlite",
+ "serde",
  "serde_json",
+ "tempfile",
  "tree-sitter",
  "tree-sitter-java",
  "tree-sitter-javascript",

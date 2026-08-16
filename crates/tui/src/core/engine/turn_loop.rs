@@ -341,20 +341,25 @@ impl Engine {
 
                 // Re-inject the active objective into the compaction so long-horizon
                 // tasks don't drift after multiple context compactions (#841).
+                // The `goal_queue` objective is a plain string; bridge it into
+                // the structured `Objective` type used by the drift check (W1).
                 let active_objective = self.config.goal_queue.lock().ok().and_then(|g| {
                     g.active_id()
                         .and_then(|id| g.get(id))
                         .and_then(|e| e.goal.objective().map(str::to_owned))
                 });
+                let objective_ref = active_objective.as_ref().map(|s| {
+                    crate::compaction::objective::Objective::from(s.as_str())
+                });
 
-                match compact_messages_safe(
+                match compact_messages_safe_with_objective(
                     &client,
                     &self.session.messages,
                     &self.config.compaction,
                     Some(&self.session.workspace),
                     Some(&compaction_pins),
                     Some(&compaction_paths),
-                    active_objective.as_deref(),
+                    objective_ref.as_ref(),
                 )
                 .await
                 {
