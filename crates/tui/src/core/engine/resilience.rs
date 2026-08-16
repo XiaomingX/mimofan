@@ -464,21 +464,12 @@ pub enum ValidationVerdict {
 }
 
 /// Configuration for the validate-then-retry behavior (#845).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ValidationRetryConfig {
     /// Escalation policy applied on each failed validation.
     pub policy: EffortEscalationPolicy,
     /// Objective string passed to the validator (usually the goal objective).
     pub objective: Option<String>,
-}
-
-impl Default for ValidationRetryConfig {
-    fn default() -> Self {
-        Self {
-            policy: EffortEscalationPolicy::default(),
-            objective: None,
-        }
-    }
 }
 
 /// Retry a turn with escalating effort until validation passes or the
@@ -641,25 +632,25 @@ impl SharedResumeController {
         objective: &str,
         tokens_consumed: usize,
     ) -> Result<(), ResilienceError> {
-        if let Ok(mut g) = self.0.lock() {
-            if let Some(ctrl) = g.as_mut() {
-                return ctrl.checkpoints_mut().save_turn_checkpoint(
-                    turn,
-                    summary,
-                    objective,
-                    tokens_consumed,
-                );
-            }
+        if let Ok(mut g) = self.0.lock()
+            && let Some(ctrl) = g.as_mut()
+        {
+            return ctrl.checkpoints_mut().save_turn_checkpoint(
+                turn,
+                summary,
+                objective,
+                tokens_consumed,
+            );
         }
         Ok(())
     }
 
     /// Persist the serializable agent state if a controller is active.
     pub fn save_state(&self, state: &SerializableAgentState) -> Result<(), ResilienceError> {
-        if let Ok(mut g) = self.0.lock() {
-            if let Some(ctrl) = g.as_mut() {
-                return ctrl.save_state(state);
-            }
+        if let Ok(mut g) = self.0.lock()
+            && let Some(ctrl) = g.as_mut()
+        {
+            return ctrl.save_state(state);
         }
         Ok(())
     }

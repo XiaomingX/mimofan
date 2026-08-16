@@ -32,7 +32,6 @@ pub const MAX_GOAL_CONTINUATIONS_PER_TURN: u32 = 3;
 /// tokio worker 线程。若未来需在 async 上下文长持锁，应整体换为 `tokio::sync::Mutex`
 /// （届时需要把所有 `.lock()` 同步调用点改为 `.lock().await`，涉及 engine_messages/
 /// turn_loop/goal.rs 等多处，属独立评估项）。详见 ARCHITECTURE_STABILITY.md §8.3。
-
 /// Runtime status for a goal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GoalStatus {

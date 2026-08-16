@@ -155,7 +155,7 @@ async fn main() {
 
     // Test 6: Search Cache
     println!("\n6. Search Cache Tests");
-    let mut cache = SearchCache::new(100);
+    let cache = SearchCache::new(100);
 
     // Insert
     let data = vec![mimofan_memory::VectorMatch {

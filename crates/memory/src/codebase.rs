@@ -774,7 +774,7 @@ impl Tokenizer {
     #[test]
     fn chunk_source_splits_and_overlaps() {
         let chunks = chunk_source(SAMPLE, "rust");
-        assert!(chunks.len() >= 1);
+        assert!(!chunks.is_empty());
         for c in &chunks {
             assert_eq!(c.kind, ChunkKind::Lines);
             assert!(c.end_line >= c.start_line);

@@ -132,8 +132,8 @@ fn strip_comment(line: &str) -> (String, bool) {
     let mut in_single = false;
     let mut in_double = false;
     let mut result = String::new();
-    let mut chars = line.chars().peekable();
-    while let Some(c) = chars.next() {
+    let chars = line.chars().peekable();
+    for c in chars {
         match c {
             '\'' if !in_double => {
                 in_single = !in_single;
@@ -216,8 +216,8 @@ fn split_mapping_key(content: &str) -> Result<(String, Option<String>)> {
     // Find the first ':' that is not inside quotes and not part of `://`.
     let mut in_single = false;
     let mut in_double = false;
-    let mut chars = content.char_indices().peekable();
-    while let Some((i, c)) = chars.next() {
+    let chars = content.char_indices().peekable();
+    for (i, c) in chars {
         match c {
             '\'' if !in_double => in_single = !in_single,
             '"' if !in_single => in_double = !in_double,

@@ -162,10 +162,10 @@ impl SymbolIndex {
                 |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
             )
             .optional()?
+            && row.0 == hash
+            && row.1 == mtime
         {
-            if row.0 == hash && row.1 == mtime {
-                return Ok(false);
-            }
+            return Ok(false);
         }
 
         let tx = self.conn.transaction()?;
@@ -331,13 +331,13 @@ fn walk_source_files(root: &Path) -> Vec<PathBuf> {
         let p = e.path();
         if p.is_dir() {
             // Skip VCS / build artifacts to keep indexing cheap.
-            if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-                if matches!(
+            if let Some(name) = p.file_name().and_then(|n| n.to_str())
+                && matches!(
                     name,
                     ".git" | "target" | "node_modules" | "build" | ".next" | "dist"
-                ) {
-                    continue;
-                }
+                )
+            {
+                continue;
             }
             out.extend(walk_source_files(&p));
         } else if Language::from_path(&p.to_string_lossy()) != Language::Auto {

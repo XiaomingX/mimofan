@@ -235,6 +235,7 @@ impl AcpServer {
                     },
                 });
             }
+            #[allow(clippy::collapsible_if)]
             if let Some(embedded_value) = &embedded {
                 if let Some(system_ctx) = embedded_context_to_text(embedded_value) {
                     session.embedded_context = Some(system_ctx.clone());
@@ -477,27 +478,27 @@ fn extract_prompt_images(prompt: Option<&Value>) -> Vec<String> {
 fn embedded_context_to_text(context: &Value) -> Option<String> {
     let obj = context.as_object()?;
     let mut lines = Vec::new();
-    if let Some(visible) = obj.get("visibleFiles").and_then(Value::as_array) {
-        if !visible.is_empty() {
-            lines.push("Visible files:".to_string());
-            for f in visible {
-                if let Some(s) = f.as_str() {
-                    lines.push(format!("- {s}"));
-                } else if let Some(p) = f.get("path").and_then(Value::as_str) {
-                    lines.push(format!("- {p}"));
-                }
+    if let Some(visible) = obj.get("visibleFiles").and_then(Value::as_array)
+        && !visible.is_empty()
+    {
+        lines.push("Visible files:".to_string());
+        for f in visible {
+            if let Some(s) = f.as_str() {
+                lines.push(format!("- {s}"));
+            } else if let Some(p) = f.get("path").and_then(Value::as_str) {
+                lines.push(format!("- {p}"));
             }
         }
     }
-    if let Some(tabs) = obj.get("openTabs").and_then(Value::as_array) {
-        if !tabs.is_empty() {
-            lines.push("Open tabs:".to_string());
-            for t in tabs {
-                if let Some(s) = t.as_str() {
-                    lines.push(format!("- {s}"));
-                } else if let Some(p) = t.get("path").and_then(Value::as_str) {
-                    lines.push(format!("- {p}"));
-                }
+    if let Some(tabs) = obj.get("openTabs").and_then(Value::as_array)
+        && !tabs.is_empty()
+    {
+        lines.push("Open tabs:".to_string());
+        for t in tabs {
+            if let Some(s) = t.as_str() {
+                lines.push(format!("- {s}"));
+            } else if let Some(p) = t.get("path").and_then(Value::as_str) {
+                lines.push(format!("- {p}"));
             }
         }
     }

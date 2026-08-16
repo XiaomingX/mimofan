@@ -105,14 +105,14 @@ pub fn scan_line(line: &str) -> Vec<SecretMatch> {
     // 1. PEM / key-block headers — whole-line structural markers.
     if line.contains("-----BEGIN") && line.contains("PRIVATE KEY-----") {
         // The header itself is the marker; approximate the span to the line.
-        if let Some(start) = line.find("-----BEGIN") {
-            if let Some(end) = line[start..].find("-----") {
-                matches.push(SecretMatch {
-                    kind: SecretKind::PrivateKey,
-                    start,
-                    end: start + end + 5,
-                });
-            }
+        if let Some(start) = line.find("-----BEGIN")
+            && let Some(end) = line[start..].find("-----")
+        {
+            matches.push(SecretMatch {
+                kind: SecretKind::PrivateKey,
+                start,
+                end: start + end + 5,
+            });
         }
     }
 
@@ -238,7 +238,7 @@ pub fn scan_generic_assignment(line: &str) -> Option<SecretMatch> {
     // `text()` returns just the bare credential value.
     let value_start = line[eq + 1..]
         .char_indices()
-        .find(|(i, c)| !c.is_whitespace() && *c != '"' && *c != '\'')
+        .find(|(_, c)| !c.is_whitespace() && *c != '"' && *c != '\'')
         .map(|(i, _)| eq + 1 + i)
         .unwrap_or(eq + 1);
     let value_end = value_start + value.len();
@@ -275,12 +275,12 @@ pub fn redact_line(line: &str) -> String {
     matches.sort_by_key(|m| m.start);
     let mut merged: Vec<SecretMatch> = Vec::new();
     for m in matches {
-        if let Some(last) = merged.last_mut() {
-            if m.start <= last.end {
-                // Overlap: extend the span, keep the earlier kind.
-                last.end = last.end.max(m.end);
-                continue;
-            }
+        if let Some(last) = merged.last_mut()
+            && m.start <= last.end
+        {
+            // Overlap: extend the span, keep the earlier kind.
+            last.end = last.end.max(m.end);
+            continue;
         }
         merged.push(m);
     }

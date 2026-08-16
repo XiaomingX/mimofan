@@ -7,14 +7,9 @@
 //! slices can read and mutate.
 //!
 //! Design notes:
-//! - Fields are string lists so the profile is easy to merge and to render
-//!   into a system prompt later. No ML, no external calls.
-//! - `UserProfile` is low-frequency / high-value memory: future decay logic
-//!   (#716) must exempt it or weight it heavily. This module only models the
-//!   data; exemption is enforced by the caller.
-//! - A user *correction* should replace a prior entry, not append a
-//!   contradictory one. [`UserProfile::apply_correction`] handles that by
-//! keying on a stable `tag` per entry.
+//! - Fields are string lists, so the profile is easy to merge and to render into a system prompt later. No ML, no external calls.
+//! - `UserProfile` is low-frequency / high-value memory: future decay logic (#716) must exempt it or weight it heavily. This module only models the data; exemption is enforced by the caller.
+//! - A user *correction* should replace a prior entry, not append a contradictory one. [`UserProfile::apply_correction`] handles that by keying on a stable `tag` per entry.
 
 use std::path::{Path, PathBuf};
 
@@ -309,16 +304,15 @@ pub fn distill_from_transcript(turns: &[String]) -> Vec<(Bucket, ProfileEntry)> 
     for turn in turns {
         let t = turn.trim();
         let low = t.to_lowercase();
-        if low.contains("prefer")
+        if (low.contains("prefer")
             || low.contains("don't") && low.contains("want")
-            || low.contains("never") && low.contains("want")
+            || low.contains("never") && low.contains("want"))
+            && low.contains("prefer")
         {
-            if low.contains("prefer") {
-                out.push((
-                    Bucket::Preferences,
-                    ProfileEntry::new(format!("pref_{}", t.len()), t.to_string()),
-                ));
-            }
+            out.push((
+                Bucket::Preferences,
+                ProfileEntry::new(format!("pref_{}", t.len()), t.to_string()),
+            ));
         }
         for lang in lower_langs {
             if low.contains("fluent in") && low.contains(lang)
@@ -362,8 +356,7 @@ mod tests {
     use super::*;
 
     fn tmp_path() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("mimofan_up_test_{}", uuid::Uuid::new_v4()));
-        dir
+        std::env::temp_dir().join(format!("mimofan_up_test_{}", uuid::Uuid::new_v4()))
     }
 
     #[test]

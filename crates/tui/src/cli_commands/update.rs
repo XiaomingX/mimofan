@@ -359,10 +359,10 @@ pub(crate) fn detect_install_method(current_exe: &Path) -> InstallMethod {
     }
     // 符号链接本身所在的位置也可能带特征（如 node_modules/.bin/mimofan
     // 指向别处），原路径再查一遍。
-    if resolved != current_exe {
-        if let Some(method) = detect_from_path_components(current_exe) {
-            return method;
-        }
+    if let Some(method) = detect_from_path_components(current_exe)
+        && resolved != current_exe
+    {
+        return method;
     }
 
     if is_under_cargo_bin(&resolved) || is_under_cargo_bin(current_exe) {
@@ -423,10 +423,10 @@ fn is_under_cargo_bin(path: &Path) -> bool {
 
 fn cargo_bin_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
-    if let Some(cargo_home) = std::env::var_os("CARGO_HOME") {
-        if !cargo_home.is_empty() {
-            dirs.push(PathBuf::from(cargo_home).join("bin"));
-        }
+    if let Some(cargo_home) = std::env::var_os("CARGO_HOME")
+        && !cargo_home.is_empty()
+    {
+        dirs.push(PathBuf::from(cargo_home).join("bin"));
     }
     if let Some(home) = home_dir() {
         dirs.push(home.join(".cargo").join("bin"));

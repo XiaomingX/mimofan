@@ -86,7 +86,7 @@ mod tests {
         let rate = (successes * 100).saturating_div(attempts);
         assert_eq!(rate, 75);
 
-        let all_fail = (0u64 * 100).saturating_div(2);
+        let all_fail = (0u64).saturating_div(2);
         assert_eq!(all_fail, 0);
 
         let all_pass = (2u64 * 100).saturating_div(2);

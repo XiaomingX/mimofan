@@ -2798,15 +2798,15 @@ impl Engine {
     fn load_shared_loop_guard(&self, session_id: &str) -> crate::loop_guard::SharedLoopGuard {
         use crate::loop_guard::LoopGuard;
         let mut guard = LoopGuard::default();
-        if let Ok(manager) = crate::session_manager::SessionManager::default_location() {
-            if let Ok(Some(state)) = manager.load_loop_guard_state(session_id) {
-                guard.restore_state(&state);
-                tracing::debug!(
-                    target: "engine.loop_guard",
-                    observed = state.observed,
-                    "restored persisted loop_guard_state across turns"
-                );
-            }
+        if let Ok(manager) = crate::session_manager::SessionManager::default_location()
+            && let Ok(Some(state)) = manager.load_loop_guard_state(session_id)
+        {
+            guard.restore_state(&state);
+            tracing::debug!(
+                target: "engine.loop_guard",
+                observed = state.observed,
+                "restored persisted loop_guard_state across turns"
+            );
         }
         std::sync::Arc::new(tokio::sync::Mutex::new(guard))
     }
@@ -2821,14 +2821,14 @@ impl Engine {
     ) {
         use crate::loop_guard::LoopGuardState;
         let state: LoopGuardState = guard.lock().await.snapshot_state();
-        if let Ok(manager) = crate::session_manager::SessionManager::default_location() {
-            if let Err(err) = manager.save_loop_guard_state(session_id, &state) {
-                tracing::warn!(
-                    target: "engine.loop_guard",
-                    ?err,
-                    "failed to persist loop_guard_state for session {session_id}"
-                );
-            }
+        if let Ok(manager) = crate::session_manager::SessionManager::default_location()
+            && let Err(err) = manager.save_loop_guard_state(session_id, &state)
+        {
+            tracing::warn!(
+                target: "engine.loop_guard",
+                ?err,
+                "failed to persist loop_guard_state for session {session_id}"
+            );
         }
     }
 
@@ -3004,15 +3004,7 @@ impl Engine {
         let mut snapshot = match snapshot {
             Some(snap) => snap,
             None => {
-                let promoted = self
-                    .config
-                    .goal_queue
-                    .lock()
-                    .ok()
-                    .and_then(|mut q| q.promote_next_ready());
-                if promoted.is_none() {
-                    return None;
-                }
+                self.config.goal_queue.lock().ok()?.promote_next_ready()?;
                 match self.config.goal_queue.lock() {
                     Ok(state) => state.active_snapshot()?,
                     Err(_) => return None,
@@ -3251,7 +3243,7 @@ fn shell_completion_notification_text(
             exit,
             truncate_runtime_status_field(&event.command, 120),
             truncate_runtime_status_field(
-                &if event.stderr_tail.is_empty() {
+                if event.stderr_tail.is_empty() {
                     &event.stdout_tail
                 } else {
                     &event.stderr_tail

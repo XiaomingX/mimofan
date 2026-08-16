@@ -252,7 +252,7 @@ fn handle_list(app: &mut App) -> CommandResult {
         );
     }
 
-    monitors.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    monitors.sort_by_key(|m| std::cmp::Reverse(m.created_at));
 
     let mut text = format!("## Issue Monitors ({})\n\n", monitors.len());
     for m in &monitors {

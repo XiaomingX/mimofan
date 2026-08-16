@@ -70,18 +70,18 @@ impl KnowledgeBase {
         let m = doc.as_map().context("KB doc must be a mapping")?;
         if let Some(Yaml::Seq(items)) = m.get("gadgets") {
             for it in items {
-                let g = parse_gadget(&it)?;
+                let g = parse_gadget(it)?;
                 self.gadgets.insert(g.id.clone(), g);
             }
         }
         if let Some(Yaml::Seq(items)) = m.get("chains") {
             for it in items {
-                self.chains.push(parse_chain(&it)?);
+                self.chains.push(parse_chain(it)?);
             }
         }
         if let Some(Yaml::Seq(items)) = m.get("patterns") {
             for it in items {
-                self.patterns.push(parse_pattern(&it)?);
+                self.patterns.push(parse_pattern(it)?);
             }
         }
         Ok(())

@@ -20,20 +20,15 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// 记忆条目类别。用于切片 B 的 kind 权重评分（本切片仅透传，不参与计算）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MemoryKind {
     /// 情景记忆：具体某次交互/观察
+    #[default]
     Episodic,
     /// 语义记忆：从多条情景中归纳出的高层知识
     Semantic,
     /// 程序性记忆：操作/流程偏好
     Procedural,
-}
-
-impl Default for MemoryKind {
-    fn default() -> Self {
-        MemoryKind::Episodic
-    }
 }
 
 /// 一条可巩固的记忆条目（切片 A 数据结构）。

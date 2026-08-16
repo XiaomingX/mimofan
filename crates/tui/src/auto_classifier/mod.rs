@@ -163,8 +163,7 @@ pub fn classify_with_timeout(
         // clock: if the call somehow runs longer than `timeout`, treat as
         // timeout. (A blocking backend that ignores the deadline is itself a
         // bug, but the deadline check below bounds the *decision* latency.)
-        let verdict = backend.classify(tool_name, input_summary);
-        verdict
+        backend.classify(tool_name, input_summary)
     });
     if start.elapsed() > timeout {
         return fallback;

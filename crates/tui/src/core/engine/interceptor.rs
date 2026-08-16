@@ -39,7 +39,7 @@ pub trait TurnInterceptor: Send + Sync {
     ///   - `None`      → defer to the existing stop logic,
     ///   - `Some(true)`  → force-stop the turn (OR-ed with existing logic),
     ///   - `Some(false)` → explicitly do not override (still OR-ed, so a
-    ///                     `true` from another interceptor / existing logic wins).
+    ///     `true` from another interceptor / existing logic wins).
     fn turn_stopping(&self, _turn: u64) -> Option<bool> {
         None
     }

@@ -97,10 +97,7 @@ fn lexical_components(path: &Path) -> Option<(Option<String>, Vec<String>)> {
         match comp {
             "" | "." => continue,
             ".." => {
-                if stack.pop().is_none() {
-                    // 越过根，逃逸
-                    return None;
-                }
+                stack.pop()?;
             }
             other => stack.push(other.to_ascii_lowercase()),
         }
@@ -114,10 +111,10 @@ fn components_are_sensitive(components: &[String]) -> bool {
         if SENSITIVE_BASENAMES.contains(&last.as_str()) {
             return true;
         }
-        if let Some((_, ext)) = last.rsplit_once('.') {
-            if SENSITIVE_EXTENSIONS.contains(&format!(".{ext}").as_str()) {
-                return true;
-            }
+        if let Some((_, ext)) = last.rsplit_once('.')
+            && SENSITIVE_EXTENSIONS.contains(&format!(".{ext}").as_str())
+        {
+            return true;
         }
     }
     // 也检查路径中任意段命中 .ssh / .env 目录（如 /home/u/.ssh/known_hosts）

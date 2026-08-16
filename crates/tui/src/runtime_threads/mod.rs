@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::Utc;
-use dirs;
+use dirs::home_dir;
 use serde_json::{Value, json};
 use std::io;
 use tokio::sync::mpsc::UnboundedSender;

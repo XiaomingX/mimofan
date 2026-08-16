@@ -161,19 +161,19 @@ impl ProtocolFsm {
         let known: HashSet<&str> = self.states.iter().map(|s| s.as_str()).collect();
         for (method, line) in calls {
             // Guard check: is this method allowed in the current state?
-            if let Some(g) = self.guards.iter().find(|g| &g.on == method) {
-                if state != g.require_state {
-                    violations.push(ProtocolViolation {
-                        protocol: self.protocol.clone(),
-                        object: self.object.clone(),
-                        method: method.clone(),
-                        at_line: *line,
-                        message: format!(
-                            "protocol `{}`: `{}` called in state `{}` but requires `{}`",
-                            self.protocol, method, state, g.require_state
-                        ),
-                    });
-                }
+            if let Some(g) = self.guards.iter().find(|g| &g.on == method)
+                && state != g.require_state
+            {
+                violations.push(ProtocolViolation {
+                    protocol: self.protocol.clone(),
+                    object: self.object.clone(),
+                    method: method.clone(),
+                    at_line: *line,
+                    message: format!(
+                        "protocol `{}`: `{}` called in state `{}` but requires `{}`",
+                        self.protocol, method, state, g.require_state
+                    ),
+                });
             }
             // Transition: advance state if a matching edge exists.
             if let Some(t) = self
@@ -223,6 +223,12 @@ pub fn load_protocols_dir(dir: &str) -> Result<Vec<ProtocolFsm>> {
         }
     }
     Ok(out)
+}
+
+/// Keep BTreeMap referenced so the import is meaningful for future indexing.
+#[allow(dead_code)]
+fn _assert_btreemap_used() -> BTreeMap<u8, u8> {
+    BTreeMap::new()
 }
 
 #[cfg(test)]
@@ -283,10 +289,4 @@ guards:
             "safe order should pass: {violations:?}"
         );
     }
-}
-
-/// Keep BTreeMap referenced so the import is meaningful for future indexing.
-#[allow(dead_code)]
-fn _assert_btreemap_used() -> BTreeMap<u8, u8> {
-    BTreeMap::new()
 }

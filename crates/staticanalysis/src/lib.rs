@@ -61,9 +61,7 @@ impl Language {
             Language::Rust
         } else if lower.ends_with(".java") {
             Language::Java
-        } else if lower.ends_with(".tsx") {
-            Language::TypeScript
-        } else if lower.ends_with(".ts") {
+        } else if lower.ends_with(".tsx") || lower.ends_with(".ts") {
             Language::TypeScript
         } else if lower.ends_with(".js") || lower.ends_with(".mjs") || lower.ends_with(".cjs") {
             Language::JavaScript
@@ -178,7 +176,7 @@ pub fn query_source(
         .parse(source, None)
         .ok_or_else(|| AstError::Parse("tree-sitter returned no tree".into()))?;
 
-    let q = Query::new(&ts_lang.into(), query).map_err(|e| AstError::Query(e.message))?;
+    let q = Query::new(&ts_lang, query).map_err(|e| AstError::Query(e.message))?;
     let mut cursor = QueryCursor::new();
     let mut hits = Vec::new();
 

@@ -39,6 +39,7 @@ impl NotificationSink for StderrSink {
 pub struct StdoutSink;
 
 impl NotificationSink for StdoutSink {
+    #[allow(clippy::print_stdout)]
     fn notify(&self, agent_id: &str, message: &str) {
         println!("[notify] agent {agent_id}: {message}");
     }

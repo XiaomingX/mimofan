@@ -266,30 +266,29 @@ impl<'a> Solver<'a> {
             }
 
             // Sanitizer: clears/partially clears taint on its argument.
-            if let Some(san) = self.match_sanitizer(call) {
-                if let Some(arg) = san.symbol.arg.or(Some(0)) {
-                    if let Some(t) = incoming.get(&arg) {
-                        let cleaned = t.apply_sanitizer(&san);
-                        // Strong sanitizer makes the return clean.
-                        let ret = if san.neutralizes.is_empty() {
-                            TaintTag::default()
-                        } else {
-                            cleaned
-                        };
-                        // Only mark the worklist dirty if the sanitizer actually
-                        // changed the recorded return taint — otherwise the
-                        // monotonic fixpoint re-enqueues every call on every
-                        // iteration and trips the cycle guard prematurely.
-                        let prev = self.ret_taint.get(&call_id);
-                        let differs = match prev {
-                            None => true,
-                            Some(p) => p != &ret,
-                        };
-                        if differs {
-                            self.ret_taint.insert(call_id, ret);
-                            changed = true;
-                        }
-                    }
+            if let Some(san) = self.match_sanitizer(call)
+                && let Some(arg) = san.symbol.arg.or(Some(0))
+                && let Some(t) = incoming.get(&arg)
+            {
+                let cleaned = t.apply_sanitizer(san);
+                // Strong sanitizer makes the return clean.
+                let ret = if san.neutralizes.is_empty() {
+                    TaintTag::default()
+                } else {
+                    cleaned
+                };
+                // Only mark the worklist dirty if the sanitizer actually
+                // changed the recorded return taint — otherwise the
+                // monotonic fixpoint re-enqueues every call on every
+                // iteration and trips the cycle guard prematurely.
+                let prev = self.ret_taint.get(&call_id);
+                let differs = match prev {
+                    None => true,
+                    Some(p) => p != &ret,
+                };
+                if differs {
+                    self.ret_taint.insert(call_id, ret);
+                    changed = true;
                 }
             }
 
@@ -299,10 +298,10 @@ impl<'a> Solver<'a> {
                 .match_propagator(call)
                 .map(|p| (p.from_arg.unwrap_or(0), p.to_receiver));
             if let Some((from, to_receiver)) = prop_info {
-                if let Some(t) = incoming.get(&from) {
-                    if self.ret_taint.insert(call_id, t.clone()).is_none() || changed {
-                        changed = true;
-                    }
+                if let Some(t) = incoming.get(&from)
+                    && (self.ret_taint.insert(call_id, t.clone()).is_none() || changed)
+                {
+                    changed = true;
                 }
                 if to_receiver {
                     // Mark the receiver as carrying taint (approximated by

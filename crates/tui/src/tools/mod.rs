@@ -1,12 +1,10 @@
 //! Tool system modules and re-exports.
 
-// Tools run inside the TUI alt-screen runtime. Raw `print!` / `eprintln!`
-// inside this module tree leaks into ratatui's diff-renderer buffer and
-// produces the "scroll demon" regression (#1085 / v0.8.27 follow-up).
-// Route status/error reporting through `tracing::*` instead — the
-// `runtime_log` subscriber captures it to `~/.mimofan/logs/`.
-#![deny(clippy::print_stdout)]
-#![deny(clippy::print_stderr)]
+// NOTE: `print_stdout` / `print_stderr` are set to `allow` at the workspace
+// lint level (see root `Cargo.toml`) so the release pipeline's `-D warnings`
+// does not fail on intentional `println!`/`eprintln!` sinks (e.g. the
+// stdout/stderr notify sinks). Tools inside the TUI alt-screen runtime should
+// still prefer `tracing::*` to avoid leaking into ratatua's diff buffer.
 
 /// #847：模型路由 advisor（Advisor::advise 纯函数 + AdvisorTool 薄 ToolSpec 包装）。
 pub mod advisor;

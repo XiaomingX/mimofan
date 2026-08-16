@@ -96,15 +96,13 @@ fn parse_cargo_lock(content: &str) -> Result<Vec<Dependency>> {
             in_package = true;
             cur_name = None;
             cur_version = None;
-        } else if in_package {
-            if let Some((k, v)) = t.split_once('=') {
-                let k = k.trim();
-                let v = v.trim().trim_matches('"').to_string();
-                if k == "name" {
-                    cur_name = Some(v);
-                } else if k == "version" {
-                    cur_version = Some(v);
-                }
+        } else if in_package && let Some((k, v)) = t.split_once('=') {
+            let k = k.trim();
+            let v = v.trim().trim_matches('"').to_string();
+            if k == "name" {
+                cur_name = Some(v);
+            } else if k == "version" {
+                cur_version = Some(v);
             }
         }
     }
@@ -128,15 +126,15 @@ fn parse_npm_lock(content: &str) -> Result<Vec<Dependency>> {
             // npm v2/v3 keys look like `node_modules/lodash` or
             // `node_modules/a/node_modules/b`; the package name is the segment
             // after the LAST `node_modules/`.
-            if let Some(name) = key.rsplit("node_modules/").next() {
-                if let Some(ver) = val.get("version").and_then(|x| x.as_str()) {
-                    deps.push(Dependency {
-                        name: name.to_string(),
-                        version: ver.to_string(),
-                        ecosystem: "npm".into(),
-                        reachable: true,
-                    });
-                }
+            if let Some(name) = key.rsplit("node_modules/").next()
+                && let Some(ver) = val.get("version").and_then(|x| x.as_str())
+            {
+                deps.push(Dependency {
+                    name: name.to_string(),
+                    version: ver.to_string(),
+                    ecosystem: "npm".into(),
+                    reachable: true,
+                });
             }
         }
     }

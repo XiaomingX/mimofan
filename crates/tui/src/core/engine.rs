@@ -1064,6 +1064,7 @@ impl Engine {
             // the pre-turn state and must not block the turn from starting.
             // This mirrors the post-turn snapshot path, which is already
             // unsupervised (engine.rs post-turn call sites).
+            #[allow(clippy::let_underscore_future)]
             let _ = crate::utils::spawn_blocking_supervised("pre-turn-snapshot", move || {
                 let _ = pre_turn_snapshot(
                     &pre_workspace,
@@ -1778,13 +1779,13 @@ impl Engine {
         }
 
         if let Some(state) = controller.load_state() {
-            if let Some(remaining) = state.budget_remaining {
-                if let Some(budget) = self.task_budget.as_mut() {
-                    budget.remaining = remaining;
-                    budget.consumed = state.tokens_consumed;
-                    if let Some(total) = state.budget_total {
-                        budget.total = total;
-                    }
+            if let Some(remaining) = state.budget_remaining
+                && let Some(budget) = self.task_budget.as_mut()
+            {
+                budget.remaining = remaining;
+                budget.consumed = state.tokens_consumed;
+                if let Some(total) = state.budget_total {
+                    budget.total = total;
                 }
             }
             self.escalations_applied = state.escalations_applied;
@@ -1810,17 +1811,20 @@ impl Engine {
     #[must_use]
     pub fn snapshot_state(&self) -> crate::core::engine::resilience::SerializableAgentState {
         use crate::core::engine::resilience::SerializableAgentState;
-        let mut state = SerializableAgentState::default();
-        state.objective = self.config.goal_objective.clone().unwrap_or_default();
-        state.turn_index = self.turn_counter;
-        state.escalations_applied = self.escalations_applied;
-        state.model = self.session.model.clone();
-        state.reasoning_effort = self.session.reasoning_effort.clone();
-        state.tokens_consumed =
-            self.session
+        let mut state = SerializableAgentState {
+            objective: self.config.goal_objective.clone().unwrap_or_default(),
+            turn_index: self.turn_counter,
+            escalations_applied: self.escalations_applied,
+            model: self.session.model.clone(),
+            reasoning_effort: self.session.reasoning_effort.clone(),
+            tokens_consumed: self
+                .session
                 .total_usage
                 .input_tokens
-                .saturating_add(self.session.total_usage.output_tokens) as usize;
+                .saturating_add(self.session.total_usage.output_tokens)
+                as usize,
+            ..Default::default()
+        };
         if let Some(budget) = &self.task_budget {
             state.budget_remaining = Some(budget.remaining);
             state.budget_total = Some(budget.total);
@@ -1949,8 +1953,10 @@ impl Engine {
         // the channel sends afterwards so the engine future stays `Send`).
         let (verdict_met, step) = {
             use crate::tools::verifier::goal_gate::{GoalEvidence, GoalGate};
-            let mut evidence = GoalEvidence::default();
-            evidence.observed_output = observed_output;
+            let mut evidence = GoalEvidence {
+                observed_output,
+                ..Default::default()
+            };
             let gate = GoalGate::default_set();
             let verdict = gate.evaluate(&objective, &evidence);
             if verdict.met {
@@ -2126,6 +2132,7 @@ impl Engine {
             let pre_conv = self.session.messages.len();
             // Fire-and-forget: archive the pre-turn state without blocking the
             // turn start (mirrors the unsupervised post-turn snapshot path).
+            #[allow(clippy::let_underscore_future)]
             let _ = crate::utils::spawn_blocking_supervised("pre-turn-snapshot", move || {
                 let _ = pre_turn_snapshot(
                     &pre_workspace,
@@ -2530,13 +2537,11 @@ impl Engine {
         // structured failure event to the configured failure log so a headless
         // supervisor can detect and restart the crash. Best-effort: failures to
         // write the log are logged but do not change the turn outcome.
-        if self.headless_gate.is_some() {
-            if status != TurnOutcomeStatus::Completed {
-                let message = error.clone().unwrap_or_else(|| {
-                    format!("turn ended with status {status:?} in unattended mode")
-                });
-                self.write_headless_failure("turn_failed", &message);
-            }
+        if self.headless_gate.is_some() && status != TurnOutcomeStatus::Completed {
+            let message = error
+                .clone()
+                .unwrap_or_else(|| format!("turn ended with status {status:?} in unattended mode"));
+            self.write_headless_failure("turn_failed", &message);
         }
 
         // Update session usage

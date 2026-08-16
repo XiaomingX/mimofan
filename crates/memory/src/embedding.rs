@@ -33,15 +33,15 @@ static DEGRADED_COUNT: AtomicU64 = AtomicU64::new(0);
 /// touching callers (#712). Return types mirror the existing API surface
 /// (`Vec<f32>`), so adopting the trait is a pure refactor with zero behavior
 /// change for existing callers.
+/// Future returned by [`Embedder`] embedding methods.
+pub type EmbedFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
+
 pub trait Embedder: Send + Sync {
     /// Embed a single text into a vector.
-    fn embed(&self, text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>>;
+    fn embed(&self, text: &str) -> EmbedFuture<'_, Vec<f32>>;
 
     /// Embed a batch of texts. Implementations may batch network calls.
-    fn embed_batch(
-        &self,
-        texts: &[String],
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>>;
+    fn embed_batch(&self, texts: &[String]) -> EmbedFuture<'_, Vec<Vec<f32>>>;
 
     /// Dimension of the produced vectors.
     fn dim(&self) -> usize;

@@ -110,7 +110,7 @@ impl Observation {
 
     /// True if `expires_at` is in the past (`None` ⇒ never expires).
     pub fn is_expired(&self, now: i64) -> bool {
-        self.expires_at.map_or(false, |exp| now >= exp)
+        self.expires_at.is_some_and(|exp| now >= exp)
     }
 }
 
@@ -491,7 +491,7 @@ impl VectorStore {
             )
             .optional()?;
         match found {
-            Some((id, expires)) if expires.map_or(true, |e| now < e) => {
+            Some((id, expires)) if expires.is_none_or(|e| now < e) => {
                 self.sqlite.execute(
                     "UPDATE observations SET created_at = ?1, last_accessed_at = ?1 WHERE id = ?2",
                     rusqlite::params![now, id],

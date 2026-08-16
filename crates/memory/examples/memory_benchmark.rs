@@ -216,7 +216,7 @@ fn benchmark_compressor() {
 fn benchmark_search_cache() {
     println!("\n=== Search Cache Benchmark ===");
 
-    let mut cache = mimofan_memory::optimization::SearchCache::new(1000);
+    let cache = mimofan_memory::optimization::SearchCache::new(1000);
 
     // Generate test data
     let test_data: Vec<(String, Vec<mimofan_memory::VectorMatch>)> = (0..1000)

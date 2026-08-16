@@ -25,6 +25,7 @@ use mimofan_secrets::Secrets;
 use mimofan_state::{StateStore, ThreadListFilters};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum ProviderArg {
     /// OpenAI-compatible `/v1/chat/completions` endpoint.
     OpenAiCompatible,

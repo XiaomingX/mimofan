@@ -95,10 +95,10 @@ impl CallGraph {
                 continue;
             }
             for edge in self.calls_of(current) {
-                if let Some(callee) = edge.callee {
-                    if !visited.contains(&callee) {
-                        worklist.push(callee);
-                    }
+                if let Some(callee) = edge.callee
+                    && !visited.contains(&callee)
+                {
+                    worklist.push(callee);
                 }
                 // Unresolved callees (None) are skipped: they have no node in
                 // this unit, matching the conservative same-file resolution.
@@ -178,24 +178,24 @@ impl CallGraph {
 
 /// Recursively find `function_item` nodes and register them.
 fn collect_functions(graph: &mut CallGraph, file: &str, source: &str, node: Node) {
-    if node.kind() == "function_item" {
-        if let Some(name_node) = node.child_by_field_name("name") {
-            let name = name_node
-                .utf8_text(source.as_bytes())
-                .unwrap_or("")
-                .to_string();
-            if !name.is_empty() {
-                let id = FuncId(graph.functions.len());
-                graph.functions.push(Function {
-                    id,
-                    name: name.clone(),
-                    file: file.to_string(),
-                    line: name_node.start_position().row + 1,
-                });
-                graph.by_id.insert(id, name.clone());
-                // First definition wins for same-file name resolution.
-                graph.name_to_id.entry(name).or_insert(id);
-            }
+    if node.kind() == "function_item"
+        && let Some(name_node) = node.child_by_field_name("name")
+    {
+        let name = name_node
+            .utf8_text(source.as_bytes())
+            .unwrap_or("")
+            .to_string();
+        if !name.is_empty() {
+            let id = FuncId(graph.functions.len());
+            graph.functions.push(Function {
+                id,
+                name: name.clone(),
+                file: file.to_string(),
+                line: name_node.start_position().row + 1,
+            });
+            graph.by_id.insert(id, name.clone());
+            // First definition wins for same-file name resolution.
+            graph.name_to_id.entry(name).or_insert(id);
         }
     }
     let mut cursor = node.walk();
@@ -271,7 +271,7 @@ fn scan_calls_in_body(graph: &mut CallGraph, source: &str, caller: FuncId, body:
 /// skeleton; type/field-sensitive resolution is a later slice of #598.
 fn resolve_callee_name(function_node: Node, source: &str) -> String {
     let text = function_node.utf8_text(source.as_bytes()).unwrap_or("");
-    text.rsplit(|c| c == ':' || c == '.')
+    text.rsplit([':', '.'])
         .next()
         .unwrap_or("")
         .trim()

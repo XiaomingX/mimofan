@@ -341,7 +341,6 @@ mod tests {
     /// must all be stripped when the input did not come from an external user.
     /// This is a determinism contract: the same (provenance, flags) always
     /// produces the same downgraded policy.
-
     fn baseline_for(
         provenance: UserInputProvenance,
         mode: AppMode,

@@ -289,12 +289,6 @@ impl MemoryInjector {
     /// injection cap reflects the model's actual token accounting rather than
     /// an unrelated guess, which is what the probe guards against.
     pub fn count_tokens(&self, text: &str) -> usize {
-        #[cfg(feature = "tokenizer")]
-        {
-            if let Ok(n) = mimofan_tokenizer::count_tokens(text) {
-                return n;
-            }
-        }
         self.estimate_tokens(text)
     }
 
@@ -368,7 +362,7 @@ pub(crate) fn reassemble_session_timeline(
             (sid.clone(), latest)
         })
         .collect();
-    session_order.sort_by(|a, b| b.1.cmp(&a.1));
+    session_order.sort_by_key(|a| std::cmp::Reverse(a.1));
 
     // Flatten: for each session (most-recent-first), replay its entries
     // chronologically (oldest first).

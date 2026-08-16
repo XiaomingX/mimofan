@@ -47,7 +47,7 @@ impl MemoryCategory {
 
     /// 从字符串解析分类（大小写不敏感）。
     #[must_use]
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn from_str_name(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
             "user" => Some(MemoryCategory::User),
             "feedback" => Some(MemoryCategory::Feedback),
@@ -64,23 +64,26 @@ mod tests {
 
     #[test]
     fn parsing_roundtrip() {
-        assert_eq!(MemoryCategory::from_str("user"), Some(MemoryCategory::User));
         assert_eq!(
-            MemoryCategory::from_str("FEEDBACK"),
+            MemoryCategory::from_str_name("user"),
+            Some(MemoryCategory::User)
+        );
+        assert_eq!(
+            MemoryCategory::from_str_name("FEEDBACK"),
             Some(MemoryCategory::Feedback)
         );
         assert_eq!(
-            MemoryCategory::from_str("Project"),
+            MemoryCategory::from_str_name("Project"),
             Some(MemoryCategory::Project)
         );
         assert_eq!(
-            MemoryCategory::from_str("reference"),
+            MemoryCategory::from_str_name("reference"),
             Some(MemoryCategory::Reference)
         );
-        assert_eq!(MemoryCategory::from_str("bogus"), None);
-        assert_eq!(MemoryCategory::from_str(""), None);
+        assert_eq!(MemoryCategory::from_str_name("bogus"), None);
+        assert_eq!(MemoryCategory::from_str_name(""), None);
         for cat in MemoryCategory::ALL {
-            assert_eq!(MemoryCategory::from_str(cat.as_str()), Some(*cat));
+            assert_eq!(MemoryCategory::from_str_name(cat.as_str()), Some(*cat));
             assert_eq!(cat.as_str(), cat.as_str().to_ascii_lowercase().as_str());
         }
     }

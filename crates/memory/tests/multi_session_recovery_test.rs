@@ -86,7 +86,7 @@ fn test_memory_recovery_is_idempotent_across_multiple_restarts() {
     let store1 = VectorStore::open(&path, DIM).expect("open store 1");
     let obs = session_observation(0, "alpha");
     let id = store1
-        .store_observation(&obs, &vec![1.0; DIM])
+        .store_observation(&obs, &[1.0; DIM])
         .expect("store observation");
     drop(store1);
 

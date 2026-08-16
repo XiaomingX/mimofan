@@ -22,7 +22,7 @@ default-members = ["crates/app-server", "crates/tui"]
 resolver = "2"
 
 [workspace.package]
-version = "0.0.19"
+version = "0.0.20"
 edition = "2024"
 # The codebase itself only needs 1.88 (`let_chains` in `if`/`while`
 # conditions, used extensively). The binding constraint comes from
@@ -128,10 +128,10 @@ unsafe_code = "deny"
 dead_code = "warn"
 unreachable_pub = "warn"
 unused_lifetimes = "warn"
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 
 [workspace.lints.clippy]
 all = "warn"
-pedantic = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 expect_used = "warn"
+

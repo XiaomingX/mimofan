@@ -74,8 +74,6 @@ mod hooks;
 mod llm_client;
 mod llm_response_cache;
 pub use mimofan_localization as localization;
-#[path = "tools/advisor.rs"]
-pub mod advisor;
 pub mod evolve;
 mod logging;
 pub mod loop_guard;
@@ -99,12 +97,6 @@ mod pricing;
 mod project_context;
 mod project_context_cache;
 mod project_doc;
-/// #846 / #847: new capability modules compiled alongside `tools` but mounted
-/// here (not in `tools/mod.rs`) so the central tool-registry wiring stays
-/// untouched. The registry/spec references inside resolve via absolute
-/// `crate::` paths regardless of mount point.
-#[path = "tools/prompt_audit.rs"]
-pub mod prompt_audit;
 mod prompt_injection;
 mod prompt_zones;
 mod prompts;

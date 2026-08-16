@@ -158,7 +158,7 @@ impl ApiClient {
     async fn send_gemini_request(&self, body: &Value, stream: bool) -> Result<reqwest::Response> {
         let url = gemini_generate_content_url(
             &self.base_url,
-            &body["model"].as_str().unwrap_or(""),
+            body["model"].as_str().unwrap_or(""),
             stream,
             self.api_key(),
         );

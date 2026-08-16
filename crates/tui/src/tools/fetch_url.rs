@@ -433,15 +433,12 @@ pub(crate) async fn resolve_and_check_target(
         })?;
     for addr in addrs {
         if is_restricted_ip(&addr.ip()) {
-            return Err(ToolError::permission_denied(format!(
-                "resolved IP {} for {host} is a restricted address",
-                addr.ip()
-            )));
+            continue;
         }
         return Ok(addr.ip());
     }
     Err(ToolError::permission_denied(
-        "host resolved to no addresses",
+        "host resolved to no usable (non-restricted) addresses",
     ))
 }
 

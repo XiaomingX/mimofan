@@ -413,11 +413,7 @@ fn fulltext_search(app: &mut App, query_arg: Option<&str>) -> CommandResult {
     }
 
     let mut body = String::new();
-    let _ = write!(
-        body,
-        "Found {} session(s) matching `{query}`:\n",
-        hits.len()
-    );
+    let _ = writeln!(body, "Found {} session(s) matching `{query}`:", hits.len());
     for hit in &hits {
         let id_short = crate::session_manager::truncate_id(&hit.metadata.id);
         let when = hit.metadata.updated_at.format("%Y-%m-%d %H:%M");
@@ -429,7 +425,7 @@ fn fulltext_search(app: &mut App, query_arg: Option<&str>) -> CommandResult {
             title = hit.metadata.title,
         );
         if let Some(snippet) = &hit.snippet {
-            let _ = write!(body, "  Snippet: {snippet}\n");
+            let _ = writeln!(body, "  Snippet: {snippet}");
         }
     }
     let _ = write!(

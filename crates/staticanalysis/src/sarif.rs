@@ -148,12 +148,12 @@ fn parse_result(r: &serde_json::Value) -> SarifResult {
 
     // CWE tags may live in `properties` or in the rule's `helpUri`/shortDescription.
     let mut cwe = Vec::new();
-    if let Some(props) = r.get("properties") {
-        if let Some(c) = props.get("cwe").and_then(|x| x.as_array()) {
-            for item in c {
-                if let Some(s) = item.as_str() {
-                    cwe.push(s.to_string());
-                }
+    if let Some(props) = r.get("properties")
+        && let Some(c) = props.get("cwe").and_then(|x| x.as_array())
+    {
+        for item in c {
+            if let Some(s) = item.as_str() {
+                cwe.push(s.to_string());
             }
         }
     }
@@ -167,20 +167,20 @@ fn parse_result(r: &serde_json::Value) -> SarifResult {
     // Location: prefer `locations[0].physicalLocation`.
     let mut path = None;
     let mut line = None;
-    if let Some(locs) = r.get("locations").and_then(|x| x.as_array()) {
-        if let Some(first) = locs.first() {
-            let pl = first.get("physicalLocation");
-            path = pl
-                .and_then(|p| p.get("artifactLocation"))
-                .and_then(|a| a.get("uri"))
-                .and_then(|x| x.as_str())
-                .map(|s| s.to_string());
-            line = pl
-                .and_then(|p| p.get("region"))
-                .and_then(|rg| rg.get("startLine"))
-                .and_then(|x| x.as_u64())
-                .map(|u| u as u32);
-        }
+    if let Some(locs) = r.get("locations").and_then(|x| x.as_array())
+        && let Some(first) = locs.first()
+    {
+        let pl = first.get("physicalLocation");
+        path = pl
+            .and_then(|p| p.get("artifactLocation"))
+            .and_then(|a| a.get("uri"))
+            .and_then(|x| x.as_str())
+            .map(|s| s.to_string());
+        line = pl
+            .and_then(|p| p.get("region"))
+            .and_then(|rg| rg.get("startLine"))
+            .and_then(|x| x.as_u64())
+            .map(|u| u as u32);
     }
 
     // Code flows (taint-style evidence) serialized to strings for portability.

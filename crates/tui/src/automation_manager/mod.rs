@@ -257,15 +257,13 @@ impl AutomationSchedule {
                 let byhour = parts
                     .get("BYHOUR")
                     .map(String::as_str)
-                    .or(Some("0"))
-                    .unwrap()
+                    .unwrap_or("0")
                     .parse::<u32>()
                     .context("Failed to parse BYHOUR")?;
                 let byminute = parts
                     .get("BYMINUTE")
                     .map(String::as_str)
-                    .or(Some("0"))
-                    .unwrap()
+                    .unwrap_or("0")
                     .parse::<u32>()
                     .context("Failed to parse BYMINUTE")?;
 

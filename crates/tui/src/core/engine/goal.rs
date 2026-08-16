@@ -28,12 +28,12 @@ pub(super) fn goal_objective_for_prompt(
 ) -> Option<String> {
     match goal_queue.lock() {
         Ok(queue) => {
-            if let Some(snapshot) = queue.active_snapshot() {
-                if let Some(objective) = snapshot.objective.as_ref() {
-                    // 仅当 active goal 仍在进行中才注入（与旧 is_active 行为一致）。
-                    if snapshot.status == GoalStatus::Active.as_str() {
-                        return Some(objective.clone());
-                    }
+            if let Some(snapshot) = queue.active_snapshot()
+                && let Some(objective) = snapshot.objective.as_ref()
+            {
+                // 仅当 active goal 仍在进行中才注入（与旧 is_active 行为一致）。
+                if snapshot.status == GoalStatus::Active.as_str() {
+                    return Some(objective.clone());
                 }
             }
         }

@@ -282,7 +282,7 @@ impl VectorMemory {
 /// 权威分类 [`MemoryCategory`]。
 #[cfg(feature = "vector-memory")]
 pub fn parse_memory_category(s: &str) -> Result<MemoryCategory> {
-    MemoryCategory::from_str(s).ok_or_else(|| {
+    MemoryCategory::from_str_name(s).ok_or_else(|| {
         anyhow::anyhow!("无效的记忆分类 `{s}`，应为 user/feedback/project/reference 之一")
     })
 }
