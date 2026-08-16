@@ -235,11 +235,36 @@ impl CallGraph {
         graph
     }
 
+    /// Programmatically register a function (used by tests and by the
+    /// inter-procedural builder when the graph is assembled from facts rather
+    /// than parsed source). First definition under a name wins, mirroring the
+    /// parse-based registration.
+    pub fn add_function(&mut self, name: &str, file: &str, line: usize) {
+        register_function(self, name.to_string(), None, file, line);
+    }
+
+    /// Add a call edge `caller -> callee` by name. Both names are resolved via
+    /// [`CallGraph::function_id`] (exact + suffix), so this works for
+    /// cross-file edges where the callee lives in another file. If the callee
+    /// has no registered definition it is recorded as an unresolved edge
+    /// (`callee: None`) — conservative and still traceable by name.
+    pub fn add_call(&mut self, caller: &str, callee: &str) {
+        let caller_id = match self.function_id(caller) {
+            Some(id) => id,
+            None => return,
+        };
+        let callee_id = self.function_id(callee);
+        self.edges.entry(caller_id).or_default().push(CallEdge {
+            caller: caller_id,
+            callee_name: callee.to_string(),
+            callee: callee_id,
+        });
+    }
+
     /// Resolve a function id by exact name or by suffix (last path segment /
     /// `Class.method` tail). Used for conservative cross-file call resolution
     /// so `Foo.bar` resolves `bar` and vice versa when only one def exists.
-    pub fn function_id(&self, name: &str) -> Option<FuncId> {
-        if let Some(id) = self.function_id_by_name(name) {
+    pub fn function_id(&self, name: &str) -> Option<FuncId> {        if let Some(id) = self.function_id_by_name(name) {
             return Some(id);
         }
         // Suffix match: last segment of `name` equals a registered name's tail.

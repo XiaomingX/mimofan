@@ -203,6 +203,39 @@ struct Solver<'a> {
 /// reachable from a source. Sanitizers may prune the chain; partial sanitizers
 /// only prune the classes they neutralize.
 pub fn analyze(facts: &ProgramFacts, rules: &RuleSet) -> Result<Vec<TaintFinding>> {
+    run_solver(facts, rules, &HashMap::new(), &HashMap::new())
+}
+
+/// Run taint analysis with externally-supplied *seed* taint.
+///
+/// Two kinds of seed are accepted:
+///
+/// - `arg_seed`: maps a `CallFact.id` to the set of argument positions that are
+///   already tainted *before* the solver runs (used when taint arrives at a
+///   call's arguments from outside the unit).
+/// - `ret_seed`: maps a `CallFact.id` to a taint tag marking that call's
+///   *return value* as already tainted. This is the hook the inter-procedural
+///   solver ([`crate::interproc`]) uses to model a function returning tainted
+///   data defined in another compilation unit: the call site that *invokes*
+///   that function is seeded with a tainted return, which then flows through
+///   propagators / field assignments to a local sink. This lifts
+///   intra-procedural analysis to cross-file reachability without changing any
+///   intra-procedural semantics.
+pub fn analyze_with_seed(
+    facts: &ProgramFacts,
+    rules: &RuleSet,
+    arg_seed: &HashMap<usize, HashSet<usize>>,
+    ret_seed: &HashMap<usize, TaintTag>,
+) -> Result<Vec<TaintFinding>> {
+    run_solver(facts, rules, arg_seed, ret_seed)
+}
+
+fn run_solver(
+    facts: &ProgramFacts,
+    rules: &RuleSet,
+    arg_seed: &HashMap<usize, HashSet<usize>>,
+    ret_seed: &HashMap<usize, TaintTag>,
+) -> Result<Vec<TaintFinding>> {
     let mut solver = Solver {
         rules,
         facts,
@@ -210,6 +243,14 @@ pub fn analyze(facts: &ProgramFacts, rules: &RuleSet) -> Result<Vec<TaintFinding
         field_taint: HashMap::new(),
         arg_taint: HashMap::new(),
     };
+    // Apply the cross-unit seeds.
+    for (call_id, positions) in arg_seed {
+        solver.arg_taint.entry(*call_id).or_default().extend(positions.iter().copied());
+    }
+    for (call_id, tag) in ret_seed {
+        let e = solver.ret_taint.entry(*call_id).or_default();
+        *e = e.union(tag);
+    }
     solver.propagate();
     solver.collect_findings()
 }

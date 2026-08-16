@@ -479,3 +479,4 @@ pub mod sca;
 pub mod summary;
 pub mod taint;
 pub mod typestate;
+pub mod interproc;
