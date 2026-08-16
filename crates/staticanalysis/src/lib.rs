@@ -33,6 +33,10 @@ macro_rules! set_grammar {
 
 pub mod callgraph;
 
+/// Automatic gadget discovery engine (W2 / #788): paradigm-level, rule-driven
+/// Java gadget-chain discovery over a project directory.
+pub mod auto_gadget;
+
 /// Persistent symbol index (SQLite). Only compiled with the `symbol-index`
 /// feature so the default build stays lean (no bundled SQLite compile).
 #[cfg(feature = "symbol-index")]

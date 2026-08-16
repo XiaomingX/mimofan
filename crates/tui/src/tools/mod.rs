@@ -12,6 +12,7 @@ pub mod apply_patch;
 pub mod approval_cache;
 pub mod arg_repair;
 pub mod ast_query;
+pub mod auto_gadget;
 pub mod automation;
 pub mod browser;
 pub mod call_graph;

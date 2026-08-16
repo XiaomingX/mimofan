@@ -1,0 +1,7 @@
+{
+  "prompt": "Audit the following tiny Java service for automatically-discoverable gadget chains. The service runs an untrusted command via Runtime.exec and also performs a JNDI lookup from a remote name. Use the auto_gadget_discovery tool on this project and report every gadget chain it finds (pivot -> sink), without hardcoding any library name.",
+  "expected": {
+    "expected_gadgets": ["runtime-exec", "jndi-lookup"],
+    "expected_poc_expect": null
+  }
+}
