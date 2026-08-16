@@ -935,28 +935,52 @@ impl AutomationManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
 
     const WEBHOOK_ENV: &str = "MIMOFAN_AUTOMATION_WEBHOOK_URL";
 
+    /// Tests read/write the process-global `std::env` for `WEBHOOK_ENV`.
+    /// Rust runs `#[test]`s in parallel, so unsynchronized env access races
+    /// between threads (one test clears the var while another just set it),
+    /// producing intermittent failures. Serialize all env-touching tests
+    /// behind this lock so set → read → assert happens atomically.
+    fn webhook_env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    /// Run `f` with `WEBHOOK_ENV` set to `value`, guaranteeing no other test
+    /// can touch the global env concurrently.
+    fn with_webhook_env<R>(value: &str, f: impl FnOnce() -> R) -> R {
+        let _guard = webhook_env_lock().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        unsafe { std::env::set_var(WEBHOOK_ENV, value) };
+        let result = f();
+        unsafe { std::env::remove_var(WEBHOOK_ENV) };
+        result
+    }
+
+    /// Run `f` with `WEBHOOK_ENV` unset, serializing against other env tests.
+    fn without_webhook_env<R>(f: impl FnOnce() -> R) -> R {
+        let _guard = webhook_env_lock().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        unsafe { std::env::remove_var(WEBHOOK_ENV) };
+        f()
+    }
+
     #[test]
     fn webhook_dispatcher_none_when_env_unset() {
-        unsafe { std::env::remove_var(WEBHOOK_ENV) };
-        assert!(build_webhook_dispatcher().is_none());
+        without_webhook_env(|| assert!(build_webhook_dispatcher().is_none()));
     }
 
     #[test]
     fn webhook_dispatcher_none_when_env_empty() {
-        unsafe { std::env::set_var(WEBHOOK_ENV, "") };
-        assert!(build_webhook_dispatcher().is_none());
-        unsafe { std::env::remove_var(WEBHOOK_ENV) };
+        with_webhook_env("", || assert!(build_webhook_dispatcher().is_none()));
     }
 
     #[test]
     fn webhook_dispatcher_some_when_env_set() {
-        unsafe { std::env::set_var(WEBHOOK_ENV, "https://example.com/hooks/automation") };
-        let dispatcher = build_webhook_dispatcher();
-        assert!(dispatcher.is_some());
-        unsafe { std::env::remove_var(WEBHOOK_ENV) };
+        with_webhook_env("https://example.com/hooks/automation", || {
+            assert!(build_webhook_dispatcher().is_some());
+        });
     }
 
     #[test]

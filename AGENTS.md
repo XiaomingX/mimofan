@@ -27,9 +27,20 @@
    直接信任会基于错误前提动手。
 6. **并行 `cargo test` 撞锁**：即使隔离了 `target` 目录，仍会撞上**自己遗留进程**
    持有的 file lock，导致假失败。
+7. **过时副本分支遗留**：从**不领先 `origin/main` 的旧 `main`** 切出 worktree /
+   分支，而 `main` 后续已通过正式 PR 合入相同功能。结果产生一批「看似祖先、
+   实为等价副本」的遗留分支，`git diff` 因基线漂移显示海量假删除，
+   且差点被当成「未合并工作」强行合入（真实事故：4 个 `feat/issue-*` 分支
+   内容已逐字节/仅格式差异存在于 `main`）。
+8. **等价副本强行合并**：未核验就 `git merge` 一个工作**已是 `main` 祖先**的分支，
+   产生大量假冲突并退化为 `main` 现状，反而引入混乱。
+9. **Rust 编译错误堆积**：跨 crate 接口变更 / 合并冲突解决后未立即 `cargo check`，
+   一次性大改后爆出几十条签名 / 模块 / trait 错误，定位困难。
 
-> 结论：冲突的本质是**「没有统一的归属边界 + 没有先取证就动手 + 危险的全局 git 操作」**。
-> 下述方案通过**物理隔离（worktree）+ 逻辑归属（文件清单）+ 取证优先 + 锁隔离**
+> 结论：冲突的本质是**「没有统一的归属边界 + 没有先取证就动手 + 危险的全局 git 操作
+> + 分支基线不领先主干 + 合并前未核验等价性」**。
+> 下述方案通过**物理隔离（worktree）+ 逻辑归属（文件清单）+ 取证优先 + 锁隔离
+> + 基线对齐（§2.4）+ 合并前等价性核验（§2.5）+ Rust 小步验证（§2.6）**
 > 把并发从「会撞」变成「撞不到」。
 
 ---
@@ -44,6 +55,9 @@
 | 4 | **取证优先**：动手前先 `ls` / `git diff` / `git status` 自查，不靠推断 | 根因 4、5 |
 | 5 | **git 禁忌**：共享 worktree 内**禁止**裸 `reset --hard` / `stash push-pop` | 根因 1 |
 | 6 | **编译 / 测试锁隔离**：隔离 `CARGO_TARGET_DIR`，用 `--no-run` + 直跑测试二进制 | 根因 6 |
+| 7 | **基线对齐**：开 worktree / 分支前先 `git fetch` 并基于 `origin/main`，不从不领先的本地 `main` 切出 | 过时副本遗留 |
+| 8 | **合并前核验**：`rebase origin/main` + `merge-base --is-ancestor` 严格判定，禁止把已是 main 祖先的等价副本分支强行合并 | 重复实现 / 假冲突 |
+| 9 | **Rust 小步验证**：改完即 `cargo check` 受影响 crate，零 error 再继续；跨 crate 接口先定义后调用方 | 编译错误堆积 |
 
 ---
 
@@ -78,6 +92,65 @@ git worktree add ../agent-mimofan-worktree -b refactor/xxx
 
 - 完成即 `git commit`，**不要长期堆积未提交改动**；
 - 已合并分支尽快删除，避免分支堆积与混淆（详见 `CLAUDE.md` Worktree 约定）。
+
+### 2.4 开 worktree / 分支前：先对齐最新 `origin/main`（防「过时副本」遗留）
+
+> 真实事故：多个分支从 18 小时前的旧 `main` 切出，期间 `main`
+> 已通过正式 PR 合入相同功能。结果产生一批「看起来是祖先、实为等价副本」
+> 的遗留分支；`git diff main..branch` 因基线漂移显示「删万行」，
+> 实则功能是 `main` 已有且更完整的版本。
+
+开 worktree / 建分支的**强制前置动作**：
+
+```bash
+git fetch origin
+# 确认要做的改动在最新 origin/main 上确实不存在（不是已有功能的重复实现）
+git log origin/main --oneline | grep -i "<功能关键词>"
+# 从最新 origin/main 切出，而非本地旧 main
+git worktree add ../agent-mimofan-<name> -b feat/<name> origin/main
+```
+
+- **禁止**从本地落后 `origin/main` 的 `main` 直接 `git worktree add -b`；
+- 并行开多个 worktree 时，每个都基于 `origin/main`（先统一 `fetch`）；
+- 若发现目标功能已在 `origin/main`，**不要**新开分支，直接复用或关闭任务。
+
+### 2.5 合并前：rebase + 等价性核验（防把过时副本强行合入）
+
+合并回 `main` 前，必须执行：
+
+```bash
+git fetch origin
+git rebase origin/main          # 先对齐最新主干，暴露真实冲突而非基线漂移
+# 核验「这个分支是否还有 main 没有的工作」
+git merge-base --is-ancestor <branch-tip> origin/main && echo "已合入, 直接删分支" || echo "仍有独有工作"
+```
+
+- 若 `merge-base --is-ancestor` 为真 → 分支工作**已是 main 的祖先**，
+  **直接删除分支**，不要合并（合并会 conflict 并退化为 main 现状）；
+- 若分支与 `main` 同名文件**内容逐字节/仅格式差异** → 视为重复实现，删除分支；
+- 只有确认分支含 `main` **没有**的真实改动时，才 `git merge` / `rebase` 合并；
+- 合并后**立即**删本地 + 远程分支（见 §2.2 清理三步），杜绝堆积。
+
+> 判断「是否已在 main」**必须按 commit 哈希 + 文件内容严格核验**，
+> 不能只看 `git log` 标题（merge 会带入父提交标题造成误报）。
+
+### 2.6 Rust 改动：小步 `cargo check` 验证，避免编译错误堆积
+
+> 本仓库 Rust 改动容易在合并/接口变更时编译失败（签名不匹配、
+> 模块未注册、trait 未实现等）。务必小步验证，不要一次性大改后
+> 才发现几十个错误。
+
+纪律：
+
+1. **改完即 `cargo check -p <受影响crate>`**（比 `cargo build` 快得多），
+   零 error 再继续；
+2. 跨 crate 接口变更（如函数签名 / 新增模块）时，**先改定义、再改全部调用方**，
+   用 `cargo check` 让编译器列出每个调用点，逐个修；
+3. 解决合并冲突后，**必须** `cargo check` 验证再 `git commit`；
+4. 注意 feature 作用域：如 `lang-java` 属于 `mimofan-staticanalysis`，
+   `cargo test -p mimofan --features lang-java` 会报错；feature 要加在定义它的包上；
+5. 全 workspace 验收用 `cargo build`（零 warning）＋ 针对性 `cargo test`，
+   不靠「看起来应该能编」的推断。
 
 ---
 
