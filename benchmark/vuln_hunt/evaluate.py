@@ -107,6 +107,39 @@ def score_trace(gadget_out, expected_gadgets):
 
 
 # ---------------------------------------------------------------------------
+# Dimension 4: Auto-discovery (W2 / #788)
+# ---------------------------------------------------------------------------
+def score_auto_discovery(auto_json, expected_gadgets):
+    """Return (score, discovered_expected, total_expected).
+
+    Reads the artifact produced by the real `auto_gadget_discovery` tool
+    (`auto_gadget.json`). A task's declared gadget classes (e.g.
+    `runtime-exec`, `jndi-lookup`) are considered discovered iff the tool's
+    `sinks_hit` (rule ids like `runtime-exec-sink`) or `pivots_observed`
+    (rule ids like `runtime-exec`) contain a matching id. This proves the
+    paradigm-level engine *automatically* surfaced the chain — it is never
+    hardcoded.
+
+    score = (#expected gadget classes discovered) / (#expected classes).
+    When no artifact is present (the task did not ask for auto-discovery), the
+    dimension is vacuously 1.0 so it does not penalize non-discovery tasks.
+    """
+    if auto_json is None:
+        return 1.0, 0, 0
+    if not expected_gadgets:
+        return 1.0, 0, 0
+    discovered = set()
+    for key in ("sinks_hit", "pivots_observed"):
+        for gid in (auto_json.get(key) or []):
+            # Strip a trailing `-sink` so `runtime-exec-sink` matches the
+            # expected class `runtime-exec`.
+            discovered.add(gid.rsplit("-sink", 1)[0])
+    matched = sum(1 for g in expected_gadgets if g in discovered)
+    score = matched / len(expected_gadgets)
+    return score, matched, len(expected_gadgets)
+
+
+# ---------------------------------------------------------------------------
 # Dimension 3: Reproduce
 # ---------------------------------------------------------------------------
 def score_reproduce(run_poc, expected_expect):
@@ -154,7 +187,18 @@ def evaluate_task(artifacts_dir, expected):
     if os.path.exists(poc_path):
         rep_score, realized = score_reproduce(load_json(poc_path), expected_poc)
 
-    mean = (cons_score + trace_score + rep_score) / 3.0
+    auto_path = os.path.join(artifacts_dir, "auto_gadget.json")
+    auto_json = load_json(auto_path) if os.path.exists(auto_path) else None
+    # Vacuous 1.0 when no auto-discovery artifact is present (the task did not
+    # ask for it), so non-discovery tasks are not penalized and the selftest's
+    # good/bad fixtures (which carry no auto_gadget.json) stay at mean 1.0/0.x.
+    auto_score, auto_expected, auto_total = (1.0, 0, len(expected_gadgets))
+    if auto_json is not None:
+        auto_score, auto_expected, auto_total = score_auto_discovery(
+            auto_json, expected_gadgets
+        )
+
+    mean = (cons_score + trace_score + rep_score + auto_score) / 4.0
     return {
         "consistency": {
             "score": round(cons_score, 4),
@@ -175,6 +219,13 @@ def evaluate_task(artifacts_dir, expected):
             "expected_expect": expected_poc,
             "note": "1.0 iff run_poc realized against expected expect",
         },
+        "auto_discovery": {
+            "score": round(auto_score, 4),
+            "expected_discovered": auto_expected,
+            "expected_total": auto_total,
+            "expected_gadgets": expected_gadgets,
+            "note": "fraction of expected gadget classes auto-discovered by the paradigm engine (non-hardcoded)",
+        },
         "mean": round(mean, 4),
     }
 
@@ -183,6 +234,7 @@ def print_scorecard(task_id, result):
     c = result["consistency"]
     t = result["trace"]
     r = result["reproduce"]
+    a = result["auto_discovery"]
     print(f"  {task_id}")
     print(f"    consistency : {c['score']:.3f}  "
           f"({c['evidence_backed']}/{c['confirmed']} confirmed backed)")
@@ -190,6 +242,8 @@ def print_scorecard(task_id, result):
           f"({t['expected_satisfied']}/{t['expected_total']} expected chains)")
     print(f"    reproduce   : {r['score']:.3f}  "
           f"(realized={r['realized']}, expect={r['expected_expect']!r})")
+    print(f"    auto-disc   : {a['score']:.3f}  "
+          f"({a['expected_discovered']}/{a['expected_total']} expected classes)")
     print(f"    MEAN        : {result['mean']:.3f}")
 
 

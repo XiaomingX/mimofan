@@ -94,6 +94,7 @@ impl Engine {
             .with_ast_query_tool()
             .with_call_graph_tool()
             .with_gadget_chain_tools()
+            .with_auto_gadget_tools()
             .with_run_poc_tools();
 
         // W1 (issue #834): inject plugin-manifest-selected extra tools into the

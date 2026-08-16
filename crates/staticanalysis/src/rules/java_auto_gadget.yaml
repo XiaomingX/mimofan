@@ -1,0 +1,121 @@
+# Auto gadget-discovery rules (W2 / #788 / #790 / #791 / #794).
+#
+# PARADIGM-LEVEL rules only. This file drives the generic gadget-chain
+# DISCOVERY engine (`auto_gadget.rs`): it does NOT hardcode any library
+# specific branch (no `if library == "fastjson"`). Every entry is a plain
+# symbol the engine matches against tree-sitter-java call sites by METHOD
+# NAME (suffix), with an OPTIONAL receiver/type prefix for stronger (class-
+# qualified) matches. Add a new gadget class by appending data here — no Rust
+# change required.
+#
+# Three orthogonal lists:
+#   pivots  — dangerous "pivot" operations that, once reached, can be steered
+#             toward a sink (e.g. reflection, templating, JNDI, deserialization
+#             entry points). They seed the discovery search.
+#   sinks   — terminal dangerous operations; a chain that reaches one is a
+#             confirmed gadget chain.
+#   sources — attacker-controlled entry points (enrich the report; a chain
+#             source -> pivot -> sink is the strongest signal).
+
+pivots:
+  - id: runtime-exec
+    symbol: Runtime.exec
+    category: command-execution
+    cwe: [CWE-78]
+  - id: process-builder-start
+    symbol: ProcessBuilder.start
+    category: command-execution
+    cwe: [CWE-78]
+  - id: method-invoke
+    symbol: Method.invoke
+    category: reflection
+    cwe: [CWE-470]
+  - id: templates-impl-getoutputproperties
+    symbol: TemplatesImpl.getOutputProperties
+    category: deserialization
+    cwe: [CWE-502]
+  - id: invoker-transformer-transform
+    symbol: InvokerTransformer.transform
+    category: deserialization
+    cwe: [CWE-502]
+  - id: jndi-lookup
+    symbol: InitialContext.lookup
+    category: jndi-injection
+    cwe: [CWE-74, CWE-502]
+  - id: jndirefforwarding-setjndiname
+    symbol: JndiRefForwardingDataSource.setJndiName
+    category: jndi-injection
+    cwe: [CWE-74]
+  - id: spel-parseexpression
+    symbol: ExpressionParser.parseExpression
+    category: expression-injection
+    cwe: [CWE-94]
+  - id: classloader-defineclass
+    symbol: ClassLoader.defineClass
+    category: unsafe-class-loading
+    cwe: [CWE-470]
+  - id: objectinputstream-readobject
+    symbol: ObjectInputStream.readObject
+    category: deserialization
+    cwe: [CWE-502]
+
+sinks:
+  - id: runtime-exec-sink
+    symbol: Runtime.exec
+    category: command-execution
+    cwe: [CWE-78]
+    severity: error
+  - id: process-builder-sink
+    symbol: ProcessBuilder.start
+    category: command-execution
+    cwe: [CWE-78]
+    severity: error
+  - id: method-invoke-sink
+    symbol: Method.invoke
+    category: reflection
+    cwe: [CWE-470]
+    severity: error
+  - id: templates-impl-sink
+    symbol: TemplatesImpl.getOutputProperties
+    category: deserialization
+    cwe: [CWE-502]
+    severity: critical
+  - id: invoker-transformer-sink
+    symbol: InvokerTransformer.transform
+    category: deserialization
+    cwe: [CWE-502]
+    severity: error
+  - id: jndi-lookup-sink
+    symbol: InitialContext.lookup
+    category: jndi-injection
+    cwe: [CWE-74, CWE-502]
+    severity: critical
+  - id: spel-eval-sink
+    symbol: ExpressionParser.parseExpression
+    category: expression-injection
+    cwe: [CWE-94]
+    severity: error
+  - id: classloader-defineclass-sink
+    symbol: ClassLoader.defineClass
+    category: unsafe-class-loading
+    cwe: [CWE-470]
+    severity: error
+  - id: objectinputstream-readobject-sink
+    symbol: ObjectInputStream.readObject
+    category: deserialization
+    cwe: [CWE-502]
+    severity: error
+
+sources:
+  - id: servlet-getparameter
+    symbol: getParameter
+    category: untrusted-input
+    cwe: [CWE-20, CWE-79]
+  - id: request-getheader
+    symbol: getHeader
+    category: untrusted-input
+    cwe: [CWE-20]
+  - id: request-getinputstream
+    symbol: getInputStream
+    category: untrusted-input
+    cwe: [CWE-20]

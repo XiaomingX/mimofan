@@ -1,0 +1,35 @@
+{
+  "target_dir": "fixtures/vh-auto-discovery-src",
+  "chain_count": 2,
+  "sinks_hit": ["runtime-exec-sink", "jndi-lookup-sink"],
+  "pivots_observed": ["runtime-exec", "jndi-lookup"],
+  "chains": [
+    {
+      "pivot_id": "runtime-exec",
+      "sink_id": "runtime-exec-sink",
+      "category": "command-execution",
+      "cwe": ["CWE-78"],
+      "entry_function": "handle",
+      "path": ["Vuln.handle", "Vuln.runCmd"],
+      "pivot_hit": {"file": "Vuln.java", "line": 5, "function": "Vuln.handle", "symbol": "Runtime.exec"},
+      "sink_hit": {"file": "Vuln.java", "line": 5, "function": "Vuln.handle", "symbol": "Runtime.exec"},
+      "kb_satisfied": true
+    },
+    {
+      "pivot_id": "jndi-lookup",
+      "sink_id": "jndi-lookup-sink",
+      "category": "jndi-injection",
+      "cwe": ["CWE-74", "CWE-502"],
+      "entry_function": "configure",
+      "path": ["Svc.configure", "Svc.lookup"],
+      "pivot_hit": {"file": "Svc.java", "line": 9, "function": "Svc.configure", "symbol": "ctx.lookup"},
+      "sink_hit": {"file": "Svc.java", "line": 9, "function": "Svc.lookup", "symbol": "ctx.lookup"},
+      "kb_satisfied": true
+    }
+  ],
+  "kb_trace": {
+    "present_gadgets": ["runtime-exec", "jndi-lookup"],
+    "satisfied_chains": ["c3p0-log4shell"],
+    "total_chains": 3
+  }
+}

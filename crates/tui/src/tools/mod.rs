@@ -14,6 +14,7 @@ pub mod arg_repair;
 pub mod ast_query;
 pub mod call_graph;
 pub mod gadget_chain;
+pub mod auto_gadget;
 pub mod automation;
 pub mod browser;
 pub mod cargo_failure_summary;

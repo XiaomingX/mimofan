@@ -15,13 +15,15 @@ tree-sitter-swift = { version = "0.7", optional = true }
 tree-sitter-objc = { version = "3", optional = true }
 tree-sitter-json = { version = "0.24", optional = true }
 rusqlite = { workspace = true, optional = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = "1"
 
 [features]
-# Default build only compiles the Rust grammar to keep cold compile times low.
-# Multi-language SAST analysis is opt-in per deploy target via these flags.
-default = ["lang-rust"]
+# Default build compiles the Rust + Java grammars. Java is on by default
+# because the auto-gadget discovery engine (W2 / #788) and the cross-file Java
+# call graph require it; tree-sitter-java is already a declared dependency.
+default = ["lang-rust", "lang-java"]
 lang-rust = ["dep:tree-sitter-rust"]
 lang-java = ["dep:tree-sitter-java"]
 lang-typescript = ["dep:tree-sitter-typescript"]
@@ -44,3 +46,7 @@ lang-all = [
 # Persistent symbol index (SQLite). Off by default so the default build does
 # not pull in the bundled SQLite compile. Enable for the SAST code-index.
 symbol-index = ["dep:rusqlite"]
+
+[dev-dependencies]
+# Test-only: tempdir fixtures for call-graph / auto-gadget integration tests.
+tempfile = { workspace = true }

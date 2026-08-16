@@ -615,6 +615,15 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(GadgetChainTraceTool))
     }
 
+    /// 注册自动 gadget 发现工具（`auto_gadget_discovery`，W2 / #788）。只读、
+    /// 可并行：范式级、规则驱动的 Java gadget 链自动发现，并把发现结果喂给
+    /// curated KB 反查器形成「发现→验证」闭环。
+    #[must_use]
+    pub fn with_auto_gadget_tools(self) -> Self {
+        use super::auto_gadget::AutoGadgetTool;
+        self.with_tool(Arc::new(AutoGadgetTool))
+    }
+
     /// 注册可复现 PoC 执行工具（`run_poc`，issue #833 的 axis C 可复现性门）。
     /// 把候选 exploit 送进配置的 [`SandboxBackend`] 执行，并依据 `expect` 子串
     /// 判定漏洞是否被实际触发（`realized`）。无 sandbox backend 时决绝失败
