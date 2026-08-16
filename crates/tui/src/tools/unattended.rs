@@ -210,6 +210,58 @@ mod tests {
     }
 
     #[test]
+    fn acceptance_859_unattended_excludes_blocking_and_destructive() {
+        // #859 — the tool permission boundary must be enforced: a tool whose
+        // approval requirement needs a human (Required / AskHuman) is EXCLUDED,
+        // and any tool flagged WritesFiles / ExecutesCode / Network is EXCLUDED
+        // even when auto-approved. Only ReadOnly + Auto tools survive.
+        let reg = make_registry();
+        let policy = UnattendedPolicy::new(true);
+
+        // Surviving set is exactly the read-only auto tool.
+        let allowed = policy.allowed_tool_names(&reg);
+        assert_eq!(
+            allowed,
+            vec!["read_file".to_string()],
+            "only the read-only auto tool survives the boundary"
+        );
+
+        // A tool requiring human approval (even though read-only) is dropped.
+        assert!(
+            !policy.is_allowed(human_approval_tool("revert_turn").as_ref()),
+            "human-approval (Required/AskHuman) tool must be excluded"
+        );
+        // Suggest approval also blocks — it is not Auto.
+        let suggest = TestTool {
+            name: "maybe_approve".to_string(),
+            approval: ApprovalRequirement::Suggest,
+            caps: vec![Cap::ReadOnly],
+        };
+        assert!(
+            !policy.is_allowed(&suggest),
+            "Suggest-approval tool must be excluded (only Auto survives)"
+        );
+        // Destructive / egress-capable tools are dropped even when auto-approved.
+        assert!(
+            !policy.is_allowed(write_tool("write_file").as_ref()),
+            "WritesFiles tool must be excluded"
+        );
+        assert!(
+            !policy.is_allowed(shell_tool("exec_shell").as_ref()),
+            "ExecutesCode tool must be excluded"
+        );
+        assert!(
+            !policy.is_allowed(network_tool("web_search").as_ref()),
+            "Network tool must be excluded"
+        );
+        // The read-only auto tool is retained.
+        assert!(
+            policy.is_allowed(read_only_auto("read_file").as_ref()),
+            "ReadOnly + Auto tool must be retained"
+        );
+    }
+
+    #[test]
     fn enabled_policy_keeps_only_read_only_auto_tools() {
         let reg = make_registry();
         let policy = UnattendedPolicy::new(true);
@@ -221,6 +273,51 @@ mod tests {
         assert!(!policy.is_allowed(write_tool("write_file").as_ref()));
         assert!(!policy.is_allowed(shell_tool("exec_shell").as_ref()));
         assert!(!policy.is_allowed(network_tool("web_search").as_ref()));
+    }
+
+    /// #859 acceptance: prove the permission boundary precisely. Under an
+    /// enabled unattended policy, the safe subset is exactly the tools that are
+    /// (a) `Auto`-approved and (b) read-only AND carry none of the dangerous
+    /// capabilities `WritesFiles` / `ExecutesCode` / `Network`. Every other
+    /// tool is dropped — including read-only tools that merely require human
+    /// approval, and destructive/egress tools that happen to be auto-approved.
+    #[test]
+    fn acceptance_859_permission_boundary_is_precise() {
+        let reg = make_registry();
+        let policy = UnattendedPolicy::new(true);
+
+        // The boundary MUST retain: ReadOnly + Auto.
+        assert!(
+            policy.is_allowed(read_only_auto("read_file").as_ref()),
+            "ReadOnly + Auto tool must survive"
+        );
+
+        // The boundary MUST drop, by precise reason:
+        // 1. ReadOnly but human-approval-required (would block headless).
+        assert!(
+            !policy.is_allowed(human_approval_tool("revert_turn").as_ref()),
+            "ReadOnly but AskHuman/Required must be excluded"
+        );
+        // 2. WritesFiles even if auto-approved.
+        assert!(
+            !policy.is_allowed(write_tool("write_file").as_ref()),
+            "WritesFiles must be excluded"
+        );
+        // 3. ExecutesCode even if auto-approved.
+        assert!(
+            !policy.is_allowed(shell_tool("exec_shell").as_ref()),
+            "ExecutesCode must be excluded"
+        );
+        // 4. Network egress even if auto-approved.
+        assert!(
+            !policy.is_allowed(network_tool("web_search").as_ref()),
+            "Network must be excluded"
+        );
+
+        // Net effect: only the single safe ReadOnly+Auto tool survives.
+        let allowed = policy.allowed_tool_names(&reg);
+        assert_eq!(allowed.len(), 1);
+        assert_eq!(allowed[0], "read_file");
     }
 }
 

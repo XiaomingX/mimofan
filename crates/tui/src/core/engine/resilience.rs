@@ -903,6 +903,112 @@ mod tests {
         assert_eq!(escalations, 2, "should exhaust the escalation cap");
     }
 
+    // ---- #858 acceptance — loop/stop must respect the escalation cap -----
+    #[test]
+    fn acceptance_858_max_escalations_caps_persistent_failure() {
+        // A persistently-failing task (e.g. an infinite-ish retry loop) must
+        // STOP rather than spin: the escalation policy caps retries at
+        // max_escalations=2 (#845), and retry_turn_with_escalation must honour
+        // that cap exactly and never escalate beyond it.
+        let config = ValidationRetryConfig {
+            policy: EffortEscalationPolicy {
+                max_escalations: DEFAULT_MAX_ESCALATIONS, // 2
+                model_upgrade_chain: Vec::new(),
+            },
+            objective: Some("task that never validates".to_string()),
+        };
+
+        // Mock turn: always fails validation, simulating a task that the model
+        // keeps retrying but never completes.
+        let mut attempts = 0u32;
+        let (escalations, verdict, effort, model) = retry_turn_with_escalation(
+            &config,
+            EffortTier::Low,
+            "model-small",
+            |_effort, _model| {
+                attempts += 1;
+                ValidationVerdict::Fail
+            },
+            |v| v.clone(),
+        );
+
+        assert_eq!(verdict, ValidationVerdict::Fail, "must give up, not keep spinning");
+        assert_eq!(
+            escalations, DEFAULT_MAX_ESCALATIONS,
+            "escalations must be capped at max_escalations (2)"
+        );
+        // initial attempt + 2 escalations = 3 attempts total; it must not run
+        // away to hundreds of retries.
+        assert_eq!(attempts, DEFAULT_MAX_ESCALATIONS + 1, "run_turn must be called exactly cap+1 times");
+        // Once the cap is hit, further calls to escalate must be no-ops.
+        let step = config
+            .policy
+            .escalate(&effort, &model, escalations);
+        assert!(!step.changed, "escalate() must stop changing past the cap");
+    }
+
+    // ---- #861 acceptance — crash recovery resumes the correct turn -------
+    #[test]
+    fn acceptance_861_crash_recovery_resumes_turn_three() {
+        // #861 — a run interrupted mid-way must resume from where it left off.
+        // Simulate 3 turns, each writing a turn checkpoint to a session dir.
+        // Then "crash" (drop the handles) and start a fresh engine-like replay
+        // from the same session path; it must recover turn index 3 (skip the
+        // 3 completed turns) and the budget/objective state.
+        let dir =
+            std::env::temp_dir().join(format!("mimofan-accept-861-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // --- First (crashed) engine: writes 3 turn checkpoints + state ------
+        {
+            let mut ctrl = ResumeController::open(&dir);
+            // Turn 1, 2, 3 all complete and persist their checkpoints.
+            ctrl.checkpoints_mut()
+                .save_turn_checkpoint(1, "scaffold module", "build the feature", 100)
+                .unwrap();
+            ctrl.checkpoints_mut()
+                .save_turn_checkpoint(2, "implement core", "build the feature", 250)
+                .unwrap();
+            ctrl.checkpoints_mut()
+                .save_turn_checkpoint(3, "wire tests", "build the feature", 400)
+                .unwrap();
+
+            // Persist orchestration state: objective + remaining budget.
+            let mut state = SerializableAgentState::default();
+            state.objective = "build the feature".to_string();
+            state.turn_index = 3;
+            state.budget_remaining = Some(600);
+            state.budget_total = Some(1000);
+            state.tokens_consumed = 400;
+            ctrl.save_state(&state).unwrap();
+            // `ctrl` and `state` drop here = the "crash".
+        }
+
+        // --- Fresh engine replays from the same session dir -----------------
+        let resumed = ResumeController::open(&dir);
+        assert!(resumed.has_resume_point(), "crash left resumable progress");
+        // Last completed turn was 3, so the engine must resume at turn 4
+        // (already-completed turns are skipped).
+        assert_eq!(
+            resumed.resume_from_turn(),
+            Some(3),
+            "must recover turn index 3 as last-completed"
+        );
+        let recovered = resumed.load_state().expect("state must survive the crash");
+        assert_eq!(recovered.turn_index, 3, "objective turn state recovered");
+        assert_eq!(recovered.objective, "build the feature", "objective recovered");
+        assert_eq!(recovered.budget_remaining, Some(600), "budget state recovered");
+        assert_eq!(recovered.tokens_consumed, 400);
+        // Durability: the checkpoint file on disk really holds 3 turns.
+        assert_eq!(
+            resumed.checkpoints().count(),
+            3,
+            "three turn checkpoints persisted to disk"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     // ---- #857 ResumeController ------------------------------------------
     #[test]
     fn resume_skips_already_done_turns() {
@@ -923,6 +1029,71 @@ mod tests {
         assert!(resumed.has_resume_point());
         // Last completed turn = 2, so the engine should resume at turn 3.
         assert_eq!(resumed.resume_from_turn(), Some(2));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// #861 acceptance: a run interrupted mid-way can resume. We simulate a
+    /// 3-turn run that writes a checkpoint per turn, then "crash" (drop all
+    /// handles), then start a fresh engine-like replay from the same session
+    /// path and assert it recovers turn index 3 (already-completed turns
+    /// skipped) together with the persisted budget/objective state.
+    #[test]
+    fn acceptance_861_resume_recovers_turn_index_and_state() {
+        let dir =
+            std::env::temp_dir().join(format!("mimofan-resume-acc-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // ---- Phase 1: original run, 3 turns, then crash. ----
+        {
+            let mut ctrl = ResumeController::open(&dir);
+            let mut tokens = 0usize;
+            for turn in 1..=3u64 {
+                tokens += 15;
+                ctrl.checkpoints_mut()
+                    .save_turn_checkpoint(
+                        turn,
+                        &format!("turn {turn} completed"),
+                        "ship the feature",
+                        tokens,
+                    )
+                    .unwrap();
+            }
+            // Persist orchestration state at the last turn boundary.
+            let mut state = SerializableAgentState::default();
+            state.objective = "ship the feature".to_string();
+            state.turn_index = 3;
+            state.budget_remaining = Some(45);
+            state.budget_total = Some(100);
+            state.tokens_consumed = tokens;
+            state.escalations_applied = 0;
+            ctrl.save_state(&state).unwrap();
+            // <-- handles dropped here = "crash". Disk is the only source of truth.
+        }
+
+        // ---- Phase 2: fresh engine replay from the same session dir. ----
+        let resumed = ResumeController::open(&dir);
+        assert!(resumed.has_resume_point(), "crash left a resumable checkpoint");
+
+        // Last completed turn is 3, so the engine must resume at turn 4
+        // (already-completed turns are skipped).
+        assert_eq!(
+            resumed.resume_from_turn(),
+            Some(3),
+            "resume cursor must be the last completed turn"
+        );
+
+        // Recovered orchestration state must match what was persisted.
+        let state = resumed.load_state().expect("state must survive the crash");
+        assert_eq!(state.turn_index, 3, "turn_index must be recovered");
+        assert_eq!(state.objective, "ship the feature", "objective must be recovered");
+        assert_eq!(state.budget_remaining, Some(45), "budget must be recovered");
+        assert_eq!(state.budget_total, Some(100));
+        assert_eq!(state.tokens_consumed, 45, "cumulative tokens recovered");
+
+        // The replay must NOT re-run completed turns: the checkpoint count is
+        // still exactly 3 — nothing was lost or duplicated by the crash.
+        assert_eq!(resumed.checkpoints().count(), 3);
 
         let _ = std::fs::remove_dir_all(&dir);
     }

@@ -1119,6 +1119,112 @@ mod tests {
         );
     }
 
+    /// #858 acceptance: a turn that makes no observable progress for
+    /// `no_progress_threshold` consecutive calls MUST be detected and halted
+    /// (the guard trips `NoProgress`). This is the concrete backstop that
+    /// proves the agent cannot loop forever on a stale world state.
+    #[test]
+    fn acceptance_858_no_progress_trips_and_halts() {
+        let mut guard = guard();
+        finish_warmup(&mut guard);
+
+        // Same tool, identical outcome, zero progress — for N+1 calls.
+        let mut tripped_at: Option<usize> = None;
+        for index in 0..DEFAULT_NO_PROGRESS_THRESHOLD + 2 {
+            let args = json!({ "path": format!("candidate{index}") });
+            let observation = ToolObservation {
+                name: "read_file",
+                args: &args,
+                success: true,
+                output: "",
+                progress: false,
+            };
+            if let Some(loop_break) = guard.observe(&observation)
+                && loop_break.pattern == LoopPattern::NoProgress
+                && tripped_at.is_none()
+            {
+                tripped_at = Some(index);
+                // The loop is halted: a LoopBreak is returned carrying the
+                // advisory to stop and re-plan, so the caller can break the
+                // turn instead of continuing the death spiral.
+                assert!(loop_break.nudge.to_lowercase().contains("not making progress"));
+                break;
+            }
+        }
+        assert!(
+            tripped_at.is_some(),
+            "NoProgress must trip within the threshold window"
+        );
+        assert_eq!(tripped_at.unwrap(), DEFAULT_NO_PROGRESS_THRESHOLD - 1);
+    }
+
+    /// #858 acceptance (companion): the #845 escalation path caps retries at
+    /// `max_escalations = 2`, so a persistently-failing task is abandoned
+    /// rather than spun forever. We use the same pure retry core the engine
+    /// uses; a mock that always fails must stop after exactly 2 escalations.
+    #[test]
+    fn acceptance_858_escalation_caps_retries() {
+        use crate::core::engine::resilience::{
+            EffortEscalationPolicy, ValidationRetryConfig, ValidationVerdict,
+            retry_turn_with_escalation, EffortTier,
+        };
+        let config = ValidationRetryConfig {
+            policy: EffortEscalationPolicy {
+                max_escalations: 2,
+                model_upgrade_chain: Vec::new(),
+            },
+            objective: Some("must not spin".to_string()),
+        };
+        let (escalations, verdict, _effort, _model) = retry_turn_with_escalation(
+            &config,
+            EffortTier::Low,
+            "model-small",
+            |_effort, _model| ValidationVerdict::Fail,
+            |v| v.clone(),
+        );
+        assert_eq!(verdict, ValidationVerdict::Fail);
+        assert_eq!(escalations, 2, "cap must stop the spin after 2 escalations");
+    }
+
+    #[test]
+    fn acceptance_858_loop_guard_halts_on_no_progress() {
+        // #858 — the agent MUST NOT loop forever. A turn that makes no
+        // observable progress for N consecutive iterations must be detected and
+        // the loop halted (LoopGuard trips with NoProgress).
+        let mut guard = guard();
+        finish_warmup(&mut guard);
+
+        // Drive a chain of calls whose *outcome* never changes: the same
+        // digest repeats, so the stall detector accumulates a run. Each call
+        // uses a distinct name+args (so the repeat/alternating detectors stay
+        // out of the way) — this isolates the "no forward progress" pathology,
+        // which is exactly what an infinite no-op loop looks like.
+        let mut halted_at: Option<usize> = None;
+        for index in 0..12 {
+            let args = json!({ "probe": format!("candidate{index}") });
+            let observation = ToolObservation {
+                name: "read_file",
+                args: &args,
+                success: true,
+                // Identical observable output every single turn => no progress.
+                output: "file unchanged",
+                progress: false,
+            };
+            if let Some(loop_break) = guard.observe(&observation)
+                && loop_break.pattern == LoopPattern::NoProgress
+            {
+                halted_at = Some(index);
+                break;
+            }
+        }
+
+        let at = halted_at.expect("no-progress loop must be halted by the guard");
+        assert!(
+            at < DEFAULT_REPEAT_THRESHOLD + DEFAULT_NO_PROGRESS_THRESHOLD + DEFAULT_WARMUP_CALLS,
+            "halt must happen early, not after grinding for hundreds of calls (tripped at {at})"
+        );
+    }
+
     #[test]
     fn semantic_echo_requires_two_distinct_observations() {
         let mut guard = guard();

@@ -447,11 +447,119 @@ mod tests {
     }
 
     #[test]
+    fn acceptance_862_verifier_ignores_self_report_when_predicate_fails() {
+        // #862 — completion must be judged by an OBJECTIVE signal, not the
+        // model's self-report. The gate uses only the PredicateGate (objective
+        // command). Even though the observed output contains a confident
+        // "I am done" self-report, the predicate command exits non-zero, so the
+        // verdict is met=false: the verifier trusts the objective signal and
+        // ignores the model's claim.
+        let mut gate = GoalGate::new();
+        gate.add(Box::new(PredicateGate::new()));
+
+        let mut evidence = GoalEvidence::default();
+        // Objective signal: a command that fails.
+        evidence.success_predicate = Some("false".to_string());
+        // A plausible model self-report claiming success — this must be ignored.
+        evidence.observed_output = Some(
+            "I have finished the task. Everything is complete and working as expected.".to_string(),
+        );
+
+        let verdict = gate.evaluate("implement feature", &evidence);
+        assert!(!verdict.met, "self-report must NOT make an objectively-failing task met");
+        assert_eq!(verdict.confidence, 1.0, "objective verdict is deterministic");
+        assert!(
+            verdict.reason.contains("predicate"),
+            "verdict must be driven by the objective predicate, not the output text"
+        );
+    }
+
+    #[test]
+    fn acceptance_862_verifier_met_only_when_predicate_passes() {
+        // Positive control: the objective predicate exits 0, so the goal is met
+        // even when the model DID NOT say it was done (no self-report text).
+        let mut gate = GoalGate::new();
+        gate.add(Box::new(PredicateGate::new()));
+
+        let mut evidence = GoalEvidence::default();
+        evidence.success_predicate = Some("true".to_string());
+        evidence.observed_output = None;
+
+        let verdict = gate.evaluate("implement feature", &evidence);
+        assert!(verdict.met, "objective predicate passing must yield met");
+        assert_eq!(verdict.confidence, 1.0);
+    }
+
+    #[test]
     fn goal_gate_empty_verifier_set_is_unmet() {
         let gate = GoalGate::new();
         let evidence = GoalEvidence::default();
         let verdict = gate.evaluate("objective-x", &evidence);
         assert!(!verdict.met);
         assert_eq!(verdict.confidence, 0.0);
+    }
+
+    /// #862 acceptance: completion is judged by an OBJECTIVE signal, never by
+    /// the model's self-report. A goal whose success predicate command exits
+    /// non-zero must be `met = false` even when a (mock) "model says done"
+    /// claim is present in the evidence. The verifier trusts the exit code,
+    /// not the chatter.
+    #[test]
+    fn acceptance_862_verifier_ignores_self_report_on_failed_predicate() {
+        // The model claims it is done; we capture that as the observed output.
+        let self_report = "All tasks complete. DONE. The objective is finished.";
+        let objective = "make tests pass";
+
+        // Negative case: predicate exits non-zero. `false` is portable and
+        // always exits 1.
+        let mut evidence_fail = GoalEvidence {
+            success_predicate: Some("false".to_string()),
+            observed_output: Some(self_report.to_string()),
+            ..GoalEvidence::default()
+        };
+        let gate = GoalGate::default_set();
+        let verdict_fail = gate.evaluate(objective, &evidence_fail);
+        assert!(
+            !verdict_fail.met,
+            "verdict must be unmet when the objective predicate fails, \
+             regardless of the model's self-report"
+        );
+
+        // Positive control: predicate exits 0. `true` is portable and exits 0.
+        let mut evidence_pass = GoalEvidence {
+            success_predicate: Some("true".to_string()),
+            observed_output: Some(self_report.to_string()),
+            ..GoalEvidence::default()
+        };
+        let verdict_pass = gate.evaluate(objective, &evidence_pass);
+        assert!(
+            verdict_pass.met,
+            "verdict must be met when the objective predicate succeeds"
+        );
+
+        // Direct gate proof: the predicate verdict itself is driven by the
+        // exit code, not by any substring in the self-report. The self-report
+        // text is irrelevant to PredicateGate — only the command's exit status
+        // decides.
+        let predicate = PredicateGate::new();
+        let pred_fail = predicate.evaluate(objective, &evidence_fail);
+        assert!(!pred_fail.met, "failed predicate => unmet, ignoring self-report");
+        assert_eq!(pred_fail.confidence, 1.0);
+        let pred_pass = predicate.evaluate(objective, &evidence_pass);
+        assert!(pred_pass.met, "succeeding predicate => met");
+        assert_eq!(pred_pass.confidence, 1.0);
+
+        // Guard against a future regression where a self-report substring is
+        // mistaken for evidence: even a self-report that literally contains
+        // "DONE" must NOT flip the PREDICATE gate to met. (PredicateGate is the
+        // objective signal; substring matching is a separate, lower-priority
+        // gate and is intentionally not consulted here.)
+        let mut evidence_fail_with_claim = evidence_fail.clone();
+        evidence_fail_with_claim.required_output_substring = Some("DONE".to_string());
+        let pred_fail_claim = predicate.evaluate(objective, &evidence_fail_with_claim);
+        assert!(
+            !pred_fail_claim.met,
+            "a matching self-report substring must NOT override a failed predicate"
+        );
     }
 }
