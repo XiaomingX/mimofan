@@ -2,6 +2,34 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.19] - 2026-08-16
+
+本轮（第二批能力补齐闭环 #844–#869）补齐成本/智能/无人值守 + herdr 借鉴的多项能力，并交付终端/会话持久化运行时（#869 核心保证：会话脱离主进程可断电续跑/reattach）。
+
+### Added
+- **PTY 持久化运行时（[#869](https://github.com/XiaomingX/mimofan/issues/869)）**：新增 `mimofan daemon <id> <cmd...>` 与 `mimofan session {attach,list,kill}`。独立守护进程持有 `portable_pty` PTY + Unix 套接字 `~/.mimofan/run/<id>.sock`，客户端代理 stdin/stdout、支持 Ctrl-] 分离而不杀进程，可 reattach；PTY 输出经 `broadcast` 总线广播给所有已连接客户端。
+- **成本优化：Batch API 离线通道 + Prompt Audit + Advisor 顾问策略（[#844](https://github.com/XiaomingX/mimofan/issues/844) / [#846](https://github.com/XiaomingX/mimofan/issues/846) / [#847](https://github.com/XiaomingX/mimofan/issues/847)）**：批量推理通道降本；请求级 prompt 审计与顾问式策略建议。
+- **客观 verifier：GoalGate + 工具级 assert_key 运行时化（[#849](https://github.com/XiaomingX/mimofan/issues/849) / [#852](https://github.com/XiaomingX/mimofan/issues/852)）**：目标门禁以客观断言裁决，避免自我报分。
+- **结构化事件流 jsonl + replay（[#850](https://github.com/XiaomingX/mimofan/issues/850)）**：事件落盘为 jsonl，可回放复盘。
+- **无人值守子集 + headless 门禁 + ConsolidationScheduler 生产接线（[#853](https://github.com/XiaomingX/mimofan/issues/853) / [#863](https://github.com/XiaomingX/mimofan/issues/863) / [#855](https://github.com/XiaomingX/mimofan/issues/855)）**：`--unattended` 安全子集与 headless 准入，consolidation 调度器落地生产。
+- **引擎韧性：失败升级重跑 + 预算倒计时 + turn 检查点 + 可序列化状态 + 进度持久化自动恢复（[#845](https://github.com/XiaomingX/mimofan/issues/845) / [#848](https://github.com/XiaomingX/mimofan/issues/848) / [#851](https://github.com/XiaomingX/mimofan/issues/851) / [#856](https://github.com/XiaomingX/mimofan/issues/856) / [#857](https://github.com/XiaomingX/mimofan/issues/857)）**：断点可持久化、崩溃后自动续跑。
+- **子代理生命周期与协作（[#864](https://github.com/XiaomingX/mimofan/issues/864) / [#865](https://github.com/XiaomingX/mimofan/issues/865) / [#866](https://github.com/XiaomingX/mimofan/issues/866) / [#867](https://github.com/XiaomingX/mimofan/issues/867) / [#804](https://github.com/XiaomingX/mimofan/issues/804) / [#842](https://github.com/XiaomingX/mimofan/issues/842)）**：生命周期状态机、阻塞等待、停滞检测、通知原语、独立反驳者 `adversarial_verify`、多 agent 并发文件级冲突防护收口。
+- **herdr 借鉴：运行时自协调技能 + 环境守卫 + 记忆多会话恢复样本（[#868](https://github.com/XiaomingX/mimofan/issues/868) / [#860](https://github.com/XiaomingX/mimofan/issues/860)）**。
+- **工具级权限策略按 ToolCapability 裁决（[#854](https://github.com/XiaomingX/mimofan/issues/854)）**：`deny_capability` / 限网络等细粒度裁决。
+- **exec `--json-schema` 终态约束 + 合成终结工具（[#824](https://github.com/XiaomingX/mimofan/issues/824)）**。
+- **LSP callHierarchy 入/出调用递归展开（[#827](https://github.com/XiaomingX/mimofan/issues/827)）**。
+- **请求级 trace_id 透传至工具执行与子 agent 派生（[#799](https://github.com/XiaomingX/mimofan/issues/799)）**。
+- **记忆 + 可观测：周期合并触发 + `/metrics` 与 GenAI span + 用户画像免衰减（[#829](https://github.com/XiaomingX/mimofan/issues/829) / [#830](https://github.com/XiaomingX/mimofan/issues/830) / [#831](https://github.com/XiaomingX/mimofan/issues/831)）**。
+- **compaction / 子代理：objective 回灌防漂移 + 文件级互斥划分器（[`6c5dac2`](https://github.com/XiaomingX/mimofan/commit/6c5dac2)）**。
+- **验收样本（[#858](https://github.com/XiaomingX/mimofan/issues/858) / [#859](https://github.com/XiaomingX/mimofan/issues/859) / [#861](https://github.com/XiaomingX/mimofan/issues/861) / [#862](https://github.com/XiaomingX/mimofan/issues/862)）**：loop/stop、权限边界、崩溃恢复、验证信号的验收用例。
+
+### Changed
+- **`mimofan` 工具集中接线（[#846](https://github.com/XiaomingX/mimofan/issues/846) / [#847](https://github.com/XiaomingX/mimofan/issues/847) / [#850](https://github.com/XiaomingX/mimofan/issues/850) / [#868](https://github.com/XiaomingX/mimofan/issues/868)）**：prompt_audit / advisor / replay / event_stream / herdr skill 统一注册到 registry。
+
+### Fixed
+- **Provider CircuitBreaker 接入 fallback readiness 过滤（[#795](https://github.com/XiaomingX/mimofan/issues/795)）**：熔断状态纳入 fallback 就绪判定，避免选中不可用 provider。
+- **PTY 守护进程 SHUTDOWN 终止路径（[#869](https://github.com/XiaomingX/mimofan/issues/869)）**：清理阶段用 `clone_killer()` 句柄 `kill` 子进程，确保收到 SHUTDOWN 后守护进程正常退出（此前会永久阻塞在 `child.wait()`）。
+
 ## [0.0.17] - 2026-08-14
 
 本轮（LoopX 续作）补齐研究编排范式全链路命令壳、GitHub 共同作者署名，并大规模落地安全审计门、浏览器/反向 MCP/ACP 协议扩展、记忆混合检索与跨会话推理、子代理 DAG 编排与循环守卫持久化等能力。
@@ -130,6 +158,7 @@
 ### Changed
 - **向量语义检索接入 SearchCache 缓存层（[#642](https://github.com/XiaomingX/mimofan/issues/642)）**：为向量检索叠加 `SearchCache` 缓存，降低重复查询成本、稳定召回路径。
 
+[0.0.19]: https://github.com/XiaomingX/mimofan/compare/v0.0.18...v0.0.19
 [0.0.13]: https://github.com/XiaomingX/mimofan/compare/v0.0.12...v0.0.13
 
 ## [0.0.12] - 2026-08-10

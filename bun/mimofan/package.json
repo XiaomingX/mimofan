@@ -1,7 +1,7 @@
 {
   "name": "mimofan",
-  "version": "0.0.11",
-  "mimofanBinaryVersion": "0.0.11",
+  "version": "0.0.19",
+  "mimofanBinaryVersion": "0.0.19",
   "description": "Install and run Mimofan, the agentic terminal for open-source and open-weight coding models, from GitHub release artifacts.",
   "author": "Hmbown",
   "license": "MIT",
