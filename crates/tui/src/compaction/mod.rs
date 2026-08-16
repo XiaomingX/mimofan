@@ -1160,7 +1160,8 @@ pub async fn compact_messages(
     // Inject the task objective into the summary instruction so the model is
     // explicitly told what goal the summary must preserve (W1: drift gate).
     let objective_guidance = objective.map(objective_prompt_section);
-    let summary_custom = merge_objective_into_custom(objective, config.custom_instructions.as_deref());
+    let summary_custom =
+        merge_objective_into_custom(objective, config.custom_instructions.as_deref());
 
     // Create a summary of the unpinned portion of the conversation
     let summary = create_summary(
@@ -1935,12 +1936,14 @@ mod objective_drift_tests {
     fn compaction_round_summary(inject_objective: bool) -> String {
         let obj = sample_objective();
         // 注入到压缩 prompt：调用方会把 objective_prompt_section 拼进指令。
-        let injected = merge_objective_into_custom(
-            if inject_objective { Some(&obj) } else { None },
-            None,
-        );
+        let injected =
+            merge_objective_into_custom(if inject_objective { Some(&obj) } else { None }, None);
         assert!(
-            inject_objective == injected.as_deref().map(|s| s.contains("TASK OBJECTIVE:")).unwrap_or(false),
+            inject_objective
+                == injected
+                    .as_deref()
+                    .map(|s| s.contains("TASK OBJECTIVE:"))
+                    .unwrap_or(false),
             "objective must be present in the injected prompt only when requested"
         );
         if !inject_objective {
@@ -1978,7 +1981,10 @@ mod objective_drift_tests {
             );
             min_score = min_score.min(score);
         }
-        assert_eq!(min_score, 1.0, "objective retention must stay 1.0 across N compactions");
+        assert_eq!(
+            min_score, 1.0,
+            "objective retention must stay 1.0 across N compactions"
+        );
     }
 
     #[test]
@@ -2015,6 +2021,9 @@ mod objective_drift_tests {
             .find(|m| m.role == "user")
             .expect("first user message exists");
         let text = message_text(first);
-        assert!(text.to_lowercase().contains("stripe"), "fixture must mention Stripe for extraction");
+        assert!(
+            text.to_lowercase().contains("stripe"),
+            "fixture must mention Stripe for extraction"
+        );
     }
 }

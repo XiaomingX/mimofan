@@ -1319,7 +1319,9 @@ mod tests {
             .expect("stall must trip NoProgress");
         assert_eq!(loop_break.pattern, LoopPattern::NoProgress);
         assert!(
-            loop_break.nudge.contains("Migrate the billing service to Stripe"),
+            loop_break
+                .nudge
+                .contains("Migrate the billing service to Stripe"),
             "NoProgress nudge must re-anchor the model to the original objective"
         );
     }
@@ -1336,6 +1338,9 @@ mod tests {
         let state = guard.snapshot_state();
         let mut restored = LoopGuard::default();
         restored.restore_state(&state);
-        assert_eq!(restored.objective().map(|o| o.text.as_str()), Some("Refactor the auth module to use JWT"));
+        assert_eq!(
+            restored.objective().map(|o| o.text.as_str()),
+            Some("Refactor the auth module to use JWT")
+        );
     }
 }

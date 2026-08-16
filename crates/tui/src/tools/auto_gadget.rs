@@ -11,20 +11,25 @@ use std::path::Path;
 
 use async_trait::async_trait;
 use mimofan_staticanalysis::auto_gadget::{self, DiscoveryResult, GadgetChain as DiscoveredChain};
-use mimofan_staticanalysis::kb_trace::{trace_chains, ChainTrace};
+use mimofan_staticanalysis::kb_trace::{ChainTrace, trace_chains};
 use mimofan_staticanalysis::knowledge::load_kb_dir;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::gadget_chain::GADGET_CHAIN_TOOL_NAME;
-use super::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec};
+use super::spec::{
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
+};
 
 /// Tool name for the model-facing API.
 pub const AUTO_GADGET_TOOL_NAME: &str = "auto_gadget_discovery";
 
 /// On-disk KB location, resolved relative to the staticanalysis crate (same
 /// path the `gadget_chain_trace` tool uses).
-const KB_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../staticanalysis/src/rules/kb");
+const KB_DIR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../staticanalysis/src/rules/kb"
+);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AutoGadgetInput {
@@ -83,8 +88,8 @@ impl AutoGadgetTool {
             )));
         }
 
-        let discovery: DiscoveryResult =
-            auto_gadget::discover_gadgets(target).map_err(|e| ToolError::execution_failed(e.to_string()))?;
+        let discovery: DiscoveryResult = auto_gadget::discover_gadgets(target)
+            .map_err(|e| ToolError::execution_failed(e.to_string()))?;
 
         // Map discovered sink/pivot symbols onto KB gadget ids to close the
         // loop with the curated reverse-tracer. Sink rule ids end in `-sink`;
@@ -219,8 +224,9 @@ impl ToolSpec for AutoGadgetTool {
     }
 
     async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
-        let parsed: AutoGadgetInput = serde_json::from_value(input.clone())
-            .map_err(|e| ToolError::invalid_input(format!("invalid auto_gadget_discovery input: {e}")))?;
+        let parsed: AutoGadgetInput = serde_json::from_value(input.clone()).map_err(|e| {
+            ToolError::invalid_input(format!("invalid auto_gadget_discovery input: {e}"))
+        })?;
 
         let output = Self::run_discovery(&parsed)?;
         ToolResult::json(&output).map_err(|e| ToolError::execution_failed(e.to_string()))

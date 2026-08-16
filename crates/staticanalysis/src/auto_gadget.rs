@@ -35,12 +35,15 @@ use tree_sitter::{Node, Parser};
 
 use anyhow::Context;
 
+use crate::AstError;
 use crate::callgraph::{CallGraph, FuncId};
 use crate::rules::{self, Yaml};
-use crate::AstError;
 
 /// On-disk rule file (paradigm-level pivot/sink/source symbols).
-const RULES_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/rules/java_auto_gadget.yaml");
+const RULES_FILE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/src/rules/java_auto_gadget.yaml"
+);
 
 /// One discovered gadget chain: a pivot that transitively reaches a sink.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,7 +182,11 @@ fn parse_rules(yaml: Option<&Yaml>, default_severity: &str) -> Vec<Rule> {
                 .unwrap_or("")
                 .to_string();
             let cwe = match m.get("cwe") {
-                Some(Yaml::Seq(s)) => s.iter().filter_map(Yaml::as_str).map(|x| x.to_string()).collect(),
+                Some(Yaml::Seq(s)) => s
+                    .iter()
+                    .filter_map(Yaml::as_str)
+                    .map(|x| x.to_string())
+                    .collect(),
                 Some(Yaml::Str(s)) => vec![s.clone()],
                 _ => vec![],
             };
@@ -232,9 +239,15 @@ fn scan_invocations(node: &Node, source: &str, file: &str, out: &mut Vec<CallSit
                 .child_by_field_name("object")
                 .map(|o| {
                     let t = o.utf8_text(source.as_bytes()).unwrap_or("").to_string();
-                    t.split(['.', '(', ' ']).next().unwrap_or("").trim().to_string()
+                    t.split(['.', '(', ' '])
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_string()
                 })
-                .filter(|r| !r.is_empty() && r.chars().next().map(|c| c.is_alphabetic()).unwrap_or(false));
+                .filter(|r| {
+                    !r.is_empty() && r.chars().next().map(|c| c.is_alphabetic()).unwrap_or(false)
+                });
             let symbol = match &receiver {
                 Some(r) => format!("{r}.{method}"),
                 None => method.clone(),
@@ -263,7 +276,12 @@ fn enclosing_function_name(node: Node, source: &str) -> String {
     while let Some(n) = current {
         if n.kind() == "method_declaration" {
             if let Some(name_node) = n.child_by_field_name("name") {
-                method = Some(name_node.utf8_text(source.as_bytes()).unwrap_or("").to_string());
+                method = Some(
+                    name_node
+                        .utf8_text(source.as_bytes())
+                        .unwrap_or("")
+                        .to_string(),
+                );
             }
             // Keep walking up to find the enclosing class for the prefix.
         }
@@ -271,11 +289,11 @@ fn enclosing_function_name(node: Node, source: &str) -> String {
             || n.kind() == "enum_declaration"
             || n.kind() == "interface_declaration"
         {
-            if let (Some(m), Some(name_node)) = (
-                &method,
-                n.child_by_field_name("name"),
-            ) {
-                let cls = name_node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
+            if let (Some(m), Some(name_node)) = (&method, n.child_by_field_name("name")) {
+                let cls = name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or("")
+                    .to_string();
                 return format!("{cls}.{m}");
             }
         }
@@ -353,10 +371,7 @@ pub fn discover_gadgets(target_dir: &Path) -> anyhow::Result<DiscoveryResult> {
                     .first()
                     .map(|(id, _)| id.clone())
                     .unwrap_or_default();
-                let sink_rule = sinks
-                    .iter()
-                    .find(|r| &r.id == sink_rule_id)
-                    .cloned();
+                let sink_rule = sinks.iter().find(|r| &r.id == sink_rule_id).cloned();
                 let (category, cwe) = sink_rule
                     .map(|r| (r.category, r.cwe))
                     .unwrap_or_else(|| (String::new(), vec![]));
@@ -373,12 +388,15 @@ pub fn discover_gadgets(target_dir: &Path) -> anyhow::Result<DiscoveryResult> {
                     cwe,
                     entry_function: entry,
                     path: path.clone(),
-                    pivot_hit: pivot_entries.first().map(|(_, l)| l.clone()).unwrap_or_else(|| SourceLocation {
-                        file: pivot_func.clone(),
-                        line: 0,
-                        function: pivot_func.clone(),
-                        symbol: String::new(),
-                    }),
+                    pivot_hit: pivot_entries
+                        .first()
+                        .map(|(_, l)| l.clone())
+                        .unwrap_or_else(|| SourceLocation {
+                            file: pivot_func.clone(),
+                            line: 0,
+                            function: pivot_func.clone(),
+                            symbol: String::new(),
+                        }),
                     sink_hit: sink_loc.clone(),
                 });
                 if seen_sinks.insert(sink_rule_id.clone()) {
@@ -501,7 +519,9 @@ mod tests {
             "expected at least one gadget chain; got {res:?}"
         );
         assert!(
-            res.chains.iter().any(|c| c.pivot_id == "runtime-exec" && c.sink_id == "runtime-exec-sink"),
+            res.chains
+                .iter()
+                .any(|c| c.pivot_id == "runtime-exec" && c.sink_id == "runtime-exec-sink"),
             "expected a runtime-exec pivot->sink chain; chains={:?}",
             res.chains
         );

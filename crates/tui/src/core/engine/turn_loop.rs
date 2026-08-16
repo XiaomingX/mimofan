@@ -348,9 +348,9 @@ impl Engine {
                         .and_then(|id| g.get(id))
                         .and_then(|e| e.goal.objective().map(str::to_owned))
                 });
-                let objective_ref = active_objective.as_ref().map(|s| {
-                    crate::compaction::objective::Objective::from(s.as_str())
-                });
+                let objective_ref = active_objective
+                    .as_ref()
+                    .map(|s| crate::compaction::objective::Objective::from(s.as_str()));
 
                 match compact_messages_safe_with_objective(
                     &client,
