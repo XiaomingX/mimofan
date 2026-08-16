@@ -140,10 +140,13 @@ jobs:
             target: aarch64-unknown-linux-musl
             binary: mimofan
             artifact_name: mimofan-linux-arm64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary: mimofan.exe
-            artifact_name: mimofan-windows-x64.exe
+          # Windows (x86_64-pc-windows-msvc) is intentionally excluded: the
+          # pinned `hnsw-rs 0.1.x` dependency fails to compile on MSVC with
+          # `error[E0308]: expected u32, found u64` inside its C-FFI distance
+          # wrapper (hnsw_rs-0.1.19/src/libext.rs). macOS and Linux musl
+          # targets compile hnsw-rs fine; Windows will be re-added once
+          # hnsw-rs is upgraded to a 0.3.x line that builds on MSVC. See the
+          # memory note on VectorStore HNSW quirks.
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -155,6 +158,12 @@ jobs:
         with:
           toolchain: "1.97.1"
           targets: ${{ matrix.target }}
+      # `dtolnay/rust-toolchain`'s `targets:` is not reliably honored for
+      # cross/secondary targets, so install it explicitly. Without this the
+      # build dies at `can't find crate for core` because the std target
+      # sysroot is missing.
+      - name: Install target
+        run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           cache-bin: false
@@ -266,10 +275,6 @@ jobs:
           # Platform: linux-arm64 (musl static)
           bundle linux-arm64 \
             mimofan-linux-arm64 tar.gz
-
-          # Platform: windows-x64
-          bundle windows-x64 \
-            mimofan-windows-x64.exe zip
 
           echo ""
           echo "=== Archive checksums ==="
