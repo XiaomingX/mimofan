@@ -176,21 +176,20 @@ fn release_workflow_publishes_every_platform_the_updater_expects() {
         .collect();
 
     // 消费端 release_asset_name_for_prefix 的命名规则：windows 带 .exe。
+    // Windows (x86_64-pc-windows-msvc) is intentionally NOT published — the
+    // pinned `hnsw-rs 0.1.x` dependency fails to build on MSVC — so it is
+    // excluded from both the release matrix and this assertion. See the
+    // comment in release.yml.
     let expected = [
         ("macos", "x86_64"),
         ("macos", "aarch64"),
         ("linux", "x86_64"),
         ("linux", "aarch64"),
-        ("windows", "x86_64"),
     ];
 
     for (os, arch) in expected {
         let stem = release_asset_stem_for(Path::new("mimofan"), os, arch);
-        let asset = if os == "windows" {
-            format!("{stem}.exe")
-        } else {
-            stem
-        };
+        let asset = stem;
         assert!(
             published.contains(&asset.as_str()),
             "release.yml 未发布 {os}/{arch} 所需资产 `{asset}`；\
