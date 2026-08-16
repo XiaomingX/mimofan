@@ -162,14 +162,7 @@ impl ToolSpec for TaskGraphTool {
 
         // Execute wave by wave.
         for group in &groups {
-            run_wave(
-                &self.manager,
-                &self.runtime,
-                &mut graph,
-                group,
-                &tasks,
-            )
-            .await?;
+            run_wave(&self.manager, &self.runtime, &mut graph, group, &tasks).await?;
         }
 
         Ok(build_result(&graph))
@@ -190,7 +183,9 @@ fn parse_tasks(input: &Value) -> Result<Vec<GraphTaskArg>, ToolError> {
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|s| !s.is_empty())
-            .ok_or_else(|| ToolError::invalid_input(format!("task[{i}] is missing a non-empty `id`")))?
+            .ok_or_else(|| {
+                ToolError::invalid_input(format!("task[{i}] is missing a non-empty `id`"))
+            })?
             .to_string();
         let description = item
             .get("description")
@@ -198,7 +193,9 @@ fn parse_tasks(input: &Value) -> Result<Vec<GraphTaskArg>, ToolError> {
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .ok_or_else(|| {
-                ToolError::invalid_input(format!("task `{id}` is missing a non-empty `description`"))
+                ToolError::invalid_input(format!(
+                    "task `{id}` is missing a non-empty `description`"
+                ))
             })?
             .to_string();
         let type_str = item

@@ -1135,7 +1135,8 @@ impl StateStore {
             "content": content,
             "item": item_json.and_then(|s| serde_json::from_str::<Value>(s).ok()),
         });
-        let encoded = serde_json::to_string(&line).context("failed to serialize transcript line")?;
+        let encoded =
+            serde_json::to_string(&line).context("failed to serialize transcript line")?;
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -1166,7 +1167,11 @@ impl StateStore {
             match serde_json::from_str::<Value>(line) {
                 Ok(value) => lines.push(value),
                 Err(err) => {
-                    tracing::warn!(?err, "skipping malformed transcript line in {}", path.display());
+                    tracing::warn!(
+                        ?err,
+                        "skipping malformed transcript line in {}",
+                        path.display()
+                    );
                 }
             }
         }
@@ -1926,7 +1931,10 @@ mod tests {
         assert_eq!(lines[1]["item"]["kind"], "text");
 
         // The raw file must be valid newline-delimited JSON.
-        let path = store.find_rollout_path_by_id("thread-xyz").unwrap().unwrap();
+        let path = store
+            .find_rollout_path_by_id("thread-xyz")
+            .unwrap()
+            .unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
         assert_eq!(raw.lines().count(), 2);
         for line in raw.lines() {

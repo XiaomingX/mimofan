@@ -109,7 +109,8 @@ impl CallGraph {
 
     /// Convenience: reachability starting from a function name.
     pub fn reachable_from_name(&self, name: &str) -> Option<HashSet<FuncId>> {
-        self.function_id_by_name(name).map(|id| self.reachable_from(id))
+        self.function_id_by_name(name)
+            .map(|id| self.reachable_from(id))
     }
 
     /// Build a call graph from source text using tree-sitter.
@@ -120,13 +121,39 @@ impl CallGraph {
     pub fn build(file: &str, source: &str, lang: Language) -> Result<Self, AstError> {
         let mut parser = Parser::new();
         let ts_lang: tree_sitter::Language = match lang {
-            Language::Rust => crate::set_grammar!(parser, lang, "lang-rust", tree_sitter_rust::LANGUAGE.into()),
-            Language::Java => crate::set_grammar!(parser, lang, "lang-java", tree_sitter_java::LANGUAGE.into()),
-            Language::TypeScript => crate::set_grammar!(parser, lang, "lang-typescript", tree_sitter_typescript::LANGUAGE_TSX.into()),
-            Language::JavaScript => crate::set_grammar!(parser, lang, "lang-javascript", tree_sitter_javascript::LANGUAGE.into()),
-            Language::Kotlin => crate::set_grammar!(parser, lang, "lang-kotlin", tree_sitter_kotlin_ng::LANGUAGE.into()),
-            Language::Swift => crate::set_grammar!(parser, lang, "lang-swift", tree_sitter_swift::LANGUAGE.into()),
-            Language::ObjectiveC => crate::set_grammar!(parser, lang, "lang-objc", tree_sitter_objc::LANGUAGE.into()),
+            Language::Rust => {
+                crate::set_grammar!(parser, lang, "lang-rust", tree_sitter_rust::LANGUAGE.into())
+            }
+            Language::Java => {
+                crate::set_grammar!(parser, lang, "lang-java", tree_sitter_java::LANGUAGE.into())
+            }
+            Language::TypeScript => crate::set_grammar!(
+                parser,
+                lang,
+                "lang-typescript",
+                tree_sitter_typescript::LANGUAGE_TSX.into()
+            ),
+            Language::JavaScript => crate::set_grammar!(
+                parser,
+                lang,
+                "lang-javascript",
+                tree_sitter_javascript::LANGUAGE.into()
+            ),
+            Language::Kotlin => crate::set_grammar!(
+                parser,
+                lang,
+                "lang-kotlin",
+                tree_sitter_kotlin_ng::LANGUAGE.into()
+            ),
+            Language::Swift => crate::set_grammar!(
+                parser,
+                lang,
+                "lang-swift",
+                tree_sitter_swift::LANGUAGE.into()
+            ),
+            Language::ObjectiveC => {
+                crate::set_grammar!(parser, lang, "lang-objc", tree_sitter_objc::LANGUAGE.into())
+            }
             // JSON has no function-call graph; the call_graph tool reports it as
             // unsupported rather than misparsing.
             Language::Json => return Err(AstError::Unsupported(lang)),
@@ -153,7 +180,10 @@ impl CallGraph {
 fn collect_functions(graph: &mut CallGraph, file: &str, source: &str, node: Node) {
     if node.kind() == "function_item" {
         if let Some(name_node) = node.child_by_field_name("name") {
-            let name = name_node.utf8_text(source.as_bytes()).unwrap_or("").to_string();
+            let name = name_node
+                .utf8_text(source.as_bytes())
+                .unwrap_or("")
+                .to_string();
             if !name.is_empty() {
                 let id = FuncId(graph.functions.len());
                 graph.functions.push(Function {
@@ -180,12 +210,10 @@ fn collect_functions(graph: &mut CallGraph, file: &str, source: &str, node: Node
 fn collect_calls(graph: &mut CallGraph, source: &str, node: Node) {
     if node.kind() == "function_item" {
         // Determine the enclosing function id for this body.
-        let enclosing = node
-            .child_by_field_name("name")
-            .and_then(|n| {
-                let nm = n.utf8_text(source.as_bytes()).unwrap_or("").to_string();
-                graph.name_to_id.get(&nm).copied()
-            });
+        let enclosing = node.child_by_field_name("name").and_then(|n| {
+            let nm = n.utf8_text(source.as_bytes()).unwrap_or("").to_string();
+            graph.name_to_id.get(&nm).copied()
+        });
         if let Some(caller) = enclosing {
             // Only scan the function body, not nested function items (they get
             // their own enclosing scope in the recursion below).
@@ -221,15 +249,11 @@ fn scan_calls_in_body(graph: &mut CallGraph, source: &str, caller: FuncId, body:
                 .unwrap_or_default();
             if !callee_name.is_empty() {
                 let callee = graph.name_to_id.get(&callee_name).copied();
-                graph
-                    .edges
-                    .entry(caller)
-                    .or_default()
-                    .push(CallEdge {
-                        caller,
-                        callee_name,
-                        callee,
-                    });
+                graph.edges.entry(caller).or_default().push(CallEdge {
+                    caller,
+                    callee_name,
+                    callee,
+                });
             }
             // Do not descend into the callee expression itself for more calls
             // here — they are handled by the general walk below.
@@ -294,9 +318,15 @@ fn leaf() {}
         let main = g.function_id_by_name("main").unwrap();
         let edges = g.calls_of(main);
         let names: Vec<&str> = edges.iter().map(|e| e.callee_name.as_str()).collect();
-        assert!(names.contains(&"helper"), "main -> helper missing: {names:?}");
+        assert!(
+            names.contains(&"helper"),
+            "main -> helper missing: {names:?}"
+        );
         assert!(names.contains(&"leaf"), "main -> leaf missing: {names:?}");
-        assert!(edges.iter().all(|e| e.callee.is_some()), "same-file callees must resolve");
+        assert!(
+            edges.iter().all(|e| e.callee.is_some()),
+            "same-file callees must resolve"
+        );
     }
 
     #[test]
@@ -325,7 +355,10 @@ fn start() {
         let edges = g.calls_of(start);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].callee_name, "external_crate_fn");
-        assert!(edges[0].callee.is_none(), "cross-unit callee must not resolve");
+        assert!(
+            edges[0].callee.is_none(),
+            "cross-unit callee must not resolve"
+        );
         // Reachability must not panic and returns only the entry.
         assert_eq!(g.reachable_from(start).len(), 1);
     }
@@ -341,6 +374,9 @@ fn start() {
     #[test]
     fn java_is_supported_with_feature() {
         let res = CallGraph::build("x.java", "class A {}", Language::Java);
-        assert!(res.is_ok(), "Java should be supported with lang-java feature");
+        assert!(
+            res.is_ok(),
+            "Java should be supported with lang-java feature"
+        );
     }
 }

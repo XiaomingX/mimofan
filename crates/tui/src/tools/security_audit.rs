@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use mimofan_staticanalysis::sarif::{SecurityIssue, SarifLog};
+use mimofan_staticanalysis::sarif::{SarifLog, SecurityIssue};
 
 use crate::sandbox::backend::SandboxBackend;
 use crate::tools::review::ReviewIssue;
@@ -61,7 +61,10 @@ pub async fn run_semgrep_scan(
 ) -> Result<Vec<SecurityIssue>> {
     let cmd = build_semgrep_command(opts);
     let env: HashMap<String, String> = HashMap::new();
-    let out = backend.exec(&cmd, &env).await.context("semgrep execution failed")?;
+    let out = backend
+        .exec(&cmd, &env)
+        .await
+        .context("semgrep execution failed")?;
     if out.stdout.trim().is_empty() {
         // semgrep may emit SARIF on stderr in some versions, or produce no
         // findings. Treat empty stdout as "no findings" rather than failing.
@@ -115,7 +118,10 @@ mod tests {
         assert!(cmd.contains("--sarif"));
         assert!(cmd.contains("--no-error"));
         assert!(cmd.contains("--timeout 60"));
-        assert!(cmd.ends_with(" ."), "target must be the final argument: {cmd}");
+        assert!(
+            cmd.ends_with(" ."),
+            "target must be the final argument: {cmd}"
+        );
     }
 
     #[test]

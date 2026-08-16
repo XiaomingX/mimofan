@@ -374,7 +374,11 @@ pub(crate) fn reassemble_session_timeline(
     // chronologically (oldest first).
     let mut out = Vec::new();
     for (sid, _) in session_order {
-        let mut group: Vec<&&VectorMatch> = by_session.get(&sid).expect("session group").iter().collect();
+        let mut group: Vec<&&VectorMatch> = by_session
+            .get(&sid)
+            .expect("session group")
+            .iter()
+            .collect();
         group.sort_by_key(|m| m.observation.created_at);
         for m in group {
             out.push((*m).clone());
@@ -430,10 +434,7 @@ mod cross_session_tests {
 
     #[test]
     fn drops_below_threshold() {
-        let matches = vec![
-            mk("s1", "kept", 100, 0.9),
-            mk("s1", "dropped", 200, 0.01),
-        ];
+        let matches = vec![mk("s1", "kept", 100, 0.9), mk("s1", "dropped", 200, 0.01)];
         let out = reassemble_session_timeline(&matches, 0.05);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].observation.content, "kept");

@@ -71,11 +71,7 @@ impl ToolSpec for EnterWorktreeTool {
         ApprovalRequirement::Auto
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        context: &ToolContext,
-    ) -> Result<ToolResult, ToolError> {
+    async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
         let branch = required_opt_string(&input, "branch");
         let path = optional_path(&input, "path");
         let base_ref = required_opt_string(&input, "base_ref");
@@ -92,11 +88,14 @@ impl ToolSpec for EnterWorktreeTool {
             branch_seed: seed,
         };
         let created = create_isolated_worktree(&context.workspace, &request)?;
-        Ok(ToolResult::success(json!({
-            "status": "entered",
-            "path": created.display().to_string(),
-            "branch": request.branch.clone().unwrap_or_default(),
-        }).to_string()))
+        Ok(ToolResult::success(
+            json!({
+                "status": "entered",
+                "path": created.display().to_string(),
+                "branch": request.branch.clone().unwrap_or_default(),
+            })
+            .to_string(),
+        ))
     }
 }
 
@@ -138,22 +137,18 @@ impl ToolSpec for ExitWorktreeTool {
         ApprovalRequirement::Auto
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        _context: &ToolContext,
-    ) -> Result<ToolResult, ToolError> {
+    async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
         let path = required_string(&input, "path")?;
-        let force = input
-            .get("force")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
+        let force = input.get("force").and_then(Value::as_bool).unwrap_or(false);
         let path_buf = PathBuf::from(&path);
         remove_worktree(&path_buf, force)?;
-        Ok(ToolResult::success(json!({
-            "status": "exited",
-            "path": path,
-        }).to_string()))
+        Ok(ToolResult::success(
+            json!({
+                "status": "exited",
+                "path": path,
+            })
+            .to_string(),
+        ))
     }
 }
 

@@ -11,8 +11,6 @@ use ratatui::{
     text::{Line, Span},
 };
 
-
-
 pub(crate) fn render_sidebar_subagents(f: &mut Frame, area: Rect, app: &mut App) {
     if area.height < 3 {
         return;

@@ -10,14 +10,12 @@ use ratatui::{
     text::{Line, Span},
 };
 
-
 use crate::palette;
 
-use crate::tui::app::{
-    App, SidebarFocus, TaskPanelEntry,
-    TaskPanelEntryKind,
+use crate::tui::app::{App, SidebarFocus, TaskPanelEntry, TaskPanelEntryKind};
+use crate::tui::history::{
+    GenericToolCell, HistoryCell, ToolCell, ToolStatus, summarize_tool_output,
 };
-use crate::tui::history::{GenericToolCell, HistoryCell, ToolCell, ToolStatus, summarize_tool_output};
 use crate::tui::ui_text::{concise_shell_command_label, truncate_line_to_width};
 
 pub(crate) fn work_panel_empty_hint(content_width: usize) -> String {
@@ -400,14 +398,22 @@ pub(crate) fn task_panel_hover_texts(app: &App, max_rows: usize) -> Vec<String> 
     texts
 }
 
-pub(crate) fn push_sidebar_label_theme(lines: &mut Vec<Line<'static>>, label: &str, theme: &palette::UiTheme) {
+pub(crate) fn push_sidebar_label_theme(
+    lines: &mut Vec<Line<'static>>,
+    label: &str,
+    theme: &palette::UiTheme,
+) {
     lines.push(Line::from(Span::styled(
         label.to_string(),
         Style::default().fg(theme.accent_primary).bold(),
     )));
 }
 
-pub(crate) fn push_tool_row_hover_texts(texts: &mut Vec<String>, rows: &[SidebarToolRow], max_rows: usize) {
+pub(crate) fn push_tool_row_hover_texts(
+    texts: &mut Vec<String>,
+    rows: &[SidebarToolRow],
+    max_rows: usize,
+) {
     for row in rows {
         if texts.len() >= max_rows {
             break;
@@ -911,7 +917,10 @@ pub(crate) fn generic_tool_sidebar_summary(generic: &GenericToolCell) -> String 
     }
 }
 
-pub(crate) fn background_task_rows(app: &App, active_rows: &[SidebarToolRow]) -> Vec<TaskPanelEntry> {
+pub(crate) fn background_task_rows(
+    app: &App,
+    active_rows: &[SidebarToolRow],
+) -> Vec<TaskPanelEntry> {
     let mut rows: Vec<TaskPanelEntry> = app
         .task_panel
         .iter()
@@ -1270,4 +1279,3 @@ pub(crate) fn format_duration_ms(ms: u64) -> String {
 pub(crate) fn duration_ms(duration: Duration) -> u64 {
     u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
 }
-

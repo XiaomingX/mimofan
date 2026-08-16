@@ -21,7 +21,10 @@ use crate::tools::spec::{
 /// `create_sub_session` tool.
 pub struct CreateSubSessionTool;
 
-type ThreadTx = UnboundedSender<(ThreadRequest, oneshot::Sender<Result<ThreadResponse, String>>)>;
+type ThreadTx = UnboundedSender<(
+    ThreadRequest,
+    oneshot::Sender<Result<ThreadResponse, String>>,
+)>;
 
 #[async_trait]
 impl ToolSpec for CreateSubSessionTool {
@@ -66,20 +69,13 @@ impl ToolSpec for CreateSubSessionTool {
         ApprovalRequirement::Auto
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        context: &ToolContext,
-    ) -> Result<ToolResult, ToolError> {
+    async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
         let mode = input
             .get("mode")
             .and_then(Value::as_str)
             .unwrap_or("sent")
             .to_string();
-        let metadata = input
-            .get("metadata")
-            .cloned()
-            .unwrap_or_else(|| json!({}));
+        let metadata = input.get("metadata").cloned().unwrap_or_else(|| json!({}));
 
         let tx = thread_tx(&context.runtime)?;
 
@@ -103,33 +99,34 @@ impl ToolSpec for CreateSubSessionTool {
                 },
             )
             .await?;
-            return Ok(ToolResult::success(json!({
-                "status": "created_first_turn",
-                "thread_id": thread_id,
-                "first_turn": turn_resp,
-            }).to_string()));
+            return Ok(ToolResult::success(
+                json!({
+                    "status": "created_first_turn",
+                    "thread_id": thread_id,
+                    "first_turn": turn_resp,
+                })
+                .to_string(),
+            ));
         }
 
-        Ok(ToolResult::success(json!({
-            "status": "created",
-            "thread_id": thread_id,
-            "response": create_resp,
-        }).to_string()))
+        Ok(ToolResult::success(
+            json!({
+                "status": "created",
+                "thread_id": thread_id,
+                "response": create_resp,
+            })
+            .to_string(),
+        ))
     }
 }
 
-fn thread_tx(
-    runtime: &RuntimeToolServices,
-) -> Result<&ThreadTx, ToolError> {
+fn thread_tx(runtime: &RuntimeToolServices) -> Result<&ThreadTx, ToolError> {
     runtime.thread_request_tx.as_ref().ok_or_else(|| {
         ToolError::not_available("sub-session spawning is not available in this context")
     })
 }
 
-async fn dispatch(
-    tx: &ThreadTx,
-    req: ThreadRequest,
-) -> Result<ThreadResponse, ToolError> {
+async fn dispatch(tx: &ThreadTx, req: ThreadRequest) -> Result<ThreadResponse, ToolError> {
     let (reply_tx, reply_rx) = oneshot::channel();
     tx.send((req, reply_tx)).map_err(|err| {
         ToolError::execution_failed(format!("failed to dispatch thread request: {err}"))

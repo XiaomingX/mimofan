@@ -147,7 +147,9 @@ impl ToolSpec for CallGraphTool {
             .map_err(|e| ToolError::invalid_input(format!("invalid call_graph input: {e}")))?;
 
         if parsed.entry.is_empty() {
-            return Err(ToolError::invalid_input("call_graph requires a non-empty 'entry'"));
+            return Err(ToolError::invalid_input(
+                "call_graph requires a non-empty 'entry'",
+            ));
         }
 
         let (file_label, source) = match (&parsed.path, &parsed.source) {

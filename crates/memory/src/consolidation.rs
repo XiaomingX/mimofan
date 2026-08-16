@@ -457,7 +457,14 @@ mod tests {
 
     #[test]
     fn entry_round_trips_through_json() {
-        let e = MemoryEntry::with_id("j-id", "json content", MemoryKind::Procedural, 0.8, Utc::now(), 3);
+        let e = MemoryEntry::with_id(
+            "j-id",
+            "json content",
+            MemoryKind::Procedural,
+            0.8,
+            Utc::now(),
+            3,
+        );
         let json = serde_json::to_string(&e).expect("serialize");
         let back: MemoryEntry = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(e, back);
@@ -481,7 +488,10 @@ mod tests {
         let now = Utc::now();
         let mut e = MemoryEntry::with_id("d2", "fresh", MemoryKind::Episodic, 0.9, now, 0);
         e.decay_importance(now);
-        assert!((e.importance - 0.9).abs() < 1e-9, "zero-age entry must not decay");
+        assert!(
+            (e.importance - 0.9).abs() < 1e-9,
+            "zero-age entry must not decay"
+        );
     }
 
     #[test]
@@ -491,7 +501,10 @@ mod tests {
         let mut b = MemoryEntry::with_id("r2", "x", MemoryKind::Episodic, 0.5, now, 20);
         a.decay_importance(now);
         b.decay_importance(now);
-        assert!(b.retention_score() > a.retention_score(), "more-accessed retained better");
+        assert!(
+            b.retention_score() > a.retention_score(),
+            "more-accessed retained better"
+        );
     }
 
     #[test]
@@ -525,7 +538,11 @@ mod tests {
         let s = content_similarity(a, b);
         assert!((s - content_similarity(b, a)).abs() < 1e-12, "symmetric");
         assert!((0.0..=1.0).contains(&s), "bounded in [0,1]");
-        assert!(s > 0.4, "overlapping phrase yields moderate similarity, got {}", s);
+        assert!(
+            s > 0.4,
+            "overlapping phrase yields moderate similarity, got {}",
+            s
+        );
         assert_eq!(content_similarity("", "x"), 0.0, "empty side => 0");
     }
 
@@ -533,9 +550,30 @@ mod tests {
     fn dedup_removes_near_duplicates_keeping_first() {
         let now = Utc::now();
         let entries = vec![
-            MemoryEntry::with_id("a", "the build fails on ci", MemoryKind::Episodic, 0.5, now, 1),
-            MemoryEntry::with_id("b", "the build fails on the ci", MemoryKind::Episodic, 0.5, now, 1),
-            MemoryEntry::with_id("c", "remember to water the plants", MemoryKind::Episodic, 0.5, now, 1),
+            MemoryEntry::with_id(
+                "a",
+                "the build fails on ci",
+                MemoryKind::Episodic,
+                0.5,
+                now,
+                1,
+            ),
+            MemoryEntry::with_id(
+                "b",
+                "the build fails on the ci",
+                MemoryKind::Episodic,
+                0.5,
+                now,
+                1,
+            ),
+            MemoryEntry::with_id(
+                "c",
+                "remember to water the plants",
+                MemoryKind::Episodic,
+                0.5,
+                now,
+                1,
+            ),
         ];
         let out = dedup(entries);
         assert_eq!(out.len(), 2, "two distinct topics survive");
@@ -558,15 +596,47 @@ mod tests {
     fn rollup_folds_similar_entries_into_one_semantic() {
         let now = Utc::now();
         let entries = vec![
-            MemoryEntry::with_id("a", "use cargo test to verify changes", MemoryKind::Episodic, 0.4, now, 2),
-            MemoryEntry::with_id("b", "use cargo test to verify the module", MemoryKind::Episodic, 0.7, now, 5),
-            MemoryEntry::with_id("c", "unrelated memory about lunch", MemoryKind::Episodic, 0.3, now, 1),
+            MemoryEntry::with_id(
+                "a",
+                "use cargo test to verify changes",
+                MemoryKind::Episodic,
+                0.4,
+                now,
+                2,
+            ),
+            MemoryEntry::with_id(
+                "b",
+                "use cargo test to verify the module",
+                MemoryKind::Episodic,
+                0.7,
+                now,
+                5,
+            ),
+            MemoryEntry::with_id(
+                "c",
+                "unrelated memory about lunch",
+                MemoryKind::Episodic,
+                0.3,
+                now,
+                1,
+            ),
         ];
         let merged = rollup(entries, DEDUP_SIMILARITY_THRESHOLD).expect("should merge pair");
-        assert_eq!(merged.kind, MemoryKind::Semantic, "rolled-up entry is semantic");
+        assert_eq!(
+            merged.kind,
+            MemoryKind::Semantic,
+            "rolled-up entry is semantic"
+        );
         assert_eq!(merged.access_count, 7, "access counts accumulate");
-        assert!((merged.importance - 0.7).abs() < 1e-9, "keeps max importance");
-        assert!(merged.content.contains("(+1 merged)"), "marks merge size: {}", merged.content);
+        assert!(
+            (merged.importance - 0.7).abs() < 1e-9,
+            "keeps max importance"
+        );
+        assert!(
+            merged.content.contains("(+1 merged)"),
+            "marks merge size: {}",
+            merged.content
+        );
     }
 
     #[test]
@@ -574,11 +644,28 @@ mod tests {
         let now = Utc::now();
         let entries = vec![
             MemoryEntry::with_id("a", "alpha", MemoryKind::Episodic, 0.5, now, 1),
-            MemoryEntry::with_id("b", "beta completely different", MemoryKind::Episodic, 0.5, now, 1),
+            MemoryEntry::with_id(
+                "b",
+                "beta completely different",
+                MemoryKind::Episodic,
+                0.5,
+                now,
+                1,
+            ),
         ];
-        assert!(rollup(entries, DEDUP_SIMILARITY_THRESHOLD).is_none(), "no mergeable pair");
+        assert!(
+            rollup(entries, DEDUP_SIMILARITY_THRESHOLD).is_none(),
+            "no mergeable pair"
+        );
         // 单条也无法 rollup。
-        let single = vec![MemoryEntry::with_id("s", "solo", MemoryKind::Episodic, 0.5, now, 1)];
+        let single = vec![MemoryEntry::with_id(
+            "s",
+            "solo",
+            MemoryKind::Episodic,
+            0.5,
+            now,
+            1,
+        )];
         assert!(rollup(single, DEDUP_SIMILARITY_THRESHOLD).is_none());
     }
 
@@ -587,13 +674,21 @@ mod tests {
     #[test]
     fn scheduler_triggers_after_interval() {
         let mut s = ConsolidationScheduler::with_interval(3);
-        assert_eq!(s.maybe_consolidate(|| false, || true), None, "before interval");
+        assert_eq!(
+            s.maybe_consolidate(|| false, || true),
+            None,
+            "before interval"
+        );
         s.tick();
         assert_eq!(s.maybe_consolidate(|| false, || true), None);
         s.tick();
         assert_eq!(s.maybe_consolidate(|| false, || true), None);
         s.tick(); // 第 3 回合，到达间隔
-        assert_eq!(s.maybe_consolidate(|| false, || true), Some(true), "should run");
+        assert_eq!(
+            s.maybe_consolidate(|| false, || true),
+            Some(true),
+            "should run"
+        );
     }
 
     #[test]
@@ -603,10 +698,13 @@ mod tests {
         s.tick();
         // 压缩进行中：返回 Some(false)，不调用 run，不进入 in_progress。
         let mut ran = false;
-        let res = s.maybe_consolidate(|| true, || {
-            ran = true;
-            true
-        });
+        let res = s.maybe_consolidate(
+            || true,
+            || {
+                ran = true;
+                true
+            },
+        );
         assert_eq!(res, Some(false), "compacting => skip");
         assert!(!ran, "run callback must not fire while compacting");
         assert!(!s.in_progress());
@@ -618,13 +716,19 @@ mod tests {
         s.tick();
         // 用外部 flag 捕获 in_progress 闸门状态，避免闭包内再借用 `s`。
         let mut gate_seen = false;
-        let res = s.maybe_consolidate(|| false, || {
-            // 仅在 in_progress 必须为 true 的窗口内被调用。
-            gate_seen = true;
-            true
-        });
+        let res = s.maybe_consolidate(
+            || false,
+            || {
+                // 仅在 in_progress 必须为 true 的窗口内被调用。
+                gate_seen = true;
+                true
+            },
+        );
         assert_eq!(res, Some(true));
-        assert!(gate_seen, "run callback fired => in_progress gate guarded the window");
+        assert!(
+            gate_seen,
+            "run callback fired => in_progress gate guarded the window"
+        );
         assert!(!s.in_progress(), "gate cleared after run");
     }
 
@@ -638,6 +742,10 @@ mod tests {
         assert_eq!(s.maybe_consolidate(|| false, || true), None);
         s.tick();
         s.tick();
-        assert_eq!(s.maybe_consolidate(|| false, || true), Some(true), "re-triggers after another interval");
+        assert_eq!(
+            s.maybe_consolidate(|| false, || true),
+            Some(true),
+            "re-triggers after another interval"
+        );
     }
 }

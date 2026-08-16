@@ -246,18 +246,9 @@ impl ObservationCompressor {
 
     /// Generate a summary for the session
     fn generate_session_summary(&self, observations: &[Observation]) -> String {
-        let user_count = observations
-            .iter()
-            .filter(|o| o.kind == "user")
-            .count();
-        let feedback_count = observations
-            .iter()
-            .filter(|o| o.kind == "feedback")
-            .count();
-        let project_count = observations
-            .iter()
-            .filter(|o| o.kind == "project")
-            .count();
+        let user_count = observations.iter().filter(|o| o.kind == "user").count();
+        let feedback_count = observations.iter().filter(|o| o.kind == "feedback").count();
+        let project_count = observations.iter().filter(|o| o.kind == "project").count();
         let reference_count = observations
             .iter()
             .filter(|o| o.kind == "reference")

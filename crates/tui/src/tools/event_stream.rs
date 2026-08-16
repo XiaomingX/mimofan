@@ -144,11 +144,7 @@ impl EventLog {
 
     /// Append one event of `kind` with `payload`, returning the assigned
     /// sequence number. The write is flushed before returning.
-    pub fn append(
-        &mut self,
-        kind: EventKind,
-        payload: Value,
-    ) -> Result<u64, EventLogError> {
+    pub fn append(&mut self, kind: EventKind, payload: Value) -> Result<u64, EventLogError> {
         let seq = self.next_seq;
         let envelope = EventEnvelope::new(seq, kind, payload);
         let mut line = serde_json::to_string(&envelope)?;
@@ -159,12 +155,10 @@ impl EventLog {
                 path: self.path.clone(),
                 source,
             })?;
-        self.file
-            .flush()
-            .map_err(|source| EventLogError::Write {
-                path: self.path.clone(),
-                source,
-            })?;
+        self.file.flush().map_err(|source| EventLogError::Write {
+            path: self.path.clone(),
+            source,
+        })?;
         self.next_seq = self.next_seq.saturating_add(1);
         Ok(seq)
     }
@@ -282,9 +276,7 @@ impl EventReplay {
 
     /// List every `ToolCall` whose payload carries a `tool` field, returning
     /// `(seq, tool_name, payload)` tuples. Pure and panic-free.
-    pub fn list_tool_calls(
-        &self,
-    ) -> Result<Vec<(u64, String, Value)>, ReplayError> {
+    pub fn list_tool_calls(&self) -> Result<Vec<(u64, String, Value)>, ReplayError> {
         let mut out = Vec::new();
         for event in self.events()? {
             if event.kind == EventKind::ToolCall {
@@ -309,11 +301,18 @@ mod tests {
 
         // Write 3 events: TurnStart, ToolCall, Checkpoint.
         let mut log = EventLog::open(&path).unwrap();
-        let s0 = log.append(EventKind::TurnStart, json!({"turn": 1})).unwrap();
-        let s1 = log
-            .append(EventKind::ToolCall, json!({"tool": "read_file", "path": "x.rs"}))
+        let s0 = log
+            .append(EventKind::TurnStart, json!({"turn": 1}))
             .unwrap();
-        let s2 = log.append(EventKind::Checkpoint, json!({"id": "c1"})).unwrap();
+        let s1 = log
+            .append(
+                EventKind::ToolCall,
+                json!({"tool": "read_file", "path": "x.rs"}),
+            )
+            .unwrap();
+        let s2 = log
+            .append(EventKind::Checkpoint, json!({"id": "c1"}))
+            .unwrap();
         assert_eq!((s0, s1, s2), (0, 1, 2));
 
         // Replay and assert.

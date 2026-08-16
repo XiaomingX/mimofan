@@ -372,19 +372,14 @@ impl LspManager {
             return CallHierarchyTree::empty(direction, max_depth);
         };
 
-        let items = transport.prepare_call_hierarchy(file, line, column, wait).await;
+        let items = transport
+            .prepare_call_hierarchy(file, line, column, wait)
+            .await;
         let Some(root_item) = items.into_iter().next() else {
             return CallHierarchyTree::empty(direction, max_depth);
         };
 
-        CallHierarchyTree::build(
-            &*transport,
-            root_item,
-            direction,
-            max_depth,
-            wait,
-        )
-        .await
+        CallHierarchyTree::build(&*transport, root_item, direction, max_depth, wait).await
     }
 
     async fn warn_missing_once(&self, lang: Language, cmd: &str, err: &anyhow::Error) {
@@ -503,7 +498,9 @@ impl CallHierarchyTree {
         // 展开根节点的入/出边。`both` 时两条都展开。
         let mut root_nodes: Vec<CallNode> = Vec::new();
         if dir == "incoming" || dir == "both" {
-            let edges = transport.call_hierarchy_calls(root_item.clone(), "incoming", wait).await;
+            let edges = transport
+                .call_hierarchy_calls(root_item.clone(), "incoming", wait)
+                .await;
             for edge in edges {
                 if let Some(node) = CallNode::from_incoming(&edge) {
                     root_nodes.push(node);
@@ -511,7 +508,9 @@ impl CallHierarchyTree {
             }
         }
         if dir == "outgoing" || dir == "both" {
-            let edges = transport.call_hierarchy_calls(root_item.clone(), "outgoing", wait).await;
+            let edges = transport
+                .call_hierarchy_calls(root_item.clone(), "outgoing", wait)
+                .await;
             for edge in edges {
                 if let Some(node) = CallNode::from_outgoing(&edge) {
                     root_nodes.push(node);
@@ -614,7 +613,13 @@ impl CallNode {
 
     /// 递归展开该节点的入/出调用边，深度上限 `remaining`。`direction` 为
     /// `"both"` 时同时展开两条方向；否则只展开指定方向。
-    async fn expand(&mut self, transport: &(dyn LspTransport), direction: &str, remaining: u32, wait: Duration) {
+    async fn expand(
+        &mut self,
+        transport: &(dyn LspTransport),
+        direction: &str,
+        remaining: u32,
+        wait: Duration,
+    ) {
         if remaining == 0 {
             return;
         }
@@ -635,20 +640,26 @@ impl CallNode {
 
         let mut kids: Vec<CallNode> = Vec::new();
         if direction == "incoming" || direction == "both" {
-            let edges = transport.call_hierarchy_calls(item.clone(), "incoming", wait).await;
+            let edges = transport
+                .call_hierarchy_calls(item.clone(), "incoming", wait)
+                .await;
             for edge in edges {
                 if let Some(mut node) = CallNode::from_incoming(&edge) {
                     // 递归展开需要 `Box::pin` 引入间接层，避免无限大小的 future。
-                    Box::pin(node.expand(transport, direction, remaining.saturating_sub(1), wait)).await;
+                    Box::pin(node.expand(transport, direction, remaining.saturating_sub(1), wait))
+                        .await;
                     kids.push(node);
                 }
             }
         }
         if direction == "outgoing" || direction == "both" {
-            let edges = transport.call_hierarchy_calls(item.clone(), "outgoing", wait).await;
+            let edges = transport
+                .call_hierarchy_calls(item.clone(), "outgoing", wait)
+                .await;
             for edge in edges {
                 if let Some(mut node) = CallNode::from_outgoing(&edge) {
-                    Box::pin(node.expand(transport, direction, remaining.saturating_sub(1), wait)).await;
+                    Box::pin(node.expand(transport, direction, remaining.saturating_sub(1), wait))
+                        .await;
                     kids.push(node);
                 }
             }
@@ -813,7 +824,12 @@ mod tests {
         async fn close_file(&self, _path: &Path) -> anyhow::Result<()> {
             Ok(())
         }
-        async fn request(&self, _method: &str, _params: Value, _wait: Duration) -> anyhow::Result<Value> {
+        async fn request(
+            &self,
+            _method: &str,
+            _params: Value,
+            _wait: Duration,
+        ) -> anyhow::Result<Value> {
             Ok(Value::Null)
         }
         async fn document_symbols(&self, _path: &Path, _wait: Duration) -> Vec<LspSymbol> {
@@ -933,14 +949,8 @@ mod tests {
             .next()
             .unwrap();
 
-        let tree = CallHierarchyTree::build(
-            &fake,
-            root,
-            "outgoing",
-            2,
-            Duration::from_millis(10),
-        )
-        .await;
+        let tree =
+            CallHierarchyTree::build(&fake, root, "outgoing", 2, Duration::from_millis(10)).await;
 
         assert_eq!(tree.root_name, "main");
         assert_eq!(tree.children.len(), 1);
@@ -970,14 +980,8 @@ mod tests {
             .unwrap();
 
         // 深度 1：只能展开到 helper，leaf 看不到。
-        let tree = CallHierarchyTree::build(
-            &fake,
-            root,
-            "outgoing",
-            1,
-            Duration::from_millis(10),
-        )
-        .await;
+        let tree =
+            CallHierarchyTree::build(&fake, root, "outgoing", 1, Duration::from_millis(10)).await;
         assert_eq!(tree.children[0].name, "helper");
         assert!(tree.children[0].children.is_empty());
     }
@@ -998,14 +1002,8 @@ mod tests {
             .next()
             .unwrap();
 
-        let tree = CallHierarchyTree::build(
-            &fake,
-            root,
-            "incoming",
-            2,
-            Duration::from_millis(10),
-        )
-        .await;
+        let tree =
+            CallHierarchyTree::build(&fake, root, "incoming", 2, Duration::from_millis(10)).await;
         assert_eq!(tree.children.len(), 1);
         assert_eq!(tree.children[0].name, "caller");
         // 入边用 fromRanges 的第一个作为 call_line（1-based）。

@@ -140,9 +140,9 @@ impl HeadlessGate {
         code: impl Into<String>,
         message: impl Into<String>,
     ) -> Result<u64> {
-        let path = self.failure_log_path().ok_or_else(|| {
-            anyhow!(HeadlessGateError::MissingFailureLog)
-        })?;
+        let path = self
+            .failure_log_path()
+            .ok_or_else(|| anyhow!(HeadlessGateError::MissingFailureLog))?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("creating failure log dir {}", parent.display()))?;
@@ -254,4 +254,3 @@ mod tests {
         assert!(path.ends_with(".mimofan/failures.jsonl"));
     }
 }
-

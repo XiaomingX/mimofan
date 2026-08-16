@@ -48,7 +48,7 @@ pub fn read_frame<R: Read>(reader: &mut R) -> io::Result<Option<Frame>> {
                 return Err(io::Error::new(
                     io::ErrorKind::UnexpectedEof,
                     "session socket closed mid-frame",
-                ))
+                ));
             }
             Ok(n) => filled += n,
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,

@@ -7,9 +7,7 @@ use std::time::Instant;
 use ratatui::layout::Rect;
 use serde_json::Value;
 
-use mimofan_config::{
-    ProviderChain, catalog::ProviderCatalogCache, route::RouteLimits,
-};
+use mimofan_config::{ProviderChain, catalog::ProviderCatalogCache, route::RouteLimits};
 
 use crate::artifacts::ArtifactRecord;
 use crate::config::{ApiProvider, Config};
@@ -721,9 +719,8 @@ pub struct App {
     /// instead of being retried every turn. Keyed by `ApiProvider::as_str`.
     /// Wrapped in a `Mutex` for interior mutability — consulted from `&self`
     /// readiness checks while still being written from error/success paths.
-    pub(crate) provider_breaker: std::sync::Mutex<
-        crate::core::engine::circuit_breaker::CircuitBreaker,
-    >,
+    pub(crate) provider_breaker:
+        std::sync::Mutex<crate::core::engine::circuit_breaker::CircuitBreaker>,
     /// Human-readable description of the last provider fallback event.
     pub last_fallback_reason: Option<String>,
     /// True when the active provider/base URL accepts arbitrary model IDs

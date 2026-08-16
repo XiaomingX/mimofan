@@ -20,8 +20,8 @@ use anyhow::{Context as _, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use super::{SubAgentManager, SubAgentRuntime};
 use super::types::{SubAgentResult, SubAgentStatus, SubAgentType};
+use super::{SubAgentManager, SubAgentRuntime};
 
 /// Structured verdict returned by [`adversarial_verify`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -109,15 +109,16 @@ impl VerdictResolver for SpawnedReviewerResolver {
         let prompt = build_adversarial_reviewer_prompt(claim, evidence);
         let snapshot = {
             let mut guard = manager.write().await;
-            guard.spawn_background(
-                Arc::clone(manager),
-                runtime.clone(),
-                SubAgentType::Review,
-                prompt,
-                // Read-only review role; independent (no fork context).
-                Some(vec!["read_file".to_string(), "grep".to_string()]),
-            )
-            .context("adversarial_verify: failed to spawn independent reviewer")?
+            guard
+                .spawn_background(
+                    Arc::clone(manager),
+                    runtime.clone(),
+                    SubAgentType::Review,
+                    prompt,
+                    // Read-only review role; independent (no fork context).
+                    Some(vec!["read_file".to_string(), "grep".to_string()]),
+                )
+                .context("adversarial_verify: failed to spawn independent reviewer")?
         };
         let agent_id = snapshot.agent_id.clone();
 
@@ -185,9 +186,16 @@ fn parse_reviewer_verdict(text: &str) -> AdversarialVerdict {
         // No sentinel — infer from strong lexical contest signals, but default
         // to contesting so the caller escalates rather than auto-accepts.
         let lower = text.to_ascii_lowercase();
-        let contests = ["contradict", "disagree", "unsupported", "false", "invalid", "reject"]
-            .iter()
-            .any(|needle| lower.contains(needle));
+        let contests = [
+            "contradict",
+            "disagree",
+            "unsupported",
+            "false",
+            "invalid",
+            "reject",
+        ]
+        .iter()
+        .any(|needle| lower.contains(needle));
         supported = !contests;
         confidence = 0.5;
     }
@@ -294,7 +302,9 @@ pub async fn adversarial_verify(
     }
 
     let config = AdversarialVerifyConfig::default();
-    resolver.resolve(&runtime, manager, claim, evidence, config).await
+    resolver
+        .resolve(&runtime, manager, claim, evidence, config)
+        .await
 }
 
 #[cfg(test)]
@@ -413,8 +423,7 @@ mod tests {
             new_test_manager(),
         );
         let manager = Arc::new(RwLock::new(SubAgentManager::new(std::env::temp_dir(), 1)));
-        let result =
-            adversarial_verify(&runtime, &manager, "   ", &[], &resolver).await;
+        let result = adversarial_verify(&runtime, &manager, "   ", &[], &resolver).await;
         assert!(result.is_err());
     }
 

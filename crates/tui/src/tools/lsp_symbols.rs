@@ -26,9 +26,7 @@ use serde_json::{Value, json};
 use super::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
 };
-use crate::lsp::{
-    CallHierarchyTree, CallNode, LspLocation, LspManager, LspSymbol,
-};
+use crate::lsp::{CallHierarchyTree, CallNode, LspLocation, LspManager, LspSymbol};
 
 /// `wait_ms` 缺省时的兜底等待时长（毫秒）。实际优先取
 /// `[lsp] poll_after_edit_ms`，两者都拿不到时用这个值。
@@ -468,10 +466,7 @@ fn node_to_json(node: &CallNode) -> Value {
 
 /// 统计调用树节点总数（含嵌套）。
 fn count_nodes(nodes: &[CallNode]) -> usize {
-    nodes
-        .iter()
-        .map(|n| 1 + count_nodes(&n.children))
-        .sum()
+    nodes.iter().map(|n| 1 + count_nodes(&n.children)).sum()
 }
 
 // === 共用辅助函数 ===

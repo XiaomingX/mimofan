@@ -746,13 +746,8 @@ pub fn env_for(name: &str) -> Option<String> {
         // Canonical OpenAI-compatible provider. The `xiaomi-mimo` family are
         // retired product aliases kept for backwards compatibility; their
         // legacy env keys stay as a deprecated fallback.
-        "openai-compatible"
-        | "openai_compatible"
-        | "xiaomi-mimo"
-        | "xiaomi_mimo"
-        | "xiaomimimo"
-        | "mimo"
-        | "xiaomi" => &[
+        "openai-compatible" | "openai_compatible" | "xiaomi-mimo" | "xiaomi_mimo"
+        | "xiaomimimo" | "mimo" | "xiaomi" => &[
             "OPENAI_COMPATIBLE_API_KEY",
             // Deprecated: legacy product-specific keys.
             "XIAOMI_MIMO_API_KEY",

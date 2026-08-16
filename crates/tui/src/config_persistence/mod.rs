@@ -414,7 +414,10 @@ pub(crate) fn load_catalog_cache() -> ProviderCatalogCache {
     }
     match std::fs::read_to_string(&path) {
         Ok(raw) => serde_json::from_str(&raw).unwrap_or_else(|e| {
-            tracing::warn!("failed to parse catalog cache at {}, starting empty: {e:#}", path.display());
+            tracing::warn!(
+                "failed to parse catalog cache at {}, starting empty: {e:#}",
+                path.display()
+            );
             ProviderCatalogCache::new()
         }),
         Err(_) => ProviderCatalogCache::new(),

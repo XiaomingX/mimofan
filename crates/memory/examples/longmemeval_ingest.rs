@@ -28,7 +28,11 @@ const DIM: usize = 256;
 /// 确定性本地 embedding：字符 bigram 哈希袋 + L2 归一化（同 probe_recall.rs）。
 fn embed_local(text: &str) -> Vec<f32> {
     let mut v = vec![0f32; DIM];
-    let chars: Vec<char> = text.to_lowercase().chars().filter(|c| !c.is_whitespace()).collect();
+    let chars: Vec<char> = text
+        .to_lowercase()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
     for w in 1..=2usize {
         if chars.len() < w {
             continue;
@@ -143,12 +147,8 @@ fn main() {
             }
         };
         for (sid, text) in &session_texts {
-            let obs = Observation::with_session(
-                project.clone(),
-                "project",
-                text.clone(),
-                sid.clone(),
-            );
+            let obs =
+                Observation::with_session(project.clone(), "project", text.clone(), sid.clone());
             let emb = embed_local(text);
             if let Err(e) = store.store_observation(&obs, &emb) {
                 emit_error(&format!("写入 observation 失败: {e}"));
@@ -189,10 +189,7 @@ fn main() {
             return;
         }
     };
-    let recalled: Vec<String> = results
-        .into_iter()
-        .map(|m| m.observation.content)
-        .collect();
+    let recalled: Vec<String> = results.into_iter().map(|m| m.observation.content).collect();
 
     eprintln!(
         "[longmemeval_ingest] 召回 {}/{} 个 session 供 question='{}'",

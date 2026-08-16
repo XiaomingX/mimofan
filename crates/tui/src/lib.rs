@@ -58,12 +58,12 @@ mod eval;
 pub mod evidence;
 pub mod execpolicy;
 pub(crate) mod features;
-/// #844: Batch API offline channel (cost lever). Client plumbing + types only;
-/// the engine wires it through `EngineConfig::batch_mode`.
-pub mod provider;
 pub mod fleet;
 pub mod issue_monitor;
 mod mimofan_theme;
+/// #844: Batch API offline channel (cost lever). Client plumbing + types only;
+/// the engine wires it through `EngineConfig::batch_mode`.
+pub mod provider;
 /// Re-export observability types for integration tests and external consumers.
 pub use fleet::observability::{
     AgentMetrics, AgentTopology, FleetStatusSummary, ObservabilityCollector,
@@ -74,6 +74,8 @@ mod hooks;
 mod llm_client;
 mod llm_response_cache;
 pub use mimofan_localization as localization;
+#[path = "tools/advisor.rs"]
+pub mod advisor;
 pub mod evolve;
 mod logging;
 pub mod loop_guard;
@@ -90,11 +92,19 @@ mod model_routing;
 pub mod models;
 mod network_policy;
 pub mod palette;
+/// #834 / plan W1：插件化能力装配入口（manifest 解析 + 能力组装）。
+pub mod plugins;
 mod prefix_cache;
 mod pricing;
 mod project_context;
 mod project_context_cache;
 mod project_doc;
+/// #846 / #847: new capability modules compiled alongside `tools` but mounted
+/// here (not in `tools/mod.rs`) so the central tool-registry wiring stays
+/// untouched. The registry/spec references inside resolve via absolute
+/// `crate::` paths regardless of mount point.
+#[path = "tools/prompt_audit.rs"]
+pub mod prompt_audit;
 mod prompt_injection;
 mod prompt_zones;
 mod prompts;
@@ -133,16 +143,6 @@ mod tls;
 mod tokenizer;
 mod tool_output_receipts;
 pub mod tools;
-/// #846 / #847: new capability modules compiled alongside `tools` but mounted
-/// here (not in `tools/mod.rs`) so the central tool-registry wiring stays
-/// untouched. The registry/spec references inside resolve via absolute
-/// `crate::` paths regardless of mount point.
-#[path = "tools/prompt_audit.rs"]
-pub mod prompt_audit;
-#[path = "tools/advisor.rs"]
-pub mod advisor;
-/// #834 / plan W1：插件化能力装配入口（manifest 解析 + 能力组装）。
-pub mod plugins;
 mod tui;
 mod turn_memory;
 mod utils;
@@ -542,7 +542,7 @@ pub async fn run() -> Result<()> {
                     || args.allowed_tools.is_some()
                     || args.disallowed_tools.is_some()
                     || args.append_system_prompt.is_some()
-                || args.json_schema.is_some();
+                    || args.json_schema.is_some();
                 if needs_engine {
                     let provider = config.api_provider();
                     let max_subagents = cli.max_subagents.map_or_else(

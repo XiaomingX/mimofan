@@ -21,9 +21,9 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
 use chrono::Utc;
+use dirs;
 use serde_json::{Value, json};
 use std::io;
-use dirs;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock, broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
@@ -139,8 +139,12 @@ pub struct RuntimeThreadManager {
     /// When `Some`, model-visible tools can spawn sibling sessions via the
     /// core `Runtime`. `None` in contexts without a live `Runtime`
     /// (e.g. standalone task manager) — `create_sub_session` fails closed there.
-    thread_request_tx:
-        Option<UnboundedSender<(ThreadRequest, oneshot::Sender<Result<ThreadResponse, String>>)>>,
+    thread_request_tx: Option<
+        UnboundedSender<(
+            ThreadRequest,
+            oneshot::Sender<Result<ThreadResponse, String>>,
+        )>,
+    >,
     /// Sender side of the `record_artifact` session-index channel (#697).
     /// Records are appended to a per-session artifact index on disk so they
     /// survive resume. `None` disables artifact indexing.
@@ -161,7 +165,10 @@ impl RuntimeThreadManager {
         // live core `Runtime` is supplied we spawn a consumer that forwards
         // requests to `Runtime::handle_thread` and answers via the oneshot.
         let thread_request_tx = runtime.as_ref().map(|runtime| {
-            let (tx, mut rx) = mpsc::unbounded_channel::<(ThreadRequest, oneshot::Sender<Result<ThreadResponse, String>>)>();
+            let (tx, mut rx) = mpsc::unbounded_channel::<(
+                ThreadRequest,
+                oneshot::Sender<Result<ThreadResponse, String>>,
+            )>();
             let runtime = runtime.clone();
             tokio::spawn(async move {
                 while let Some((req, reply)) = rx.recv().await {
@@ -3018,7 +3025,10 @@ impl crate::tools::spec::DynamicToolExecutor for RuntimeThreadManager {
 /// survives resume. Mirrors the shape persisted into `SavedSession.artifacts`.
 async fn append_artifact_index(record: &crate::artifacts::ArtifactRecord) -> io::Result<()> {
     let home = dirs::home_dir().ok_or_else(|| {
-        io::Error::new(io::ErrorKind::NotFound, "no home directory for artifact index")
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "no home directory for artifact index",
+        )
     })?;
     let path = home
         .join(".mimofan")

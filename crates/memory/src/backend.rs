@@ -167,7 +167,10 @@ mod tests {
             .upsert(&observation("trait 化的第一条观察"), &[0.0; DIM])
             .expect("upsert");
         assert!(id > 0, "upsert 应返回有效 id");
-        assert_eq!(MemoryBackend::count(&store).expect("count after upsert"), 17);
+        assert_eq!(
+            MemoryBackend::count(&store).expect("count after upsert"),
+            17
+        );
 
         // 查询向量与目标观察完全一致、与背景点相距甚远，故它必居首位。
         let matches = store
@@ -177,7 +180,10 @@ mod tests {
         assert_eq!(matches[0].observation.content, "trait 化的第一条观察");
 
         store.delete(id).expect("delete");
-        assert_eq!(MemoryBackend::count(&store).expect("count after delete"), 16);
+        assert_eq!(
+            MemoryBackend::count(&store).expect("count after delete"),
+            16
+        );
     }
 
     /// 过滤器经由 trait 的 `query` 透传后仍然生效。
@@ -236,7 +242,10 @@ mod tests {
             .upsert(&observation("rebuild 前既有数据保留"), &[0.0; DIM])
             .expect("upsert");
         store.rebuild().expect("rebuild");
-        assert_eq!(MemoryBackend::count(&store).expect("count after rebuild"), 1);
+        assert_eq!(
+            MemoryBackend::count(&store).expect("count after rebuild"),
+            1
+        );
     }
 
     /// trait object 可用性：装箱后仍能调用全部方法。
@@ -351,7 +360,10 @@ mod tests {
             }
 
             fn delete(&self, id: i64) -> Result<()> {
-                self.items.lock().expect("lock items").retain(|(i, _)| *i != id);
+                self.items
+                    .lock()
+                    .expect("lock items")
+                    .retain(|(i, _)| *i != id);
                 Ok(())
             }
 

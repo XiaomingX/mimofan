@@ -684,7 +684,12 @@ impl ApiClient {
         config: &Config,
         catalog_cache: Arc<StdMutex<ProviderCatalogCache>>,
     ) -> Result<Self> {
-        Self::from_parts(config.api_base_url(), config.default_model(), config, catalog_cache)
+        Self::from_parts(
+            config.api_base_url(),
+            config.default_model(),
+            config,
+            catalog_cache,
+        )
     }
 
     /// Create an API client with a *private, detached* catalog cache.

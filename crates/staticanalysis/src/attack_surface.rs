@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use anyhow::Result;
 
 use crate::knowledge::{Gadget, GadgetChain, KnowledgeBase};
-use crate::sca::{Dependency, Advisory};
+use crate::sca::{Advisory, Dependency};
 
 /// A dependency fingerprint signal: a library is present at some version.
 #[derive(Debug, Clone)]
@@ -123,7 +123,11 @@ fn gadgets_for_deps<'a>(kb: &'a KnowledgeBase, deps: &[Dependency]) -> Vec<&'a G
     let dep_names: HashSet<&str> = deps.iter().map(|d| d.name.as_str()).collect();
     kb.gadgets
         .values()
-        .filter(|g| dep_names.iter().any(|n| n.contains(&g.library) || g.library.contains(n)))
+        .filter(|g| {
+            dep_names
+                .iter()
+                .any(|n| n.contains(&g.library) || g.library.contains(n))
+        })
         .collect()
 }
 
@@ -252,13 +256,16 @@ chains:
         )];
 
         let entries = enumerate_surface(&kb, &deps, &advisories);
-        let has_chain = entries
-            .iter()
-            .any(|e| e.kind == AttackSurfaceKind::GadgetChain && e.ref_id.as_deref() == Some("c3p0-chain"));
+        let has_chain = entries.iter().any(|e| {
+            e.kind == AttackSurfaceKind::GadgetChain && e.ref_id.as_deref() == Some("c3p0-chain")
+        });
         let has_vuln = entries
             .iter()
             .any(|e| e.kind == AttackSurfaceKind::VulnerableDependency);
-        assert!(has_chain, "C3P0 gadget chain should be enumerated: {entries:?}");
+        assert!(
+            has_chain,
+            "C3P0 gadget chain should be enumerated: {entries:?}"
+        );
         assert!(has_vuln, "vulnerable dependency should be enumerated");
     }
 
@@ -272,9 +279,11 @@ chains:
             reachable: true,
         }];
         let entries = enumerate_surface(&kb, &deps, &[]);
-        assert!(entries
-            .iter()
-            .any(|e| e.kind == AttackSurfaceKind::ImplicitAutoType));
+        assert!(
+            entries
+                .iter()
+                .any(|e| e.kind == AttackSurfaceKind::ImplicitAutoType)
+        );
     }
 
     // Touch RuleSet/SymbolSpec imports so the test module compiles even if the

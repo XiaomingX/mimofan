@@ -72,7 +72,11 @@ const DIM: usize = 256;
 /// 保证「改进前 vs 改进后」两次跑分之间的差异只来自被测代码。
 fn embed_local(text: &str) -> Vec<f32> {
     let mut v = vec![0f32; DIM];
-    let chars: Vec<char> = text.to_lowercase().chars().filter(|c| !c.is_whitespace()).collect();
+    let chars: Vec<char> = text
+        .to_lowercase()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
 
     // unigram + bigram，两种粒度都计入，缓解中文单字歧义。
     for w in 1..=2usize {
@@ -171,7 +175,12 @@ fn main() {
                 if stmt.is_empty() {
                     continue;
                 }
-                let obs = Observation::with_session(sid.to_string(), "project", stmt.clone(), sid.to_string());
+                let obs = Observation::with_session(
+                    sid.to_string(),
+                    "project",
+                    stmt.clone(),
+                    sid.to_string(),
+                );
                 let emb = embed_local(&stmt);
                 if let Err(e) = store.store_observation(&obs, &emb) {
                     bail(&format!("写入事实失败: {e}"));
@@ -182,7 +191,12 @@ fn main() {
             // 写入干扰项：同一 project 下混入噪声，
             // 确保召回不是「库里只有一条所以必中」的假阳性。
             for d in &distractors {
-                let obs = Observation::with_session(sid.to_string(), "project", d.clone(), sid.to_string());
+                let obs = Observation::with_session(
+                    sid.to_string(),
+                    "project",
+                    d.clone(),
+                    sid.to_string(),
+                );
                 let emb = embed_local(d);
                 if let Err(e) = store.store_observation(&obs, &emb) {
                     bail(&format!("写入干扰项失败: {e}"));
@@ -265,7 +279,9 @@ fn main() {
             // 只看 Top-1：重启后这条记录必须仍是自己向量的最近邻。
             // 放宽到 Top-5 会让「数据还在但索引坏了」也算过，失去区分度。
             let top = results.first();
-            let got = top.map(|m| m.observation.content.clone()).unwrap_or_default();
+            let got = top
+                .map(|m| m.observation.content.clone())
+                .unwrap_or_default();
             let from_fact = *is_fact.get(&got).unwrap_or(&false);
             let ok = from_fact && got == stmt;
             if ok {

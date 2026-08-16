@@ -399,7 +399,9 @@ pub struct FileScopeAssignment {
 /// guarantees the returned map has no file claimed by two agents.
 ///
 /// Returns `agent_id -> files it may exclusively own`.
-pub fn plan_disjoint_file_sets(assignments: &[FileScopeAssignment]) -> HashMap<String, Vec<String>> {
+pub fn plan_disjoint_file_sets(
+    assignments: &[FileScopeAssignment],
+) -> HashMap<String, Vec<String>> {
     let mut ordered: Vec<&FileScopeAssignment> = assignments.iter().collect();
     ordered.sort_by_key(|a| a.files.len());
     let mut taken: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -520,8 +522,14 @@ mod tests {
         let plan = plan_disjoint_file_sets(&assignments);
         // narrow (fewer files) is processed first and keeps its exclusive w.java
         // plus wins the contested y.java; wide falls back to its uncontested x,z.
-        assert_eq!(plan["narrow"], vec!["y.java".to_string(), "w.java".to_string()]);
-        assert_eq!(plan["wide"], vec!["x.java".to_string(), "z.java".to_string()]);
+        assert_eq!(
+            plan["narrow"],
+            vec!["y.java".to_string(), "w.java".to_string()]
+        );
+        assert_eq!(
+            plan["wide"],
+            vec!["x.java".to_string(), "z.java".to_string()]
+        );
         // disjointness: no file owned by two agents
         let mut seen = std::collections::HashSet::new();
         for files in plan.values() {

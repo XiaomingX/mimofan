@@ -13,11 +13,11 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use async_trait::async_trait;
-use uuid::Uuid;
 use serde_json::{Value, json};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
 use mimofan_protocol::{ThreadRequest, ThreadResponse};
 
@@ -185,8 +185,12 @@ pub struct RuntimeToolServices {
     /// Channel for tools to spawn sibling sessions (issue #697 `create_sub_session`).
     /// The engine consumes `(ThreadRequest, reply)` pairs and answers via the
     /// oneshot sender. `None` outside the live engine (test contexts cannot spawn).
-    pub thread_request_tx:
-        Option<UnboundedSender<(ThreadRequest, oneshot::Sender<Result<ThreadResponse, String>>)>>,
+    pub thread_request_tx: Option<
+        UnboundedSender<(
+            ThreadRequest,
+            oneshot::Sender<Result<ThreadResponse, String>>,
+        )>,
+    >,
     /// Channel for tools to append durable artifact records to the session index
     /// (issue #697 `record_artifact`). The engine consumes records and persists
     /// them alongside `app.session_artifacts`. `None` when no session index is
@@ -1701,7 +1705,11 @@ mod tests {
         let ctx = ToolContext::new(std::env::temp_dir());
         assert!(!ctx.trace_id.is_empty(), "trace_id must default to a uuid");
         // A valid uuid v4 string is 36 chars (8-4-4-4-12).
-        assert_eq!(ctx.trace_id.len(), 36, "trace_id should be a uuid v4 string");
+        assert_eq!(
+            ctx.trace_id.len(),
+            36,
+            "trace_id should be a uuid v4 string"
+        );
         assert_ne!(ctx.trace_id, "00000000-0000-0000-0000-000000000000");
     }
 

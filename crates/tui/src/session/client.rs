@@ -12,9 +12,7 @@ use std::os::unix::process::CommandExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 
-use crate::session::protocol::{
-    encode_frame, read_frame, Frame, OP_DATA, OP_DETACH, OP_RESIZE,
-};
+use crate::session::protocol::{Frame, OP_DATA, OP_DETACH, OP_RESIZE, encode_frame, read_frame};
 use crate::session::registry;
 
 /// Spawn the daemon as a detached, independent process so the session outlives
@@ -125,7 +123,8 @@ pub async fn run_attach(
     let mut reader_task = tokio::spawn(async move {
         let mut header = [0u8; 5];
         loop {
-            match tokio::time::timeout(std::time::Duration::from_secs(3600), r.read(&mut header)).await
+            match tokio::time::timeout(std::time::Duration::from_secs(3600), r.read(&mut header))
+                .await
             {
                 Ok(Ok(5)) => {
                     let len =
@@ -154,6 +153,8 @@ pub async fn run_attach(
     reader_task.abort();
 
     disable_raw_mode().context("disable raw mode")?;
-    eprintln!("\r\ndetached from session '{id}' (daemon still running). Re-attach with: mimofan session attach {id}");
+    eprintln!(
+        "\r\ndetached from session '{id}' (daemon still running). Re-attach with: mimofan session attach {id}"
+    );
     Ok(())
 }

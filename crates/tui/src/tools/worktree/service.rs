@@ -284,9 +284,12 @@ fn run_git_checked(workspace: &Path, args: &[String], action: &str) -> Result<St
 /// model-facing tool output.
 #[must_use]
 pub fn worktree_created_summary(path: &Path, branch: &str) -> ToolResult {
-    ToolResult::success(json!({
-        "status": "created",
-        "path": path.display().to_string(),
-        "branch": branch,
-    }).to_string())
+    ToolResult::success(
+        json!({
+            "status": "created",
+            "path": path.display().to_string(),
+            "branch": branch,
+        })
+        .to_string(),
+    )
 }

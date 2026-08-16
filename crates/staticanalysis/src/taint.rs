@@ -66,11 +66,7 @@ impl TaintTag {
         if other.classes.is_empty() {
             return self.clone();
         }
-        let classes: HashSet<String> = self
-            .classes
-            .intersection(&other.classes)
-            .cloned()
-            .collect();
+        let classes: HashSet<String> = self.classes.intersection(&other.classes).cloned().collect();
         TaintTag { classes }
     }
 
@@ -299,9 +295,9 @@ impl<'a> Solver<'a> {
 
             // Propagator: taint from from_arg flows to return (and optionally
             // to receiver). The taint *class* is preserved.
-            let prop_info = self.match_propagator(call).map(|p| {
-                (p.from_arg.unwrap_or(0), p.to_receiver)
-            });
+            let prop_info = self
+                .match_propagator(call)
+                .map(|p| (p.from_arg.unwrap_or(0), p.to_receiver));
             if let Some((from, to_receiver)) = prop_info {
                 if let Some(t) = incoming.get(&from) {
                     if self.ret_taint.insert(call_id, t.clone()).is_none() || changed {
@@ -509,7 +505,9 @@ impl<'a> Solver<'a> {
                                 line: fa.line,
                             });
                             if let Some(rhs) = fa.rhs_call_id {
-                                if let Some(rhs_call) = self.facts.calls.iter().find(|c| c.id == rhs) {
+                                if let Some(rhs_call) =
+                                    self.facts.calls.iter().find(|c| c.id == rhs)
+                                {
                                     if let Some(src) = self.match_source(rhs_call) {
                                         steps.push(TaintStep {
                                             description: format!(
@@ -521,9 +519,7 @@ impl<'a> Solver<'a> {
                                             file: rhs_call.file.clone(),
                                             line: rhs_call.line,
                                         });
-                                    } else if let Some(prop) =
-                                        self.match_propagator(rhs_call)
-                                    {
+                                    } else if let Some(prop) = self.match_propagator(rhs_call) {
                                         steps.push(TaintStep {
                                             description: format!(
                                                 "propagator {}: {} forwards taint",
@@ -680,13 +676,19 @@ sanitizers:
         let hit = findings
             .iter()
             .find(|f| f.sink_symbol == "InitialContext.lookup");
-        assert!(hit.is_some(), "expected C3P0 chain to reach JNDI lookup; got {findings:?}");
+        assert!(
+            hit.is_some(),
+            "expected C3P0 chain to reach JNDI lookup; got {findings:?}"
+        );
         let hit = hit.unwrap();
         assert_eq!(hit.sink_rule_id, "java-jndi-lookup");
         // Chain should mention the source and the sink.
         let chain_text = format!("{:?}", hit.chain);
-        assert!(chain_text.contains("java-jndi-name-readback") || chain_text.contains("source"),
-            "chain should reference a source: {:#?}", hit.chain);
+        assert!(
+            chain_text.contains("java-jndi-name-readback") || chain_text.contains("source"),
+            "chain should reference a source: {:#?}",
+            hit.chain
+        );
     }
 
     #[test]
@@ -726,8 +728,13 @@ sanitizers:
 
         let rules = c3p0_rules();
         let findings = analyze(&facts, &rules).unwrap();
-        let hit = findings.iter().find(|f| f.sink_symbol == "InitialContext.lookup");
-        assert!(hit.is_some(), "cross-function field taint must reach sink; got {findings:?}");
+        let hit = findings
+            .iter()
+            .find(|f| f.sink_symbol == "InitialContext.lookup");
+        assert!(
+            hit.is_some(),
+            "cross-function field taint must reach sink; got {findings:?}"
+        );
         // The chain must mention the source assignment (proving the full
         // source -> field -> sink evidence chain was reconstructed).
         let chain_text = format!("{:?}", hit.unwrap().chain);

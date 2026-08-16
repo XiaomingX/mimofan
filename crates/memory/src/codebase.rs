@@ -16,8 +16,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use rusqlite::params;
 use rusqlite::OptionalExtension;
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
 use crate::Result;
@@ -323,11 +323,10 @@ impl CodebaseIndex {
 
     fn remove_file(&self, repo: &str, file_path: &str) -> Result<()> {
         // Delete FTS rows first (they carry file_path for the match).
-        self.sqlite
-            .execute(
-                "DELETE FROM code_fts WHERE file_path = ?1",
-                params![file_path],
-            )?;
+        self.sqlite.execute(
+            "DELETE FROM code_fts WHERE file_path = ?1",
+            params![file_path],
+        )?;
         self.sqlite.execute(
             "DELETE FROM code_chunks WHERE repo = ?1 AND file_path = ?2",
             params![repo, file_path],
@@ -336,7 +335,8 @@ impl CodebaseIndex {
     }
 
     fn insert_chunk(&self, repo: &str, chunk: &Chunk) -> Result<()> {
-        let symbols_json = serde_json::to_string(&chunk.symbols).unwrap_or_else(|_| "[]".to_string());
+        let symbols_json =
+            serde_json::to_string(&chunk.symbols).unwrap_or_else(|_| "[]".to_string());
         self.sqlite.execute(
             "INSERT INTO code_chunks (repo, file_path, language, kind, start_line, end_line, content, symbols_json)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -374,7 +374,12 @@ impl CodebaseIndex {
     /// Full-text search over the indexed codebase. The query is passed
     /// verbatim to FTS5 MATCH (callers may use FTS5 prefix/phrase syntax).
     /// `filters` narrow results by language / path prefix / symbols.
-    pub fn search(&self, query: &str, filters: &SearchFilters, limit: usize) -> Result<Vec<SearchHit>> {
+    pub fn search(
+        &self,
+        query: &str,
+        filters: &SearchFilters,
+        limit: usize,
+    ) -> Result<Vec<SearchHit>> {
         // Normalize the query so that identifiers written in code style
         // (underscores / camelCase) align with how `unicode61` tokenized the
         // indexed content. We only rewrite when the user did not already use
@@ -583,7 +588,11 @@ impl CodebaseIndex {
         }
 
         fused.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-        let mut out = fused.into_iter().take(limit).map(|(_, i)| hits[i].clone()).collect::<Vec<_>>();
+        let mut out = fused
+            .into_iter()
+            .take(limit)
+            .map(|(_, i)| hits[i].clone())
+            .collect::<Vec<_>>();
         // Re-rank `rank` to mirror the fused order for callers that sort by it.
         for (pos, hit) in out.iter_mut().enumerate() {
             hit.rank = pos as f64;
@@ -593,13 +602,11 @@ impl CodebaseIndex {
 
     /// Count indexed chunks for a repo (used by tests/diagnostics).
     pub fn chunk_count(&self, repo: &str) -> Result<usize> {
-        let n: i64 = self
-            .sqlite
-            .query_row(
-                "SELECT COUNT(*) FROM code_chunks WHERE repo = ?1",
-                params![repo],
-                |row| row.get(0),
-            )?;
+        let n: i64 = self.sqlite.query_row(
+            "SELECT COUNT(*) FROM code_chunks WHERE repo = ?1",
+            params![repo],
+            |row| row.get(0),
+        )?;
         Ok(n as usize)
     }
 }
@@ -624,13 +631,10 @@ pub struct IndexStats {
 /// If the query already uses FTS5 syntax we leave it untouched.
 pub fn normalize_query(q: &str) -> String {
     let trimmed = q.trim();
-    let uses_syntax = trimmed.contains('"')
-        || trimmed.contains('*')
-        || trimmed.contains('(')
-        || {
-            let u = trimmed.to_uppercase();
-            u.contains(" AND ") || u.contains(" OR ") || u.contains(" NOT ")
-        };
+    let uses_syntax = trimmed.contains('"') || trimmed.contains('*') || trimmed.contains('(') || {
+        let u = trimmed.to_uppercase();
+        u.contains(" AND ") || u.contains(" OR ") || u.contains(" NOT ")
+    };
     if uses_syntax {
         return q.to_string();
     }
@@ -710,7 +714,15 @@ pub fn extract_symbols(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for line in text.lines() {
         let trimmed = line.trim_start();
-        for kw in ["fn ", "struct ", "enum ", "impl ", "trait ", "mod ", "async fn "] {
+        for kw in [
+            "fn ",
+            "struct ",
+            "enum ",
+            "impl ",
+            "trait ",
+            "mod ",
+            "async fn ",
+        ] {
             if let Some(rest) = trimmed.strip_prefix(kw) {
                 // Take the identifier up to the first non-ident char.
                 let ident: String = rest
@@ -826,17 +838,37 @@ impl Tokenizer {
     fn search_filters_by_language_and_path() {
         let (_dir, idx) = open_tmp();
         idx.index_file("repo", "src/a.rs", "rust", SAMPLE).unwrap();
-        idx.index_file("repo", "src/b.py", "python", "def compute_hash(x):\n    return x\n").unwrap();
+        idx.index_file(
+            "repo",
+            "src/b.py",
+            "python",
+            "def compute_hash(x):\n    return x\n",
+        )
+        .unwrap();
 
         // Language filter.
         let rust_only = idx
-            .search("compute_hash", &SearchFilters { language: Some("rust".into()), ..Default::default() }, 10)
+            .search(
+                "compute_hash",
+                &SearchFilters {
+                    language: Some("rust".into()),
+                    ..Default::default()
+                },
+                10,
+            )
             .unwrap();
         assert!(rust_only.iter().all(|h| h.language == "rust"));
 
         // Path prefix filter.
         let py_only = idx
-            .search("compute_hash", &SearchFilters { path_prefix: Some("src/b".into()), ..Default::default() }, 10)
+            .search(
+                "compute_hash",
+                &SearchFilters {
+                    path_prefix: Some("src/b".into()),
+                    ..Default::default()
+                },
+                10,
+            )
             .unwrap();
         assert_eq!(py_only.len(), 1);
         assert_eq!(py_only[0].language, "python");
@@ -849,12 +881,16 @@ impl Tokenizer {
         let hits = idx
             .search(
                 "Tokenizer",
-                &SearchFilters { symbols: vec!["Tokenizer".into()], ..Default::default() },
+                &SearchFilters {
+                    symbols: vec!["Tokenizer".into()],
+                    ..Default::default()
+                },
                 10,
             )
             .unwrap();
-        assert!(hits.iter().all(|h| h.symbols.contains(&"Tokenizer".to_string())
-            || h.content.contains("Tokenizer")));
+        assert!(hits.iter().all(
+            |h| h.symbols.contains(&"Tokenizer".to_string()) || h.content.contains("Tokenizer")
+        ));
     }
 
     #[test]
@@ -885,15 +921,14 @@ impl Tokenizer {
     #[test]
     fn search_populates_fulltext_breakdown() {
         let (_dir, idx) = open_tmp();
-        idx.index_file("repo", "src/lib.rs", "rust", SAMPLE).unwrap();
+        idx.index_file("repo", "src/lib.rs", "rust", SAMPLE)
+            .unwrap();
         let hits = idx
             .search("wrapping_mul", &SearchFilters::default(), 10)
             .unwrap();
         assert!(!hits.is_empty());
         let hit = &hits[0];
-        assert!(hit
-            .score_breakdown
-            .contains_key(&RetrievalSource::FullText));
+        assert!(hit.score_breakdown.contains_key(&RetrievalSource::FullText));
         assert!(hit.score_breakdown[&RetrievalSource::FullText] > 0.0);
     }
 
@@ -935,12 +970,18 @@ impl Tokenizer {
         // semantic — so we assert presence, not a specific position 0).
         let paths: Vec<&str> = hits.iter().map(|h| h.file_path.as_str()).collect();
         assert!(paths.contains(&"a.rs"), "defining chunk must be recalled");
-        assert!(paths.contains(&"b.rs"), "referencing chunk must be recalled");
+        assert!(
+            paths.contains(&"b.rs"),
+            "referencing chunk must be recalled"
+        );
         // Fused scores are non-increasing down the list (RRF ordering).
         for w in hits.windows(2) {
             let s0: f64 = w[0].score_breakdown.values().sum();
             let s1: f64 = w[1].score_breakdown.values().sum();
-            assert!(s0 >= s1 - 1e-9, "hybrid order must be non-increasing by fused score");
+            assert!(
+                s0 >= s1 - 1e-9,
+                "hybrid order must be non-increasing by fused score"
+            );
         }
     }
 
@@ -1000,7 +1041,11 @@ impl Tokenizer {
             score_breakdown: breakdown,
         };
         let hit: RetrievalHit = (&search_hit).into();
-        assert_eq!(hit.source_kind, RetrievalSource::FullText, "max contributor wins");
+        assert_eq!(
+            hit.source_kind,
+            RetrievalSource::FullText,
+            "max contributor wins"
+        );
         assert!((hit.score - 1.3).abs() < 1e-9, "score is sum of breakdown");
         assert_eq!(hit.origin_id.as_deref(), Some("src/a.rs"));
         assert!(hit.score_breakdown.contains_key(&RetrievalSource::Lexical));
@@ -1015,7 +1060,10 @@ impl Tokenizer {
         assert_eq!(fused.len(), 3);
         // index 0 and 1 both appear at rank 0 in one list → highest fused.
         assert!(fused[&0] > fused[&2], "index 2 only ever ranks last");
-        assert!((fused[&0] - fused[&1]).abs() < 1e-9, "0 and 1 tie across lists");
+        assert!(
+            (fused[&0] - fused[&1]).abs() < 1e-9,
+            "0 and 1 tie across lists"
+        );
     }
 
     #[test]
@@ -1057,11 +1105,7 @@ impl Tokenizer {
         // rank by Recency then by Importance, both should promote `a`.
         let recency_order = vec![0usize, 1];
         let importance_order = vec![0usize, 1];
-        let fused = fuse_retrieval_hits(
-            &[recency_order, importance_order],
-            &HashMap::new(),
-            60.0,
-        );
+        let fused = fuse_retrieval_hits(&[recency_order, importance_order], &HashMap::new(), 60.0);
         assert!(fused[&0] > fused[&1], "recency+importance promote index 0");
     }
 }

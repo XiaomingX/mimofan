@@ -15,8 +15,11 @@ pub const DEFAULT_PROVIDER_ID: &str = ProviderKind::OpenAiCompatible.as_str();
 pub const OPENAI_COMPATIBLE_ENV_VARS: &[&str] = &["OPENAI_API_KEY", "MIMOFAN_API_KEY"];
 
 /// Anthropic-compatible mode API key environment variables.
-pub const ANTHROPIC_COMPATIBLE_ENV_VARS: &[&str] =
-    &["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "MIMOFAN_API_KEY"];
+pub const ANTHROPIC_COMPATIBLE_ENV_VARS: &[&str] = &[
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "MIMOFAN_API_KEY",
+];
 
 /// Gemini-compatible mode API key environment variables.
 pub const GEMINI_COMPATIBLE_ENV_VARS: &[&str] =

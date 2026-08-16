@@ -18,10 +18,8 @@ use async_stream::stream;
 use serde_json::Value;
 
 use crate::llm_client::{LlmClient, StreamEventBox};
-use crate::models::{
-    ContentBlock, ContentBlockStart, MessageResponse, StreamEvent, Usage,
-};
 use crate::models::MessageRequest;
+use crate::models::{ContentBlock, ContentBlockStart, MessageResponse, StreamEvent, Usage};
 use anyhow::Result;
 
 /// A queue of pre-recorded assistant turns.
@@ -56,7 +54,10 @@ impl MockLlmClient {
 
     /// Enqueue one full assistant turn (a sequence of `StreamEvent`s).
     pub fn push_message_response(&self, events: Vec<StreamEvent>) {
-        self.queue.lock().expect("mock queue poisoned").push_back(events);
+        self.queue
+            .lock()
+            .expect("mock queue poisoned")
+            .push_back(events);
     }
 
     /// Enqueue a single text assistant turn (no tool calls).
@@ -298,10 +299,7 @@ mod tests {
         while let Some(item) = stream.next().await {
             let event = item.unwrap();
             if let StreamEvent::ContentBlockStart {
-                content_block:
-                    ContentBlockStart::ToolUse {
-                        name, input, ..
-                    },
+                content_block: ContentBlockStart::ToolUse { name, input, .. },
                 ..
             } = event
             {
@@ -346,10 +344,7 @@ mod tests {
         let mut captured: Option<(String, Value)> = None;
         while let Some(item) = stream.next().await {
             if let StreamEvent::ContentBlockStart {
-                content_block:
-                    ContentBlockStart::ToolUse {
-                        name, input, ..
-                    },
+                content_block: ContentBlockStart::ToolUse { name, input, .. },
                 ..
             } = item.unwrap()
             {

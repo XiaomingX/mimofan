@@ -130,8 +130,11 @@ fn configure_container(mut cb: ContainerBackend, spec: &DisposableRun) -> Contai
     // Network is opt-in and audited; everything else defaults to the backend's
     // safe defaults (read-only workspace, non-root, tmpfs, limits).
     if spec.network_enabled {
-        cb = cb
-            .with_network(spec.network_reason.clone().unwrap_or_else(|| "PoC requires egress".into()))
+        cb = cb.with_network(
+            spec.network_reason
+                .clone()
+                .unwrap_or_else(|| "PoC requires egress".into()),
+        )
     }
     cb.with_timeout(spec.timeout)
         .with_memory_limit(spec.memory_limit.clone())
@@ -175,7 +178,9 @@ mod tests {
             timeout: Duration::from_secs(10),
             ..Default::default()
         };
-        let res = run_in_disposable_sandbox(SandboxKind::None, &spec, Some(&fake)).await.unwrap();
+        let res = run_in_disposable_sandbox(SandboxKind::None, &spec, Some(&fake))
+            .await
+            .unwrap();
         assert_eq!(res.exit_code, 0);
         assert_eq!(res.stdout, "poc-ran");
         assert_eq!(res.backend, "injected");

@@ -32,9 +32,9 @@ use anyhow::{Context, Result};
 #[cfg(feature = "vector-memory")]
 use mimofan_memory::MemoryCategory;
 #[cfg(feature = "vector-memory")]
-use mimofan_memory::optimization::SearchCache;
-#[cfg(feature = "vector-memory")]
 use mimofan_memory::compressor::{CompressionStrategy, ObservationCompressor};
+#[cfg(feature = "vector-memory")]
+use mimofan_memory::optimization::SearchCache;
 #[cfg(feature = "vector-memory")]
 use mimofan_memory::{EmbeddingConfig, EmbeddingService, Observation, SearchFilters, VectorStore};
 

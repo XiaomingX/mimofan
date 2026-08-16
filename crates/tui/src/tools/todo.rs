@@ -1185,7 +1185,8 @@ impl ToolSpec for TodoClaimTool {
             }
         };
 
-        let acquired = result.map_err(|e| ToolError::execution_failed(format!("claim failed: {e}")))?;
+        let acquired =
+            result.map_err(|e| ToolError::execution_failed(format!("claim failed: {e}")))?;
 
         let verb = match action.as_str() {
             "release" => "released",

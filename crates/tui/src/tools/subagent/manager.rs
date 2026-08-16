@@ -1,6 +1,6 @@
-use super::*;
 use super::lifecycle::{AgentLifecycleState, LifecycleTracker, StalledDetector, WaitCond};
 use super::notify::Notifier;
+use super::*;
 
 impl SubAgentManager {
     /// Create a new manager for sub-agents.
@@ -649,7 +649,8 @@ impl SubAgentManager {
             None,
         );
         // #864: a cancelled agent is terminal → Done.
-        self.lifecycle_tracker.set(&agent_id, AgentLifecycleState::Done);
+        self.lifecycle_tracker
+            .set(&agent_id, AgentLifecycleState::Done);
         self.persist_state_best_effort();
         Ok(snapshot)
     }
@@ -942,7 +943,8 @@ impl SubAgentManager {
         // #864: record the spawn in the lifecycle tracker. The child starts
         // `Working` (it has been dispatched with a task handle). It will
         // transition to `Blocked`/`Done` as the run_report hook reports.
-        self.lifecycle_tracker.set(&agent_id, AgentLifecycleState::Working);
+        self.lifecycle_tracker
+            .set(&agent_id, AgentLifecycleState::Working);
         self.persist_state_best_effort();
 
         Ok(self
@@ -1164,7 +1166,8 @@ impl SubAgentManager {
         }
         self.complete_worker_from_result(agent_id, &result);
         // #864: any non-running terminal status advances the lifecycle to Done.
-        self.lifecycle_tracker.set(agent_id, AgentLifecycleState::Done);
+        self.lifecycle_tracker
+            .set(agent_id, AgentLifecycleState::Done);
         if changed {
             self.persist_state_best_effort();
         }
@@ -1181,7 +1184,8 @@ impl SubAgentManager {
         }
         self.fail_worker(agent_id, error);
         // #864: a failed agent can no longer progress → Done.
-        self.lifecycle_tracker.set(agent_id, AgentLifecycleState::Done);
+        self.lifecycle_tracker
+            .set(agent_id, AgentLifecycleState::Done);
         if changed {
             self.persist_state_best_effort();
         }
@@ -1237,10 +1241,16 @@ impl SubAgentManager {
         if snapshot.needs_input.is_some() {
             self.lifecycle_tracker.set(
                 agent_id,
-                AgentLifecycleState::Blocked(snapshot.result.clone().unwrap_or_else(|| "interrupted".to_string())),
+                AgentLifecycleState::Blocked(
+                    snapshot
+                        .result
+                        .clone()
+                        .unwrap_or_else(|| "interrupted".to_string()),
+                ),
             );
         } else {
-            self.lifecycle_tracker.set(agent_id, AgentLifecycleState::Done);
+            self.lifecycle_tracker
+                .set(agent_id, AgentLifecycleState::Done);
         }
         self.record_worker_event(
             agent_id,
@@ -1323,7 +1333,11 @@ impl SubAgentManager {
                 // Final re-check after the loop body in case the state moved
                 // during the sleep below.
                 if let Some(state) = self.lifecycle_tracker.state(id) {
-                    if matches!((&state, cond), (AgentLifecycleState::Blocked(_), WaitCond::Blocked) | (AgentLifecycleState::Done, WaitCond::Done)) {
+                    if matches!(
+                        (&state, cond),
+                        (AgentLifecycleState::Blocked(_), WaitCond::Blocked)
+                            | (AgentLifecycleState::Done, WaitCond::Done)
+                    ) {
                         return Ok(state);
                     }
                 }
@@ -1401,7 +1415,8 @@ mod lifecycle_tests {
         mgr.lifecycle_tracker.register("a1");
         assert_eq!(mgr.agent_state("a1"), Some(AgentLifecycleState::Idle));
 
-        mgr.lifecycle_tracker.set("a1", AgentLifecycleState::Working);
+        mgr.lifecycle_tracker
+            .set("a1", AgentLifecycleState::Working);
         assert_eq!(mgr.agent_state("a1"), Some(AgentLifecycleState::Working));
 
         mgr.lifecycle_tracker.set(
@@ -1426,7 +1441,8 @@ mod lifecycle_tests {
     #[test]
     fn wait_until_returns_on_blocked() {
         let mgr = test_manager();
-        mgr.lifecycle_tracker.set("b1", AgentLifecycleState::Working);
+        mgr.lifecycle_tracker
+            .set("b1", AgentLifecycleState::Working);
         // Transition to Blocked shortly after, in a background thread.
         let tracker = mgr.lifecycle_tracker.clone();
         std::thread::spawn(move || {
@@ -1443,19 +1459,17 @@ mod lifecycle_tests {
     #[test]
     fn wait_until_times_out_when_not_blocked() {
         let mgr = test_manager();
-        mgr.lifecycle_tracker.set("c1", AgentLifecycleState::Working);
-        let result = mgr.wait_until(
-            "c1",
-            WaitCond::Blocked,
-            Duration::from_millis(80),
-        );
+        mgr.lifecycle_tracker
+            .set("c1", AgentLifecycleState::Working);
+        let result = mgr.wait_until("c1", WaitCond::Blocked, Duration::from_millis(80));
         assert!(result.is_err(), "should time out while only Working");
     }
 
     #[test]
     fn stalled_detector_fires_on_no_change() {
         let mgr = test_manager();
-        mgr.lifecycle_tracker.set("s1", AgentLifecycleState::Working);
+        mgr.lifecycle_tracker
+            .set("s1", AgentLifecycleState::Working);
         // Let the last-change timestamp age past the window.
         std::thread::sleep(Duration::from_millis(20));
         let result = mgr.assert_not_stalled("s1", Duration::from_millis(5));
@@ -1465,9 +1479,11 @@ mod lifecycle_tests {
     #[test]
     fn stalled_detector_ok_on_recent_change() {
         let mgr = test_manager();
-        mgr.lifecycle_tracker.set("s2", AgentLifecycleState::Working);
+        mgr.lifecycle_tracker
+            .set("s2", AgentLifecycleState::Working);
         // Re-set immediately to refresh the timestamp, then check wide window.
-        mgr.lifecycle_tracker.set("s2", AgentLifecycleState::Working);
+        mgr.lifecycle_tracker
+            .set("s2", AgentLifecycleState::Working);
         let result = mgr.assert_not_stalled("s2", Duration::from_millis(50));
         assert!(result.is_ok(), "recent change must not be flagged stalled");
     }
@@ -1476,7 +1492,9 @@ mod lifecycle_tests {
     fn notifier_invokes_sink() {
         let mut mgr = test_manager();
         let sink = Arc::new(CapturingSink::default());
-        mgr.set_notifier(Notifier::with_sink(Arc::clone(&sink) as Arc<dyn NotificationSink>));
+        mgr.set_notifier(Notifier::with_sink(
+            Arc::clone(&sink) as Arc<dyn NotificationSink>
+        ));
         mgr.notify("n1", "blocked: needs approval");
         assert!(sink.was_notified("n1"));
         let captured = sink.captured();

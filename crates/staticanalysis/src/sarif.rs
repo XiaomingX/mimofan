@@ -91,10 +91,7 @@ impl SarifLog {
                     results.push(parse_result(r));
                 }
             }
-            out_runs.push(SarifRun {
-                tool_name,
-                results,
-            });
+            out_runs.push(SarifRun { tool_name, results });
         }
         Ok(SarifLog {
             schema_version: schema,
@@ -144,7 +141,10 @@ fn parse_result(r: &serde_json::Value) -> SarifResult {
         .unwrap_or("")
         .to_string();
 
-    let rule_index = r.get("ruleIndex").and_then(|x| x.as_u64()).map(|u| u as usize);
+    let rule_index = r
+        .get("ruleIndex")
+        .and_then(|x| x.as_u64())
+        .map(|u| u as usize);
 
     // CWE tags may live in `properties` or in the rule's `helpUri`/shortDescription.
     let mut cwe = Vec::new();

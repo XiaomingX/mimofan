@@ -7,7 +7,13 @@
 use std::time::{Duration, Instant};
 
 use crate::tui::subagent_routing::active_fanout_counts;
-use ratatui::{Frame, layout::{Constraint, Direction, Layout, Rect}, prelude::Widget, style::Style, widgets::Block};
+use ratatui::{
+    Frame,
+    layout::{Constraint, Direction, Layout, Rect},
+    prelude::Widget,
+    style::Style,
+    widgets::Block,
+};
 
 /// Tolerance for floating-point cost comparison in the sidebar breakdown.
 /// Must be large enough that accumulated f64 error across hundreds of turns
@@ -203,23 +209,22 @@ pub(crate) struct SidebarWorkSummary {
     workflow_paused: bool,
 }
 
-
 // Sub-panel modules extracted from the original 3008-line sidebar.rs (#647).
 // Each owns one sidebar surface; cross-module helpers are re-exported below
 // so callers (and `render_sidebar`) can reach them through this module.
-pub(crate) mod work;
-pub(crate) mod tools;
-pub(crate) mod subagents;
 pub(crate) mod context;
+pub(crate) mod subagents;
+pub(crate) mod tools;
+pub(crate) mod work;
 
 // Re-export every sub-module's `pub(crate)` items into this module's
 // namespace so sibling sub-modules can reach cross-panel helpers through
 // `use crate::tui::sidebar::*;` (e.g. `render_sidebar_section`,
 // `background_task_is_live`, `foreground_rlm_running`, `format_duration_ms`).
-pub(crate) use work::*;
-pub(crate) use tools::*;
-pub(crate) use subagents::*;
 pub(crate) use context::*;
+pub(crate) use subagents::*;
+pub(crate) use tools::*;
+pub(crate) use work::*;
 
 // Re-export the external (cross-crate) types the sub-modules rely on, so a
 // single glob `use crate::tui::sidebar::*;` inside each sub-module satisfies
@@ -227,11 +232,11 @@ pub(crate) use context::*;
 pub(crate) use crate::mimofan_theme::Theme;
 pub(crate) use crate::palette;
 pub(crate) use crate::tools::plan::StepStatus;
-pub(crate) use crate::tools::subagent::{AgentWorkerStatus, SubAgentStatus, agent_worker_status_name};
-pub(crate) use crate::tools::todo::TodoStatus;
-pub(crate) use crate::tui::app::{
-    App, HuntVerdict, SidebarFocus, SidebarHoverState,
+pub(crate) use crate::tools::subagent::{
+    AgentWorkerStatus, SubAgentStatus, agent_worker_status_name,
 };
+pub(crate) use crate::tools::todo::TodoStatus;
+pub(crate) use crate::tui::app::{App, HuntVerdict, SidebarFocus, SidebarHoverState};
 pub(crate) use crate::tui::history::{HistoryCell, ToolCell, ToolStatus, summarize_tool_output};
 pub(crate) use crate::tui::ui_text::truncate_line_to_width;
 // NOTE: `active_fanout_counts` is `pub(super)` in `subagent_routing` and cannot

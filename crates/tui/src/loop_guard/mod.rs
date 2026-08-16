@@ -1147,7 +1147,12 @@ mod tests {
                 // The loop is halted: a LoopBreak is returned carrying the
                 // advisory to stop and re-plan, so the caller can break the
                 // turn instead of continuing the death spiral.
-                assert!(loop_break.nudge.to_lowercase().contains("not making progress"));
+                assert!(
+                    loop_break
+                        .nudge
+                        .to_lowercase()
+                        .contains("not making progress")
+                );
                 break;
             }
         }
@@ -1165,8 +1170,8 @@ mod tests {
     #[test]
     fn acceptance_858_escalation_caps_retries() {
         use crate::core::engine::resilience::{
-            EffortEscalationPolicy, ValidationRetryConfig, ValidationVerdict,
-            retry_turn_with_escalation, EffortTier,
+            EffortEscalationPolicy, EffortTier, ValidationRetryConfig, ValidationVerdict,
+            retry_turn_with_escalation,
         };
         let config = ValidationRetryConfig {
             policy: EffortEscalationPolicy {

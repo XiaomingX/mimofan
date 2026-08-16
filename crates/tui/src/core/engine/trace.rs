@@ -159,9 +159,8 @@ impl SessionEventSink {
             .create(true)
             .append(true)
             .open(&self.path)?;
-        let mut line = serde_json::to_string(ev).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
-        })?;
+        let mut line = serde_json::to_string(ev)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
         line.push('\n');
         file.write_all(line.as_bytes())?;
         file.flush()?;
@@ -293,7 +292,10 @@ mod tests {
         assert_eq!(read[1].kind, SessionEventKind::PocResult);
         assert_eq!(read[1].tool_name.as_deref(), Some("run_poc"));
         assert_eq!(read[1].poc_realized, Some(true));
-        assert_eq!(read[1].tool_input, Some(serde_json::json!({"expect": "JNDI connection"})));
+        assert_eq!(
+            read[1].tool_input,
+            Some(serde_json::json!({"expect": "JNDI connection"}))
+        );
         // Structural equality of the whole events.
         assert_eq!(read[0], ev1);
         assert_eq!(read[1], ev2);

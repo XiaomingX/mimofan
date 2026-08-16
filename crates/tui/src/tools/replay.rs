@@ -104,8 +104,7 @@ impl ToolSpec for EventStreamTool {
             }
         }
 
-        Ok(ToolResult::success("Event stream log path")
-            .with_metadata(Value::Object(meta)))
+        Ok(ToolResult::success("Event stream log path").with_metadata(Value::Object(meta)))
     }
 }
 

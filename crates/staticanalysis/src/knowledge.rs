@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 
-use crate::rules::{parse_yaml, Yaml};
+use crate::rules::{Yaml, parse_yaml};
 
 /// A known gadget (a class/method that participates in an exploit chain).
 #[derive(Debug, Clone)]
@@ -106,17 +106,24 @@ impl KnowledgeBase {
 /// Load a KB from a directory of `*.yaml` files.
 pub fn load_kb_dir(dir: &str) -> Result<KnowledgeBase> {
     let mut kb = KnowledgeBase::default();
-    let entries = std::fs::read_dir(dir)
-        .with_context(|| format!("reading KB dir {dir}"))?;
+    let entries = std::fs::read_dir(dir).with_context(|| format!("reading KB dir {dir}"))?;
     let mut files: Vec<_> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.extension().map(|x| x == "yaml" || x == "yml").unwrap_or(false))
+        .filter(|p| {
+            p.extension()
+                .map(|x| x == "yaml" || x == "yml")
+                .unwrap_or(false)
+        })
         .collect();
     files.sort();
     for p in files {
         let text = std::fs::read_to_string(&p)?;
-        let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let name = p
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         kb.extend_from_yaml(&name, &text)?;
     }
     Ok(kb)
@@ -126,10 +133,26 @@ fn parse_gadget(y: &Yaml) -> Result<Gadget> {
     let m = y.as_map().context("gadget must be a mapping")?;
     Ok(Gadget {
         id: m.get("id").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        library: m.get("library").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        class: m.get("class").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        pivot: m.get("pivot").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        enables: m.get("enables").and_then(Yaml::as_str).unwrap_or("").to_string(),
+        library: m
+            .get("library")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
+        class: m
+            .get("class")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
+        pivot: m
+            .get("pivot")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
+        enables: m
+            .get("enables")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
         references: string_list(m.get("references")),
     })
 }
@@ -138,10 +161,22 @@ fn parse_chain(y: &Yaml) -> Result<GadgetChain> {
     let m = y.as_map().context("chain must be a mapping")?;
     Ok(GadgetChain {
         id: m.get("id").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        name: m.get("name").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        enables: m.get("enables").and_then(Yaml::as_str).unwrap_or("").to_string(),
+        name: m
+            .get("name")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
+        enables: m
+            .get("enables")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
         requires: string_list(m.get("requires")),
-        severity: m.get("severity").and_then(Yaml::as_str).unwrap_or("error").to_string(),
+        severity: m
+            .get("severity")
+            .and_then(Yaml::as_str)
+            .unwrap_or("error")
+            .to_string(),
         references: string_list(m.get("references")),
     })
 }
@@ -150,13 +185,25 @@ fn parse_pattern(y: &Yaml) -> Result<GadgetPattern> {
     let m = y.as_map().context("pattern must be a mapping")?;
     Ok(GadgetPattern {
         id: m.get("id").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        language: m.get("language").and_then(Yaml::as_str).unwrap_or("").to_string(),
-        symbol: m.get("symbol").and_then(Yaml::as_str).unwrap_or("").to_string(),
+        language: m
+            .get("language")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
+        symbol: m
+            .get("symbol")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
         arg: m.get("arg").and_then(|v| match v {
             Yaml::Int(i) => Some(*i as usize),
             _ => None,
         }),
-        category: m.get("category").and_then(Yaml::as_str).unwrap_or("").to_string(),
+        category: m
+            .get("category")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string(),
         cwe: string_list(m.get("cwe")),
     })
 }
@@ -207,7 +254,10 @@ patterns:
         // into actual gadgets/chains/patterns.
         let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/rules/kb");
         let kb = load_kb_dir(dir).expect("load kb dir");
-        assert!(!kb.is_empty(), "expected gadgets/chains/patterns from on-disk KB");
+        assert!(
+            !kb.is_empty(),
+            "expected gadgets/chains/patterns from on-disk KB"
+        );
     }
 
     #[test]

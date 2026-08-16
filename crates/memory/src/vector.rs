@@ -5,9 +5,9 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use hnsw_rs::prelude::*;
+use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use sled::Db;
-use rusqlite::OptionalExtension;
 use tracing::{debug, info};
 
 use crate::Result;
@@ -259,7 +259,10 @@ impl VectorStore {
     pub fn schema_migration(conn: &rusqlite::Connection) -> Result<usize> {
         // Persist the schema version via SQLite's `PRAGMA user_version` so the
         // store can detect stale/downgraded schemas on open.
-        conn.execute(&format!("PRAGMA user_version = {}", Self::SCHEMA_VERSION), [])?;
+        conn.execute(
+            &format!("PRAGMA user_version = {}", Self::SCHEMA_VERSION),
+            [],
+        )?;
         let existing: std::collections::HashSet<String> = {
             let mut stmt = conn.prepare("PRAGMA table_info(observations)")?;
             let rows = stmt.query_map([], |r| r.get::<usize, String>(1))?;
@@ -275,7 +278,10 @@ impl VectorStore {
         ];
         for (col, ty) in CANDIDATES {
             if !existing.contains(*col) {
-                conn.execute(&format!("ALTER TABLE observations ADD COLUMN {col} {ty}"), [])?;
+                conn.execute(
+                    &format!("ALTER TABLE observations ADD COLUMN {col} {ty}"),
+                    [],
+                )?;
                 added += 1;
             }
         }
@@ -284,7 +290,6 @@ impl VectorStore {
 
     /// Schema version for forward migrations (#716 `schema_migration`).
     pub const SCHEMA_VERSION: u32 = 2;
-
 
     /// Load or create HNSW index
     fn load_or_create_index(vectors: &Db, _dimension: usize) -> Result<Hnsw<f32, DistL2>> {
@@ -298,10 +303,9 @@ impl VectorStore {
         const MAX_LAYER: usize = 16;
         // Create a new index
         let index = Hnsw::<f32, DistL2>::new(
-            16,      // max_nb_connection
-            20000,   // max_elements
-            MAX_LAYER,
-            100,     // ef_construction
+            16,    // max_nb_connection
+            20000, // max_elements
+            MAX_LAYER, 100, // ef_construction
             DistL2,
         );
 
@@ -365,7 +369,11 @@ impl VectorStore {
         // file/concept sub-inserts in the same transaction advance the
         // connection cursor, so the authoritative id is `id` captured above,
         // not this value).
-        debug!("stored observation {}; sqlite last_insert_rowid={}", id, self.sqlite.last_insert_rowid());
+        debug!(
+            "stored observation {}; sqlite last_insert_rowid={}",
+            id,
+            self.sqlite.last_insert_rowid()
+        );
         let _ = self.enforce_capacity_policy(self.capacity_limit);
         Ok(id)
     }
@@ -494,7 +502,6 @@ impl VectorStore {
         }
     }
 
-
     /// Search for similar observations
     pub fn search(
         &self,
@@ -568,7 +575,12 @@ impl VectorStore {
     /// recalls** observations that match query tokens even when the vector index
     /// returned nothing for them, then fuses the two rankings. That is what lets
     /// it rescue vector-missed evidence rather than merely re-ranking hits.
-    pub fn hybrid_bm25(&self, query: &str, base: &[VectorMatch], limit: usize) -> Result<Vec<VectorMatch>> {
+    pub fn hybrid_bm25(
+        &self,
+        query: &str,
+        base: &[VectorMatch],
+        limit: usize,
+    ) -> Result<Vec<VectorMatch>> {
         let tokens: Vec<String> = query
             .split(|c: char| !c.is_alphanumeric())
             .map(|t| t.to_lowercase())
@@ -613,7 +625,11 @@ impl VectorStore {
                 idx_of.insert(*id, fused.len() - 1);
             }
         }
-        fused.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        fused.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         fused.truncate(limit);
         Ok(fused)
     }
@@ -661,25 +677,25 @@ impl VectorStore {
         }
     }
 
-    pub fn list_recent(
-        &self,
-        project: Option<&str>,
-        limit: usize,
-    ) -> Result<Vec<Observation>> {
+    pub fn list_recent(&self, project: Option<&str>, limit: usize) -> Result<Vec<Observation>> {
         let sql = match project {
-            Some(_) => r#"
+            Some(_) => {
+                r#"
                 SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
                 FROM observations
                 WHERE project = ?1
                 ORDER BY created_at DESC
                 LIMIT ?2
-                "#,
-            None => r#"
+                "#
+            }
+            None => {
+                r#"
                 SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
                 FROM observations
                 ORDER BY created_at DESC
                 LIMIT ?1
-                "#,
+                "#
+            }
         };
         let mut stmt = self.sqlite.prepare(sql)?;
         let mapped = match project {
@@ -693,7 +709,6 @@ impl VectorStore {
         }
         Ok(out)
     }
-
 
     /// Load an observation by ID
     pub fn load_observation(&self, id: i64) -> Result<Option<Observation>> {
@@ -791,9 +806,9 @@ impl VectorStore {
     /// Cross-checks the in-memory HNSW `self.vectors` store so callers can
     /// detect drift between the two backends (used by `count_dual_store_consistency`).
     pub fn count(&self) -> Result<usize> {
-        let sqlite_count: i64 = self
-            .sqlite
-            .query_row("SELECT COUNT(*) FROM observations", [], |row| row.get(0))?;
+        let sqlite_count: i64 =
+            self.sqlite
+                .query_row("SELECT COUNT(*) FROM observations", [], |row| row.get(0))?;
         let _vector_count = self.vectors.iter().count();
         Ok(sqlite_count as usize)
     }
@@ -802,9 +817,9 @@ impl VectorStore {
     /// counts. Returns the SQLite count and the sled (vector) count so callers
     /// can detect drift between the two stores (the index rebuild source).
     pub fn count_dual_store_consistency(&self) -> Result<(usize, usize)> {
-        let sqlite_count: i64 = self
-            .sqlite
-            .query_row("SELECT COUNT(*) FROM observations", [], |row| row.get(0))?;
+        let sqlite_count: i64 =
+            self.sqlite
+                .query_row("SELECT COUNT(*) FROM observations", [], |row| row.get(0))?;
         let sled_count = self.vectors.iter().count();
         Ok((sqlite_count as usize, sled_count))
     }
@@ -825,8 +840,16 @@ impl VectorStore {
         let mut scored: Vec<&Observation> = all.iter().collect();
         scored.sort_by(|a, b| {
             // lower importance first → evicted first; never-expiring protected
-            let wa = if a.expires_at.is_none() { a.importance_score(now) * 2.0 } else { a.importance_score(now) };
-            let wb = if b.expires_at.is_none() { b.importance_score(now) * 2.0 } else { b.importance_score(now) };
+            let wa = if a.expires_at.is_none() {
+                a.importance_score(now) * 2.0
+            } else {
+                a.importance_score(now)
+            };
+            let wb = if b.expires_at.is_none() {
+                b.importance_score(now) * 2.0
+            } else {
+                b.importance_score(now)
+            };
             wa.partial_cmp(&wb).unwrap_or(std::cmp::Ordering::Equal)
         });
         Ok(scored
@@ -854,7 +877,10 @@ impl VectorStore {
         let now = chrono::Utc::now().timestamp();
         let expired: Vec<i64> = {
             let rows = self.list_recent(None, usize::MAX)?;
-            rows.into_iter().filter(|o| o.is_expired(now)).map(|o| o.id).collect()
+            rows.into_iter()
+                .filter(|o| o.is_expired(now))
+                .map(|o| o.id)
+                .collect()
         };
         for id in &expired {
             let _ = self.delete_observation(*id);
@@ -973,7 +999,10 @@ mod enhancement_tests {
         let mut dup = obs("p", "  duplicate FACT ");
         dup.last_accessed_at = Some(chrono::Utc::now().timestamp());
         let id2 = store.store_observation(&dup, &emb).unwrap();
-        assert!(id2 == id1 || id2 == 0, "duplicate content must not create a new row");
+        assert!(
+            id2 == id1 || id2 == 0,
+            "duplicate content must not create a new row"
+        );
         assert_eq!(store.count().unwrap(), 1, "only one row should exist");
     }
 
@@ -1025,15 +1054,22 @@ mod enhancement_tests {
         let id = store.store_observation(&o, &emb).unwrap();
         assert!(store.promote(id, 86400 * 365 * 10).unwrap());
         let reloaded = store.load_observation(id).unwrap().unwrap();
-        assert!(reloaded.expires_at.is_some(), "promoted memory gets far-future expiry");
+        assert!(
+            reloaded.expires_at.is_some(),
+            "promoted memory gets far-future expiry"
+        );
     }
 
     #[test]
     fn count_dual_store_consistency_reports_both() {
         let (_d, store) = tmp_store();
         let emb = vec![0.6_f32; 8];
-        store.store_observation(&obs("p", "first observation"), &emb).unwrap();
-        store.store_observation(&obs("p", "second observation"), &emb).unwrap();
+        store
+            .store_observation(&obs("p", "first observation"), &emb)
+            .unwrap();
+        store
+            .store_observation(&obs("p", "second observation"), &emb)
+            .unwrap();
         let (sqlite_n, sled_n) = store.count_dual_store_consistency().unwrap();
         assert_eq!(sqlite_n, 2);
         assert_eq!(sled_n, 2, "sled vector store must mirror SQLite count");
@@ -1046,9 +1082,15 @@ mod enhancement_tests {
         let o = obs("p", "ConnectionRefusedError on port 5432");
         store.store_observation(&o, &emb).unwrap();
         let base = store.search(&emb, 10, &SearchFilters::default()).unwrap();
-        let fused = store.hybrid_bm25("ConnectionRefusedError", &base, 10).unwrap();
+        let fused = store
+            .hybrid_bm25("ConnectionRefusedError", &base, 10)
+            .unwrap();
         assert!(!fused.is_empty());
         // The lexical hit must be present and scored.
-        assert!(fused.iter().any(|m| m.observation.content.contains("ConnectionRefusedError")));
+        assert!(
+            fused
+                .iter()
+                .any(|m| m.observation.content.contains("ConnectionRefusedError"))
+        );
     }
 }

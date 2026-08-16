@@ -15,7 +15,7 @@ pub mod registry;
 
 pub use client::run_attach;
 pub use daemon::run_daemon;
-pub use registry::{list_running, run_dir, RunningSession};
+pub use registry::{RunningSession, list_running, run_dir};
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
@@ -122,7 +122,7 @@ pub async fn run_daemon_command(args: DaemonArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::session::protocol::{encode_frame, OP_DATA, OP_DETACH, OP_SHUTDOWN};
+    use crate::session::protocol::{OP_DATA, OP_DETACH, OP_SHUTDOWN, encode_frame};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::UnixStream;
 
@@ -150,7 +150,11 @@ mod tests {
         // Helper: read one DATA frame (with a timeout so a hang fails fast).
         async fn read_one(stream: &mut UnixStream) -> Option<Vec<u8>> {
             let mut header = [0u8; 5];
-            let read = tokio::time::timeout(std::time::Duration::from_secs(5), stream.read_exact(&mut header)).await;
+            let read = tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                stream.read_exact(&mut header),
+            )
+            .await;
             match read {
                 Ok(Ok(_)) => {}
                 _ => return None,
@@ -175,7 +179,9 @@ mod tests {
         eprintln!("[test] connected, sending ping");
         send_line(&mut stream, b"ping").await;
         eprintln!("[test] ping sent, awaiting echo");
-        let echoed = read_one(&mut stream).await.expect("PTY should echo the input");
+        let echoed = read_one(&mut stream)
+            .await
+            .expect("PTY should echo the input");
         eprintln!("[test] got echo: {:?}", String::from_utf8_lossy(&echoed));
         assert!(
             echoed.windows(4).any(|w| w == b"ping".as_slice()),
@@ -201,7 +207,9 @@ mod tests {
         // frame could be broadcast before any subscriber is registered).
         tokio::time::sleep(std::time::Duration::from_millis(150)).await;
         send_line(&mut stream2, b"pong").await;
-        let echoed2 = read_one(&mut stream2).await.expect("re-attach should reach live PTY");
+        let echoed2 = read_one(&mut stream2)
+            .await
+            .expect("re-attach should reach live PTY");
         assert!(
             echoed2.windows(4).any(|w| w == b"pong".as_slice()),
             "re-attach echo missing 'pong': {echoed2:?}"
@@ -215,4 +223,3 @@ mod tests {
         let _ = registry::unregister(&id);
     }
 }
-

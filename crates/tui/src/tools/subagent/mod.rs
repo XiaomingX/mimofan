@@ -47,12 +47,11 @@ use crate::tui::app::ReasoningEffort;
 use crate::utils::spawn_supervised;
 use crate::worker_profile::{ModelRoute, ToolScope, WorkerRuntimeProfile};
 
+pub mod adversarial;
 pub mod aggregator;
 pub mod bus;
 pub mod custom_agents;
 pub mod decomposer;
-pub mod adversarial;
-pub mod task_graph;
 pub mod events;
 pub mod helpers;
 pub mod mailbox;
@@ -60,6 +59,7 @@ pub mod naming;
 pub mod persistence;
 pub mod runtime;
 pub mod task_claim;
+pub mod task_graph;
 pub mod tool;
 pub mod types;
 #[allow(unused_imports)]
@@ -75,6 +75,10 @@ pub mod runner;
 #[allow(unused_imports)]
 pub(crate) use runner::*;
 pub mod parser;
+pub use adversarial::{
+    AdversarialVerdict, AdversarialVerifyConfig, SpawnedReviewerResolver, VerdictResolver,
+    adversarial_verify,
+};
 pub use bus::AgentBus;
 #[allow(unused_imports)]
 pub use custom_agents::CustomAgentRegistry;
@@ -84,9 +88,8 @@ pub use naming::{assign_unique_whale_name, whale_name_for_id};
 pub(crate) use parser::*;
 pub use task_claim::{
     ClaimResult, FileClaim, FileClaimManager, FileClaimResult, FileScopeAssignment,
-    SharedFileClaimManager, SharedTaskClaimManager, TaskClaim, TaskClaimManager,
-    TaskClaimStatus, new_shared_file_claim_manager, new_shared_task_claim_manager,
-    plan_disjoint_file_sets,
+    SharedFileClaimManager, SharedTaskClaimManager, TaskClaim, TaskClaimManager, TaskClaimStatus,
+    new_shared_file_claim_manager, new_shared_task_claim_manager, plan_disjoint_file_sets,
 };
 pub use tool::AgentTool;
 pub use types::{
@@ -96,10 +99,6 @@ pub use types::{
     PersistedSubAgent, PersistedSubAgentState, SubAgentAssignment, SubAgentCheckpoint,
     SubAgentCompletion, SubAgentForkContext, SubAgentNeedsInput, SubAgentResult, SubAgentStatus,
     SubAgentType, is_false,
-};
-pub use adversarial::{
-    AdversarialVerdict, AdversarialVerifyConfig, SpawnedReviewerResolver, VerdictResolver,
-    adversarial_verify,
 };
 
 // === Constants ===

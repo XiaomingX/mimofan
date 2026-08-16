@@ -277,7 +277,10 @@ mod tests {
     #[test]
     fn channel_from_beta_flag() {
         assert_eq!(ReleaseChannel::from_beta_flag(true), ReleaseChannel::Beta);
-        assert_eq!(ReleaseChannel::from_beta_flag(false), ReleaseChannel::Stable);
+        assert_eq!(
+            ReleaseChannel::from_beta_flag(false),
+            ReleaseChannel::Stable
+        );
     }
 
     #[test]
@@ -349,7 +352,8 @@ mod tests {
 
     #[test]
     fn latest_beta_tag_finds_first_beta() {
-        let body = r#"[{"tag_name":"v1.0.0"},{"tag_name":"v1.1.0-beta"},{"tag_name":"v2.0.0-beta"}]"#;
+        let body =
+            r#"[{"tag_name":"v1.0.0"},{"tag_name":"v1.1.0-beta"},{"tag_name":"v2.0.0-beta"}]"#;
         assert_eq!(
             latest_beta_tag_from_release_list_json(body).unwrap(),
             "v1.1.0-beta"

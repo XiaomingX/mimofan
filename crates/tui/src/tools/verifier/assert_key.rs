@@ -88,7 +88,9 @@ pub enum AssertError {
     NotAnObject { kind: &'static str },
 
     /// One or more required keys were missing and/or forbidden keys present.
-    #[error("assert_key failed: missing required keys {missing:?}, forbidden keys present {present:?}")]
+    #[error(
+        "assert_key failed: missing required keys {missing:?}, forbidden keys present {present:?}"
+    )]
     Violated {
         missing: Vec<String>,
         present: Vec<String>,
@@ -233,8 +235,8 @@ mod tests {
 
     #[test]
     fn both_missing_and_forbidden_reported() {
-        let assert = AssertKey::require(vec!["nope".to_string()])
-            .with_forbidden(vec!["status".to_string()]);
+        let assert =
+            AssertKey::require(vec!["nope".to_string()]).with_forbidden(vec!["status".to_string()]);
         let err = verify_output(&assert, &obj()).expect_err("both violations must fail");
         match err {
             AssertError::Violated { missing, present } => {

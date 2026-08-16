@@ -660,8 +660,7 @@ mod tests {
         cache.record_success(delta, 3600);
 
         let json = serde_json::to_string(&cache).expect("cache serializes");
-        let back: ProviderCatalogCache =
-            serde_json::from_str(&json).expect("cache deserializes");
+        let back: ProviderCatalogCache = serde_json::from_str(&json).expect("cache deserializes");
         assert_eq!(cache, back);
 
         // The cached entry must report Fresh within its TTL and surface the
@@ -682,8 +681,7 @@ mod tests {
         cache.record_failure("openai", "fp999", CatalogRefreshError::Unauthorized);
 
         let json = serde_json::to_string(&cache).expect("cache serializes");
-        let back: ProviderCatalogCache =
-            serde_json::from_str(&json).expect("cache deserializes");
+        let back: ProviderCatalogCache = serde_json::from_str(&json).expect("cache deserializes");
         assert_eq!(cache, back);
         assert!(matches!(
             back.status("openai", "fp999", now_unix()),

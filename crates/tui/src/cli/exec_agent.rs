@@ -593,12 +593,13 @@ pub(crate) async fn run_exec_agent(
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             let submission: crate::tools::json_schema_terminator::SubmissionSlot =
                 std::sync::Arc::new(std::sync::Mutex::new(None));
-            let tools: Vec<std::sync::Arc<dyn crate::tools::spec::ToolSpec>> = vec![
-                std::sync::Arc::new(crate::tools::json_schema_terminator::JsonSchemaTerminator::new(
-                    schema,
-                    submission.clone(),
-                )),
-            ];
+            let tools: Vec<std::sync::Arc<dyn crate::tools::spec::ToolSpec>> =
+                vec![std::sync::Arc::new(
+                    crate::tools::json_schema_terminator::JsonSchemaTerminator::new(
+                        schema,
+                        submission.clone(),
+                    ),
+                )];
             (tools, submission)
         }
         None => (Vec::new(), std::sync::Arc::new(std::sync::Mutex::new(None))),
@@ -622,8 +623,7 @@ pub(crate) async fn run_exec_agent(
             max_steps: max_turns,
             failure_log_path,
         });
-        gate
-            .validate(&workspace)
+        gate.validate(&workspace)
             .map_err(|e| anyhow::anyhow!("headless gate rejected unattended run: {e}"))?;
     }
 

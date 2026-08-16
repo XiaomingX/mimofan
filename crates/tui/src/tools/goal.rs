@@ -12,10 +12,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use crate::reviewer::{self, ClaimForReview, EvidenceStrength, ReviewVerdict};
 use crate::tools::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, required_str,
 };
-use crate::reviewer::{self, ClaimForReview, EvidenceStrength, ReviewVerdict};
 
 /// Maximum number of automatic goal-continuation prompt injections in one
 /// engine turn. This is intra-turn granularity only — it prevents a stuck spin
@@ -1508,7 +1508,9 @@ impl ToolSpec for GoalUpdateTool {
                             .and_then(|s| s.objective.clone())
                             .unwrap_or_default()
                     };
-                    if let Err(reason) = self.independent_judge(&objective, &evidence, &verification.check) {
+                    if let Err(reason) =
+                        self.independent_judge(&objective, &evidence, &verification.check)
+                    {
                         return Err(ToolError::invalid_input(format!(
                             "independent judge rejected goal completion: {reason}. Provide stronger, reproducible evidence (e.g. a passing verifier/check) before marking complete."
                         )));

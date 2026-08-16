@@ -528,8 +528,12 @@ impl SandboxManager {
     /// `ShellManager` flow (via `prepare`) and the new `SandboxBackend` trait.
     /// It wraps `prepare` rather than duplicating process-spawning logic.
     fn run_local(&self, cmd: &str, env: &HashMap<String, String>) -> anyhow::Result<SandboxOutput> {
-        let spec = CommandSpec::shell(cmd, std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")), Duration::from_secs(60))
-            .with_env(env.clone());
+        let spec = CommandSpec::shell(
+            cmd,
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            Duration::from_secs(60),
+        )
+        .with_env(env.clone());
         let exec_env = self.prepare(&spec);
 
         let mut command = Command::new(exec_env.program());
@@ -560,7 +564,11 @@ impl SandboxManager {
 /// remote OpenSandbox / container backends (#835).
 #[async_trait]
 impl SandboxBackend for SandboxManager {
-    async fn exec(&self, cmd: &str, env: &HashMap<String, String>) -> anyhow::Result<SandboxOutput> {
+    async fn exec(
+        &self,
+        cmd: &str,
+        env: &HashMap<String, String>,
+    ) -> anyhow::Result<SandboxOutput> {
         self.run_local(cmd, env)
     }
 }
@@ -578,7 +586,11 @@ mod tests {
 
     #[async_trait]
     impl SandboxBackend for MockBackend {
-        async fn exec(&self, cmd: &str, _env: &HashMap<String, String>) -> anyhow::Result<SandboxOutput> {
+        async fn exec(
+            &self,
+            cmd: &str,
+            _env: &HashMap<String, String>,
+        ) -> anyhow::Result<SandboxOutput> {
             *self.last_cmd.lock().unwrap() = Some(cmd.to_string());
             Ok(SandboxOutput {
                 stdout: format!("mock:{cmd}"),

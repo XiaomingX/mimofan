@@ -209,11 +209,7 @@ impl UserProfile {
     /// nothing to persist, keeping the system prompt byte-stable (prefix-cache
     /// friendly) when no profile exists.
     pub fn into_non_empty(self) -> Option<Self> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(self)
-        }
+        if self.is_empty() { None } else { Some(self) }
     }
 }
 
@@ -300,16 +296,28 @@ pub fn inject_user_profile(profile: &UserProfile) -> String {
 /// Returns `(bucket, entry)` pairs; caller maps them via `apply_correction`.
 pub fn distill_from_transcript(turns: &[String]) -> Vec<(Bucket, ProfileEntry)> {
     let mut out = Vec::new();
-    let lower_langs = ["rust", "python", "go", "typescript", "javascript", "java", "c++", "kotlin"];
+    let lower_langs = [
+        "rust",
+        "python",
+        "go",
+        "typescript",
+        "javascript",
+        "java",
+        "c++",
+        "kotlin",
+    ];
     for turn in turns {
         let t = turn.trim();
         let low = t.to_lowercase();
-        if low.contains("prefer") || low.contains("don't") && low.contains("want")
+        if low.contains("prefer")
+            || low.contains("don't") && low.contains("want")
             || low.contains("never") && low.contains("want")
         {
             if low.contains("prefer") {
-                out.push((Bucket::Preferences, ProfileEntry::new(
-                    format!("pref_{}", t.len()), t.to_string())));
+                out.push((
+                    Bucket::Preferences,
+                    ProfileEntry::new(format!("pref_{}", t.len()), t.to_string()),
+                ));
             }
         }
         for lang in lower_langs {
@@ -317,12 +325,23 @@ pub fn distill_from_transcript(turns: &[String]) -> Vec<(Bucket, ProfileEntry)> 
                 || low.contains("i use") && low.contains(lang)
                 || low.contains("i'm using") && low.contains(lang)
             {
-                out.push((Bucket::Languages, ProfileEntry::new(lang, format!("fluent in {}", lang))));
+                out.push((
+                    Bucket::Languages,
+                    ProfileEntry::new(lang, format!("fluent in {}", lang)),
+                ));
             }
         }
-        if low.contains("don't mock") || low.contains("no third-party") || low.contains("no new dependency") {
-            out.push((Bucket::Dislikes, ProfileEntry::new(
-                "no_new_dep", "don't introduce new third-party runtime dependencies")));
+        if low.contains("don't mock")
+            || low.contains("no third-party")
+            || low.contains("no new dependency")
+        {
+            out.push((
+                Bucket::Dislikes,
+                ProfileEntry::new(
+                    "no_new_dep",
+                    "don't introduce new third-party runtime dependencies",
+                ),
+            ));
         }
     }
     out
@@ -359,8 +378,14 @@ mod tests {
     fn save_then_load_roundtrips() {
         let path = tmp_path();
         let mut p = UserProfile::empty();
-        p.apply_correction(Bucket::Languages, ProfileEntry::new("rust", "fluent in Rust"));
-        p.apply_correction(Bucket::Dislikes, ProfileEntry::new("no_db_mock", "don't mock the database"));
+        p.apply_correction(
+            Bucket::Languages,
+            ProfileEntry::new("rust", "fluent in Rust"),
+        );
+        p.apply_correction(
+            Bucket::Dislikes,
+            ProfileEntry::new("no_db_mock", "don't mock the database"),
+        );
         p.save(&path).expect("save ok");
 
         let loaded = UserProfile::load(&path);
@@ -372,7 +397,8 @@ mod tests {
 
     #[test]
     fn load_missing_file_returns_empty() {
-        let path = std::env::temp_dir().join(format!("mimofan_up_missing_{}", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("mimofan_up_missing_{}", uuid::Uuid::new_v4()));
         let p = UserProfile::load(&path);
         assert!(p.is_empty());
         assert_eq!(p.version, SCHEMA_VERSION);
@@ -381,17 +407,33 @@ mod tests {
     #[test]
     fn correction_replaces_not_appends() {
         let mut p = UserProfile::empty();
-        p.apply_correction(Bucket::Preferences, ProfileEntry::new("response_length", "verbose"));
-        p.apply_correction(Bucket::Preferences, ProfileEntry::new("response_length", "concise"));
-        assert_eq!(p.preferences.len(), 1, "correction must replace, not append");
+        p.apply_correction(
+            Bucket::Preferences,
+            ProfileEntry::new("response_length", "verbose"),
+        );
+        p.apply_correction(
+            Bucket::Preferences,
+            ProfileEntry::new("response_length", "concise"),
+        );
+        assert_eq!(
+            p.preferences.len(),
+            1,
+            "correction must replace, not append"
+        );
         assert_eq!(p.preferences[0].value, "concise");
     }
 
     #[test]
     fn distinct_tags_append() {
         let mut p = UserProfile::empty();
-        p.apply_correction(Bucket::Preferences, ProfileEntry::new("response_length", "concise"));
-        p.apply_correction(Bucket::Preferences, ProfileEntry::new("explain", "explain tradeoffs"));
+        p.apply_correction(
+            Bucket::Preferences,
+            ProfileEntry::new("response_length", "concise"),
+        );
+        p.apply_correction(
+            Bucket::Preferences,
+            ProfileEntry::new("explain", "explain tradeoffs"),
+        );
         assert_eq!(p.preferences.len(), 2);
     }
 
@@ -403,8 +445,14 @@ mod tests {
     #[test]
     fn render_includes_buckets_and_respects_budget() {
         let mut p = UserProfile::empty();
-        p.apply_correction(Bucket::Languages, ProfileEntry::new("rust", "fluent in Rust"));
-        p.apply_correction(Bucket::Dislikes, ProfileEntry::new("no_db_mock", "don't mock the database"));
+        p.apply_correction(
+            Bucket::Languages,
+            ProfileEntry::new("rust", "fluent in Rust"),
+        );
+        p.apply_correction(
+            Bucket::Dislikes,
+            ProfileEntry::new("no_db_mock", "don't mock the database"),
+        );
         let rendered = render_for_injection(&p, 1000);
         assert!(rendered.contains("Languages"));
         assert!(rendered.contains("fluent in Rust"));
@@ -424,12 +472,12 @@ mod tests {
             "Please prefer concise answers".to_string(),
         ];
         let distilled = distill_from_transcript(&turns);
-        let has_rust = distilled.iter().any(|(b, e)| {
-            *b == Bucket::Languages && e.value.contains("rust")
-        });
-        let has_constraint = distilled.iter().any(|(b, e)| {
-            *b == Bucket::Dislikes && e.value.contains("third-party")
-        });
+        let has_rust = distilled
+            .iter()
+            .any(|(b, e)| *b == Bucket::Languages && e.value.contains("rust"));
+        let has_constraint = distilled
+            .iter()
+            .any(|(b, e)| *b == Bucket::Dislikes && e.value.contains("third-party"));
         assert!(has_rust, "language distilled");
         assert!(has_constraint, "hard constraint distilled");
     }
@@ -462,7 +510,10 @@ mod tests {
     fn decay_exempt_round_trips_through_json() {
         let path = std::env::temp_dir().join(format!("mimofan_up_exempt_{}", uuid::Uuid::new_v4()));
         let mut p = UserProfile::exempt();
-        p.apply_correction(Bucket::Preferences, ProfileEntry::new("response_length", "concise"));
+        p.apply_correction(
+            Bucket::Preferences,
+            ProfileEntry::new("response_length", "concise"),
+        );
         p.save(&path).expect("save ok");
         let loaded = UserProfile::load(&path);
         assert!(loaded.decay_exempt, "exemption survives persist/load");

@@ -1802,14 +1802,18 @@ impl Config {
         // having to configure anything. Non-OpenAI-compatible providers (or
         // models with no known sibling) expose no cheap tier, so the role is
         // left unset and the spawn path falls back to the primary model.
-        let candidates =
-            crate::model_routing::provider_router_candidates(self.api_provider(), &self.default_model());
+        let candidates = crate::model_routing::provider_router_candidates(
+            self.api_provider(),
+            &self.default_model(),
+        );
         if let Some(cheap) = candidates.cheap.as_deref() {
             for role in [
-                "default", "worker", "general", "explorer", "explore", "awaiter", "plan",
-                "review", "custom",
+                "default", "worker", "general", "explorer", "explore", "awaiter", "plan", "review",
+                "custom",
             ] {
-                overrides.entry(role.to_string()).or_insert_with(|| cheap.to_string());
+                overrides
+                    .entry(role.to_string())
+                    .or_insert_with(|| cheap.to_string());
             }
         }
 

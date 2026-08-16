@@ -6,14 +6,14 @@
 //! session) alive and re-attachable — this is the core of issue #869.
 
 use anyhow::{Context, Result};
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 
 use crate::session::protocol::{
-    read_frame, encode_frame, Frame, OP_DATA, OP_DETACH, OP_RESIZE, OP_SHUTDOWN,
+    Frame, OP_DATA, OP_DETACH, OP_RESIZE, OP_SHUTDOWN, encode_frame, read_frame,
 };
 use crate::session::registry;
 
@@ -42,10 +42,7 @@ pub async fn run_daemon(id: String, program: &str, args: &[String]) -> Result<()
     for a in args {
         cmd.arg(a);
     }
-    let mut child = pair
-        .slave
-        .spawn_command(cmd)
-        .context("spawn PTY command")?;
+    let mut child = pair.slave.spawn_command(cmd).context("spawn PTY command")?;
     // A killer handle that survives the move of `child` into `wait_task`, so
     // the main loop can terminate the PTY program on an explicit SHUTDOWN.
     let killer = child.clone_killer();
@@ -57,7 +54,10 @@ pub async fn run_daemon(id: String, program: &str, args: &[String]) -> Result<()
 
     let listener = UnixListener::bind(&socket)
         .with_context(|| format!("bind session socket {}", socket.display()))?;
-    eprintln!("mimofan-session[{id}]: daemon listening on {}", socket.display());
+    eprintln!(
+        "mimofan-session[{id}]: daemon listening on {}",
+        socket.display()
+    );
 
     // Broadcast bus: PTY output → all clients.
     let (pty_tx, _) = tokio::sync::broadcast::channel::<Vec<u8>>(1024);

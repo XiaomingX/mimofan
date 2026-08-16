@@ -27,6 +27,8 @@ use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 
 use super::shell_output::{summarize_output, truncate_with_meta};
 use crate::child_env;
+#[cfg(target_os = "linux")]
+use crate::sandbox::landlock::apply_landlock_pre_exec;
 use crate::sandbox::{
     CommandSpec,
     ExecEnv,
@@ -34,8 +36,6 @@ use crate::sandbox::{
     SandboxPolicy as ExecutionSandboxPolicy, // Rename to avoid conflict with spec::SandboxPolicy
     SandboxType,
 };
-#[cfg(target_os = "linux")]
-use crate::sandbox::landlock::apply_landlock_pre_exec;
 use crate::worker_profile::ShellPolicy;
 
 #[path = "shell_tools.rs"]

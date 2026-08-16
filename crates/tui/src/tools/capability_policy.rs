@@ -114,7 +114,10 @@ impl CapabilityPermissionPolicy {
     /// `policy.check_before_execute(spec)`. The engine already holds the
     /// registry, so no signature on `ToolSpec::execute` needs to change.
     #[must_use]
-    pub fn check_before_execute(&self, spec: &dyn ToolSpec) -> Result<(), crate::tools::spec::ToolError> {
+    pub fn check_before_execute(
+        &self,
+        spec: &dyn ToolSpec,
+    ) -> Result<(), crate::tools::spec::ToolError> {
         let caps = spec.capabilities();
         if let Some(denied) = caps.iter().find(|c| self.deny.contains(c)) {
             return Err(crate::tools::spec::ToolError::permission_denied(format!(
@@ -184,7 +187,11 @@ mod tests {
         fn approval_requirement(&self) -> ApprovalRequirement {
             ApprovalRequirement::Auto
         }
-        async fn execute(&self, _input: Value, _ctx: &ToolContext) -> Result<ToolResult, ToolError> {
+        async fn execute(
+            &self,
+            _input: Value,
+            _ctx: &ToolContext,
+        ) -> Result<ToolResult, ToolError> {
             Ok(ToolResult::success("ok".to_string()))
         }
     }
@@ -218,7 +225,12 @@ mod tests {
         let mut reg = ToolRegistry::new(ToolContext::new(
             std::env::temp_dir().join("mimofan_cap_policy_test_ws"),
         ));
-        reg.register_all(vec![ro("read_file"), net("web_search"), ro_net("proxy"), write("write_file")]);
+        reg.register_all(vec![
+            ro("read_file"),
+            net("web_search"),
+            ro_net("proxy"),
+            write("write_file"),
+        ]);
         reg
     }
 
@@ -260,7 +272,9 @@ mod tests {
         policy.deny_capability(ToolCapability::Network);
 
         assert!(
-            policy.check_before_execute(ro("read_file").as_ref()).is_ok(),
+            policy
+                .check_before_execute(ro("read_file").as_ref())
+                .is_ok(),
             "read-only tool should pass the gate"
         );
         let err = policy
@@ -287,7 +301,10 @@ mod tests {
         allowed.sort();
 
         // Surviving set = everything except the two network-capable tools.
-        assert_eq!(allowed, vec!["read_file".to_string(), "write_file".to_string()]);
+        assert_eq!(
+            allowed,
+            vec!["read_file".to_string(), "write_file".to_string()]
+        );
     }
 
     #[test]

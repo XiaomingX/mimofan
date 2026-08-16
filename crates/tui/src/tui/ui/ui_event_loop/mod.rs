@@ -3488,7 +3488,6 @@ pub(crate) async fn run_event_loop(
 
 // dispatch_user_message moved to message_dispatch.rs
 
-
 // === Free helper functions (extracted during #647 safe-migration split) ===
 mod free_fns;
 pub(crate) use free_fns::*;

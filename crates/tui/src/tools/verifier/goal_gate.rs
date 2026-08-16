@@ -193,14 +193,12 @@ impl GoalVerifier for PredicateGate {
         }
 
         match command.status() {
-            Ok(status) if status.success() => GateVerdict::met(format!(
-                "predicate gate passed: '{}' exited 0",
-                predicate
-            )),
+            Ok(status) if status.success() => {
+                GateVerdict::met(format!("predicate gate passed: '{}' exited 0", predicate))
+            }
             Ok(status) => GateVerdict::unmet(format!(
                 "predicate gate failed: '{}' exited with status {}",
-                predicate,
-                status
+                predicate, status
             )),
             Err(err) => GateVerdict::unmet(format!(
                 "predicate gate could not run '{}': {}",
@@ -315,11 +313,7 @@ impl GoalGate {
             let verdict = verifier.evaluate(objective, evidence);
             if verdict.confidence >= 1.0 {
                 if verdict.met {
-                    return GateVerdict::met(format!(
-                        "[{}] {}",
-                        verifier.name(),
-                        verdict.reason
-                    ));
+                    return GateVerdict::met(format!("[{}] {}", verifier.name(), verdict.reason));
                 }
                 // A deterministic "not met" still needs to lose to a later
                 // deterministic "met", so we remember it but keep scanning.
@@ -330,9 +324,10 @@ impl GoalGate {
                         verdict.reason
                     )));
                 }
-            } else if best_partial.as_ref().map_or(true, |p| {
-                p.confidence < verdict.confidence
-            }) {
+            } else if best_partial
+                .as_ref()
+                .map_or(true, |p| p.confidence < verdict.confidence)
+            {
                 best_partial = Some(GateVerdict::with_confidence(
                     verdict.met,
                     verdict.confidence,
@@ -443,7 +438,10 @@ mod tests {
         let gate = GoalGate::default_set();
         let evidence = GoalEvidence::default();
         let verdict = gate.evaluate("vague objective", &evidence);
-        assert!(!verdict.met, "no objective signal must not be trusted as met");
+        assert!(
+            !verdict.met,
+            "no objective signal must not be trusted as met"
+        );
     }
 
     #[test]
@@ -466,8 +464,14 @@ mod tests {
         );
 
         let verdict = gate.evaluate("implement feature", &evidence);
-        assert!(!verdict.met, "self-report must NOT make an objectively-failing task met");
-        assert_eq!(verdict.confidence, 1.0, "objective verdict is deterministic");
+        assert!(
+            !verdict.met,
+            "self-report must NOT make an objectively-failing task met"
+        );
+        assert_eq!(
+            verdict.confidence, 1.0,
+            "objective verdict is deterministic"
+        );
         assert!(
             verdict.reason.contains("predicate"),
             "verdict must be driven by the objective predicate, not the output text"
@@ -543,7 +547,10 @@ mod tests {
         // decides.
         let predicate = PredicateGate::new();
         let pred_fail = predicate.evaluate(objective, &evidence_fail);
-        assert!(!pred_fail.met, "failed predicate => unmet, ignoring self-report");
+        assert!(
+            !pred_fail.met,
+            "failed predicate => unmet, ignoring self-report"
+        );
         assert_eq!(pred_fail.confidence, 1.0);
         let pred_pass = predicate.evaluate(objective, &evidence_pass);
         assert!(pred_pass.met, "succeeding predicate => met");

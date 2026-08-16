@@ -75,7 +75,12 @@ fn render_plan_snapshot_lines(snapshot: &PlanSnapshot, lines: &mut Vec<Line<'sta
             label_suffix.push_str(&format!(" [@{scope}]"));
         }
         let mut value = step.step.clone();
-        if step.acceptance.as_deref().filter(|s| !s.trim().is_empty()).is_some() {
+        if step
+            .acceptance
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .is_some()
+        {
             value.push_str(" ✓gate");
         }
         let marker_label = format!("{marker}{label_suffix}");

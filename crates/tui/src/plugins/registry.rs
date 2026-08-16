@@ -13,8 +13,8 @@ use tracing::warn;
 
 use crate::client::ApiClient;
 use crate::sandbox::backend::SandboxBackend;
-use crate::tools::hypothesis::HypothesisTool;
 use crate::tools::gadget_chain::GadgetChainTraceTool;
+use crate::tools::hypothesis::HypothesisTool;
 use crate::tools::run_poc::RunPocTool;
 use crate::tools::spec::ToolSpec;
 
@@ -49,7 +49,10 @@ fn known_extra_tool(name: &str) -> Option<Arc<dyn ToolSpec>> {
         crate::tools::gadget_chain::GADGET_CHAIN_TOOL_NAME => Some(Arc::new(GadgetChainTraceTool)),
         crate::tools::run_poc::RUN_POC_TOOL_NAME => Some(Arc::new(RunPocTool)),
         other => {
-            warn!(tool = other, "plugin manifest references unknown extra tool; skipping");
+            warn!(
+                tool = other,
+                "plugin manifest references unknown extra tool; skipping"
+            );
             None
         }
     }

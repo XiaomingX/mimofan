@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use thiserror::Error;
 
-use crate::tools::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec};
+use crate::tools::spec::{
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
+};
 
 /// The routing decision returned by [`Advisor::advise`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -217,7 +219,7 @@ impl ToolSpec for AdvisorTool {
     }
 
     async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
-        use mimofan_tools::{required_str, optional_str, optional_u64};
+        use mimofan_tools::{optional_str, optional_u64, required_str};
 
         let description = required_str(&input, "description")
             .map_err(|_| ToolError::missing_field("description"))?
@@ -236,15 +238,13 @@ impl ToolSpec for AdvisorTool {
             frontier_model,
         };
 
-        let choice = self
-            .advisor
-            .advise(&profile)
-            .map_err(|e| match e {
-                AdvisorError::EmptyTask => ToolError::invalid_input("task description is empty"),
-            })?;
+        let choice = self.advisor.advise(&profile).map_err(|e| match e {
+            AdvisorError::EmptyTask => ToolError::invalid_input("task description is empty"),
+        })?;
 
-        let decision = serde_json::to_value(&choice)
-            .map_err(|e| ToolError::execution_failed(format!("failed to serialize decision: {e}")))?;
+        let decision = serde_json::to_value(&choice).map_err(|e| {
+            ToolError::execution_failed(format!("failed to serialize decision: {e}"))
+        })?;
 
         Ok(ToolResult::success(decision.to_string()))
     }
@@ -276,7 +276,10 @@ mod tests {
     fn security_review_escalates() {
         let advisor = Advisor::default();
         let choice = advisor
-            .advise(&profile("perform a security review of the auth module", 800))
+            .advise(&profile(
+                "perform a security review of the auth module",
+                800,
+            ))
             .expect("advise");
         match choice {
             ModelChoice::Escalate(f) => assert_eq!(f.name(), "frontier"),

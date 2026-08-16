@@ -50,9 +50,11 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec};
+use super::spec::{
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
+};
 use super::subagent::{
-    SharedSubAgentManager, SubAgentResult, SubAgentStatus, SubAgentType, SubAgentAssignment,
+    SharedSubAgentManager, SubAgentAssignment, SubAgentResult, SubAgentStatus, SubAgentType,
     tool::spawn_subagent_from_input,
 };
 
@@ -82,7 +84,10 @@ impl NodeState {
     /// Terminal states no longer need scheduling.
     #[must_use]
     pub fn is_terminal(self) -> bool {
-        matches!(self, NodeState::Completed | NodeState::Failed | NodeState::Skipped)
+        matches!(
+            self,
+            NodeState::Completed | NodeState::Failed | NodeState::Skipped
+        )
     }
 }
 
@@ -238,7 +243,9 @@ impl WorkflowJournal {
     }
 
     fn load(dir: &Path, run_id: &str) -> std::io::Result<Option<Self>> {
-        let path = dir.join(WORKFLOW_JOURNAL_DIR).join(format!("{run_id}.json"));
+        let path = dir
+            .join(WORKFLOW_JOURNAL_DIR)
+            .join(format!("{run_id}.json"));
         if !path.exists() {
             return Ok(None);
         }
@@ -321,7 +328,8 @@ impl NodeExecutor for SubagentNodeExecutor {
         attempt: u32,
     ) -> Result<String, ToolError> {
         let input = node_spawn_input(node, run_id, attempt);
-        let result = spawn_subagent_from_input(input, self.manager.clone(), self.runtime.clone()).await?;
+        let result =
+            spawn_subagent_from_input(input, self.manager.clone(), self.runtime.clone()).await?;
         Ok(result.agent_id)
     }
 
@@ -593,11 +601,7 @@ impl<E: NodeExecutor> WorkflowEngine<E> {
             .get(id)
             .ok_or_else(|| ToolError::execution_failed(format!("unknown node {id}")))?
             .clone();
-        let rt = self
-            .journal
-            .nodes
-            .get_mut(id)
-            .expect("node runtime exists");
+        let rt = self.journal.nodes.get_mut(id).expect("node runtime exists");
         rt.attempts += 1;
         let agent_id = self
             .executor
@@ -659,8 +663,7 @@ impl<E: NodeExecutor> WorkflowEngine<E> {
             let last_ms = self.executor.last_progress_ms(&agent_id).await;
             if let Some(ms) = last_ms {
                 let now_ms = WorkflowJournal::now_ms();
-                let stalled =
-                    now_ms.saturating_sub(ms) >= self.stall_timeout.as_millis() as u64;
+                let stalled = now_ms.saturating_sub(ms) >= self.stall_timeout.as_millis() as u64;
                 if stalled {
                     tracing::warn!("workflow node {id} stalled; retrying");
                     // Treat stall as a retry trigger; if no retries remain, fail.
@@ -704,7 +707,9 @@ impl<E: NodeExecutor> WorkflowEngine<E> {
                         // (e.g. the gate expects "failed" but the node Completed).
                         refs.iter().any(|r| {
                             let s = self.journal.nodes.get(r).map(|rt| rt.state);
-                            let Some(state) = s else { return false; };
+                            let Some(state) = s else {
+                                return false;
+                            };
                             let has_terminal = matches!(
                                 state,
                                 NodeState::Completed | NodeState::Failed | NodeState::Skipped
@@ -1126,7 +1131,12 @@ mod tests {
             let mut states = self.states.lock().unwrap();
             let agent = states.get_mut(agent_id).expect("agent exists");
             if agent.stalled {
-                return Ok(mk_result(agent_id, &agent.node_id, SubAgentStatus::Running, None));
+                return Ok(mk_result(
+                    agent_id,
+                    &agent.node_id,
+                    SubAgentStatus::Running,
+                    None,
+                ));
             }
             if agent.steps_left == 0 {
                 self.last_progress
@@ -1146,7 +1156,12 @@ mod tests {
                 .lock()
                 .unwrap()
                 .insert(agent_id.to_string(), real_now_ms());
-            Ok(mk_result(agent_id, &agent.node_id, SubAgentStatus::Running, None))
+            Ok(mk_result(
+                agent_id,
+                &agent.node_id,
+                SubAgentStatus::Running,
+                None,
+            ))
         }
 
         async fn cancel(&self, _agent_id: &str) -> Result<(), ToolError> {
@@ -1211,7 +1226,8 @@ mod tests {
         let exec = Arc::new(FakeExecutor::new());
         let ws = tmp_ws("seq");
         let mut engine =
-            WorkflowEngine::new(sample_spec(), exec.clone(), ws.clone(), Some("run1".into())).unwrap();
+            WorkflowEngine::new(sample_spec(), exec.clone(), ws.clone(), Some("run1".into()))
+                .unwrap();
         let report = engine.run().await.unwrap();
 
         assert!(report.finished, "all nodes should reach a terminal state");
@@ -1260,7 +1276,11 @@ mod tests {
         let report = engine.run().await.unwrap();
         let outcome = report.nodes.get("x").unwrap();
         assert_eq!(outcome.state, NodeState::Completed, "retry should recover");
-        assert!(outcome.attempts >= 2, "should have retried, got {}", outcome.attempts);
+        assert!(
+            outcome.attempts >= 2,
+            "should have retried, got {}",
+            outcome.attempts
+        );
         let _ = std::fs::remove_dir_all(&ws);
     }
 
@@ -1296,13 +1316,19 @@ mod tests {
         let mut engine =
             WorkflowEngine::new(spec, exec.clone(), ws.clone(), Some("run3".into())).unwrap();
         let report = engine.run().await.unwrap();
-        assert_eq!(report.nodes.get("root").unwrap().state, NodeState::Completed);
+        assert_eq!(
+            report.nodes.get("root").unwrap().state,
+            NodeState::Completed
+        );
         assert_eq!(
             report.nodes.get("skipme").unwrap().state,
             NodeState::Skipped,
             "branch should be pruned by when gate"
         );
-        assert_eq!(report.nodes.get("always").unwrap().state, NodeState::Completed);
+        assert_eq!(
+            report.nodes.get("always").unwrap().state,
+            NodeState::Completed
+        );
         let _ = std::fs::remove_dir_all(&ws);
     }
 
@@ -1332,7 +1358,11 @@ mod tests {
         exec1.mark_stalled("c");
         let spec1 = WorkflowSpec {
             name: Some("r".into()),
-            nodes: vec![node("a", &[], 0), node("b", &["a"], 0), node("c", &["b"], 0)],
+            nodes: vec![
+                node("a", &[], 0),
+                node("b", &["a"], 0),
+                node("c", &["b"], 0),
+            ],
             max_parallel: Some(1),
             stall_timeout_ms: Some(10),
             resume_run_id: None,
@@ -1348,7 +1378,11 @@ mod tests {
         let exec2 = Arc::new(FakeExecutor::new());
         let spec2 = WorkflowSpec {
             name: Some("r".into()),
-            nodes: vec![node("a", &[], 0), node("b", &["a"], 0), node("c", &["b"], 0)],
+            nodes: vec![
+                node("a", &[], 0),
+                node("b", &["a"], 0),
+                node("c", &["b"], 0),
+            ],
             max_parallel: Some(1),
             stall_timeout_ms: Some(10),
             resume_run_id: Some("runR".into()),

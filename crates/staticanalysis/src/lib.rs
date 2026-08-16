@@ -131,20 +131,46 @@ pub fn query_source(
 ) -> Result<Vec<AstHit>, AstError> {
     let mut parser = Parser::new();
     let ts_lang: tree_sitter::Language = match lang {
-        Language::Rust => set_grammar!(parser, lang, "lang-rust", tree_sitter_rust::LANGUAGE.into()),
-        Language::Java => set_grammar!(parser, lang, "lang-java", tree_sitter_java::LANGUAGE.into()),
+        Language::Rust => {
+            set_grammar!(parser, lang, "lang-rust", tree_sitter_rust::LANGUAGE.into())
+        }
+        Language::Java => {
+            set_grammar!(parser, lang, "lang-java", tree_sitter_java::LANGUAGE.into())
+        }
         Language::TypeScript => {
-            set_grammar!(parser, lang, "lang-typescript", tree_sitter_typescript::LANGUAGE_TSX.into())
+            set_grammar!(
+                parser,
+                lang,
+                "lang-typescript",
+                tree_sitter_typescript::LANGUAGE_TSX.into()
+            )
         }
         Language::JavaScript => {
-            set_grammar!(parser, lang, "lang-javascript", tree_sitter_javascript::LANGUAGE.into())
+            set_grammar!(
+                parser,
+                lang,
+                "lang-javascript",
+                tree_sitter_javascript::LANGUAGE.into()
+            )
         }
-        Language::Kotlin => set_grammar!(parser, lang, "lang-kotlin", tree_sitter_kotlin_ng::LANGUAGE.into()),
-        Language::Swift => set_grammar!(parser, lang, "lang-swift", tree_sitter_swift::LANGUAGE.into()),
+        Language::Kotlin => set_grammar!(
+            parser,
+            lang,
+            "lang-kotlin",
+            tree_sitter_kotlin_ng::LANGUAGE.into()
+        ),
+        Language::Swift => set_grammar!(
+            parser,
+            lang,
+            "lang-swift",
+            tree_sitter_swift::LANGUAGE.into()
+        ),
         Language::ObjectiveC => {
             set_grammar!(parser, lang, "lang-objc", tree_sitter_objc::LANGUAGE.into())
         }
-        Language::Json => set_grammar!(parser, lang, "lang-json", tree_sitter_json::LANGUAGE.into()),
+        Language::Json => {
+            set_grammar!(parser, lang, "lang-json", tree_sitter_json::LANGUAGE.into())
+        }
         Language::Auto => return Err(AstError::Unsupported(lang)),
     };
 
@@ -180,8 +206,10 @@ pub fn query_source(
 pub fn named_query(key: &str) -> Option<&'static str> {
     let q = match key {
         // Rust: detect calls to a function whose name ends in `exec`.
-        "rust.sink.process_exec" => "(call_expression
-  function: [(identifier) @fn (#match? @fn \"exec$\")]) @call",
+        "rust.sink.process_exec" => {
+            "(call_expression
+  function: [(identifier) @fn (#match? @fn \"exec$\")]) @call"
+        }
         // Rust: detect `unsafe` blocks.
         "rust.unsound.unsafe_block" => "(unsafe_block) @blk",
 
@@ -190,70 +218,90 @@ pub fn named_query(key: &str) -> Option<&'static str> {
         // `object` of the invocation is itself a `method_invocation`
         // (e.g. `Runtime.getRuntime()`), so we match on the `object` chain
         // containing `Runtime` and a `name` of `exec`/`start`.
-        "java.sink.runtime_exec" => "(method_invocation
+        "java.sink.runtime_exec" => {
+            "(method_invocation
   object: (method_invocation) @obj
   name: (identifier) @method
   (#match? @obj \"Runtime\")
-  (#match? @method \"^(exec|start)$\")) @call",
+  (#match? @method \"^(exec|start)$\")) @call"
+        }
         // String-concatenated SQL passed to a statement — SQL injection sink.
-        "java.sink.sql_concat" => "(method_invocation
+        "java.sink.sql_concat" => {
+            "(method_invocation
   name: (identifier) @method
   arguments: (argument_list
     (binary_expression) @sql)
-  (#match? @method \"^(executeQuery|executeUpdate|execute|prepareStatement)$\")) @call",
+  (#match? @method \"^(executeQuery|executeUpdate|execute|prepareStatement)$\")) @call"
+        }
         // Deserialization of an untrusted stream (ObjectInputStream) — gadget sink.
-        "java.sink.deserialization" => "(object_creation_expression
+        "java.sink.deserialization" => {
+            "(object_creation_expression
   type: (type_identifier) @type
-  (#eq? @type \"ObjectInputStream\")) @call",
+  (#eq? @type \"ObjectInputStream\")) @call"
+        }
 
         // ── JavaScript / TypeScript ────────────────────────────────────────
         // `eval(...)` / `new Function(...)` — code injection sink.
-        "js.sink.eval" => "[(call_expression
+        "js.sink.eval" => {
+            "[(call_expression
   function: [(identifier) @fn (#match? @fn \"^(eval|execScript)$\")]
   arguments: (arguments (expression) @arg))
  (new_expression
-  constructor: (identifier) @ctor (#eq? @ctor \"Function\"))] @call",
+  constructor: (identifier) @ctor (#eq? @ctor \"Function\"))] @call"
+        }
         // `child_process.exec(...)` — command injection sink.
-        "js.sink.child_process_exec" => "(call_expression
+        "js.sink.child_process_exec" => {
+            "(call_expression
   function: (member_expression
     object: (identifier) @obj
     property: (property_identifier) @prop)
   (#eq? @obj \"child_process\")
-  (#match? @prop \"^(exec|execFile|spawn)(Sync)?$\")) @call",
+  (#match? @prop \"^(exec|execFile|spawn)(Sync)?$\")) @call"
+        }
         // SQL string concatenation into a query call.
-        "js.sink.sql_concat" => "[(call_expression
+        "js.sink.sql_concat" => {
+            "[(call_expression
   function: [(identifier) @fn
             (member_expression property: (property_identifier) @mprop)]
   arguments: (arguments (binary_expression) @sql)
   (#match? @fn \"^(query|execute|exec|raw)$\")
-  (#match? @mprop \"^(query|execute|exec|raw|all|run)$\"))] @call",
+  (#match? @mprop \"^(query|execute|exec|raw|all|run)$\"))] @call"
+        }
 
         // ── Kotlin ───────────────────────────────────────────────────────────
         // Runtime.exec / getRuntime — command injection sink. The navigation
         // chain `Runtime.getRuntime().exec` is matched by text predicates on
         // the call site (kotlin-ng node types nest navigation_expressions).
-        "kotlin.sink.runtime_exec" => "(call_expression
+        "kotlin.sink.runtime_exec" => {
+            "(call_expression
   (navigation_expression) @callsite
   (#match? @callsite \"Runtime\")
-  (#match? @callsite \"exec|getRuntime\")) @call",
+  (#match? @callsite \"exec|getRuntime\")) @call"
+        }
 
         // ── Swift ────────────────────────────────────────────────────────────
         // `system(...)` / `shell(...)` — command execution sink.
-        "swift.sink.process_run" => "[(call_expression
-  (simple_identifier) @fn (#match? @fn \"^shell$|^system$\"))] @call",
+        "swift.sink.process_run" => {
+            "[(call_expression
+  (simple_identifier) @fn (#match? @fn \"^shell$|^system$\"))] @call"
+        }
 
         // ── Objective-C ──────────────────────────────────────────────────────
         // NSTask / system(...) / popen(...) — command execution sink.
-        "objc.sink.system" => "[(call_expression
+        "objc.sink.system" => {
+            "[(call_expression
   function: (identifier) @fn
-  (#match? @fn \"^(system|popen|execl|execv)$\"))] @call",
+  (#match? @fn \"^(system|popen|execl|execv)$\"))] @call"
+        }
 
         // ── Cross-cutting: browser extension manifest hazards ────────────────
         // WebExtension manifest with broad host permissions (`<all_urls>` or any
         // `://` scheme). Requires the JSON grammar (`lang-json` feature).
-        "webext.manifest.broad_host_permissions" => "(pair
+        "webext.manifest.broad_host_permissions" => {
+            "(pair
   key: (string (string_content) @k (#eq? @k \"host_permissions\"))
-  value: (array (string (string_content) @hp (#match? @hp \"<all_urls>|://\")))) @pair",
+  value: (array (string (string_content) @hp (#match? @hp \"<all_urls>|://\")))) @pair"
+        }
 
         _ => return None,
     };
@@ -338,7 +386,10 @@ fn main() {
         // With the `lang-objc` feature the grammar is compiled in, so the query
         // must succeed rather than error out as Unsupported.
         let res = query_source("x.m", "int main(){}", Language::ObjectiveC, "(_) @n");
-        assert!(res.is_ok(), "ObjectiveC should be supported with lang-objc feature");
+        assert!(
+            res.is_ok(),
+            "ObjectiveC should be supported with lang-objc feature"
+        );
     }
 
     // ── Multi-language preset validation. These only compile/run when the
@@ -362,7 +413,8 @@ fn main() {
     #[cfg(feature = "lang-javascript")]
     #[test]
     fn js_presets_hit() {
-        let src = "eval(x); new Function(\"y\"); child_process.exec(\"ls\"); db.query(\"SELECT \" + z);";
+        let src =
+            "eval(x); new Function(\"y\"); child_process.exec(\"ls\"); db.query(\"SELECT \" + z);";
         for key in [
             "js.sink.eval",
             "js.sink.child_process_exec",
@@ -411,18 +463,17 @@ fn main() {
     }
 }
 
-
 // --- Taint/SCA capability modules (taint-sca-group, T-4..T-13) ---
 // Wiring for the security analysis modules. These are additive and do not
 // touch the shared `Language`/`query_source`/`callgraph` foundation owned by
 // the staticanalysis group.
+pub mod attack_surface;
+pub mod kb_trace;
+pub mod knowledge;
+pub mod recon;
 pub mod rules;
-pub mod taint;
-pub mod summary;
-pub mod typestate;
 pub mod sarif;
 pub mod sca;
-pub mod knowledge;
-pub mod kb_trace;
-pub mod attack_surface;
-pub mod recon;
+pub mod summary;
+pub mod taint;
+pub mod typestate;

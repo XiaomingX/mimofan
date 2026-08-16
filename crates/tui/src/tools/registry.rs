@@ -1175,7 +1175,9 @@ impl ToolRegistryBuilder {
     /// Include the todo tool with a shared `TodoList`.
     #[must_use]
     pub fn with_todo_tool(self, todo_list: super::todo::SharedTodoList) -> Self {
-        use super::todo::{TodoAddTool, TodoClaimTool, TodoListTool, TodoUpdateTool, TodoWriteTool};
+        use super::todo::{
+            TodoAddTool, TodoClaimTool, TodoListTool, TodoUpdateTool, TodoWriteTool,
+        };
         self.with_tool(Arc::new(TodoWriteTool::new(todo_list.clone())))
             .with_tool(Arc::new(TodoAddTool::new(todo_list.clone())))
             .with_tool(Arc::new(TodoUpdateTool::new(todo_list.clone())))
@@ -1374,7 +1376,11 @@ mod tests {
             self.caps.clone()
         }
 
-        async fn execute(&self, _input: Value, _ctx: &ToolContext) -> Result<ToolResult, ToolError> {
+        async fn execute(
+            &self,
+            _input: Value,
+            _ctx: &ToolContext,
+        ) -> Result<ToolResult, ToolError> {
             Ok(ToolResult::success(format!("ran {}", self.name)))
         }
     }
@@ -1422,7 +1428,10 @@ mod tests {
         reg.register(stub("dup", vec![ToolCapability::Network]));
         // Name collision keeps a single entry but the latest tool wins.
         assert_eq!(reg.len(), 1);
-        assert_eq!(reg.get("dup").unwrap().capabilities(), vec![ToolCapability::Network]);
+        assert_eq!(
+            reg.get("dup").unwrap().capabilities(),
+            vec![ToolCapability::Network]
+        );
     }
 
     #[test]
@@ -1442,7 +1451,10 @@ mod tests {
         let mut reg = ToolRegistry::new(test_context());
         reg.register(stub("ro", vec![ToolCapability::ReadOnly]));
         reg.register(stub("net", vec![ToolCapability::Network]));
-        reg.register(stub("both", vec![ToolCapability::ReadOnly, ToolCapability::Network]));
+        reg.register(stub(
+            "both",
+            vec![ToolCapability::ReadOnly, ToolCapability::Network],
+        ));
 
         let ro = reg.filter_by_capability(ToolCapability::ReadOnly);
         let mut ro_names: Vec<&str> = ro.iter().map(|t| t.name()).collect();
@@ -1474,7 +1486,9 @@ mod tests {
         // Build a minimal agent surface builder and assert the new tools are
         // present. We don't need a live shell policy to check presence.
         let reg = ToolRegistryBuilder::new()
-            .with_agent_tools_policy(crate::worker_profile::ShellPolicy::from_legacy_allow_shell(false))
+            .with_agent_tools_policy(crate::worker_profile::ShellPolicy::from_legacy_allow_shell(
+                false,
+            ))
             .build(test_context());
 
         for name in ["prompt_audit", "advisor", "event_stream"] {

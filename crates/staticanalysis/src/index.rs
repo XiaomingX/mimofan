@@ -23,10 +23,10 @@
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::callgraph::CallGraph;
 use crate::Language;
+use crate::callgraph::CallGraph;
 
 /// A single discovered definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -175,13 +175,7 @@ impl SymbolIndex {
         tx.execute(
             "INSERT INTO files (path, lang, content_hash, mtime_ms, indexed_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![
-                path_str,
-                lang.as_str(),
-                hash,
-                mtime,
-                now_ms()
-            ],
+            params![path_str, lang.as_str(), hash, mtime, now_ms()],
         )?;
         let file_id = tx.last_insert_rowid();
 
@@ -265,9 +259,7 @@ impl SymbolIndex {
              JOIN files f ON f.id = i.file_id
              WHERE i.module LIKE ?1",
         )?;
-        let rows = stmt.query_map(params![format!("%{module}%")], |r| {
-            r.get::<_, String>(0)
-        })?;
+        let rows = stmt.query_map(params![format!("%{module}%")], |r| r.get::<_, String>(0))?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
@@ -287,9 +279,10 @@ impl SymbolIndex {
     /// Drop a single file's rows (e.g. on deletion). Returns whether a row was
     /// removed.
     pub fn forget_file(&mut self, path: &Path) -> anyhow::Result<bool> {
-        let n = self
-            .conn
-            .execute("DELETE FROM files WHERE path = ?1", params![path.to_string_lossy().to_string()])?;
+        let n = self.conn.execute(
+            "DELETE FROM files WHERE path = ?1",
+            params![path.to_string_lossy().to_string()],
+        )?;
         Ok(n > 0)
     }
 }
@@ -308,16 +301,21 @@ fn extract_import_module(line: &str, lang: Language) -> Option<String> {
     let trimmed = line.trim_start();
     let after = match lang {
         Language::Rust => trimmed.strip_prefix("use "),
-        Language::Java | Language::TypeScript | Language::JavaScript | Language::Kotlin
-        | Language::ObjectiveC => {
-            trimmed.strip_prefix("import ").or_else(|| trimmed.strip_prefix("require("))
-        }
+        Language::Java
+        | Language::TypeScript
+        | Language::JavaScript
+        | Language::Kotlin
+        | Language::ObjectiveC => trimmed
+            .strip_prefix("import ")
+            .or_else(|| trimmed.strip_prefix("require(")),
         Language::Swift => trimmed.strip_prefix("import "),
         Language::Json => None,
         Language::Auto => None,
     }?;
     let tok = after
-        .split(|c: char| c.is_whitespace() || c == ';' || c == '"' || c == '\'' || c == '(' || c == ')')
+        .split(|c: char| {
+            c.is_whitespace() || c == ';' || c == '"' || c == '\'' || c == '(' || c == ')'
+        })
         .find(|s| !s.is_empty())?;
     Some(tok.to_string())
 }
@@ -334,7 +332,10 @@ fn walk_source_files(root: &Path) -> Vec<PathBuf> {
         if p.is_dir() {
             // Skip VCS / build artifacts to keep indexing cheap.
             if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-                if matches!(name, ".git" | "target" | "node_modules" | "build" | ".next" | "dist") {
+                if matches!(
+                    name,
+                    ".git" | "target" | "node_modules" | "build" | ".next" | "dist"
+                ) {
                     continue;
                 }
             }
@@ -386,7 +387,11 @@ fn leaf() {}
         assert!(syms.iter().any(|(_, n, _)| n == "helper"));
 
         let importers = idx.find_importers("collections").expect("importers");
-        assert!(importers.iter().any(|p| p == tmp.to_string_lossy().as_ref()));
+        assert!(
+            importers
+                .iter()
+                .any(|p| p == tmp.to_string_lossy().as_ref())
+        );
 
         let refs = idx.find_references("leaf").expect("refs");
         assert!(!refs.is_empty(), "leaf must be referenced from helper");

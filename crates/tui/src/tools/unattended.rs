@@ -144,7 +144,11 @@ mod tests {
         fn approval_requirement(&self) -> ApprovalRequirement {
             self.approval
         }
-        async fn execute(&self, _input: Value, _ctx: &ToolContext) -> Result<ToolResult, ToolError> {
+        async fn execute(
+            &self,
+            _input: Value,
+            _ctx: &ToolContext,
+        ) -> Result<ToolResult, ToolError> {
             Ok(ToolResult::success("ok".to_string()))
         }
     }
@@ -190,7 +194,9 @@ mod tests {
     }
 
     fn make_registry() -> ToolRegistry {
-        let mut reg = ToolRegistry::new(ToolContext::new(std::env::temp_dir().join("mimofan_unattended_test_ws")));
+        let mut reg = ToolRegistry::new(ToolContext::new(
+            std::env::temp_dir().join("mimofan_unattended_test_ws"),
+        ));
         reg.register_all(vec![
             read_only_auto("read_file"),
             write_tool("write_file"),
@@ -266,7 +272,11 @@ mod tests {
         let reg = make_registry();
         let policy = UnattendedPolicy::new(true);
         let allowed = policy.allowed_tool_names(&reg);
-        assert_eq!(allowed, vec!["read_file".to_string()], "only the safe read-only tool survives");
+        assert_eq!(
+            allowed,
+            vec!["read_file".to_string()],
+            "only the safe read-only tool survives"
+        );
         // A tool requiring human approval is excluded even though read-only.
         assert!(!policy.is_allowed(human_approval_tool("revert_turn").as_ref()));
         // Destructive / egress tools are excluded even when auto-approved.
@@ -320,4 +330,3 @@ mod tests {
         assert_eq!(allowed[0], "read_file");
     }
 }
-

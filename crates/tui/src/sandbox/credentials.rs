@@ -91,7 +91,14 @@ pub fn is_allowlisted(key: &str) -> bool {
     let key = key.to_ascii_uppercase();
     // Belt-and-suspenders: reject anything that looks credential-bearing even
     // if someone mistakenly added it to ALLOWLIST.
-    for suffix in ["API_KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "PRIVATE_KEY"] {
+    for suffix in [
+        "API_KEY",
+        "TOKEN",
+        "SECRET",
+        "PASSWORD",
+        "PASSWD",
+        "PRIVATE_KEY",
+    ] {
         if key.ends_with(suffix) {
             return false;
         }

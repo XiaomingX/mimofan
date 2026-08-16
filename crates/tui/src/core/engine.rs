@@ -457,7 +457,10 @@ impl Engine {
     /// tool-context wiring already uses `self.sandbox_backend`, so this method
     /// exposes the same value through a stable, overridable entry point.
     #[must_use]
-    pub fn sandbox_for(&self, _workspace: &str) -> Option<Arc<dyn crate::sandbox::backend::SandboxBackend>> {
+    pub fn sandbox_for(
+        &self,
+        _workspace: &str,
+    ) -> Option<Arc<dyn crate::sandbox::backend::SandboxBackend>> {
         self.sandbox_backend.clone()
     }
 
@@ -690,9 +693,9 @@ impl Engine {
         // Create clients for both providers
         let (deepseek_client, deepseek_client_error) =
             match ApiClient::new(api_config, config.catalog_cache.clone()) {
-            Ok(client) => (Some(client), None),
-            Err(err) => (None, Some(err.to_string())),
-        };
+                Ok(client) => (Some(client), None),
+                Err(err) => (None, Some(err.to_string())),
+            };
         let api_provider = api_config.api_provider();
         let api_key_env_only_recovery = Self::env_only_api_key_recovery_hint(api_config);
 
@@ -958,7 +961,9 @@ impl Engine {
             escalations_applied: 0,
             budget_exhausted: false,
             consolidation_scheduler: consolidation_interval_turns.map(|interval| {
-                mimofan_memory::consolidation::ConsolidationScheduler::with_interval(interval as u64)
+                mimofan_memory::consolidation::ConsolidationScheduler::with_interval(
+                    interval as u64,
+                )
             }),
             compaction_in_progress: false,
             headless_gate: if unattended {
@@ -1811,11 +1816,11 @@ impl Engine {
         state.escalations_applied = self.escalations_applied;
         state.model = self.session.model.clone();
         state.reasoning_effort = self.session.reasoning_effort.clone();
-        state.tokens_consumed = self
-            .session
-            .total_usage
-            .input_tokens
-            .saturating_add(self.session.total_usage.output_tokens) as usize;
+        state.tokens_consumed =
+            self.session
+                .total_usage
+                .input_tokens
+                .saturating_add(self.session.total_usage.output_tokens) as usize;
         if let Some(budget) = &self.task_budget {
             state.budget_remaining = Some(budget.remaining);
             state.budget_total = Some(budget.total);
@@ -1831,7 +1836,10 @@ impl Engine {
     /// Only the fields safe to re-apply without a live LLM are restored
     /// (objective, budget, turn index, escalations). The message transcript is
     /// owned by the session on disk and is NOT touched here.
-    pub fn restore_state(&mut self, state: &crate::core::engine::resilience::SerializableAgentState) {
+    pub fn restore_state(
+        &mut self,
+        state: &crate::core::engine::resilience::SerializableAgentState,
+    ) {
         if !state.objective.is_empty() {
             self.config.goal_objective = Some(state.objective.clone());
         }
@@ -1955,9 +1963,11 @@ impl Engine {
                 .as_deref()
                 .map(EffortTier::parse)
                 .unwrap_or(EffortTier::Medium);
-            let step = retry_config
-                .policy
-                .escalate(&current_effort, &self.session.model, self.escalations_applied);
+            let step = retry_config.policy.escalate(
+                &current_effort,
+                &self.session.model,
+                self.escalations_applied,
+            );
             (verdict.met, step)
         };
 
@@ -2384,10 +2394,7 @@ impl Engine {
                                     self.subagent_manager.clone(),
                                     subagent_runtime.clone(),
                                 )
-                                .with_workflow_tool(
-                                    self.subagent_manager.clone(),
-                                    subagent_runtime,
-                                )
+                                .with_workflow_tool(self.subagent_manager.clone(), subagent_runtime)
                                 .build(tool_context),
                         )
                     } else {
@@ -2418,7 +2425,11 @@ impl Engine {
                     .iter()
                     .map(std::string::ToString::to_string)
                     .collect();
-                let registered: Vec<String> = tool_registry.names().iter().map(|s| s.to_string()).collect();
+                let registered: Vec<String> = tool_registry
+                    .names()
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
                 for name in registered {
                     if !allowed_set.contains(&name) {
                         tool_registry.remove(&name);
@@ -2571,7 +2582,10 @@ impl Engine {
                         _ => None,
                     })
                 });
-            if !self.maybe_retry_on_validation_failure(observed_output).await {
+            if !self
+                .maybe_retry_on_validation_failure(observed_output)
+                .await
+            {
                 // A retry was dispatched; skip the normal goal continuation for
                 // this turn so we don't double-dispatch.
                 return;
@@ -2697,11 +2711,9 @@ impl Engine {
     pub(crate) fn build_consolidation_scheduler(
         config: &EngineConfig,
     ) -> Option<mimofan_memory::consolidation::ConsolidationScheduler> {
-        config
-            .consolidation_interval_turns
-            .map(|interval| {
-                mimofan_memory::consolidation::ConsolidationScheduler::with_interval(interval as u64)
-            })
+        config.consolidation_interval_turns.map(|interval| {
+            mimofan_memory::consolidation::ConsolidationScheduler::with_interval(interval as u64)
+        })
     }
 
     /// #863 — append a structured failure event to the headless failure log.
@@ -3625,14 +3637,14 @@ mod catalog_filter;
 mod context;
 pub mod engine_config;
 mod engine_messages;
-pub mod resilience;
-pub(crate) mod headless_gate;
 mod goal;
 mod handle;
+pub(crate) mod headless_gate;
 mod plugin_tools;
 mod policy;
 #[path = "engine/recovery.rs"]
 mod recovery;
+pub mod resilience;
 
 pub(crate) use context::compact_tool_result_for_context;
 use context::{
@@ -3644,16 +3656,16 @@ pub use engine_config::EngineConfig;
 
 pub(crate) mod circuit_breaker;
 mod dispatch;
+pub mod interceptor;
 mod lsp_hooks;
+pub(crate) mod recovery_stats;
 mod streaming;
 mod token_estimate_cache;
 mod tool_catalog;
 mod tool_execution;
-pub(crate) mod recovery_stats;
 mod tool_setup;
 mod trace;
 mod turn_loop;
-pub mod interceptor;
 pub(crate) use token_estimate_cache::TokenEstimateCache;
 
 pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;
@@ -3716,7 +3728,11 @@ mod sandbox_seam_tests {
 
     #[async_trait]
     impl SandboxBackend for RecordingBackend {
-        async fn exec(&self, cmd: &str, _env: &HashMap<String, String>) -> anyhow::Result<SandboxOutput> {
+        async fn exec(
+            &self,
+            cmd: &str,
+            _env: &HashMap<String, String>,
+        ) -> anyhow::Result<SandboxOutput> {
             self.ran.lock().unwrap().push(cmd.to_string());
             Ok(SandboxOutput {
                 stdout: String::new(),
@@ -3802,10 +3818,7 @@ mod consolidation_wiring_tests {
         );
         assert_eq!(scheduler.turn_count(), 2);
         // After compaction ends, the next interval triggers normally.
-        assert_eq!(
-            Engine::run_consolidation_tick(&mut scheduler, false),
-            None
-        );
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
         assert_eq!(
             Engine::run_consolidation_tick(&mut scheduler, false),
             Some(true)

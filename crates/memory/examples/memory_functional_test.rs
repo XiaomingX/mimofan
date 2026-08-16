@@ -14,7 +14,12 @@ use std::time::Duration;
 
 /// Helper to create test observation
 fn create_observation(project: &str, kind: &str, content: &str) -> Observation {
-    Observation::with_session(project.to_string(), kind, content.to_string(), "func".to_string())
+    Observation::with_session(
+        project.to_string(),
+        kind,
+        content.to_string(),
+        "func".to_string(),
+    )
 }
 
 /// Helper to generate embedding
@@ -133,13 +138,7 @@ async fn main() {
     let compressor = ObservationCompressor::with_settings(5, 86400);
 
     let observations: Vec<Observation> = (0..10)
-        .map(|i| {
-            create_observation(
-                "compress",
-                "project",
-                &format!("Discovery {}", i),
-            )
-        })
+        .map(|i| create_observation("compress", "project", &format!("Discovery {}", i)))
         .collect();
 
     // Analyze

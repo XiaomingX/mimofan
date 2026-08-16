@@ -142,9 +142,7 @@ impl LifecycleTracker {
     #[must_use]
     pub fn since_last_change(&self, id: &str) -> Option<Duration> {
         let guard = self.inner.lock().expect("lifecycle tracker poisoned");
-        guard
-            .get(id)
-            .map(|entry| entry.last_change.elapsed())
+        guard.get(id).map(|entry| entry.last_change.elapsed())
     }
 
     /// Drop tracking for `id` (e.g. on eviction/cleanup).

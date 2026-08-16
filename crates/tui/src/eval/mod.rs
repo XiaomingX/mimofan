@@ -16,12 +16,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
-use crate::llm_client::mock::MockLlmClient;
 use crate::llm_client::LlmClient;
+use crate::llm_client::mock::MockLlmClient;
 use crate::models::{ContentBlockStart, MessageRequest, StreamEvent};
 use crate::sandbox::backend::{SandboxBackend, SandboxOutput};
-use crate::tools::spec::{ToolContext, ToolError};
 use crate::tools::registry::ToolRegistryBuilder;
+use crate::tools::spec::{ToolContext, ToolError};
 
 #[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -253,11 +253,9 @@ impl EvalHarness {
                             if name == "run_poc" {
                                 // `run_poc` serializes its outcome into
                                 // `content` (JSON) rather than `metadata`.
-                                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&result.content)
-                                    && value
-                                        .get("realized")
-                                        .and_then(|v| v.as_bool())
-                                        == Some(true)
+                                if let Ok(value) =
+                                    serde_json::from_str::<serde_json::Value>(&result.content)
+                                    && value.get("realized").and_then(|v| v.as_bool()) == Some(true)
                                 {
                                     realized = true;
                                 }
@@ -374,10 +372,7 @@ async fn collect_tool_calls(
     while let Some(item) = stream.next().await {
         let event = item?;
         if let StreamEvent::ContentBlockStart {
-            content_block:
-                ContentBlockStart::ToolUse {
-                    name, input, ..
-                },
+            content_block: ContentBlockStart::ToolUse { name, input, .. },
             ..
         } = event
         {
@@ -651,7 +646,9 @@ mod tests {
 
         // Both real tools must have been executed (not the old inline stubs).
         assert!(
-            run.agent_tool_calls.iter().any(|t| t == "gadget_chain_trace"),
+            run.agent_tool_calls
+                .iter()
+                .any(|t| t == "gadget_chain_trace"),
             "gadget_chain_trace should have been executed through the real registry; got {:?}",
             run.agent_tool_calls
         );

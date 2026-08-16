@@ -18,7 +18,9 @@ use mimofan_staticanalysis::knowledge::load_kb_dir;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use super::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec};
+use super::spec::{
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
+};
 
 /// Tool name for the model-facing API.
 pub const GADGET_CHAIN_TOOL_NAME: &str = "gadget_chain_trace";
@@ -26,7 +28,10 @@ pub const GADGET_CHAIN_TOOL_NAME: &str = "gadget_chain_trace";
 /// On-disk KB location, resolved relative to the staticanalysis crate. The tui
 /// crate sits at `crates/tui`, so `../staticanalysis` reaches the sibling crate
 /// whose `src/rules/kb` holds the curated knowledge base.
-const KB_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../staticanalysis/src/rules/kb");
+const KB_DIR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../staticanalysis/src/rules/kb"
+);
 
 /// Reverse-trace gadget chains from a sink symbol using the on-disk KB.
 pub struct GadgetChainTraceTool;
@@ -85,8 +90,8 @@ impl GadgetChainTraceTool {
     /// traces every chain, decorates with pivot reachability, and returns the
     /// serializable summary.
     fn run_trace(input: &GadgetChainInput) -> Result<GadgetChainOutput, ToolError> {
-        let kb =
-            load_kb_dir(KB_DIR).map_err(|e| ToolError::execution_failed(format!("load KB: {e}")))?;
+        let kb = load_kb_dir(KB_DIR)
+            .map_err(|e| ToolError::execution_failed(format!("load KB: {e}")))?;
 
         // An empty KB is a silent false-negative: the tool would otherwise
         // return `chain_count: 0`, which the model can misread as "this sink
@@ -111,7 +116,9 @@ impl GadgetChainTraceTool {
                 let all_reachable = if t.present_gadgets.is_empty() {
                     false
                 } else {
-                    t.present_gadgets.iter().all(|g| reachable.contains(g.as_str()))
+                    t.present_gadgets
+                        .iter()
+                        .all(|g| reachable.contains(g.as_str()))
                 };
                 t.pivot_reachable = Some(all_reachable);
             }
@@ -206,8 +213,9 @@ impl ToolSpec for GadgetChainTraceTool {
     }
 
     async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
-        let parsed: GadgetChainInput = serde_json::from_value(input.clone())
-            .map_err(|e| ToolError::invalid_input(format!("invalid gadget_chain_trace input: {e}")))?;
+        let parsed: GadgetChainInput = serde_json::from_value(input.clone()).map_err(|e| {
+            ToolError::invalid_input(format!("invalid gadget_chain_trace input: {e}"))
+        })?;
 
         let output = Self::run_trace(&parsed)?;
         ToolResult::json(&output).map_err(|e| ToolError::execution_failed(e.to_string()))
@@ -249,7 +257,10 @@ mod tests {
 
         // Sink matching should surface the pat-jndi-lookup pattern.
         assert!(
-            parsed.matched_patterns.iter().any(|p| p.id == "pat-jndi-lookup"),
+            parsed
+                .matched_patterns
+                .iter()
+                .any(|p| p.id == "pat-jndi-lookup"),
             "sink should match pat-jndi-lookup"
         );
     }

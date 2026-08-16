@@ -143,8 +143,7 @@ pub async fn execute_js_execution_tool(
     let node_spec = crate::dependencies::Node::resolve().ok_or_else(|| {
         ToolError::execution_failed("js_execution: Node.js runtime became unavailable".to_string())
     })?;
-    let (node_program, node_fixed_args) =
-        crate::dependencies::split_interpreter_spec(&node_spec);
+    let (node_program, node_fixed_args) = crate::dependencies::split_interpreter_spec(&node_spec);
 
     // #SECURITY-CAPABILITY T-15 — run the model-provided JavaScript inside the
     // OS sandbox when one is available (macOS Seatbelt / Linux Landlock). The
@@ -184,15 +183,15 @@ pub async fn execute_js_execution_tool(
     // Linux Landlock: attach the pre_exec restriction hook.
     #[cfg(target_os = "linux")]
     if matches!(exec_env.sandbox_type, SandboxType::Landlock) {
-        let ws = exec_env
-            .env
-            .get("MIMOFAN_LANDLOCK_WS")
-            .map(PathBuf::from);
+        let ws = exec_env.env.get("MIMOFAN_LANDLOCK_WS").map(PathBuf::from);
         crate::sandbox::landlock::apply_landlock_pre_exec_tokio(&mut cmd, ws.as_deref());
     }
 
     if sandbox_available {
-        tracing::debug!("js_execution routed through OS sandbox: {}", exec_env.sandbox_type);
+        tracing::debug!(
+            "js_execution routed through OS sandbox: {}",
+            exec_env.sandbox_type
+        );
     }
 
     let output = tokio::time::timeout(Duration::from_secs(120), cmd.output())

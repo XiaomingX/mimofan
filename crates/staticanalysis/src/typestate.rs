@@ -80,9 +80,21 @@ impl ProtocolFsm {
     pub fn from_yaml(file: &str, text: &str) -> Result<ProtocolFsm> {
         let doc = crate::rules::parse_yaml(file, text)?;
         let m = doc.as_map().context("protocol must be a mapping")?;
-        let protocol = m.get("protocol").and_then(Yaml::as_str).unwrap_or("").to_string();
-        let object = m.get("object").and_then(Yaml::as_str).unwrap_or("").to_string();
-        let initial = m.get("initial").and_then(Yaml::as_str).unwrap_or("").to_string();
+        let protocol = m
+            .get("protocol")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string();
+        let object = m
+            .get("object")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string();
+        let initial = m
+            .get("initial")
+            .and_then(Yaml::as_str)
+            .unwrap_or("")
+            .to_string();
         let accepting = string_list(m.get("accepting"));
         let states = string_list(m.get("states"));
 
@@ -91,9 +103,21 @@ impl ProtocolFsm {
             for it in items {
                 if let Some(mm) = it.as_map() {
                     transitions.push(Transition {
-                        from: mm.get("from").and_then(Yaml::as_str).unwrap_or("").to_string(),
-                        on: mm.get("on").and_then(Yaml::as_str).unwrap_or("").to_string(),
-                        to: mm.get("to").and_then(Yaml::as_str).unwrap_or("").to_string(),
+                        from: mm
+                            .get("from")
+                            .and_then(Yaml::as_str)
+                            .unwrap_or("")
+                            .to_string(),
+                        on: mm
+                            .get("on")
+                            .and_then(Yaml::as_str)
+                            .unwrap_or("")
+                            .to_string(),
+                        to: mm
+                            .get("to")
+                            .and_then(Yaml::as_str)
+                            .unwrap_or("")
+                            .to_string(),
                     });
                 }
             }
@@ -103,7 +127,11 @@ impl ProtocolFsm {
             for it in items {
                 if let Some(mm) = it.as_map() {
                     guards.push(Guard {
-                        on: mm.get("on").and_then(Yaml::as_str).unwrap_or("").to_string(),
+                        on: mm
+                            .get("on")
+                            .and_then(Yaml::as_str)
+                            .unwrap_or("")
+                            .to_string(),
                         require_state: mm
                             .get("require_state")
                             .and_then(Yaml::as_str)
@@ -179,12 +207,18 @@ fn string_list(y: Option<&Yaml>) -> Vec<String> {
 /// Load all `*.yaml` protocol FSMs from a directory.
 pub fn load_protocols_dir(dir: &str) -> Result<Vec<ProtocolFsm>> {
     let mut out = Vec::new();
-    let entries = std::fs::read_dir(dir)
-        .with_context(|| format!("reading protocols dir {dir}"))?;
+    let entries = std::fs::read_dir(dir).with_context(|| format!("reading protocols dir {dir}"))?;
     for e in entries.filter_map(|e| e.ok()).map(|e| e.path()) {
-        if e.extension().map(|x| x == "yaml" || x == "yml").unwrap_or(false) {
+        if e.extension()
+            .map(|x| x == "yaml" || x == "yml")
+            .unwrap_or(false)
+        {
             let text = std::fs::read_to_string(&e)?;
-            let name = e.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let name = e
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
             out.push(ProtocolFsm::from_yaml(&name, &text)?);
         }
     }
@@ -218,7 +252,10 @@ guards:
         // Prove the shipped protocol FSM data is real, not a stub.
         let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/rules/protocols");
         let fsms = load_protocols_dir(dir).expect("load protocols dir");
-        assert!(!fsms.is_empty(), "expected at least one protocol FSM on disk");
+        assert!(
+            !fsms.is_empty(),
+            "expected at least one protocol FSM on disk"
+        );
     }
 
     #[test]
@@ -241,7 +278,10 @@ guards:
             ("enableSafeMode".to_string(), 10),
             ("readObject".to_string(), 11),
         ]);
-        assert!(violations.is_empty(), "safe order should pass: {violations:?}");
+        assert!(
+            violations.is_empty(),
+            "safe order should pass: {violations:?}"
+        );
     }
 }
 

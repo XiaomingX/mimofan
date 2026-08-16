@@ -1,6 +1,5 @@
 //! Sidebar sub-panel rendering (extracted from sidebar.rs for #647).
 
-
 use crate::tui::sidebar::*;
 use ratatui::{
     Frame,
@@ -11,12 +10,9 @@ use ratatui::{
     widgets::{Block, Paragraph, Wrap},
 };
 
-
 use crate::mimofan_theme::Theme;
 
-use crate::tui::app::{
-    App, SidebarHoverRow, SidebarHoverSection,
-};
+use crate::tui::app::{App, SidebarHoverRow, SidebarHoverSection};
 use crate::tui::ui_text::truncate_line_to_width;
 
 pub(crate) fn render_context_panel(f: &mut Frame, area: Rect, app: &mut App) {

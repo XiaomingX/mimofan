@@ -206,7 +206,10 @@ impl TaskGraph {
         // All edges are (dep, node); build the forward adjacency list.
         let mut adjacency: HashMap<&str, Vec<&str>> = HashMap::new();
         for (from, to) in &self.edges {
-            adjacency.entry(from.as_str()).or_default().push(to.as_str());
+            adjacency
+                .entry(from.as_str())
+                .or_default()
+                .push(to.as_str());
         }
         let mut stack: VecDeque<&str> = adjacency
             .get(id)
@@ -442,7 +445,10 @@ mod tests {
         let skipped = g.skip_downstream("a");
         let mut skipped = skipped;
         skipped.sort();
-        assert_eq!(skipped, vec!["b".to_string(), "c".to_string(), "d".to_string()]);
+        assert_eq!(
+            skipped,
+            vec!["b".to_string(), "c".to_string(), "d".to_string()]
+        );
         assert_eq!(g.nodes["b"].status, TaskNodeStatus::Skipped);
         assert_eq!(g.nodes["c"].status, TaskNodeStatus::Skipped);
         assert_eq!(g.nodes["d"].status, TaskNodeStatus::Skipped);
@@ -459,7 +465,10 @@ mod tests {
         // b already completed before a failed: should NOT be downgraded.
         g.complete_node("b", None).unwrap();
         let skipped = g.skip_downstream("a");
-        assert!(skipped.is_empty(), "completed downstream must not be skipped");
+        assert!(
+            skipped.is_empty(),
+            "completed downstream must not be skipped"
+        );
         assert_eq!(g.nodes["b"].status, TaskNodeStatus::Completed);
     }
 
@@ -479,4 +488,3 @@ mod tests {
         assert_eq!(wave2, vec!["b".to_string(), "c".to_string()]);
     }
 }
-

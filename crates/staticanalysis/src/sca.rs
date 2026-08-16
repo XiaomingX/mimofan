@@ -175,7 +175,8 @@ pub struct ScaFinding {
 /// package names reachable from the call graph / entry points. Reduces false
 /// positives (T-9 reachability pruning applied to SCA).
 pub fn prune_unreachable(findings: Vec<ScaFinding>, reachable_names: &[String]) -> Vec<ScaFinding> {
-    let reachable: std::collections::HashSet<&str> = reachable_names.iter().map(|s| s.as_str()).collect();
+    let reachable: std::collections::HashSet<&str> =
+        reachable_names.iter().map(|s| s.as_str()).collect();
     findings
         .into_iter()
         .filter(|f| reachable.is_empty() || reachable.contains(f.dependency.name.as_str()))
@@ -230,7 +231,10 @@ version = "0.1.0"
         }"#;
         let deps = parse_npm_lock(lock).unwrap();
         assert_eq!(deps.len(), 2);
-        assert!(deps.iter().any(|d| d.name == "lodash" && d.version == "4.17.20"));
+        assert!(
+            deps.iter()
+                .any(|d| d.name == "lodash" && d.version == "4.17.20")
+        );
     }
 
     #[test]

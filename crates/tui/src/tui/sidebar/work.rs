@@ -8,8 +8,6 @@ use ratatui::{
     text::{Line, Span},
 };
 
-
-
 impl SidebarWorkSummary {
     fn checklist_is_primary(&self) -> bool {
         !self.checklist_items.is_empty()
@@ -74,7 +72,9 @@ pub(crate) fn should_render_strategy_step(
     !summary.checklist_is_complete() || step.status == StepStatus::Completed
 }
 
-pub(crate) fn renderable_strategy_steps(summary: &SidebarWorkSummary) -> Vec<&SidebarWorkStrategyStep> {
+pub(crate) fn renderable_strategy_steps(
+    summary: &SidebarWorkSummary,
+) -> Vec<&SidebarWorkStrategyStep> {
     summary
         .strategy_steps
         .iter()
@@ -571,7 +571,10 @@ pub(crate) fn push_work_checklist_lines(
     }
 }
 
-pub(crate) fn checklist_window_start(items: &[SidebarWorkChecklistItem], max_items: usize) -> usize {
+pub(crate) fn checklist_window_start(
+    items: &[SidebarWorkChecklistItem],
+    max_items: usize,
+) -> usize {
     if max_items >= items.len() {
         return 0;
     }
@@ -684,7 +687,10 @@ pub(crate) fn strategy_context_step_prefix(status: &StepStatus) -> &'static str 
     }
 }
 
-pub(crate) fn strategy_context_step_color(status: &StepStatus, theme: &Theme) -> ratatui::style::Color {
+pub(crate) fn strategy_context_step_color(
+    status: &StepStatus,
+    theme: &Theme,
+) -> ratatui::style::Color {
     match status {
         StepStatus::Pending => theme.plan_pending_color,
         StepStatus::InProgress => theme.plan_in_progress_color,

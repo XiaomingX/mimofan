@@ -266,7 +266,8 @@ fn restrict_child(writable_root: Option<&Path>) -> Result<()> {
                 unsafe {
                     libc::close(ruleset_fd);
                 }
-                return Err(std::io::Error::last_os_error()).context("landlock_add_rule(ws) failed");
+                return Err(std::io::Error::last_os_error())
+                    .context("landlock_add_rule(ws) failed");
             }
         }
     }
@@ -312,7 +313,10 @@ pub fn apply_landlock_pre_exec(cmd: &mut Command, writable_root: Option<&Path>) 
 /// `tokio::process::Command` implements the same `CommandExt::pre_exec` on
 /// Unix, so the restriction logic is identical.
 #[cfg(target_os = "linux")]
-pub fn apply_landlock_pre_exec_tokio(cmd: &mut tokio::process::Command, writable_root: Option<&Path>) {
+pub fn apply_landlock_pre_exec_tokio(
+    cmd: &mut tokio::process::Command,
+    writable_root: Option<&Path>,
+) {
     let ws = writable_root.map(|p| p.to_path_buf());
     let result = cmd.pre_exec(move || {
         restrict_child(ws.as_deref()).map_err(|e| {

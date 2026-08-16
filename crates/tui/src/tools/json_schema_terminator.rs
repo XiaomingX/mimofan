@@ -179,7 +179,11 @@ mod tests {
         let result = result.unwrap();
         assert!(result.success);
         assert_eq!(
-            result.metadata.as_ref().and_then(|m| m.get(TERMINATE_MARKER)).as_deref(),
+            result
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get(TERMINATE_MARKER))
+                .as_deref(),
             Some(&json!(true))
         );
         let stored = slot.lock().unwrap();

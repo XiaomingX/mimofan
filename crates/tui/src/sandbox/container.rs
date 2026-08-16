@@ -306,11 +306,7 @@ impl ContainerBackend {
         // Explicit read-write mounts (permitted paths only).
         for (host, container) in &self.writable_mounts {
             args.push("--volume".to_string());
-            args.push(format!(
-                "{}:{}:rw,Z",
-                host.display(),
-                container.display()
-            ));
+            args.push(format!("{}:{}:rw,Z", host.display(), container.display()));
         }
 
         // Non-root user.
@@ -461,7 +457,10 @@ mod tests {
         assert_eq!(backend.memory_limit(), "512m");
         assert_eq!(backend.cpu_limit(), "1.0");
         assert_eq!(backend.timeout(), Duration::from_secs(60));
-        assert!(backend.writable_mounts().is_empty(), "no writable mounts by default");
+        assert!(
+            backend.writable_mounts().is_empty(),
+            "no writable mounts by default"
+        );
         assert!(backend.run_as_user().is_none());
 
         // Sanity: argv reflects the secure posture.

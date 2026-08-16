@@ -215,9 +215,7 @@ impl WebhookHookSink {
 #[async_trait]
 impl HookSink for WebhookHookSink {
     async fn emit(&self, event: &HookEvent) -> Result<()> {
-        let client = self
-            .client
-            .get_or_init(|| reqwest::Client::new());
+        let client = self.client.get_or_init(|| reqwest::Client::new());
         let mut retries = 0usize;
         loop {
             let resp = client

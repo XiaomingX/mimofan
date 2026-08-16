@@ -206,9 +206,7 @@ pub fn scan_generic_assignment(line: &str) -> Option<SecretMatch> {
     let key_part = lower[..eq].trim();
     let value_part = line[eq + 1..].trim();
 
-    let is_cred_key = CREDENTIAL_KEYWORDS
-        .iter()
-        .any(|kw| key_part.contains(kw));
+    let is_cred_key = CREDENTIAL_KEYWORDS.iter().any(|kw| key_part.contains(kw));
     if !is_cred_key {
         return None;
     }
@@ -217,13 +215,19 @@ pub fn scan_generic_assignment(line: &str) -> Option<SecretMatch> {
     let value = value_part
         .strip_prefix('"')
         .and_then(|v| v.strip_suffix('"'))
-        .or_else(|| value_part.strip_prefix('\'').and_then(|v| v.strip_suffix('\'')))
+        .or_else(|| {
+            value_part
+                .strip_prefix('\'')
+                .and_then(|v| v.strip_suffix('\''))
+        })
         .unwrap_or(value_part);
 
     // The value must be a single alphanumeric/url-safe token, not prose, and
     // long enough to be an actual secret rather than a flag name.
     let is_token = !value.is_empty()
-        && value.chars().all(|c| c.is_ascii_alphanumeric() || "._-/+=".contains(c))
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "._-/+=".contains(c))
         && value.len() >= MIN_GENERIC_LEN;
     if !is_token {
         return None;
@@ -490,10 +494,8 @@ mod tests {
 
     #[test]
     fn redact_stream_splits_lines_and_counts() {
-        let (out, blocked, carry) = redact_stream(
-            "ok line\napi_key=abcdef0123456789abcdef0123456789\n",
-            None,
-        );
+        let (out, blocked, carry) =
+            redact_stream("ok line\napi_key=abcdef0123456789abcdef0123456789\n", None);
         assert!(out.contains("ok line"));
         assert!(out.contains("[REDACTED:generic-credential]"));
         assert_eq!(blocked, 1);
@@ -517,8 +519,7 @@ mod tests {
     fn redact_stream_partial_line_deferred() {
         // A partial line (no trailing newline) must not be redacted until a
         // newline arrives, and the carry must preserve it unchanged.
-        let (out, blocked, carry) =
-            redact_stream("api_key=abcdef0123456789abcdef0123456789", None);
+        let (out, blocked, carry) = redact_stream("api_key=abcdef0123456789abcdef0123456789", None);
         assert!(out.is_empty());
         assert_eq!(blocked, 0);
         assert_eq!(carry, "api_key=abcdef0123456789abcdef0123456789");

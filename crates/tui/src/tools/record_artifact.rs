@@ -68,21 +68,11 @@ impl ToolSpec for RecordArtifactTool {
         ApprovalRequirement::Auto
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        context: &ToolContext,
-    ) -> Result<ToolResult, ToolError> {
+    async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
         let content = required_string(&input, "content")?;
-        let session_id = context
-            .runtime
-            .active_thread_id
-            .clone()
-            .ok_or_else(|| {
-                ToolError::not_available(
-                    "record_artifact requires an active session/thread id",
-                )
-            })?;
+        let session_id = context.runtime.active_thread_id.clone().ok_or_else(|| {
+            ToolError::not_available("record_artifact requires an active session/thread id")
+        })?;
 
         let artifact_id = match input.get("artifact_id").and_then(Value::as_str) {
             Some(value) if !value.trim().is_empty() => value.trim().to_string(),
@@ -121,15 +111,18 @@ impl ToolSpec for RecordArtifactTool {
 
         send_artifact_record(&context.runtime, record.clone())?;
 
-        Ok(ToolResult::success(json!({
-            "status": "recorded",
-            "id": record.id,
-            "tool_call_id": record.tool_call_id,
-            "session_id": session_id,
-            "path": absolute_path.display().to_string(),
-            "byte_size": record.byte_size,
-            "retrieve": format!("retrieve_tool_result ref={}", record.id),
-        }).to_string()))
+        Ok(ToolResult::success(
+            json!({
+                "status": "recorded",
+                "id": record.id,
+                "tool_call_id": record.tool_call_id,
+                "session_id": session_id,
+                "path": absolute_path.display().to_string(),
+                "byte_size": record.byte_size,
+                "retrieve": format!("retrieve_tool_result ref={}", record.id),
+            })
+            .to_string(),
+        ))
     }
 }
 
@@ -143,9 +136,8 @@ fn send_artifact_record(
             "session artifact index is not available in this context",
         ));
     };
-    tx.send(record).map_err(|err| {
-        ToolError::execution_failed(format!("failed to index artifact: {err}"))
-    })?;
+    tx.send(record)
+        .map_err(|err| ToolError::execution_failed(format!("failed to index artifact: {err}")))?;
     Ok(())
 }
 

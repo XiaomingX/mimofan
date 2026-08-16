@@ -552,10 +552,7 @@ impl ResumeController {
             Self::open(resume_session)
         } else {
             // Treat as a direct state/checkpoint file path.
-            let store = if resume_session
-                .extension()
-                .is_some_and(|e| e == "jsonl")
-            {
+            let store = if resume_session.extension().is_some_and(|e| e == "jsonl") {
                 CheckpointStore::open_at(resume_session.to_path_buf())
             } else {
                 CheckpointStore::open_at(resume_session.with_file_name(".checkpoints.jsonl"))
@@ -646,9 +643,12 @@ impl SharedResumeController {
     ) -> Result<(), ResilienceError> {
         if let Ok(mut g) = self.0.lock() {
             if let Some(ctrl) = g.as_mut() {
-                return ctrl
-                    .checkpoints_mut()
-                    .save_turn_checkpoint(turn, summary, objective, tokens_consumed);
+                return ctrl.checkpoints_mut().save_turn_checkpoint(
+                    turn,
+                    summary,
+                    objective,
+                    tokens_consumed,
+                );
             }
         }
         Ok(())
@@ -668,10 +668,7 @@ impl SharedResumeController {
     /// configured). When `false`, checkpoint/state persistence is a no-op.
     #[must_use]
     pub fn is_active(&self) -> bool {
-        self.0
-            .lock()
-            .map(|g| g.is_some())
-            .unwrap_or(false)
+        self.0.lock().map(|g| g.is_some()).unwrap_or(false)
     }
 }
 
@@ -765,7 +762,9 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let mut store = CheckpointStore::open(&dir);
         store.save_turn_checkpoint(1, "first", "obj", 10).unwrap();
-        store.save_turn_checkpoint(1, "corrected", "obj", 12).unwrap();
+        store
+            .save_turn_checkpoint(1, "corrected", "obj", 12)
+            .unwrap();
         let reloaded = CheckpointStore::open(&dir);
         assert_eq!(reloaded.count(), 2);
         assert_eq!(reloaded.load_latest().unwrap().summary, "corrected");
@@ -880,7 +879,10 @@ mod tests {
         );
 
         assert_eq!(verdict, ValidationVerdict::Pass);
-        assert_eq!(escalations, 1, "should escalate exactly once (low -> medium)");
+        assert_eq!(
+            escalations, 1,
+            "should escalate exactly once (low -> medium)"
+        );
     }
 
     #[test]
@@ -932,18 +934,24 @@ mod tests {
             |v| v.clone(),
         );
 
-        assert_eq!(verdict, ValidationVerdict::Fail, "must give up, not keep spinning");
+        assert_eq!(
+            verdict,
+            ValidationVerdict::Fail,
+            "must give up, not keep spinning"
+        );
         assert_eq!(
             escalations, DEFAULT_MAX_ESCALATIONS,
             "escalations must be capped at max_escalations (2)"
         );
         // initial attempt + 2 escalations = 3 attempts total; it must not run
         // away to hundreds of retries.
-        assert_eq!(attempts, DEFAULT_MAX_ESCALATIONS + 1, "run_turn must be called exactly cap+1 times");
+        assert_eq!(
+            attempts,
+            DEFAULT_MAX_ESCALATIONS + 1,
+            "run_turn must be called exactly cap+1 times"
+        );
         // Once the cap is hit, further calls to escalate must be no-ops.
-        let step = config
-            .policy
-            .escalate(&effort, &model, escalations);
+        let step = config.policy.escalate(&effort, &model, escalations);
         assert!(!step.changed, "escalate() must stop changing past the cap");
     }
 
@@ -955,8 +963,7 @@ mod tests {
         // Then "crash" (drop the handles) and start a fresh engine-like replay
         // from the same session path; it must recover turn index 3 (skip the
         // 3 completed turns) and the budget/objective state.
-        let dir =
-            std::env::temp_dir().join(format!("mimofan-accept-861-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("mimofan-accept-861-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
 
         // --- First (crashed) engine: writes 3 turn checkpoints + state ------
@@ -996,8 +1003,15 @@ mod tests {
         );
         let recovered = resumed.load_state().expect("state must survive the crash");
         assert_eq!(recovered.turn_index, 3, "objective turn state recovered");
-        assert_eq!(recovered.objective, "build the feature", "objective recovered");
-        assert_eq!(recovered.budget_remaining, Some(600), "budget state recovered");
+        assert_eq!(
+            recovered.objective, "build the feature",
+            "objective recovered"
+        );
+        assert_eq!(
+            recovered.budget_remaining,
+            Some(600),
+            "budget state recovered"
+        );
         assert_eq!(recovered.tokens_consumed, 400);
         // Durability: the checkpoint file on disk really holds 3 turns.
         assert_eq!(
@@ -1040,8 +1054,7 @@ mod tests {
     /// skipped) together with the persisted budget/objective state.
     #[test]
     fn acceptance_861_resume_recovers_turn_index_and_state() {
-        let dir =
-            std::env::temp_dir().join(format!("mimofan-resume-acc-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("mimofan-resume-acc-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
 
         // ---- Phase 1: original run, 3 turns, then crash. ----
@@ -1073,7 +1086,10 @@ mod tests {
 
         // ---- Phase 2: fresh engine replay from the same session dir. ----
         let resumed = ResumeController::open(&dir);
-        assert!(resumed.has_resume_point(), "crash left a resumable checkpoint");
+        assert!(
+            resumed.has_resume_point(),
+            "crash left a resumable checkpoint"
+        );
 
         // Last completed turn is 3, so the engine must resume at turn 4
         // (already-completed turns are skipped).
@@ -1086,7 +1102,10 @@ mod tests {
         // Recovered orchestration state must match what was persisted.
         let state = resumed.load_state().expect("state must survive the crash");
         assert_eq!(state.turn_index, 3, "turn_index must be recovered");
-        assert_eq!(state.objective, "ship the feature", "objective must be recovered");
+        assert_eq!(
+            state.objective, "ship the feature",
+            "objective must be recovered"
+        );
         assert_eq!(state.budget_remaining, Some(45), "budget must be recovered");
         assert_eq!(state.budget_total, Some(100));
         assert_eq!(state.tokens_consumed, 45, "cumulative tokens recovered");

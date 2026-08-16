@@ -401,7 +401,10 @@ impl ConfigToml {
                 ProviderSource::Env(env.provider_source.unwrap_or("MIMOFAN_PROVIDER")),
             )
         } else if env.custom_base_url.is_some() {
-            (ProviderKind::OpenAiCompatible, ProviderSource::Env("CUSTOM_BASE_URL"))
+            (
+                ProviderKind::OpenAiCompatible,
+                ProviderSource::Env("CUSTOM_BASE_URL"),
+            )
         } else {
             (self.provider, ProviderSource::Config)
         };
@@ -1748,7 +1751,10 @@ impl EnvRuntimeOverrides {
             || std::env::var("OPENAI_BASE_URL").is_ok()
             || std::env::var("MIMOFAN_BASE_URL").is_ok()
         {
-            return (Some(ProviderKind::OpenAiCompatible), Some("CUSTOM_BASE_URL"));
+            return (
+                Some(ProviderKind::OpenAiCompatible),
+                Some("CUSTOM_BASE_URL"),
+            );
         }
 
         (None, None)

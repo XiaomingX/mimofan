@@ -55,10 +55,10 @@ pub fn init_otel(_endpoint: &str, _service_name: &str) -> Result<OtelHandle> {
 
 #[cfg(feature = "otlp")]
 pub fn init_otel(endpoint: &str, service_name: &str) -> Result<OtelHandle> {
+    use opentelemetry::{KeyValue, trace::TracerProvider as _};
     use opentelemetry_otlp::WithExportConfig;
     use opentelemetry_sdk::Resource;
     use opentelemetry_sdk::trace::TracerProvider;
-    use opentelemetry::{KeyValue, trace::TracerProvider as _};
     use tracing::subscriber::set_global_default;
     use tracing_opentelemetry::OpenTelemetryLayer;
     use tracing_subscriber::layer::SubscriberExt;
@@ -71,7 +71,10 @@ pub fn init_otel(endpoint: &str, service_name: &str) -> Result<OtelHandle> {
 
     let provider = TracerProvider::builder()
         .with_simple_exporter(exporter)
-        .with_resource(Resource::new([KeyValue::new("service.name", service_name.to_string())]))
+        .with_resource(Resource::new([KeyValue::new(
+            "service.name",
+            service_name.to_string(),
+        )]))
         .build();
 
     // Bridge OpenTelemetry into the global `tracing` subscriber so existing
@@ -362,8 +365,14 @@ mod genai_span_tests {
         assert!(text.contains("gen_ai_client_token_usage{gen_ai_operation=\"chat\",gen_ai_token_type=\"input\",gen_ai_request_model=\"deepseek-chat\"} 120"));
         assert!(text.contains("gen_ai_client_token_usage{gen_ai_operation=\"chat\",gen_ai_token_type=\"output\",gen_ai_request_model=\"deepseek-chat\"} 80"));
         assert!(text.contains("gen_ai_client_token_usage{gen_ai_operation=\"chat\",gen_ai_token_type=\"cache_read\",gen_ai_request_model=\"deepseek-chat\"} 40"));
-        assert!(text.contains("gen_ai_client_requests{gen_ai_request_model=\"deepseek-chat\",status=\"ok\"} 1"));
-        assert!(text.contains("gen_ai_client_operation_duration{gen_ai_request_model=\"deepseek-chat\"}"));
+        assert!(text.contains(
+            "gen_ai_client_requests{gen_ai_request_model=\"deepseek-chat\",status=\"ok\"} 1"
+        ));
+        assert!(
+            text.contains(
+                "gen_ai_client_operation_duration{gen_ai_request_model=\"deepseek-chat\"}"
+            )
+        );
     }
 
     #[test]
@@ -371,7 +380,11 @@ mod genai_span_tests {
         let span = GenAiSpan::new("dummy");
         span.finish_err();
         let text = global_recorder().to_text();
-        assert!(text.contains("gen_ai_client_requests{gen_ai_request_model=\"dummy\",status=\"error\"} 1"));
+        assert!(
+            text.contains(
+                "gen_ai_client_requests{gen_ai_request_model=\"dummy\",status=\"error\"} 1"
+            )
+        );
     }
 
     #[test]

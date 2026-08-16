@@ -77,16 +77,15 @@ pub(crate) fn apply_engine_error_to_app(
         if let Ok(mut breaker) = app.provider_breaker.lock() {
             breaker.record_failure(app.api_provider.as_str(), std::time::Instant::now());
         }
-        if app.advance_fallback(message.clone()).is_some()
-        {
-        let position = app.fallback_chain_position().unwrap_or(0);
-        let total = app.fallback_chain_len();
-        app.status_message = Some(format!(
-            "Switched to {} (fallback {position}/{}) after recoverable provider error.",
-            app.api_provider.as_str(),
-            total.saturating_sub(1)
-        ));
-        return;
+        if app.advance_fallback(message.clone()).is_some() {
+            let position = app.fallback_chain_position().unwrap_or(0);
+            let total = app.fallback_chain_len();
+            app.status_message = Some(format!(
+                "Switched to {} (fallback {position}/{}) after recoverable provider error.",
+                app.api_provider.as_str(),
+                total.saturating_sub(1)
+            ));
+            return;
         }
     }
     if !recoverable {

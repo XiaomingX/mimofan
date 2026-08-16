@@ -296,9 +296,8 @@ impl ToolSpec for HypothesisTool {
     }
 
     async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
-        let parsed: HypothesisInput = serde_json::from_value(input).map_err(|e| {
-            ToolError::invalid_input(format!("invalid hypothesis input: {e}"))
-        })?;
+        let parsed: HypothesisInput = serde_json::from_value(input)
+            .map_err(|e| ToolError::invalid_input(format!("invalid hypothesis input: {e}")))?;
 
         let workspace = &context.workspace;
         let mut store = HypothesisStore::load(workspace)?;
@@ -338,9 +337,9 @@ impl ToolSpec for HypothesisTool {
                         "hypothesis add_evidence requires non-empty 'evidence'",
                     ));
                 }
-                let hy = store
-                    .find_mut(&id)
-                    .ok_or_else(|| ToolError::invalid_input(format!("no hypothesis with id '{id}'")))?;
+                let hy = store.find_mut(&id).ok_or_else(|| {
+                    ToolError::invalid_input(format!("no hypothesis with id '{id}'"))
+                })?;
                 hy.evidence.push(Evidence {
                     text: evidence,
                     source,
@@ -362,18 +361,16 @@ impl ToolSpec for HypothesisTool {
                 summary,
             } => {
                 if id.trim().is_empty() {
-                    return Err(ToolError::invalid_input(
-                        "hypothesis resolve requires 'id'",
-                    ));
+                    return Err(ToolError::invalid_input("hypothesis resolve requires 'id'"));
                 }
                 if !matches!(verdict.as_str(), "confirmed" | "refuted" | "inconclusive") {
                     return Err(ToolError::invalid_input(format!(
                         "hypothesis resolve verdict must be one of confirmed|refuted|inconclusive, got '{verdict}'"
                     )));
                 }
-                let hy = store
-                    .find_mut(&id)
-                    .ok_or_else(|| ToolError::invalid_input(format!("no hypothesis with id '{id}'")))?;
+                let hy = store.find_mut(&id).ok_or_else(|| {
+                    ToolError::invalid_input(format!("no hypothesis with id '{id}'"))
+                })?;
 
                 // Consistency gate: "先举证后结论". A verdict without a single
                 // piece of evidence is exactly the reasoning failure axis B
@@ -438,7 +435,11 @@ mod tests {
         (dir, ctx)
     }
 
-    fn run(tool: &HypothesisTool, ctx: &ToolContext, input: Value) -> Result<ToolResult, ToolError> {
+    fn run(
+        tool: &HypothesisTool,
+        ctx: &ToolContext,
+        input: Value,
+    ) -> Result<ToolResult, ToolError> {
         // The tool is async; in unit tests we drive it on a throwaway
         // single-threaded runtime. We must NOT use `Handle::current` because
         // tests run on the default test executor, not a tokio runtime.
@@ -461,16 +462,14 @@ mod tests {
         )
         .expect("create succeeds");
         let parsed: Value = serde_json::from_str(&created.content).unwrap();
-        let id: String = parsed
-            .get("id")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
+        let id: String = parsed.get("id").unwrap().as_str().unwrap().to_string();
         assert!(!id.is_empty());
 
         // add_evidence x2
-        for (i, ev) in ["reachable from http handler", "no auth gate on path"].iter().enumerate() {
+        for (i, ev) in ["reachable from http handler", "no auth gate on path"]
+            .iter()
+            .enumerate()
+        {
             let res = run(
                 &tool,
                 &ctx,
@@ -517,12 +516,7 @@ mod tests {
         )
         .expect("create succeeds");
         let parsed: Value = serde_json::from_str(&created.content).unwrap();
-        let id: String = parsed
-            .get("id")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
+        let id: String = parsed.get("id").unwrap().as_str().unwrap().to_string();
 
         // Immediate resolve must fail — zero evidence.
         let err = run(
@@ -550,12 +544,7 @@ mod tests {
         )
         .expect("create succeeds");
         let parsed: Value = serde_json::from_str(&created.content).unwrap();
-        let id: String = parsed
-            .get("id")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
+        let id: String = parsed.get("id").unwrap().as_str().unwrap().to_string();
 
         run(
             &tool,

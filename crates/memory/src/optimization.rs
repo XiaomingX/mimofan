@@ -96,7 +96,9 @@ impl SearchCache {
         let mut cache = self.cache.borrow_mut();
         if let Some(pos) = cache.iter().position(|(k, _)| k == key) {
             // Move to back (most recently used)
-            let item = cache.remove(pos).expect("cached search entry exists at position");
+            let item = cache
+                .remove(pos)
+                .expect("cached search entry exists at position");
             cache.push_back(item.clone());
             return cache.back().map(|(_, v)| v.clone());
         }

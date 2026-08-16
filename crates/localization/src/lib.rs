@@ -662,7 +662,9 @@ pub fn tr(_locale: Locale, id: MessageId) -> &'static str {
         MessageId::CmdTimeMissingId => "缺少任务 ID",
         MessageId::CmdTimeCancelled => "任务已取消",
         MessageId::CmdLoopDescription => "自主循环执行提示词直到停止条件满足",
-        MessageId::CmdLoopUsage => "用法: /loop <提示> [--until <停止条件>] [--max N] [--checkpoint] [--schedule HH:MM]",
+        MessageId::CmdLoopUsage => {
+            "用法: /loop <提示> [--until <停止条件>] [--max N] [--checkpoint] [--schedule HH:MM]"
+        }
         MessageId::CmdLoopScheduled => "已计划在 {time} 启动循环: {prompt}",
         MessageId::CmdRelayDescription => "中继管理",
         MessageId::CmdRenameDescription => "重命名",
@@ -685,11 +687,21 @@ pub fn tr(_locale: Locale, id: MessageId) -> &'static str {
         MessageId::CmdFleetDescription => "舰队管理",
         MessageId::CmdSubagentsDescription => "子代理",
         MessageId::CmdSwarmDescription => "集群",
-        MessageId::CmdResearchDescription => "自主研究主题并将结论沉淀到长期记忆（对标 claude-mem）",
-        MessageId::CmdEvolveDescription => "可机评优化回路：锁定 baseline + evaluator，派发候选并由外部程序裁决优劣（#751）",
-        MessageId::CmdReproDescription => "可复现性纪律：固化 BRIEF 单一事实源 + provenance 留痕 + 环境快照（#754）",
-        MessageId::CmdArtifactDescription => "研究成果物汇总：把 BRIEF / 结果 / provenance 汇总为可复现目录（#750）；--publish 走研究副作用闸门需授权（#753）",
-        MessageId::CmdReviewerDescription => "独立评审者：依据可核验证据对 claim 下 Accepted/Rejected/Weak 判定，作为 /artifact 公开章节前置门（#752）",
+        MessageId::CmdResearchDescription => {
+            "自主研究主题并将结论沉淀到长期记忆（对标 claude-mem）"
+        }
+        MessageId::CmdEvolveDescription => {
+            "可机评优化回路：锁定 baseline + evaluator，派发候选并由外部程序裁决优劣（#751）"
+        }
+        MessageId::CmdReproDescription => {
+            "可复现性纪律：固化 BRIEF 单一事实源 + provenance 留痕 + 环境快照（#754）"
+        }
+        MessageId::CmdArtifactDescription => {
+            "研究成果物汇总：把 BRIEF / 结果 / provenance 汇总为可复现目录（#750）；--publish 走研究副作用闸门需授权（#753）"
+        }
+        MessageId::CmdReviewerDescription => {
+            "独立评审者：依据可核验证据对 claim 下 Accepted/Rejected/Weak 判定，作为 /artifact 公开章节前置门（#752）"
+        }
         MessageId::CmdSystemDescription => "系统信息",
         MessageId::CmdTaskDescription => "任务管理",
         MessageId::CmdTokensDescription => "Token 统计",

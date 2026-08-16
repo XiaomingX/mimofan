@@ -56,7 +56,10 @@ pub trait ReconCapability: Send + Sync {
 /// Orchestrate a set of capabilities, running them concurrently (bounded by
 /// `budget.max_parallel`) and merging their issues, de-duplicated by
 /// `(tool, rule_id, path, line)`.
-pub fn run(budget: &ReconBudget, caps: Vec<Box<dyn ReconCapability>>) -> Result<Vec<SecurityIssue>> {
+pub fn run(
+    budget: &ReconBudget,
+    caps: Vec<Box<dyn ReconCapability>>,
+) -> Result<Vec<SecurityIssue>> {
     if caps.is_empty() {
         return Ok(Vec::new());
     }
@@ -81,7 +84,6 @@ pub fn run(budget: &ReconBudget, caps: Vec<Box<dyn ReconCapability>>) -> Result<
 
     Ok(dedupe(all))
 }
-
 
 /// De-duplicate issues by `(tool, rule_id, path, line)`.
 pub fn dedupe(issues: Vec<SecurityIssue>) -> Vec<SecurityIssue> {
@@ -160,7 +162,11 @@ mod tests {
             }),
         ];
         let merged2 = run(&budget, caps2).unwrap();
-        assert_eq!(merged2.len(), 3, "one duplicate should be removed: {merged2:?}");
+        assert_eq!(
+            merged2.len(),
+            3,
+            "one duplicate should be removed: {merged2:?}"
+        );
         assert_eq!(merged.len(), 3);
     }
 }

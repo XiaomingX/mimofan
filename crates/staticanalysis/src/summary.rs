@@ -225,7 +225,13 @@ mod tests {
         assert_eq!(table.lookup("getParam").unwrap().kind, SummaryKind::Source);
         assert_eq!(table.lookup("lookup").unwrap().kind, SummaryKind::Sink);
         // Structural heuristic.
-        assert_eq!(table.lookup("getJndiName").unwrap().kind, SummaryKind::Getter);
-        assert_eq!(table.lookup("newBuilder").unwrap().kind, SummaryKind::Constructor);
+        assert_eq!(
+            table.lookup("getJndiName").unwrap().kind,
+            SummaryKind::Getter
+        );
+        assert_eq!(
+            table.lookup("newBuilder").unwrap().kind,
+            SummaryKind::Constructor
+        );
     }
 }

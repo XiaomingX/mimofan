@@ -203,7 +203,8 @@ impl Engine {
         loop {
             if self.cancel_token.is_cancelled() {
                 let _ = self.tx_event.send(Event::status("Request cancelled")).await;
-                self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
+                self.persist_loop_guard_state(&self.session.id, &loop_guard)
+                    .await;
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -340,16 +341,11 @@ impl Engine {
 
                 // Re-inject the active objective into the compaction so long-horizon
                 // tasks don't drift after multiple context compactions (#841).
-                let active_objective = self
-                    .config
-                    .goal_queue
-                    .lock()
-                    .ok()
-                    .and_then(|g| {
-                        g.active_id()
-                            .and_then(|id| g.get(id))
-                            .and_then(|e| e.goal.objective().map(str::to_owned))
-                    });
+                let active_objective = self.config.goal_queue.lock().ok().and_then(|g| {
+                    g.active_id()
+                        .and_then(|id| g.get(id))
+                        .and_then(|e| e.goal.objective().map(str::to_owned))
+                });
 
                 match compact_messages_safe(
                     &client,
@@ -469,7 +465,8 @@ impl Engine {
                             .tx_event
                             .send(Event::error(ErrorEnvelope::context_overflow(message)))
                             .await;
-                        self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
+                        self.persist_loop_guard_state(&self.session.id, &loop_guard)
+                            .await;
                         return (TurnOutcomeStatus::Failed, turn_error);
                     }
 
@@ -694,7 +691,8 @@ impl Engine {
                         .tx_event
                         .send(Event::error(ErrorEnvelope::classify(message, true)))
                         .await;
-                    self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
+                    self.persist_loop_guard_state(&self.session.id, &loop_guard)
+                        .await;
                     return (TurnOutcomeStatus::Failed, turn_error);
                 }
             };
@@ -1167,7 +1165,8 @@ impl Engine {
 
             if self.cancel_token.is_cancelled() {
                 let _ = self.tx_event.send(Event::status("Request cancelled")).await;
-                self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
+                self.persist_loop_guard_state(&self.session.id, &loop_guard)
+                    .await;
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -1597,7 +1596,8 @@ impl Engine {
                     .tx_event
                     .send(Event::status("Request was Paused"))
                     .await;
-                self.persist_loop_guard_state(&self.session.id, &loop_guard).await;
+                self.persist_loop_guard_state(&self.session.id, &loop_guard)
+                    .await;
                 return (TurnOutcomeStatus::Interrupted, None);
             }
 
@@ -2918,7 +2918,11 @@ impl Engine {
                                 match embedder.embed_text(&content).await {
                                     Ok(embedding) => {
                                         if let Err(err) = vm.store_observation(
-                                            &project, &kind, &content, &self.session.id, &embedding,
+                                            &project,
+                                            &kind,
+                                            &content,
+                                            &self.session.id,
+                                            &embedding,
                                         ) {
                                             tracing::warn!(
                                                 ?err,

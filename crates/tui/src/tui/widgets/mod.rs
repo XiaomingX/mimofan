@@ -2248,7 +2248,9 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
 
     // Re-measure inner width including the separator so the card never
     // overflows on narrow terminals.
-    let inner_width = inner_width.max(UnicodeWidthStr::width(separator.as_str())).max(24);
+    let inner_width = inner_width
+        .max(UnicodeWidthStr::width(separator.as_str()))
+        .max(24);
 
     let area_w = usize::from(area.width);
     let area_h = usize::from(area.height);

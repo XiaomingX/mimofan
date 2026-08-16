@@ -36,26 +36,26 @@ pub mod vector;
 
 pub use backend::{MemoryBackend, SharedMemoryBackend};
 pub use category::MemoryCategory;
+pub use codebase::{RetrievalHit, RetrievalSource};
 pub use compressor::{CompressionStrategy, ObservationCompressor, SessionSummary};
 pub use consolidation::{
-    content_similarity, dedup, evict_to_budget, rollup, ConsolidationScheduler,
-    DEFAULT_CONSOLIDATION_INTERVAL, DEDUP_SIMILARITY_THRESHOLD, MemoryEntry, MemoryKind,
-    ACCESS_REINFORCE_GAIN, DEFAULT_IMPORTANCE, DECAY_LAMBDA, IMPORTANCE_MAX, IMPORTANCE_MIN,
-    RETENTION_FREQ_WEIGHT,
+    ACCESS_REINFORCE_GAIN, ConsolidationScheduler, DECAY_LAMBDA, DEDUP_SIMILARITY_THRESHOLD,
+    DEFAULT_CONSOLIDATION_INTERVAL, DEFAULT_IMPORTANCE, IMPORTANCE_MAX, IMPORTANCE_MIN,
+    MemoryEntry, MemoryKind, RETENTION_FREQ_WEIGHT, content_similarity, dedup, evict_to_budget,
+    rollup,
 };
 pub use embedding::{ApiEmbedder, Embedder, EmbeddingConfig, EmbeddingService};
 pub use error::MemoryError;
 pub use injector::{InjectionConfig, MemoryInjection, MemoryInjector, MemoryStats};
-pub use user_profile::{
-    distill_from_transcript, distill_session, inject_user_profile, render_for_injection,
-    Bucket, ProfileEntry, UserProfile,
-};
 pub use knowledge::{CorpusAnswer, CorpusSource, KnowledgeAgent, KnowledgeCorpus};
-pub use codebase::{RetrievalHit, RetrievalSource};
 pub use optimization::{
     BatchProcessor, LongTaskManager, LongTaskResult, ObservationStore, RateLimiter, SearchCache,
 };
 pub use retrieval::{Assembler, ConcatAssembler, Retriever};
+pub use user_profile::{
+    Bucket, ProfileEntry, UserProfile, distill_from_transcript, distill_session,
+    inject_user_profile, render_for_injection,
+};
 pub use vector::{Observation, SearchFilters, VectorMatch, VectorStore};
 
 /// Result type for memory operations

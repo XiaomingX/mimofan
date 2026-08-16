@@ -94,12 +94,12 @@ fn trace_one(chain: &GadgetChain, present: &HashSet<&str>) -> ChainTrace {
 /// the KB's known gadget ids — unknown ids are simply ignored.
 pub fn trace_chains(kb: &KnowledgeBase, present_gadgets: &[String]) -> Vec<ChainTrace> {
     let present: HashSet<&str> = present_gadgets.iter().map(|s| s.as_str()).collect();
-    let mut traces: Vec<ChainTrace> = kb
-        .chains
-        .iter()
-        .map(|c| trace_one(c, &present))
-        .collect();
-    traces.sort_by(|a, b| a.severity_rank().cmp(&b.severity_rank()).then(a.chain_id.cmp(&b.chain_id)));
+    let mut traces: Vec<ChainTrace> = kb.chains.iter().map(|c| trace_one(c, &present)).collect();
+    traces.sort_by(|a, b| {
+        a.severity_rank()
+            .cmp(&b.severity_rank())
+            .then(a.chain_id.cmp(&b.chain_id))
+    });
     traces
 }
 

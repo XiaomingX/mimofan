@@ -13,7 +13,10 @@ fn deepseek_v4_pro_alias_stays_deepseek_by_default() {
 #[test]
 fn xiaomi_mimo_provider_hint_preserves_explicit_model_id_case() {
     let registry = ModelRegistry::default();
-    let resolved = registry.resolve(Some("Qwen/Qwen3-Coder"), Some(ProviderKind::OpenAiCompatible));
+    let resolved = registry.resolve(
+        Some("Qwen/Qwen3-Coder"),
+        Some(ProviderKind::OpenAiCompatible),
+    );
 
     assert_eq!(resolved.resolved.provider, ProviderKind::OpenAiCompatible);
     assert_eq!(resolved.resolved.id, "Qwen/Qwen3-Coder");
@@ -49,7 +52,10 @@ fn xiaomi_mimo_chat_aliases_resolve_when_provider_hinted() {
 #[test]
 fn xiaomi_mimo_provider_hint_preserves_custom_model_id() {
     let registry = ModelRegistry::default();
-    let resolved = registry.resolve(Some("account-custom-mimo"), Some(ProviderKind::OpenAiCompatible));
+    let resolved = registry.resolve(
+        Some("account-custom-mimo"),
+        Some(ProviderKind::OpenAiCompatible),
+    );
 
     assert_eq!(resolved.resolved.provider, ProviderKind::OpenAiCompatible);
     assert_eq!(resolved.resolved.id, "account-custom-mimo");
@@ -112,7 +118,10 @@ fn preserves_requested_model_casing_for_third_party_providers() {
 #[test]
 fn registry_casing_takes_priority_over_requested_casing_with_provider_hint() {
     let registry = ModelRegistry::default();
-    let resolved = registry.resolve(Some("DeepSeek-V4-Pro"), Some(ProviderKind::OpenAiCompatible));
+    let resolved = registry.resolve(
+        Some("DeepSeek-V4-Pro"),
+        Some(ProviderKind::OpenAiCompatible),
+    );
 
     assert_eq!(resolved.resolved.provider, ProviderKind::OpenAiCompatible);
     // Registry's canonical id is used even when user provides different casing
@@ -141,7 +150,10 @@ fn alias_match_does_not_override_requested_casing() {
 #[test]
 fn unknown_model_is_passed_through_with_provider_hint() {
     let registry = ModelRegistry::default();
-    let resolved = registry.resolve(Some("not-registered-model"), Some(ProviderKind::OpenAiCompatible));
+    let resolved = registry.resolve(
+        Some("not-registered-model"),
+        Some(ProviderKind::OpenAiCompatible),
+    );
 
     assert_eq!(resolved.resolved.provider, ProviderKind::OpenAiCompatible);
     assert_eq!(resolved.resolved.id, "not-registered-model");

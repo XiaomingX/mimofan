@@ -24,7 +24,7 @@
 
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 /// A YAML node produced by the minimal parser.
 #[derive(Debug, Clone, PartialEq)]
@@ -366,7 +366,10 @@ fn unquote(s: &str) -> String {
     if bytes.len() >= 2 {
         let inner = &s[1..s.len() - 1];
         // Minimal unescape for common cases.
-        inner.replace("\\n", "\n").replace("\\t", "\t").replace("\\\"", "\"")
+        inner
+            .replace("\\n", "\n")
+            .replace("\\t", "\t")
+            .replace("\\\"", "\"")
     } else {
         s.to_string()
     }
@@ -554,18 +557,25 @@ impl RuleSet {
 /// Load every `*.yaml` rule file from a directory into one [`RuleSet`].
 pub fn load_rules_dir(dir: &str) -> Result<RuleSet> {
     let mut set = RuleSet::default();
-    let entries = std::fs::read_dir(dir)
-        .with_context(|| format!("reading rules dir {dir}"))?;
+    let entries = std::fs::read_dir(dir).with_context(|| format!("reading rules dir {dir}"))?;
     let mut files: Vec<_> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.extension().map(|x| x == "yaml" || x == "yml").unwrap_or(false))
+        .filter(|p| {
+            p.extension()
+                .map(|x| x == "yaml" || x == "yml")
+                .unwrap_or(false)
+        })
         .collect();
     files.sort();
     for path in files {
         let text = std::fs::read_to_string(&path)
             .with_context(|| format!("reading {}", path.display()))?;
-        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         set.extend_from_yaml(&name, &text)?;
     }
     Ok(set)
@@ -736,7 +746,10 @@ propagators:
         // parse and yield actual rules. Path is relative to the crate root.
         let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/rules");
         let set = load_rules_dir(dir).expect("load rules dir");
-        assert!(!set.sources.is_empty(), "expected sources from on-disk rules");
+        assert!(
+            !set.sources.is_empty(),
+            "expected sources from on-disk rules"
+        );
         assert!(!set.sinks.is_empty(), "expected sinks from on-disk rules");
     }
 

@@ -288,7 +288,9 @@ impl BatchTransport for MockTransport {
 
     async fn poll(&self, id: &BatchId) -> Result<BatchStatus, BatchError> {
         let mut counters = self.counters.lock().expect("mock counter lock poisoned");
-        let entry = counters.get_mut(&id.0).ok_or_else(|| BatchError::UnknownBatch(id.0.clone()))?;
+        let entry = counters
+            .get_mut(&id.0)
+            .ok_or_else(|| BatchError::UnknownBatch(id.0.clone()))?;
         if *entry >= self.polls_to_complete {
             return Ok(BatchStatus::Completed);
         }
@@ -430,7 +432,10 @@ mod tests {
 
         // First explicit poll: still in progress.
         let s1 = client.poll(&id).await.unwrap();
-        assert!(matches!(s1, BatchStatus::InProgress), "poll 1 should be in progress: {s1:?}");
+        assert!(
+            matches!(s1, BatchStatus::InProgress),
+            "poll 1 should be in progress: {s1:?}"
+        );
 
         // Second poll: completes.
         let s2 = client.poll(&id).await.unwrap();
@@ -451,15 +456,19 @@ mod tests {
                 .first()
                 .and_then(|m| m.content.first())
                 .map(|b| match b {
-                    crate::models::ContentBlock::Text { text, .. } => {
-                        text.trim_start_matches("question ").parse::<usize>().unwrap_or(0)
-                    }
+                    crate::models::ContentBlock::Text { text, .. } => text
+                        .trim_start_matches("question ")
+                        .parse::<usize>()
+                        .unwrap_or(0),
                     _ => 0,
                 })
                 .unwrap_or(0);
             Ok(response_for(idx))
         });
-        assert!(!client.is_offline(), "sync fallback must report not-offline");
+        assert!(
+            !client.is_offline(),
+            "sync fallback must report not-offline"
+        );
         assert_eq!(client.transport_name(), "sync-fallback");
 
         let id = client

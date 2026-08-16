@@ -122,10 +122,14 @@ impl ToolSpec for RunPocTool {
             .map_err(|e| ToolError::invalid_input(format!("invalid run_poc input: {e}")))?;
 
         if parsed.command.trim().is_empty() {
-            return Err(ToolError::invalid_input("run_poc requires a non-empty 'command'"));
+            return Err(ToolError::invalid_input(
+                "run_poc requires a non-empty 'command'",
+            ));
         }
         if parsed.expect.trim().is_empty() {
-            return Err(ToolError::invalid_input("run_poc requires a non-empty 'expect'"));
+            return Err(ToolError::invalid_input(
+                "run_poc requires a non-empty 'expect'",
+            ));
         }
 
         let Some(backend) = context.sandbox_backend.as_ref() else {

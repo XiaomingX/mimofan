@@ -80,9 +80,10 @@ const MIN_DUPLICATE_LINE_LEN: usize = 12;
 /// Lines at/above this length count as "over-long" single instructions.
 const OVERLONG_LINE_CHARS: usize = 400;
 /// Contradiction keyword pairs (mutually exclusive directives).
-const CONTRADICTION_PAIRS: &[(&[&str], &[&str])] = &[
-    (&["never", "do not", "don't", "must not", "avoid"], &["always", "must", "require", "should"]),
-];
+const CONTRADICTION_PAIRS: &[(&[&str], &[&str])] = &[(
+    &["never", "do not", "don't", "must not", "avoid"],
+    &["always", "must", "require", "should"],
+)];
 
 /// Pure analysis surface — no tooling, no IO.
 pub struct PromptAudit;
@@ -104,10 +105,7 @@ impl PromptAudit {
         let mut suggestions: Vec<Suggestion> = Vec::new();
 
         // Duplicate -> warning suggestion; savings = removed duplicate lines.
-        let duplicate_line_chars: usize = duplicates
-            .iter()
-            .map(|d| d.text.chars().count())
-            .sum();
+        let duplicate_line_chars: usize = duplicates.iter().map(|d| d.text.chars().count()).sum();
         if !duplicates.is_empty() {
             suggestions.push(Suggestion {
                 severity: SuggestionSeverity::Warning,
@@ -151,7 +149,8 @@ impl PromptAudit {
             });
         }
 
-        let estimated_token_savings = Self::estimate_tokens(duplicate_line_chars) + Self::estimate_tokens(bloat_chars);
+        let estimated_token_savings =
+            Self::estimate_tokens(duplicate_line_chars) + Self::estimate_tokens(bloat_chars);
 
         Ok(AuditReport {
             duplicates,
@@ -280,7 +279,7 @@ impl ToolSpec for PromptAuditTool {
     }
 
     async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
-        use mimofan_tools::{required_str, optional_str};
+        use mimofan_tools::{optional_str, required_str};
 
         // Prefer inline prompt; fall back to reading a file from workspace.
         let prompt = match required_str(&input, "prompt") {
@@ -292,7 +291,10 @@ impl ToolSpec for PromptAuditTool {
                     .resolve_path(path)
                     .map_err(|e| ToolError::invalid_input(format!("cannot resolve {path}: {e}")))?;
                 std::fs::read_to_string(&resolved).map_err(|e| {
-                    ToolError::execution_failed(format!("failed to read {}: {e}", resolved.display()))
+                    ToolError::execution_failed(format!(
+                        "failed to read {}: {e}",
+                        resolved.display()
+                    ))
                 })?
             }
         };
@@ -301,9 +303,8 @@ impl ToolSpec for PromptAuditTool {
             AuditError::EmptyPrompt => ToolError::invalid_input("prompt is empty"),
         })?;
 
-        let json = serde_json::to_value(&report).map_err(|e| {
-            ToolError::execution_failed(format!("failed to serialize report: {e}"))
-        })?;
+        let json = serde_json::to_value(&report)
+            .map_err(|e| ToolError::execution_failed(format!("failed to serialize report: {e}")))?;
 
         Ok(ToolResult::success(json.to_string()))
     }
@@ -324,10 +325,18 @@ Keep answers concise.";
         assert_eq!(report.duplicates.len(), 1, "expected exactly one duplicate");
         assert_eq!(report.duplicates[0].first_line, 2);
         assert_eq!(report.duplicates[0].second_line, 3);
-        assert_eq!(report.duplicates[0].text, "Always respond in the user's language.");
+        assert_eq!(
+            report.duplicates[0].text,
+            "Always respond in the user's language."
+        );
         // Duplicate line ~41 chars -> ~10 tokens saved.
         assert!(report.estimated_token_savings >= 10);
-        assert!(report.suggestions.iter().any(|s| s.severity == SuggestionSeverity::Warning));
+        assert!(
+            report
+                .suggestions
+                .iter()
+                .any(|s| s.severity == SuggestionSeverity::Warning)
+        );
     }
 
     #[test]
@@ -341,7 +350,10 @@ Keep the changelog updated.
 Summarize the diff before committing.";
         let report = PromptAudit::audit(prompt).expect("audit");
         assert!(report.duplicates.is_empty(), "no duplicates expected");
-        assert!(report.contradictions.is_empty(), "no contradictions expected");
+        assert!(
+            report.contradictions.is_empty(),
+            "no contradictions expected"
+        );
     }
 
     #[test]
@@ -351,8 +363,16 @@ Summarize the diff before committing.";
 You must always verify before committing.
 Do not run the test suite automatically.";
         let report = PromptAudit::audit(prompt).expect("audit");
-        assert!(!report.contradictions.is_empty(), "expected a contradiction");
-        assert!(report.suggestions.iter().any(|s| s.severity == SuggestionSeverity::Critical));
+        assert!(
+            !report.contradictions.is_empty(),
+            "expected a contradiction"
+        );
+        assert!(
+            report
+                .suggestions
+                .iter()
+                .any(|s| s.severity == SuggestionSeverity::Critical)
+        );
     }
 
     #[test]
@@ -362,7 +382,10 @@ Do not run the test suite automatically.";
 Do not skip the type checker.
 You should always run the full build.";
         let report = PromptAudit::audit(prompt).expect("audit");
-        assert!(!report.contradictions.is_empty(), "expected reverse-order contradiction");
+        assert!(
+            !report.contradictions.is_empty(),
+            "expected reverse-order contradiction"
+        );
     }
 
     #[test]
@@ -378,7 +401,11 @@ You should always run the full build.";
             let input = json!({ "prompt": "Repeat this line.\nRepeat this line.\n" });
             let res = PromptAuditTool.execute(input, &ctx).await.unwrap();
             assert!(res.success, "tool should succeed");
-            assert!(res.content.contains("duplicates"), "report should mention duplicates: {}", res.content);
+            assert!(
+                res.content.contains("duplicates"),
+                "report should mention duplicates: {}",
+                res.content
+            );
         });
     }
 }

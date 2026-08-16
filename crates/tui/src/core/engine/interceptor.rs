@@ -48,12 +48,11 @@ pub trait TurnInterceptor: Send + Sync {
 /// Pure combine helper: OR the existing stop decision with any interceptor
 /// that wants to force a stop. Kept side-effect-free so it can be unit-tested
 /// without constructing a full `Engine`.
-pub fn combine_stop(
-    existing: bool,
-    interceptors: &[Box<dyn TurnInterceptor>],
-    turn: u64,
-) -> bool {
-    existing || interceptors.iter().any(|ic| ic.turn_stopping(turn) == Some(true))
+pub fn combine_stop(existing: bool, interceptors: &[Box<dyn TurnInterceptor>], turn: u64) -> bool {
+    existing
+        || interceptors
+            .iter()
+            .any(|ic| ic.turn_stopping(turn) == Some(true))
 }
 
 #[cfg(test)]
@@ -68,8 +67,7 @@ mod tests {
 
     impl TurnInterceptor for ForceStopInterceptor {
         fn turn_stopping(&self, _turn: u64) -> Option<bool> {
-            self.calls
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Some(true)
         }
     }
@@ -93,8 +91,9 @@ mod tests {
     #[test]
     fn combine_stop_forces_stop_on_some_true() {
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-        let interceptors: Vec<Box<dyn TurnInterceptor>> =
-            vec![boxed(ForceStopInterceptor { calls: calls.clone() })];
+        let interceptors: Vec<Box<dyn TurnInterceptor>> = vec![boxed(ForceStopInterceptor {
+            calls: calls.clone(),
+        })];
         // existing=false, but interceptor overrides to stop.
         assert!(combine_stop(false, &interceptors, 3));
         // existing=true is still true.

@@ -58,7 +58,15 @@ const SENSITIVE_BASENAMES: &[&str] = &[
 
 /// 敏感扩展名（小写，含点）。
 const SENSITIVE_EXTENSIONS: &[&str] = &[
-    ".pem", ".key", ".p12", ".pfx", ".keystore", ".jks", ".kdbx", ".age", ".gpg",
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+    ".keystore",
+    ".jks",
+    ".kdbx",
+    ".age",
+    ".gpg",
 ];
 
 /// 词法归一化：把路径拆成组件序列。
@@ -121,7 +129,10 @@ fn components_are_sensitive(components: &[String]) -> bool {
 /// 判定 `candidate` 是否词法上位于 `workspace` 内（整段前缀，含 root 一致）。
 ///
 /// 返回 `false` 表示越界（逃逸）。
-fn is_under_workspace(candidate: &(Option<String>, Vec<String>), workspace: &(Option<String>, Vec<String>)) -> bool {
+fn is_under_workspace(
+    candidate: &(Option<String>, Vec<String>),
+    workspace: &(Option<String>, Vec<String>),
+) -> bool {
     match (&candidate.0, &workspace.0) {
         (Some(cr), Some(wr)) => {
             if cr != wr {

@@ -9,8 +9,8 @@
 use std::any::Any;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -38,7 +38,10 @@ pub trait Embedder: Send + Sync {
     fn embed(&self, text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>>;
 
     /// Embed a batch of texts. Implementations may batch network calls.
-    fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>>;
+    fn embed_batch(
+        &self,
+        texts: &[String],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>>;
 
     /// Dimension of the produced vectors.
     fn dim(&self) -> usize;
@@ -122,10 +125,7 @@ pub struct ApiEmbedder {
 impl ApiEmbedder {
     /// Create a new API-backed embedder with the given configuration
     pub fn new(config: EmbeddingConfig) -> Result<Self> {
-        info!(
-            "Initializing API embedder with model: {}",
-            config.model
-        );
+        info!("Initializing API embedder with model: {}", config.model);
 
         let client = Client::new();
 
@@ -150,7 +150,10 @@ impl ApiEmbedder {
              quality reduced, but memory writes are preserved)"
         );
         DEGRADED_COUNT.fetch_add(1, Ordering::Relaxed);
-        Ok(texts.iter().map(|t| hash_embed(t, self.config.dimension)).collect())
+        Ok(texts
+            .iter()
+            .map(|t| hash_embed(t, self.config.dimension))
+            .collect())
     }
 }
 
@@ -166,7 +169,10 @@ impl Embedder for ApiEmbedder {
         })
     }
 
-    fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
+    fn embed_batch(
+        &self,
+        texts: &[String],
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
         // Copy inputs so the returned future borrows only `self` (lifetime
         // `'_`), keeping the trait method dyn-compatible and free of the
         // caller's `texts` lifetime.
@@ -197,10 +203,13 @@ impl Embedder for ApiEmbedder {
             let status = response.status();
             if !status.is_success() {
                 let error_text = response.text().await.unwrap_or_default();
-                return self.degrade(&texts, MemoryError::ApiError {
-                    status: status.as_u16(),
-                    message: error_text,
-                });
+                return self.degrade(
+                    &texts,
+                    MemoryError::ApiError {
+                        status: status.as_u16(),
+                        message: error_text,
+                    },
+                );
             }
 
             let embedding_response: EmbeddingResponse = match response.json().await {
@@ -298,7 +307,10 @@ impl EmbeddingService {
     /// (e.g. a local embedder with no API config), so callers can still gate
     /// on `config().is_some()` without assuming a remote endpoint exists.
     pub fn config(&self) -> Option<&EmbeddingConfig> {
-        self.backend.as_any().downcast_ref::<ApiEmbedder>().map(|a| &a.config)
+        self.backend
+            .as_any()
+            .downcast_ref::<ApiEmbedder>()
+            .map(|a| &a.config)
     }
 
     /// Total number of times this service has degraded to local hash vectors
@@ -363,7 +375,10 @@ mod tests {
     fn hash_embed_is_unit_length() {
         let v = hash_embed("a b c d e f g", 32);
         let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!((norm - 1.0).abs() < 1e-5, "expected unit length, got {norm}");
+        assert!(
+            (norm - 1.0).abs() < 1e-5,
+            "expected unit length, got {norm}"
+        );
     }
 
     #[test]
@@ -411,10 +426,16 @@ mod tests {
             dim: usize,
         }
         impl Embedder for StubEmbedder {
-            fn embed(&self, _text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
+            fn embed(
+                &self,
+                _text: &str,
+            ) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
                 Box::pin(async move { Ok(vec![0.0; self.dim]) })
             }
-            fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
+            fn embed_batch(
+                &self,
+                texts: &[String],
+            ) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
                 let n = texts.len();
                 let dim = self.dim;
                 Box::pin(async move { Ok(vec![vec![0.0; dim]; n]) })
@@ -434,7 +455,10 @@ mod tests {
         assert_eq!(embedder.dim(), 8);
         assert_eq!(embedder.model_name(), "stub");
         // Downcast back to the concrete type via the `as_any` seam.
-        let recovered = embedder.as_any().downcast_ref::<StubEmbedder>().expect("downcast");
+        let recovered = embedder
+            .as_any()
+            .downcast_ref::<StubEmbedder>()
+            .expect("downcast");
         assert_eq!(recovered.dim, 8);
     }
 
@@ -447,10 +471,16 @@ mod tests {
             dim: usize,
         }
         impl Embedder for StubEmbedder {
-            fn embed(&self, _text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
+            fn embed(
+                &self,
+                _text: &str,
+            ) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
                 Box::pin(async move { Ok(vec![0.0; self.dim]) })
             }
-            fn embed_batch(&self, texts: &[String]) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
+            fn embed_batch(
+                &self,
+                texts: &[String],
+            ) -> Pin<Box<dyn Future<Output = Result<Vec<Vec<f32>>>> + Send + '_>> {
                 let n = texts.len();
                 let dim = self.dim;
                 Box::pin(async move { Ok(vec![vec![0.0; dim]; n]) })

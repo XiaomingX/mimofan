@@ -246,10 +246,30 @@ impl PlanSnapshot {
                             .collect::<Vec<_>>()
                     })
                     .unwrap_or_default();
-                let scope = item.get("scope").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
-                let role = item.get("role").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
-                let acceptance = item.get("acceptance").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
-                let evidence = item.get("evidence").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string);
+                let scope = item
+                    .get("scope")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string);
+                let role = item
+                    .get("role")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string);
+                let acceptance = item
+                    .get("acceptance")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string);
+                let evidence = item
+                    .get("evidence")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string);
                 items.push(PlanItemArg {
                     step: step.to_string(),
                     status,
@@ -373,9 +393,7 @@ impl PlanState {
             // this update; for an existing step, fall back to the previously
             // stored value so a partial update doesn't wipe earlier metadata.
             let depends_on = if item.depends_on.is_empty() {
-                existing
-                    .map(|e| e.depends_on.clone())
-                    .unwrap_or_default()
+                existing.map(|e| e.depends_on.clone()).unwrap_or_default()
             } else {
                 item.depends_on.clone()
             };
@@ -548,7 +566,10 @@ impl PlanState {
             return false;
         }
         let Ok(json) = fs::read_to_string(&path) else {
-            tracing::warn!("plan checkpoint read {} failed; skipping restore", path.display());
+            tracing::warn!(
+                "plan checkpoint read {} failed; skipping restore",
+                path.display()
+            );
             return false;
         };
         match serde_json::from_str::<PlanSnapshot>(&json) {
@@ -1135,7 +1156,11 @@ impl ToolSpec for UpdatePlanTool {
                 gate_report.push_str(&format!(
                     "- step `{}` step_gate failed:{} evidence supplied{}\n",
                     step.text,
-                    if evidence.trim().is_empty() { " no" } else { "" },
+                    if evidence.trim().is_empty() {
+                        " no"
+                    } else {
+                        ""
+                    },
                     if evidence.trim().is_empty() {
                         " — provide `evidence` when marking the step completed"
                     } else {
@@ -1230,7 +1255,10 @@ mod plan_deviation_tests {
         assert_eq!(item.depends_on, vec!["design schema".to_string()]);
         assert_eq!(item.scope.as_deref(), Some("src/parser.rs"));
         assert_eq!(item.role.as_deref(), Some("implementation"));
-        assert_eq!(item.acceptance.as_deref(), Some("output contains \"parsed 3 records\""));
+        assert_eq!(
+            item.acceptance.as_deref(),
+            Some("output contains \"parsed 3 records\"")
+        );
 
         // apply_snapshot rebuilds an equivalent state
         let mut rebuilt = PlanState::default();
@@ -1238,7 +1266,10 @@ mod plan_deviation_tests {
         let rebuilt_item = &rebuilt.steps()[0];
         assert_eq!(rebuilt_item.depends_on, vec!["design schema".to_string()]);
         assert_eq!(rebuilt_item.scope.as_deref(), Some("src/parser.rs"));
-        assert_eq!(rebuilt_item.acceptance.as_deref(), Some("output contains \"parsed 3 records\""));
+        assert_eq!(
+            rebuilt_item.acceptance.as_deref(),
+            Some("output contains \"parsed 3 records\"")
+        );
     }
 
     #[test]
@@ -1247,22 +1278,35 @@ mod plan_deviation_tests {
         let mut step = PlanStep::new("run tests".to_string(), StepStatus::Completed);
         step.acceptance = Some("output must contain \"test result: ok\"".to_string());
         step.evidence = Some("cargo test ... 0 passed".to_string());
-        assert!(!evaluate_step_gate(&step), "missing evidence phrase must fail the gate");
+        assert!(
+            !evaluate_step_gate(&step),
+            "missing evidence phrase must fail the gate"
+        );
 
         // Matching evidence clears the gate failure.
         step.evidence = Some("test result: ok. 5 passed".to_string());
-        assert!(evaluate_step_gate(&step), "matching evidence must pass the gate");
+        assert!(
+            evaluate_step_gate(&step),
+            "matching evidence must pass the gate"
+        );
 
         // No acceptance text auto-passes.
         let mut no_criteria = PlanStep::new("write docs".to_string(), StepStatus::Completed);
         no_criteria.evidence = None;
-        assert!(evaluate_step_gate(&no_criteria), "absent acceptance must auto-pass");
+        assert!(
+            evaluate_step_gate(&no_criteria),
+            "absent acceptance must auto-pass"
+        );
     }
 
     #[test]
     fn extract_required_substrings_finds_quoted_phrases() {
-        let out = extract_required_substrings("output must contain \"test result: ok\" and '3 passed'");
-        assert_eq!(out, vec!["test result: ok".to_string(), "3 passed".to_string()]);
+        let out =
+            extract_required_substrings("output must contain \"test result: ok\" and '3 passed'");
+        assert_eq!(
+            out,
+            vec!["test result: ok".to_string(), "3 passed".to_string()]
+        );
         // Unquoted free text is not treated as a required substring.
         let out2 = extract_required_substrings("tests should pass");
         assert!(out2.is_empty());

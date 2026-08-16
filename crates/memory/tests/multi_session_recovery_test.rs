@@ -10,8 +10,8 @@
 //! 3. Simulate a restart: drop the handle, re-open from the same path (session 2).
 //! 4. Assert every session-1 memory is present and equal after the restart.
 
-use mimofan_memory::vector::VectorStore;
 use mimofan_memory::Observation;
+use mimofan_memory::vector::VectorStore;
 use tempfile::TempDir;
 
 const DIM: usize = 8;
@@ -69,7 +69,10 @@ fn test_memory_survives_session_restart() {
         assert_eq!(loaded.content, session_observation(*n, session_id).content);
         assert_eq!(loaded.kind, "project");
         assert_eq!(loaded.project.as_deref(), Some("mimofan"));
-        assert_eq!(loaded.session_id, session_id, "session tag must survive restart");
+        assert_eq!(
+            loaded.session_id, session_id,
+            "session tag must survive restart"
+        );
         assert!(loaded.id > 0);
     }
 }
@@ -101,7 +104,11 @@ fn test_memory_recovery_is_idempotent_across_multiple_restarts() {
 
     // Session 3: re-open again — recovery must be stable, not accumulate dupes.
     let store3 = VectorStore::open(&path, DIM).expect("open store 3");
-    assert_eq!(store3.count().expect("count 3"), 1, "no duplicate on reopen");
+    assert_eq!(
+        store3.count().expect("count 3"),
+        1,
+        "no duplicate on reopen"
+    );
     let loaded = store3
         .load_observation(id)
         .expect("load 3")
