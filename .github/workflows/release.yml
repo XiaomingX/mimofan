@@ -40,12 +40,18 @@ jobs:
         # previous `clippy -- -D warnings` promoted EVERY `clippy::all` cosmetic
         # lint (collapsible_if, field init order, type-alias suggestions, …) to
         # a hard error, which blocked every release on pre-existing stylistic
-        # debt while catching no real bug. `clippy::all` lints therefore remain
-        # warnings (visible in CI logs); `unsafe_code` is a rustc lint and is
-        # already denied via `[workspace.lints.rust]` (not a clippy lint, so it
-        # must NOT be passed as `-D clippy::unsafe_code`).
+        # debt while catching no real bug.
+        #
+        # The job-level `RUSTFLAGS: -Dwarnings` would otherwise leak into this
+        # step and turn every `clippy::all` warning into an error — so we clear
+        # it here and instead allow `clippy::all` explicitly. `unsafe_code` is a
+        # rustc lint (not part of `clippy::all`) and stays denied via
+        # `[workspace.lints.rust]`, so unsound `unsafe` code is still blocked.
+        env:
+          RUSTFLAGS: ""
         run: |
           cargo clippy --workspace --all-targets --all-features --locked -- \
+            -A clippy::all \
             -A clippy::uninlined_format_args \
             -A clippy::too_many_arguments \
             -A clippy::unnecessary_map_or \
