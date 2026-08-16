@@ -84,6 +84,8 @@ pub mod tasks;
 pub mod test_runner;
 pub mod todo;
 pub mod tool_result_retrieval;
+/// #854：工具级权限策略（按 ToolCapability 裁决 deny_capability / 限网络）。模块声明在此；dispatch 接线延后，本文件不改动 registry 逻辑。
+pub mod capability_policy;
 pub mod unattended;
 pub mod truncate;
 pub mod user_input;
