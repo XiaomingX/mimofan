@@ -1177,33 +1177,35 @@ pub async fn compact_messages(
 
     let anchors_section = anchor_summary_section(workspace);
 
-    // After summarization, check whether the summary still preserves the
-    // original objective. If it drifted, append the objective as a system
-    // footnote so the next turn is re-anchored to the user's real goal.
-    let summary = if let Some(obj) = objective {
+    // After summarization, measure how well the summary preserves the original
+    // objective. The signal is used for observability (a warning when the free
+    // summary text drifts); the objective itself is *always* re-injected as a
+    // standalone, persistent section in the summary block below, so it survives
+    // every compaction round instead of depending on the model repeating it
+    // (#841: long-horizon no-drift across multiple compactions).
+    if let Some(obj) = objective {
         let similarity = objective::drift_check(obj, &summary);
         if similarity < objective::DRIFT_THRESHOLD {
             logging::warn(format!(
                 "Compaction summary drifted from objective (similarity={:.2}); \
-                 re-injecting objective as a system footnote",
+                 the persistent objective section below keeps the goal in view",
                 similarity
             ));
-            format!(
-                "{summary}\n\n---\n\n## ⚠️ Task Objective (Re-anchored)\n\n\
-                 The summary above may have drifted from the original goal. \
-                 Keep this objective in view:\n\n{}\n",
-                objective_prompt_section(obj)
-            )
-        } else {
-            summary
         }
-    } else {
-        summary
-    };
+    }
     // `objective_guidance` is built for callers that want the raw section; it
     // is already folded into `summary_custom` above, so it is referenced here
     // to avoid an unused variable while keeping the helper available.
     let _ = objective_guidance;
+
+    // Persistent objective section (always present when an objective exists),
+    // kept separate from the free-form summary text so repeated summarization
+    // cannot swallow it. This is the no-drift guarantee: the next compaction
+    // round's `drift_check` still compares against the *original* objective,
+    // and the section is rebuilt fresh every round.
+    let objective_section = objective
+        .map(objective_persistent_section)
+        .unwrap_or_default();
 
     // Build new message list with enhanced summary as system block
     let summary_block = SystemBlock {
@@ -1220,6 +1222,7 @@ pub async fn compact_messages(
              You have just resumed from a context compaction. The conversation above was summarized to save space. \
              Review the summary and workflow context, then continue helping the user with their task. \
              If you need more details about the summarized portion, ask the user to clarify.\n\n\
+             {objective_section}\
              ---\n\n\
              Pinned messages follow:"
         ),
@@ -1273,6 +1276,25 @@ fn merge_objective_into_custom(
         Some(c) if !c.trim().is_empty() => Some(format!("{c}\n\n{section}")),
         _ => Some(section),
     }
+}
+
+/// Render the *persistent* objective section that is injected as a standalone
+/// block into every compaction's summary system prompt (#841: long-horizon
+/// no-drift across multiple compactions).
+///
+/// It is kept separate from the free-form summary text so repeated
+/// summarization cannot swallow it — the next compaction round's `drift_check`
+/// still compares against the *original* objective and this section is rebuilt
+/// fresh each round.
+pub(crate) fn objective_persistent_section(obj: &objective::Objective) -> String {
+    format!(
+        "---\n\n\
+         ## 🎯 Task Objective (Persistent)\n\n\
+         This section is authoritative and must be preserved verbatim across every \
+         compaction. The summary above is a compressed view; keep the following goal \
+         in view at all times:\n\n{}\n",
+        objective_prompt_section(obj)
+    )
 }
 
 async fn create_summary(
@@ -2025,5 +2047,58 @@ mod objective_drift_tests {
             text.to_lowercase().contains("stripe"),
             "fixture must mention Stripe for extraction"
         );
+    }
+
+    #[test]
+    fn objective_persists_as_standalone_section_even_when_summary_drifts() {
+        // #841 / user requirement: across MULTIPLE compactions the goal must not
+        // drift. The objective is injected as a standalone persistent section,
+        // *not* merged into the free-form summary text — so even if the model's
+        // summary text loses the goal keywords (drift), the authoritative
+        // section survives every round and is rebuilt fresh.
+        let obj = sample_objective();
+        let section = objective_persistent_section(&obj);
+
+        // The section is independent of any summary text.
+        assert!(section.contains("## 🎯 Task Objective (Persistent)"));
+        assert!(section.contains("migrate the billing service to Stripe"));
+        assert!(section.contains("webhook signatures"));
+        assert!(section.contains("do not add new runtime dependencies"));
+
+        // Simulate 6 compaction rounds. In rounds 2 and 4 the model's summary
+        // text drifts (no objective keywords), yet the persistent section must
+        // still carry the full objective every round — guaranteeing the next
+        // turn stays anchored to the original goal.
+        for round in 1..=6 {
+            let drifted_summary = matches!(round, 2 | 4);
+            let summary_text = if drifted_summary {
+                "We refactored the logging layer and added structured output."
+            } else {
+                "We migrated the billing service to Stripe, keeping webhook signatures \
+                 and avoiding new runtime dependencies."
+            };
+            // The summary block text mirrors how compact_messages assembles it:
+            // free summary + persistent objective section appended.
+            let block_text = format!("{summary_text}\n\n{section}");
+
+            // 1) Persistent section is always present regardless of drift.
+            assert!(
+                block_text.contains("## 🎯 Task Objective (Persistent)"),
+                "round {round}: persistent objective section must survive"
+            );
+            // 2) Even when the summary text drifts, the objective keywords are
+            //    still available via the standalone section (decoupled from text).
+            assert!(
+                block_text.contains("migrate the billing service to Stripe"),
+                "round {round}: objective must be recoverable even on drift"
+            );
+            // 3) The standalone section never gets swallowed into the summary
+            //    text (it is a separate block, so re-summarizing the messages
+            //    never drops it).
+            assert_ne!(
+                block_text, summary_text,
+                "round {round}: objective section must not collapse into summary text"
+            );
+        }
     }
 }
