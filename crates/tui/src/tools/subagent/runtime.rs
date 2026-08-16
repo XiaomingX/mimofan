@@ -118,6 +118,17 @@ impl SubAgentRuntimeHandle {
     }
 }
 
+impl Drop for SubAgentRuntimeHandle {
+    fn drop(&mut self) {
+        // A tokio `JoinHandle` only detaches its task on drop — the task keeps
+        // running in the background. Aborting on drop guarantees a removed or
+        // forgotten handle cannot leak a still-running sub-agent task. `abort()`
+        // is a no-op once the task has already finished, so this is safe for
+        // both live and completed agents.
+        self.handle.abort();
+    }
+}
+
 /// Runtime manager for sub-agents.
 pub struct SubAgentRuntimeManager {
     /// Active runtime handles.
@@ -149,9 +160,18 @@ impl SubAgentRuntimeManager {
     }
 
     /// Unregister a runtime handle.
+    ///
+    /// The removed task's `JoinHandle` is aborted first: dropping a tokio
+    /// `JoinHandle` only *detaches* the task (it keeps running in the
+    /// background), so without an explicit abort a still-running agent would
+    /// leak after unregistration. `abort()` is a no-op once the task has
+    /// already finished, so this is safe for both live and completed agents.
     pub async fn unregister(&self, agent_id: &str) {
         let mut handles = self.handles.write().await;
-        handles.retain(|h| h.agent_id != agent_id);
+        if let Some(pos) = handles.iter().position(|h| h.agent_id == agent_id) {
+            handles[pos].handle.abort();
+            handles.remove(pos);
+        }
     }
 
     /// Get the number of active handles.
@@ -221,5 +241,37 @@ mod tests {
         let manager = SubAgentRuntimeManager::new(config);
         assert_eq!(manager.active_count().await, 0);
         assert!(manager.active_agent_ids().await.is_empty());
+    }
+
+    /// Regression: unregistering a still-running agent must abort its task,
+    /// not just detach it. A detached handle would leak a background task that
+    /// keeps running after the manager forgot about it.
+    #[tokio::test]
+    async fn unregister_aborts_running_task() {
+        let manager = SubAgentRuntimeManager::new(SubAgentRuntimeConfig::default());
+
+        // A task that never completes on its own — only an abort can end it.
+        // This is exactly the leak scenario: a still-running agent whose
+        // handle is dropped without abort would keep consuming a tokio worker.
+        let handle: tokio::task::JoinHandle<Result<crate::tools::subagent::types::SubAgentCompletion>> =
+            tokio::spawn(std::future::pending());
+
+        manager
+            .register(SubAgentRuntimeHandle {
+                agent_id: "leaky".to_string(),
+                handle,
+                cancel: tokio_util::sync::CancellationToken::new(),
+            })
+            .await;
+        assert_eq!(manager.active_count().await, 1);
+
+        manager.unregister("leaky").await;
+        assert_eq!(manager.active_count().await, 0);
+
+        // Give the aborted task a moment; it must not be pollable to completion
+        // (it was aborted, so the join resolves to a cancelled error rather
+        // than a successful completion).
+        let handles = manager.handles.read().await;
+        assert!(handles.is_empty(), "handle must be removed from the manager");
     }
 }
