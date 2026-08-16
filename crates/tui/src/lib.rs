@@ -117,6 +117,7 @@ mod runtime_threads;
 pub mod sandbox;
 mod scheduler;
 mod seam_manager;
+mod session;
 mod session_manager;
 mod settings;
 mod shell_dispatcher;
@@ -509,6 +510,8 @@ pub async fn run() -> Result<()> {
                 args.allow_unverified,
             ),
             Commands::InstallDeps(args) => cli_commands::install_deps::run_install_deps(args.yes),
+            Commands::Session(args) => crate::session::run_session_command(args).await,
+            Commands::Daemon(args) => crate::session::run_daemon_command(args).await,
             Commands::Models(args) => {
                 let config = load_config_from_cli(&cli)?;
                 run_models(&config, args).await

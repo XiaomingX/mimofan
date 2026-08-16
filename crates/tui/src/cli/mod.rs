@@ -255,6 +255,11 @@ The command prints the completion script to stdout; redirect it to a path your s
     Update(crate::cli_commands::UpdateArgs),
     /// Detect missing optional tool dependencies and print (or run) install commands.
     InstallDeps(crate::cli_commands::InstallDepsArgs),
+    /// Run a detached session daemon that owns the PTY (#869). Internal use;
+    /// prefer `mimofan session attach`.
+    Daemon(crate::session::DaemonArgs),
+    /// Manage persistent, re-attachable sessions (#869).
+    Session(crate::session::SessionArgs),
 }
 
 #[derive(Args, Debug, Clone)]
