@@ -1083,13 +1083,36 @@ impl ToolRegistryBuilder {
             .with_synthetic_output_tool()
             .with_worktree_tools()
             .with_create_sub_session_tool()
-            .with_record_artifact_tool();
+            .with_record_artifact_tool()
+            .with_observability_tools();
 
         if shell_policy.allows_shell() {
             builder.with_shell_tools().with_runtime_task_shell_tools()
         } else {
             builder
         }
+    }
+
+    /// 注册可观测性/元认知工具族（#846/#847/#850）。三者都是 ReadOnly/Auto，
+    /// 不会写文件或发网络请求，因此在无人值守安全子集里也安全：
+    ///
+    /// - `prompt_audit`：扫描 system prompt 的冗余/矛盾/膨胀，纯文本分析。
+    /// - `advisor`：用确定性启发式给出模型路由决策（execute/escalate），不调用模型。
+    /// - `event_stream`：只读暴露结构化事件日志路径（及可选的聚合计数），不写事件。
+    ///
+    /// `event_stream` 指向约定路径 `<workspace>/.mimofan/events.jsonl`（相对当前
+    /// 工作区解析）；日志尚未创建或不可读时仍可正常报告路径（best-effort summary）。
+    #[must_use]
+    pub fn with_observability_tools(self) -> Self {
+        use super::advisor::AdvisorTool;
+        use super::prompt_audit::PromptAuditTool;
+        use super::replay::EventStreamTool;
+
+        let events_path = PathBuf::from(".mimofan").join("events.jsonl");
+
+        self.with_tool(Arc::new(PromptAuditTool))
+            .with_tool(Arc::new(AdvisorTool::new()))
+            .with_tool(Arc::new(EventStreamTool::new(events_path)))
     }
 
     /// Include the full agent tool surface: every tool family the parent gets
@@ -1442,6 +1465,26 @@ mod tests {
 
         let err = reg.execute("missing", json!({})).await.unwrap_err();
         assert!(err.to_string().contains("not registered"));
+    }
+
+    /// Smoke test: the central observability wiring actually registers the
+    /// new read-only tools into the default agent tool set (#846/#847/#850).
+    #[test]
+    fn observability_tools_registered_in_agent_surface() {
+        // Build a minimal agent surface builder and assert the new tools are
+        // present. We don't need a live shell policy to check presence.
+        let reg = ToolRegistryBuilder::new()
+            .with_agent_tools_policy(crate::worker_profile::ShellPolicy::from_legacy_allow_shell(false))
+            .build(test_context());
+
+        for name in ["prompt_audit", "advisor", "event_stream"] {
+            assert!(reg.contains(name), "agent surface is missing tool `{name}`");
+            // They must stay read-only so the unattended safety filter keeps them.
+            assert!(
+                reg.get(name).unwrap().is_read_only(),
+                "`{name}` must be ReadOnly"
+            );
+        }
     }
 }
 

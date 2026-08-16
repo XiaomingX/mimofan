@@ -10,8 +10,12 @@
 //!   "security review"),
 //! - estimated token cost exceeding a configured threshold.
 
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 use thiserror::Error;
+
+use crate::tools::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec};
 
 /// The routing decision returned by [`Advisor::advise`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -138,6 +142,111 @@ impl Advisor {
     fn escalate_to(&self, explicit: Option<String>) -> ModelChoice {
         let name = explicit.unwrap_or_else(|| self.config.default_frontier.clone());
         ModelChoice::Escalate(FrontierModel(name))
+    }
+}
+
+/// Tool wrapper exposing the routing decision to the agent. ReadOnly.
+///
+/// The advisor never calls a model — it returns a deterministic routing
+/// decision ([`ModelChoice`]) that the engine can act on later. Exposing it as
+/// a tool lets the model self-route (e.g. "should I escalate this to a
+/// frontier model?") without any extra capability.
+pub struct AdvisorTool {
+    advisor: Advisor,
+}
+
+impl Default for AdvisorTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AdvisorTool {
+    /// Build the tool with the default advisor config.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            advisor: Advisor::default(),
+        }
+    }
+}
+
+#[async_trait]
+impl ToolSpec for AdvisorTool {
+    fn name(&self) -> &str {
+        "advisor"
+    }
+
+    fn description(&self) -> &str {
+        "Decide whether a task should execute with the default model or escalate to a frontier model. \
+         Returns a routing decision (execute / escalate) driven by deterministic heuristics: an \
+         explicit escalate flag, complexity-signal keywords, or estimated token cost. Does not call any model."
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "description": "Free-text task description, scanned for complexity signals."
+                },
+                "estimated_tokens": {
+                    "type": "integer",
+                    "description": "Estimated token cost of executing the task with the default model."
+                },
+                "escalate": {
+                    "type": "boolean",
+                    "description": "Explicit user override: when true, always escalate regardless of heuristics."
+                },
+                "frontier_model": {
+                    "type": "string",
+                    "description": "Optional explicit frontier model name to escalate to when escalating."
+                }
+            },
+            "required": ["description"]
+        })
+    }
+
+    fn capabilities(&self) -> Vec<ToolCapability> {
+        vec![ToolCapability::ReadOnly]
+    }
+
+    fn approval_requirement(&self) -> ApprovalRequirement {
+        ApprovalRequirement::Auto
+    }
+
+    async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
+        use mimofan_tools::{required_str, optional_str, optional_u64};
+
+        let description = required_str(&input, "description")
+            .map_err(|_| ToolError::missing_field("description"))?
+            .to_string();
+        let estimated_tokens = optional_u64(&input, "estimated_tokens", 0);
+        let escalate = input
+            .get("escalate")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let frontier_model = optional_str(&input, "frontier_model").map(str::to_string);
+
+        let profile = TaskProfile {
+            description,
+            estimated_tokens,
+            escalate,
+            frontier_model,
+        };
+
+        let choice = self
+            .advisor
+            .advise(&profile)
+            .map_err(|e| match e {
+                AdvisorError::EmptyTask => ToolError::invalid_input("task description is empty"),
+            })?;
+
+        let decision = serde_json::to_value(&choice)
+            .map_err(|e| ToolError::execution_failed(format!("failed to serialize decision: {e}")))?;
+
+        Ok(ToolResult::success(decision.to_string()))
     }
 }
 

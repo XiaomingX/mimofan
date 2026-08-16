@@ -11,6 +11,8 @@
 pub mod apply_patch;
 pub mod approval_cache;
 pub mod arg_repair;
+/// #847：模型路由 advisor（Advisor::advise 纯函数 + AdvisorTool 薄 ToolSpec 包装）。
+pub mod advisor;
 pub mod ast_query;
 pub mod call_graph;
 pub mod gadget_chain;
@@ -51,6 +53,8 @@ pub mod pandoc;
 pub mod parallel;
 pub mod plan;
 pub mod plugin;
+/// #846：system prompt 冗余/矛盾/膨胀审计（PromptAuditTool 实现 ToolSpec，ReadOnly）。
+pub mod prompt_audit;
 pub mod project;
 pub mod registry;
 pub mod remember;
