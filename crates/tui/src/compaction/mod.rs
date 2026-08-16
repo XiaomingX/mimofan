@@ -1,5 +1,7 @@
 //! Context compaction for long conversations.
 
+pub mod objective;
+
 use anyhow::Result;
 use regex::Regex;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -922,6 +924,32 @@ pub async fn compact_messages_safe(
     external_pins: Option<&[usize]>,
     external_working_set_paths: Option<&[String]>,
 ) -> Result<CompactionResult> {
+    compact_messages_safe_with_objective(
+        client,
+        messages,
+        config,
+        workspace,
+        external_pins,
+        external_working_set_paths,
+        None,
+    )
+    .await
+}
+
+/// Like [`compact_messages_safe`] but threads a task [`Objective`] through the
+/// compaction so the summary prompt is anchored to the user's original goal
+/// and a drift check re-injects the objective when the summary wanders (W1).
+///
+/// `objective` of `None` (the default for the 6-arg form) skips all injection.
+pub async fn compact_messages_safe_with_objective(
+    client: &ApiClient,
+    messages: &[Message],
+    config: &CompactionConfig,
+    workspace: Option<&Path>,
+    external_pins: Option<&[usize]>,
+    external_working_set_paths: Option<&[String]>,
+    objective: Option<&objective::Objective>,
+) -> Result<CompactionResult> {
     // Hard cap on LLM compaction attempts. This is the "don't recurse /
     // re-compress forever" guard: if every attempt is a transient failure we
     // give up rather than spinning the turn loop, and if a successful summary
@@ -1023,6 +1051,7 @@ pub async fn compact_messages_safe(
             workspace,
             external_pins,
             external_working_set_paths,
+            objective,
         )
         .await
         {
@@ -1105,6 +1134,7 @@ pub async fn compact_messages(
     workspace: Option<&Path>,
     external_pins: Option<&[usize]>,
     external_working_set_paths: Option<&[String]>,
+    objective: Option<&objective::Objective>,
 ) -> Result<(Vec<Message>, Option<SystemPrompt>, Vec<Message>)> {
     if messages.is_empty() {
         return Ok((Vec::new(), None, Vec::new()));
@@ -1127,12 +1157,17 @@ pub async fn compact_messages(
         .map(|&idx| messages[idx].clone())
         .collect();
 
+    // Inject the task objective into the summary instruction so the model is
+    // explicitly told what goal the summary must preserve (W1: drift gate).
+    let objective_guidance = objective.map(objective_prompt_section);
+    let summary_custom = merge_objective_into_custom(objective, config.custom_instructions.as_deref());
+
     // Create a summary of the unpinned portion of the conversation
     let summary = create_summary(
         client,
         &to_summarize,
         &config.model,
-        config.custom_instructions.as_deref(),
+        summary_custom.as_deref(),
     )
     .await?;
 
@@ -1140,6 +1175,34 @@ pub async fn compact_messages(
     let workflow_context = extract_workflow_context(&to_summarize, workspace);
 
     let anchors_section = anchor_summary_section(workspace);
+
+    // After summarization, check whether the summary still preserves the
+    // original objective. If it drifted, append the objective as a system
+    // footnote so the next turn is re-anchored to the user's real goal.
+    let summary = if let Some(obj) = objective {
+        let similarity = objective::drift_check(obj, &summary);
+        if similarity < objective::DRIFT_THRESHOLD {
+            logging::warn(format!(
+                "Compaction summary drifted from objective (similarity={:.2}); \
+                 re-injecting objective as a system footnote",
+                similarity
+            ));
+            format!(
+                "{summary}\n\n---\n\n## ⚠️ Task Objective (Re-anchored)\n\n\
+                 The summary above may have drifted from the original goal. \
+                 Keep this objective in view:\n\n{}\n",
+                objective_prompt_section(obj)
+            )
+        } else {
+            summary
+        }
+    } else {
+        summary
+    };
+    // `objective_guidance` is built for callers that want the raw section; it
+    // is already folded into `summary_custom` above, so it is referenced here
+    // to avoid an unused variable while keeping the helper available.
+    let _ = objective_guidance;
 
     // Build new message list with enhanced summary as system block
     let summary_block = SystemBlock {
@@ -1179,6 +1242,36 @@ pub async fn compact_messages(
         Some(SystemPrompt::Blocks(vec![summary_block])),
         to_summarize,
     ))
+}
+
+/// Render an objective as a "TASK OBJECTIVE" section for injection into the
+/// compaction prompt / summary footnote (W1: drift gate).
+pub(crate) fn objective_prompt_section(obj: &objective::Objective) -> String {
+    let mut section = String::from("TASK OBJECTIVE: ");
+    section.push_str(&obj.text);
+    if !obj.key_points.is_empty() {
+        section.push_str("\n\nKey points:\n");
+        for kp in &obj.key_points {
+            let _ = writeln!(section, "- {kp}");
+        }
+    }
+    section
+}
+
+/// Fold the objective into the user's custom compaction instructions so the
+/// model is told what goal the summary must preserve.
+fn merge_objective_into_custom(
+    objective: Option<&objective::Objective>,
+    custom: Option<&str>,
+) -> Option<String> {
+    let Some(obj) = objective else {
+        return custom.map(ToOwned::to_owned);
+    };
+    let section = objective_prompt_section(obj);
+    match custom {
+        Some(c) if !c.trim().is_empty() => Some(format!("{c}\n\n{section}")),
+        _ => Some(section),
+    }
 }
 
 async fn create_summary(
@@ -1785,5 +1878,143 @@ mod fact_retention_tests {
         );
         let rate = fact_retention_rate(&messages, &["唯一根因：sled 数据库文件锁未释放"]);
         assert_eq!(rate, 1.0, "critical fact must be retained via external pin");
+    }
+}
+
+/// #841 (W1)：长程一致性 — objective 回灌门。
+///
+/// 复现「压缩后目标漂移」风险：构造一条对话，从首轮用户消息抽取 objective，
+/// 然后模拟 N 次压缩轮次（确定性 stub：每轮 summary 要么遵从注入保留 objective，
+/// 要么发生漂移丢关键词），断言：
+///  1. objective 通过 `objective_prompt_section` 注入到压缩 prompt；
+///  2. 遵从注入时 `drift_check` ≥ 阈值，objective 保留率 1.0；
+///  3. 漂移发生时 `drift_check` < 阈值，可被回灌门捕获。
+///
+/// 纯函数、不调模型，与 B5/B6 真模型保真探针互补，可 CI 稳定复现。
+#[cfg(test)]
+mod objective_drift_tests {
+    use super::*;
+    use crate::compaction::objective::{Objective, drift_check};
+    use crate::models::ContentBlock;
+
+    /// 构造一条 user 文本消息（与 fact_retention_tests 同构）。
+    fn user_msg(text: &str) -> Message {
+        Message {
+            role: "user".to_string(),
+            content: vec![ContentBlock::Text {
+                text: text.to_string(),
+                cache_control: None,
+            }],
+        }
+    }
+
+    /// 构造首轮带目标、后续带工作的对话。
+    fn build_messages() -> Vec<Message> {
+        let mut messages = vec![user_msg(
+            "Task: migrate the billing service to Stripe. Constraints: keep webhook signatures, \
+             do not add new runtime dependencies.",
+        )];
+        for i in 0..KEEP_RECENT_MESSAGES {
+            messages.push(user_msg(&format!("Working on billing module step {i}")));
+        }
+        messages
+    }
+
+    fn sample_objective() -> Objective {
+        Objective {
+            text: "migrate the billing service to Stripe".to_string(),
+            key_points: vec![
+                "keep webhook signatures".to_string(),
+                "do not add new runtime dependencies".to_string(),
+            ],
+        }
+    }
+
+    /// 模拟一轮压缩：把 objective 注入 prompt（应当出现在传给模型的指令里），
+    /// 并由 summary 文本计算保留率。
+    fn compaction_round_summary(inject_objective: bool) -> String {
+        let obj = sample_objective();
+        // 注入到压缩 prompt：调用方会把 objective_prompt_section 拼进指令。
+        let injected = merge_objective_into_custom(
+            if inject_objective { Some(&obj) } else { None },
+            None,
+        );
+        assert!(
+            inject_objective == injected.as_deref().map(|s| s.contains("TASK OBJECTIVE:")).unwrap_or(false),
+            "objective must be present in the injected prompt only when requested"
+        );
+        if !inject_objective {
+            return String::new();
+        }
+        // 理想 summary：LLM 遵从注入，保留 objective 关键词。
+        format!(
+            "We migrated the billing service to Stripe. {} {}",
+            obj.key_points[0], obj.key_points[1]
+        )
+    }
+
+    #[test]
+    fn objective_is_injected_into_compaction_prompt() {
+        let section = objective_prompt_section(&sample_objective());
+        assert!(section.starts_with("TASK OBJECTIVE:"));
+        assert!(section.contains("migrate the billing service to Stripe"));
+        assert!(section.contains("webhook signatures"));
+        // merge 后注入指令应包含该段。
+        let merged = merge_objective_into_custom(Some(&sample_objective()), None).unwrap();
+        assert!(merged.contains("TASK OBJECTIVE:"));
+    }
+
+    #[test]
+    fn objective_retention_stays_full_across_n_compactions() {
+        // 模拟 5 轮压缩，每轮都注入 objective 且 LLM 遵从 → 保留率恒为 1.0。
+        let obj = sample_objective();
+        let mut min_score = 1.0f64;
+        for round in 1..=5 {
+            let summary = compaction_round_summary(true);
+            let score = drift_check(&obj, &summary);
+            assert!(
+                score >= objective::DRIFT_THRESHOLD,
+                "round {round}: compliant summary must keep objective (score {score})"
+            );
+            min_score = min_score.min(score);
+        }
+        assert_eq!(min_score, 1.0, "objective retention must stay 1.0 across N compactions");
+    }
+
+    #[test]
+    fn drift_is_detected_when_summary_loses_objective() {
+        // 模拟第 3 轮 summary 漂移：完全没提 objective 关键词。
+        let obj = sample_objective();
+        let mut detected = false;
+        for round in 1..=5 {
+            // 第 3 轮注入失败（模型产出漂移 summary）。
+            let summary = if round == 3 {
+                "We refactored the logging layer and added structured output.".to_string()
+            } else {
+                compaction_round_summary(true)
+            };
+            let score = drift_check(&obj, &summary);
+            if round == 3 {
+                assert!(
+                    score < objective::DRIFT_THRESHOLD,
+                    "drifted summary must score below threshold, got {score}"
+                );
+                detected = true;
+            } else {
+                assert!(score >= objective::DRIFT_THRESHOLD);
+            }
+        }
+        assert!(detected, "drift must be detected in at least one round");
+    }
+
+    #[test]
+    fn build_messages_anchors_objective_extraction_input() {
+        let messages = build_messages();
+        let first = messages
+            .iter()
+            .find(|m| m.role == "user")
+            .expect("first user message exists");
+        let text = message_text(first);
+        assert!(text.to_lowercase().contains("stripe"), "fixture must mention Stripe for extraction");
     }
 }

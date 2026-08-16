@@ -44,6 +44,8 @@ use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
+use crate::compaction::objective::Objective;
+
 /// Number of leading tool calls in a turn that are recorded but never trip a
 /// detector.
 ///
@@ -345,6 +347,10 @@ pub struct LoopGuard {
     fired: HashMap<LoopPattern, usize>,
     /// Most recent *distinct* output text, for semantic-echo detection.
     last_distinct_output: Option<String>,
+    /// The user's task objective, carried across compaction windows (W1). When
+    /// set, NoProgress reports echo it so a stalled turn is re-anchored to the
+    /// original goal rather than drifting toward whatever the summary implied.
+    objective: Option<Objective>,
 }
 
 impl LoopGuard {
@@ -360,12 +366,26 @@ impl LoopGuard {
             stall_digest: None,
             fired: HashMap::new(),
             last_distinct_output: None,
+            objective: None,
         }
     }
 
     /// Total tool calls observed this turn.
     pub fn observed_calls(&self) -> usize {
         self.observed
+    }
+
+    /// Attach the user's task objective so NoProgress reports can re-anchor the
+    /// model to it (W1). Returns `self` for chaining after [`LoopGuard::new`].
+    #[must_use]
+    pub fn with_objective(mut self, objective: Objective) -> Self {
+        self.objective = Some(objective);
+        self
+    }
+
+    /// Current task objective, if one was attached.
+    pub fn objective(&self) -> Option<&Objective> {
+        self.objective.as_ref()
     }
 
     /// Whether the cold-start exemption still applies.
@@ -545,15 +565,26 @@ impl LoopGuard {
             pattern: LoopPattern::NoProgress,
             occurrences,
             tools: vec![observation.name.to_string()],
-            nudge: format!(
-                "[Loop guard] The last {occurrences} tool calls (most recently `{name}`) \
-                 completed but changed nothing observable — same output, no edits applied, \
-                 no new information. You are not making progress on the task. Stop and \
-                 re-plan: restate the goal, identify the specific thing you still do not \
-                 know, and pick an action that would actually change the state or reveal \
-                 something new. If nothing would, report what you found and ask the user \
-                 for direction."
-            ),
+            nudge: {
+                let mut nudge = format!(
+                    "[Loop guard] The last {occurrences} tool calls (most recently `{name}`) \
+                     completed but changed nothing observable — same output, no edits applied, \
+                     no new information. You are not making progress on the task. Stop and \
+                     re-plan: restate the goal, identify the specific thing you still do not \
+                     know, and pick an action that would actually change the state or reveal \
+                     something new. If nothing would, report what you found and ask the user \
+                     for direction."
+                );
+                if let Some(obj) = &self.objective {
+                    if !obj.text.is_empty() {
+                        nudge.push_str(&format!(
+                            "\n\nYour original task objective is still: {}",
+                            obj.text
+                        ));
+                    }
+                }
+                nudge
+            },
         })
     }
 
@@ -661,6 +692,10 @@ pub struct LoopGuardState {
     /// Per-pattern nudge budgets already spent across turns.
     #[serde(default)]
     pub fired: std::collections::HashMap<LoopPattern, usize>,
+    /// The task objective, persisted so it survives compaction windows and
+    /// process restarts (W1). Absent when none was ever attached.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub objective: Option<Objective>,
 }
 
 impl LoopGuard {
@@ -674,12 +709,14 @@ impl LoopGuard {
             stall_run: self.stall_run,
             stall_digest: self.stall_digest,
             fired: self.fired.clone(),
+            objective: self.objective.clone(),
         }
     }
 
     /// Restore durable state carried over from a previous turn. Per-call
     /// evidence (`history`, `last_distinct_output`) starts fresh for the new
-    /// turn; the suspicion counters and nudge budgets continue.
+    /// turn; the suspicion counters, nudge budgets, and the task objective
+    /// continue.
     pub fn restore_state(&mut self, state: &LoopGuardState) {
         self.observed = state.observed;
         self.repeat_run = state.repeat_run;
@@ -689,6 +726,11 @@ impl LoopGuard {
         for (pattern, count) in &state.fired {
             let entry = self.fired.entry(*pattern).or_insert(0);
             *entry = (*entry).max(*count);
+        }
+        // The objective is the user's original goal — once known it stays the
+        // source of truth across compaction, so always carry the latest.
+        if state.objective.is_some() {
+            self.objective = state.objective.clone();
         }
     }
 }
@@ -1132,5 +1174,57 @@ mod tests {
             progress: false,
         };
         assert_eq!(guard.observe(&solo), None);
+    }
+
+    #[test]
+    fn no_progress_report_carries_objective_text() {
+        let objective = Objective {
+            text: "Migrate the billing service to Stripe".to_string(),
+            key_points: vec!["webhook signatures".to_string()],
+        };
+        let mut guard = guard().with_objective(objective);
+        finish_warmup(&mut guard);
+        for index in 0..DEFAULT_NO_PROGRESS_THRESHOLD - 1 {
+            let args = json!({ "path": format!("candidate{index}.rs") });
+            let observation = ToolObservation {
+                name: "read_file",
+                args: &args,
+                success: true,
+                output: "",
+                progress: false,
+            };
+            assert_eq!(guard.observe(&observation), None);
+        }
+        let args = json!({ "path": "final.rs" });
+        let observation = ToolObservation {
+            name: "read_file",
+            args: &args,
+            success: true,
+            output: "",
+            progress: false,
+        };
+        let loop_break = guard
+            .observe(&observation)
+            .expect("stall must trip NoProgress");
+        assert_eq!(loop_break.pattern, LoopPattern::NoProgress);
+        assert!(
+            loop_break.nudge.contains("Migrate the billing service to Stripe"),
+            "NoProgress nudge must re-anchor the model to the original objective"
+        );
+    }
+
+    #[test]
+    fn objective_is_persisted_across_turns_via_state() {
+        let objective = Objective {
+            text: "Refactor the auth module to use JWT".to_string(),
+            key_points: Vec::new(),
+        };
+        let mut guard = guard().with_objective(objective);
+        // Snapshot and restore into a fresh guard (simulates a compaction
+        // window or process restart).
+        let state = guard.snapshot_state();
+        let mut restored = LoopGuard::default();
+        restored.restore_state(&state);
+        assert_eq!(restored.objective().map(|o| o.text.as_str()), Some("Refactor the auth module to use JWT"));
     }
 }
