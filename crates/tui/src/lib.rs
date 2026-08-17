@@ -137,6 +137,8 @@ mod tls;
 mod tokenizer;
 mod tool_output_receipts;
 pub mod tools;
+/// Arena 多模型对战 与 Team 领导角色骨架（见模块文档）。
+pub mod subagent_arena;
 mod tui;
 mod turn_memory;
 mod utils;
