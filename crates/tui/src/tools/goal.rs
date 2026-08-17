@@ -110,7 +110,7 @@ pub fn load_goal_queue_fallback(base_dir: Option<&Path>) -> Option<GoalQueue> {
         }
     };
     let queue = GoalQueue::from_snapshot(&snapshot);
-    if queue.entries.is_empty() {
+    if queue.is_empty() {
         None
     } else {
         Some(queue)

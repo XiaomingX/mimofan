@@ -5,6 +5,7 @@
 //! `use super::*`, and are re-exported with `pub(crate) use ui_event_loop::*`.
 
 use super::*;
+use std::fmt::Write as _;
 
 #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
 pub(crate) async fn run_event_loop(

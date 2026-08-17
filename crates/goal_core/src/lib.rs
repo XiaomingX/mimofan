@@ -773,6 +773,12 @@ impl GoalQueue {
 
     /// 队列全貌快照。
     #[must_use]
+    /// 队列是否没有任何 goal 条目。
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
     pub fn list_snapshot(&self) -> GoalQueueSnapshot {
         let active_id = self.active_id();
         let entries = self
