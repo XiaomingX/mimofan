@@ -14,6 +14,7 @@
 use crate::client::ApiClient;
 use crate::llm_client::LlmClient;
 use crate::models::{ContentBlock, Message, MessageRequest, SystemPrompt};
+use std::fmt::Write as _; // 让 `writeln!` 对 `String` 可用（baseline 缺此 import）
 
 /// A compact description of the user's task goal, extracted from the first
 /// user turn. `text` is the one-line goal; `key_points` are the atomic facts

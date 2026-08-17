@@ -34,6 +34,7 @@ mimofan-config = { path = "../config" }
 mimofan-core = { path = "../core" }
 mimofan-edit-core = { path = "../edit_core" }
 mimofan-execpolicy = { path = "../execpolicy" }
+mimofan-goal-core = { path = "../goal_core" }
 mimofan-hooks = { path = "../hooks" }
 mimofan-localization = { path = "../localization" }
 mimofan-mcp = { path = "../mcp" }

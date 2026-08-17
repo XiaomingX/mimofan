@@ -1,0 +1,52 @@
+name: Godfile line-count guard
+
+# Godfile 红线预警（仅警告，不阻断构建）。
+#
+# 目标：对 `crates/**/*.rs` 中行数超过阈值（默认 1000 行）的文件打印 warning，
+# 提醒维护者这些文件已接近"godfile"（巨型单文件），应考虑拆分 / 下沉为独立 crate。
+#
+# 设计要点（避免误伤既有大文件）：
+#   - 仅 **输出 warning**，绝不 `exit 1`，不 fail 任何 workflow / job。
+#   - 阈值通过 `env.LINE_LIMIT` 可调；引擎核心（engine.rs / turn_loop.rs 等）
+#     当前已是已知 godfile，本 job 用于持续曝光其行数趋势，而非一次性阻断。
+#   - 不依赖 cargo：纯 POSIX `find` + `wc -l`，在任何 runner 上零额外安装。
+#
+# 与 rustc `-Dwarnings`（见 release.yml）解耦：本 job 不编译，只做文件级体积监控。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Godfile 红线阈值（行）。超过即打印 warning。
+  LINE_LIMIT: "1000"
+
+jobs:
+  godfile-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Scan crates/**/*.rs for godfile-sized files
+        run: |
+          echo "::group::Godfile line-count scan (limit=${LINE_LIMIT} lines, warning only)"
+          limit="${LINE_LIMIT}"
+          over=0
+          while IFS= read -r file; do
+            lines=$(wc -l < "$file" | tr -d ' ')
+            if [ "$lines" -gt "$limit" ]; then
+              echo "::warning file=${file}::godfile risk: ${lines} lines (> ${limit}); consider splitting or extracting a crate"
+              over=$((over + 1))
+            fi
+          done < <(find crates -name '*.rs' -type f)
+          echo "::endgroup::"
+          if [ "$over" -gt 0 ]; then
+            echo "::notice::${over} file(s) exceed the ${limit}-line godfile threshold. This is a non-blocking warning."
+          else
+            echo "::notice::No godfile-sized files exceeded the ${limit}-line threshold."
+          fi

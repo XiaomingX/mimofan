@@ -1573,7 +1573,8 @@ mod tests {
         ]);
         reg.record_usage("beta");
         reg.record_usage("beta");
-        let api_names: Vec<&str> = reg.to_api_tools().iter().map(|t| t.name.as_str()).collect();
+        let api_tools = reg.to_api_tools();
+        let api_names: Vec<&str> = api_tools.iter().map(|t| t.name.as_str()).collect();
         assert_eq!(api_names, vec!["beta", "alpha", "gamma"]);
     }
 
