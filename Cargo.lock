@@ -3289,6 +3289,7 @@ dependencies = [
  "mimofan-app-server",
  "mimofan-config",
  "mimofan-core",
+ "mimofan-edit-core",
  "mimofan-execpolicy",
  "mimofan-hooks",
  "mimofan-localization",
@@ -3419,6 +3420,10 @@ dependencies = [
  "tracing",
  "uuid",
 ]
+
+[[package]]
+name = "mimofan-edit-core"
+version = "0.0.20"
 
 [[package]]
 name = "mimofan-execpolicy"
