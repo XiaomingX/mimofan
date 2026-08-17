@@ -24,6 +24,12 @@ enum AgentToolAction {
     Status,
     Peek,
     Cancel,
+    /// #871 — fan a single prompt out to several model/provider contestants via
+    /// the real `SpawnSubagentRunner` (Arena multi-model bout).
+    Arena,
+    /// #871 — decompose an objective into subtasks and dispatch them to child
+    /// agents via the real `SpawnSubagentRunner` (Team leader role).
+    Team,
 }
 
 fn parse_agent_tool_action(input: &Value) -> Result<AgentToolAction, ToolError> {
@@ -35,8 +41,10 @@ fn parse_agent_tool_action(input: &Value) -> Result<AgentToolAction, ToolError> 
         "status" | "list" | "inspect" => Ok(AgentToolAction::Status),
         "peek" | "progress" => Ok(AgentToolAction::Peek),
         "cancel" | "stop" | "abort" => Ok(AgentToolAction::Cancel),
+        "arena" | "bout" | "vs" => Ok(AgentToolAction::Arena),
+        "team" | "lead" => Ok(AgentToolAction::Team),
         other => Err(ToolError::invalid_input(format!(
-            "Invalid agent action '{other}'. Use start, status, peek, or cancel."
+            "Invalid agent action '{other}'. Use start, status, peek, cancel, arena, or team."
         ))),
     }
 }
@@ -59,7 +67,8 @@ impl ToolSpec for AgentTool {
             "Start, inspect, peek at, or cancel focused child agent tasks through one surface. Use start only for independent work that benefits from a clean context. ",
             "For several independent targets, call agent separately for each target; mimofan runs or queues them under runtime capacity and provider rate-limit backpressure. ",
             "The child runs in the background and reports back automatically when finished; keep tiny reads/searches local. ",
-            "Use action=status or action=peek with agent_id to inspect progress, and action=cancel with agent_id to stop a running child. Returns session projections with transcript_handle for UI/debug inspection."
+            "Use action=status or action=peek with agent_id to inspect progress, and action=cancel with agent_id to stop a running child. Returns session projections with transcript_handle for UI/debug inspection. ",
+            "Use action=arena with `prompt` and `models` to run the same prompt across several models and compare their outputs, or action=team with `prompt` (and optional `subtasks`) to decompose a goal and delegate the pieces to child agents."
         )
     }
 
@@ -69,8 +78,8 @@ impl ToolSpec for AgentTool {
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["start", "status", "peek", "cancel"],
-                    "description": "start (default) launches a child. status lists current children or inspects agent_id. peek is status for one child. cancel stops a running child by agent_id."
+                    "enum": ["start", "status", "peek", "cancel", "arena", "team"],
+                    "description": "start (default) launches a child. status lists current children or inspects agent_id. peek is status for one child. cancel stops a running child by agent_id. arena fans one prompt out to several models (needs `models`). team decomposes a prompt into subtasks and dispatches them to children (optional `subtasks`)."
                 },
                 "agent_id": {
                     "type": "string",
@@ -145,6 +154,16 @@ impl ToolSpec for AgentTool {
                     "type": "integer",
                     "minimum": 1,
                     "description": "Optional aggregate token budget for this child and descendants. When unset, the child inherits the parent budget pool or the configured root default."
+                },
+                "models": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "For action=arena: list of \"model@provider\" (or \"model/provider\") contestants to fan the prompt out to. e.g. [\"deepseek-chat@deepseek\", \"miMo@xiaomi\"]."
+                },
+                "subtasks": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "For action=team: optional explicit subtasks to delegate. When omitted, the leader treats the whole prompt as one overall task."
                 }
             },
             "required": []
@@ -178,6 +197,12 @@ impl ToolSpec for AgentTool {
             AgentToolAction::Cancel => {
                 return cancel_agent_from_input(&input, self.manager.clone(), context).await;
             }
+            AgentToolAction::Arena => {
+                return self.run_arena_action(&input, context).await;
+            }
+            AgentToolAction::Team => {
+                return self.run_team_action(&input, context).await;
+            }
         }
         let snapshot =
             spawn_subagent_from_input(input, self.manager.clone(), self.runtime.clone()).await?;
@@ -196,6 +221,129 @@ impl ToolSpec for AgentTool {
         }));
         Ok(tool_result)
     }
+}
+
+impl AgentTool {
+    /// #871 — Arena entry point. Fans a single `prompt` out to the model/provider
+    /// contestants listed in `models`, reusing the production `SpawnSubagentRunner`
+    /// so each contestant is a real child agent spawned through the existing chain.
+    async fn run_arena_action(
+        &self,
+        input: &Value,
+        _context: &ToolContext,
+    ) -> Result<ToolResult, ToolError> {
+        let prompt = agent_required_str(input, "prompt")?;
+        let contestants = parse_contestants(input)?;
+        if contestants.is_empty() {
+            return Err(ToolError::invalid_input(
+                "action=arena requires `models` (array of \"model@provider\") with at least one entry",
+            ));
+        }
+        let arena = crate::subagent_arena::Arena::with_spawn_runner();
+        let outcome = arena
+            .run(&prompt, &contestants, self.manager.clone(), self.runtime.clone())
+            .await;
+        let comparison = outcome.compare();
+        let mut tool_result = ToolResult::json(&comparison)
+            .map_err(|e| ToolError::execution_failed(e.to_string()))?;
+        tool_result.metadata = Some(json!({
+            "action": "arena",
+            "contestant_count": comparison.contestant_count,
+            "succeeded": comparison.succeeded,
+            "failed": comparison.failed,
+        }));
+        Ok(tool_result)
+    }
+
+    /// #871 — Team entry point. Decomposes `prompt` (the objective) into subtasks
+    /// and dispatches them to child agents through the production
+    /// `SpawnSubagentRunner`. When `subtasks` is omitted, the leader falls back
+    /// to a single overall task.
+    async fn run_team_action(
+        &self,
+        input: &Value,
+        _context: &ToolContext,
+    ) -> Result<ToolResult, ToolError> {
+        let objective = agent_required_str(input, "prompt")?;
+        let subtasks: Vec<String> = input
+            .get("subtasks")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|e| e.as_str().map(str::to_string))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let leader = crate::subagent_arena::TeamLeader::with_spawn_runner();
+        let tasks = leader.decompose(&objective, &subtasks);
+        // Map every assignee to a default contestant config (same family as the
+        // parent); the production runner forwards each to `spawn_subagent_from_input`.
+        let mut contestants: std::collections::HashMap<String, crate::subagent_arena::ContestantConfig> =
+            std::collections::HashMap::new();
+        for task in &tasks {
+            if !contestants.contains_key(&task.assignee) {
+                contestants.insert(
+                    task.assignee.clone(),
+                    crate::subagent_arena::ContestantConfig::new(
+                        task.assignee.clone(),
+                        "default".to_string(),
+                        "default".to_string(),
+                    ),
+                );
+            }
+        }
+        let outcome = leader
+            .dispatch(&tasks, &contestants, self.manager.clone(), self.runtime.clone())
+            .await;
+        let mut tool_result = ToolResult::json(&outcome)
+            .map_err(|e| ToolError::execution_failed(e.to_string()))?;
+        tool_result.metadata = Some(json!({
+            "action": "team",
+            "task_count": tasks.len(),
+        }));
+        Ok(tool_result)
+    }
+}
+
+/// #871 — required string extraction for the arena/team actions; reuses the
+/// module's `optional_input_str` helper and fails with a clear input error.
+fn agent_required_str(input: &Value, key: &str) -> Result<String, ToolError> {
+    optional_input_str(input, &[key])
+        .map(str::to_string)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| ToolError::invalid_input(format!("missing required field `{key}`")))
+}
+
+/// #871 — parse the `models` array of `"model@provider"` (or `"model/provider"`)
+/// strings into Arena contestants. Falls back to `default` provider when no
+/// separator is present.
+fn parse_contestants(input: &Value) -> Result<Vec<crate::subagent_arena::ContestantConfig>, ToolError> {
+    let Some(models) = input.get("models").and_then(|v| v.as_array()) else {
+        return Ok(Vec::new());
+    };
+    let mut contestants = Vec::new();
+    for (i, m) in models.iter().enumerate() {
+        let Some(spec) = m.as_str() else {
+            return Err(ToolError::invalid_input(format!(
+                "`models[{i}]` must be a string like \"model@provider\""
+            )));
+        };
+        let (model, provider) = match spec.split_once('@').or_else(|| spec.split_once('/')) {
+            Some((model, provider)) => (model.trim().to_string(), provider.trim().to_string()),
+            None => (spec.trim().to_string(), "default".to_string()),
+        };
+        if model.is_empty() {
+            return Err(ToolError::invalid_input(format!(
+                "`models[{i}]` has an empty model"
+            )));
+        }
+        contestants.push(crate::subagent_arena::ContestantConfig::new(
+            format!("contestant-{i}"),
+            model,
+            provider,
+        ));
+    }
+    Ok(contestants)
 }
 
 async fn inspect_agent_from_input(
