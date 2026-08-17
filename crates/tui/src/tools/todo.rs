@@ -25,6 +25,10 @@ pub enum TodoStatus {
     Pending,
     InProgress,
     Completed,
+    /// A failed task that has been auto-degraded into finer subtasks. The
+    /// parent is no longer eligible for bare retry or re-scheduling; it waits
+    /// for its generated subtasks to complete, at which point it is resolved.
+    Degraded,
 }
 
 impl TodoStatus {
@@ -33,6 +37,7 @@ impl TodoStatus {
             TodoStatus::Pending => "pending",
             TodoStatus::InProgress => "in_progress",
             TodoStatus::Completed => "completed",
+            TodoStatus::Degraded => "degraded",
         }
     }
 
@@ -44,6 +49,7 @@ impl TodoStatus {
             "pending" => Some(TodoStatus::Pending),
             "in_progress" | "inprogress" => Some(TodoStatus::InProgress),
             "completed" | "done" => Some(TodoStatus::Completed),
+            "degraded" => Some(TodoStatus::Degraded),
             _ => None,
         }
     }
@@ -112,6 +118,10 @@ pub struct TodoList {
     /// cross-process source of truth lives in `TodoClaimStore`; this field is
     /// only the single-process fallback used when no durable store is wired.
     claims: HashMap<u32, String>,
+    /// Maps a failed-and-degraded task id to the ids of the finer subtasks that
+    /// replaced it. Used to (a) resolve the parent once all subtasks complete
+    /// and (b) let the job-retry layer skip a bare retry for a degraded task.
+    degraded_children: HashMap<u32, Vec<u32>>,
 }
 
 impl TodoList {
@@ -122,6 +132,7 @@ impl TodoList {
             items: Vec::new(),
             next_id: 1,
             claims: HashMap::new(),
+            degraded_children: HashMap::new(),
         }
     }
 
@@ -129,6 +140,19 @@ impl TodoList {
     #[must_use]
     pub fn get(&self, id: u32) -> Option<&TodoItem> {
         self.items.iter().find(|item| item.id == id)
+    }
+
+    /// Ids of subtasks generated when `parent_id` was degraded, if any.
+    #[must_use]
+    pub fn degraded_subtasks(&self, parent_id: u32) -> Option<&Vec<u32>> {
+        self.degraded_children.get(&parent_id)
+    }
+
+    /// Whether `id` has been degraded into subtasks (and therefore must not be
+    /// bare-retried or re-scheduled as a standalone task).
+    #[must_use]
+    pub fn is_degraded(&self, id: u32) -> bool {
+        self.degraded_children.contains_key(&id)
     }
 
     /// Return a snapshot of the list with computed metrics.
@@ -293,6 +317,77 @@ impl TodoList {
         updated
     }
 
+    /// Auto-degrade a failed task into finer subtasks that re-enter the graph.
+    ///
+    /// The failed task is marked [`TodoStatus::Degraded`] so it is no longer
+    /// eligible for bare retry or re-scheduling, and each `subtasks` entry is
+    /// added as a fresh, ready-to-claim [`TodoStatus::Pending`] item. When a
+    /// matching background `job` is supplied (`job_manager` + `job_id`), it is
+    /// marked degraded as well so the job layer will not also run a bare retry
+    /// — the two recovery systems stay mutually exclusive.
+    ///
+    /// Returns the ids of the generated subtasks, or `None` if `failed_id` does
+    /// not exist or is not a terminal failure (already degraded / not failed).
+    pub fn degrade_to_subtask(
+        &mut self,
+        failed_id: u32,
+        subtasks: Vec<String>,
+        job_manager: Option<&mut mimofan_core::JobManager>,
+        job_id: Option<&str>,
+    ) -> Option<Vec<u32>> {
+        // Only a task that currently exists and is *not* already degraded can
+        // be degraded again; do not double-degrade.
+        let target = self.items.iter().find(|item| item.id == failed_id)?;
+        if target.status == TodoStatus::Degraded {
+            return None;
+        }
+
+        if subtasks.is_empty() {
+            return None;
+        }
+
+        // Mark the parent as degraded (waiting on its subtasks).
+        let mut child_ids: Vec<u32> = Vec::with_capacity(subtasks.len());
+        for content in subtasks {
+            let child = self.add_with_dependencies(content, TodoStatus::Pending, Vec::new());
+            child_ids.push(child.id);
+        }
+        self.degraded_children.insert(failed_id, child_ids.clone());
+        self.apply_status(failed_id, TodoStatus::Degraded);
+
+        // Bridge with the job-retry layer: if this task maps to a background
+        // job, mark it degraded so `JobManager::fail` will not schedule a bare
+        // retry for an already-degraded task.
+        if let (Some(manager), Some(job_id)) = (job_manager, job_id) {
+            manager.mark_degraded(job_id);
+        }
+
+        Some(child_ids)
+    }
+
+    /// Resolve a degraded task: once every generated subtask is `Completed`,
+    /// mark the parent `Completed` and drop the degradation edge.
+    ///
+    /// Returns the resolved parent id, or `None` if it is not yet resoluble.
+    pub fn try_resolve_degraded(&mut self, parent_id: u32) -> Option<u32> {
+        let Some(children) = self.degraded_children.get(&parent_id) else {
+            return None;
+        };
+        let all_done = children.iter().all(|&cid| {
+            self.items
+                .iter()
+                .find(|item| item.id == cid)
+                .is_some_and(|item| item.status == TodoStatus::Completed)
+        });
+        if all_done {
+            self.degraded_children.remove(&parent_id);
+            self.apply_status(parent_id, TodoStatus::Completed);
+            Some(parent_id)
+        } else {
+            None
+        }
+    }
+
     /// Compute completion percentage for the list.
     #[must_use]
     pub fn completion_percentage(&self) -> u8 {
@@ -323,6 +418,7 @@ impl TodoList {
     pub fn clear(&mut self) {
         self.items.clear();
         self.next_id = 1;
+        self.degraded_children.clear();
     }
 
     /// Rebuild the list from a previously persisted [`TodoListSnapshot`]
@@ -337,6 +433,14 @@ impl TodoList {
             .max()
             .map(|max_id| max_id + 1)
             .unwrap_or(1);
+        // Degradation edges are not persisted in the snapshot; rebuild them
+        // from any `Degraded` items so the bridge stays consistent on restore.
+        self.degraded_children.clear();
+        for item in &self.items {
+            if item.status == TodoStatus::Degraded {
+                self.degraded_children.entry(item.id).or_default();
+            }
+        }
     }
 
     fn set_single_in_progress(&mut self, allow_id: Option<u32>) {
@@ -880,6 +984,67 @@ mod dependency_tests {
         list.add_with_dependencies("orphan".to_string(), TodoStatus::Pending, vec![42]);
         // Dependency ids that no longer exist count as satisfied.
         assert_eq!(list.ready_ids(), vec![1]);
+    }
+
+    #[test]
+    fn degrade_to_subtask_regenerates_children_and_marks_parent() {
+        let mut list = TodoList::new();
+        let failed = list.add("big task".to_string(), TodoStatus::InProgress);
+        assert_eq!(failed.id, 1);
+
+        let children = list
+            .degrade_to_subtask(
+                1,
+                vec![
+                    "subtask a".to_string(),
+                    "subtask b".to_string(),
+                    "subtask c".to_string(),
+                ],
+                None,
+                None,
+            )
+            .expect("degrade should succeed for an existing task");
+
+        // Subtasks were added and are ready to schedule.
+        assert_eq!(children.len(), 3);
+        assert_eq!(list.ready_ids(), children);
+        // Original task is no longer schedulable in either set.
+        assert!(!list.ready_ids().contains(&1));
+        assert!(!list.blocked_ids().contains(&1));
+        // It is marked degraded and tracked.
+        assert_eq!(list.get(1).unwrap().status, TodoStatus::Degraded);
+        assert!(list.is_degraded(1));
+        assert_eq!(list.degraded_subtasks(1), Some(&children));
+
+        // Completing all subtasks resolves the parent.
+        for cid in children {
+            list.update_status(cid, TodoStatus::Completed);
+        }
+        assert_eq!(list.try_resolve_degraded(1), Some(1));
+        assert_eq!(list.get(1).unwrap().status, TodoStatus::Completed);
+        assert!(!list.is_degraded(1));
+    }
+
+    #[test]
+    fn degrade_rejects_empty_subtasks_and_unknown_id() {
+        let mut list = TodoList::new();
+        list.add("task".to_string(), TodoStatus::Pending);
+        assert!(list
+            .degrade_to_subtask(1, vec![], None, None)
+            .is_none());
+        assert!(list.degrade_to_subtask(99, vec!["x".to_string()], None, None).is_none());
+    }
+
+    #[test]
+    fn double_degrade_is_idempotent_and_safe() {
+        let mut list = TodoList::new();
+        list.add("task".to_string(), TodoStatus::Pending);
+        let first = list
+            .degrade_to_subtask(1, vec!["a".to_string()], None, None)
+            .unwrap();
+        // Degrading an already-degraded task yields nothing (no duplicate work).
+        assert!(list.degrade_to_subtask(1, vec!["b".to_string()], None, None).is_none());
+        assert_eq!(list.degraded_subtasks(1), Some(&first));
     }
 }
 

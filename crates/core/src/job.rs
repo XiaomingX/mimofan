@@ -40,6 +40,11 @@ pub struct JobRetryMetadata {
     pub next_backoff_ms: u64,
     /// Timestamp when the next retry should be attempted.
     pub next_retry_at: Option<i64>,
+    /// When `true`, the associated task has been auto-degraded into subtasks
+    /// that re-enter the todo graph, so this job must not run a bare retry.
+    /// Set via [`JobManager::mark_degraded`] — the bridge that keeps the job
+    /// retry layer and the todo degradation layer mutually exclusive.
+    pub degraded: bool,
 }
 
 impl Default for JobRetryMetadata {
@@ -50,7 +55,20 @@ impl Default for JobRetryMetadata {
             backoff_base_ms: DEFAULT_JOB_BACKOFF_BASE_MS,
             next_backoff_ms: 0,
             next_retry_at: None,
+            degraded: false,
         }
+    }
+}
+
+impl JobRetryMetadata {
+    /// Whether this job should still be bare-retried on failure.
+    ///
+    /// A degraded job (one whose task was split into finer subtasks in the todo
+    /// graph) must not retry, so the same work is not both retried here and
+    /// re-scheduled as subtasks elsewhere.
+    #[must_use]
+    pub fn should_bare_retry(&self) -> bool {
+        !self.degraded && self.attempt < self.max_attempts
     }
 }
 
@@ -233,12 +251,16 @@ impl JobManager {
     }
 
     /// Marks a job as failed and schedules a retry if attempts remain.
+    ///
+    /// If the job has been degraded (`retry.degraded == true`) — its task was
+    /// auto-split into subtasks in the todo graph — no bare retry is scheduled;
+    /// the work is recovered through the graph instead.
     pub fn fail(&mut self, id: &str, detail: impl Into<String>) {
         if let Some(job) = self.jobs.get_mut(id) {
             let now = Self::now_ts();
             job.status = JobStatus::Failed;
             job.detail = Some(detail.into());
-            if job.retry.attempt < job.retry.max_attempts {
+            if job.retry.should_bare_retry() {
                 job.retry.attempt += 1;
                 job.retry.next_backoff_ms = Self::deterministic_backoff_ms(&job.retry);
                 let delay_secs = ((job.retry.next_backoff_ms.saturating_add(999)) / 1000)
@@ -249,6 +271,22 @@ impl JobManager {
             }
             job.updated_at = now;
             Self::push_history(job, "failed");
+        }
+    }
+
+    /// Mark a job as degraded: its task has been split into subtasks that
+    /// re-enter the todo graph, so it must no longer be bare-retried.
+    ///
+    /// This is the bridge called from the todo degradation path; it makes the
+    /// job-retry layer and the todo degradation layer mutually exclusive.
+    pub fn mark_degraded(&mut self, id: &str) {
+        if let Some(job) = self.jobs.get_mut(id) {
+            if !job.retry.degraded {
+                job.retry.degraded = true;
+                Self::clear_retry_schedule(&mut job.retry);
+                job.updated_at = Self::now_ts();
+                Self::push_history(job, "degraded");
+            }
         }
     }
 
@@ -412,7 +450,8 @@ pub(crate) fn job_retry_to_value(retry: &JobRetryMetadata) -> Value {
         "max_attempts": retry.max_attempts,
         "backoff_base_ms": retry.backoff_base_ms,
         "next_backoff_ms": retry.next_backoff_ms,
-        "next_retry_at": retry.next_retry_at
+        "next_retry_at": retry.next_retry_at,
+        "degraded": retry.degraded
     })
 }
 
@@ -480,6 +519,10 @@ pub fn parse_retry_metadata(value: Option<&Value>) -> JobRetryMetadata {
             .and_then(Value::as_u64)
             .unwrap_or(0),
         next_retry_at: value.get("next_retry_at").and_then(Value::as_i64),
+        degraded: value
+            .get("degraded")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
     }
 }
 
@@ -503,4 +546,63 @@ pub fn parse_history_entry(value: &Value) -> Option<JobHistoryEntry> {
         detail: value.get("detail").and_then(json_optional_string),
         retry: parse_retry_metadata(value.get("retry")),
     })
+}
+
+#[cfg(test)]
+mod degradation_tests {
+    use super::*;
+
+    #[test]
+    fn degraded_job_is_not_bare_retried_on_failure() {
+        let mut mgr = JobManager::default();
+        let job = mgr.enqueue("big task");
+        mgr.mark_degraded(&job.id);
+        // A failure after degradation must not schedule a bare retry.
+        mgr.fail(&job.id, "boom");
+        let record = mgr.jobs.get(&job.id).unwrap();
+        assert_eq!(record.status, JobStatus::Failed);
+        assert!(record.retry.degraded);
+        assert!(!record.retry.should_bare_retry());
+        // No next-retry schedule was set.
+        assert_eq!(record.retry.next_backoff_ms, 0);
+        assert_eq!(record.retry.next_retry_at, None);
+        assert_eq!(record.retry.attempt, 0);
+    }
+
+    #[test]
+    fn non_degraded_job_schedules_retry_on_failure() {
+        let mut mgr = JobManager::default();
+        let job = mgr.enqueue("plain task");
+        mgr.fail(&job.id, "boom");
+        let record = mgr.jobs.get(&job.id).unwrap();
+        assert!(record.retry.should_bare_retry());
+        assert_eq!(record.retry.attempt, 1);
+        assert!(record.retry.next_retry_at.is_some());
+    }
+
+    #[test]
+    fn degraded_flag_round_trips_through_persistence() {
+        let mut mgr = JobManager::default();
+        let job = mgr.enqueue("task");
+        mgr.mark_degraded(&job.id);
+        let encoded = JobManager::encode_persisted_detail(mgr.jobs.get(&job.id).unwrap())
+            .unwrap()
+            .unwrap();
+        let parsed = JobManager::parse_persisted_detail(Some(&encoded)).unwrap();
+        assert!(parsed.retry.degraded);
+    }
+
+    #[test]
+    fn degrade_then_resolve_parent_is_bridgeable() {
+        // Mirrors TodoList::degrade_to_subtask: a degraded job must never retry
+        // even after repeated failures, so the todo graph owns recovery.
+        let mut mgr = JobManager::default();
+        let job = mgr.enqueue("task");
+        mgr.mark_degraded(&job.id);
+        for _ in 0..3 {
+            mgr.fail(&job.id, "again");
+        }
+        let record = mgr.jobs.get(&job.id).unwrap();
+        assert_eq!(record.retry.attempt, 0, "degraded job must not consume retry budget");
+    }
 }
