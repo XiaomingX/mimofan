@@ -320,8 +320,11 @@ impl VectorStore {
         Ok(index)
     }
 
-    /// Default capacity limit (0 = unlimited). Callers may override via a budget.
-    pub const DEFAULT_CAPACITY_LIMIT: usize = 0;
+    /// Default capacity limit (number of observations retained). Callers may
+    /// override via a budget. `0` previously meant "unlimited" and silently
+    /// disabled eviction; we now keep a concrete upper bound so the long-term
+    /// vector store cannot grow without bound (#716 M4).
+    pub const DEFAULT_CAPACITY_LIMIT: usize = 10_000;
 
     /// Store an observation with its embedding.
     ///
@@ -1030,6 +1033,31 @@ mod enhancement_tests {
         assert_eq!(store.count().unwrap(), 5);
         let evicted = store.capacity_policy(2).unwrap();
         assert_eq!(evicted.len(), 3, "should evict 3 to reach budget 2");
+    }
+
+    #[test]
+    fn enforce_capacity_policy_evicts_with_nonzero_default() {
+        // Guard against the original regression: DEFAULT_CAPACITY_LIMIT must be
+        // a concrete non-zero bound, otherwise eviction is silently disabled.
+        assert!(
+            VectorStore::DEFAULT_CAPACITY_LIMIT > 0,
+            "DEFAULT_CAPACITY_LIMIT must be non-zero so eviction is enabled"
+        );
+
+        let (_d, store) = tmp_store();
+        let emb = vec![0.3_f32; 8];
+        // Insert a handful of observations (all kept by the salience gate).
+        for i in 0..5 {
+            let o = obs("p", &format!("a sufficiently long observation number {}", i));
+            store.store_observation(&o, &emb).unwrap();
+        }
+        assert_eq!(store.count().unwrap(), 5);
+
+        // `enforce_capacity_policy` must actually delete the overflow, not just
+        // compute the candidate set.
+        let removed = store.enforce_capacity_policy(2).unwrap();
+        assert_eq!(removed, 3, "should evict 3 to reach budget 2");
+        assert_eq!(store.count().unwrap(), 2, "store trimmed to the budget");
     }
 
     #[test]
