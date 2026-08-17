@@ -34,6 +34,8 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
+use serde::{Deserialize, Serialize};
+
 /// Where a skill originated. Drives the isolation decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillSource {
@@ -102,6 +104,115 @@ pub struct ProvenanceLock {
     /// Content checksum (stable hash of the resolved skill root), used to
     /// detect post-install tampering.
     pub content_hash: String,
+}
+
+/// Memory trust tier: how much an agent should believe a stored memory record.
+///
+/// Ordered from least to most trustworthy so callers can compare and filter
+/// (e.g. "only surface memories at or above `Observed`"). The ordering is the
+/// source-reliability ladder described in MY_PLAN_0817 §13 for *memory*
+/// provenance, distinct from the skill-supply-chain [`IsolationLevel`].
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum TrustTier {
+    /// Cross-session / unattributed reference we cannot re-verify here. Treated
+    /// as "someone else said so" — surfaced last, never auto-trusted.
+    Untrusted,
+    /// Directly observed in the current session (a tool result, a user statement,
+    /// a visible file state). Ground truth for this session.
+    Observed,
+    /// Derived by the agent's own reasoning from observed facts, not directly
+    /// confirmed. Plausible but may be wrong.
+    Inferred,
+    /// Independently verified — e.g. a tool result cross-checked, an assertion
+    /// that passed, or an explicit human confirmation.
+    Verified,
+}
+
+impl TrustTier {
+    /// Stable label for logs / serialization fallback.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            TrustTier::Untrusted => "untrusted",
+            TrustTier::Observed => "observed",
+            TrustTier::Inferred => "inferred",
+            TrustTier::Verified => "verified",
+        }
+    }
+}
+
+/// Provenance attached to a stored memory record: *how much we trust it* plus
+/// a free-text description of where the claim came from (a session id, a tool
+/// name, a human annotation, etc.). Lightweight and serializable so memory
+/// stores can persist and later filter by trust.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MemoryProvenance {
+    /// Trust level of this memory entry.
+    pub tier: TrustTier,
+    /// Human-readable origin, e.g. `"session:abc123"`, `"tool:read_file"`,
+    /// `"human:confirmed"`, or `"cross-session:note.md"`.
+    pub origin: String,
+}
+
+impl MemoryProvenance {
+    /// A fact directly observed during the current session, tagged with the
+    /// observing session id. → `Observed`.
+    #[must_use]
+    pub fn from_session(session_id: &str) -> Self {
+        MemoryProvenance {
+            tier: TrustTier::Observed,
+            origin: format!("session:{session_id}"),
+        }
+    }
+
+    /// A claim the agent inferred from observed facts (not directly confirmed).
+    /// → `Inferred`. `basis` names the inference source (e.g. `"tool:read_file"`).
+    #[must_use]
+    pub fn from_inference(basis: &str) -> Self {
+        MemoryProvenance {
+            tier: TrustTier::Inferred,
+            origin: format!("inference:{basis}"),
+        }
+    }
+
+    /// A tool result that has been independently checked / asserted. → `Verified`.
+    /// `tool` names the verifying tool (e.g. `"tool:run_test"`).
+    #[must_use]
+    pub fn from_tool_result_verified(tool: &str) -> Self {
+        MemoryProvenance {
+            tier: TrustTier::Verified,
+            origin: format!("verified:{tool}"),
+        }
+    }
+
+    /// A reference carried over from another session we cannot re-verify here.
+    /// Echoes MY_PLAN_0817 §13's "cross-session reference → untrusted".
+    /// → `Untrusted`. `source` names the originating note/session.
+    #[must_use]
+    pub fn cross_session_untrusted(source: &str) -> Self {
+        MemoryProvenance {
+            tier: TrustTier::Untrusted,
+            origin: format!("cross-session:{source}"),
+        }
+    }
+
+    /// Whether this memory's trust is at least `min`.
+    #[must_use]
+    pub fn is_at_least(&self, min: TrustTier) -> bool {
+        self.tier >= min
+    }
+
+    /// Filter a slice, keeping only entries whose trust is at least `min`.
+    #[must_use]
+    pub fn filter_by_min_tier<'a>(
+        items: &'a [MemoryProvenance],
+        min: TrustTier,
+    ) -> Vec<&'a MemoryProvenance> {
+        items.iter().filter(|p| p.is_at_least(min)).collect()
+    }
 }
 
 /// Classify a skill root path into a [`SkillSource`] using the project's own
@@ -224,5 +335,111 @@ mod tests {
         let b = lock_for(&root, &user);
         assert_eq!(a.content_hash, b.content_hash);
         assert_eq!(a.source, b.source);
+    }
+
+    // ---- Memory trust tier model -------------------------------------------
+
+    #[test]
+    fn trust_tier_ordering_is_ladder() {
+        assert!(TrustTier::Untrusted < TrustTier::Observed);
+        assert!(TrustTier::Observed < TrustTier::Inferred);
+        assert!(TrustTier::Inferred < TrustTier::Verified);
+        // Total order across all four.
+        let mut tiers = [
+            TrustTier::Verified,
+            TrustTier::Untrusted,
+            TrustTier::Observed,
+            TrustTier::Inferred,
+        ];
+        tiers.sort();
+        assert_eq!(
+            tiers,
+            [
+                TrustTier::Untrusted,
+                TrustTier::Observed,
+                TrustTier::Inferred,
+                TrustTier::Verified
+            ]
+        );
+    }
+
+    #[test]
+    fn trust_tier_labels() {
+        assert_eq!(TrustTier::Untrusted.label(), "untrusted");
+        assert_eq!(TrustTier::Observed.label(), "observed");
+        assert_eq!(TrustTier::Inferred.label(), "inferred");
+        assert_eq!(TrustTier::Verified.label(), "verified");
+    }
+
+    #[test]
+    fn constructor_helpers_assign_correct_tier() {
+        let obs = MemoryProvenance::from_session("sess-1");
+        assert_eq!(obs.tier, TrustTier::Observed);
+        assert_eq!(obs.origin, "session:sess-1");
+
+        let inf = MemoryProvenance::from_inference("tool:read_file");
+        assert_eq!(inf.tier, TrustTier::Inferred);
+        assert_eq!(inf.origin, "inference:tool:read_file");
+
+        let ver = MemoryProvenance::from_tool_result_verified("tool:run_test");
+        assert_eq!(ver.tier, TrustTier::Verified);
+        assert_eq!(ver.origin, "verified:tool:run_test");
+
+        let un = MemoryProvenance::cross_session_untrusted("note.md");
+        assert_eq!(un.tier, TrustTier::Untrusted);
+        assert_eq!(un.origin, "cross-session:note.md");
+    }
+
+    #[test]
+    fn is_at_least_respects_order() {
+        let obs = MemoryProvenance::from_session("s");
+        assert!(obs.is_at_least(TrustTier::Untrusted));
+        assert!(obs.is_at_least(TrustTier::Observed));
+        assert!(!obs.is_at_least(TrustTier::Inferred));
+        assert!(!obs.is_at_least(TrustTier::Verified));
+
+        let un = MemoryProvenance::cross_session_untrusted("n");
+        assert!(un.is_at_least(TrustTier::Untrusted));
+        assert!(!un.is_at_least(TrustTier::Observed));
+    }
+
+    #[test]
+    fn filter_by_min_tier_keeps_only_threshold() {
+        let items = [
+            MemoryProvenance::cross_session_untrusted("a"),
+            MemoryProvenance::from_session("b"),
+            MemoryProvenance::from_inference("c"),
+            MemoryProvenance::from_tool_result_verified("d"),
+        ];
+        let kept = MemoryProvenance::filter_by_min_tier(&items, TrustTier::Observed);
+        assert_eq!(kept.len(), 3);
+        assert!(kept.iter().all(|p| p.is_at_least(TrustTier::Observed)));
+
+        let only_verified =
+            MemoryProvenance::filter_by_min_tier(&items, TrustTier::Verified);
+        assert_eq!(only_verified.len(), 1);
+        assert_eq!(only_verified[0].tier, TrustTier::Verified);
+
+        // Untrusted threshold keeps everything.
+        let all = MemoryProvenance::filter_by_min_tier(&items, TrustTier::Untrusted);
+        assert_eq!(all.len(), 4);
+    }
+
+    #[test]
+    fn trust_tier_roundtrips_serde() {
+        for t in [
+            TrustTier::Untrusted,
+            TrustTier::Observed,
+            TrustTier::Inferred,
+            TrustTier::Verified,
+        ] {
+            let json = serde_json::to_string(&t).unwrap();
+            let back: TrustTier = serde_json::from_str(&json).unwrap();
+            assert_eq!(t, back);
+        }
+        let prov = MemoryProvenance::from_tool_result_verified("tool:run_test");
+        let json = serde_json::to_string(&prov).unwrap();
+        let back: MemoryProvenance = serde_json::from_str(&json).unwrap();
+        assert_eq!(prov, back);
     }
 }
