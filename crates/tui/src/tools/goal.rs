@@ -1068,7 +1068,7 @@ mod tests {
 
     #[test]
     fn cancel_promotes_next_ready() {
-        let q = queue_with_two();
+        let mut q = queue_with_two();
         q.cancel(1).unwrap();
         assert_eq!(q.active_id(), Some(2), "取消 active 后提升下一个");
     }
@@ -1097,7 +1097,7 @@ mod tests {
 
     #[test]
     fn pause_promotes_next_then_resume_requeues() {
-        let q = queue_with_two();
+        let mut q = queue_with_two();
         q.pause(1).unwrap();
         assert_eq!(q.active_id(), Some(2));
         q.resume(1).unwrap();

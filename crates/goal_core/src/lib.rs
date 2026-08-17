@@ -591,8 +591,8 @@ pub struct GoalQueueSnapshot {
 /// 多目标 goal 队列。
 #[derive(Debug, Clone)]
 pub struct GoalQueue {
-    entries: Vec<GoalEntry>,
-    next_id: u32,
+    pub entries: Vec<GoalEntry>,
+    pub next_id: u32,
     /// 队列层聚合 token 预算护栏（可选）。所有 goal 的 token 消耗累加后与之比较。
     aggregate_token_budget: Option<u64>,
     aggregate_tokens_used: u64,
@@ -1024,7 +1024,7 @@ impl GoalQueue {
     }
 
     /// 净化依赖边：丢弃自引用、未知 id、会成环的边。
-    fn sanitize_dependencies(&self, id: u32, requested: Vec<u32>) -> Vec<u32> {
+    pub fn sanitize_dependencies(&self, id: u32, requested: Vec<u32>) -> Vec<u32> {
         let mut accepted: Vec<u32> = Vec::new();
         for dep in requested {
             if dep == id

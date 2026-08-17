@@ -191,7 +191,8 @@ mod tests {
         // No network / memory access happens for an empty query — validated
         // before any backend open. The execute() branch trims the parsed
         // query and returns an invalid_input error for blank input.
-        let present = required_str(&json!({ "query": "   " }), "query").unwrap();
+        let input = json!({ "query": "   " });
+        let present = required_str(&input, "query").unwrap();
         assert!(present.trim().is_empty(), "blank query must be caught by trim check");
     }
 
