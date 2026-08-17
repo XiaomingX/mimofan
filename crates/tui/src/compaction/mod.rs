@@ -1,5 +1,6 @@
 //! Context compaction for long conversations.
 
+pub mod decision_log;
 pub mod objective;
 
 use anyhow::Result;
