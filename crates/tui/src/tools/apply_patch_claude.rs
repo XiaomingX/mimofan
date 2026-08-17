@@ -391,7 +391,7 @@ impl ToolSpec for ApplyPatchClaudeTool {
     }
 
     fn description(&self) -> &'static str {
-        "Apply a Claude-style `apply_patch` dialect patch: `*** Begin Patch` / `*** Update File:` / `*** Add File:` / `*** Delete File:` / `*** End Patch`, with ` ` context, `+` add, `-` delete line prefixes. Use when the model emits the Claude dialect instead of a unified diff."
+        "Apply a Claude-style `apply_patch` dialect patch. Prefer this dialect for multi-file changes: wrap the whole patch in `*** Begin Patch` ... `*** End Patch`, and use one file block per path — `*** Update File: <path>` (with ` ` context, `+` add, `-` delete line prefixes), `*** Add File: <path>` (new file), or `*** Delete File: <path>`. This Claude dialect coexists with the unified-diff `apply_patch` tool; you may use either, but the Claude dialect is recommended when touching several files at once because it keeps every file in a single tool call."
     }
 
     fn input_schema(&self) -> Value {
