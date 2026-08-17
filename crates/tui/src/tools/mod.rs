@@ -64,6 +64,8 @@ pub mod registry;
 pub mod remember;
 #[cfg(feature = "vector-memory")]
 pub mod remember_vector;
+#[cfg(feature = "vector-memory")]
+pub mod session_search;
 pub mod revert_turn;
 pub mod review;
 pub mod rlm;

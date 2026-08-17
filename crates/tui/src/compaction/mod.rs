@@ -1265,7 +1265,7 @@ async fn compact_messages_inner(
                     drift_retry + 1,
                     MAX_DRIFT_RETRY
                 ));
-                return compact_messages_inner(
+                return Box::pin(compact_messages_inner(
                     client,
                     messages,
                     config,
@@ -1275,7 +1275,7 @@ async fn compact_messages_inner(
                     objective,
                     goal_self_check,
                     drift_retry + 1,
-                )
+                ))
                 .await;
             }
             logging::warn(format!(
