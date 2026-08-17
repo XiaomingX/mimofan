@@ -2,7 +2,7 @@
 
 > 基于第一性原理与领域驱动设计（DDD）的架构分析与改进方案。
 > 本文档如实记录现状，**只写真实存在的待办**，不凑数、不迎合。
-> 最后更新：2026-08-07（本轮修正文档失真：§11 BLOCKER 已解决、§4/§8.3 mcp_server 路径、§4 问题5/Phase D memory 已可选集成；§1–7 为 2026-08-05 存量）
+> 最后更新：2026-08-17（本轮以 `main` 代码为准复核全部事实性声明：§2 crate 数 15→17、§3 godfile 行数与 `ui_event_loop` 目录化/新增 `context_recovery`、§4.1 tui 行数、§8.3 goal.rs/mcp_server 行号均按 `git grep`/`wc -l` 实测刷新；新增 §12 记录 2026-08-16 起已合并 main 的真实新增能力）
 
 > **核对纪律（呼应 issue #727）**：本文档所有 `[x]` 结论均以 `grep`/`cargo check` 亲核代码为准，不采信二手对标清单。
 > 跨文档的对标清单（如 `vs_*.md` 中逐项能力勾选）与本文档视角不同，二者冲突时**以当前 `main` 分支代码为准**；
@@ -30,7 +30,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 | 维度 | 评价 | 为什么好 |
 |------|------|---------|
-| **Crate 依赖图** | ✅ | 15 个 crate 形成严格向下的 DAG，无环。这是 Rust workspace 工程纪律的体现，编译隔离清晰。 |
+| **Crate 依赖图** | ✅ | 17 个 crate 形成严格向下的 DAG，无环。这是 Rust workspace 工程纪律的体现，编译隔离清晰。 |
 | **共享内核（protocol）** | ✅ | `protocol` crate 作为 DTO 层，多入口共享同一套消息/工具类型。典型的 DDD 共享内核模式，避免各上下文重复定义。 |
 | **端口化设计** | ✅ | 22+ 个 trait 端口（`Tool`、`SandboxBackend`、`LlmClient`、`McpBackend`、`Hook` 等），扩展点清晰，符合"依赖倒置"。 |
 | **自研 wire format** | ✅ | 不依赖任何官方 LLM SDK，自己实现 OpenAI/Anthropic 线协议。依赖面小、可控、易换模型。 |
@@ -41,20 +41,22 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ## 3. 已经完成的拆分（[x] 真实状态）
 
-五大 godfile 已在 2026-08-04～05 完成 DDD 战术拆分，并经 `cargo check` + 回归测试验收、合并入 `main`：
+五大 godfile 已在 2026-08-04～05 完成 DDD 战术拆分，并经 `cargo check` + 回归测试验收、合并入 `main`。下表行数为 2026-08-17 以 `wc -l` 实测的当前态（后续迭代会继续增长，仅作快照）：
 
-| 文件 | 原行数 → 现态 | 新增子模块 |
-|------|--------------|-----------|
-| `tui/src/tools/subagent/mod.rs` | 6265 → **2177** | `helpers` / `manager` / `runner` / `parser` / `tool` |
-| `tui/src/tui/ui/mod.rs` | 5133 → **885** | `ui/ui_event_loop.rs`（4259） |
-| `tui/src/tools/shell.rs` | 3172 → **2041** | `tools/shell_tools.rs`（1155） |
-| `tui/src/core/engine.rs` | 3099 → **2782** | `core/engine/engine_messages.rs`（328） |
-| `config/src/lib.rs` | 3193 → **2019** | 14 个配置子模块 |
+| 文件 | 当前行数 | 拆分出的子模块（实测） |
+|------|----------|------------------------|
+| `tui/src/tools/subagent/mod.rs` | **2271** | `helpers` / `manager` / `runner` / `parser` / `tool`（子域） |
+| `tui/src/tui/ui/mod.rs` | **887** | `tui/ui/ui_event_loop/`（目录，4327 行，含 `run_event_loop`） |
+| `tui/src/tools/shell.rs` | **2066** | `tools/shell_tools.rs`（1152） |
+| `tui/src/core/engine.rs` | **3682** | `core/engine/engine_messages.rs`（366） + `core/engine/context_recovery.rs`（199，上下文溢出恢复，本轮新增拆分） |
+| `config/src/lib.rs` | **1788** | 14 个配置子模块 |
+
+> 注：`engine.rs` 行数较拆分后的 2782 回升至 3682，是因为后续在引擎内新增了决策记忆注入、上下文预算路由等能力（见 §12），并非拆分回退；子模块边界仍然清晰。
 
 - [x] 拆分 `subagent/mod.rs` 超大型模块（AgentTool + helpers/manager/runner/parser）
-- [x] 拆分 `tui/ui/mod.rs` 的 `run_event_loop`
+- [x] 拆分 `tui/ui/mod.rs` 的 `run_event_loop`（落地为 `ui_event_loop/` 目录模块）
 - [x] 拆分 `shell.rs` 的 tool 实现
-- [x] 拆分 `engine.rs` 的消息/目标事件 helper
+- [x] 拆分 `engine.rs` 的消息/目标事件 helper + 上下文恢复
 - [x] 拆分 `config/lib.rs` 为领域子模块
 - [x] 验收：`cargo check` 全绿；95 个 lib 测试 + 48 个 tui 回归测试通过
 - [x] 已合并：`PR #567` / `issue #566`
@@ -67,7 +69,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ### 问题 1：tui crate 仍是"大泥球"（最核心）
 
-- **现状**：`tui` crate 约 20 万行，占全仓 85%+。Godfile 拆分后，文件变小了，但**所有子域仍挤在一个 crate 里**，通过 `crate::` 互相直连。
+- **现状**：`tui` crate 约 **25.4 万行**（2026-08-17 实测 `253,716` 行），占全仓约 85%（全仓约 29.9 万行）。Godfile 拆分后，文件变小了，但**所有子域仍挤在一个 crate 里**，通过 `crate::` 互相直连。
 - **DDD 视角**：限界上下文边界缺失。"用户界面""对话运行时""模型网关编排""工具调度""提示词构建""配置加载"本应是不同生命周期、不同模型的子域，现在共享一个编译单元与命名空间。
 - **影响**：编译慢（任一改动重编整个 tui）、耦合高、新人难上手。
 
@@ -297,8 +299,8 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 > 经实施核查，这两项**保持 `std::sync::Mutex` 并加红线性注释**，而非盲目换成 `tokio::sync::Mutex`。原因：守卫在核实后**只在同步代码块内持有、绝不跨 `.await`**，`std` 锁在此场景是**正确且惯用**的选择；若强行换 `tokio::sync::Mutex`，会把 `.lock()` 变成 `.lock().await`，进而迫使 `engine_messages.rs` / `turn_loop.rs` / `goal.rs` 等 10+ 个**同步调用点**改签名、甚至把非 async 函数改成 async——这是高风险、无行为收益的改动，违背"只动底层、奥卡姆剃刀"。红线性注释已把脚枪风险锁死（见下）。
 
-- [x] **goal.rs 的 `std::sync::Mutex`**（`crates/tui/src/tools/goal.rs:27/294`）：保留 `std` Mutex，在 `SharedGoalState` 类型别名与 `lock_goal_state` 处加注释，明确"守卫绝不跨 `.await`；若未来需长持锁整体换 `tokio::sync::Mutex` 并改 10+ 调用点"。当前安全。
-- [x] **mcp_server/mod.rs 的 `std::sync::Mutex<HashMap>`**（`crates/tui/src/mcp_server/mod.rs:90/385/436`）：`handle_api_call` 是同步 `fn`，锁在同步段内、已做中毒恢复（`unwrap_or_else(|e| e.into_inner())`）。文件顶部 `threads` 字段已有红线性注释明确"守卫绝不跨 `.await`"。保留 `std` Mutex，当前安全。
+- [x] **goal.rs 的 `std::sync::Mutex`**（`crates/tui/src/tools/goal.rs:29/481/1051`，2026-08-17 复核行号）：保留 `std` Mutex，在 `SharedGoalState` 类型别名与 `lock_goal_state` 处加注释，明确"守卫绝不跨 `.await`；若未来需长持锁整体换 `tokio::sync::Mutex` 并改 10+ 调用点"。当前安全。
+- [x] **mcp_server/mod.rs 的 `std::sync::Mutex<HashMap>`**（`crates/tui/src/mcp_server/mod.rs:90/132`，2026-08-17 复核行号）：`handle_api_call` 是同步 `fn`，锁在同步段内、已做中毒恢复（`unwrap_or_else(|e| e.into_inner())`）。文件顶部 `threads` 字段已有红线性注释明确"守卫绝不跨 `.await`"。保留 `std` Mutex，当前安全。
 
 ### 8.4 内存增长防护（已做，不动）
 
@@ -370,3 +372,46 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 
 > 注：本文档刻意**不列**任何"可有可无"的待办。若某子域当前已符合最佳实践，就标记完成或明确不做，而不是硬凑 TODO。
+
+---
+
+## 12. 代码演进记录（2026-08-16 起已合并 `main` 的真实新增能力）
+
+> 本节如实记录 2026-08-16 之后已并入 `main` 的代码新增，**不是待办**（均标 `[x]`）。这些改动超出了原 §6「不新增功能、只做存量优化」的范围——实际开发已向前演进，故按「以代码为准」纪律补录，避免文档与代码再次脱节。所有声明经 `wc -l` / `git grep` 复核（2026-08-17）。
+
+### 12.1 漏洞挖掘：跨过程污点分析（已合并）
+
+- [x] **新增 `crates/staticanalysis/src/interproc.rs`（398 行）**：过程间污点求解器 `analyze_interprocedural`，在 `taint.rs` 单过程分析之上做跨函数传播——从"产生 source 的函数"派生返回污点摘要，经调用图 worklist 不动点迭代跨文件传播，并通过 `ret_seed` 回注到各编译单元求解。补齐了此前单过程分析无法覆盖的跨文件污染链。
+  - 配套改动：`taint.rs` 新增 `analyze_with_seed`（接受 arg/ret 污点种子）；`callgraph.rs` 新增 `add_function`/`add_call`（可编程构图）；`lib.rs` 新增 `pub mod interproc`。
+  - 单元测试：`interproc.rs` 内 `intra_file_source_reaches_sink` / `cross_file_source_reaches_sink` 均通过。
+  - 边界：语义召回质量属 `crates/memory` experimental 范畴之外，本求解器是**确定性静态分析**，不依赖向量库。
+
+### 12.2 长程任务一致性：压缩目标持久化（已合并）
+
+- [x] **`crates/tui/src/compaction/mod.rs::objective_persistent_section`**：把任务目标作为独立常驻段写入每次压缩摘要（无论是否检测到漂移），使会话经历多次压缩后目标不丢失、不漂移。`compact_messages` 现在**始终**追加 `## 🎯 Task Objective (Persistent)`。
+  - 单元测试：`objective_persists_as_standalone_section_even_when_summary_drifts` 覆盖。
+
+### 12.3 性能：子任务 JoinHandle 及时销毁（已合并）
+
+- [x] **`crates/tui/src/tools/subagent/runtime.rs`**：`unregister` 在移除前 `abort()` 派生的 `JoinHandle`；新增 `Drop for SubAgentRuntimeHandle`（`drop` 内 `abort()`），杜绝子任务结束后 `JoinHandle` 长期驻留导致的内存泄漏。
+  - 单元测试：`unregister_aborts_running_task` 覆盖。
+
+### 12.4 记忆：结构化决策层（已合并，brain.md 借鉴）
+
+- [x] **`crates/tui/src/memory.rs` 新增 `decisions.md` 决策页**：`DecisionEntry` / `DecisionEvent`（Decision｜Revision｜Reversal），原子整文件写；`decision_create` / `decision_revise` / `decision_reverse` / `read_decisions`。revision/reversal 追加到不可变审计轨迹，reversal 保留条目（不静默丢失）。借鉴 brain.md 的 `compiled_truth`+`timeline`，但**不替换**更强的向量记忆层。
+- [x] **`crates/tui/src/tools/remember.rs` 新增 `decide` / `revise` / `reverse` 动作**，与原有 `add` / `forget` / `update` 并存；旧动作完全保留。
+- [x] **`crates/tui/src/core/engine.rs` 会话启动注入**：`refresh_system_prompt` 内 `compose_decision_block` 把最近 8 条决策注入 system prompt（brain.md SessionStart 思路），纯文件读取、无 embedding 调用、记忆禁用或空时 no-op 降级。
+  - 测试：memory.rs 5 个决策测试 + remember.rs 4 个动作测试通过；`cargo check -p mimofan` 零警告。
+
+### 12.5 本轮事实修正小结（相对本文档 2026-08-07 版）
+
+| 声明 | 原值 | 2026-08-17 实测 |
+|------|------|----------------|
+| crate 数量（§2） | 15 | **17** |
+| tui crate 行数（§4.1） | 约 20 万 | **253,716**（全仓 298,591，占 ~85%） |
+| `engine.rs` 行数（§3） | 2782（拆分后） | **3682**（含新增注入/路由能力，子模块边界仍清晰） |
+| `ui_event_loop`（§3） | `ui_event_loop.rs` 4259 行 | **`ui_event_loop/` 目录 4327 行**（模块化，非单文件） |
+| `goal.rs` Mutex 行号（§8.3） | 27/294 | **29/481/1051** |
+| `mcp_server` Mutex 行号（§8.3） | 90/385/436 | **90/132** |
+
+> 结论：原文档的 DDD 边界分析（§4 七问、Phase A–D 澄清结论）仍成立，未因新增能力推翻；本轮主要是**事实数字刷新** + **记录已合并的新增能力**，未引入新的待办 TODO。
