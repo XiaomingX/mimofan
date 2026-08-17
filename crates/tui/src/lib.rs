@@ -110,6 +110,8 @@ pub mod research_ethics;
 mod resource_telemetry;
 mod retry_status;
 pub mod reviewer;
+/// Tower 式 merge gate（合回主干前校验 scope 越界 + review）。
+pub mod worktree_gate;
 pub mod rlm;
 mod route_budget;
 mod route_runtime;
