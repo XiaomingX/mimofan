@@ -1,0 +1,12 @@
+[package]
+name = "mimofan-edit-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Editor correctness logic (anchor/byte-range lookup, fuzzy match, read-before-write coverage) decoupled from FS and tooling so it can be unit-tested in isolation."
+
+[lints]
+workspace = true
+
+[dependencies]

@@ -3,6 +3,12 @@
 //! These tools provide safe file system operations within the workspace,
 //! with path validation to prevent escaping the workspace boundary.
 
+use mimofan_edit_core::{
+    find_all_lines_by_anchor, find_line_by_anchor, leading_whitespace_fuzzy_matches,
+    line_content_hash, line_span_for_byte_range, match_byte_ranges,
+    punctuation_normalized_matches,
+};
+
 use super::diff_format::make_unified_diff;
 use super::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
@@ -75,91 +81,6 @@ impl FileFidelity {
         }
         out
     }
-}
-
-/// Map a byte range within `contents` to the 1-based inclusive line numbers
-/// it spans, so read-coverage can be checked against what `read_file` showed.
-fn line_span_for_byte_range(contents: &str, start: usize, end: usize) -> (usize, usize) {
-    let start = start.min(contents.len());
-    let end = end.clamp(start, contents.len());
-    let first = contents[..start].matches('\n').count() + 1;
-    // A range ending exactly at a newline covers only the lines before it.
-    let inner = contents[start..end].trim_end_matches('\n');
-    let last = first + inner.matches('\n').count();
-    (first, last)
-}
-
-/// Byte ranges of every non-overlapping occurrence of `needle` in `haystack`.
-fn match_byte_ranges(haystack: &str, needle: &str) -> Vec<(usize, usize)> {
-    if needle.is_empty() {
-        return Vec::new();
-    }
-    haystack
-        .match_indices(needle)
-        .map(|(idx, m)| (idx, idx + m.len()))
-        .collect()
-}
-
-/// Compute a short content hash for a line (6 hex chars).
-/// Based on trimmed line content (without leading whitespace) for stability
-/// across indentation changes.
-fn line_content_hash(line: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    line.trim_start().hash(&mut hasher);
-    format!("{:06x}", hasher.finish() & 0xFFFFFF)
-}
-
-/// Find a line by its content anchor hash.
-/// Returns (line_start_byte, line_end_byte) including the newline.
-/// The search is performed on trimmed content (without leading whitespace).
-fn find_line_by_anchor(contents: &str, anchor: &str) -> Option<(usize, usize)> {
-    let mut byte_pos = 0;
-    for line in contents.lines() {
-        let line_len = line.len();
-        let line_end = byte_pos + line_len;
-        let hash = line_content_hash(line);
-        if hash == anchor {
-            // Include the newline in the range if present
-            let end = if line_end < contents.len() && contents.as_bytes()[line_end] == b'\n' {
-                line_end + 1
-            } else {
-                line_end
-            };
-            return Some((byte_pos, end));
-        }
-        // Skip the newline
-        byte_pos = if line_end < contents.len() {
-            line_end + 1
-        } else {
-            line_end
-        };
-    }
-    None
-}
-
-/// Find all lines matching a content anchor hash.
-fn find_all_lines_by_anchor(contents: &str, anchor: &str) -> Vec<(usize, usize)> {
-    let mut results = Vec::new();
-    let mut byte_pos = 0;
-    for line in contents.lines() {
-        let line_len = line.len();
-        let line_end = byte_pos + line_len;
-        let hash = line_content_hash(line);
-        if hash == anchor {
-            let end = if line_end < contents.len() && contents.as_bytes()[line_end] == b'\n' {
-                line_end + 1
-            } else {
-                line_end
-            };
-            results.push((byte_pos, end));
-        }
-        byte_pos = if line_end < contents.len() {
-            line_end + 1
-        } else {
-            line_end
-        };
-    }
-    results
 }
 
 // === ReadFileTool ===
@@ -1019,125 +940,6 @@ impl ToolSpec for EditFileTool {
 
         Ok(ToolResult::success(full_body))
     }
-}
-
-fn strip_line_leading_whitespace_with_map(input: &str) -> (String, Vec<usize>) {
-    let mut normalized = String::with_capacity(input.len());
-    let mut byte_map = Vec::with_capacity(input.len());
-    let mut at_line_start = true;
-    for (idx, ch) in input.char_indices() {
-        if at_line_start && matches!(ch, ' ' | '\t') {
-            continue;
-        }
-        normalized.push(ch);
-        for _ in 0..ch.len_utf8() {
-            byte_map.push(idx);
-        }
-        at_line_start = ch == '\n';
-    }
-    (normalized, byte_map)
-}
-
-fn line_start_before(input: &str, idx: usize) -> usize {
-    input[..idx]
-        .rfind('\n')
-        .map_or(0, |newline| newline.saturating_add(1))
-}
-
-fn leading_whitespace_fuzzy_matches(contents: &str, search: &str) -> Vec<(usize, usize)> {
-    let (normalized_contents, byte_map) = strip_line_leading_whitespace_with_map(contents);
-    let (normalized_search, _) = strip_line_leading_whitespace_with_map(search);
-    if normalized_search.is_empty() {
-        return Vec::new();
-    }
-
-    let mut matches = Vec::new();
-    let mut cursor = 0;
-    while let Some(rel_idx) = normalized_contents[cursor..].find(&normalized_search) {
-        let norm_start = cursor + rel_idx;
-        let norm_end = norm_start + normalized_search.len();
-        let Some(&mapped_start) = byte_map.get(norm_start) else {
-            break;
-        };
-        // Use the actual match start position, expanding to line start only
-        // when the match begins at a line boundary in the normalized text.
-        // This prevents destroying preceding text on the same line when
-        // the match starts mid-line after whitespace stripping.
-        let original_start =
-            if norm_start == 0 || normalized_contents.as_bytes()[norm_start - 1] == b'\n' {
-                // Match starts at a line boundary — use line start for full-line replacement.
-                line_start_before(contents, mapped_start)
-            } else {
-                // Match starts mid-line — use the exact mapped position.
-                mapped_start
-            };
-        let original_end = byte_map.get(norm_end).copied().unwrap_or(contents.len());
-        matches.push((original_start, original_end));
-        cursor = norm_start.saturating_add(1);
-    }
-    matches
-}
-
-/// Normalize typographic punctuation to its ASCII counterpart:
-///
-/// * `"` `"` / U+201C U+201D → `"`
-/// * `'` `'` / U+2018 U+2019 → `'`
-/// * `–` `—` / U+2013 U+2014 → `-`
-/// * U+00A0 (non-breaking space) → ASCII space
-///
-/// Returns the normalized string plus a byte-map sized to
-/// `normalized.len()` whose i-th entry is the original byte offset of
-/// the character that produced normalized byte i. Used to recover the
-/// original-byte range after finding a match in normalized space.
-fn punctuation_normalized_with_map(input: &str) -> (String, Vec<usize>) {
-    let mut normalized = String::with_capacity(input.len());
-    let mut byte_map = Vec::with_capacity(input.len());
-    for (idx, ch) in input.char_indices() {
-        let replacement: Option<char> = match ch {
-            '\u{201C}' | '\u{201D}' => Some('"'),
-            '\u{2018}' | '\u{2019}' => Some('\''),
-            '\u{2013}' | '\u{2014}' => Some('-'),
-            '\u{00A0}' => Some(' '),
-            _ => None,
-        };
-        let written = replacement.unwrap_or(ch);
-        normalized.push(written);
-        for _ in 0..written.len_utf8() {
-            byte_map.push(idx);
-        }
-    }
-    (normalized, byte_map)
-}
-
-/// Try to find `search` inside `contents` after normalizing typographic
-/// punctuation in both. Catches the copy-paste failure mode where a
-/// browser, word processor, or chat client silently converted ASCII
-/// quotes/dashes to their Unicode "pretty" forms.
-fn punctuation_normalized_matches(contents: &str, search: &str) -> Vec<(usize, usize)> {
-    let (norm_contents, byte_map) = punctuation_normalized_with_map(contents);
-    let (norm_search, _) = punctuation_normalized_with_map(search);
-    if norm_search.is_empty() {
-        return Vec::new();
-    }
-    // If normalization didn't change anything, the exact-match pass
-    // already considered this case — skip to avoid double-reporting.
-    if norm_contents == contents && norm_search == search {
-        return Vec::new();
-    }
-
-    let mut matches = Vec::new();
-    let mut cursor = 0;
-    while let Some(rel_idx) = norm_contents[cursor..].find(&norm_search) {
-        let norm_start = cursor + rel_idx;
-        let norm_end = norm_start + norm_search.len();
-        let Some(&original_start) = byte_map.get(norm_start) else {
-            break;
-        };
-        let original_end = byte_map.get(norm_end).copied().unwrap_or(contents.len());
-        matches.push((original_start, original_end));
-        cursor = norm_start.saturating_add(1);
-    }
-    matches
 }
 
 // === ListDirTool ===

@@ -21,6 +21,11 @@ use uuid::Uuid;
 
 use mimofan_protocol::{ThreadRequest, ThreadResponse};
 
+use mimofan_edit_core::{
+    FileIdentity as EditCoreFileIdentity, ReadCheck, ReadState, require_fresh_read,
+    require_read_coverage,
+};
+
 use crate::artifacts::ArtifactRecord;
 use crate::features::Features;
 use crate::lsp::LspManager;
@@ -896,17 +901,12 @@ impl ToolContext {
         path: &Path,
         requested_path: &str,
     ) -> Result<(), ToolError> {
-        let prior = {
-            let tracker = self.file_read_tracker.lock().map_err(|_| {
-                ToolError::execution_failed(
-                    "Failed to check read-before-edit state: tracker lock poisoned".to_string(),
-                )
-            })?;
-            tracker.reads.get(path).cloned()
-        };
-
-        let Some(prior) = prior else {
-            return Err(prior_read_error(
+        // Pure read-before-write decision now lives in `mimofan_edit_core`;
+        // `ToolContext` implements `ReadState` over its shared tracker.
+        let check = require_fresh_read(self, path);
+        match check {
+            ReadCheck::Ok => Ok(()),
+            ReadCheck::NeverRead => Err(prior_read_error(
                 PriorReadViolation::NeverRead,
                 tool,
                 path,
@@ -917,25 +917,19 @@ impl ToolContext {
                      then retry {tool}.",
                     path.display()
                 ),
-            ));
-        };
-
-        let current = file_identity(path).map_err(|e| {
-            prior_read_error(
+            )),
+            ReadCheck::Unverifiable => Err(prior_read_error(
                 PriorReadViolation::Unverifiable,
                 tool,
                 path,
                 requested_path,
                 &format!(
-                    "Refusing {tool} for {} because the file could not be checked for staleness ({e}). \
+                    "Refusing {tool} for {} because the file could not be checked for staleness. \
                      Recovery: call read_file with path=\"{requested_path}\" again, then retry {tool}.",
                     path.display()
                 ),
-            )
-        })?;
-
-        if current != prior.identity {
-            return Err(prior_read_error(
+            )),
+            ReadCheck::Stale => Err(prior_read_error(
                 PriorReadViolation::Stale,
                 tool,
                 path,
@@ -945,10 +939,11 @@ impl ToolContext {
                      Recovery: call read_file with path=\"{requested_path}\" again and retry with the current contents.",
                     path.display()
                 ),
-            ));
+            )),
+            // Coverage failures are reported by `require_read_coverage`; a
+            // freshness pass never returns `UnreadLines`.
+            ReadCheck::UnreadLines => Ok(()),
         }
-
-        Ok(())
     }
 
     /// Require that the lines being edited were actually observed by a prior
@@ -964,21 +959,12 @@ impl ToolContext {
         start: usize,
         end: usize,
     ) -> Result<(), ToolError> {
-        let prior = {
-            let tracker = self.file_read_tracker.lock().map_err(|_| {
-                ToolError::execution_failed(
-                    "Failed to check read-before-edit state: tracker lock poisoned".to_string(),
-                )
-            })?;
-            tracker.reads.get(path).cloned()
-        };
-
-        // Absence is handled by `require_fresh_file_read`; don't double-report.
-        let Some(prior) = prior else {
-            return Ok(());
-        };
-
-        if prior.covers(start, end) {
+        // Pure coverage decision lives in `mimofan_edit_core`. Absence is
+        // owned by the freshness check, so `require_read_coverage` returns
+        // `ReadCheck::Ok` for never-read files and only reports `UnreadLines`
+        // when a prior read did not cover the target range.
+        let check = require_read_coverage(self, path, start, end);
+        if check == ReadCheck::Ok {
             return Ok(());
         }
 
@@ -989,7 +975,18 @@ impl ToolContext {
         };
         let span = end.saturating_sub(start).saturating_add(1);
         let suggested_max = span.max(50);
-        let observed = prior.describe_observed();
+        let observed = {
+            let tracker = self.file_read_tracker.lock().map_err(|_| {
+                ToolError::execution_failed(
+                    "Failed to check read-before-edit state: tracker lock poisoned".to_string(),
+                )
+            })?;
+            tracker
+                .reads
+                .get(path)
+                .map(|s| s.describe_observed())
+                .unwrap_or_else(|| "no lines".to_string())
+        };
         Err(prior_read_error_with(
             PriorReadViolation::UnreadLines,
             "edit_file",
@@ -1010,12 +1007,59 @@ impl ToolContext {
             ],
         ))
     }
+}
 
-    /// Resolve a path relative to workspace, validating it doesn't escape.
-    ///
-    /// This handles both existing files (using canonicalize) and non-existent files
-    /// (for write operations) by canonicalizing the parent directory and appending
-    /// the filename.
+/// Convert the internal on-disk `FileIdentity` into the dependency-free
+/// [`EditCoreFileIdentity`] used by `mimofan_edit_core`'s read-before-write
+/// checks. `modified` degrades to `None` and the byte hash to its hex form
+/// so edit_core stays free of `SystemTime`/`sha2`.
+fn to_edit_core_identity(id: &FileIdentity) -> EditCoreFileIdentity {
+        EditCoreFileIdentity {
+            len: id.len,
+            modified: id.modified.and_then(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .ok()
+                    .map(|d| d.as_secs())
+            }),
+            content_hash: id.content_hash.map(|h| {
+                h.iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>()
+            }),
+        }
+    }
+
+impl ReadState for ToolContext {
+    fn current_identity(&self, path: &Path) -> Option<EditCoreFileIdentity> {
+        file_identity(path)
+            .ok()
+            .as_ref()
+            .map(to_edit_core_identity)
+    }
+
+    fn prior_identity(&self, path: &Path) -> Option<EditCoreFileIdentity> {
+        let tracker = self.file_read_tracker.lock().ok()?;
+        tracker.reads.get(path).map(|s| to_edit_core_identity(&s.identity))
+    }
+
+    fn covers(&self, path: &Path, start: usize, end: usize) -> bool {
+        let tracker = match self.file_read_tracker.lock() {
+            Ok(t) => t,
+            Err(_) => return false,
+        };
+        match tracker.reads.get(path) {
+            Some(snapshot) => snapshot.covers(start, end),
+            None => false,
+        }
+    }
+}
+
+/// Resolve a path relative to workspace, validating it doesn't escape.
+///
+/// This handles both existing files (using canonicalize) and non-existent files
+/// (for write operations) by canonicalizing the parent directory and appending
+/// the filename.
+impl ToolContext {
     /// Resolve a path relative to workspace, validating it doesn't escape.
     ///
     /// # Examples

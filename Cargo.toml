@@ -4,6 +4,7 @@ members = [
     "crates/app-server",
     "crates/config",
     "crates/core",
+    "crates/edit_core",
     "crates/execpolicy",
     "crates/hooks",
     "crates/localization",
