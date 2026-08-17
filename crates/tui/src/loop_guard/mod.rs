@@ -879,6 +879,20 @@ mod tests {
         }
     }
 
+    /// A tool call that genuinely made progress (distinct output, `progress =
+    /// true`). Used by the periodic-nudge cadence tests: a progressing call
+    /// must never trip the NoProgress detector, so the scheduled memory/skill
+    /// reminder is the only thing that can fire on its cadence.
+    fn progressing<'a>(name: &'a str, args: &'a serde_json::Value) -> ToolObservation<'a> {
+        ToolObservation {
+            name,
+            args,
+            success: true,
+            output: "applied",
+            progress: true,
+        }
+    }
+
     fn guard() -> LoopGuard {
         // Loop-detection tests need the guard enabled. The *production* default
         // is `enabled: false` (see `LoopGuardConfig::default`); these tests
@@ -1048,6 +1062,9 @@ mod tests {
     #[test]
     fn cold_start_window_suppresses_detection() {
         let mut guard = LoopGuard::new(LoopGuardConfig {
+            // Loop detection must be opted in explicitly; the production
+            // default is `enabled: false`.
+            enabled: true,
             // Warmup deliberately longer than the repeat threshold so a loop
             // that would otherwise fire is provably suppressed.
             warmup_calls: 6,
@@ -1480,28 +1497,30 @@ mod tests {
             nudge_every_n: 5,
             ..LoopGuardConfig::default()
         });
-        // Calls 1..=4 stay silent; call 5 hits the cadence.
+        // Calls 1..=4 stay silent; call 5 hits the cadence. Progressing calls
+        // (distinct output) keep the NoProgress detector silent so the only
+        // thing that can fire on this cadence is the scheduled reminder.
         for index in 1..=4 {
             assert_eq!(
-                guard.observe(&stalled("read_file", &json!({ "p": index }))),
+                guard.observe(&progressing("read_file", &json!({ "p": index }))),
                 None,
                 "call {index} must not trigger the periodic nudge yet"
             );
         }
         let first = guard
-            .observe(&stalled("read_file", &json!({ "p": 5 })))
+            .observe(&progressing("read_file", &json!({ "p": 5 })))
             .expect("call 5 must trigger the periodic nudge");
         assert_eq!(first.pattern, LoopPattern::MemorySkill);
         assert!(first.nudge.contains("memory"));
         // Counter continues; call 10 is the next checkpoint, with Skill copy.
         for index in 6..=9 {
             assert_eq!(
-                guard.observe(&stalled("read_file", &json!({ "p": index }))),
+                guard.observe(&progressing("read_file", &json!({ "p": index }))),
                 None
             );
         }
         let second = guard
-            .observe(&stalled("read_file", &json!({ "p": 10 })))
+            .observe(&progressing("read_file", &json!({ "p": 10 })))
             .expect("call 10 must trigger the next periodic nudge");
         assert_eq!(second.pattern, LoopPattern::MemorySkill);
         assert!(second.nudge.contains("skill"));
@@ -1518,9 +1537,9 @@ mod tests {
             nudge_every_n: 10,
             ..LoopGuardConfig::default()
         });
-        // 7 calls in the first session.
+        // 7 progressing calls in the first session (NoProgress stays silent).
         for index in 0..7 {
-            let _ = guard.observe(&stalled("read_file", &json!({ "p": index })));
+            let _ = guard.observe(&progressing("read_file", &json!({ "p": index })));
         }
         assert_eq!(guard.turn_counter(), 7);
         // Persist and restore into a fresh guard (process restart).
@@ -1534,12 +1553,12 @@ mod tests {
         assert_eq!(restored.turn_counter(), 0, "fresh guard starts at 0");
         restored.restore_state(&state);
         assert_eq!(restored.turn_counter(), 7, "counter must carry over");
-        // 3 more calls => 10th overall => nudge fires, not at 10th of new guard.
-        for index in 7..=9 {
-            let _ = restored.observe(&stalled("read_file", &json!({ "p": index })));
+        // 2 more calls => turn_counter 8, 9; the 3rd (global call 10) fires.
+        for index in 7..=8 {
+            let _ = restored.observe(&progressing("read_file", &json!({ "p": index })));
         }
         let nudge = restored
-            .observe(&stalled("read_file", &json!({ "p": 10 })))
+            .observe(&progressing("read_file", &json!({ "p": 9 })))
             .expect("nudge must fire at global call 10, continuing the counter");
         assert_eq!(nudge.pattern, LoopPattern::MemorySkill);
     }
