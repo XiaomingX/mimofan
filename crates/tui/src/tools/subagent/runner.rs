@@ -1,5 +1,51 @@
 use super::*;
 
+/// Maximum number of *whole-run* retries for a sub-agent when it dies with a
+/// transient (non-deterministic) error. This is a best-effort safety net on top
+/// of the per-step API retry inside `request_subagent_model_response_with_retries`:
+/// if a run still fails fatally after those internal retries, we re-dispatch the
+/// whole sub-agent a couple of times before giving up. Deterministic logic
+/// errors (bad args, permission denied, truncation) are *never* retried.
+const SUBAGENT_MAX_RETRIES: u32 = 2;
+
+/// Best-effort backoff between whole-run retries. Deliberately tiny: transient
+/// failures (rate limits, network blips) usually clear within milliseconds, and
+/// we must not stall a long-horizon task behind a long sleep.
+const SUBAGENT_RETRY_BACKOFF: Duration = Duration::from_millis(200);
+
+/// Classify an error message as a transient / non-deterministic failure that is
+/// worth retrying. Conservative keyword match only — we intentionally do NOT
+/// retry truncation, permission denied, bad arguments, or other deterministic
+/// logic errors, since retrying those would loop forever on the same failure.
+#[must_use]
+fn is_transient_error(msg: &str) -> bool {
+    let m = msg.to_ascii_lowercase();
+    [
+        "timeout",
+        "timed out",
+        "rate limit",
+        "429",
+        "503",
+        "502",
+        "504",
+        "network",
+        "connection",
+        "temporarily",
+        "service unavailable",
+        "bad gateway",
+        "gateway timeout",
+        "deadline has elapsed",
+        "connection reset",
+        "connection closed",
+        "connection aborted",
+        "did not receive response headers",
+        "request timed out",
+        "operation timed out",
+    ]
+    .iter()
+    .any(|needle| m.contains(needle))
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_subagent(
     runtime: &SubAgentRuntime,
@@ -13,7 +59,7 @@ pub(crate) async fn run_subagent(
     started_at: Instant,
     max_steps: u32,
     token_budget: Option<u64>,
-    mut input_rx: mpsc::UnboundedReceiver<SubAgentInput>,
+    initial_input_rx: mpsc::UnboundedReceiver<SubAgentInput>,
     custom_agent_def: Option<custom_agents::CustomAgentDef>,
 ) -> Result<SubAgentResult> {
     let system_prompt =
@@ -73,6 +119,27 @@ pub(crate) async fn run_subagent(
         &agent_id,
         format!("started ({})", agent_type.as_str()),
     );
+
+    // Whole-run retry loop. Each iteration re-dispatches the *entire* sub-agent
+    // run. A retry is only attempted when the run failed with a transient error
+    // (see `is_transient_error`) and we have not exhausted `SUBAGENT_MAX_RETRIES`.
+    // The per-step `max_steps` budget is untouched — a retry is a separate,
+    // bounded compensation, not an extra step. Deterministic failures fall
+    // straight through to `return Err`. The loop is always finite.
+    let mut attempt: u32 = 0;
+    // The original input receiver can only be consumed once (on the first
+    // attempt). Wrap it so retries get a fresh empty receiver instead.
+    let mut initial_input_rx = Some(initial_input_rx);
+    'run_attempt: loop {
+        attempt = attempt.saturating_add(1);
+        // Best-effort state reset: rebuild a fresh input receiver so a retried
+        // run does not get stuck on a half-drained queue. Deliberately empty —
+        // transient fatalities are expected before meaningful progress, and the
+        // parent can re-dispatch any pending input.
+        let mut input_rx = match initial_input_rx.take() {
+            Some(rx) => rx,
+            None => mpsc::unbounded_channel().1,
+        };
 
     let mut steps = 0;
     let mut final_result: Option<String> = None;
@@ -275,7 +342,26 @@ pub(crate) async fn run_subagent(
             ) => {
                 match api {
                     Ok(response) => response,
-                    Err(SubAgentApiRequestFailure::Fatal(err)) => return Err(err),
+                    Err(SubAgentApiRequestFailure::Fatal(err)) => {
+                        // Whole-run retry for transient failures only. If the
+                        // error is transient and we have retries left, re-dispatch
+                        // the entire run via the outer loop; otherwise surface the
+                        // fatal error unchanged (deterministic failures, e.g. bad
+                        // args / permission denied / truncation, are never retried).
+                        if is_transient_error(&err.to_string()) && attempt <= SUBAGENT_MAX_RETRIES {
+                            record_agent_progress(
+                                runtime,
+                                &agent_id,
+                                format!(
+                                    "transient run failure; retrying whole sub-agent {}/{} ({err})",
+                                    attempt, SUBAGENT_MAX_RETRIES
+                                ),
+                            );
+                            tokio::time::sleep(SUBAGENT_RETRY_BACKOFF).await;
+                            continue 'run_attempt;
+                        }
+                        return Err(err);
+                    }
                     Err(SubAgentApiRequestFailure::Interrupted { reason, checkpoint_reason }) => {
                         let checkpoint = checkpoint_subagent_progress(
                             runtime,
@@ -863,7 +949,7 @@ pub(crate) async fn run_subagent(
     )
     .await;
 
-    Ok(SubAgentResult {
+    return Ok(SubAgentResult {
         name: agent_id.clone(),
         agent_id,
         context_mode: if fork_context_enabled {
@@ -889,5 +975,37 @@ pub(crate) async fn run_subagent(
         needs_input: None,
         duration_ms,
         from_prior_session: false,
-    })
+    });
+    } // end 'run_attempt retry loop
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transient_error_keywords_are_detected() {
+        // Network / timeout / rate-limit / 5xx signals must be retried.
+        assert!(is_transient_error("request timed out after 30000ms"));
+        assert!(is_transient_error("Error: Tool read_file timed out"));
+        assert!(is_transient_error("rate limit exceeded, retry later"));
+        assert!(is_transient_error("HTTP 503 Service Unavailable"));
+        assert!(is_transient_error("HTTP 429 Too Many Requests"));
+        assert!(is_transient_error("connection reset by peer"));
+        assert!(is_transient_error("network unreachable"));
+        assert!(is_transient_error("service temporarily unavailable"));
+        // Mixed-case must still match.
+        assert!(is_transient_error("Deadline Has Elapsed"));
+    }
+
+    #[test]
+    fn deterministic_errors_are_not_transient() {
+        // Deterministic logic errors must NEVER be retried.
+        assert!(!is_transient_error("permission denied"));
+        assert!(!is_transient_error("invalid tool arguments"));
+        assert!(!is_transient_error("Sub-agent requested unavailable tools: edit"));
+        assert!(!is_transient_error("response truncated; context length exceeded"));
+        assert!(!is_transient_error("user cancelled the operation"));
+        assert!(!is_transient_error(""));
+    }
 }
