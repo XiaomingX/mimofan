@@ -154,3 +154,57 @@
 2. **P1（竞品对标缺口）**：技能自生产工具 + Curator 四态流转、语义代码索引、LLM 流协议 invariants、双 hook 方言桥、跨会话引用 untrusted 标注
 3. **P2（工程）**：engine.rs/turn_loop.rs 拆分（godfile）、embedding 内容哈希缓存、大输出零拷贝、session_fts 按需重建、CI 依赖图检查
 4. **观察/可选**：TUI 侧信道（BTW）、Arena 多模型对战、Notebook 工具、vision bridge、网络出站白名单
+
+---
+
+## 十三、新提交 my-plan.md / mimofan_upgrade.md 需求实证核实（追加，2026-08-17）
+
+> 本节对最新提交的 9 域 my-plan.md 与 mimofan_upgrade.md（P0–P3）逐条实证核实，标记 `[x]` 已实现 / `[ ]` 缺失 / `[部分]` 部分实现。核实基于磁盘代码与 Explore agent 调研，非报告自称。
+
+### 域1 · Bug 修复
+- [x] file.rs 读覆盖 / TOCTOU / BOM-CRLF / replace_all（上一轮已核，均在）
+- [x] 统一编译通过、零崩溃（本轮 cargo build 绿）
+
+### 域2 · 长期记忆
+- [部分] 统一记忆入口：memory.rs / remember.rs / remember_vector.rs / vector_memory 均存在，但无统一门面 facade（调用方分散）
+- [部分] provenance 四级信任：skills/provenance.rs 有 ProvenanceLock，但缺四级 memory trust 模型
+- [ ] Dreaming 三阶段：仅有单阶段 consolidation.rs:291 整合，无「抽取→整合→抽象」三阶段
+- [x] 向量记忆持久化：vector_memory 已落地
+
+### 域3 · 复杂任务规划
+- [x] Goal 七工具 + spec freeze：goal.rs 已实现 8–9 个工具（含 TodoStatus::Degraded 降级）
+- [部分] active→paused 崩溃降级：Paused 状态存在，但崩溃自动降级接线缺失
+
+### 域4 · 多 Agent 协同
+- [部分] Agent Manager / Arena / Team：SubAgentManager + fleet 存在；Arena 多模型对战、Team 领导角色缺失
+- [x] 子 agent 只读查看器：tui/views/subagent_viewer.rs（本轮 B2）
+
+### 域5 · 长程压缩
+- [x] 压缩校验闭环 + 目标自检 nudge：compaction/mod.rs + objective.rs（本轮 A3/A4）
+- [部分] 决策事件流 decision log 独立压缩：尚未独立成模块（P0 待办）
+
+### 域6 · 性能
+- [x] 工具 schema 频率排序：registry.rs / tool_catalog.rs（本轮 D1）
+- [x] 空闲卸载句柄：runtime/idle_drop.rs + lsp/mod.rs（本轮 D2）
+
+### 域7 · 资源
+- [x] 成本 nudge 接 TUI：cost_budget.rs + app/impl_core.rs:963（已实现）
+- [ ] VFS 乐观锁 / TOCTOU：vfs.rs 仅 std::fs::write，缺 writeIfUnchanged / StaleContentError
+
+### 域8 · 模块化 godfile
+- [x] godfile CI 红线：.github/workflows/godfile-lines.yml（本轮 D3）
+- [x] goal-core 外提：crates/goal_core（本轮 D3）
+- [x] edit-core 外提：crates/edit_core（本轮 C2）
+- [ ] engine.rs（实测 3765 行）/ turn_loop.rs（3640 行）主体拆分：未做
+- 实测大文件行数：engine.rs=3765, turn_loop.rs=3640, widgets/mod.rs=3120, runtime_threads=3051, chat.rs=2808, config.rs=2524, subagent/mod.rs=2271, mcp.rs=2268, views/mod.rs=2200, compaction/mod.rs=2350, shell.rs=2066, goal.rs=1153（注：ui_event_loop/mod.rs 路径不实，无此文件）
+
+### 域9 · 安全可观测
+- [ ] apply_patch Claude 方言：仅 unified diff，缺 Claude 风格 apply_patch 解析
+- [部分] 出站可观测 / 审计门：部分存在，缺网络白名单硬门
+
+### 升级规划 P0–P3 小结
+- [x] P0 低成本项：成本 nudge 接 TUI、godfile CI、goal-core/edit-core 外提 均已完成
+- [ ] P0 核心缺口：Dreaming 三阶段、VFS 乐观锁、engine/turn_loop 拆分、决策事件流独立压缩
+- [ ] P1–P2：技能自生产 Curator、语义代码索引、LLM 流 invariants、Arena/Team、apply_patch 方言、网络白名单 均待实现
+
+> 结论：新报告结构与上一轮 12 域基本一致；本轮实际已收口的是域4/5/6/8 的工程底座（B2/D1/D2/D3/C2 + A3/A4），而**记忆/规划/资源/安全四大域的深层能力（Dreaming、provenance 四级、VFS 锁、apply_patch、Arena/Team）仍为真实缺口**，应进入下轮 P0。
