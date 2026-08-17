@@ -1,0 +1,15 @@
+[package]
+name = "mimofan-goal-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "纯逻辑的 goal 目标管理状态机（GoalState / GoalQueue），不依赖 TUI"
+
+[dependencies]
+mimofan-protocol = { path = "../protocol" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

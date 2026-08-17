@@ -270,10 +270,14 @@ impl Objective {
         let mut section = String::from(MUST_KEEP_HEADER);
         section.push('\n');
         if !self.text.is_empty() {
-            let _ = writeln!(section, "- {}\n", self.text);
+            section.push_str("- ");
+            section.push_str(&self.text);
+            section.push_str("\n\n");
         }
         for kp in &self.key_points {
-            let _ = writeln!(section, "- {kp}");
+            section.push_str("- ");
+            section.push_str(kp);
+            section.push('\n');
         }
         section
     }

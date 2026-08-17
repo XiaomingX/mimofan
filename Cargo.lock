@@ -3291,6 +3291,7 @@ dependencies = [
  "mimofan-core",
  "mimofan-edit-core",
  "mimofan-execpolicy",
+ "mimofan-goal-core",
  "mimofan-hooks",
  "mimofan-localization",
  "mimofan-mcp",
@@ -3431,6 +3432,15 @@ version = "0.0.20"
 dependencies = [
  "anyhow",
  "serde",
+]
+
+[[package]]
+name = "mimofan-goal-core"
+version = "0.0.20"
+dependencies = [
+ "mimofan-protocol",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
