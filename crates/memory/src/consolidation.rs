@@ -29,6 +29,8 @@ pub enum MemoryKind {
     Semantic,
     /// 程序性记忆：操作/流程偏好
     Procedural,
+    /// 抽象记忆：Dreaming 三阶段抽象出的可复用规则/结论（#623 切片）。
+    Abstracted,
 }
 
 /// 一条可巩固的记忆条目（切片 A 数据结构）。
@@ -66,6 +68,23 @@ impl MemoryEntry {
             last_accessed_at: Utc::now(),
             access_count: 0,
         }
+    }
+
+    /// 以指定类别与显式重要性创建条目（用于 Dreaming 抽象阶段赋信号强度）。
+    pub fn with_kind_importance(
+        content: impl Into<String>,
+        kind: MemoryKind,
+        importance: f64,
+    ) -> Self {
+        let mut e = Self::with_kind(content, kind);
+        e.importance = importance;
+        e
+    }
+
+    /// 复制自身但改写 `importance`（链式构造用）。
+    pub fn with_importance(mut self, importance: f64) -> Self {
+        self.importance = importance;
+        self
     }
 
     /// 以显式 id 与创建时间重建（用于持久化层反序列化后复用）。
