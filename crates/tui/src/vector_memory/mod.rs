@@ -132,6 +132,16 @@ impl VectorMemory {
         self.embeddings.is_some() && self.store.is_some()
     }
 
+    /// Best-effort 容量策略执行：当向量库已打开时，淘汰低 retention 的
+    /// observation，使其数量回落到 `budget` 以内（#716 M4）。向量库未打开
+    /// 时直接返回 `Ok(0)`，不报错。
+    pub fn enforce_capacity_policy(&self, budget: usize) -> anyhow::Result<usize> {
+        match self.store.as_ref() {
+            Some(store) => store.enforce_capacity_policy(budget).map_err(Into::into),
+            None => Ok(0),
+        }
+    }
+
     /// 取出 embedding 服务，供调用方在 `.await` 期间持有（仅 `EmbeddingService`
     /// 是 `Send`，而整块 `&VectorMemory` 不是）。取出后本后端不再可嵌入，符合
     /// "单次会话仅注入一次"等一次性使用场景。

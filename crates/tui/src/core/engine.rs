@@ -2690,7 +2690,11 @@ impl Engine {
         let Some(scheduler) = self.consolidation_scheduler.as_mut() else {
             return;
         };
-        Self::run_consolidation_tick(scheduler, self.compaction_in_progress);
+        // Resolve the vector-memory directory the same way
+        // `maybe_inject_vector_memory` does, so the consolidation pass can reach
+        // the long-term store. `None` means vector memory is unavailable here.
+        let mem_dir = self.config.memory_dir.parent().map(|p| p.to_path_buf());
+        Self::run_consolidation_tick(scheduler, self.compaction_in_progress, mem_dir);
     }
 
     /// Pure, testable core of [`Engine::tick_consolidation`]: advance the
@@ -2698,17 +2702,37 @@ impl Engine {
     /// elapses. Extracted so the wiring can be unit-tested without constructing
     /// a full [`Engine`]. Returns `Some(true)` when a consolidation pass ran,
     /// `Some(false)` when skipped (compacting), `None` before the interval.
+    ///
+    /// `memory_dir` is the vector-store directory (or `None`). When present and
+    /// the store is enabled, the pass actually enforces the capacity policy so
+    /// low-retention observations are evicted and the long-term store stays
+    /// bounded (#716 M4). Errors are best-effort: logged and swallowed.
     pub(crate) fn run_consolidation_tick(
         scheduler: &mut mimofan_memory::consolidation::ConsolidationScheduler,
         compacting: bool,
+        memory_dir: Option<std::path::PathBuf>,
     ) -> Option<bool> {
         scheduler.tick();
         scheduler.maybe_consolidate(
             || compacting,
-            || {
-                // Best-effort consolidation pass: emit a checkpoint so a
-                // headless supervisor and the event stream observe the pass.
-                // Real memory dedup/rollup is wired by the memory store owner.
+            move || {
+                // Best-effort consolidation pass: evict low-retention vector
+                // memories when the store is reachable, then record a
+                // checkpoint so a headless supervisor and the event stream
+                // observe the pass.
+                if let Some(dir) = memory_dir {
+                    if let Ok(mut vm) = crate::vector_memory::VectorMemory::open(&dir) {
+                        if vm.enabled() {
+                            if let Err(err) = vm
+                                .enforce_capacity_policy(mimofan_memory::vector::VectorStore::DEFAULT_CAPACITY_LIMIT)
+                            {
+                                tracing::warn!(
+                                    "vector-memory capacity enforcement failed, skipping: {err}"
+                                );
+                            }
+                        }
+                    }
+                }
                 true
             },
         )
@@ -3648,34 +3672,34 @@ mod consolidation_wiring_tests {
     fn tick_advances_counter_and_triggers_at_interval() {
         let mut scheduler = ConsolidationScheduler::with_interval(3);
         // Turns 1..=2: before interval, no consolidation.
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
         assert_eq!(scheduler.turn_count(), 1);
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
         assert_eq!(scheduler.turn_count(), 2);
         // Turn 3: interval reached -> consolidation runs.
         assert_eq!(
-            Engine::run_consolidation_tick(&mut scheduler, false),
+            Engine::run_consolidation_tick(&mut scheduler, false, None),
             Some(true)
         );
         assert_eq!(scheduler.turn_count(), 3);
         // Immediately after, interval not yet reached again.
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
     }
 
     #[test]
     fn tick_skips_consolidation_while_compacting() {
         let mut scheduler = ConsolidationScheduler::with_interval(2);
-        Engine::run_consolidation_tick(&mut scheduler, false);
+        Engine::run_consolidation_tick(&mut scheduler, false, None);
         // Turn 2 with compaction in progress -> skipped (not run), counter still advances.
         assert_eq!(
-            Engine::run_consolidation_tick(&mut scheduler, true),
+            Engine::run_consolidation_tick(&mut scheduler, true, None),
             Some(false)
         );
         assert_eq!(scheduler.turn_count(), 2);
         // After compaction ends, the next interval triggers normally.
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false), None);
+        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
         assert_eq!(
-            Engine::run_consolidation_tick(&mut scheduler, false),
+            Engine::run_consolidation_tick(&mut scheduler, false, None),
             Some(true)
         );
     }
