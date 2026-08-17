@@ -69,6 +69,11 @@ pub struct LspConfig {
     /// Optional override for the `Language -> (cmd, args)` table. Keys use
     /// [`Language::as_key`] (e.g. `"rust"`).
     pub servers: HashMap<String, Vec<String>>,
+    /// Idle unload threshold in seconds. When `> 0`, a per-language LSP
+    /// transport idle for longer than this is released on the next turn
+    /// boundary (`maybe_unload_idle`). `0` (default) disables unload and keeps
+    /// transports for the session's lifetime.
+    pub idle_unload_secs: u64,
 }
 
 impl Default for LspConfig {
@@ -79,6 +84,7 @@ impl Default for LspConfig {
             max_diagnostics_per_file: 20,
             include_warnings: false,
             servers: HashMap::new(),
+            idle_unload_secs: 0,
         }
     }
 }
@@ -115,6 +121,9 @@ pub struct LspManager {
     /// Test seam: when set, `diagnostics_for` uses these instead of spawning
     /// real LSP processes. Keyed by language.
     test_transports: AsyncMutex<HashMap<Language, Arc<dyn LspTransport>>>,
+    /// Last time each language's transport was used (for idle unload). Only
+    /// meaningful when `config.idle_unload_secs > 0`.
+    last_used: AsyncMutex<HashMap<Language, std::time::Instant>>,
 }
 
 impl LspManager {
@@ -127,6 +136,7 @@ impl LspManager {
             transports: AsyncMutex::new(HashMap::new()),
             missing_warned: AsyncMutex::new(HashSet::new()),
             test_transports: AsyncMutex::new(HashMap::new()),
+            last_used: AsyncMutex::new(HashMap::new()),
         }
     }
 
@@ -231,6 +241,7 @@ impl LspManager {
         }
 
         if let Some(t) = self.transports.lock().await.get(&lang) {
+            self.touch_last_used(lang).await;
             return Some(t.clone());
         }
 
@@ -239,6 +250,7 @@ impl LspManager {
             Ok(transport) => {
                 let arc: Arc<dyn LspTransport> = Arc::new(transport);
                 self.transports.lock().await.insert(lang, arc.clone());
+                self.touch_last_used(lang).await;
                 Some(arc)
             }
             Err(err) => {
@@ -246,6 +258,14 @@ impl LspManager {
                 None
             }
         }
+    }
+
+    /// Record `lang` as just-used so `maybe_unload_idle` can age it out.
+    async fn touch_last_used(&self, lang: Language) {
+        self.last_used
+            .lock()
+            .await
+            .insert(lang, std::time::Instant::now());
     }
 
     /// 打开 `file` 并返回其对应语言的 transport。
@@ -422,6 +442,36 @@ impl LspManager {
             },
             PathBuf::new(),
         )
+    }
+}
+
+impl LspManager {
+    /// Release per-language transports idle longer than `[lsp].idle_unload_secs`.
+    ///
+    /// Cheap and safe: only the cached `Arc` is dropped. In-flight requests
+    /// hold their own clone, and a later request lazily re-spawns the server,
+    /// so unloading one language never blocks another. No-op when idle unload
+    /// is disabled (the default `idle_unload_secs == 0`) or when LSP is off.
+    pub async fn maybe_unload_idle(&self) {
+        if !self.config.enabled || self.config.idle_unload_secs == 0 {
+            return;
+        }
+        let threshold = Duration::from_secs(self.config.idle_unload_secs);
+        let mut last_used = self.last_used.lock().await;
+        let mut transports = self.transports.lock().await;
+        let now = std::time::Instant::now();
+        let mut to_unload = Vec::new();
+        for (lang, seen) in last_used.iter() {
+            if now.duration_since(*seen) >= threshold {
+                to_unload.push(*lang);
+            }
+        }
+        for lang in to_unload {
+            if transports.remove(&lang).is_some() {
+                tracing::debug!(?lang, "lsp: unloaded idle transport");
+            }
+            last_used.remove(&lang);
+        }
     }
 }
 

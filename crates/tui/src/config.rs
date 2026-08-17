@@ -806,6 +806,10 @@ pub struct LspConfigToml {
     /// are language slugs (`"rust"`, `"go"`, etc.).
     #[serde(default)]
     pub servers: Option<HashMap<String, Vec<String>>>,
+    /// Idle unload threshold in seconds (0 disables). Mirrors
+    /// [`crate::lsp::LspConfig::idle_unload_secs`].
+    #[serde(default)]
+    pub idle_unload_secs: Option<u64>,
 }
 
 impl LspConfigToml {
@@ -824,6 +828,7 @@ impl LspConfigToml {
                 .unwrap_or(defaults.max_diagnostics_per_file),
             include_warnings: self.include_warnings.unwrap_or(defaults.include_warnings),
             servers: self.servers.unwrap_or_default(),
+            idle_unload_secs: self.idle_unload_secs.unwrap_or(defaults.idle_unload_secs),
         }
     }
 }
