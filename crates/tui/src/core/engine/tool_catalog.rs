@@ -5,7 +5,7 @@
 //! tool suggestions, and the small set of built-in advanced tools that are not
 //! registered by the normal runtime tool registry.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Duration;
 
@@ -143,25 +143,42 @@ pub(super) fn apply_mcp_tool_deferral(catalog: &mut [Tool], mode: AppMode) {
 /// head. This invariant is critical for DeepSeek's KV prefix cache:
 /// the tools array is part of the immutable prefix, and any byte-level
 /// change in the head forces a full re-prefill on the next turn.
+///
+/// **Frequency ranking.** Within each partition the tools are ordered by
+/// recorded usage (most-invoked first, `name` as a stable tie-break) so the
+/// model sees high-frequency tools near the top, lowering selection cost.
+/// `usage` is the snapshot from [`crate::tools::ToolRegistry::usage_map`].
+/// The `name` tie-break keeps the order deterministic, so a cold start
+/// (all counts 0) still yields a stable, prefix-cache-friendly list.
 pub(super) fn build_model_tool_catalog_with_surface(
     mut native_tools: Vec<Tool>,
     mut mcp_tools: Vec<Tool>,
     mode: AppMode,
     always_load: &HashSet<String>,
     surface_budget: ToolSurfaceBudget,
+    usage: &HashMap<String, u64>,
 ) -> Vec<Tool> {
     apply_native_tool_deferral(&mut native_tools, always_load);
     apply_mcp_tool_deferral(&mut mcp_tools, mode);
     apply_tool_surface_budget(&mut native_tools, surface_budget, always_load);
     apply_tool_surface_budget(&mut mcp_tools, surface_budget, always_load);
-    // Sort each partition by name for prefix-cache stability (#263). The
-    // upstream `to_api_tools()` already sorts the registry's HashMap output;
-    // this catalog is built from caller-supplied Vecs which the test harness
-    // and (future) caller refactors may not pre-sort. Built-ins stay as a
-    // contiguous prefix ahead of MCP tools so adding/removing an MCP tool
-    // never shifts a built-in's position.
-    native_tools.sort_by(|a, b| a.name.cmp(&b.name));
-    mcp_tools.sort_by(|a, b| a.name.cmp(&b.name));
+    // Rank each partition by usage frequency (desc), name as stable
+    // tie-break. The upstream `to_api_tools()` already sorts the registry's
+    // HashMap output the same way; this catalog is built from
+    // caller-supplied Vecs which the test harness and (future) caller
+    // refactors may not pre-sort. Built-ins stay as a contiguous prefix
+    // ahead of MCP tools so adding/removing an MCP tool never shifts a
+    // built-in's position.
+    native_tools.sort_by(|a, b| {
+        let ua = usage.get(&a.name).copied().unwrap_or(0);
+        let ub = usage.get(&b.name).copied().unwrap_or(0);
+        ub.cmp(&ua).then_with(|| a.name.cmp(&b.name))
+    });
+    mcp_tools.sort_by(|a, b| {
+        let ua = usage.get(&a.name).copied().unwrap_or(0);
+        let ub = usage.get(&b.name).copied().unwrap_or(0);
+        ub.cmp(&ua).then_with(|| a.name.cmp(&b.name))
+    });
     native_tools.extend(mcp_tools);
     native_tools
 }

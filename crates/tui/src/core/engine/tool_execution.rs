@@ -398,6 +398,9 @@ impl Engine {
         } else if tool_name == JS_EXECUTION_TOOL_NAME {
             execute_js_execution_tool(&tool_input, &workspace).await
         } else if let Some(registry) = registry {
+            // Count registry-dispatched invocations so the model-visible
+            // schema list can be ranked by frequency (high-use tools first).
+            registry.record_usage(&tool_name);
             registry
                 .execute_full_with_context(&tool_name, tool_input, context_override.as_ref())
                 .await

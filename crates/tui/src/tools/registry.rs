@@ -7,7 +7,7 @@
 //! - Filtering by capability
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex};
 
 use std::path::{Path, PathBuf};
 
@@ -32,8 +32,17 @@ pub struct ToolRegistry {
     /// Memoised serialised tool catalog. Rebuilt lazily on first
     /// `to_api_tools` call after a mutation; pinned across reads so the
     /// description and schema bytes stay byte-stable for DeepSeek's KV
-    /// prefix cache. Invalidated on `register` / `remove` / `clear`.
-    api_cache: OnceLock<Vec<Tool>>,
+    /// prefix cache. Invalidated on `register` / `remove` / `clear` /
+    /// `record_usage`.
+    api_cache: Mutex<Option<Vec<Tool>>>,
+    /// Per-tool invocation counter used to rank the model-visible schema
+    /// list by frequency of use (high-frequency tools first, lowering the
+    /// model's selection cost).
+    ///
+    /// Intentionally kept in memory only by default: persistence (sled /
+    /// per-session state) can be layered on later by hydrating this map at
+    /// construction time, but the registry stays dependency-free.
+    usage: Mutex<HashMap<String, u64>>,
 }
 
 impl ToolRegistry {
@@ -43,7 +52,8 @@ impl ToolRegistry {
         Self {
             tools: HashMap::new(),
             context,
-            api_cache: OnceLock::new(),
+            api_cache: Mutex::new(None),
+            usage: Mutex::new(HashMap::new()),
         }
     }
 
@@ -198,31 +208,89 @@ impl ToolRegistry {
         &self.context
     }
 
+    /// Record one invocation of `tool_name`.
+    ///
+    /// Increments the per-tool usage counter and invalidates the memoised
+    /// API catalog so the next `to_api_tools()` rebuild ranks the tool
+    /// according to its updated frequency. The call is a no-op (counter simply
+    /// stays at 0) for names that are not currently registered, keeping the
+    /// map bounded.
+    pub fn record_usage(&self, tool_name: &str) {
+        if !self.tools.contains_key(tool_name) {
+            return;
+        }
+        *self.usage.lock().unwrap().entry(tool_name.to_string()).or_insert(0) += 1;
+        *self.api_cache.lock().unwrap() = None;
+    }
+
+    /// Return the recorded invocation count for `tool_name` (0 if unknown).
+    #[must_use]
+    pub fn usage_count(&self, tool_name: &str) -> u64 {
+        self.usage.lock().unwrap().get(tool_name).copied().unwrap_or(0)
+    }
+
+    /// Snapshot of the current usage counts, keyed by tool name.
+    ///
+    /// Used by the engine's catalog builder to rank the final model-visible
+    /// tool list by frequency without coupling the catalog module to the
+    /// registry's interior mutability.
+    #[must_use]
+    pub fn usage_map(&self) -> HashMap<String, u64> {
+        self.usage.lock().unwrap().clone()
+    }
+
+    /// Return the registered tool names ordered by usage frequency
+    /// (descending), with a stable `name` tie-break for equal counts.
+    ///
+    /// Unused tools (count 0) keep their relative `name` order behind the
+    /// ones that have been invoked, so the list is fully deterministic.
+    #[must_use]
+    pub fn ordered_by_usage(&self) -> Vec<String> {
+        let usage = self.usage.lock().unwrap();
+        let mut names: Vec<&String> = self.tools.keys().collect();
+        names.sort_by(|a, b| {
+            let ua = usage.get(*a).copied().unwrap_or(0);
+            let ub = usage.get(*b).copied().unwrap_or(0);
+            ub.cmp(&ua).then_with(|| a.cmp(b))
+        });
+        names.into_iter().map(std::string::String::clone).collect()
+    }
+
     /// Convert all tools to API Tool format for sending to the model.
     ///
-    /// Output is sorted by tool name for **prefix-cache stability** (#263).
-    /// Rust's `HashMap` uses a randomly-seeded hasher per process, so a raw
-    /// `self.tools.values()` iteration emits tools in a different order on
-    /// every `deepseek` launch, invalidating DeepSeek's KV prefix cache for
-    /// every cross-session resume. Sorting here matches the way Claude Code
-    /// stabilises its tool array (`assembleToolPool` in their reference).
+    /// Output is ranked by **usage frequency** (most-invoked tools first),
+    /// with a stable `name` tie-break. Sorting here matches the way Claude
+    /// Code stabilises its tool array (`assembleToolPool` in their
+    /// reference), but biases the head of the list toward the tools the user
+    /// actually reaches for, lowering the model's selection cost (#263 / the
+    /// frequency-ranking feature).
     ///
-    /// The serialised catalog is memoised on first call and pinned across
-    /// reads so each tool's `description()` and `input_schema()` are sampled
-    /// exactly once per registration. MCP adapters whose upstream description
-    /// drifts on reconnect would otherwise rewrite the catalog mid-session
-    /// and bust the prefix cache. The cache is invalidated on `register`,
-    /// `remove`, and `clear`.
+    /// The serialised catalog is memoised on first call and rebuilt whenever
+    /// the registration set or usage counts change, so each tool's
+    /// `description()` and `input_schema()` are sampled exactly once per
+    /// cache entry. MCP adapters whose upstream description drifts on
+    /// reconnect would otherwise rewrite the catalog mid-session and bust
+    /// the prefix cache. The cache is invalidated on `register`, `remove`,
+    /// `clear`, and `record_usage`.
     #[must_use]
     pub fn to_api_tools(&self) -> Vec<Tool> {
-        self.api_cache
-            .get_or_init(|| self.build_api_tools())
-            .clone()
+        let mut guard = self.api_cache.lock().unwrap();
+        if guard.is_none() {
+            *guard = Some(self.build_api_tools());
+        }
+        guard.as_ref().unwrap().clone()
     }
 
     fn build_api_tools(&self) -> Vec<Tool> {
+        let usage = self.usage.lock().unwrap();
         let mut tools: Vec<&Arc<dyn ToolSpec>> = self.tools.values().collect();
-        tools.sort_by(|a, b| a.name().cmp(b.name()));
+        // Frequency ranking: highest usage first; ties broken by name for a
+        // deterministic, stable order across launches.
+        tools.sort_by(|a, b| {
+            let ua = usage.get(a.name()).copied().unwrap_or(0);
+            let ub = usage.get(b.name()).copied().unwrap_or(0);
+            ub.cmp(&ua).then_with(|| a.name().cmp(b.name()))
+        });
         tools
             .into_iter()
             .filter(|tool| tool.model_visible())
@@ -246,7 +314,7 @@ impl ToolRegistry {
     }
 
     fn invalidate_api_cache(&mut self) {
-        self.api_cache = OnceLock::new();
+        *self.api_cache.lock().unwrap() = None;
     }
 
     /// Convert tools to API Tool format with optional cache control on the last tool.
@@ -995,9 +1063,23 @@ impl ToolRegistryBuilder {
     /// (`MIMOFAN_MEMORY_API_KEY`); without that the tool would always fail.
     #[cfg(feature = "vector-memory")]
     #[must_use]
+    #[cfg(feature = "vector-memory")]
+    #[must_use]
     pub fn with_remember_vector_tool(self) -> Self {
         use super::remember_vector::RememberVectorTool;
         self.with_tool(Arc::new(RememberVectorTool))
+    }
+
+    /// Include the `session_search` tool — model-callable semantic recall of
+    /// long-term / session-indexed memory (#570 complement). Read-only and
+    /// auto-approved; registered only when the embedding backend is configured
+    /// (`MIMOFAN_MEMORY_API_KEY`), mirroring `with_remember_vector_tool`, so
+    /// the model never sees a tool it cannot use.
+    #[cfg(feature = "vector-memory")]
+    #[must_use]
+    pub fn with_session_search_tool(self) -> Self {
+        use super::session_search::SessionSearchTool;
+        self.with_tool(Arc::new(SessionSearchTool))
     }
 
     /// Include the slop ledger tools (#2127) — durable tracking of
@@ -1428,6 +1510,71 @@ mod tests {
         let mut names = reg.names();
         names.sort_unstable();
         assert_eq!(names, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn ordered_by_usage_ranks_by_frequency() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register_all(vec![
+            stub("alpha", vec![]),
+            stub("beta", vec![]),
+            stub("gamma", vec![]),
+        ]);
+        // No usage yet -> stable name order.
+        assert_eq!(reg.ordered_by_usage(), vec!["alpha", "beta", "gamma"]);
+
+        // gamma invoked 3x, beta 1x, alpha untouched.
+        reg.record_usage("gamma");
+        reg.record_usage("gamma");
+        reg.record_usage("gamma");
+        reg.record_usage("beta");
+        assert_eq!(reg.ordered_by_usage(), vec!["gamma", "beta", "alpha"]);
+        assert_eq!(reg.usage_count("gamma"), 3);
+        assert_eq!(reg.usage_count("beta"), 1);
+        assert_eq!(reg.usage_count("alpha"), 0);
+    }
+
+    #[test]
+    fn ordered_by_usage_is_stable_on_ties() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register_all(vec![
+            stub("charlie", vec![]),
+            stub("alpha", vec![]),
+            stub("bravo", vec![]),
+            stub("delta", vec![]),
+        ]);
+        // Equal (zero) usage must keep ascending name order.
+        assert_eq!(
+            reg.ordered_by_usage(),
+            vec!["alpha", "bravo", "charlie", "delta"]
+        );
+
+        // Equal non-zero usage must also stay name-stable.
+        reg.record_usage("delta");
+        reg.record_usage("bravo");
+        reg.record_usage("alpha");
+        assert_eq!(
+            reg.ordered_by_usage(),
+            vec!["alpha", "bravo", "delta", "charlie"]
+        );
+
+        // record_usage on an unregistered name is a no-op.
+        reg.record_usage("nonexistent");
+        assert_eq!(reg.usage_count("nonexistent"), 0);
+    }
+
+    #[test]
+    fn to_api_tools_reflects_usage_order() {
+        let mut reg = ToolRegistry::new(test_context());
+        reg.register_all(vec![
+            stub("alpha", vec![]),
+            stub("beta", vec![]),
+            stub("gamma", vec![]),
+        ]);
+        reg.record_usage("beta");
+        reg.record_usage("beta");
+        let api_names: Vec<&str> = reg.to_api_tools().iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(api_names, vec!["beta", "alpha", "gamma"]);
     }
 
     #[test]
