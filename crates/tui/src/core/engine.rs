@@ -680,6 +680,21 @@ impl Engine {
                 config.goal_status,
             );
         }
+        // 宿主同步之后兜底：仅当队列完全为空（宿主未注入任何目标）时，
+        // 才用本地落盘文件恢复运行时队列。宿主注入优先，本地文件仅兜底，
+        // 绝不覆盖宿主意图。best-effort：任何失败都静默跳过。
+        if config
+            .goal_queue
+            .lock()
+            .map(|q| q.is_empty())
+            .unwrap_or(false)
+        {
+            if let Some(restored) = load_goal_queue_fallback(None) {
+                if let Ok(mut q) = config.goal_queue.lock() {
+                    *q = restored;
+                }
+            }
+        }
 
         let (tx_op, rx_op) = mpsc::channel(32);
         let (tx_event, rx_event) = mpsc::channel(256);
@@ -2247,6 +2262,21 @@ impl Engine {
                 goal_token_budget,
                 goal_status,
             );
+            // 宿主同步之后兜底（同 Engine::new 的语义）：仅当队列完全为空时
+            // 用本地落盘文件恢复，不覆盖宿主已注入的内容。best-effort。
+            if self
+                .config
+                .goal_queue
+                .lock()
+                .map(|q| q.is_empty())
+                .unwrap_or(false)
+            {
+                if let Some(restored) = load_goal_queue_fallback(None) {
+                    if let Ok(mut q) = self.config.goal_queue.lock() {
+                        *q = restored;
+                    }
+                }
+            }
         }
         self.config.allowed_tools = allowed_tools;
         self.config.hook_executor = hook_executor;
@@ -3527,7 +3557,10 @@ pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;
 pub(crate) use catalog_filter::{default_active_native_tool_names, filter_tool_catalog_for_gates};
 
 use self::approval::{ApprovalDecision, ApprovalResult, UserInputDecision};
-use self::goal::{goal_objective_for_prompt, normalized_goal_objective, sync_goal_state_from_host};
+use crate::tools::goal::load_goal_queue_fallback;
+use self::goal::{
+    goal_objective_for_prompt, normalized_goal_objective, sync_goal_state_from_host,
+};
 use self::plugin_tools::configure_plugin_tools;
 use self::policy::{
     AutoReviewPlanDecision, ToolAskRuleDecision, agent_approval_mode_for_turn,

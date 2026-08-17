@@ -5,6 +5,7 @@
 //! session-scoped state object plus tools the model can use to inspect and
 //! close out that state.
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -63,6 +64,17 @@ impl GoalStatus {
             Self::Paused => "paused",
             Self::Complete => "complete",
             Self::Blocked => "blocked",
+        }
+    }
+
+    /// 从落盘快照里的字符串还原（默认 `Active`，与 `GoalState::default` 对齐）。
+    #[must_use]
+    pub fn parse_str(value: &str) -> Self {
+        match value {
+            "paused" => Self::Paused,
+            "complete" => Self::Complete,
+            "blocked" => Self::Blocked,
+            _ => Self::Active,
         }
     }
 }
@@ -391,10 +403,40 @@ impl GoalState {
             checkpoint_each_round: self.checkpoint_each_round,
         }
     }
+
+    /// 从落盘快照重建运行时目标态（best-effort）。
+    ///
+    /// 快照不含 `Instant` 时间戳，故 `started_at`/`finished_at` 留空——仅用于
+    /// 会话重启后的队列兜底恢复，不影响调度语义。
+    #[must_use]
+    pub fn from_snapshot(snap: &GoalSnapshot) -> Self {
+        Self {
+            objective: snap.objective.clone(),
+            token_budget: snap.token_budget,
+            status: Some(GoalStatus::parse_str(&snap.status)),
+            tokens_used: snap.tokens_used,
+            time_used_seconds: snap.time_used_seconds,
+            continuation_count: snap.continuation_count,
+            started_at: None,
+            finished_at: None,
+            evidence: snap.evidence.clone(),
+            blocker: snap.blocker.clone(),
+            completion_verification: snap.completion_verification.clone(),
+            progress_checklist: snap.progress_checklist.clone(),
+            no_progress_rounds: snap.no_progress_rounds,
+            last_tool_error_fingerprint: None,
+            repeated_error_rounds: snap.repeated_error_rounds,
+            time_budget_seconds: snap.time_budget_seconds,
+            stop_condition: snap.stop_condition.clone(),
+            max_rounds: snap.max_rounds,
+            checkpoint_each_round: snap.checkpoint_each_round,
+            pending_loop_config: None,
+        }
+    }
 }
 
 /// Serializable tool output and prompt input for the current goal.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GoalSnapshot {
     pub objective: Option<String>,
     pub status: String,
@@ -505,6 +547,17 @@ impl QueueStatus {
             Self::Done => "done",
         }
     }
+
+    /// 从落盘快照里的字符串还原（默认 `Queued`）。
+    #[must_use]
+    pub fn parse_str(value: &str) -> Self {
+        match value {
+            "active" => Self::Active,
+            "paused" => Self::Paused,
+            "done" => Self::Done,
+            _ => Self::Queued,
+        }
+    }
 }
 
 /// 队列中的一个 goal 条目。
@@ -521,8 +574,8 @@ pub struct GoalEntry {
     pub blocked_by: Vec<u32>,
 }
 
-/// 可序列化的队列条目快照（供 `goal_list` / prompt 注入）。
-#[derive(Debug, Clone, Serialize)]
+/// 可序列化的队列条目快照（供 `goal_list` / prompt 注入 / 落盘）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalEntrySnapshot {
     pub id: u32,
     pub priority: u8,
@@ -535,8 +588,8 @@ pub struct GoalEntrySnapshot {
     pub unmet_dependencies: Vec<u32>,
 }
 
-/// 可序列化的队列全貌（供 `goal_list`）。
-#[derive(Debug, Clone, Serialize)]
+/// 可序列化的队列全貌（供 `goal_list` / 会话落盘）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalQueueSnapshot {
     pub entries: Vec<GoalEntrySnapshot>,
     pub active_id: Option<u32>,
@@ -603,6 +656,99 @@ pub fn new_shared_goal_queue_from_host_status(
         queue.entries.push(entry);
     }
     Arc::new(Mutex::new(queue))
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 目标队列会话落盘（best-effort，绝不 panic）
+//
+// 运行时目标队列（add/pause/complete 等）目前只存在于内存，会话重启即丢失。
+// 这里提供「本地文件兜底」：宿主（LoopX/CodeBuddy）注入优先，本地文件仅当
+// 队列完全为空时作为兜底补充，二者互补不冲突。任何 IO 失败都 `tracing::warn!`
+// 吞掉，不干扰主流程。
+// ───────────────────────────────────────────────────────────────────────────
+
+/// 目标队列落盘文件名。
+const GOAL_QUEUE_FILE: &str = "goal_queue.json";
+
+/// 返回落盘文件路径。
+///
+/// - `base_dir = Some(dir)`：直接用 `dir/goal_queue.json`（测试用临时目录）。
+/// - `base_dir = None`：用 `~/.mimofan/goal_queue.json`（`$HOME` 或 `$USERPROFILE`）。
+#[must_use]
+pub fn goal_queue_persist_path(base_dir: Option<&Path>) -> PathBuf {
+    match base_dir {
+        Some(dir) => dir.join(GOAL_QUEUE_FILE),
+        None => {
+            let key = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+            let home = std::env::var_os(key)
+                .filter(|v| !v.is_empty())
+                .map(PathBuf::from);
+            home.unwrap_or_else(PathBuf::new)
+                .join(".mimofan")
+                .join(GOAL_QUEUE_FILE)
+        }
+    }
+}
+
+/// 将运行时目标队列快照原子落盘（best-effort）。
+///
+/// 取锁 → 序列化 `GoalQueueSnapshot` → `write_atomic`（临时文件 + rename）。
+/// 任何错误（锁中毒 / 序列化 / IO）都记警告并吞掉，绝不 panic。
+pub fn persist_goal_queue(queue: &SharedGoalQueue, base_dir: Option<&Path>) {
+    let snapshot = match queue.lock() {
+        Ok(queue) => queue.list_snapshot(),
+        Err(err) => {
+            tracing::warn!("goal queue lock poisoned while persisting: {err}");
+            return;
+        }
+    };
+    let json = match serde_json::to_string_pretty(&snapshot) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::warn!("failed to serialize goal queue snapshot: {err}");
+            return;
+        }
+    };
+    let path = goal_queue_persist_path(base_dir);
+    if let Some(parent) = path.parent() {
+        if let Err(err) = std::fs::create_dir_all(parent) {
+            tracing::warn!("failed to create goal queue dir {}: {err}", parent.display());
+            return;
+        }
+    }
+    if let Err(err) = crate::utils::write_atomic(&path, json.as_bytes()) {
+        tracing::warn!("failed to persist goal queue to {}: {err}", path.display());
+    }
+}
+
+/// 从落盘文件兜底加载队列（best-effort）。
+///
+/// 文件不存在 / 解析失败 / 队列为空均返回 `None`。返回重建后的 `GoalQueue`
+/// （非共享包装），由调用方决定是否注入到 `SharedGoalQueue`。
+#[must_use]
+pub fn load_goal_queue_fallback(base_dir: Option<&Path>) -> Option<GoalQueue> {
+    let path = goal_queue_persist_path(base_dir);
+    let content = match std::fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(err) => {
+            tracing::warn!("failed to read goal queue file {}: {err}", path.display());
+            return None;
+        }
+    };
+    let snapshot: GoalQueueSnapshot = match serde_json::from_str(&content) {
+        Ok(snapshot) => snapshot,
+        Err(err) => {
+            tracing::warn!("failed to parse goal queue file {}: {err}", path.display());
+            return None;
+        }
+    };
+    let queue = GoalQueue::from_snapshot(&snapshot);
+    if queue.entries.is_empty() {
+        None
+    } else {
+        Some(queue)
+    }
 }
 
 impl GoalQueue {
@@ -692,6 +838,12 @@ impl GoalQueue {
             .iter()
             .find(|e| e.queue_status == QueueStatus::Active)
             .map(|e| e.id)
+    }
+
+    /// 队列是否为空（无任何条目）。用于判断宿主同步后是否需要本地文件兜底。
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
     /// 当前 Active goal 条目的可变引用。
@@ -1009,6 +1161,30 @@ impl GoalQueue {
         }
         false
     }
+
+    /// 从落盘快照重建整个队列（best-effort 兜底加载）。
+    ///
+    /// 还原条目（id / priority / queue_status / blocked_by / goal 运行时态），
+    /// 以及聚合预算与 token 消耗。`next_id` 取所有条目 id 的最大值 +1，避免重建后
+    /// 复用旧 id。宿主已注入的内容不应经由此路径覆盖。
+    #[must_use]
+    pub fn from_snapshot(snapshot: &GoalQueueSnapshot) -> Self {
+        let mut queue = GoalQueue::default();
+        for entry in &snapshot.entries {
+            let goal = GoalState::from_snapshot(&entry.goal);
+            queue.entries.push(GoalEntry {
+                id: entry.id,
+                priority: entry.priority,
+                queue_status: QueueStatus::parse_str(&entry.queue_status),
+                goal,
+                blocked_by: entry.blocked_by.clone(),
+            });
+            queue.next_id = queue.next_id.max(entry.id.saturating_add(1));
+        }
+        queue.aggregate_token_budget = snapshot.aggregate_token_budget;
+        queue.aggregate_tokens_used = snapshot.aggregate_tokens_used;
+        queue
+    }
 }
 
 /// Render the continuation prompt injected when a goal is still active after a
@@ -1184,6 +1360,7 @@ impl ToolSpec for GoalEnqueueTool {
             let mut queue = lock_goal_queue(&self.goal_queue)?;
             queue.enqueue(objective, token_budget, priority, blocked_by)
         };
+        persist_goal_queue(&self.goal_queue, None);
         let snapshot = {
             let queue = lock_goal_queue(&self.goal_queue)?;
             queue.snapshot_of(id)
@@ -1544,6 +1721,7 @@ impl ToolSpec for GoalUpdateTool {
             }
         };
         result?;
+        persist_goal_queue(&self.goal_queue, None);
         let snapshot = {
             let queue = lock_goal_queue(&self.goal_queue)?;
             queue.list_snapshot()
@@ -1622,6 +1800,7 @@ impl ToolSpec for GoalPauseTool {
             queue.list_snapshot()
         };
         result?;
+        persist_goal_queue(&self.goal_queue, None);
         ToolResult::json(&snapshot).map_err(|err| ToolError::execution_failed(err.to_string()))
     }
 }
@@ -1684,6 +1863,7 @@ impl ToolSpec for GoalResumeTool {
             queue.list_snapshot()
         };
         result?;
+        persist_goal_queue(&self.goal_queue, None);
         ToolResult::json(&snapshot).map_err(|err| ToolError::execution_failed(err.to_string()))
     }
 }
@@ -1746,6 +1926,7 @@ impl ToolSpec for GoalCancelTool {
             queue.list_snapshot()
         };
         result?;
+        persist_goal_queue(&self.goal_queue, None);
         ToolResult::json(&snapshot).map_err(|err| ToolError::execution_failed(err.to_string()))
     }
 }
@@ -1808,6 +1989,7 @@ impl ToolSpec for GoalPromoteTool {
             queue.list_snapshot()
         };
         result?;
+        persist_goal_queue(&self.goal_queue, None);
         ToolResult::json(&snapshot).map_err(|err| ToolError::execution_failed(err.to_string()))
     }
 }
@@ -2007,5 +2189,52 @@ mod tests {
         assert_eq!(q.active_id(), Some(2));
         q.resume(1).unwrap();
         assert_eq!(q.get(1).unwrap().queue_status, QueueStatus::Queued);
+    }
+
+    // === 目标队列会话落盘 round-trip ===
+
+    #[test]
+    fn goal_queue_persist_then_fallback_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let base = dir.path();
+
+        // 构造队列并写入落盘文件。
+        let shared = new_shared_goal_queue();
+        {
+            let mut q = shared.lock().unwrap();
+            q.enqueue("persisted goal".to_string(), Some(100), 5, Vec::new());
+            q.enqueue("second".to_string(), None, 0, Vec::new());
+        }
+        persist_goal_queue(&shared, Some(base));
+
+        let path = goal_queue_persist_path(Some(base));
+        assert!(path.exists(), "落盘文件应已生成");
+
+        // 模拟会话重启：清空原共享队列，再从文件兜底加载。
+        {
+            let mut q = shared.lock().unwrap();
+            q.entries.clear();
+            q.next_id = 1;
+        }
+        let restored = load_goal_queue_fallback(Some(base));
+        assert!(restored.is_some(), "兜底加载应返回队列");
+        let restored = restored.unwrap();
+        assert_eq!(restored.entries.len(), 2, "两个 goal 都应恢复");
+        assert_eq!(
+            restored.get(1).unwrap().goal.objective(),
+            Some("persisted goal")
+        );
+        assert_eq!(
+            restored.get(1).unwrap().goal.token_budget(),
+            Some(100),
+            "token 预算应恢复"
+        );
+    }
+
+    #[test]
+    fn load_goal_queue_fallback_missing_file_returns_none() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        // 目录存在但无文件 → 返回 None，不 panic。
+        assert!(load_goal_queue_fallback(Some(dir.path())).is_none());
     }
 }
