@@ -613,6 +613,7 @@ fn push_todo_snapshot_lines(
             TodoStatus::Pending => "\u{b7}",
             TodoStatus::InProgress => "\u{25b6}",
             TodoStatus::Completed => "\u{2713}",
+            TodoStatus::Degraded => "\u{26a0}",
         };
         let item_text = format!("  {status_mark} {}. {}", i + 1, item.content);
         let style = if matches!(item.status, TodoStatus::Completed) {

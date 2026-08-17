@@ -321,6 +321,7 @@ pub(crate) fn work_panel_hover_texts(
                 TodoStatus::Pending => "[ ]",
                 TodoStatus::InProgress => "[~]",
                 TodoStatus::Completed => "[✓]",
+                TodoStatus::Degraded => "[!]",
             };
             texts.push(format!("{prefix} #{} {}", item.id, item.content));
         }
@@ -344,6 +345,7 @@ pub(crate) fn work_panel_hover_texts(
                     TodoStatus::Pending => "[ ]",
                     TodoStatus::InProgress => "[~]",
                     TodoStatus::Completed => "[✓]",
+                    TodoStatus::Degraded => "[!]",
                 };
                 let _ = write!(label, "\n{prefix} #{} {}", item.id, item.content);
             }
@@ -547,6 +549,7 @@ pub(crate) fn push_work_checklist_lines(
             TodoStatus::Pending => ("[ ]", theme.text_muted),
             TodoStatus::InProgress => ("[~]", theme.warning),
             TodoStatus::Completed => ("[✓]", theme.success),
+            TodoStatus::Degraded => ("[!]", theme.warning),
         };
         let text = format!("{prefix} #{} {}", item.id, item.content);
         lines.push(Line::from(Span::styled(

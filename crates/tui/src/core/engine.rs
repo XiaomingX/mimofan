@@ -155,6 +155,7 @@ impl StructuredState {
                     crate::tools::todo::TodoStatus::Pending => "[ ]",
                     crate::tools::todo::TodoStatus::InProgress => "[~]",
                     crate::tools::todo::TodoStatus::Completed => "[x]",
+                    crate::tools::todo::TodoStatus::Degraded => "[!]",
                 };
                 out.push_str(&format!("- {marker} {}\n", item.content));
             }
