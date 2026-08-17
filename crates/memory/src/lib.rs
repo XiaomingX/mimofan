@@ -25,6 +25,7 @@ pub mod category;
 pub mod codebase;
 pub mod compressor;
 pub mod consolidation;
+pub mod consolidation_stages;
 pub mod embedding;
 pub mod error;
 pub mod injector;
@@ -43,6 +44,10 @@ pub use consolidation::{
     DEFAULT_CONSOLIDATION_INTERVAL, DEFAULT_IMPORTANCE, IMPORTANCE_MAX, IMPORTANCE_MIN,
     MemoryEntry, MemoryKind, RETENTION_FREQ_WEIGHT, content_similarity, dedup, evict_to_budget,
     rollup,
+};
+pub use consolidation_stages::{
+    ABSTRACT_TOPIC_MIN_FREQUENCY, DreamResult, EXTRACT_IMPORTANCE_THRESHOLD, abstract_rules,
+    dream_cycle, extract, integrate,
 };
 pub use embedding::{ApiEmbedder, Embedder, EmbeddingConfig, EmbeddingService};
 pub use error::MemoryError;
