@@ -248,6 +248,37 @@ impl From<String> for Objective {
 /// Similarity below this is considered objective drift.
 pub const DRIFT_THRESHOLD: f64 = 0.6;
 
+/// Header marking the mandatory retention block injected into a re-compaction
+/// prompt. `merge_must_keep_into_custom` checks for this string to confirm the
+/// objective's `must_keep` list was folded in (see `drift_recompact_tests`).
+pub const MUST_KEEP_HEADER: &str = "## ⚠️ MUST KEEP — Objective (do not drop)";
+
+impl Objective {
+    /// Render the objective's mandatory retention list as a standalone block
+    /// for injection into a re-compaction prompt. Unlike
+    /// [`objective_prompt_section`] (soft guidance), this is the *hard*
+    /// retention set used on drift retries: the summary must keep the goal
+    /// text and every key point or the drift gate will fire again.
+    ///
+    /// Returns an empty string when the objective carries nothing to force, so
+    /// callers can fall back to the softer guidance path.
+    #[must_use]
+    pub fn must_keep_section(&self) -> String {
+        if self.text.is_empty() && self.key_points.is_empty() {
+            return String::new();
+        }
+        let mut section = String::from(MUST_KEEP_HEADER);
+        section.push('\n');
+        if !self.text.is_empty() {
+            let _ = writeln!(section, "- {}\n", self.text);
+        }
+        for kp in &self.key_points {
+            let _ = writeln!(section, "- {kp}");
+        }
+        section
+    }
+}
+
 /// Split a string into lowercase alphanumeric word tokens (no new deps).
 fn tokenize(text: &str) -> Vec<String> {
     text.to_lowercase()
