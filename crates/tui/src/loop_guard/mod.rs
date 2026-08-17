@@ -128,8 +128,18 @@ pub struct LoopGuardConfig {
     /// [`LoopPattern::SemanticEcho`].
     pub semantic_echo_similarity: f64,
     /// Master switch. When `false`, [`LoopGuard::observe`] always returns
-    /// `None`.
+    /// `None` — this also disables the periodic memory/skill nudge, so the
+    /// guard is fully silent unless explicitly enabled.
     pub enabled: bool,
+    /// Cadence (in observed tool calls) at which the guard emits the periodic
+    /// "distill this into a memory or a skill" nudge. Only active when
+    /// [`LoopGuardConfig::memory_skill_nudge`] is also enabled. `0` disables
+    /// the periodic nudge regardless of the master switch.
+    pub nudge_every_n: u64,
+    /// Separate opt-in for the periodic memory/skill nudge. Defaults to
+    /// `false` so users are not interrupted; both `enabled` and this flag must
+    /// be set for the reminder to fire.
+    pub memory_skill_nudge: bool,
 }
 
 impl Default for LoopGuardConfig {
@@ -142,7 +152,30 @@ impl Default for LoopGuardConfig {
             max_nudges_per_pattern: DEFAULT_MAX_NUDGES_PER_PATTERN,
             intra_repeat_lines: DEFAULT_INTRA_REPEAT_LINES,
             semantic_echo_similarity: DEFAULT_SEMANTIC_ECHO_SIMILARITY,
-            enabled: true,
+            enabled: false,
+            nudge_every_n: 20,
+            memory_skill_nudge: false,
+        }
+    }
+}
+
+/// Periodic reminder copy. The two variants alternate so the user is nudged
+/// toward *either* distilling a durable memory *or* capturing a reusable skill,
+/// rather than always the same phrase.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemorySkillNudge {
+    /// Suggest capturing a durable memory (a fact/conclusion to remember).
+    Memory,
+    /// Suggest capturing a reusable skill (a repeatable procedure).
+    Skill,
+}
+
+impl MemorySkillNudge {
+    /// Stable identifier for logs and tests.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Memory => "memory",
+            Self::Skill => "skill",
         }
     }
 }
@@ -162,6 +195,15 @@ pub enum LoopPattern {
     /// Two consecutive *distinct* outputs are near-duplicates, suggesting the
     /// model is restating the same content rather than advancing.
     SemanticEcho,
+    /// A scheduled, non-diagnostic reminder to distil the current work into a
+    /// durable memory or a reusable skill. Fires every `nudge_every_n`
+    /// observed tool calls when the periodic memory/skill nudge is enabled; it
+    /// carries no loop pathology, only advisory copy.
+    MemorySkill,
+    /// A post-compaction goal self-check reminder. Not a loop pathology — it
+    /// asks the model to confirm the original objective is still in view after
+    /// context was compressed, guarding long-horizon tasks against goal drift.
+    SelfCheck,
 }
 
 impl LoopPattern {
@@ -173,6 +215,8 @@ impl LoopPattern {
             Self::NoProgress => "no_progress",
             Self::StreamingRepetition => "streaming_repetition",
             Self::SemanticEcho => "semantic_echo",
+            Self::MemorySkill => "memory_skill",
+            Self::SelfCheck => "self_check",
         }
     }
 }
@@ -351,11 +395,22 @@ pub struct LoopGuard {
     /// set, NoProgress reports echo it so a stalled turn is re-anchored to the
     /// original goal rather than drifting toward whatever the summary implied.
     objective: Option<Objective>,
+    /// Monotonic count of observed tool calls across the whole session, used to
+    /// drive the periodic memory/skill nudge. Persisted so the cadence survives
+    /// across turns and process restarts.
+    turn_counter: u64,
+    /// Cadence (in observed tool calls) for the periodic memory/skill nudge.
+    /// Mirrors [`LoopGuardConfig::nudge_every_n`]; 0 disables the periodic
+    /// nudge.
+    nudge_every_n: u64,
+    /// Which periodic reminder fires next; alternates Memory ↔ Skill.
+    next_nudge: MemorySkillNudge,
 }
 
 impl LoopGuard {
     /// Create a guard with the given thresholds.
     pub fn new(config: LoopGuardConfig) -> Self {
+        let nudge_every_n = config.nudge_every_n;
         Self {
             config,
             observed: 0,
@@ -367,6 +422,9 @@ impl LoopGuard {
             fired: HashMap::new(),
             last_distinct_output: None,
             objective: None,
+            turn_counter: 0,
+            nudge_every_n,
+            next_nudge: MemorySkillNudge::Memory,
         }
     }
 
@@ -405,6 +463,10 @@ impl LoopGuard {
         }
 
         self.observed += 1;
+        // Durable, session-wide cadence counter for the periodic memory/skill
+        // nudge. Incremented on every observed call so the reminder fires every
+        // `nudge_every_n` calls regardless of which turn they belong to.
+        self.turn_counter += 1;
         let fingerprint = fingerprint(observation.name, observation.args);
 
         // Update the identical-call run.
@@ -456,7 +518,56 @@ impl LoopGuard {
         if let Some(loop_break) = self.check_semantic_echo(observation) {
             return Some(loop_break);
         }
-        self.check_no_progress(observation)
+        let result = self.check_no_progress(observation);
+        // The periodic memory/skill reminder is non-diagnostic: it fires on its
+        // own cadence and never competes with a loop nudge fired the same turn.
+        // When the loop detectors stayed silent, consider the scheduled nudge.
+        if result.is_none() {
+            if let Some(nudge) = self.periodic_memory_skill_nudge() {
+                return Some(nudge);
+            }
+        }
+        result
+    }
+
+    /// Emit the periodic "distil this into a memory or skill" reminder when the
+    /// cadence is hit, or `None` otherwise. The Memory/Skill copy alternates so
+    /// consecutive reminders vary. Only active when both the master switch and
+    /// `memory_skill_nudge` are on and `nudge_every_n > 0`.
+    fn periodic_memory_skill_nudge(&mut self) -> Option<LoopBreak> {
+        if !self.config.memory_skill_nudge || self.nudge_every_n == 0 {
+            return None;
+        }
+        if self.turn_counter % self.nudge_every_n != 0 {
+            return None;
+        }
+        let kind = self.next_nudge;
+        // Alternate for next time so the reminder varies between memory/skill.
+        self.next_nudge = match self.next_nudge {
+            MemorySkillNudge::Memory => MemorySkillNudge::Skill,
+            MemorySkillNudge::Skill => MemorySkillNudge::Memory,
+        };
+        let nudge = match kind {
+            MemorySkillNudge::Memory => "[Loop guard] You have reached a periodic checkpoint. \
+                 Consider distilling the key conclusions or decisions from this session into a \
+                 durable memory so they survive future turns and restarts."
+                .to_string(),
+            MemorySkillNudge::Skill => "[Loop guard] You have reached a periodic checkpoint. \
+                 Consider capturing any reusable procedure or workflow you just performed as a \
+                 skill, so it can be applied again without re-deriving the steps."
+                .to_string(),
+        };
+        Some(LoopBreak {
+            pattern: LoopPattern::MemorySkill,
+            occurrences: 1,
+            tools: Vec::new(),
+            nudge,
+        })
+    }
+
+    /// Current session-wide cadence counter (for tests/inspection).
+    pub fn turn_counter(&self) -> u64 {
+        self.turn_counter
     }
 
     /// Whether `pattern` may still fire, and if so consume one of its budget.
@@ -696,6 +807,11 @@ pub struct LoopGuardState {
     /// process restarts (W1). Absent when none was ever attached.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub objective: Option<Objective>,
+    /// Session-wide cadence counter for the periodic memory/skill nudge.
+    /// Persisted so the reminder cadence continues across turns and process
+    /// restarts instead of resetting every session.
+    #[serde(default)]
+    pub turn_counter: u64,
 }
 
 impl LoopGuard {
@@ -710,6 +826,7 @@ impl LoopGuard {
             stall_digest: self.stall_digest,
             fired: self.fired.clone(),
             objective: self.objective.clone(),
+            turn_counter: self.turn_counter,
         }
     }
 
@@ -723,6 +840,9 @@ impl LoopGuard {
         self.repeat_fingerprint = state.repeat_fingerprint;
         self.stall_run = state.stall_run;
         self.stall_digest = state.stall_digest;
+        // Continue the cadence from where the previous run left off so the
+        // periodic memory/skill nudge keeps its rhythm across sessions.
+        self.turn_counter = state.turn_counter;
         for (pattern, count) in &state.fired {
             let entry = self.fired.entry(*pattern).or_insert(0);
             *entry = (*entry).max(*count);
@@ -760,7 +880,13 @@ mod tests {
     }
 
     fn guard() -> LoopGuard {
-        LoopGuard::default()
+        // Loop-detection tests need the guard enabled. The *production* default
+        // is `enabled: false` (see `LoopGuardConfig::default`); these tests
+        // exercise detection, so they opt in explicitly.
+        LoopGuard::new(LoopGuardConfig {
+            enabled: true,
+            ..LoopGuardConfig::default()
+        })
     }
 
     /// Drive the guard past the cold-start window with calls that are all
@@ -1342,5 +1468,121 @@ mod tests {
             restored.objective().map(|o| o.text.as_str()),
             Some("Refactor the auth module to use JWT")
         );
+    }
+
+    /// Periodic memory/skill nudge fires exactly when `turn_counter` reaches
+    /// `nudge_every_n`, and the Memory/Skill copy alternates between hits.
+    #[test]
+    fn periodic_memory_skill_nudge_fires_every_n() {
+        let mut guard = LoopGuard::new(LoopGuardConfig {
+            enabled: true,
+            memory_skill_nudge: true,
+            nudge_every_n: 5,
+            ..LoopGuardConfig::default()
+        });
+        // Calls 1..=4 stay silent; call 5 hits the cadence.
+        for index in 1..=4 {
+            assert_eq!(
+                guard.observe(&stalled("read_file", &json!({ "p": index }))),
+                None,
+                "call {index} must not trigger the periodic nudge yet"
+            );
+        }
+        let first = guard
+            .observe(&stalled("read_file", &json!({ "p": 5 })))
+            .expect("call 5 must trigger the periodic nudge");
+        assert_eq!(first.pattern, LoopPattern::MemorySkill);
+        assert!(first.nudge.contains("memory"));
+        // Counter continues; call 10 is the next checkpoint, with Skill copy.
+        for index in 6..=9 {
+            assert_eq!(
+                guard.observe(&stalled("read_file", &json!({ "p": index }))),
+                None
+            );
+        }
+        let second = guard
+            .observe(&stalled("read_file", &json!({ "p": 10 })))
+            .expect("call 10 must trigger the next periodic nudge");
+        assert_eq!(second.pattern, LoopPattern::MemorySkill);
+        assert!(second.nudge.contains("skill"));
+        assert_eq!(guard.turn_counter(), 10);
+    }
+
+    /// The cadence counter survives a snapshot/restore round-trip, so the
+    /// reminder keeps its rhythm across sessions (no reset to zero).
+    #[test]
+    fn turn_counter_continues_across_water() {
+        let mut guard = LoopGuard::new(LoopGuardConfig {
+            enabled: true,
+            memory_skill_nudge: true,
+            nudge_every_n: 10,
+            ..LoopGuardConfig::default()
+        });
+        // 7 calls in the first session.
+        for index in 0..7 {
+            let _ = guard.observe(&stalled("read_file", &json!({ "p": index })));
+        }
+        assert_eq!(guard.turn_counter(), 7);
+        // Persist and restore into a fresh guard (process restart).
+        let state = guard.snapshot_state();
+        let mut restored = LoopGuard::new(LoopGuardConfig {
+            enabled: true,
+            memory_skill_nudge: true,
+            nudge_every_n: 10,
+            ..LoopGuardConfig::default()
+        });
+        assert_eq!(restored.turn_counter(), 0, "fresh guard starts at 0");
+        restored.restore_state(&state);
+        assert_eq!(restored.turn_counter(), 7, "counter must carry over");
+        // 3 more calls => 10th overall => nudge fires, not at 10th of new guard.
+        for index in 7..=9 {
+            let _ = restored.observe(&stalled("read_file", &json!({ "p": index })));
+        }
+        let nudge = restored
+            .observe(&stalled("read_file", &json!({ "p": 10 })))
+            .expect("nudge must fire at global call 10, continuing the counter");
+        assert_eq!(nudge.pattern, LoopPattern::MemorySkill);
+    }
+
+    /// When `enabled` is false (the default), neither loop detection nor the
+    /// periodic nudge ever fires — full silence until the user opts in.
+    #[test]
+    fn disabled_guard_suppresses_periodic_nudge() {
+        // Note: default config now has `enabled: false`.
+        let mut guard = LoopGuard::default();
+        for index in 1..=100 {
+            assert_eq!(
+                guard.observe(&stalled("read_file", &json!({ "p": index }))),
+                None,
+                "disabled guard must stay silent (call {index})"
+            );
+        }
+        assert_eq!(guard.turn_counter(), 0, "disabled guard counts nothing");
+    }
+
+    /// `enabled` true but `memory_skill_nudge` false must never emit the
+    /// periodic reminder, while loop detection still works.
+    #[test]
+    fn loop_only_enabled_suppresses_periodic_nudge() {
+        let mut guard = LoopGuard::new(LoopGuardConfig {
+            enabled: true,
+            memory_skill_nudge: false,
+            nudge_every_n: 3,
+            ..LoopGuardConfig::default()
+        });
+        // Helpfully past warmup, then drive distinct calls up to a multiple of
+        // nudge_every_n; no periodic nudge should ever appear.
+        finish_warmup(&mut guard);
+        for index in 0..30 {
+            let result = guard.observe(&stalled(
+                "read_file",
+                &json!({ "p": format!("distinct-{index}") }),
+            ));
+            assert_ne!(
+                result.map(|b| b.pattern),
+                Some(LoopPattern::MemorySkill),
+                "periodic nudge must not fire when memory_skill_nudge is false"
+            );
+        }
     }
 }

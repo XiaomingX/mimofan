@@ -228,6 +228,13 @@ pub struct EngineConfig {
     /// `HeadlessGate` at startup when `unattended` is set.
     /// Added for #863 — purely additive, defaults to `None`.
     pub failure_log_path: Option<std::path::PathBuf>,
+    /// When `true`, after every successful context compaction the engine asks
+    /// the model to re-confirm its original objective via a bounded, advisory
+    /// self-check nudge. The nudge is injected over the *system* prompt channel
+    /// (never as a user message) so it cannot pollute the conversation history,
+    /// guarding long-horizon tasks against silent goal drift. Opt-out only —
+    /// defaults to `false` so existing behaviour is unchanged until enabled.
+    pub goal_self_check_after_compact: bool,
 }
 
 /// Wrapper around a list of injected `ToolSpec` implementations so it can live
@@ -328,6 +335,7 @@ impl Default for EngineConfig {
             unattended: false,
             consolidation_interval_turns: None,
             failure_log_path: None,
+            goal_self_check_after_compact: false,
         }
     }
 }

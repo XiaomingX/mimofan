@@ -360,6 +360,7 @@ impl Engine {
                     Some(&compaction_pins),
                     Some(&compaction_paths),
                     objective_ref.as_ref(),
+                    self.config.goal_self_check_after_compact,
                 )
                 .await
                 {
@@ -369,6 +370,28 @@ impl Engine {
                             let auto_messages_after = result.messages.len();
                             self.session.messages = result.messages.into();
                             self.merge_compaction_summary(result.summary_prompt);
+
+                            // Post-compaction goal self-check nudge (#selfcheck).
+                            // Injected via the *system* prompt channel so it never
+                            // enters the user conversation history — it only asks
+                            // the model to confirm the original objective is still
+                            // consistent after the context was compressed. Opt-out
+                            // via `config.goal_self_check_after_compact`.
+                            if let Some(loop_break) = result.self_check_nudge {
+                                let nudge_block = crate::models::SystemBlock {
+                                    block_type: "text".to_string(),
+                                    text: loop_break.nudge,
+                                    cache_control: None,
+                                };
+                                let merged = crate::compaction::merge_system_prompts(
+                                    self.session.system_prompt.as_ref(),
+                                    Some(crate::models::SystemPrompt::Blocks(vec![nudge_block])),
+                                );
+                                self.session.system_prompt = merged;
+                                self.session.last_system_prompt_hash = Some(
+                                    super::system_prompt_hash(self.session.system_prompt.as_ref()),
+                                );
+                            }
 
                             // Fire PostCompact after a successful summarization
                             // so hooks can re-inject disk-backed context or emit

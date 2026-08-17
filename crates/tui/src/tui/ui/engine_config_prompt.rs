@@ -98,6 +98,7 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         unattended: false,
         consolidation_interval_turns: None,
         failure_log_path: None,
+        goal_self_check_after_compact: false,
     }
 }
 

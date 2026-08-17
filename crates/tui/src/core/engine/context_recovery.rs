@@ -109,6 +109,7 @@ impl Engine {
         let mut retries_used = 0u32;
         let mut summary_prompt = None;
         let mut compacted_messages: Vec<Message> = self.session.messages.clone().into();
+        let mut result_self_check_nudge = None;
 
         // Emergency path: the provider already rejected (or is about to reject)
         // this context, so the trigger must sit strictly below the spendable
@@ -135,6 +136,7 @@ impl Engine {
             None,
             None,
             None,
+            self.config.goal_self_check_after_compact,
         )
         .await
         {
@@ -142,6 +144,7 @@ impl Engine {
                 retries_used = result.retries_used;
                 compacted_messages = result.messages;
                 summary_prompt = result.summary_prompt;
+                result_self_check_nudge = result.self_check_nudge;
             }
             Err(err) => {
                 let _ = self
@@ -157,6 +160,21 @@ impl Engine {
             self.session.messages = compacted_messages.into();
         }
         self.merge_compaction_summary(summary_prompt);
+        // Post-compaction goal self-check nudge over the system channel.
+        if let Some(loop_break) = result_self_check_nudge {
+            let nudge_block = crate::models::SystemBlock {
+                block_type: "text".to_string(),
+                text: loop_break.nudge,
+                cache_control: None,
+            };
+            let merged = crate::compaction::merge_system_prompts(
+                self.session.system_prompt.as_ref(),
+                Some(crate::models::SystemPrompt::Blocks(vec![nudge_block])),
+            );
+            self.session.system_prompt = merged;
+            self.session.last_system_prompt_hash =
+                Some(super::system_prompt_hash(self.session.system_prompt.as_ref()));
+        }
 
         let trimmed = self.trim_oldest_messages_to_budget(target_budget);
         self.emit_session_updated().await;

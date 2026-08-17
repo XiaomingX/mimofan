@@ -736,6 +736,7 @@ pub(crate) async fn run_exec_agent(
         failure_log_path: std::env::var("MIMOFAN_UNATTENDED_FAILURE_LOG")
             .ok()
             .map(PathBuf::from),
+        goal_self_check_after_compact: false,
     };
 
     let engine_handle = spawn_engine(engine_config, &execution_config);

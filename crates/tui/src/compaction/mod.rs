@@ -15,6 +15,7 @@ use crate::config::DEFAULT_TEXT_MODEL;
 use crate::context_budget::PressureLevel;
 use crate::llm_client::LlmClient;
 use crate::logging;
+use crate::loop_guard::LoopBreak;
 use crate::models::{
     CacheControl, ContentBlock, Message, MessageRequest, SystemBlock, SystemPrompt,
     context_window_for_model,
@@ -891,6 +892,12 @@ pub struct CompactionResult {
     pub removed_messages: Vec<Message>,
     /// Number of retries used before success
     pub retries_used: u32,
+    /// Optional post-compaction goal self-check nudge. `Some` only when the
+    /// compaction actually rewrote history *and* the caller enabled
+    /// `goal_self_check`. The nudge is meant to be injected via the **system**
+    /// prompt channel (never as a user message) so it cannot pollute the real
+    /// conversation history.
+    pub self_check_nudge: Option<LoopBreak>,
 }
 
 /// Check if an error is transient and worth retrying. Categories that map to
@@ -932,6 +939,7 @@ pub async fn compact_messages_safe(
         external_pins,
         external_working_set_paths,
         None,
+        false,
     )
     .await
 }
@@ -941,6 +949,9 @@ pub async fn compact_messages_safe(
 /// and a drift check re-injects the objective when the summary wanders (W1).
 ///
 /// `objective` of `None` (the default for the 6-arg form) skips all injection.
+/// `goal_self_check` requests a bounded post-compaction goal self-check nudge
+/// (returned in `CompactionResult::self_check_nudge`, to be injected over the
+/// system channel — never as a user message).
 pub async fn compact_messages_safe_with_objective(
     client: &ApiClient,
     messages: &[Message],
@@ -949,6 +960,7 @@ pub async fn compact_messages_safe_with_objective(
     external_pins: Option<&[usize]>,
     external_working_set_paths: Option<&[String]>,
     objective: Option<&objective::Objective>,
+    goal_self_check: bool,
 ) -> Result<CompactionResult> {
     // Hard cap on LLM compaction attempts. This is the "don't recurse /
     // re-compress forever" guard: if every attempt is a transient failure we
@@ -1028,6 +1040,7 @@ pub async fn compact_messages_safe_with_objective(
                 summary_prompt: None,
                 removed_messages: Vec::new(),
                 retries_used: 0,
+                self_check_nudge: None,
             });
         }
         &pruned_messages
@@ -1052,10 +1065,11 @@ pub async fn compact_messages_safe_with_objective(
             external_pins,
             external_working_set_paths,
             objective,
+            goal_self_check,
         )
         .await
         {
-            Ok((msgs, prompt, removed)) => {
+            Ok((msgs, prompt, removed, self_check_nudge)) => {
                 // no_progress guard: if the session was over threshold and a
                 // successful summary removed nothing (and the budget pressure
                 // still suggests compaction), further re-compaction cannot help
@@ -1073,6 +1087,7 @@ pub async fn compact_messages_safe_with_objective(
                     summary_prompt: prompt,
                     removed_messages: removed,
                     retries_used: attempt,
+                    self_check_nudge,
                 });
             }
             Err(e) => {
@@ -1135,9 +1150,59 @@ pub async fn compact_messages(
     external_pins: Option<&[usize]>,
     external_working_set_paths: Option<&[String]>,
     objective: Option<&objective::Objective>,
-) -> Result<(Vec<Message>, Option<SystemPrompt>, Vec<Message>)> {
+    goal_self_check: bool,
+) -> Result<(Vec<Message>, Option<SystemPrompt>, Vec<Message>, Option<LoopBreak>)> {
+    compact_messages_inner(
+        client,
+        messages,
+        config,
+        workspace,
+        external_pins,
+        external_working_set_paths,
+        objective,
+        goal_self_check,
+        0,
+    )
+    .await
+}
+
+/// Maximum number of *additional* compression passes triggered when a summary
+/// drifts past [`objective::DRIFT_THRESHOLD`]. Bounds the recursion so a
+/// pathological summary that keeps drifting cannot spin forever (#drift-loop).
+const MAX_DRIFT_RETRY: u32 = 2;
+
+/// Pure decision used by [`compact_messages_inner`] to decide whether a drifted
+/// summary should trigger one more (recursive) compression pass.
+///
+/// Returns `true` only when the measured `similarity` is below
+/// [`objective::DRIFT_THRESHOLD`] *and* the current `drift_retry` depth has not
+/// already reached [`MAX_DRIFT_RETRY`]. Isolated here so the recursion bound is
+/// unit-testable without a real LLM call.
+fn should_redrift_recompact(similarity: f64, drift_retry: u32) -> bool {
+    similarity < objective::DRIFT_THRESHOLD && drift_retry < MAX_DRIFT_RETRY
+}
+
+/// Recursive core of [`compact_messages`].
+///
+/// After a summary is produced, [`objective::drift_check`] measures how much of
+/// the objective survived. If the summary drifts below
+/// [`objective::DRIFT_THRESHOLD`], the objective's `must_keep` list is injected
+/// as a hard retention block into a *second* compression of the same input, up
+/// to `MAX_DRIFT_RETRY` extra passes. Each retry hardens the instruction with
+/// the mandatory points so key goals are not swallowed by the summary.
+async fn compact_messages_inner(
+    client: &ApiClient,
+    messages: &[Message],
+    config: &CompactionConfig,
+    workspace: Option<&Path>,
+    external_pins: Option<&[usize]>,
+    external_working_set_paths: Option<&[String]>,
+    objective: Option<&objective::Objective>,
+    goal_self_check: bool,
+    drift_retry: u32,
+) -> Result<(Vec<Message>, Option<SystemPrompt>, Vec<Message>, Option<LoopBreak>)> {
     if messages.is_empty() {
-        return Ok((Vec::new(), None, Vec::new()));
+        return Ok((Vec::new(), None, Vec::new(), None));
     }
 
     let plan = plan_compaction(
@@ -1148,7 +1213,7 @@ pub async fn compact_messages(
         external_working_set_paths,
     );
     if plan.summarize_indices.is_empty() {
-        return Ok((messages.to_vec(), None, Vec::new()));
+        return Ok((messages.to_vec(), None, Vec::new(), None));
     }
 
     let to_summarize: Vec<Message> = plan
@@ -1160,8 +1225,14 @@ pub async fn compact_messages(
     // Inject the task objective into the summary instruction so the model is
     // explicitly told what goal the summary must preserve (W1: drift gate).
     let objective_guidance = objective.map(objective_prompt_section);
-    let summary_custom =
-        merge_objective_into_custom(objective, config.custom_instructions.as_deref());
+    // On a drift retry, harden the instruction with the objective's mandatory
+    // retention list so the second pass cannot drop key points.
+    let hardened_custom = if drift_retry > 0 {
+        merge_must_keep_into_custom(objective, config.custom_instructions.as_deref())
+    } else {
+        merge_objective_into_custom(objective, config.custom_instructions.as_deref())
+    };
+    let summary_custom = hardened_custom;
 
     // Create a summary of the unpinned portion of the conversation
     let summary = create_summary(
@@ -1186,9 +1257,31 @@ pub async fn compact_messages(
     if let Some(obj) = objective {
         let similarity = objective::drift_check(obj, &summary);
         if similarity < objective::DRIFT_THRESHOLD {
+            if should_redrift_recompact(similarity, drift_retry) {
+                logging::warn(format!(
+                    "Compaction summary drifted from objective (similarity={:.2}); \
+                     re-compacting once with mandatory must-keep points (retry {}/{})",
+                    similarity,
+                    drift_retry + 1,
+                    MAX_DRIFT_RETRY
+                ));
+                return compact_messages_inner(
+                    client,
+                    messages,
+                    config,
+                    workspace,
+                    external_pins,
+                    external_working_set_paths,
+                    objective,
+                    goal_self_check,
+                    drift_retry + 1,
+                )
+                .await;
+            }
             logging::warn(format!(
-                "Compaction summary drifted from objective (similarity={:.2}); \
-                 the persistent objective section below keeps the goal in view",
+                "Compaction summary still drifted from objective after {MAX_DRIFT_RETRY} \
+                 retries (similarity={:.2}); the persistent objective section below \
+                 keeps the goal in view",
                 similarity
             ));
         }
@@ -1241,11 +1334,43 @@ pub async fn compact_messages(
         .filter_map(|(idx, msg)| plan.pinned_indices.contains(&idx).then_some(msg.clone()))
         .collect();
 
+    // Post-compaction goal self-check nudge. Only emitted when the caller
+    // enabled it (`goal_self_check`) and a real summarization actually
+    // happened. Reuses the `LoopBreak` nudge field so the engine can inject it
+    // through the *system* prompt channel — it must never enter the user
+    // conversation history. Bounded copy: it only asks the model to confirm
+    // the original objective is still consistent, so long-horizon goals don't
+    // silently drift after a context reset.
+    let self_check_nudge = build_self_check_nudge(goal_self_check);
+
     Ok((
         pinned_messages,
         Some(SystemPrompt::Blocks(vec![summary_block])),
         to_summarize,
+        self_check_nudge,
     ))
+}
+
+/// Build the post-compaction goal self-check nudge, or `None` when disabled.
+///
+/// Extracted as a pure function so the enable/disable behaviour is unit-testable
+/// without a live LLM. The returned [`LoopBreak`] is meant to be injected over
+/// the *system* prompt channel (never as a user message) — it only asks the
+/// model to confirm the original objective is still consistent after the
+/// context was compressed.
+pub(crate) fn build_self_check_nudge(enabled: bool) -> Option<LoopBreak> {
+    if enabled {
+        Some(LoopBreak {
+            pattern: crate::loop_guard::LoopPattern::SelfCheck,
+            occurrences: 1,
+            tools: Vec::new(),
+            nudge:
+                "[自检] 上下文已压缩，请确认当前目标仍与最初一致；如有偏离请显式修正。"
+                    .to_string(),
+        })
+    } else {
+        None
+    }
 }
 
 /// Render an objective as a "TASK OBJECTIVE" section for injection into the
@@ -1276,6 +1401,29 @@ fn merge_objective_into_custom(
         Some(c) if !c.trim().is_empty() => Some(format!("{c}\n\n{section}")),
         _ => Some(section),
     }
+}
+
+/// Like [`merge_objective_into_custom`] but, when re-compacting after drift,
+/// folds the objective's mandatory `must_keep` retention list into the custom
+/// instruction instead of the softer "TASK OBJECTIVE" guidance. This forces the
+/// summary to keep the goal's key points rather than re-deriving them.
+fn merge_must_keep_into_custom(
+    objective: Option<&objective::Objective>,
+    custom: Option<&str>,
+) -> Option<String> {
+    let Some(obj) = objective else {
+        return custom.map(ToOwned::to_owned);
+    };
+    let must_keep = obj.must_keep_section();
+    if must_keep.is_empty() {
+        // Nothing to force — fall back to the normal objective guidance.
+        return merge_objective_into_custom(objective, custom);
+    }
+    let base = match custom {
+        Some(c) if !c.trim().is_empty() => format!("{c}\n\n"),
+        _ => String::new(),
+    };
+    Some(format!("{base}{must_keep}"))
 }
 
 /// Render the *persistent* objective section that is injected as a standalone
@@ -1798,6 +1946,71 @@ mod summary_instruction_tests {
     }
 }
 
+/// #drift-loop：压缩后 drift 超阈自动二次压缩的递归边界与 must_keep 注入。
+///
+/// 这些是纯逻辑单测（不调模型）：`should_redrift_recompact` 决策的「超阈触发 +
+/// 不超过 `MAX_DRIFT_RETRY`」边界，以及 `merge_must_keep_into_custom` 把
+/// objective 的 `must_keep` 清单作为硬性保留项注入摘要 prompt。
+#[cfg(test)]
+mod drift_recompact_tests {
+    use super::*;
+    use crate::compaction::objective::{Objective, MUST_KEEP_HEADER};
+
+    #[test]
+    fn drift_below_threshold_does_not_recompact() {
+        // similarity 在阈值内：即便 retry 计数为 0，也不应触发二次压缩。
+        assert!(!should_redrift_recompact(objective::DRIFT_THRESHOLD, 0));
+        assert!(!should_redrift_recompact(0.9, 0));
+    }
+
+    #[test]
+    fn drift_above_threshold_triggers_recompact_until_max_retry() {
+        // 超阈且未达上限：触发。
+        assert!(should_redrift_recompact(0.2, 0));
+        assert!(should_redrift_recompact(0.2, 1));
+        // 已到达重试上限：即使仍超阈也不再触发，防止无限递归。
+        assert!(!should_redrift_recompact(0.2, MAX_DRIFT_RETRY));
+        assert!(!should_redrift_recompact(0.0, MAX_DRIFT_RETRY + 5));
+    }
+
+    #[test]
+    fn must_keep_custom_injects_retention_list() {
+        let obj = Objective {
+            text: "Migrate auth to JWT".to_string(),
+            key_points: vec!["PostgreSQL".to_string()],
+        };
+        let merged = merge_must_keep_into_custom(Some(&obj), None).expect("non-empty");
+        assert!(merged.contains(MUST_KEEP_HEADER));
+        assert!(merged.contains("Migrate auth to JWT"));
+        assert!(merged.contains("PostgreSQL"));
+    }
+
+    #[test]
+    fn must_keep_custom_preserves_existing_custom_instructions() {
+        let obj = Objective {
+            text: "Fix parser".to_string(),
+            key_points: Vec::new(),
+        };
+        let merged = merge_must_keep_into_custom(Some(&obj), Some("keep migrations"))
+            .expect("non-empty");
+        assert!(merged.contains("keep migrations"));
+        assert!(merged.contains(MUST_KEEP_HEADER));
+    }
+
+    #[test]
+    fn must_keep_custom_empty_objective_falls_back_to_objective_guidance() {
+        let empty = Objective {
+            text: String::new(),
+            key_points: Vec::new(),
+        };
+        let merged = merge_must_keep_into_custom(Some(&empty), Some("keep migrations"))
+            .expect("non-empty");
+        // No mandatory list → fall back to the normal "TASK OBJECTIVE" guidance.
+        assert!(merged.contains("TASK OBJECTIVE"));
+        assert!(!merged.contains(MUST_KEEP_HEADER));
+    }
+}
+
 /// #629：压缩事实保留率断言。
 ///
 /// 复现「长对话压缩可能静默丢事实」的风险：构造一条含 N 条已知关键事实的对话，
@@ -2100,5 +2313,38 @@ mod objective_drift_tests {
                 "round {round}: objective section must not collapse into summary text"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod self_check_nudge_tests {
+    use super::build_self_check_nudge;
+    use crate::loop_guard::LoopPattern;
+
+    /// 开关开启时，压缩后必须返回一条非空的目标自检 nudge，且走
+    /// `SelfCheck` 这一非用户通道语义（由引擎注入 system prompt）。
+    #[test]
+    fn enabled_returns_non_empty_self_check_nudge() {
+        let nudge = build_self_check_nudge(true);
+        let lb = nudge.expect("enabled self-check must yield a nudge");
+        assert_eq!(lb.pattern, LoopPattern::SelfCheck);
+        assert!(!lb.nudge.is_empty(), "nudge text must not be empty");
+        assert!(
+            lb.nudge.contains("自检"),
+            "nudge must ask the model to re-confirm the objective"
+        );
+        assert!(
+            lb.nudge.contains("目标"),
+            "nudge must reference the original goal"
+        );
+    }
+
+    /// 开关关闭时，压缩后不得返回任何 nudge（不会污染对话/系统通道）。
+    #[test]
+    fn disabled_returns_no_nudge() {
+        assert!(
+            build_self_check_nudge(false).is_none(),
+            "disabled self-check must yield no nudge"
+        );
     }
 }

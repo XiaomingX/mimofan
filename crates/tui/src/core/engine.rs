@@ -2516,6 +2516,7 @@ impl Engine {
                 input_policy.mode,
                 &self.config.tools_always_load,
                 surface_budget,
+                &registry.usage_map(),
             );
             for tool in &mut catalog {
                 if plugin_tool_names.contains(&tool.name) {
@@ -2705,6 +2706,12 @@ impl Engine {
         // whether a pass ran. Real memory-store consolidation is a follow-up;
         // this wires the previously-dead scheduler into the turn boundary.
         self.tick_consolidation().await;
+
+        // ── idle LSP handle unload ────────────────────────────────────────
+        // Per completed turn, drop any per-language LSP transport idle longer
+        // than `[lsp].idle_unload_secs`. Cheap, lock-scoped, and safe: only the
+        // cached `Arc` is released; in-flight requests hold their own clone.
+        self.lsp_manager.maybe_unload_idle().await;
     }
 
     /// #855 — advance the periodic consolidation scheduler by one completed
@@ -2859,6 +2866,7 @@ impl Engine {
             Some(&compaction_pins),
             Some(&compaction_paths),
             None,
+            self.config.goal_self_check_after_compact,
         )
         .await
         {
@@ -2867,6 +2875,23 @@ impl Engine {
                     let messages_after = result.messages.len();
                     self.session.messages = result.messages.into();
                     self.merge_compaction_summary(result.summary_prompt);
+                    // Post-compaction goal self-check nudge, injected over the
+                    // system channel so it never pollutes the user conversation
+                    // history (see turn_loop for the equivalent auto path).
+                    if let Some(loop_break) = result.self_check_nudge {
+                        let nudge_block = crate::models::SystemBlock {
+                            block_type: "text".to_string(),
+                            text: loop_break.nudge,
+                            cache_control: None,
+                        };
+                        let merged = crate::compaction::merge_system_prompts(
+                            self.session.system_prompt.as_ref(),
+                            Some(crate::models::SystemPrompt::Blocks(vec![nudge_block])),
+                        );
+                        self.session.system_prompt = merged;
+                        self.session.last_system_prompt_hash =
+                            Some(system_prompt_hash(self.session.system_prompt.as_ref()));
+                    }
                     self.emit_session_updated().await;
                     let removed = messages_before.saturating_sub(messages_after);
                     let message = if result.retries_used > 0 {
