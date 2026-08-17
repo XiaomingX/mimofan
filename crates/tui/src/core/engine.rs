@@ -3283,6 +3283,22 @@ impl Engine {
             prompt_text.push_str(marker);
         }
 
+        // #brain.md-inspired: inject the most recent durable decisions so a
+        // fresh session starts with settled choices + their rationale in
+        // context. File-only (no embedding call); no-op when memory is
+        // disabled or `decisions.md` is empty. Bounded to the latest N to
+        // protect the context window.
+        if let Some(block) = crate::memory::compose_decision_block(
+            self.config.memory_enabled,
+            &self.config.memory_dir,
+            8,
+        )
+            && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
+        {
+            prompt_text.push_str("\n\n");
+            prompt_text.push_str(&block);
+        }
+
         let stable_hash = system_prompt_hash(stable_prompt.as_ref());
         if self.session.system_prompt_override {
             return;

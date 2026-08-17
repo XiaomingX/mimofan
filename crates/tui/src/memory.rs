@@ -510,19 +510,457 @@ fn previous_char_boundary(value: &str, mut index: usize) -> usize {
     index
 }
 
+// ============================================================================
+// Structured decision pages (`decisions.md`)
+// ----------------------------------------------------------------------------
+// Inspired by brain.md's `compiled_truth` (rewritable current understanding)
+// + `timeline` (append-only evidence chain, including `reversal`). mimofan's
+// existing `project.md` bullets capture scattered facts with no audit trail;
+// this layer adds a *decision* abstraction with an immutable history so a
+// future session can see *why* a choice was made and *why* it was later
+// revised or overturned. It lives alongside the bullet layer and shares the
+// same memory directory. Decisions are written atomically (whole-file
+// rewrite) so a crash mid-write never leaves a half-edited entry.
+// ============================================================================
+
+/// Kind of event in a decision's [`DecisionEntry::history`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DecisionEventKind {
+    /// Initial decision captured via [`decision_create`].
+    Decision,
+    /// Current understanding rewritten via [`decision_revise`].
+    Revision,
+    /// Decision overturned via [`decision_reverse`] (entry is kept, not deleted).
+    Reversal,
+}
+
+impl DecisionEventKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            DecisionEventKind::Decision => "Decision",
+            DecisionEventKind::Revision => "Revision",
+            DecisionEventKind::Reversal => "Reversal",
+        }
+    }
+
+    fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "Decision" => Some(DecisionEventKind::Decision),
+            "Revision" => Some(DecisionEventKind::Revision),
+            "Reversal" => Some(DecisionEventKind::Reversal),
+            _ => None,
+        }
+    }
+}
+
+/// One entry in a decision's audit trail. Append-only: revisions and
+/// reversals add events but never remove earlier ones.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecisionEvent {
+    /// RFC3339-ish timestamp, `YYYY-MM-DD HH:MM UTC`.
+    pub time: String,
+    pub kind: DecisionEventKind,
+    /// Human-readable rationale (why made / why changed / why overturned).
+    pub summary: String,
+    /// Where the decision came from (e.g. "user", "agent", "issue #123").
+    pub source: String,
+}
+
+/// A single durable decision with its rewritable `current` understanding and
+/// its immutable [`history`](DecisionEntry::history) audit trail. Mirrors
+/// brain.md's `compiled_truth` (the `current` field) + `timeline` (history).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecisionEntry {
+    /// Stable opaque id (slug or short hash). Used as the lookup key.
+    pub id: String,
+    /// Short title for the decision.
+    pub title: String,
+    /// The current best understanding. Rewritten on revision; frozen (and
+    /// marked reversed) on reversal.
+    pub current: String,
+    /// Free-form category / tag for grouping (e.g. "architecture", "policy").
+    pub category: String,
+    /// Creation timestamp.
+    pub created: String,
+    /// Last-mutation timestamp.
+    pub updated: String,
+    /// When `true`, the decision was overturned and `current` is frozen.
+    pub reversed: bool,
+    /// Append-only audit trail.
+    pub history: Vec<DecisionEvent>,
+}
+
+/// Path to `decisions.md` inside `dir`.
+#[must_use]
+pub fn decisions_path(dir: &Path) -> PathBuf {
+    dir.join("decisions.md")
+}
+
+/// Capture a new decision. Returns an error if `id` already exists (use
+/// [`decision_revise`] to change an existing one). The initial event is a
+/// `Decision` entry in the history.
+pub fn decision_create(
+    dir: &Path,
+    id: &str,
+    title: &str,
+    category: &str,
+    current: &str,
+) -> io::Result<()> {
+    let id = id.trim();
+    let current = current.trim();
+    if id.is_empty() || current.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "decision `id` and `current` must be non-empty",
+        ));
+    }
+    ensure_dir(dir)?;
+    let mut entries = read_decisions(dir);
+    if entries.iter().any(|e| e.id == id) {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("decision `{id}` already exists; use revise/reverse to change it"),
+        ));
+    }
+    let now = Utc::now().format("%Y-%m-%d %H:%M UTC").to_string();
+    let entry = DecisionEntry {
+        id: id.to_string(),
+        title: title.trim().to_string(),
+        current: current.to_string(),
+        category: category.trim().to_string(),
+        created: now.clone(),
+        updated: now.clone(),
+        reversed: false,
+        history: vec![DecisionEvent {
+            time: now,
+            kind: DecisionEventKind::Decision,
+            summary: current.to_string(),
+            source: "agent".to_string(),
+        }],
+    };
+    entries.push(entry);
+    write_decisions_atomic(dir, &entries)
+}
+
+/// Rewrite a decision's `current` understanding and append a `Revision` event
+/// recording `why`. Returns `Ok(false)` when the id is unknown. No-op (and
+/// `Ok(false)`) when the decision is already reversed — reversals are final.
+pub fn decision_revise(dir: &Path, id: &str, new_current: &str, why: &str) -> io::Result<bool> {
+    let new_current = new_current.trim();
+    if new_current.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "decision revision text must be non-empty",
+        ));
+    }
+    let mut entries = read_decisions(dir);
+    let Some(pos) = entries.iter().position(|e| e.id == id) else {
+        return Ok(false);
+    };
+    if entries[pos].reversed {
+        return Ok(false);
+    }
+    let now = Utc::now().format("%Y-%m-%d %H:%M UTC").to_string();
+    entries[pos].current = new_current.to_string();
+    entries[pos].updated = now.clone();
+    entries[pos].history.push(DecisionEvent {
+        time: now,
+        kind: DecisionEventKind::Revision,
+        summary: why.trim().to_string(),
+        source: "agent".to_string(),
+    });
+    write_decisions_atomic(dir, &entries)?;
+    Ok(true)
+}
+
+/// Overturn a decision: append a `Reversal` event recording `why`, mark the
+/// entry `reversed`, and freeze `current` (it is NOT deleted, preserving the
+/// evidence chain). Returns `Ok(false)` when the id is unknown. Reversing an
+/// already-reversed decision is a no-op `Ok(false)`.
+pub fn decision_reverse(dir: &Path, id: &str, why: &str) -> io::Result<bool> {
+    let mut entries = read_decisions(dir);
+    let Some(pos) = entries.iter().position(|e| e.id == id) else {
+        return Ok(false);
+    };
+    if entries[pos].reversed {
+        return Ok(false);
+    }
+    let now = Utc::now().format("%Y-%m-%d %H:%M UTC").to_string();
+    entries[pos].reversed = true;
+    entries[pos].updated = now.clone();
+    entries[pos].history.push(DecisionEvent {
+        time: now,
+        kind: DecisionEventKind::Reversal,
+        summary: why.trim().to_string(),
+        source: "agent".to_string(),
+    });
+    write_decisions_atomic(dir, &entries)?;
+    Ok(true)
+}
+
+/// Read all decision entries from `decisions.md`. Returns an empty vec when
+/// the file is missing or unparseable (fail-soft — never errors).
+#[must_use]
+pub fn read_decisions(dir: &Path) -> Vec<DecisionEntry> {
+    let content = match fs::read_to_string(decisions_path(dir)) {
+        Ok(c) if !c.trim().is_empty() => c,
+        _ => return Vec::new(),
+    };
+    parse_decisions(&content)
+}
+
+/// Parse `decisions.md` content into entries. Tolerant: malformed entries are
+/// skipped rather than aborting the whole file.
+#[must_use]
+pub fn parse_decisions(content: &str) -> Vec<DecisionEntry> {
+    let mut entries = Vec::new();
+    let mut current: Option<DecisionEntry> = None;
+    let mut in_history = false;
+
+    for raw_line in content.lines() {
+        let line = raw_line.trim_end();
+        let trimmed = line.trim();
+
+        // Heading `# <title>  [<category>]  (id: <id>)  _(reversed)_` starts a
+        // new entry.
+        if let Some(rest) = trimmed.strip_prefix("# ") {
+            if let Some(entry) = current.take() {
+                entries.push(entry);
+            }
+            in_history = false;
+            let (title_part, id, category, reversed) = parse_decision_heading(rest);
+            current = Some(DecisionEntry {
+                id,
+                title: title_part,
+                current: String::new(),
+                category,
+                created: String::new(),
+                updated: String::new(),
+                reversed,
+                history: Vec::new(),
+            });
+            continue;
+        }
+
+        let Some(entry) = current.as_mut() else { continue };
+
+        if let Some(rest) = trimmed.strip_prefix("## History") {
+            in_history = true;
+            let _ = rest;
+            continue;
+        }
+        if trimmed.starts_with("## ") {
+            // Any other H2 closes history but we keep reading the body.
+            in_history = false;
+            continue;
+        }
+
+        if in_history {
+            if let Some(ev) = parse_history_line(trimmed) {
+                entry.history.push(ev);
+            }
+            continue;
+        }
+
+        // Body line of `current` understanding (everything before History).
+        // Skip the `_created:` / `_updated:` metadata lines we emit.
+        if !trimmed.is_empty()
+            && !trimmed.starts_with('#')
+            && !trimmed.starts_with("_created:")
+            && !trimmed.starts_with("_updated:")
+        {
+            if !entry.current.is_empty() {
+                entry.current.push('\n');
+            }
+            entry.current.push_str(trimmed);
+        }
+    }
+
+    if let Some(entry) = current.take() {
+        entries.push(entry);
+    }
+    entries.retain(|e| !e.id.is_empty());
+    entries
+}
+
+/// Render entries to `decisions.md` Markdown. Human-readable and git-trackable.
+#[must_use]
+pub fn render_decisions(entries: &[DecisionEntry]) -> String {
+    let mut out = String::from(
+        "# Decision Log\n\n\
+         Durable decisions with an audit trail (current understanding + why \
+         revised/overturned). Append-only history; reversals keep the entry.\n",
+    );
+    for e in entries {
+        let status = if e.reversed { "  _(reversed)_" } else { "" };
+        let cat = if e.category.is_empty() {
+            String::new()
+        } else {
+            format!("  [{category}]", category = e.category)
+        };
+        out.push_str(&format!(
+            "\n# {title}{cat}  (id: {id}){status}\n\n",
+            title = e.title,
+            id = e.id,
+        ));
+        if !e.current.is_empty() {
+            out.push_str(e.current.trim());
+            out.push('\n');
+        }
+        if !e.created.is_empty() {
+            out.push_str(&format!("\n_created: {}_", e.created));
+        }
+        if !e.updated.is_empty() {
+            out.push_str(&format!("\n_updated: {}_", e.updated));
+        }
+        out.push_str("\n\n## History\n");
+        for ev in &e.history {
+            out.push_str(&format!(
+                "- time: {}  kind: {}  summary: {}  source: {}\n",
+                ev.time,
+                ev.kind.as_str(),
+                ev.summary,
+                ev.source,
+            ));
+        }
+    }
+    out
+}
+
+/// Compose the `<decision_brief>` block for the system prompt. Surfaces the
+/// most recent durable decisions (with their current understanding and a
+/// one-line why-trail) so a new session starts with the project's settled
+/// choices in context — brain.md's SessionStart injection, mimofan-style.
+///
+/// Returns `None` when memory is disabled, the directory is missing, or there
+/// are no decisions — callers inject nothing rather than failing. `limit`
+/// bounds how many decisions are inlined so a large log can't blow the
+/// context window.
+#[must_use]
+pub fn compose_decision_block(enabled: bool, dir: &Path, limit: usize) -> Option<String> {
+    if !enabled {
+        return None;
+    }
+    let mut entries = read_decisions(dir);
+    if entries.is_empty() {
+        return None;
+    }
+    // Most-recently-updated first; reversed ones still surface (they explain
+    // why a past choice no longer holds).
+    entries.sort_by(|a, b| b.updated.cmp(&a.updated));
+    let display = decisions_path(dir).display().to_string();
+    let mut block = format!("<decision_brief source=\"{display}\">\n");
+    let take = if limit == 0 { entries.len() } else { limit.min(entries.len()) };
+    for e in &entries[..take] {
+        let status = if e.reversed { " _(reversed)_" } else { "" };
+        block.push_str(&format!("- [{id}]{status}: ", id = e.id));
+        let current_one_line = e.current.lines().next().unwrap_or("").trim().to_string();
+        block.push_str(&current_one_line);
+        // Append the latest rationale (last history event) when present.
+        if let Some(last) = e.history.last() {
+            block.push_str(&format!("  (why: {})", last.summary));
+        }
+        block.push('\n');
+    }
+    block.push_str("</decision_brief>");
+    Some(block)
+}
+
+/// Atomic write: render to a temp file in `dir`, then rename over the target
+/// so a crash mid-write never corrupts `decisions.md`.
+fn write_decisions_atomic(dir: &Path, entries: &[DecisionEntry]) -> io::Result<()> {
+    ensure_dir(dir)?;
+    let target = decisions_path(dir);
+    let tmp = dir.join(format!(".decisions.{}.tmp", std::process::id()));
+    fs::write(&tmp, render_decisions(entries))?;
+    fs::rename(&tmp, &target)?;
+    Ok(())
+}
+
+/// Parse a decision heading line into `(title, id, category, reversed)`.
+fn parse_decision_heading(rest: &str) -> (String, String, String, bool) {
+    // Reversed entries carry a trailing `_(reversed)_` marker.
+    let reversed = rest.contains("_(reversed)_");
+    let rest = rest.replace("_(reversed)_", "").trim().to_string();
+    // Split off `(id: ...)` suffix first.
+    let (title_cat, id) = if let Some(idx) = rest.find("(id:") {
+        let id = rest[idx + 5..].trim_end_matches(')').trim().to_string();
+        (rest[..idx].trim().to_string(), id)
+    } else {
+        (rest.trim().to_string(), String::new())
+    };
+    // Then split off `[category]` if present.
+    let (title, category) = if let Some(open) = title_cat.find('[') {
+        if let Some(close) = title_cat[open..].find(']') {
+            let category = title_cat[open + 1..open + close].trim().to_string();
+            let title = title_cat[..open].trim().to_string();
+            (title, category)
+        } else {
+            (title_cat, String::new())
+        }
+    } else {
+        (title_cat, String::new())
+    };
+    (title, id, category, reversed)
+}
+
+/// Parse a `- time: ... kind: ... summary: ... source: ...` history line.
+fn parse_history_line(line: &str) -> Option<DecisionEvent> {
+    let body = line.trim_start_matches('-').trim();
+    if !body.starts_with("time:") {
+        return None;
+    }
+    let time = field(body, "time:")?;
+    let kind_str = field(body, "kind:")?;
+    let kind = DecisionEventKind::from_str(kind_str)?;
+    let summary = field(body, "summary:").unwrap_or_default().to_string();
+    let source = field(body, "source:").unwrap_or_default().to_string();
+    Some(DecisionEvent {
+        time: time.trim().to_string(),
+        kind,
+        summary: summary.trim().to_string(),
+        source: source.trim().to_string(),
+    })
+}
+
+/// Extract the value following `key` in a free-form `key: val key2: val2` line.
+fn field<'a>(line: &'a str, key: &str) -> Option<&'a str> {
+    let start = line.find(key)? + key.len();
+    let rest = line[start..].trim_start();
+    // Value ends at the next ` key:` boundary (a recognized field key).
+    let end = ["time:", "kind:", "summary:", "source:"]
+        .iter()
+        .filter_map(|k| {
+            if *k == key {
+                None
+            } else {
+                rest.find(*k)
+            }
+        })
+        .min();
+    match end {
+        Some(e) => Some(rest[..e].trim()),
+        None => Some(rest.trim()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn tmp_memory_dir() -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let seq = COUNTER.fetch_add(1, Ordering::SeqCst);
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let dir = std::env::temp_dir().join(format!(
-            "mimofan-memory-test-{}-{}",
+            "mimofan-memory-test-{}-{}-{}",
             std::process::id(),
-            nanos
+            nanos,
+            seq
         ));
         let _ = fs::remove_dir_all(&dir);
         dir
@@ -703,6 +1141,100 @@ mod tests {
         let dir = tmp_memory_dir();
         assert!(remove_entry(&dir, "bogus", "x").is_err());
         assert!(replace_entry(&dir, "bogus", "x", "y").is_err());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // ----- Structured decision pages (`decisions.md`) -----
+
+    #[test]
+    fn decision_create_then_read() {
+        let dir = tmp_memory_dir();
+        decision_create(&dir, "api-auth", "API auth scheme", "architecture",
+                        "Use Bearer tokens for the public API.")
+            .unwrap();
+        let entries = read_decisions(&dir);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, "api-auth");
+        assert_eq!(entries[0].title, "API auth scheme");
+        assert!(entries[0].current.contains("Bearer tokens"));
+        assert_eq!(entries[0].history.len(), 1);
+        assert_eq!(entries[0].history[0].kind, DecisionEventKind::Decision);
+        // Duplicate id is rejected.
+        assert!(decision_create(&dir, "api-auth", "x", "y", "z").is_err());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn decision_revise_appends_revision_event() {
+        let dir = tmp_memory_dir();
+        decision_create(&dir, "d1", "Title", "", "v1").unwrap();
+        assert!(decision_revise(&dir, "d1", "v2", "switched to mTLS").unwrap());
+        let entries = read_decisions(&dir);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].current, "v2");
+        assert_eq!(entries[0].history.len(), 2);
+        assert_eq!(entries[0].history[1].kind, DecisionEventKind::Revision);
+        assert!(entries[0].history[1].summary.contains("mTLS"));
+        // Unknown id => false, no-op.
+        assert!(!decision_revise(&dir, "nope", "x", "y").unwrap());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn decision_reverse_marks_reversed_and_keeps_entry() {
+        let dir = tmp_memory_dir();
+        decision_create(&dir, "d1", "Title", "", "v1").unwrap();
+        assert!(decision_reverse(&dir, "d1", "superseded by gateway").unwrap());
+        let entries = read_decisions(&dir);
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].reversed);
+        // current is frozen, not blanked.
+        assert_eq!(entries[0].current, "v1");
+        assert_eq!(entries[0].history.len(), 2);
+        assert_eq!(entries[0].history[1].kind, DecisionEventKind::Reversal);
+        // Reversing again is a no-op (reversals are final).
+        assert!(!decision_reverse(&dir, "d1", "again").unwrap());
+        // And revising a reversed decision is refused.
+        assert!(!decision_revise(&dir, "d1", "v2", "late change").unwrap());
+        // Unknown id => false.
+        assert!(!decision_reverse(&dir, "nope", "x").unwrap());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn decision_roundtrip_preserves_history() {
+        let dir = tmp_memory_dir();
+        decision_create(&dir, "d1", "Title", "policy", "v1").unwrap();
+        decision_revise(&dir, "d1", "v2", "reason A").unwrap();
+        decision_revise(&dir, "d1", "v3", "reason B").unwrap();
+        decision_reverse(&dir, "d1", "overturned").unwrap();
+
+        // Re-read from disk and verify the whole trail survived a full
+        // parse/render/parse round-trip.
+        let entries = read_decisions(&dir);
+        assert_eq!(entries.len(), 1);
+        let e = &entries[0];
+        assert!(e.reversed);
+        assert_eq!(e.current, "v3");
+        assert_eq!(e.category, "policy");
+        assert_eq!(e.history.len(), 4);
+        assert_eq!(e.history[0].kind, DecisionEventKind::Decision);
+        assert_eq!(e.history[1].kind, DecisionEventKind::Revision);
+        assert_eq!(e.history[2].kind, DecisionEventKind::Revision);
+        assert_eq!(e.history[3].kind, DecisionEventKind::Reversal);
+        assert!(e.history[3].summary.contains("overturned"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn decision_atomic_write_is_idempotent_on_reparse() {
+        // Rendering then re-parsing must be stable (no data loss / drift).
+        let dir = tmp_memory_dir();
+        decision_create(&dir, "d1", "Title", "cat", "line1\nline2").unwrap();
+        let first = read_decisions(&dir);
+        let rendered = render_decisions(&first);
+        let second = parse_decisions(&rendered);
+        assert_eq!(first, second);
         let _ = fs::remove_dir_all(&dir);
     }
 }
