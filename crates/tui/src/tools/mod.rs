@@ -9,6 +9,7 @@
 /// #847：模型路由 advisor（Advisor::advise 纯函数 + AdvisorTool 薄 ToolSpec 包装）。
 pub mod advisor;
 pub mod apply_patch;
+pub mod apply_patch_claude;
 pub mod approval_cache;
 pub mod arg_repair;
 pub mod ast_query;

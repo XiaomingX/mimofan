@@ -976,11 +976,13 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(RequestUserInputTool))
     }
 
-    /// Include patch tools (`apply_patch`).
+    /// Include patch tools (`apply_patch`, `apply_patch_claude`).
     #[must_use]
     pub fn with_patch_tools(self) -> Self {
         use super::apply_patch::ApplyPatchTool;
+        use super::apply_patch_claude::ApplyPatchClaudeTool;
         self.with_tool(Arc::new(ApplyPatchTool))
+            .with_tool(Arc::new(ApplyPatchClaudeTool))
     }
 
     /// Include the `revert_turn` tool. Approval-gated since it mutates
