@@ -1,0 +1,23 @@
+[
+  {
+    "id": "TB-debug-memory-crash",
+    "source": "terminal-bench",
+    "category": "medium",
+    "instruction": "A C++ service crashes with a heap-use-after-free under load. Build it in both Debug and Release, run under valgrind, locate the dangling pointer, and apply a fix that passes the test suite.",
+    "test_script": "run-tests.sh"
+  },
+  {
+    "id": "TB-train-small-model",
+    "source": "terminal-bench",
+    "category": "hard",
+    "instruction": "Set up a conda env, install PyTorch, write a training loop for a tiny MLP on a synthetic dataset, train for 5 epochs, and save the checkpoint. Verify loss decreased.",
+    "test_script": "run-tests.sh"
+  },
+  {
+    "id": "TB-deploy-flask-api",
+    "source": "terminal-bench",
+    "category": "medium",
+    "instruction": "Containerize a Flask API: write Dockerfile, requirements.txt, implement /predict endpoint, build image, run container, and curl a healthcheck that returns 200 with expected JSON schema.",
+    "test_script": "run-tests.sh"
+  }
+]

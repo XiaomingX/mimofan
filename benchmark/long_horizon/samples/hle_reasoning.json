@@ -1,0 +1,23 @@
+[
+  {
+    "id": "HLE-math-proof-001",
+    "source": "hle",
+    "subject": "Mathematics",
+    "task_type": "short-answer",
+    "long_reasoning": true
+  },
+  {
+    "id": "HLE-physics-derive-002",
+    "source": "hle",
+    "subject": "Physics",
+    "task_type": "short-answer",
+    "long_reasoning": true
+  },
+  {
+    "id": "HLE-cs-algorithm-003",
+    "source": "hle",
+    "subject": "Computer Science",
+    "task_type": "short-answer",
+    "long_reasoning": true
+  }
+]

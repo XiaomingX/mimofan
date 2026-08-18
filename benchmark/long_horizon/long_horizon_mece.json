@@ -1,0 +1,172 @@
+[
+  {
+    "id": "LH.1.001",
+    "domain": "LH",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::dependency_graph",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "长程任务支持依赖图，阻塞推进前能枚举前驱/后继任务",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": ["crates/tui/src/task_manager/mod.rs"],
+      "patterns": ["pub fn dependency_graph"]
+    }
+  },
+  {
+    "id": "LH.1.002",
+    "domain": "LH",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::cycle_detection",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "长程任务依赖图能检测环，避免死锁阻塞（对应 SciCode 子步编号隐含依赖的防卡死）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": ["crates/tui/src/task_manager/mod.rs"],
+      "assert": "fn_has_param",
+      "args": {"fn": "cycle_detection", "param": "tasks"}
+    }
+  },
+  {
+    "id": "LH.1.003",
+    "domain": "LH",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/task_manager/mod.rs::detect_cycle",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "依赖环检测单元测试通过：detect_cycle_finds_three_node_loop",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": ["cargo", "test", "-p", "mimofan-tui", "task_manager::tests::detect_cycle_finds_three_node_loop", "--", "--nocapture"],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "LH.2.001",
+    "domain": "LH",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在长程目标循环推进决策函数，决定继续/停止",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": ["crates/tui/src/goal_loop/mod.rs"],
+      "patterns": ["pub fn decide_continuation"]
+    }
+  },
+  {
+    "id": "LH.2.002",
+    "domain": "LH",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::StopReason::NoProgress",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "长程任务跨多回合无文件变化时触发 NoProgress 停止（防长程漂移卡死）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": ["crates/tui/src/goal_loop/mod.rs"],
+      "assert": "enum_has_variant",
+      "args": {"enum": "StopReason", "variant": "NoProgress"}
+    }
+  },
+  {
+    "id": "LH.2.003",
+    "domain": "LH",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::StopReason::RepeatedError",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "长程任务连续相同工具错误时触发 RepeatedError 停止（防长程错误循环）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": ["crates/tui/src/goal_loop/mod.rs"],
+      "assert": "enum_has_variant",
+      "args": {"enum": "StopReason", "variant": "RepeatedError"}
+    }
+  },
+  {
+    "id": "LH.2.004",
+    "domain": "LH",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/goal_loop/mod.rs::decide_continuation",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "decide_continuation 在 NoProgress 阈值到达时返回 Stop(NoProgress)——长程任务不丢目标但能停",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": ["cargo", "test", "-p", "mimofan-tui", "goal_loop::tests", "--", "--nocapture"],
+      "expect": "test_passes"
+    }
+  },
+  {
+    "id": "LH.3.001",
+    "domain": "LH",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::observe",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "存在回合内循环检测入口 observe，长程任务每轮调用检测重复/无进展",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": ["crates/tui/src/loop_guard/mod.rs"],
+      "patterns": ["pub fn observe"]
+    }
+  },
+  {
+    "id": "LH.3.002",
+    "domain": "LH",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopPattern",
+    "view": "depth",
+    "tier": "T2",
+    "desc": "循环检测覆盖重复调用/交替/无进展/语义回音多模式（长程任务停滞的多形态）",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": ["crates/tui/src/loop_guard/mod.rs"],
+      "assert": "enum_has_variant",
+      "args": {"enum": "LoopPattern", "variant": "RepeatedCall"}
+    }
+  },
+  {
+    "id": "LH.3.003",
+    "domain": "LH",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuardState",
+    "view": "integration",
+    "tier": "T2",
+    "desc": "LoopGuard 状态可跨回合持久化（snapshot_state/restore_state），长程任务重启后不丢失停滞检测上下文",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": ["crates/tui/src/loop_guard/mod.rs"],
+      "assert": "both_present",
+      "args": {"symbols": ["snapshot_state", "restore_state"]}
+    }
+  },
+  {
+    "id": "LH.3.004",
+    "domain": "LH",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/loop_guard/mod.rs::LoopGuardState",
+    "view": "integration",
+    "tier": "T3",
+    "desc": "跨回合状态持久化单元测试通过：objective_is_persisted_across_turns_via_state",
+    "weight": 1.0,
+    "check": {
+      "kind": "exec",
+      "cmd": ["cargo", "test", "-p", "mimofan-tui", "loop_guard::tests::objective_is_persisted_across_turns_via_state", "--", "--nocapture"],
+      "expect": "test_passes"
+    }
+  }
+]

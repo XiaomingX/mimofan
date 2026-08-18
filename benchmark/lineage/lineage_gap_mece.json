@@ -1,0 +1,192 @@
+[
+  {
+    "id": "LHX.1.001",
+    "domain": "LHX",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/fleet/manager.rs::FleetManager::status",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "已实现的最近邻：FleetManager::status 提供单实体（单个 fleet/agent）状态快照查询，基于 ledger 增量重建，不重放对话历史。缺口子能力：实验谱系树（多代实验节点构成的有向无环树）的遍历式状态查询（如按子树/深度/分支聚合查询）未实现，无 chassis 谱系遍历 API。",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/fleet/manager.rs"
+      ],
+      "patterns": [
+        "pub fn status"
+      ]
+    }
+  },
+  {
+    "id": "LHX.1.002",
+    "domain": "LHX",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/fleet/manager.rs::FleetManager::run_status",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "已实现的最近邻：FleetManager::run_status 提供单次 run 的状态查询，属单实体粒度。缺口子能力：实验谱系中跨多次 run 的级联状态聚合（沿谱系边回溯祖先 run 状态）未实现，无 lineage::run_status_of_subtree 之类语义。",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/fleet/manager.rs"
+      ],
+      "patterns": [
+        "pub fn run_status"
+      ]
+    }
+  },
+  {
+    "id": "LHX.1.003",
+    "domain": "LHX",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/fleet/ledger.rs::rebuild_state",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "已实现的最近邻：FleetLedger::rebuild_state 通过增量事件重建状态，最接近『无需全历史回放即可查询状态』这一核心诉求。缺口子能力：该重建仅针对扁平 fleet 状态，不含谱系树结构（分支点、父子边、子树闭包），无法遍历谱系树做状态物化，谱系树遍历查询为未实现缺口。",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/fleet/ledger.rs"
+      ],
+      "patterns": [
+        "pub fn rebuild_state"
+      ]
+    }
+  },
+  {
+    "id": "LHX.1.004",
+    "domain": "LHX",
+    "cluster": 1,
+    "assert_key": "crates/tui/src/tools/subagent/lifecycle.rs::LifecycleTracker",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "已实现的最近邻：LifecycleTracker 对单个 agent 的生命周期做 O(1) 状态查询。缺口子能力：谱系级状态查询需要沿实验树聚合多个 agent/run 的状态，LifecycleTracker 仅覆盖单 agent 生命周期，无跨节点谱系状态物化能力。",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/lifecycle.rs"
+      ],
+      "patterns": [
+        "pub struct LifecycleTracker"
+      ]
+    }
+  },
+  {
+    "id": "LHX.2.001",
+    "domain": "LHX",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/evolve/mod.rs::CandidateLineage",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "已实现的最近邻：evolve 模块的 CandidateLineage 对单链候选（一次进化迭代）做血统留痕。缺口子能力：仅单链（线性）血统，无字段级跨节点审计、无沿谱系树的分支级审计遍历，实验谱系的多父/分支审计为未实现缺口。",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/evolve/mod.rs"
+      ],
+      "patterns": [
+        "pub struct CandidateLineage"
+      ]
+    }
+  },
+  {
+    "id": "LHX.2.002",
+    "domain": "LHX",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/evolve/mod.rs::record_candidate",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "已实现的最近邻：record_candidate 以追加写方式写入候选血统记录。缺口子能力：仅为单链追加写入，无谱系树级别的审计事件（如 branch/merge/delete 节点）写入与遍历审计，跨分支审计查询为未实现缺口。",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/evolve/mod.rs"
+      ],
+      "patterns": [
+        "pub fn record_candidate"
+      ]
+    }
+  },
+  {
+    "id": "LHX.3.001",
+    "domain": "LHX",
+    "cluster": 3,
+    "assert_key": "crates/tui/src/tools/workflow.rs::WorkflowEngine",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "已实现的最近邻：WorkflowEngine 提供任务 DAG 编排能力（节点 + 依赖边）。缺口子能力：仅任务级 DAG，无实验谱系语义——没有 branch_point（从某实验节点长出分支）、无谱系节点间的父子/兄弟关系建模，实验谱系 branch 能力为未实现缺口。",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/workflow.rs"
+      ],
+      "patterns": [
+        "pub struct WorkflowEngine"
+      ]
+    }
+  },
+  {
+    "id": "LHX.4.001",
+    "domain": "LHX",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/purge/mod.rs::execute_purge_operations",
+    "view": "existence",
+    "tier": "T1",
+    "desc": "已实现的最近邻：execute_purge_operations 提供消息级联清理（按依赖/引用关系级联删除消息）。缺口子能力：仅为消息级联，无按实验谱系子树（subtree）的 cascade delete 语义——删除一个实验节点应软删除其影响闭包（所有后代实验节点与产物），该按谱系子树级联删除为未实现缺口。",
+    "weight": 1.0,
+    "check": {
+      "kind": "grep",
+      "files": [
+        "crates/tui/src/purge/mod.rs"
+      ],
+      "patterns": [
+        "pub fn execute_purge_operations"
+      ]
+    }
+  },
+  {
+    "id": "LHX.4.002",
+    "domain": "LHX",
+    "cluster": 4,
+    "assert_key": "crates/tui/src/fleet/ledger.rs::rebuild_state",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "补充视角（干净删除）：FleetLedger::rebuild_state 支持增量重建，理论上可支撑删除后状态重算。缺口子能力：重建过程不含谱系子树闭包计算，删除一个实验节点后无法自动重算/软删除其下游影响闭包，实验谱系子树级联删除与影响闭包软删除为未实现缺口。",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/fleet/ledger.rs"
+      ],
+      "patterns": [
+        "pub fn rebuild_state"
+      ]
+    }
+  },
+  {
+    "id": "LHX.2.003",
+    "domain": "LHX",
+    "cluster": 2,
+    "assert_key": "crates/tui/src/tools/subagent/lifecycle.rs::LifecycleTracker",
+    "view": "existence",
+    "tier": "T2",
+    "desc": "补充视角（审计）：LifecycleTracker 记录单 agent 生命周期事件，可作审计留痕的最近邻。缺口子能力：仅为单 agent 事件流，无实验谱系级的跨节点审计视图（按谱系边组织、按子树聚合的审计日志），谱系审计遍历为未实现缺口。",
+    "weight": 1.0,
+    "check": {
+      "kind": "struct_assert",
+      "files": [
+        "crates/tui/src/tools/subagent/lifecycle.rs"
+      ],
+      "patterns": [
+        "pub struct LifecycleTracker"
+      ]
+    }
+  }
+]

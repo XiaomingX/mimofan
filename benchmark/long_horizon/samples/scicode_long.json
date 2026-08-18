@@ -1,0 +1,55 @@
+[
+  {
+    "id": "SC-10",
+    "source": "scicode",
+    "domain": "ewald_summation",
+    "goal": "Write a Python function that calculates the energy of a periodic system using Ewald summation given latvec (3,3), atom_charges (natoms,), and atom_positions (natoms,3).",
+    "steps": [
+      {
+        "n": "10.1",
+        "prompt": "Write a function to determine the alpha value for the Ewald summation given reciprocal lattice vectors recvec (3,3) and a scaling factor.",
+        "gt": "def get_alpha(recvec, alpha_scaling=5):\n    import numpy as np\n    return alpha_scaling / np.linalg.norm(recvec, axis=1).max()"
+      },
+      {
+        "n": "10.2",
+        "prompt": "Write a function computing the real-space contribution to the Ewald sum over neighbor cells.",
+        "gt": "def real_space(positions, charges, alpha, r_cut):\n    ..."
+      },
+      {
+        "n": "10.3",
+        "prompt": "Write a function computing the reciprocal-space contribution.",
+        "gt": "def reciprocal_space(recvec, charges, alpha):\n    ..."
+      },
+      {
+        "n": "10.4",
+        "prompt": "Combine real and reciprocal parts plus the self-interaction term into the final energy function.",
+        "gt": "def ewald_energy(latvec, charges, positions, alpha=None):\n    ..."
+      }
+    ],
+    "eval": "ref1 = -1.74756\nassert abs(ewald_energy(...) - ref1) < 1e-3"
+  },
+  {
+    "id": "SC-23",
+    "source": "scicode",
+    "domain": "reaction_rate_integration",
+    "goal": "Numerically integrate a temperature-dependent reaction rate ODE and report conversion at t=10.",
+    "steps": [
+      {
+        "n": "23.1",
+        "prompt": "Define the Arrhenius rate constant function k(T, A, Ea).",
+        "gt": "def arrhenius(T, A, Ea, R=8.314):\n    return A*np.exp(-Ea/(R*T))"
+      },
+      {
+        "n": "23.2",
+        "prompt": "Write the ODE dX/dt = k(T)*(1-X) for batch reactor conversion.",
+        "gt": "def dxdt(t, X, k):\n    return k*(1-X)"
+      },
+      {
+        "n": "23.3",
+        "prompt": "Integrate with scipy.solve_ivp over [0,10].",
+        "gt": "from scipy.integrate import solve_ivp\nsol = solve_ivp(dxdt, [0,10], [0], args=(k,))"
+      }
+    ],
+    "eval": "assert sol.y[0,-1] > 0.9"
+  }
+]

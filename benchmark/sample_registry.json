@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "taxonomy": "benchmark/L_TAXONOMY.md",
+  "summary": {
+    "total_samples": 29,
+    "by_l_level": {
+      "L0": 5,
+      "L1": 5,
+      "L2": 8,
+      "L3": 4,
+      "L4": 6,
+      "L5": 1
+    },
+    "by_category": {
+      "static-capability": 9,
+      "dynamic-metric": 1,
+      "long-term-memory": 1,
+      "long-horizon": 4,
+      "vuln-hunt": 10,
+      "p0-e2e": 3,
+      "lineage": 1
+    }
+  },
+  "samples": [
+    {
+      "path": "agentbench/samples/mece_1000/part_a1_d01.json",
+      "category": "static-capability",
+      "l_level": 1,
+      "count": 116,
+      "note": "MECE 条目（T1→L0/T2→L1/T3→L2，取代表 tier）"
+    },
+    {
+      "path": "agentbench/samples/mece_1000/part_a2_d02.json",
+      "category": "static-capability",
+      "l_level": 0,
+      "count": 90,
+      "note": "MECE 条目（T1→L0/T2→L1/T3→L2，取代表 tier）"
+    },
+    {
+      "path": "agentbench/samples/mece_1000/part_a3_d03.json",
+      "category": "static-capability",
+      "l_level": 0,
+      "count": 110,
+      "note": "MECE 条目（T1→L0/T2→L1/T3→L2，取代表 tier）"
+    },
+    {
+      "path": "agentbench/samples/mece_1000/part_b_d04_d06.json",
+      "category": "static-capability",
+      "l_level": 0,
+      "count": 240,
+      "note": "MECE 条目（T1→L0/T2→L1/T3→L2，取代表 tier）"
+    },
+    {
+      "path": "agentbench/samples/mece_1000/part_c_d07_d09.json",
+      "category": "static-capability",
+      "l_level": 1,
+      "count": 220,
+      "note": "MECE 条目（T1→L0/T2→L1/T3→L2，取代表 tier）"
+    },
+    {
+      "path": "agentbench/samples/mece_1000/part_d_d10_d12.json",
+      "category": "static-capability",
+      "l_level": 0,
+      "count": 230,
+      "note": "MECE 条目（T1→L0/T2→L1/T3→L2，取代表 tier）"
+    },
+    {
+      "path": "agentbench/samples/mece_1000/part_e_d13.json",
+      "category": "static-capability",
+      "l_level": 1,
+      "count": 10,
+      "note": "MECE 条目（T1→L0/T2→L1/T3→L2，取代表 tier）"
+    },
+    {
+      "path": "agentbench/samples/capability_matrix.json",
+      "category": "static-capability",
+      "l_level": 0,
+      "count": 1,
+      "note": "静态能力探针"
+    },
+    {
+      "path": "agentbench/samples/capability_matrix_p0.json",
+      "category": "static-capability",
+      "l_level": 1,
+      "count": 1,
+      "note": "P0 专项静态/结构"
+    },
+    {
+      "path": "agentbench/samples/tokenizer_samples.json",
+      "category": "dynamic-metric",
+      "l_level": 1,
+      "count": 12,
+      "note": "token 真值比对"
+    },
+    {
+      "path": "agentbench/samples/memory_recall.json",
+      "category": "long-term-memory",
+      "l_level": 3,
+      "count": 1,
+      "note": "单查询 recall + judge"
+    },
+    {
+      "path": "long_horizon/samples/scicode_long.json",
+      "category": "long-horizon",
+      "l_level": 4,
+      "count": 2,
+      "note": "多步子任务 + 跨步一致性"
+    },
+    {
+      "path": "long_horizon/samples/terminal_bench_e2e.json",
+      "category": "long-horizon",
+      "l_level": 4,
+      "count": 3,
+      "note": "端到端长程 + 测试脚本"
+    },
+    {
+      "path": "long_horizon/samples/hle_reasoning.json",
+      "category": "long-horizon",
+      "l_level": 3,
+      "count": 3,
+      "note": "单轮长推理（对照索引）"
+    },
+    {
+      "path": "long_horizon/long_horizon_mece.json",
+      "category": "long-horizon",
+      "l_level": 2,
+      "count": 11,
+      "note": "T1→L0/T2→L1/T3→L2，取代表 2"
+    },
+    {
+      "path": "vuln_hunt/tasks/vh-fastjson-js/task.json",
+      "category": "vuln-hunt",
+      "l_level": 4,
+      "count": 1,
+      "note": "长程多轴评测"
+    },
+    {
+      "path": "vuln_hunt/tasks/vh-auto-discovery/task.json",
+      "category": "vuln-hunt",
+      "l_level": 4,
+      "count": 1,
+      "note": "长程多轴评测"
+    },
+    {
+      "path": "vuln_hunt/tasks/vh-log4shell-java/task.json",
+      "category": "vuln-hunt",
+      "l_level": 4,
+      "count": 1,
+      "note": "长程多轴评测"
+    },
+    {
+      "path": "vuln_hunt/tasks/vh-commons-collections/task.json",
+      "category": "vuln-hunt",
+      "l_level": 4,
+      "count": 1,
+      "note": "长程多轴评测"
+    },
+    {
+      "path": "vuln_hunt/fixtures/good/hypotheses.json",
+      "category": "vuln-hunt",
+      "l_level": 2,
+      "count": 1,
+      "note": "结构判定 good"
+    },
+    {
+      "path": "vuln_hunt/fixtures/bad/hypotheses.json",
+      "category": "vuln-hunt",
+      "l_level": 2,
+      "count": 1,
+      "note": "结构判定 bad"
+    },
+    {
+      "path": "vuln_hunt/fixtures/good/gadget_chain.json",
+      "category": "vuln-hunt",
+      "l_level": 2,
+      "count": 1,
+      "note": "结构判定 good"
+    },
+    {
+      "path": "vuln_hunt/fixtures/bad/gadget_chain.json",
+      "category": "vuln-hunt",
+      "l_level": 2,
+      "count": 1,
+      "note": "结构判定 bad"
+    },
+    {
+      "path": "vuln_hunt/fixtures/good/run_poc.json",
+      "category": "vuln-hunt",
+      "l_level": 2,
+      "count": 1,
+      "note": "结构判定 good"
+    },
+    {
+      "path": "vuln_hunt/fixtures/bad/run_poc.json",
+      "category": "vuln-hunt",
+      "l_level": 2,
+      "count": 1,
+      "note": "结构判定 bad"
+    },
+    {
+      "path": "p0/samples/perf_baseline.json",
+      "category": "p0-e2e",
+      "l_level": 2,
+      "count": 1,
+      "note": "延迟基线 deterministic"
+    },
+    {
+      "path": "p0/samples/token_budget.json",
+      "category": "p0-e2e",
+      "l_level": 3,
+      "count": 1,
+      "note": "省 token 判定需真模型"
+    },
+    {
+      "path": "p0/samples/prefix_cache.json",
+      "category": "p0-e2e",
+      "l_level": 3,
+      "count": 1,
+      "note": "cache 收益判定需真模型"
+    },
+    {
+      "path": "lineage/samples/lineage_tasks.json",
+      "category": "lineage",
+      "l_level": 5,
+      "count": 1,
+      "note": "实验谱系树 query/audit/branch/cascade_delete（L5 跨会话/谱系评测）"
+    }
+  ]
+}
