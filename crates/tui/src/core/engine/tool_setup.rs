@@ -146,6 +146,10 @@ impl Engine {
         #[cfg(feature = "vector-memory")]
         if crate::vector_memory::VectorMemory::is_configured() {
             builder = builder.with_remember_vector_tool();
+            // Register the read-only `session_search` recall tool alongside
+            // `remember_vector`: same embedding-backend gating so the model
+            // never sees a tool it cannot use. (#874)
+            builder = builder.with_session_search_tool();
         }
 
         // Register image_analyze tool when vision_model is configured and feature enabled.
