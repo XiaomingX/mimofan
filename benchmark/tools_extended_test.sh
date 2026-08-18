@@ -9,7 +9,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 测试配置
-API_KEY="sk-sfl2f69ak7vrf538yq093akm8ngh149cf489eqmvfam3ndhi"
+API_KEY="${MIMOFAN_TEST_API_KEY:?set MIMOFAN_TEST_API_KEY in CI secret}"
 BASE_URL="https://api.xiaomimimo.com/v1"
 MODEL="mimo-v2.5"
 

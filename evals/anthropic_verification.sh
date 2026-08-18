@@ -5,7 +5,7 @@
 set -e
 
 # 配置
-export ANTHROPIC_AUTH_TOKEN="sk-sjpn9lf7wlks5v6d4ytgcui6fq6rjdqto3vr4533qwrl1xw3"
+export ANTHROPIC_AUTH_TOKEN="${ANTHROPIC_AUTH_TOKEN:?set ANTHROPIC_AUTH_TOKEN in CI secret}"
 export ANTHROPIC_BASE_URL="https://api.xiaomimimo.com/anthropic"
 export ANTHROPIC_MODEL="mimo-v2.5"
 

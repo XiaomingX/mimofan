@@ -2,7 +2,7 @@
 
 **测试日期**: 2026-08-02
 **测试环境**: macOS Darwin 24.6.0
-**API Key**: `sk-shvcl8e7xx1nj1i4kr8u05wcglhmzwbkvo501ln7oyinfwxx`
+**API Key**: `<REDACTED>`
 
 ---
 

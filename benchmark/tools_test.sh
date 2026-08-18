@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-API_KEY="sk-sfl2f69ak7vrf538yq093akm8ngh149cf489eqmvfam3ndhi"
+API_KEY="${MIMOFAN_TEST_API_KEY:?set MIMOFAN_TEST_API_KEY in CI secret}"
 OPENAI_URL="https://api.xiaomimimo.com/v1/chat/completions"
 MODEL="mimo-v2.5"
 WORKSPACE="/tmp/mimofan_bench_$$"
