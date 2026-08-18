@@ -18,6 +18,7 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use futures_util::stream::FuturesUnordered;
 use mimofan_protocol::runtime::DynamicToolSpec;
+use crate::core::engine::verification_gate::VerificationGate;
 use serde_json::json;
 use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
@@ -421,6 +422,10 @@ pub struct Engine {
     /// and the compacted trail is injected into the compaction system prompt
     /// so long-horizon tasks keep a clean decision history across compactions.
     decision_log: crate::compaction::decision_log::DecisionLog,
+    /// #874 — behavioral verification gate. Tracks whether a code-editing tool
+    /// succeeded without a following verification tool in the same turn, and
+    /// emits a single bounded nudge at turn end (see `turn_loop.rs`).
+    verification_gate: VerificationGate,
 }
 
 // === Internal tool helpers ===
@@ -1009,6 +1014,7 @@ impl Engine {
                 None
             },
             decision_log: crate::compaction::decision_log::DecisionLog::new(),
+            verification_gate: VerificationGate::new(),
         };
 
         let handle = EngineHandle {
@@ -3773,6 +3779,7 @@ mod tool_execution;
 mod tool_setup;
 mod trace;
 mod turn_loop;
+mod verification_gate;
 pub(crate) use token_estimate_cache::TokenEstimateCache;
 
 pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;

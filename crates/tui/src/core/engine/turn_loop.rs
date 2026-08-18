@@ -6,6 +6,7 @@
 //! checkpoints, and loop termination.
 
 use super::*;
+use crate::core::engine::verification_gate::VerificationGate;
 use crate::core::ops::UserInputProvenance;
 use crate::prompt_zones::PinnedPrefix;
 
@@ -2585,6 +2586,15 @@ impl Engine {
                         {
                             turn_had_write = true;
                         }
+                        // #874 — behavioral verification gate: observe every
+                        // tool outcome so the gate can later decide whether a
+                        // code edit went unverified this turn.
+                        let tool_input_str = tool_input.to_string();
+                        self.verification_gate.observe(
+                            &outcome.name,
+                            &tool_input_str,
+                            output.success && tool_was_executed,
+                        );
                         // Loop guard: a successful write is unambiguous forward
                         // progress, which resets the repeat/stall counters so a
                         // legitimate edit-heavy loop is never flagged. A tool
@@ -2770,6 +2780,24 @@ impl Engine {
                     .await;
                 self.add_session_message(self.user_text_message_with_turn_metadata(nudge))
                     .await;
+            }
+
+            // #874 — behavioral verification gate: if a code edit succeeded
+            // but no verification tool ran this turn, inject a single bounded
+            // reminder to verify before finishing. Advisory, non-blocking.
+            if self.verification_gate.should_nudge() {
+                let _ = self
+                    .tx_event
+                    .send(Event::status(
+                        "Verification gate — nudging the model to verify edits",
+                    ))
+                    .await;
+                self.add_session_message(
+                    self.user_text_message_with_turn_metadata(
+                        VerificationGate::nudge_text().to_string(),
+                    ),
+                )
+                .await;
             }
 
             if step_error_count > 0 {
