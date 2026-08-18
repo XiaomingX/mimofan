@@ -369,7 +369,12 @@ impl Engine {
                         if !result.messages.is_empty() || self.session.messages.is_empty() {
                             let auto_messages_after = result.messages.len();
                             self.session.messages = result.messages.into();
-                            self.merge_compaction_summary(result.summary_prompt);
+                            // #871 — inject the captured decision trail into the
+                            // compaction system prompt so long-horizon tasks keep
+                            // a clean decision history across compactions.
+                            self.merge_compaction_summary(
+                                self.with_decision_trail(result.summary_prompt),
+                            );
 
                             // Post-compaction goal self-check nudge (#selfcheck).
                             // Injected via the *system* prompt channel so it never
@@ -2473,6 +2478,14 @@ impl Engine {
                         // (#734): count + wall-clock duration, so diagnostics can
                         // surface a real latency total/average rather than a boolean.
                         turn.record_tool_call_timed(started_at.elapsed());
+
+                        // #871 — capture the tool-selection decision so the
+                        // decision trail survives compaction. `tool_name` renders
+                        // to its canonical string form.
+                        self.record_decision(
+                            crate::compaction::decision_log::Kind::ToolChosen,
+                            format!("chose tool `{tool_name}`"),
+                        );
 
                         // #500: spill outsized tool outputs to disk before the
                         // result fans out to the model context and the UI cell.
