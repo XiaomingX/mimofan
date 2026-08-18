@@ -4,6 +4,10 @@ use std::fmt;
 use crate::llm_client::LlmError;
 use crate::tools::spec::ToolError;
 
+/// Fine-grained, machine-readable error codes for individual tools so the
+/// model can branch on a stable code instead of pattern-matching prose.
+pub mod tool_codes;
+
 /// Broad category for typed error handling and policy decisions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]

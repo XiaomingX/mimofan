@@ -14,16 +14,58 @@ use super::spec::{
     ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
     lsp_diagnostics_for_paths, optional_bool, optional_str, required_str,
 };
+use crate::error_taxonomy::tool_codes::ToolCode;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Display;
 use std::fs;
 use std::hash::{Hash, Hasher};
+#[cfg(unix)]
+use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
+
+/// Attach a machine-readable [`ToolCode`] to a `ToolError` without disturbing
+/// its existing human-readable message.
+///
+/// The code is encoded as a leading `[CODE]` line in the error message. This
+/// is the minimal, backward-compatible wiring chosen for issue #872: it keeps
+/// the existing `ToolError` enum byte-for-byte compatible with the ~60
+/// construction sites and all tests, while letting the model key retries on
+/// the stable code string. Callers parse via [`tool_code_from_error`].
+fn err_with_code(msg: impl Into<String>, code: ToolCode) -> ToolError {
+    ToolError::execution_failed(format!("[{code}]\n{}", msg.into()))
+}
+
+/// Extract the `[CODE]` from a `ToolError` message, if present.
+///
+/// Inverse of [`err_with_code`]; used by tests and (eventually) the engine to
+/// branch on the structured code. The `thiserror` display wrapper renders
+/// `ExecutionFailed` as `"Failed to execute tool: {message}"`, so the code
+/// travels inside that line rather than at the very start — we locate the
+/// first `[UPPER_SNAKE]` bracket segment anywhere in the first line.
+fn tool_code_from_error(err: &ToolError) -> Option<ToolCode> {
+    let ToolError::ExecutionFailed { message } = err else {
+        return None;
+    };
+    let first_line = message.lines().next()?;
+    // Find the first `[...]` segment on the line (the code prefix may be
+    // preceded by "Failed to execute tool: " from the `thiserror` display).
+    let open = first_line.find('[')?;
+    let close = first_line[open..].find(']')? + open;
+    let inner = &first_line[open + 1..close];
+    match inner {
+        "EDIT_REQUIRES_PRIOR_READ" => Some(ToolCode::EditRequiresPriorRead),
+        "FILE_CHANGED_SINCE_READ" => Some(ToolCode::FileChangedSinceRead),
+        "AMBIGUOUS_MATCH" => Some(ToolCode::AmbiguousMatch),
+        "TARGET_NOT_REGULAR_FILE" => Some(ToolCode::TargetNotRegularFile),
+        "TARGET_NOT_FOUND" => Some(ToolCode::TargetNotFound),
+        _ => None,
+    }
+}
 
 /// Byte-level formatting traits of a file that must survive an edit.
 ///
@@ -149,6 +191,47 @@ impl ToolSpec for ReadFileTool {
         let path_str = required_str(&input, "path")?;
         let file_path = context.resolve_path(path_str)?;
         let pages = optional_str(&input, "pages");
+
+        // Reject non-regular files before attempting to open them: reading a
+        // FIFO or socket would block forever, and reading a character device
+        // or directory is meaningless. Issue #872 — machine-readable guard so
+        // the model can branch instead of hanging. Symlinks are followed by
+        // `resolve_path`, so `symlink_metadata` sees the resolved file type.
+        if let Ok(meta) = std::fs::symlink_metadata(&file_path) {
+            let ft = meta.file_type();
+            if ft.is_dir() {
+                return Err(err_with_code(
+                    format!(
+                        "Refusing to read {}: it is a directory, not a regular file.",
+                        file_path.display()
+                    ),
+                    ToolCode::TargetNotRegularFile,
+                ));
+            }
+            // `is_fifo` is cross-platform; socket/char-device checks are
+            // unix-only (require `FileTypeExt`), so guard them accordingly.
+            #[cfg(unix)]
+            let is_special = ft.is_fifo() || ft.is_socket() || ft.is_char_device();
+            #[cfg(not(unix))]
+            let is_special = ft.is_fifo();
+            if is_special {
+                return Err(err_with_code(
+                    format!(
+                        "Refusing to read {}: it is a special file (FIFO/socket/device), not a regular file. Reading it would hang or be meaningless.",
+                        file_path.display()
+                    ),
+                    ToolCode::TargetNotRegularFile,
+                ));
+            }
+        } else if !file_path.exists() {
+            // `symlink_metadata` fails only for a missing path here (other
+            // errors are surfaced by the read below). Surface a structured
+            // not-found code rather than the generic read failure.
+            return Err(err_with_code(
+                format!("File not found: {}", file_path.display()),
+                ToolCode::TargetNotFound,
+            ));
+        }
 
         if is_pdf(&file_path)? {
             return read_pdf(&file_path, pages);
@@ -811,12 +894,12 @@ impl ToolSpec for EditFileTool {
                     (updated, 1, Some("anchor"))
                 }
                 _ => {
-                    return Err(ToolError::execution_failed(format!(
+                    return Err(err_with_code(format!(
                         "Anchor '{}' is non-unique: matched {} locations in {}. Recovery: use a different anchor or provide surrounding context with search mode.",
                         anchor,
                         matches.len(),
                         file_path.display(),
-                    )));
+                    ), ToolCode::AmbiguousMatch));
                 }
             }
         } else {
@@ -863,29 +946,29 @@ impl ToolSpec for EditFileTool {
                                 (updated, 1, Some("punctuation"))
                             }
                             _ => {
-                                return Err(ToolError::execution_failed(format!(
+                                return Err(err_with_code(format!(
                                     "edit_file search is non-unique after punctuation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
                                     punct_matches.len(),
                                     file_path.display()
-                                )));
+                                ), ToolCode::AmbiguousMatch));
                             }
                         }
                     }
                     _ => {
-                        return Err(ToolError::execution_failed(format!(
+                        return Err(err_with_code(format!(
                             "edit_file search is non-unique after indentation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
                             indent_matches.len(),
                             file_path.display()
-                        )));
+                        ), ToolCode::AmbiguousMatch));
                     }
                 }
             } else if count > 1 && !replace_all {
-                return Err(ToolError::execution_failed(format!(
+                return Err(err_with_code(format!(
                     "edit_file search is non-unique: matched {count} locations in {}. \
                      Recovery: either retry with surrounding lines that make the search match exactly once, \
                      or pass replace_all=true to replace all {count} occurrences in a single call.",
                     file_path.display()
-                )));
+                ), ToolCode::AmbiguousMatch));
             } else {
                 // Every match site must have been read, otherwise a
                 // replace_all could rewrite regions the model never saw.
@@ -1109,6 +1192,10 @@ mod tests {
 
     async fn edit(ctx: &ToolContext, input: Value) -> Result<ToolResult, ToolError> {
         EditFileTool.execute(input, ctx).await
+    }
+
+    async fn read(ctx: &ToolContext, input: Value) -> Result<ToolResult, ToolError> {
+        ReadFileTool.execute(input, ctx).await
     }
 
     // --- 1. Partial reads must not authorize whole-file edits ---
@@ -1541,5 +1628,96 @@ mod tests {
             .expect_err("same-length external change must still be detected");
         assert!(err.to_string().contains("stale_content"), "{err}");
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "bbbb\n");
+    }
+
+    // === Issue #872: tool_codes machine-readable error taxonomy ===
+
+    #[test]
+    fn err_with_code_prefixes_the_stable_code_and_keeps_prose() {
+        let err = err_with_code("boom", ToolCode::AmbiguousMatch);
+        let msg = err.to_string();
+        assert!(
+            msg.contains("[AMBIGUOUS_MATCH]"),
+            "code must be present in the message, got: {msg}"
+        );
+        assert!(msg.contains("boom"), "original prose must be preserved: {msg}");
+        assert_eq!(tool_code_from_error(&err), Some(ToolCode::AmbiguousMatch));
+    }
+
+    #[test]
+    fn every_tool_code_round_trips_through_err_with_code() {
+        for (code, expect) in [
+            (ToolCode::EditRequiresPriorRead, "EDIT_REQUIRES_PRIOR_READ"),
+            (ToolCode::FileChangedSinceRead, "FILE_CHANGED_SINCE_READ"),
+            (ToolCode::AmbiguousMatch, "AMBIGUOUS_MATCH"),
+            (ToolCode::TargetNotRegularFile, "TARGET_NOT_REGULAR_FILE"),
+            (ToolCode::TargetNotFound, "TARGET_NOT_FOUND"),
+        ] {
+            let err = err_with_code("detail", code);
+            assert!(
+                err.to_string().contains(&format!("[{expect}]")),
+                "missing code {expect}"
+            );
+            assert_eq!(tool_code_from_error(&err), Some(code));
+        }
+    }
+
+    #[test]
+    fn non_code_errors_have_no_extractable_code() {
+        let plain = ToolError::invalid_input("just a message");
+        assert_eq!(tool_code_from_error(&plain), None);
+    }
+
+    #[tokio::test]
+    async fn ambiguous_match_carries_its_code_on_multi_hit_edit() {
+        // Editing a line that appears twice without replace_all must surface
+        // an AmbiguousMatch-coded error the model can branch on.
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("dup.txt");
+        std::fs::write(&path, "line\nline\nother\n").unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+        // Establish full read-before-edit coverage via read_file so the
+        // prior-read guard passes and the edit reaches the ambiguous-match
+        // check.
+        read(&ctx, json!({ "path": "dup.txt" }))
+            .await
+            .expect("read_file should succeed");
+
+        let err = edit(
+            &ctx,
+            json!({
+                "path": "dup.txt",
+                "search": "line",
+                "replace": "changed",
+            }),
+        )
+        .await
+        .expect_err("non-unique search must be rejected");
+        assert_eq!(tool_code_from_error(&err), Some(ToolCode::AmbiguousMatch));
+        // The recovery guidance is preserved alongside the code.
+        assert!(err.to_string().contains("replace_all"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn reading_a_directory_is_rejected_with_target_not_regular_file() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+        let err = read(&ctx, json!({ "path": "." }))
+            .await
+            .expect_err("reading a directory must be refused");
+        assert_eq!(
+            tool_code_from_error(&err),
+            Some(ToolCode::TargetNotRegularFile)
+        );
+    }
+
+    #[tokio::test]
+    async fn reading_a_missing_path_is_rejected_with_target_not_found() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let ctx = ToolContext::new(dir.path().to_path_buf());
+        let err = read(&ctx, json!({ "path": "does_not_exist.txt" }))
+            .await
+            .expect_err("a missing file must be refused");
+        assert_eq!(tool_code_from_error(&err), Some(ToolCode::TargetNotFound));
     }
 }

@@ -306,6 +306,11 @@ pub const PRIOR_READ_ERROR_TAG: &str = "prior_read_violation=";
 /// Build a prior-read `ToolError` whose message keeps the existing prose
 /// recovery guidance and appends a parseable `prior_read_violation={...}`
 /// trailer carrying `reason`, `tool`, `path` and the expected/actual state.
+///
+/// The leading `[CODE]` line (see `crate::error_taxonomy::tool_codes`) lets
+/// the model branch on a stable machine-readable code — `EDIT_REQUIRES_PRIOR_READ`
+/// for never-read / unread-lines failures, `FILE_CHANGED_SINCE_READ` for
+/// stale content. Issue #872.
 fn prior_read_error(
     reason: PriorReadViolation,
     tool: &str,
@@ -336,7 +341,16 @@ fn prior_read_error_with(
         fields.insert((*key).to_string(), value.clone());
     }
     let trailer = Value::Object(fields);
-    ToolError::execution_failed(format!("{prose}\n{PRIOR_READ_ERROR_TAG}{trailer}"))
+    let code = match reason {
+        PriorReadViolation::NeverRead | PriorReadViolation::UnreadLines | PriorReadViolation::Unverifiable => {
+            crate::error_taxonomy::tool_codes::ToolCode::EditRequiresPriorRead
+        }
+        PriorReadViolation::Stale => {
+            crate::error_taxonomy::tool_codes::ToolCode::FileChangedSinceRead
+        }
+    };
+    let msg = format!("{prose}\n{PRIOR_READ_ERROR_TAG}{trailer}");
+    ToolError::execution_failed(format!("[{}]\n{msg}", code.as_code_str()))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
