@@ -35,6 +35,7 @@ pub mod vfs;
 
 /// #854：工具级权限策略（按 ToolCapability 裁决 deny_capability / 限网络）。模块声明在此；dispatch 接线延后，本文件不改动 registry 逻辑。
 pub mod capability_policy;
+pub mod codebase_search;
 pub mod create_sub_session;
 pub mod fetch_url;
 pub mod fim;

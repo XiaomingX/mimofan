@@ -669,6 +669,16 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(CallGraphTool))
     }
 
+    /// 注册语义代码库检索工具（`codebase_search`，#714 库能力的 agent 暴露）。
+    /// 只读检索；首次调用惰性建索引（SQLite + FTS5），缓存于
+    /// `<workspace>/.mimofan/codebase_index`。让模型能用自然语言/符号检索代码库，
+    /// 而非退回 grep_files / ast_query。
+    #[must_use]
+    pub fn with_codebase_search_tool(self) -> Self {
+        use super::codebase_search::CodebaseSearchTool;
+        self.with_tool(Arc::new(CodebaseSearchTool))
+    }
+
     /// 注册 Hypothesis/Evidence/Verdict 跟踪工具（`hypothesis`，issue #803）。
     /// 在 `.mimofan/hypotheses.json` 维护推理账本，并强制「先举证后结论」
     /// 一致性门（零证据禁止 resolve），对应 vuln-hunt 长程 harness 的
