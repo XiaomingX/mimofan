@@ -65,6 +65,11 @@ STATIC = {
     "p0/samples/token_budget.json": ("p0-e2e", 3, "省 token 判定需真模型"),
     "p0/samples/prefix_cache.json": ("p0-e2e", 3, "cache 收益判定需真模型"),
     "lineage/samples/lineage_tasks.json": ("lineage", 5, "实验谱系树 query/audit/branch/cascade_delete（L5 跨会话/谱系评测）"),
+    # 长程执行 + R&D 自动化质量（l_level=4）：MettleBench/LHTB 风格有序检查表前缀
+    # 进度 + 执行恢复轴（AgentRewind）；PaperBench 风格 rubric 树 + ResearchCodeBench
+    # 风格 target_signature 判定（R&D 自动化）。评测脚本统一在 rd_exec_eval.py。
+    "long_horizon/samples/long_exec.json": ("long-horizon-exec", 4, "长程执行：有序检查表前缀进度 + 执行恢复轴（AgentRewind/MettleBench 思想）"),
+    "long_horizon/samples/rd_automation.json": ("rd-automation", 4, "R&D 自动化：rubric 树（PaperBench）+ target_signature（ResearchCodeBench）"),
 }
 
 

@@ -2,13 +2,13 @@
   "version": 1,
   "taxonomy": "benchmark/L_TAXONOMY.md",
   "summary": {
-    "total_samples": 29,
+    "total_samples": 31,
     "by_l_level": {
       "L0": 5,
       "L1": 5,
       "L2": 8,
       "L3": 4,
-      "L4": 6,
+      "L4": 8,
       "L5": 1
     },
     "by_category": {
@@ -18,7 +18,9 @@
       "long-horizon": 4,
       "vuln-hunt": 10,
       "p0-e2e": 3,
-      "lineage": 1
+      "lineage": 1,
+      "long-horizon-exec": 1,
+      "rd-automation": 1
     }
   },
   "samples": [
@@ -224,6 +226,20 @@
       "l_level": 5,
       "count": 1,
       "note": "实验谱系树 query/audit/branch/cascade_delete（L5 跨会话/谱系评测）"
+    },
+    {
+      "path": "long_horizon/samples/long_exec.json",
+      "category": "long-horizon-exec",
+      "l_level": 4,
+      "count": 1,
+      "note": "长程执行：有序检查表前缀进度 + 执行恢复轴（AgentRewind/MettleBench 思想）"
+    },
+    {
+      "path": "long_horizon/samples/rd_automation.json",
+      "category": "rd-automation",
+      "l_level": 4,
+      "count": 1,
+      "note": "R&D 自动化：rubric 树（PaperBench）+ target_signature（ResearchCodeBench）"
     }
   ]
 }

@@ -1,0 +1,90 @@
+{
+  "schema": "rd-automation-v1",
+  "description": "R&D自动化质量：论文→代码复现、实现正确性、单测通过",
+  "l_level": 4,
+  "tasks": [
+    {
+      "id": "RD-001",
+      "source": "paperbench",
+      "paper_title": "示例：高效注意力近似方法",
+      "instruction": "根据以下论文摘要与方法描述，复现其核心算法的可运行 Python 实现，并通过 rubric 叶子要求。",
+      "rubric": {
+        "description": "复现核心算法",
+        "weight": 1.0,
+        "children": [
+          {
+            "description": "实现 forward 计算",
+            "criteria": "给定输入形状输出正确维度",
+            "weight": 0.5,
+            "tests": "assert out.shape==(B,H,T,d)"
+          },
+          {
+            "description": "数值正确性",
+            "criteria": "与参考实现误差 <1e-4",
+            "weight": 0.5,
+            "tests": "assert np.allclose(out, ref, atol=1e-4)"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RD-002",
+      "source": "paperbench",
+      "paper_title": "示例：稀疏门控专家混合路由",
+      "instruction": "根据论文方法章节，复现稀疏 Top-k 门控 MoE 路由层，并用 rubric 树逐项验证容量约束、负载均衡损失与数值稳定性。",
+      "rubric": {
+        "description": "复现 MoE 路由层",
+        "weight": 1.0,
+        "children": [
+          {
+            "description": "Top-k 门控选择",
+            "criteria": "每个 token 选 top-2 专家且索引不重复",
+            "weight": 0.3,
+            "tests": "assert sorted(indices[0].tolist()) == sorted(set(indices[0].tolist())) and indices.shape[-1]==2"
+          },
+          {
+            "description": "专家容量约束",
+            "criteria": "单专家 token 数不超过 capacity",
+            "weight": 0.3,
+            "tests": "assert all(counts[e] <= capacity for e in range(E))"
+          },
+          {
+            "description": "负载均衡辅助损失",
+            "criteria": "实现可微 load-balancing loss 且值有限",
+            "weight": 0.2,
+            "children": [
+              {
+                "description": "loss 计算",
+                "criteria": "loss = alpha * sum(f_i * P_i)",
+                "weight": 1.0,
+                "tests": "assert np.isfinite(loss.item())"
+              }
+            ]
+          },
+          {
+            "description": "数值稳定性",
+            "criteria": "softmax 前做 max 减法避免溢出",
+            "weight": 0.2,
+            "tests": "assert np.all(np.isfinite(gates.numpy()))"
+          }
+        ]
+      }
+    },
+    {
+      "id": "RD-003",
+      "source": "researchcodebench",
+      "paper_ref": "Rotary Position Embedding (RoPE, arXiv 2104.09864)",
+      "instruction": "实现论文中的旋转位置编码函数，签名如下：def apply_rope(q, k, cos, sin): ... 替换进仓库后通过原有单元测试。",
+      "target_signature": "def apply_rope(q, k, cos, sin):",
+      "judge": "run_original_unit_tests_pass_at_1"
+    },
+    {
+      "id": "RD-004",
+      "source": "researchcodebench",
+      "paper_ref": "Diff-Transformer (NeurIPS 2024)",
+      "instruction": "实现论文中的 X 函数，签名如下：def x_attn(q,k,v,beta): ... 替换进仓库后通过原有单元测试。",
+      "target_signature": "def x_attn(q, k, v, beta):",
+      "judge": "run_original_unit_tests_pass_at_1"
+    }
+  ]
+}

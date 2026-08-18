@@ -1,0 +1,76 @@
+{
+  "schema": "long-exec-v1",
+  "description": "长程执行能力：多步不可撤销操作、状态持久化、执行恢复、有序检查表进度",
+  "l_level": 4,
+  "tasks": [
+    {
+      "id": "LE-001",
+      "source": "mettlebench",
+      "title": "迁移数据库并保留不可变基线",
+      "instruction": "将 legacy DB 迁移到新 schema，但必须字节级保留 pre-migration 基线文件、不得修改 legacy 源文件，最终通过 verifier 检查表。",
+      "verifier_checklist": [
+        {"id": "P01", "kind": "file_exists", "intent": "迁移后新 schema 文件存在"},
+        {"id": "P02", "kind": "no_forbidden_change", "intent": "legacy 源文件字节不变"},
+        {"id": "P03", "kind": "file_content", "intent": "pre-migration 基线 tar 保留"},
+        {"id": "P04", "kind": "test", "intent": "迁移后冒烟测试通过"}
+      ],
+      "recovery_axis": {
+        "checkpoint_mechanism": "periodic_state_snapshot",
+        "order_violating_control": "若先删 legacy 再迁移则 P02 失败",
+        "expected_on_rewind": "从最近检查点恢复，不重跑已完成步骤，且 P02 不被破坏"
+      }
+    },
+    {
+      "id": "LE-002",
+      "source": "mettlebench",
+      "title": "重构模块并保留可复现构建基线",
+      "instruction": "对 monorepo 内 payment 模块做接口重构，必须保留 git 可复现构建指纹（commit/reproducible build hash），不得引入被禁用的全局可变状态，全部单测通过。",
+      "verifier_checklist": [
+        {"id": "P01", "kind": "file_exists", "intent": "重构后 payment 模块新入口文件存在"},
+        {"id": "P02", "kind": "no_forbidden_change", "intent": "构建指纹文件字节不变"},
+        {"id": "P03", "kind": "file_content", "intent": "禁用全局可变状态的静态检查通过"},
+        {"id": "P04", "kind": "test", "intent": "payment 模块全部单测通过"},
+        {"id": "P05", "kind": "reproducibility", "intent": "二次构建产物哈希与基线一致"}
+      ],
+      "recovery_axis": {
+        "checkpoint_mechanism": "per_commit_snapshot",
+        "order_violating_control": "若先改构建指纹再重构则 P02/P05 失败",
+        "expected_on_rewind": "回退到最近 commit 快照，保留 P02 指纹不被破坏"
+      }
+    },
+    {
+      "id": "LE-003",
+      "source": "lhtb",
+      "title": "长程终端运维：rotate 密钥并持续校验服务",
+      "instruction": "在不可中断的长程会话中（continue_until_timeout=true）定期轮换 TLS 证书与访问密钥，每轮检查服务健康，直到外部超时信号到来。期间若中途进程被 kill，需从检查点恢复并补齐未完成的轮换轮次。",
+      "verifier_checklist": [
+        {"id": "P01", "kind": "file_exists", "intent": "新一轮 TLS 证书文件已生成"},
+        {"id": "P02", "kind": "file_content", "intent": "旧密钥已吊销且不在活跃密钥环"},
+        {"id": "P03", "kind": "test", "intent": "服务健康探针连续通过"},
+        {"id": "P04", "kind": "reproducibility", "intent": "检查点间隔内状态可复现"}
+      ],
+      "recovery_axis": {
+        "checkpoint_mechanism": "CHECKPOINT_INTERVAL_SEC_periodic",
+        "order_violating_control": "若在生成新证书前先吊销旧密钥则服务中断 P03 失败",
+        "expected_on_rewind": "从 CHECKPOINT_INTERVAL_SEC 检查点恢复，继续下一轮轮换而不重做已完成轮次"
+      }
+    },
+    {
+      "id": "LE-004",
+      "source": "lhtb",
+      "title": "长程终端：组装跨会话 handoff 包",
+      "instruction": "在持续多步任务中（continue_until_timeout=true），依次完成日志归档、产物打包、状态快照导出，并将 handoff 包写入共享存储供后续会话接管。中途若被中断，需基于检查点补齐尚未导出的产物，且已写入产物不被覆盖破坏。",
+      "verifier_checklist": [
+        {"id": "P01", "kind": "file_exists", "intent": "handoff 包在共享存储中存在"},
+        {"id": "P02", "kind": "file_content", "intent": "归档日志字节完整未被截断"},
+        {"id": "P03", "kind": "no_forbidden_change", "intent": "已写入产物不被后续轮次覆盖"},
+        {"id": "P04", "kind": "test", "intent": "后续会话可基于 handoff 包成功接管"}
+      ],
+      "recovery_axis": {
+        "checkpoint_mechanism": "CHECKPOINT_INTERVAL_SEC_periodic",
+        "order_violating_control": "若先导出状态快照再归档日志则 P02 完整性风险",
+        "expected_on_rewind": "从检查点恢复后仅补齐未导出产物，已写 handoff 产物保持原样"
+      }
+    }
+  ]
+}

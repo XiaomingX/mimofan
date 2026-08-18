@@ -14,6 +14,8 @@
 | `long-term-memory` | 跨会话持久记忆召回 | `longmemeval_harness.py`、`memory_recall.json`(B5/B6) |
 | `vuln-hunt` | 漏洞挖掘长程任务（多轴评分） | `vuln_hunt/tasks/*`、`vuln_hunt/fixtures/*` |
 | `p0-e2e` | 真模型端到端（省 token/性能） | `p0/samples/*` |
+| `long-horizon-exec` | 长程执行质量（有序检查表前缀进度 + 执行恢复轴） | `long_horizon/samples/long_exec.json`（MettleBench/LHTB/AgentRewind 思想） |
+| `rd-automation` | R&D 自动化质量（rubric 树 + 签名判定） | `long_horizon/samples/rd_automation.json`（PaperBench/ResearchCodeBench 思想） |
 
 ## 二、分级（tier）—— MECE 已有，不复述
 
@@ -29,7 +31,7 @@ L 衡量的是**"评估这个样本本身有多难"**，而非样本考察的能
 | **L1** | 结构可判定 | 解析源码结构 / JSON 字段，零模型 | MECE T2 条目、`tokenizer_samples.json` 真值比对 | AST/正则/字段比对 |
 | **L2** | 执行可判定（deterministic） | 需跑测试/CLI/example 二进制，结果确定 | MECE T3 条目、`vuln_hunt` 的 `evaluate.py` 结构判定、`p0/perf_baseline` | `cargo test` / 二进制退出码 |
 | **L3** | 单轮模型评测 | 需真模型单次调用 + LLM-as-judge | `memory_recall.json`(B5/B6) 单查询、`p0/token_budget` 省 token 判定 | 真模型 + yes/no judge |
-| **L4** | 长程轨迹评测 | 需真模型多轮/长程轨迹 + 跨步一致性判定 | `long_horizon/samples/scicode_long.json`、`terminal_bench_e2e.json`、`vuln_hunt` 三维评测 | 真模型多轮 + 三维 judge |
+| **L4** | 长程轨迹评测 | 需真模型多轮/长程轨迹 + 跨步一致性判定 | `long_horizon/samples/scicode_long.json`、`terminal_bench_e2e.json`、`vuln_hunt` 三维评测、`long_horizon/samples/long_exec.json`（执行恢复轴）、`long_horizon/samples/rd_automation.json`（R&D rubric/签名） | 真模型多轮 + 三维 judge / 有序检查表 + rubric 树 judge |
 | **L5** | 跨会话/谱系评测 | 需真模型 + 外部持久状态/跨会话/谱系遍历，且评估需复杂判定 | `longmemeval_harness.py`(跨会话)、实验谱系审计/分支/删除类（目标能力，见 `plans/`） | 真模型 + 持久化链路 + 复杂 judge |
 
 **单调性**：L5 ⊃ L4 ⊃ L3 ⊃ L2 ⊃ L1 ⊃ L0。一个样本若同时满足多个特征，取**最高** L。
@@ -54,6 +56,8 @@ L 衡量的是**"评估这个样本本身有多难"**，而非样本考察的能
 | `p0/samples/token_budget.json` | p0-e2e | L3 | 省 token 判定（需真模型） |
 | `p0/samples/prefix_cache.json` | p0-e2e | L3 | cache 收益判定（需真模型） |
 | `lineage/samples/lineage_tasks.json` | lineage | L5 | 谱系树 query/audit/branch/cascade_delete（目标能力，当前未实现） |
+| `long_horizon/samples/long_exec.json` | long-horizon-exec | L4 | 长程执行：有序检查表前缀进度 + 执行恢复轴（AgentRewind/MettleBench 思想） |
+| `long_horizon/samples/rd_automation.json` | rd-automation | L4 | R&D 自动化：rubric 树（PaperBench）+ target_signature（ResearchCodeBench） |
 
 ## 五、用途
 
