@@ -2,6 +2,39 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.21] - 2026-08-19
+
+本轮聚焦长程记忆与推理、Agent 协作编排、编辑正确性与模块化重构，并打通漏洞挖掘评测产物闭环与跨文件静态分析召回。
+
+### Added
+- **Dreaming 三阶段记忆流水线（[#871](https://github.com/XiaomingX/mimofan/issues/871)）**：抽取-整合-抽象巩固自动巩固长期记忆，注入压缩提示 + `record_decision` 埋点，接 P0 接线。
+- **记忆 provenance 四级信任模型**：Untrusted / Observed / Inferred / Verified 四级信任，跨会话记忆可追溯来源可信度。
+- **Arena 多模型对战 + Team 领导角色骨架**：`mimofan-subagent` 暴露真实 spawn runner 调用入口，支撑多模型竞争与团队协作编排。
+- **decision log 决策事件流独立压缩模块**：决策事件作为可压缩的独立持久段，客观目标 `objective` 暴露 `must_keep` 保留项清单供二次压缩注入。
+- **apply_patch_claude Claude 方言解析器**：新增工具支持 Claude 方言 diff，便于接手中断任务收尾。
+- **行为验证门 verification_gate 接线（[#874](https://github.com/XiaomingX/mimofan/issues/874)）**：behavioral verification 接入 turn loop。
+- **`session_search` 工具**：召回长期记忆会话（[#874](https://github.com/XiaomingX/mimofan/issues/874)），并接入 TUI toolset。
+- **语义代码库检索 `codebase_search`**：暴露为 agent tool（[#714](https://github.com/XiaomingX/mimofan/issues/714)）。
+- **机器可读错误分类 `tool_codes`（[#872](https://github.com/XiaomingX/mimofan/issues/872)）**：文件工具错误分类 taxonomy，便于程序化处理。
+- **跨过程污点分析 taint solver（T-6，[#788](https://github.com/XiaomingX/mimofan/issues/788) / [#790](https://github.com/XiaomingX/mimofan/issues/790)，修复 [#843](https://github.com/XiaomingX/mimofan/issues/843) 跨文件召回）**：修复漏洞挖掘跨文件召回塌陷。
+- **长程任务与实验谱系（lineage）评测样本**：新增 L 分级体系与统一评分 harness，以及 vuln_hunt 产物链路闭环。
+- **长程韧性能力**：goal 队列本地落盘持久化恢复（G4）、向量记忆容量逐出（G1）、transient failure 保守重试（G5）、失败任务自动降级为子任务重新入图。
+- **VFS 乐观锁 `write_if_unchanged`**：防止 TOCTOU 覆盖。
+- **LSP 空闲卸载 `idle_unload_secs`**：超时释放 transport 省资源。
+- **Tower 式 merge gate**：合回前校验 scope 越界 + review。
+
+### Changed
+- **模块化重构（多 worktree 合并）**：goal-core（目标管理 + godfile 行数 CI 红线）、edit-core（编辑正确性 + 注入式 ReadState 先读后改防呆）、decision-log、arena-team、provenance-tier、dreaming、apply-patch-claude、vfs-optimistic 拆分为独立 crate。
+- **工具 schema 按使用频率降序排列**：降低模型工具选择成本。
+- **TUI HookExecutor 收敛（A 进 B 阶段 1/2）**：复用共享 `run_shell_command`，新增 `CommandHookSink` 消除重复实现。
+- **子 agent 只读查看器 + 新轮并入 rlm REPL**。
+
+### Fixed
+- **移除硬编码 API keys，改用环境变量（[#873](https://github.com/XiaomingX/mimofan/issues/873)）**：安全加固。
+- **vuln_hunt 产物闭环 + `run_async` runtime panic**。
+- **`TodoStatus::Degraded` 三处穷举匹配补全**（C1 配套）。
+- **压缩二次压缩 `Box::pin` 修复 + loop_guard 记忆/技能双 nudge 修正**。
+
 ## [0.0.20] - 2026-08-16
 
 彻底修复发布流水线（`release.yml` 的 `parity` 关卡），让 GitHub 自动发版从此可端到端通过。
