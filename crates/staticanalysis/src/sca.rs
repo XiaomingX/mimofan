@@ -75,7 +75,7 @@ pub fn parse_lockfile(path: &str, content: &str) -> Result<Vec<Dependency>> {
     }
 }
 
-fn parse_cargo_lock(content: &str) -> Result<Vec<Dependency>> {
+pub fn parse_cargo_lock(content: &str) -> Result<Vec<Dependency>> {
     let mut deps = Vec::new();
     // Hand-rolled TOML block scan (no toml dep available). We look for
     // consecutive `[[package]]` blocks.
@@ -117,7 +117,7 @@ fn parse_cargo_lock(content: &str) -> Result<Vec<Dependency>> {
     Ok(deps)
 }
 
-fn parse_npm_lock(content: &str) -> Result<Vec<Dependency>> {
+pub fn parse_npm_lock(content: &str) -> Result<Vec<Dependency>> {
     let v: serde_json::Value = serde_json::from_str(content).context("npm lock must be JSON")?;
     let mut deps = Vec::new();
     // npm v2/v3: packages map keyed by "node_modules/<name>".
@@ -194,73 +194,5 @@ impl OsvClient for InMemoryOsv {
             .get(&(q.ecosystem.clone(), q.package.clone()))
             .cloned()
             .unwrap_or_default())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_cargo_lock() {
-        let lock = r#"
-[[package]]
-name = "serde"
-version = "1.0.190"
-
-[[package]]
-name = "bad-crate"
-version = "0.1.0"
-"#;
-        let deps = parse_cargo_lock(lock).unwrap();
-        assert_eq!(deps.len(), 2);
-        assert_eq!(deps[0].name, "serde");
-        assert_eq!(deps[0].ecosystem, "crates.io");
-        assert!(deps[1].reachable);
-    }
-
-    #[test]
-    fn parses_npm_lock() {
-        let lock = r#"{
-          "packages": {
-            "node_modules/lodash": { "version": "4.17.20" },
-            "node_modules/express": { "version": "4.18.2" }
-          }
-        }"#;
-        let deps = parse_npm_lock(lock).unwrap();
-        assert_eq!(deps.len(), 2);
-        assert!(
-            deps.iter()
-                .any(|d| d.name == "lodash" && d.version == "4.17.20")
-        );
-    }
-
-    #[test]
-    fn osv_match_and_prune() {
-        let mut mem = InMemoryOsv::default();
-        mem.advisories.insert(
-            ("crates.io".to_string(), "bad-crate".to_string()),
-            vec![Advisory {
-                id: "OSV-1".to_string(),
-                summary: "RCE in bad-crate".into(),
-                severity: "critical".into(),
-                aliases: vec!["CVE-2024-1".into()],
-                vulnerable_range: "<0.2.0".into(),
-            }],
-        );
-        let lock = r#"
-[[package]]
-name = "bad-crate"
-version = "0.1.0"
-"#;
-        let findings = scan("Cargo.lock", lock, &mem).unwrap();
-        assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].advisory.id, "OSV-1");
-
-        // Prune: if bad-crate is not reachable, drop it.
-        let pruned = prune_unreachable(findings.clone(), &["other-crate".to_string()]);
-        assert!(pruned.is_empty());
-        let kept = prune_unreachable(findings, &["bad-crate".to_string()]);
-        assert_eq!(kept.len(), 1);
     }
 }

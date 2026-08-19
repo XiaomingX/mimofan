@@ -47,12 +47,14 @@ mod config_persistence;
 mod config_ui;
 mod context_budget;
 mod context_report;
-pub(crate) mod core;
+/// #844/#845: exposed for integration tests (`crates/tui/tests/*`) that
+/// exercise resilience/loop-guard internals from a separate crate.
+pub mod core;
 mod cost_budget;
 mod cost_status;
 pub mod decision_gate;
 mod dependencies;
-mod error_taxonomy;
+pub mod error_taxonomy;
 mod errors;
 mod eval;
 pub mod evidence;
@@ -77,7 +79,9 @@ pub use mimofan_localization as localization;
 pub mod evolve;
 mod logging;
 pub mod loop_guard;
-mod lsp;
+/// #844: exposed for integration tests (`crates/tui/tests/*`) that exercise
+/// LSP symbol tools from a separate crate.
+pub mod lsp;
 pub(crate) mod mcp;
 mod mcp_server;
 mod mcp_server_backend;
@@ -134,7 +138,7 @@ mod state_machine;
 mod status;
 mod task_manager;
 mod tls;
-mod tokenizer;
+pub mod tokenizer;
 mod tool_output_receipts;
 pub mod tools;
 /// Arena 多模型对战 与 Team 领导角色骨架（见模块文档）。
