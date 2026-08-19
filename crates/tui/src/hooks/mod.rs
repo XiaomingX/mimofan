@@ -14,12 +14,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
-use wait_timeout::ChildExt;
 
 /// Events that can trigger hook execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1059,92 +1057,26 @@ impl HookExecutor {
             .unwrap_or(hook.timeout_secs);
         let timeout = Duration::from_secs(timeout_secs);
 
-        let stdin_bytes = match stdin_json.map(serde_json::to_vec).transpose() {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                return HookResult {
-                    name: hook.name.clone(),
-                    success: false,
-                    exit_code: None,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    duration: started.elapsed(),
-                    error: Some(format!("Failed to encode hook stdin: {e}")),
-                };
-            }
-        };
+        // Reuse the shared shell-execution primitive from mimofan-hooks
+        // (extracted so every process runs hooks identically). The error
+        // message for an un-encodable stdin differs slightly from the old
+        // inline impl; everything else is behaviour-identical.
+        let res = mimofan_hooks::command::run_shell_command(
+            &hook.command,
+            env_vars,
+            stdin_json,
+            &working_dir,
+            timeout,
+        );
 
-        let mut command = Self::build_shell_command(&hook.command);
-        command
-            .current_dir(&working_dir)
-            .envs(env_vars)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        if stdin_bytes.is_some() {
-            command.stdin(Stdio::piped());
-        }
-
-        let mut child = match command.spawn() {
-            Ok(child) => child,
-            Err(e) => {
-                return HookResult {
-                    name: hook.name.clone(),
-                    success: false,
-                    exit_code: None,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    duration: started.elapsed(),
-                    error: Some(format!("Failed to spawn hook: {e}")),
-                };
-            }
-        };
-
-        let stdout_reader = child.stdout.take().map(spawn_pipe_reader);
-        let stderr_reader = child.stderr.take().map(spawn_pipe_reader);
-        let _stdin_writer = match (stdin_bytes, child.stdin.take()) {
-            (Some(bytes), Some(stdin)) => Some(spawn_stdin_writer(stdin, bytes)),
-            _ => None,
-        };
-
-        match child.wait_timeout(timeout) {
-            Ok(Some(status)) => HookResult {
-                name: hook.name.clone(),
-                success: status.success(),
-                exit_code: status.code(),
-                stdout: join_reader(stdout_reader),
-                stderr: join_reader(stderr_reader),
-                duration: started.elapsed(),
-                error: None,
-            },
-            Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                // Do not join pipe threads on timeout: descendant processes can
-                // inherit pipe fds, and waiting for those threads would defeat
-                // the hook timeout we just enforced.
-                HookResult {
-                    name: hook.name.clone(),
-                    success: false,
-                    exit_code: None,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    duration: started.elapsed(),
-                    error: Some(format!("Hook timed out after {timeout_secs}s")),
-                }
-            }
-            Err(e) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                HookResult {
-                    name: hook.name.clone(),
-                    success: false,
-                    exit_code: None,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    duration: started.elapsed(),
-                    error: Some(format!("Failed to wait for hook: {e}")),
-                }
-            }
+        HookResult {
+            name: hook.name.clone(),
+            success: res.success,
+            exit_code: res.exit_code,
+            stdout: res.stdout,
+            stderr: res.stderr,
+            duration: started.elapsed(),
+            error: res.error,
         }
     }
 
@@ -1227,28 +1159,6 @@ impl HookExecutor {
             error: None,
         }
     }
-}
-
-fn spawn_pipe_reader(mut pipe: impl Read + Send + 'static) -> JoinHandle<String> {
-    thread::spawn(move || {
-        let mut buf = String::new();
-        let _ = pipe.read_to_string(&mut buf);
-        buf
-    })
-}
-
-fn join_reader(reader: Option<JoinHandle<String>>) -> String {
-    reader
-        .and_then(|handle| handle.join().ok())
-        .unwrap_or_default()
-}
-
-fn spawn_stdin_writer(mut stdin: std::process::ChildStdin, mut bytes: Vec<u8>) -> JoinHandle<()> {
-    thread::spawn(move || {
-        bytes.push(b'\n');
-        let _ = stdin.write_all(&bytes);
-        let _ = stdin.flush();
-    })
 }
 
 fn message_submit_payload(context: &HookContext, text: &str) -> serde_json::Value {
