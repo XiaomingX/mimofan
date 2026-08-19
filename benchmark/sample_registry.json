@@ -21,6 +21,11 @@
       "lineage": 1,
       "long-horizon-exec": 1,
       "rd-automation": 1
+    },
+    "coverage": {
+      "scored": 0,
+      "total": 31,
+      "percent": 0.0
     }
   },
   "samples": [

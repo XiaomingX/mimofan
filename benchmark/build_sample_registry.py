@@ -6,13 +6,20 @@
     "version": 1,
     "taxonomy": "benchmark/L_TAXONOMY.md",
     "samples": [
-      {"path": "...", "category": "...", "l_level": N, "count": K, "note": "..."},
+      {"path": "...", "category": "...", "l_level": N, "count": K, "note": "...",
+       "score": {"percent": 91.7, "source": "mece_static", "updated": "..."} },  # 可选，回灌写入
       ...
     ]
   }
 
 分级口径见 benchmark/L_TAXONOMY.md。本脚本内置「文件 → (category, L)」映射，
 对 mece_1000 按 part 文件估算 L0/L1/L2 占比（基于 tier 统计，可选）。
+
+**回灌闭环**：生成 samples 后读取 benchmark/results/summary.json（由
+run_all.py + merge_results.py 产出），把每个样本对应 harness 的最新得分写入
+samples[i].score。对尚无对应得分的样本，保留上一次已写入的 score（合并而非
+覆盖），避免每跑一次 build 就把历史得分清空。这样「跑评测 → 出汇总 → 重建
+registry」形成数据闭环。
 
 运行：
     python3 benchmark/build_sample_registry.py
@@ -21,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -85,6 +93,72 @@ def count_entries(path: Path) -> int:
     return 1
 
 
+# 样本 category → 负责评分的 harness 输出 key（与 merge_results.HARNESS_CATEGORY 反向）。
+# 用于把 summary.json 中各 harness 得分回灌到对应 category 的每个样本。
+CATEGORY_HARNESS = {
+    "static-capability": "mece_static",
+    "dynamic-metric": "dynamic_bench",
+    "long-term-memory": "longmemeval",
+    "long-horizon": "long_horizon",
+    "long-horizon-exec": "rd_exec_eval",
+    "lineage": "lineage",
+    "vuln-hunt": "vuln_hunt",
+    "p0-e2e": "p0_dynamic",
+}
+
+
+def _load_summary_harnesses() -> dict:
+    """读取 results/summary.json 的 harnesses 层（{key: {percent, ...}}），缺失返回 {}。"""
+    p = ROOT / "results" / "summary.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return data.get("harnesses", {})
+    except Exception:
+        return {}
+
+
+def _load_old_scores() -> dict:
+    """读现有 sample_registry.json 的 samples 路径 → score 映射（用于合并保留旧得分）。"""
+    p = ROOT / "sample_registry.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {s.get("path"): s.get("score") for s in data.get("samples", []) if isinstance(s, dict)}
+
+
+def _backfill_scores(samples: list[dict]) -> list[dict]:
+    """把 summary.json 的 harness 得分回灌到 samples[i].score（合并而非覆盖）。
+
+    对 category 有对应 harness 且该 harness 有得分的样本，写入新 score；
+    否则保留旧 registry 里已写入的 score。
+    """
+    harnesses = _load_summary_harnesses()
+    old_scores = _load_old_scores()
+    now = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    for s in samples:
+        path = s.get("path")
+        cat = s.get("category")
+        hname = CATEGORY_HARNESS.get(cat)
+        h = harnesses.get(hname) if hname else None
+        if h and isinstance(h.get("percent"), (int, float)):
+            s["score"] = {
+                "percent": h["percent"],
+                "source": hname,
+                "updated": now,
+            }
+        else:
+            # 本次无对应得分：合并保留历史 score
+            old = old_scores.get(path)
+            if old is not None:
+                s["score"] = old
+    return samples
+
+
 def main() -> int:
     samples = []
     # 1) mece_1000 part 文件
@@ -111,10 +185,14 @@ def main() -> int:
                 "note": note,
             })
 
+    # 回灌得分（闭环）：读 summary.json 写 score，合并保留旧得分
+    samples = _backfill_scores(samples)
+
     # 统计
     from collections import Counter
     by_l = Counter(s["l_level"] for s in samples)
     by_cat = Counter(s["category"] for s in samples)
+    scored = sum(1 for s in samples if s.get("score") and s["score"].get("percent") is not None)
 
     registry = {
         "version": 1,
@@ -123,6 +201,11 @@ def main() -> int:
             "total_samples": len(samples),
             "by_l_level": {f"L{k}": v for k, v in sorted(by_l.items())},
             "by_category": dict(by_cat),
+            "coverage": {
+                "scored": scored,
+                "total": len(samples),
+                "percent": round(scored / len(samples) * 100, 1) if samples else 0.0,
+            },
         },
         "samples": samples,
     }
@@ -132,6 +215,7 @@ def main() -> int:
     print(f"  样本文件数: {len(samples)}")
     print(f"  by L-level : {registry['summary']['by_l_level']}")
     print(f"  by category: {registry['summary']['by_category']}")
+    print(f"  score 回灌: {scored}/{len(samples)} ({registry['summary']['coverage']['percent']}%)")
     return 0
 
 
