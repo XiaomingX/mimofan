@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::io::AsyncWriteExt;
 
+/// Shell-command execution for hook sinks (see [`command::CommandHookSink`]).
+pub mod command;
+
 /// All events that can be emitted through the hook system.
 ///
 /// Each variant represents a distinct lifecycle or streaming event. The enum is
