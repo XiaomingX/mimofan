@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """dynamic_bench.py — 动态运行指标评分器（B 类，40 分）。
 
-采集项（见 EVAL_METRICS.md）:
+采集项:
   B1 构建健康度（零 warning）        6 分
   B2 单元/集成测试通过率              10 分
   B3 冷启动时间                      5 分
