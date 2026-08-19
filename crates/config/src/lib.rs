@@ -84,6 +84,19 @@ pub struct ConfigToml {
     pub verbosity: Option<String>,
     pub log_level: Option<String>,
     pub telemetry: Option<bool>,
+    /// OpenTelemetry OTLP gRPC endpoint (e.g. `http://localhost:4317`).
+    /// This is a **top-level** config key (not a child of `[telemetry]`),
+    /// set via `config set otlp_endpoint <url>` or:
+    /// ```toml
+    /// telemetry = true
+    /// otlp_endpoint = "http://localhost:4317"
+    /// ```
+    /// When set, the `tui` enables the `otlp` feature at build time to stand
+    /// up an OTLP exporter that bridges `tracing` spans to a collector. When
+    /// unset (the default) telemetry stays inert. Ignored by project-level
+    /// overrides (see [`ConfigToml::merge_project_overrides`]).
+    #[serde(default)]
+    pub otlp_endpoint: Option<String>,
     pub approval_policy: Option<String>,
     pub sandbox_mode: Option<String>,
     /// Native tool catalog controls shared with `mimofan`.
@@ -195,6 +208,7 @@ impl ConfigToml {
             "verbosity" => self.verbosity.clone(),
             "log_level" => self.log_level.clone(),
             "telemetry" => self.telemetry.map(|v| v.to_string()),
+            "otlp_endpoint" => self.otlp_endpoint.clone(),
             "approval_policy" => self.approval_policy.clone(),
             "sandbox_mode" => self.sandbox_mode.clone(),
             "tools.always_load" => self.tools.as_ref().map(|tools| tools.always_load.join(",")),
@@ -256,6 +270,9 @@ impl ConfigToml {
             "telemetry" => {
                 self.telemetry = Some(parse_bool(value)?);
             }
+            "otlp_endpoint" => {
+                self.otlp_endpoint = Some(value.to_string());
+            }
             "approval_policy" => self.approval_policy = Some(value.to_string()),
             "sandbox_mode" => self.sandbox_mode = Some(value.to_string()),
             "hook_sinks.unix_socket_path" => {
@@ -289,6 +306,7 @@ impl ConfigToml {
             "verbosity" => self.verbosity = None,
             "log_level" => self.log_level = None,
             "telemetry" => self.telemetry = None,
+            "otlp_endpoint" => self.otlp_endpoint = None,
             "approval_policy" => self.approval_policy = None,
             "sandbox_mode" => self.sandbox_mode = None,
             "hook_sinks.unix_socket_path" => {
@@ -337,6 +355,9 @@ impl ConfigToml {
         }
         if let Some(v) = self.telemetry {
             out.insert("telemetry".to_string(), v.to_string());
+        }
+        if let Some(v) = self.otlp_endpoint.as_ref() {
+            out.insert("otlp_endpoint".to_string(), v.clone());
         }
         if let Some(v) = self.approval_policy.as_ref() {
             out.insert("approval_policy".to_string(), v.clone());
@@ -1784,5 +1805,52 @@ impl EnvRuntimeOverrides {
         } else {
             Some(normalize_model_for_provider(provider, &model))
         }
+    }
+}
+
+#[cfg(test)]
+mod otlp_endpoint_tests {
+    use super::*;
+
+    #[test]
+    fn otlp_endpoint_parses_from_toml() {
+        let raw = r#"
+            api_key = "sk-test"
+            telemetry = true
+            otlp_endpoint = "http://localhost:4317"
+        "#;
+        let cfg: ConfigToml = toml::from_str(raw).unwrap();
+        assert_eq!(cfg.telemetry, Some(true));
+        assert_eq!(
+            cfg.otlp_endpoint.as_deref(),
+            Some("http://localhost:4317")
+        );
+    }
+
+    #[test]
+    fn otlp_endpoint_defaults_to_none() {
+        let raw = r#"api_key = "sk-test""#;
+        let cfg: ConfigToml = toml::from_str(raw).unwrap();
+        assert!(cfg.otlp_endpoint.is_none());
+    }
+
+    #[test]
+    fn set_get_unset_otlp_endpoint_round_trips() {
+        let mut cfg = ConfigToml::default();
+        assert!(cfg.otlp_endpoint.is_none());
+
+        cfg.set_value("otlp_endpoint", "http://collector:4317").unwrap();
+        assert_eq!(
+            cfg.get_value("otlp_endpoint").as_deref(),
+            Some("http://collector:4317")
+        );
+        assert_eq!(
+            cfg.list_values().get("otlp_endpoint").map(String::as_str),
+            Some("http://collector:4317")
+        );
+
+        cfg.unset_value("otlp_endpoint").unwrap();
+        assert!(cfg.otlp_endpoint.is_none());
+        assert!(cfg.get_value("otlp_endpoint").is_none());
     }
 }

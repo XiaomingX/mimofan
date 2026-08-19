@@ -278,6 +278,39 @@ fn run_features_command(config: &Config, command: FeaturesCli) -> Result<()> {
     }
 }
 
+// ── OpenTelemetry OTLP bridge wiring (#726 slice A) ───────────────────────
+/// Best-effort: stand up the OTLP exporter if the user configured an endpoint.
+///
+/// Reads the resolved config's `otlp_endpoint` (set via `config set
+/// otlp_endpoint <url>` / the `[telemetry] otlp_endpoint` TOML key). The
+/// `init_otel` call is a no-op unless the `otlp` feature is compiled in, so
+/// the default lean build is unaffected. Errors are logged and swallowed —
+/// telemetry must never break the main flow.
+fn init_otlp_from_config(cli: &Cli) {
+    let endpoint = match mimofan_config::ConfigStore::load(cli.config.clone()) {
+        Ok(store) => store.config.otlp_endpoint.clone(),
+        Err(_) => return,
+    };
+    let Some(endpoint) = endpoint else {
+        return;
+    };
+    #[cfg(feature = "otlp")]
+    {
+        if let Err(e) = mimofan_telemetry::init_otel(&endpoint, "mimofan") {
+            logging::warn(&format!("failed to init OTLP telemetry: {e}"));
+        } else {
+            logging::info(&format!("OTLP telemetry exporter enabled: {endpoint}"));
+        }
+    }
+    #[cfg(not(feature = "otlp"))]
+    {
+        logging::warn(
+            "otlp_endpoint is set but the `tui` was built without the `otlp` feature; \
+             spans will not be exported. Rebuild with --features otlp to enable.",
+        );
+    }
+}
+
 // ── Main entry point ───────────────────────────────────────────────────
 
 pub async fn run() -> Result<()> {
@@ -394,6 +427,15 @@ pub async fn run() -> Result<()> {
     }
     let cli = Cli::parse_from(env_args);
     logging::set_verbose(cli.verbose || logging::env_requests_verbose_logging());
+
+    // ── OpenTelemetry OTLP bridge wiring (#726 slice A) ─────────────────────
+    // If the user configured `[telemetry] otlp_endpoint` (or the legacy
+    // boolean `telemetry = true` plus an explicit endpoint), stand up the
+    // OTLP exporter and bridge it into the global `tracing` subscriber. The
+    // call is a no-op unless the `otlp` feature is compiled in, and it
+    // tolerates an already-installed subscriber (runtime_log::init installs
+    // one for file logging), so it is safe to call before the TUI log guard.
+    init_otlp_from_config(&cli);
 
     // Handle subcommands first
     if let Some(command) = cli.command.clone() {

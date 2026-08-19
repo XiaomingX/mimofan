@@ -21,6 +21,11 @@ long-running-tests = []
 # `MemoryCategory` 分类需要被始终编译的模块（crate::memory / turn_memory）无条件
 # 引用。本 feature 现在仅作为向量记忆运行时代码的编译开关。
 vector-memory = []
+# OpenTelemetry OTLP export bridge (#726 slice A). When enabled, the `tui`
+# stands up an OTLP exporter that bridges `tracing` spans to a collector,
+# driven by the `otlp_endpoint` config key. Off by default to keep the
+# default build lean (no `opentelemetry`/`tonic` dependency tree).
+otlp = ["mimofan-telemetry/otlp"]
 
 [[bin]]
 name = "mimofan"
