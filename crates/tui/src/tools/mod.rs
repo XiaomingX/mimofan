@@ -13,6 +13,7 @@ pub mod apply_patch_claude;
 pub mod approval_cache;
 pub mod arg_repair;
 pub mod ast_query;
+pub mod attack_surface_tool;
 pub mod auto_gadget;
 pub mod automation;
 pub mod browser;
@@ -59,6 +60,7 @@ pub mod parallel;
 pub mod plan;
 pub mod plugin;
 pub mod project;
+pub mod protocol_check_tool;
 /// #846：system prompt 冗余/矛盾/膨胀审计（PromptAuditTool 实现 ToolSpec，ReadOnly）。
 pub mod prompt_audit;
 pub mod record_artifact;
@@ -78,6 +80,9 @@ pub mod schema_canonicalize;
 pub mod schema_sanitize;
 pub mod search;
 pub mod security_audit;
+/// #12-plan Phase 1：把 semgrep 辅助库（security_audit.rs）封装成 `security_audit` 工具，
+/// 消除 security_auditor.md 人格「drive semgrep」指令不可用的文档谎言。
+pub mod security_audit_tool;
 pub mod shell;
 mod shell_output;
 pub mod skill;

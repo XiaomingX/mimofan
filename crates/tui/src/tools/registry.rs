@@ -720,6 +720,36 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(RunPocTool))
     }
 
+    /// 注册 `semgrep` 安全审计工具（`security_audit`，plan `plans/12` Phase 1）。
+    /// 把 `security_audit.rs` 的辅助库（此前零调用方）封装成 ReadOnly + Auto 工具，
+    /// 让 `security_auditor` 人格「drive semgrep」的指令真正可调用。无 sandbox
+    /// backend 时决绝失败（fail-closed），执行一律走 [`SandboxBackend`]。
+    #[must_use]
+    pub fn with_security_audit_tools(self) -> Self {
+        use super::security_audit_tool::SecurityAuditTool;
+        self.with_tool(Arc::new(SecurityAuditTool))
+    }
+
+    /// 注册依赖驱动的攻击面枚举工具（`attack_surface`，plan `plans/12` Phase 2）。
+    /// 接线 `staticanalysis::attack_surface` + `kb_trace` 引擎（此前 TUI 零调用方），
+    /// 从 lockfile 枚举已满足的 gadget chain / 隐式 autoType / 已知漏洞依赖。ReadOnly + Auto，
+    /// 离线运行（OSV 用 InMemory 客户端，无网络）。
+    #[must_use]
+    pub fn with_attack_surface_tools(self) -> Self {
+        use super::attack_surface_tool::AttackSurfaceTool;
+        self.with_tool(Arc::new(AttackSurfaceTool))
+    }
+
+    /// 注册协议状态机检测工具（`protocol_check`，plan `plans/12` Phase 3）。
+    /// 接线 `staticanalysis::typestate`（此前 TUI 零调用方），对模型提供的
+    /// 方法调用序列跑 `check_sequence`，报出守卫状态前置违规（如 safeMode 前调用
+    /// readObject）。ReadOnly + Auto，离线运行。
+    #[must_use]
+    pub fn with_protocol_check_tools(self) -> Self {
+        use super::protocol_check_tool::ProtocolCheckTool;
+        self.with_tool(Arc::new(ProtocolCheckTool))
+    }
+
     /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
     #[must_use]
     pub fn with_notebook_tools(self) -> Self {

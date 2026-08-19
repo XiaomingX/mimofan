@@ -96,7 +96,10 @@ impl Engine {
             .with_codebase_search_tool()
             .with_gadget_chain_tools()
             .with_auto_gadget_tools()
-            .with_run_poc_tools();
+            .with_run_poc_tools()
+            .with_security_audit_tools()
+            .with_attack_surface_tools()
+            .with_protocol_check_tools();
 
         // W1 (issue #834): inject plugin-manifest-selected extra tools into the
         // registry. With the default (empty) manifest this is a no-op, so legacy
