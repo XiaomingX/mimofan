@@ -189,7 +189,11 @@ impl EvalHarness {
     /// `run_poc`) is exercised through their real `ToolSpec::execute` methods,
     /// while the LLM role is fulfilled by a deterministic [`MockLlmClient`] that
     /// replays a scripted turn. No network or live model is involved.
-    pub fn run(&self) -> Result<EvalRun> {
+    ///
+    /// Async core: the caller provides a Tokio runtime context (either by
+    /// awaiting this future inside one, or by driving it through
+    /// [`Self::run`]'s own runtime). See [`Self::run`] for the synchronous form.
+    pub async fn run_async(&self) -> Result<EvalRun> {
         let started_at = Instant::now();
         let workspace = tempfile::Builder::new()
             .prefix("deepseek-eval-")
@@ -205,12 +209,8 @@ impl EvalHarness {
         let mut tool_errors = 0usize;
 
         // Drive the loop: pop each queued turn, stream its events, extract the
-        // tool-use blocks, and execute them through the REAL registry. The
-        // registry and mock client are async, so we run them on a runtime while
-        // keeping `run` synchronous (stable API). Reuse the ambient Tokio
-        // runtime when present (e.g. `main`/`run_eval`), otherwise spin up a
-        // dedicated current-thread runtime for offline/test use.
-        let drive = async {
+        // tool-use blocks, and execute them through the REAL registry.
+        {
             // Build a real tool context. A self-contained in-memory sandbox
             // backend is injected so `run_poc` can execute its candidate PoC
             // offline and report whether the vulnerability was realized
@@ -311,18 +311,6 @@ impl EvalHarness {
                     }
                 }
             }
-            Ok::<(), anyhow::Error>(())
-        };
-
-        match tokio::runtime::Handle::try_current() {
-            Ok(handle) => handle.block_on(drive)?,
-            Err(_) => {
-                let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .context("failed to start eval runtime")?;
-                runtime.block_on(drive)?;
-            }
         }
 
         // The `hypothesis` tool persists its store to
@@ -356,7 +344,21 @@ impl EvalHarness {
         })
     }
 
-    /// Persist a single vuln-hunt tool output as a named artifact under
+    /// Synchronous form of [`Self::run_async`], driving the harness on a fresh
+    /// current-thread Tokio runtime.
+    ///
+    /// Safe to call from a non-Tokio context (e.g. unit tests, a dedicated
+    /// `cargo run --example`). Do **not** call this from inside a Tokio
+    /// runtime thread that is already driving tasks — it would panic with
+    /// "cannot start a runtime from within a runtime". Prefer [`Self::run_async`]
+    /// when an ambient runtime is available.
+    pub fn run(&self) -> Result<EvalRun> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .context("failed to start eval runtime")?;
+        runtime.block_on(self.run_async())
+    }
     /// `<artifacts_dir>/<task_id>/`. Maps tool name → artifact file name:
     /// `run_poc` → `run_poc.json`, `gadget_chain_trace` → `gadget_chain.json`.
     /// Other tools are ignored. Best-effort: returns the persisted path or an

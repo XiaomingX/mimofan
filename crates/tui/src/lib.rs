@@ -195,7 +195,7 @@ fn generate_completions(shell: Shell) {
 }
 
 /// Run the offline evaluation harness (no network/LLLM calls).
-fn run_eval(args: EvalArgs) -> Result<()> {
+async fn run_eval(args: EvalArgs) -> Result<()> {
     let fail_step = match args.fail_step.as_deref() {
         Some(value) => ScenarioStepKind::parse(value)
             .map(Some)
@@ -215,7 +215,7 @@ fn run_eval(args: EvalArgs) -> Result<()> {
     };
 
     let harness = EvalHarness::new(config);
-    let run = harness.run().context("evaluation harness failed")?;
+    let run = harness.run_async().await.context("evaluation harness failed")?;
     let report = run.to_report();
 
     if args.json {
@@ -648,7 +648,7 @@ pub async fn run() -> Result<()> {
                 run_pr(&cli, &config, number, repo.as_deref(), checkout).await
             }
             Commands::Apply(args) => run_apply(args),
-            Commands::Eval(args) => run_eval(args),
+            Commands::Eval(args) => run_eval(args).await,
             Commands::Mcp { command } => {
                 let config = load_config_from_cli(&cli)?;
                 let workspace = resolve_workspace(&cli);

@@ -14,7 +14,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -111,8 +111,6 @@ pub fn run_shell_command(
     working_dir: &PathBuf,
     timeout: Duration,
 ) -> CommandResult {
-    let started = Instant::now();
-
     let stdin_bytes = match stdin_json.map(serde_json::to_vec).transpose() {
         Ok(bytes) => bytes,
         Err(e) => {
