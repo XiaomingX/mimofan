@@ -140,6 +140,14 @@ pub struct EvalHarnessConfig {
     /// fixtures for deterministic offline tests. See
     /// `crates/tui/tests/README.md` for the full record/replay flow.
     pub record_dir: Option<PathBuf>,
+    /// When set (along with [`Self::task_id`]), the vuln-hunt tool outputs are
+    /// written as artifacts to `<artifacts_dir>/<task_id>/` so the
+    /// `benchmark/vuln_hunt/evaluate.py` verifier can score the run. Captures
+    /// `gadget_chain.json`, `run_poc.json` and (when present) `hypotheses.json`.
+    pub artifacts_dir: Option<PathBuf>,
+    /// Task id used as the artifact subdirectory name. Required when
+    /// [`Self::artifacts_dir`] is set.
+    pub task_id: Option<String>,
 }
 
 impl Default for EvalHarnessConfig {
@@ -156,6 +164,8 @@ impl Default for EvalHarnessConfig {
             shell_expect_token: "eval-harness".to_string(),
             max_output_chars: 240,
             record_dir: None,
+            artifacts_dir: None,
+            task_id: None,
         }
     }
 }
@@ -260,6 +270,11 @@ impl EvalHarness {
                                     realized = true;
                                 }
                             }
+                            // Persist the vuln-hunt tool output as an artifact so
+                            // `benchmark/vuln_hunt/evaluate.py` can score it.
+                            // Best-effort: artifact write failures must not
+                            // abort the evaluation loop.
+                            let _ = self.persist_tool_artifact(&name, &result.content);
                             agent_tool_calls.push(name.clone());
                             steps.push(EvalStep {
                                 kind: ScenarioStepKind::AgentTool,
@@ -310,6 +325,11 @@ impl EvalHarness {
             }
         }
 
+        // The `hypothesis` tool persists its store to
+        // `<workspace>/.mimofan/hypotheses.json`; surface it as an artifact so
+        // the vuln-hunt verifier can score the consistency dimension.
+        self.persist_hypotheses_artifact(workspace.path())?;
+
         let duration = started_at.elapsed();
 
         let workspace_summary = summarize_workspace(workspace.path(), None)?;
@@ -334,6 +354,47 @@ impl EvalHarness {
             steps,
             agent_tool_calls,
         })
+    }
+
+    /// Persist a single vuln-hunt tool output as a named artifact under
+    /// `<artifacts_dir>/<task_id>/`. Maps tool name → artifact file name:
+    /// `run_poc` → `run_poc.json`, `gadget_chain_trace` → `gadget_chain.json`.
+    /// Other tools are ignored. Best-effort: returns the persisted path or an
+    /// error without throwing (callers use `let _ =`).
+    fn persist_tool_artifact(&self, tool_name: &str, content: &str) -> Result<PathBuf> {
+        let file_name = match tool_name {
+            "run_poc" => "run_poc.json",
+            "gadget_chain_trace" => "gadget_chain.json",
+            _ => return Ok(PathBuf::new()),
+        };
+        self.write_artifact(file_name, content.as_bytes())
+    }
+
+    /// Copy the `hypothesis` tool's store (`<workspace>/.mimofan/hypotheses.json`)
+    /// into the artifact directory as `hypotheses.json`, when it exists.
+    fn persist_hypotheses_artifact(&self, workspace: &Path) -> Result<()> {
+        let store = workspace.join(".mimofan").join("hypotheses.json");
+        if store.exists() {
+            let bytes = fs::read(&store).context("failed to read hypothesis store")?;
+            self.write_artifact("hypotheses.json", &bytes)?;
+        }
+        Ok(())
+    }
+
+    /// Write `bytes` to `<artifacts_dir>/<task_id>/<name>`, creating dirs.
+    /// Returns an empty path when artifact persistence is not configured.
+    fn write_artifact(&self, name: &str, bytes: &[u8]) -> Result<PathBuf> {
+        let Some(root) = self.config.artifacts_dir.as_ref() else {
+            return Ok(PathBuf::new());
+        };
+        let Some(task_id) = self.config.task_id.as_ref() else {
+            return Ok(PathBuf::new());
+        };
+        let dir = root.join(task_id);
+        fs::create_dir_all(&dir).context("failed to create artifact dir")?;
+        let path = dir.join(name);
+        fs::write(&path, bytes).context("failed to write artifact")?;
+        Ok(path)
     }
 
     /// Build the (unused-by-mock) `MessageRequest` passed to the mock client.
@@ -667,5 +728,33 @@ mod tests {
         let names: Vec<&str> = run.steps.iter().map(|s| s.tool_name).collect();
         assert!(names.iter().any(|n| *n == "gadget_chain_trace"));
         assert!(names.iter().any(|n| *n == "run_poc"));
+    }
+
+    /// When `artifacts_dir` + `task_id` are configured, `run()` must persist the
+    /// vuln-hunt tool outputs so `benchmark/vuln_hunt/evaluate.py` can score them.
+    #[test]
+    fn harness_persists_vulnhunt_artifacts() {
+        let artifacts_dir = tempfile::tempdir().expect("tempdir");
+        let config = EvalHarnessConfig {
+            scenario_name: "vuln-hunt-artifacts".to_string(),
+            artifacts_dir: Some(artifacts_dir.path().to_path_buf()),
+            task_id: Some("vh-test-task".to_string()),
+            ..EvalHarnessConfig::default()
+        };
+        let harness = EvalHarness::new(config);
+        let _run = harness.run().expect("harness run ok");
+
+        let task_dir = artifacts_dir.path().join("vh-test-task");
+        // `run_poc` and `gadget_chain_trace` are executed by the mock script, so
+        // their JSON artifacts must exist.
+        let poc = task_dir.join("run_poc.json");
+        assert!(poc.exists(), "run_poc.json should be written");
+        let poc_json: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&poc).expect("read run_poc.json"))
+                .expect("valid json");
+        assert!(poc_json.get("realized").is_some(), "run_poc.json should carry realized");
+
+        let chain = task_dir.join("gadget_chain.json");
+        assert!(chain.exists(), "gadget_chain.json should be written");
     }
 }

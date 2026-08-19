@@ -209,6 +209,8 @@ fn run_eval(args: EvalArgs) -> Result<()> {
         shell_expect_token: args.shell_expect_token,
         max_output_chars: args.max_output_chars,
         record_dir: args.record.clone(),
+        artifacts_dir: args.artifacts_dir.clone(),
+        task_id: args.task_id.clone(),
         ..EvalHarnessConfig::default()
     };
 

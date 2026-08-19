@@ -575,6 +575,16 @@ pub(crate) struct EvalArgs {
     /// Mock LLM tests can later replay these fixtures.
     #[arg(long, value_name = "DIR")]
     pub(crate) record: Option<PathBuf>,
+    /// Write vuln-hunt artifacts to `<DIR>/<task-id>/` so
+    /// `benchmark/vuln_hunt/evaluate.py` can score the run. Captures
+    /// `gadget_chain.json`, `run_poc.json` and (when present) `hypotheses.json`
+    /// from the executed tools.
+    #[arg(long, value_name = "DIR")]
+    pub(crate) artifacts_dir: Option<PathBuf>,
+    /// Task id used as the artifact subdirectory name (required with
+    /// `--artifacts-dir`). Should match a `benchmark/vuln_hunt/tasks/<id>/`.
+    #[arg(long, value_name = "TASK")]
+    pub(crate) task_id: Option<String>,
 }
 
 #[derive(Args, Debug, Clone, Default)]
