@@ -81,6 +81,7 @@ pub mod security_audit;
 pub mod security_audit_tool;
 pub mod attack_surface_tool;
 pub mod protocol_check_tool;
+pub mod access_control_tool;
 pub mod shell;
 mod shell_output;
 pub mod skill;

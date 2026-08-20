@@ -751,6 +751,13 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(ProtocolCheckTool))
     }
 
+    /// Include the access-control static-analysis tool (`access_control`).
+    #[must_use]
+    pub fn with_access_control_tools(self) -> Self {
+        use super::access_control_tool::AccessControlTool;
+        self.with_tool(Arc::new(AccessControlTool))
+    }
+
     /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
     #[must_use]
     pub fn with_notebook_tools(self) -> Self {

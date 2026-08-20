@@ -315,6 +315,7 @@ pub fn named_query(key: &str) -> Option<&'static str> {
 // Wiring for the security analysis modules. These are additive and do not
 // touch the shared `Language`/`query_source`/`callgraph` foundation owned by
 // the staticanalysis group.
+pub mod access_control;
 pub mod attack_surface;
 pub mod kb_trace;
 pub mod knowledge;
