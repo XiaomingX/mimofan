@@ -720,6 +720,37 @@ impl ToolRegistryBuilder {
         self.with_tool(Arc::new(RunPocTool))
     }
 
+    /// 注册 semgrep SAST 安全审计工具（`security_audit`）。把
+    /// `security_audit::run_semgrep_scan` 封装成模型可调用工具，经共享
+    /// [`SandboxBackend`] 执行 semgrep 扫描并归一化为 findings。只读、可并行、
+    /// 自动审批。无 sandbox backend 时 fail-closed（not_available）。
+    #[must_use]
+    pub fn with_security_audit_tools(self) -> Self {
+        use super::security_audit_tool::SecurityAuditTool;
+        self.with_tool(Arc::new(SecurityAuditTool))
+    }
+
+    /// 注册攻击面枚举工具（`attack_surface`，Phase 2 / plan 13）。把
+    /// `attack_surface::scan_attack_surface` 封装成模型可调用工具：加载 curated KB +
+    /// 项目 lockfile，离线枚举攻击面（gadget chain / implicit autoType /
+    /// known-vulnerable dependency）。只读、可并行、自动审批。同步扫描用
+    /// `spawn_blocking` 包裹，不阻塞 async executor。
+    #[must_use]
+    pub fn with_attack_surface_tools(self) -> Self {
+        use super::attack_surface_tool::AttackSurfaceTool;
+        self.with_tool(Arc::new(AttackSurfaceTool))
+    }
+
+    /// 注册协议状态机检测工具（`protocol_check`，Phase 3 / plan 13）。把
+    /// `typestate` 引擎封装成模型可调用工具：加载协议 FSM 并扫描目标源文件的
+    /// 调用序列，报告非法状态序（如 `readObject` 在 `safe_mode` 之前被调用）。
+    /// 只读、可并行、自动审批。同步扫描用 `spawn_blocking` 包裹。
+    #[must_use]
+    pub fn with_protocol_check_tools(self) -> Self {
+        use super::protocol_check_tool::ProtocolCheckTool;
+        self.with_tool(Arc::new(ProtocolCheckTool))
+    }
+
     /// Include the Jupyter notebook cell editing tool (`notebook_edit`).
     #[must_use]
     pub fn with_notebook_tools(self) -> Self {
