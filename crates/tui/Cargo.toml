@@ -76,7 +76,7 @@ regex = "1.11"
 reqwest = { workspace = true, default-features = false, features = ["blocking", "json", "stream", "multipart", "form", "rustls-no-provider", "http2", "gzip", "brotli"] }
 # rmcp >= 2.2 使用 reqwest ^0.13（与 workspace 一致），auth feature 的 oauth2
 # 为 default-features=false，不再拖入 reqwest 0.12 —— 消除双 HTTP 栈重复编译
-rmcp = { version = "2.2.0", default-features = false, features = ["auth", "client"] }
+rmcp = { version = "3.1.2", default-features = false, features = ["auth", "client"] }
 rustls.workspace = true
 qrcode = { version = "0.14", default-features = false }
 similar = "3"
