@@ -2,6 +2,20 @@
 
 本项目的所有重要变更都记录在此。版本遵循[语义化版本控制](https://semver.org/)，从工作区根目录（`Cargo.toml` → `[workspace.package] version`）递增。
 
+## [0.0.22] - 2026-08-20
+
+本轮聚焦网络安全检测能力接线（参考 Google AVDH Agentic Vulnerability Discovery Harness 架构），消除安全审计文档谎言并补齐攻击面/协议/授权检测缺口。
+
+### Added
+- **`security_audit` 工具**：把 semgrep SAST 封装成模型可调用工具，经共享 `SandboxBackend` fail-closed 执行，消除 `security_auditor` 人格"可 drive semgrep"但工具不可用的文档谎言。
+- **`attack_surface` 工具**：基于 `recon` 并行编排 + `attack_surface` 引擎离线枚举攻击面（gadget chain / implicit autoType / 漏洞依赖），`spawn_blocking` 隔离不阻塞 executor。
+- **`protocol_check` 工具**：基于 `typestate` 协议 FSM 检测非法状态序（如 `readObject` 在 `safe_mode` 前调用）。
+- **Access-Control 静态分析（`access_control` 工具 + 引擎）**：借鉴 AVDH Access Control agent，基于 callgraph 同文件可达性判断入口点（handler/endpoint/route/on_request）是否缺失授权 gate（require_role/require_auth/check_permission/is_admin 等），支持单文件 + Java 跨文件两种模式，填补此前无任何授权 gate 检测引擎的结构性缺口。
+- **`vuln-hunt` skill 升级为 bundled**：六步长程漏洞挖掘工作流编译期内嵌，`BUNDLED_SKILL_VERSION` 5→6 触发重装。
+
+### Fixed
+- **补齐缺失的 `benchmark/vuln_hunt/run.sh`**：驱动 selftest + batch 评测，此前 README 引用但文件不存在。
+
 ## [0.0.21] - 2026-08-19
 
 本轮聚焦长程记忆与推理、Agent 协作编排、编辑正确性与模块化重构，并打通漏洞挖掘评测产物闭环与跨文件静态分析召回。
@@ -378,3 +392,4 @@
 [0.0.3-rc.3]: https://github.com/XiaomingX/mimofan/compare/v0.0.3-rc.2...v0.0.3-rc.3
 [0.0.3-rc.2]: https://github.com/XiaomingX/mimofan/compare/v0.0.3-rc.1...v0.0.3-rc.2
 [0.0.3-rc.1]: https://github.com/XiaomingX/mimofan/compare/v0.0.3...v0.0.3-rc.1
+[0.0.22]: https://github.com/XiaomingX/mimofan/compare/v0.0.21...v0.0.22
