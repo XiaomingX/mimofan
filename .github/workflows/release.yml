@@ -13,6 +13,13 @@ on:
 permissions:
   contents: read
 
+# If a new tag lands while an older release is still building, cancel the stale
+# run instead of running duplicate parity/build jobs in parallel. Only the most
+# recent release is worth the (macOS + Linux) build minutes.
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
@@ -20,7 +27,11 @@ env:
 jobs:
   parity:
     if: github.event_name == 'push'
-    runs-on: macos-latest
+    # Run on Linux (free-tier minutes pool) instead of macOS: every step below
+    # is a platform-agnostic cargo command (fmt/check/clippy/test), so results
+    # are identical on ubuntu but cost ~10x less. macOS runners bill at
+    # $0.08/min outside the included pool, which was the dominant Actions cost.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       # Pin an explicit toolchain so `cargo fmt` / `clippy` / `check` are
@@ -60,8 +71,10 @@ jobs:
             -A clippy::too_many_arguments \
             -A clippy::unnecessary_map_or \
             -A clippy::assertions_on_constants
-      - name: Workspace tests
-        run: cargo test --workspace --all-features --locked
+      # No `cargo test` here: tags are cut from `main`, whose PRs already ran
+      # the full test suite. Re-running every test on every release tag just
+      # burns CI minutes; `check` + `clippy` still gate the release on
+      # compilation and lints. Tests remain the PR CI's job.
       - name: Lockfile drift guard
         run: git diff --exit-code -- Cargo.lock
 
