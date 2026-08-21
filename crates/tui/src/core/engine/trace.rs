@@ -618,11 +618,18 @@ mod tests {
             .and_then(|r| r.get("content"))
             .and_then(|c| c.as_str())
             .expect("content string present");
+        // Emit keeps the first MAX_TOOL_OUTPUT_CHARS chars and appends a
+        // truncation marker, so the stored content is MAX+1 chars wide.
         assert!(
-            content.chars().count() <= MAX_TOOL_OUTPUT_CHARS,
-            "content is capped at MAX_TOOL_OUTPUT_CHARS"
+            content.chars().count() == MAX_TOOL_OUTPUT_CHARS + 1,
+            "content + marker is exactly MAX_TOOL_OUTPUT_CHARS + 1"
         );
         assert!(content.ends_with('…'), "content carries truncation marker");
+        assert_eq!(
+            content.trim_end_matches('…').chars().count(),
+            MAX_TOOL_OUTPUT_CHARS,
+            "the retained body is exactly MAX_TOOL_OUTPUT_CHARS chars"
+        );
         // The original caller's event is untouched (emit clones before writing).
         assert_eq!(ev.truncated, None);
     }
