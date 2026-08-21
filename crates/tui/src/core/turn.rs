@@ -46,6 +46,18 @@ pub struct TurnContext {
 
     /// Usage for this turn
     pub usage: Usage,
+
+    /// Optional path of a session trajectory sink (Plan B).
+    ///
+    /// We store the *path* rather than the `SessionEventSink` itself because
+    /// `turn.rs` is a sibling of the `engine` module, whose `trace` module
+    /// (`crate::core::engine::trace::SessionEventSink`) is private — storing
+    /// the concrete type here would fail to compile. `handle_deepseek_turn`
+    /// (inside `engine`) re-opens the sink via `SessionEventSink::open_at`.
+    ///
+    /// Defaults to `None` (zero behavior change / no I/O). Only set by an
+    /// explicit wiring point.
+    pub session_sink_path: Option<std::path::PathBuf>,
 }
 
 impl TurnContext {
@@ -64,6 +76,7 @@ impl TurnContext {
                 output_tokens: 0,
                 ..Usage::default()
             },
+            session_sink_path: None,
         }
     }
 

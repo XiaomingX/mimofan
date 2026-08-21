@@ -3777,7 +3777,12 @@ mod token_estimate_cache;
 mod tool_catalog;
 mod tool_execution;
 mod tool_setup;
-mod trace;
+// `trace` holds the cross-cutting session-trajectory types (`SessionEvent`/
+// `SessionEventSink`). It must be visible beyond the `engine` module so the
+// eval harness and other crate-level owners can emit/replay trajectories, not
+// just the turn loop. It stays `pub(crate)` (not `pub`) to avoid leaking it in
+// the public API surface.
+pub(crate) mod trace;
 mod turn_loop;
 mod verification_gate;
 pub(crate) use token_estimate_cache::TokenEstimateCache;

@@ -72,7 +72,33 @@ printed scorecard.
 
 `SessionEvent` / `SessionEventSink` in `trace.rs` are the append-only recording
 primitive: `SessionEventSink::open(task_id)` writes to
-`~/.mimofan/tasks/<task_id>/session.jsonl`; `emit(&SessionEvent)` appends one
-JSON line. A round-trip unit test (`session_event_round_trip`) lives in the same
-file. No emit calls are wired into `turn_loop.rs` (W3 owns that); the sink is
-the reusable primitive for later wiring.
+`~/.mimofan/tasks/<task_id>/session.jsonl`; `SessionEventSink::open_at(path)`
+writes to any caller-controlled path (used by the eval harness). `emit` appends
+one JSON line and transparently truncates oversized tool-result `content` at
+`MAX_TOOL_OUTPUT_CHARS` (16 KiB), flagging `truncated: true`.
+
+### Wiring status
+
+- **`turn_loop.rs` is wired** (`handle_deepseek_turn` emits `TurnStart` /
+  `ToolCall` / `ToolResult` / `SessionEnd`). It is **opt-in**: the sink is opened
+  from `TurnContext::session_sink_path`, which defaults to `None` (zero behavior
+  change — no I/O when not explicitly enabled). To turn it on for a real run, set
+  `session_sink_path` on the `TurnContext` (e.g. from a `EngineConfig` flag or a
+  headless harness driver) before `handle_deepseek_turn` runs.
+- **`EvalHarness` is the ready-made entry point**: set `EvalHarnessConfig`
+  (`trajectory_dir` + `task_id`) and `run()` writes a replayable trajectory to
+  `<trajectory_dir>/<task_id>/trajectory.jsonl` via `SessionEventSink::open_at`.
+  This is the intended source for labeling/analysis datasets (see below).
+
+### Exporting for labeling / training
+
+`trajectory_export.py` reads a `trajectory.jsonl` (`SessionEvent` lines) and
+emits two downstream formats:
+
+- `--export sharegpt` → `trajectory_samples.jsonl` (+ `failed_trajectories.jsonl`
+  for non-success runs, as DPO-rejected candidates). Pass `--user-prompt "<task
+  description>"` so the sample opens with a real `human` turn.
+- `--export atif` → `trajectory_atif.json`, an ATIF-step view with
+  `tool_call_id ↔ source_call_id` pairing (order-independent).
+
+See `python3 benchmark/vuln_hunt/trajectory_export.py --selftest`.

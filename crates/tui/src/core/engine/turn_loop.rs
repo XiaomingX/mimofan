@@ -141,6 +141,50 @@ impl Engine {
         let _turn_enter = _turn_span.enter();
         tracing::debug!(trace_id = %trace_id.as_hex(), "turn started");
 
+        // Phase 1.2: if a session trajectory sink path was wired into the turn
+        // context, open it here (turn_loop is inside `engine`, so it can see
+        // the private `trace` module and `SessionEventSink`). The rest of the
+        // loop best-effort emits `SessionEvent`s. When `None` this is a pure
+        // no-op — zero behavior change and no I/O. Opening is best-effort: a
+        // failure just disables tracing, never affects the turn.
+        let sink = match turn.session_sink_path.as_ref() {
+            Some(path) => {
+                match crate::core::engine::trace::SessionEventSink::open_at(path) {
+                    Ok(s) => Some(s),
+                    Err(e) => {
+                        tracing::debug!(
+                            target: "engine::trace",
+                            path = %path.display(),
+                            error = %e,
+                            "failed to open session trajectory sink; tracing disabled"
+                        );
+                        None
+                    }
+                }
+            }
+            None => None,
+        };
+        if let Some(sink) = sink.as_ref() {
+            let ev = crate::core::engine::trace::SessionEvent {
+                kind: crate::core::engine::trace::SessionEventKind::TurnStart,
+                turn: turn.step as u64,
+                ts: now_ts(),
+                text: None,
+                tool_name: None,
+                tool_input: None,
+                hypothesis_id: None,
+                poc_realized: None,
+                source: Some("system".to_string()),
+                tool_result: None,
+                tool_call_id: None,
+                session_id: Some(self.session.id.clone()),
+                model: None,
+                exit_status: None,
+                truncated: None,
+            };
+            let _ = sink.emit(&ev);
+        }
+
         let client = self
             .deepseek_client
             .clone()
@@ -2456,6 +2500,31 @@ impl Engine {
                             .await;
                         }
 
+                        // Phase 1.2: best-effort ToolCall emit BEFORE execution so
+                        // the trajectory records the model's intent (not the
+                        // already-resolved outcome). Only when a sink is wired;
+                        // any I/O failure is swallowed (never affects the turn).
+                        if let Some(sink) = sink.as_ref() {
+                            let call_ev = crate::core::engine::trace::SessionEvent {
+                                kind: crate::core::engine::trace::SessionEventKind::ToolCall,
+                                turn: turn.step as u64,
+                                ts: now_ts(),
+                                text: None,
+                                tool_name: Some(tool_name.clone()),
+                                tool_input: Some(tool_input.clone()),
+                                hypothesis_id: None,
+                                poc_realized: None,
+                                source: Some("agent".to_string()),
+                                tool_result: None,
+                                tool_call_id: Some(tool_id.clone()),
+                                session_id: Some(self.session.id.clone()),
+                                model: None,
+                                exit_status: None,
+                                truncated: None,
+                            };
+                            let _ = sink.emit(&call_ev);
+                        }
+
                         let started_at = Instant::now();
                         let mut result = if let Some(result_override) = result_override {
                             result_override
@@ -2479,6 +2548,35 @@ impl Engine {
                         // (#734): count + wall-clock duration, so diagnostics can
                         // surface a real latency total/average rather than a boolean.
                         turn.record_tool_call_timed(started_at.elapsed());
+
+                        // Phase 1.2: best-effort ToolResult emit (mirrors ToolCall).
+                        if let Some(sink) = sink.as_ref() {
+                            let result_payload = match result.as_ref() {
+                                Ok(r) => serde_json::json!({
+                                    "success": r.success,
+                                    "content": r.content,
+                                }),
+                                Err(e) => serde_json::json!({ "error": e.to_string() }),
+                            };
+                            let res_ev = crate::core::engine::trace::SessionEvent {
+                                kind: crate::core::engine::trace::SessionEventKind::ToolResult,
+                                turn: turn.step as u64,
+                                ts: now_ts(),
+                                text: None,
+                                tool_name: Some(tool_name.clone()),
+                                tool_input: None,
+                                hypothesis_id: None,
+                                poc_realized: None,
+                                source: Some("agent".to_string()),
+                                tool_result: Some(result_payload),
+                                tool_call_id: Some(tool_id.clone()),
+                                session_id: Some(self.session.id.clone()),
+                                model: None,
+                                exit_status: None,
+                                truncated: None,
+                            };
+                            let _ = sink.emit(&res_ev);
+                        }
 
                         // #871 — capture the tool-selection decision so the
                         // decision trail survives compaction. `tool_name` renders
@@ -2829,6 +2927,36 @@ impl Engine {
             self.auto_capture_memory(&mut seen_auto_memory).await;
 
             turn.next_step();
+        }
+
+        // Phase 1.2: best-effort SessionEnd emit before the turn resolves, so
+        // the final exit status is captured across all termination branches.
+        if let Some(sink) = sink.as_ref() {
+            let exit_status = if self.cancel_token.is_cancelled() {
+                "interrupted"
+            } else if turn_error.is_some() {
+                "failed"
+            } else {
+                "completed"
+            };
+            let end_ev = crate::core::engine::trace::SessionEvent {
+                kind: crate::core::engine::trace::SessionEventKind::SessionEnd,
+                turn: turn.step as u64,
+                ts: now_ts(),
+                text: None,
+                tool_name: None,
+                tool_input: None,
+                hypothesis_id: None,
+                poc_realized: None,
+                source: Some("system".to_string()),
+                tool_result: None,
+                tool_call_id: None,
+                session_id: Some(self.session.id.clone()),
+                model: None,
+                exit_status: Some(exit_status.to_string()),
+                truncated: None,
+            };
+            let _ = sink.emit(&end_ev);
         }
 
         if self.cancel_token.is_cancelled() {
@@ -3593,6 +3721,14 @@ fn resolve_auto_effort(
 
 fn is_turn_metadata_text(text: &str) -> bool {
     text.trim_start().starts_with("<turn_meta>")
+}
+
+/// RFC-3339-ish local wall-clock timestamp string, matching `SessionEvent::ts`.
+///
+/// Used by the best-effort session trajectory emits.
+fn now_ts() -> String {
+    use chrono::Local;
+    Local::now().to_rfc3339()
 }
 
 #[cfg(test)]

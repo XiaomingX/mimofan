@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
+use crate::core::engine::trace::{SessionEvent, SessionEventKind, SessionEventSink};
 use crate::llm_client::LlmClient;
 use crate::llm_client::mock::MockLlmClient;
 use crate::models::{ContentBlockStart, MessageRequest, StreamEvent};
@@ -148,6 +149,13 @@ pub struct EvalHarnessConfig {
     /// Task id used as the artifact subdirectory name. Required when
     /// [`Self::artifacts_dir`] is set.
     pub task_id: Option<String>,
+    /// When set (along with [`Self::task_id`]), the harness writes a replayable
+    /// session trajectory as JSONL to `<trajectory_dir>/<task_id>/trajectory.jsonl`
+    /// via [`crate::core::engine::trace::SessionEventSink::open_at`]. Emits
+    /// `TurnStart`/`ToolCall`/`ToolResult`/`SessionEnd` [`crate::core::engine::trace::SessionEvent`]s
+    /// so a harness can reconstruct *what happened* without re-parsing the model
+    /// transcript. When `None` no trajectory is produced (default).
+    pub trajectory_dir: Option<PathBuf>,
 }
 
 impl Default for EvalHarnessConfig {
@@ -166,6 +174,7 @@ impl Default for EvalHarnessConfig {
             record_dir: None,
             artifacts_dir: None,
             task_id: None,
+            trajectory_dir: None,
         }
     }
 }
@@ -243,6 +252,54 @@ impl EvalHarness {
                 }),
             );
 
+            // Phase 2: optional session trajectory. When `trajectory_dir` is set
+            // (with a `task_id`), open a `SessionEventSink` that appends JSONL
+            // `SessionEvent`s to `<trajectory_dir>/<task_id>/trajectory.jsonl`.
+            // `open_at` reuses the exact same append-only `emit` path as the
+            // production turn-loop (`core::engine::trace::SessionEventSink`), so
+            // the eval harness and the real engine produce one unified
+            // trajectory format for labeling/analysis. Best-effort: if opening
+            // fails, we simply run without a trajectory.
+            let mut trajectory = None;
+            if let (Some(dir), Some(task_id)) = (
+                self.config.trajectory_dir.as_ref(),
+                self.config.task_id.as_deref(),
+            ) {
+                let path = dir.join(task_id).join("trajectory.jsonl");
+                match SessionEventSink::open_at(&path) {
+                    Ok(sink) => trajectory = Some(sink),
+                    Err(e) => {
+                        tracing::debug!(
+                            target: "eval.trajectory",
+                            path = %path.display(),
+                            error = %e,
+                            "failed to open trajectory sink; continuing without it"
+                        );
+                    }
+                }
+            }
+            let mut step = 0u64;
+            // Emit TurnStart once per outer loop pass (each pass = one mock turn).
+            if let Some(sink) = trajectory.as_ref() {
+                let _ = sink.emit(&SessionEvent {
+                    kind: SessionEventKind::TurnStart,
+                    turn: step,
+                    ts: now_ts(),
+                    text: None,
+                    tool_name: None,
+                    tool_input: None,
+                    hypothesis_id: None,
+                    poc_realized: None,
+                    source: Some("system".to_string()),
+                    tool_result: None,
+                    tool_call_id: None,
+                    session_id: None,
+                    model: None,
+                    exit_status: None,
+                    truncated: None,
+                });
+            }
+
             while mock.pending() > 0 {
                 let stream = mock.create_message_stream(self.build_request()).await?;
                 let tool_calls = collect_tool_calls(stream).await?;
@@ -250,13 +307,66 @@ impl EvalHarness {
                     break;
                 }
                 for (name, input) in tool_calls {
+                    step += 1;
                     let started = Instant::now();
                     let stat = per_tool.entry(ScenarioStepKind::AgentTool).or_default();
                     stat.invocations += 1;
 
+                    // Phase 2: best-effort ToolCall event before execution.
+                    if let Some(sink) = trajectory.as_ref() {
+                        let _ = sink.emit(&SessionEvent {
+                            kind: SessionEventKind::ToolCall,
+                            turn: step,
+                            ts: now_ts(),
+                            text: None,
+                            tool_name: Some(name.clone()),
+                            tool_input: Some(input.clone()),
+                            hypothesis_id: None,
+                            poc_realized: None,
+                            source: Some("agent".to_string()),
+                            tool_result: None,
+                            tool_call_id: Some(format!("eval-step-{step}")),
+                            session_id: None,
+                            model: None,
+                            exit_status: None,
+                            truncated: None,
+                        });
+                    }
+
                     let outcome = registry.execute_full(&name, input).await;
                     let duration = started.elapsed();
                     stat.total_duration += duration;
+
+                    // Phase 2: best-effort ToolResult event after execution.
+                    if let Some(sink) = trajectory.as_ref() {
+                        let result_payload = match &outcome {
+                            Ok(r) => json!({
+                                "success": r.success,
+                                "content": r.content,
+                            }),
+                            Err(e) => json!({
+                                "success": false,
+                                "error": e.to_string(),
+                            }),
+                        };
+                        let _ = sink.emit(&SessionEvent {
+                            kind: SessionEventKind::ToolResult,
+                            turn: step,
+                            ts: now_ts(),
+                            text: None,
+                            tool_name: Some(name.clone()),
+                            tool_input: None,
+                            hypothesis_id: None,
+                            poc_realized: None,
+                            source: Some("agent".to_string()),
+                            tool_result: Some(result_payload),
+                            tool_call_id: Some(format!("eval-step-{step}")),
+                            session_id: None,
+                            model: None,
+                            exit_status: None,
+                            truncated: None,
+                        });
+                    }
 
                     match outcome {
                         Ok(result) => {
@@ -310,6 +420,32 @@ impl EvalHarness {
                         }
                     }
                 }
+            }
+
+            // Phase 2: best-effort SessionEnd event after the loop completes.
+            // Reflect the real outcome: a non-zero tool-error count means the
+            // loop did not fully succeed, so record `failed` instead of
+            // `completed`. This keeps the trajectory's exit status honest for
+            // downstream labeling/analysis.
+            let exit_status = if tool_errors == 0 { "completed" } else { "failed" };
+            if let Some(sink) = trajectory.as_ref() {
+                let _ = sink.emit(&SessionEvent {
+                    kind: SessionEventKind::SessionEnd,
+                    turn: step,
+                    ts: now_ts(),
+                    text: None,
+                    tool_name: None,
+                    tool_input: None,
+                    hypothesis_id: None,
+                    poc_realized: None,
+                    source: Some("system".to_string()),
+                    tool_result: None,
+                    tool_call_id: None,
+                    session_id: None,
+                    model: None,
+                    exit_status: Some(exit_status.to_string()),
+                    truncated: None,
+                });
             }
         }
 
@@ -689,6 +825,12 @@ fn truncate_output(value: &str, max_chars: usize) -> String {
     format!("{truncated}...")
 }
 
+/// RFC-3339-ish local wall-clock timestamp string for `SessionEvent::ts`.
+fn now_ts() -> String {
+    use chrono::Local;
+    Local::now().to_rfc3339()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -758,5 +900,72 @@ mod tests {
 
         let chain = task_dir.join("gadget_chain.json");
         assert!(chain.exists(), "gadget_chain.json should be written");
+    }
+
+    /// When `trajectory_dir` + `task_id` are configured, `run()` must write a
+    /// replayable session trajectory (JSONL) capturing the tool-loop events so a
+    /// harness can reconstruct what happened without re-parsing the transcript.
+    #[test]
+    fn harness_persists_session_trajectory() {
+        let traj_dir = tempfile::tempdir().expect("tempdir");
+        let config = EvalHarnessConfig {
+            scenario_name: "vuln-hunt-trajectory".to_string(),
+            trajectory_dir: Some(traj_dir.path().to_path_buf()),
+            task_id: Some("vh-traj-task".to_string()),
+            ..EvalHarnessConfig::default()
+        };
+        let harness = EvalHarness::new(config);
+        let _run = harness.run().expect("harness run ok");
+
+        let path = traj_dir
+            .path()
+            .join("vh-traj-task")
+            .join("trajectory.jsonl");
+        assert!(path.exists(), "trajectory.jsonl should be written");
+
+        // Replay the log and assert it is non-empty and captures the key events.
+        let events =
+            crate::core::engine::trace::read_session(&path);
+        assert!(
+            !events.is_empty(),
+            "trajectory should contain at least one event"
+        );
+
+        let kinds: Vec<SessionEventKind> = events.iter().map(|e| e.kind).collect();
+        assert!(
+            kinds.contains(&SessionEventKind::TurnStart),
+            "trajectory should contain a TurnStart event"
+        );
+        assert!(
+            kinds.contains(&SessionEventKind::ToolCall),
+            "trajectory should contain a ToolCall event"
+        );
+        assert!(
+            kinds.contains(&SessionEventKind::ToolResult),
+            "trajectory should contain a ToolResult event"
+        );
+        assert!(
+            kinds.contains(&SessionEventKind::SessionEnd),
+            "trajectory should contain a SessionEnd event"
+        );
+        // ToolCall and ToolResult pairs share a tool_call_id for correlation.
+        let calls: Vec<_> = events
+            .iter()
+            .filter(|e| e.kind == SessionEventKind::ToolCall)
+            .filter_map(|e| e.tool_call_id.clone())
+            .collect();
+        let results: Vec<_> = events
+            .iter()
+            .filter(|e| e.kind == SessionEventKind::ToolResult)
+            .filter_map(|e| e.tool_call_id.clone())
+            .collect();
+        assert!(
+            !calls.is_empty() && !results.is_empty(),
+            "trajectory should have correlated ToolCall/ToolResult pairs"
+        );
+        assert_eq!(
+            calls, results,
+            "every ToolCall should be paired with a ToolResult via tool_call_id"
+        );
     }
 }
