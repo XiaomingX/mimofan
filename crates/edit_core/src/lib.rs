@@ -353,13 +353,13 @@ mod tests {
 
     impl ReadState for MemReadState {
         fn current_identity(&self, path: &Path) -> Option<FileIdentity> {
-            self.current.get(&path.to_string()).cloned().flatten()
+            self.current.get(&path.to_string_lossy().into_owned()).cloned().flatten()
         }
         fn prior_identity(&self, path: &Path) -> Option<FileIdentity> {
-            self.prior.get(&path.to_string()).cloned().flatten()
+            self.prior.get(&path.to_string_lossy().into_owned()).cloned().flatten()
         }
         fn covers(&self, path: &Path, start: usize, end: usize) -> bool {
-            match self.covered.get(&path.to_string()).cloned().flatten() {
+            match self.covered.get(&path.to_string_lossy().into_owned()).cloned().flatten() {
                 None => true, // whole-file read
                 Some(ranges) => {
                     let mut cursor = start;
