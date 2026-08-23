@@ -2128,6 +2128,35 @@ impl Engine {
         let mut turn = TurnContext::new(self.config.max_steps);
         self.turn_counter = self.turn_counter.saturating_add(1);
 
+        // Default-on session trajectory: when enabled, wire the per-session
+        // JSONL path into the turn context so `turn_loop` appends redacted
+        // `SessionEvent`s to `~/.mimofan/tasks/<session_id>/session.jsonl`.
+        // Uses the *path* (Plan B) rather than the sink type because `turn.rs`
+        // cannot see the private `engine::trace` module (E0603); `turn_loop`
+        // reopens via `SessionEventSink::open_at`. Best-effort: a failure to
+        // resolve home just leaves the path unset (no trajectory).
+        if self.config.session_trace.enabled
+            && let Some(home) = dirs::home_dir()
+        {
+            let task_id = if self.session.id.is_empty() {
+                uuid::Uuid::new_v4().to_string()
+            } else {
+                self.session.id.clone()
+            };
+            turn.session_sink_path = Some(
+                home.join(".mimofan")
+                    .join("tasks")
+                    .join(&task_id)
+                    .join("session.jsonl"),
+            );
+            tracing::debug!(
+                target: "engine::trace",
+                session_id = %task_id,
+                redact = self.config.session_trace.redact,
+                "session trajectory recording enabled"
+            );
+        }
+
         // Emit turn started event IMMEDIATELY so the UI knows the turn is
         // active. The snapshot below can take 30+ seconds on slow filesystems
         // (e.g. WSL2 /mnt/c) and must not delay the TurnStarted event.

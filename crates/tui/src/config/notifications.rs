@@ -123,6 +123,41 @@ impl SnapshotsConfig {
     }
 }
 
+fn default_session_trace_enabled() -> bool {
+    true
+}
+
+fn default_session_trace_redact() -> bool {
+    true
+}
+
+/// Session trajectory recording configuration.
+///
+/// When `enabled`, every interactive/headless turn appends a redacted
+/// `SessionEvent` JSONL to `~/.mimofan/tasks/<session_id>/session.jsonl` by
+/// default, so users get a trajectory for long-horizon analysis / training
+/// without opting in. `redact` controls whether sensitive payloads (tool
+/// input/output, assistant text) are replaced by a sha256 hash before write.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SessionTraceConfig {
+    /// Record a per-session trajectory JSONL. Default: true (opt-out).
+    #[serde(default = "default_session_trace_enabled")]
+    pub enabled: bool,
+    /// Replace sensitive payloads with a sha256 hash before writing.
+    /// Default: true (privacy first). Only meaningful when `enabled`.
+    #[serde(default = "default_session_trace_redact")]
+    pub redact: bool,
+}
+
+impl Default for SessionTraceConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_session_trace_enabled(),
+            redact: default_session_trace_redact(),
+        }
+    }
+}
+
 /// User-level memory configuration (#489).
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct MemoryConfig {

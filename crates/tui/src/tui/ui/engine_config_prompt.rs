@@ -99,6 +99,7 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         consolidation_interval_turns: None,
         failure_log_path: None,
         goal_self_check_after_compact: false,
+        session_trace: config.session_trace_config(),
     }
 }
 

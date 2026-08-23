@@ -409,6 +409,12 @@ pub struct Config {
     #[serde(default)]
     pub snapshots: Option<SnapshotsConfig>,
 
+    /// Session trajectory recording. Defaults to enabled (redacted) when the
+    /// table is absent, so users get a trajectory for long-horizon analysis /
+    /// training. Opt-out via `[session_trace] enabled = false`.
+    #[serde(default)]
+    pub session_trace: Option<SessionTraceConfig>,
+
     /// Web search provider configuration. When absent, defaults to DuckDuckGo.
     /// Set `provider` to another supported backend such as `bing`, `tavily`,
     /// `bocha`, `metaso`, `searxng`, `baidu`, `volcengine`, or `sofya`.
@@ -1848,6 +1854,12 @@ impl Config {
         self.snapshots.clone().unwrap_or_default()
     }
 
+    /// Resolve session trajectory settings with defaults applied.
+    #[must_use]
+    pub fn session_trace_config(&self) -> SessionTraceConfig {
+        self.session_trace.clone().unwrap_or_default()
+    }
+
     /// Resolve community skill settings with defaults applied.
     #[must_use]
     pub fn skills_config(&self) -> SkillsConfig {
@@ -2159,6 +2171,7 @@ fn merge_config(base: Config, override_cfg: Config) -> Config {
         network: override_cfg.network.or(base.network),
         skills: merge_skills_config(base.skills, override_cfg.skills),
         snapshots: override_cfg.snapshots.or(base.snapshots),
+        session_trace: override_cfg.session_trace.or(base.session_trace),
         search: override_cfg.search.or(base.search),
         memory: override_cfg.memory.or(base.memory),
         speech: override_cfg.speech.or(base.speech),

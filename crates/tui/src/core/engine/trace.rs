@@ -171,6 +171,11 @@ pub struct SessionEvent {
 /// only provides the sink and the types.
 pub struct SessionEventSink {
     path: PathBuf,
+    /// When `true`, `emit` replaces sensitive payloads (tool input/output
+    /// content, assistant text) with a `sha256:<hex>` hash before writing so
+    /// default-on recording does not leak PII to disk. Metadata
+    /// (`tool_name`/`tool_call_id`/`session_id`/`source`/`ts`) is preserved.
+    redact: bool,
 }
 
 // `SessionEventSink` is not `Clone`/`Copy` (it wraps a `PathBuf`), but
@@ -188,7 +193,8 @@ impl SessionEventSink {
     /// Open (creating the parent dir) the sink for `task_id`.
     ///
     /// Writes to `~/.mimofan/tasks/<task_id>/session.jsonl`, appending. Any
-    /// prior content is preserved (append-only).
+    /// prior content is preserved (append-only). Sensitive payloads are
+    /// redacted (hashed) by default.
     pub fn open(task_id: &str) -> Result<Self, std::io::Error> {
         let home = dirs::home_dir().ok_or_else(|| {
             std::io::Error::new(
@@ -201,7 +207,7 @@ impl SessionEventSink {
             .join("tasks")
             .join(task_id)
             .join("session.jsonl");
-        Self::open_at(path)
+        Self::open_at_with_redact(path, true)
     }
 
     /// Open the sink at an arbitrary `path` (creating its parent dir),
@@ -209,14 +215,27 @@ impl SessionEventSink {
     ///
     /// This lets harnesses write a trajectory to a caller-controlled location
     /// instead of always under `~/.mimofan/tasks/<task_id>/`. Reuses the same
-    /// `emit` logic as [`SessionEventSink::open`].
+    /// `emit` logic as [`SessionEventSink::open`]. Sensitive payloads are kept
+    /// verbatim (no redaction) so harnesses can persist raw trajectories.
     pub fn open_at(path: impl AsRef<Path>) -> Result<Self, std::io::Error> {
+        Self::open_at_with_redact(path, false)
+    }
+
+    /// Open the sink at an arbitrary `path` with an explicit redaction mode.
+    ///
+    /// `redact = true` hashes sensitive payloads at write time (used by the
+    /// default-on interactive/headless trajectory); `false` writes verbatim
+    /// (used by harnesses that need the raw trajectory).
+    pub fn open_at_with_redact(
+        path: impl AsRef<Path>,
+        redact: bool,
+    ) -> Result<Self, std::io::Error> {
         let path = path.as_ref().to_path_buf();
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        debug!(target: "engine::trace", path = %path.display(), "opened SessionEventSink");
-        Ok(Self { path })
+        debug!(target: "engine::trace", path = %path.display(), redact, "opened SessionEventSink");
+        Ok(Self { path, redact })
     }
 
     /// Append a single event as one JSON line.
@@ -241,6 +260,27 @@ impl SessionEventSink {
                 to_write.truncated = Some(true);
             }
         }
+        // Privacy-first default: when `redact` is set, hash sensitive payloads
+        // (tool input, tool-result content, assistant text) so the on-disk
+        // trajectory never stores raw PII. Structural metadata (`tool_name`,
+        // `tool_call_id`, `session_id`, `source`, timestamps) is preserved so
+        // the trajectory remains analyzable.
+        if self.redact {
+            if let Some(input) = to_write.tool_input.take() {
+                to_write.tool_input = Some(redacted_value(&input));
+            }
+            if let Some(result) = to_write.tool_result.as_mut()
+                && let Some(content) = result.get_mut("content")
+            {
+                if let Some(s) = content.as_str() {
+                    *content = serde_json::Value::String(redact_hash(s.as_bytes()));
+                }
+            }
+            if let Some(text) = to_write.text.as_mut() {
+                *text = redact_hash(text.as_bytes());
+            }
+            to_write.truncated = Some(true);
+        }
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -257,6 +297,22 @@ impl SessionEventSink {
     pub fn path(&self) -> &Path {
         &self.path
     }
+}
+
+/// sha256 hex digest of `bytes`, prefixed with `sha256:` for self-describing
+/// redacted payloads (e.g. `sha256:ab12...`).
+fn redact_hash(bytes: &[u8]) -> String {
+    format!("sha256:{}", crate::utils::sha256_hex(bytes))
+}
+
+/// Replace an arbitrary tool-input `Value` with a minimal redacted marker that
+/// keeps the input structurally present (so consumers can still correlate
+/// events) but never leaks the raw content.
+fn redacted_value(input: &Value) -> Value {
+    serde_json::json!({
+        "__redacted__": redact_hash(input.to_string().as_bytes()),
+        "__kind__": "input",
+    })
 }
 
 /// Read back every [`SessionEvent`] from a `.jsonl` sink, in order.
@@ -550,6 +606,108 @@ mod tests {
         assert_eq!(read[0].kind, SessionEventKind::ToolCall);
         assert_eq!(read[0].tool_name.as_deref(), Some("bash"));
         assert_eq!(read[0], ev, "structural equality holds");
+    }
+
+    #[test]
+    fn redacted_sink_hashes_sensitive_payloads() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("redacted").join("session.jsonl");
+
+        // `open_at_with_redact(path, true)` must hash tool input/content/text
+        // while preserving structural metadata.
+        let sink = SessionEventSink::open_at_with_redact(&path, true)
+            .expect("open_at_with_redact should create parent dir");
+        let ev = SessionEvent {
+            kind: SessionEventKind::ToolCall,
+            turn: 1,
+            ts: "2026-08-15T12:00:00Z".to_string(),
+            text: Some("SECRET_PROMPT_TEXT".to_string()),
+            tool_name: Some("bash".to_string()),
+            tool_input: Some(serde_json::json!({"cmd": "echo SECRET_INPUT"})),
+            hypothesis_id: None,
+            poc_realized: None,
+            source: Some("agent".to_string()),
+            tool_result: Some(serde_json::json!({"success": true, "content": "SECRET_OUTPUT"})),
+            tool_call_id: Some("call_1".to_string()),
+            session_id: Some("sess-1".to_string()),
+            model: None,
+            exit_status: None,
+            truncated: None,
+        };
+        sink.emit(&ev).expect("emit should succeed");
+
+        let read = read_session(&path);
+        assert_eq!(read.len(), 1, "should read one event");
+        let written = &read[0];
+
+        // Metadata preserved.
+        assert_eq!(written.tool_name.as_deref(), Some("bash"));
+        assert_eq!(written.tool_call_id.as_deref(), Some("call_1"));
+        assert_eq!(written.session_id.as_deref(), Some("sess-1"));
+        assert_eq!(written.truncated, Some(true), "redaction sets truncated");
+
+        // Raw secrets must never appear.
+        let raw = serde_json::to_string(written).unwrap();
+        assert!(!raw.contains("SECRET_INPUT"), "tool input must be hashed");
+        assert!(!raw.contains("SECRET_OUTPUT"), "tool result content must be hashed");
+        assert!(!raw.contains("SECRET_PROMPT_TEXT"), "assistant text must be hashed");
+
+        // Tool input replaced by a redacted marker.
+        let input = written.tool_input.as_ref().expect("tool_input present");
+        assert!(
+            input.get("__redacted__").is_some(),
+            "tool_input should be a redacted marker, got {input}"
+        );
+
+        // Tool result content replaced by a `sha256:` hash.
+        let content = written
+            .tool_result
+            .as_ref()
+            .and_then(|r| r.get("content"))
+            .and_then(|c| c.as_str())
+            .expect("tool_result content string");
+        assert!(
+            content.starts_with("sha256:"),
+            "tool result content should be hashed, got {content}"
+        );
+
+        // Assistant text replaced by a `sha256:` hash.
+        let text = written.text.as_deref().expect("text present");
+        assert!(
+            text.starts_with("sha256:"),
+            "assistant text should be hashed, got {text}"
+        );
+    }
+
+    #[test]
+    fn open_at_keeps_raw_payloads_for_harness() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("raw").join("session.jsonl");
+
+        // Harnesses use `open_at` (redact=false): raw payloads preserved.
+        let sink = SessionEventSink::open_at(&path).expect("open_at");
+        let ev = SessionEvent {
+            kind: SessionEventKind::ToolCall,
+            turn: 1,
+            ts: "2026-08-15T12:00:00Z".to_string(),
+            text: Some("plain".to_string()),
+            tool_name: Some("bash".to_string()),
+            tool_input: Some(serde_json::json!({"cmd": "echo raw"})),
+            hypothesis_id: None,
+            poc_realized: None,
+            source: Some("agent".to_string()),
+            tool_result: None,
+            tool_call_id: Some("call_1".to_string()),
+            session_id: Some("sess-1".to_string()),
+            model: None,
+            exit_status: None,
+            truncated: None,
+        };
+        sink.emit(&ev).expect("emit should succeed");
+
+        let raw = std::fs::read_to_string(&path).unwrap();
+        assert!(raw.contains("raw"), "open_at must not redact (raw payload kept)");
+        assert!(!raw.contains("sha256:"), "open_at must not hash payloads");
     }
 
     #[test]

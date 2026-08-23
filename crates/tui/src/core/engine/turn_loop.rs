@@ -149,7 +149,14 @@ impl Engine {
         // failure just disables tracing, never affects the turn.
         let sink = match turn.session_sink_path.as_ref() {
             Some(path) => {
-                match crate::core::engine::trace::SessionEventSink::open_at(path) {
+                // Honor the configured redaction mode: default-on interactive/
+                // headless turns write hashed payloads (privacy-first); harness
+                // calls that set `open_at` directly keep raw trajectories.
+                let redact = self.config.session_trace.redact;
+                match crate::core::engine::trace::SessionEventSink::open_at_with_redact(
+                    path,
+                    redact,
+                ) {
                     Ok(s) => Some(s),
                     Err(e) => {
                         tracing::debug!(
@@ -2523,6 +2530,30 @@ impl Engine {
                                 truncated: None,
                             };
                             let _ = sink.emit(&call_ev);
+
+                            // Subagent lifecycle: an `agent` tool call marks the
+                            // spawn of a child agent. Emit AgentSpawn alongside the
+                            // ToolCall so the trajectory records the fork point.
+                            if tool_name == "agent" {
+                                let spawn_ev = crate::core::engine::trace::SessionEvent {
+                                    kind: crate::core::engine::trace::SessionEventKind::AgentSpawn,
+                                    turn: turn.step as u64,
+                                    ts: now_ts(),
+                                    text: None,
+                                    tool_name: Some("agent".to_string()),
+                                    tool_input: None,
+                                    hypothesis_id: None,
+                                    poc_realized: None,
+                                    source: Some("agent".to_string()),
+                                    tool_result: None,
+                                    tool_call_id: Some(tool_id.clone()),
+                                    session_id: Some(self.session.id.clone()),
+                                    model: None,
+                                    exit_status: None,
+                                    truncated: None,
+                                };
+                                let _ = sink.emit(&spawn_ev);
+                            }
                         }
 
                         let started_at = Instant::now();
@@ -2576,6 +2607,37 @@ impl Engine {
                                 truncated: None,
                             };
                             let _ = sink.emit(&res_ev);
+
+                            // Subagent lifecycle: when the `agent` tool returns,
+                            // the child has finished (or errored). Emit AgentDone
+                            // paired with the spawn's tool_call_id.
+                            if tool_name == "agent" {
+                                let done_ev = crate::core::engine::trace::SessionEvent {
+                                    kind: crate::core::engine::trace::SessionEventKind::AgentDone,
+                                    turn: turn.step as u64,
+                                    ts: now_ts(),
+                                    text: None,
+                                    tool_name: Some("agent".to_string()),
+                                    tool_input: None,
+                                    hypothesis_id: None,
+                                    poc_realized: None,
+                                    source: Some("agent".to_string()),
+                                    tool_result: None,
+                                    tool_call_id: Some(tool_id.clone()),
+                                    session_id: Some(self.session.id.clone()),
+                                    model: None,
+                                    exit_status: Some(
+                                        if result.is_ok() {
+                                            "completed"
+                                        } else {
+                                            "failed"
+                                        }
+                                        .to_string(),
+                                    ),
+                                    truncated: None,
+                                };
+                                let _ = sink.emit(&done_ev);
+                            }
                         }
 
                         // #871 — capture the tool-selection decision so the
@@ -2939,6 +3001,28 @@ impl Engine {
             } else {
                 "completed"
             };
+            // Emit an Error event when the turn ended on a failure, so the
+            // trajectory records the reason alongside the exit status.
+            if let Some(err_text) = turn_error.as_ref() {
+                let err_ev = crate::core::engine::trace::SessionEvent {
+                    kind: crate::core::engine::trace::SessionEventKind::Error,
+                    turn: turn.step as u64,
+                    ts: now_ts(),
+                    text: Some(err_text.clone()),
+                    tool_name: None,
+                    tool_input: None,
+                    hypothesis_id: None,
+                    poc_realized: None,
+                    source: Some("system".to_string()),
+                    tool_result: None,
+                    tool_call_id: None,
+                    session_id: Some(self.session.id.clone()),
+                    model: None,
+                    exit_status: Some("failed".to_string()),
+                    truncated: None,
+                };
+                let _ = sink.emit(&err_ev);
+            }
             let end_ev = crate::core::engine::trace::SessionEvent {
                 kind: crate::core::engine::trace::SessionEventKind::SessionEnd,
                 turn: turn.step as u64,

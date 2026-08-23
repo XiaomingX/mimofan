@@ -737,6 +737,7 @@ pub(crate) async fn run_exec_agent(
             .ok()
             .map(PathBuf::from),
         goal_self_check_after_compact: false,
+        session_trace: execution_config.session_trace_config(),
     };
 
     let engine_handle = spawn_engine(engine_config, &execution_config);

@@ -235,6 +235,10 @@ pub struct EngineConfig {
     /// guarding long-horizon tasks against silent goal drift. Opt-out only —
     /// defaults to `false` so existing behaviour is unchanged until enabled.
     pub goal_self_check_after_compact: bool,
+    /// Whether/how to record a per-session trajectory JSONL by default
+    /// (redacted) to `~/.mimofan/tasks/<session_id>/session.jsonl`. Opt-out
+    /// via `[session_trace] enabled = false`.
+    pub session_trace: crate::config::SessionTraceConfig,
 }
 
 /// Wrapper around a list of injected `ToolSpec` implementations so it can live
@@ -336,6 +340,7 @@ impl Default for EngineConfig {
             consolidation_interval_turns: None,
             failure_log_path: None,
             goal_self_check_after_compact: false,
+            session_trace: crate::config::SessionTraceConfig::default(),
         }
     }
 }

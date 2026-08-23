@@ -1831,6 +1831,7 @@ impl RuntimeThreadManager {
             consolidation_interval_turns: None,
             failure_log_path: None,
             goal_self_check_after_compact: false,
+            session_trace: self.config.session_trace_config(),
         };
 
         let engine = spawn_engine(engine_cfg, &self.config);
