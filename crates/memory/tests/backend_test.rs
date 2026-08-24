@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use mimofan_memory::backend::{boxed, shared, MemoryBackend, SharedMemoryBackend};
-use mimofan_memory::vector::{Observation, SearchFilters, VectorStore};
 use mimofan_memory::Result;
+use mimofan_memory::backend::{MemoryBackend, SharedMemoryBackend, boxed, shared};
+use mimofan_memory::vector::{MemoryOrigin, Observation, SearchFilters, VectorStore};
 
 const DIM: usize = 8;
 
@@ -20,6 +20,7 @@ fn observation(content: &str) -> Observation {
         last_accessed_at: None,
         expires_at: None,
         session_id: "test".to_string(),
+        origin: MemoryOrigin::User,
     }
 }
 

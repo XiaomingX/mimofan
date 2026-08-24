@@ -124,7 +124,14 @@ impl ToolSpec for RememberVectorTool {
             .await
             .map_err(|err| ToolError::execution_failed(format!("embedding failed: {err}")))?;
         let id = vm
-            .store_observation(&project, kind_str, content, &context.session_id, &embedding)
+            .store_observation(
+                &project,
+                kind_str,
+                content,
+                &context.session_id,
+                &embedding,
+                mimofan_memory::MemoryOrigin::Model,
+            )
             .map_err(|err| ToolError::execution_failed(format!("failed to store: {err}")))?;
 
         Ok(ToolResult::success(format!(

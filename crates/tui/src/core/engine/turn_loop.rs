@@ -3204,6 +3204,8 @@ impl Engine {
                                             &content,
                                             &self.session.id,
                                             &embedding,
+                                            // 会话自动抽取：观察到的用户行为/状态，可信。
+                                            mimofan_memory::MemoryOrigin::User,
                                         ) {
                                             tracing::warn!(
                                                 ?err,

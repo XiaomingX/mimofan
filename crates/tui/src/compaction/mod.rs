@@ -1766,6 +1766,11 @@ fn extract_workflow_context(messages: &[Message], workspace: Option<&Path>) -> S
     let mut files_touched: Vec<String> = Vec::new();
     let mut tools_used: Vec<String> = Vec::new();
     let mut tasks_identified: Vec<String> = Vec::new();
+    // K2: 结构化 handoff 增强 —— 从文本中启发式归类 约束/已完成/未知/下一步。
+    let mut constraints: Vec<String> = Vec::new();
+    let mut completed: Vec<String> = Vec::new();
+    let mut unknowns: Vec<String> = Vec::new();
+    let mut next_steps: Vec<String> = Vec::new();
 
     for msg in messages {
         for block in &msg.content {
@@ -1780,14 +1785,53 @@ fn extract_workflow_context(messages: &[Message], workspace: Option<&Path>) -> S
                         files_touched.push(path);
                     }
                 }
-                ContentBlock::Text { text, .. }
+                ContentBlock::Text { text, .. } => {
                     // Look for task/todo mentions
-                    if (text.contains("TODO") || text.contains("task") || text.contains("need to")) => {
+                    if text.contains("TODO") || text.contains("task") || text.contains("need to")
+                    {
                         let task = truncate_chars(text, 200).to_string();
                         if !tasks_identified.contains(&task) {
                             tasks_identified.push(task);
                         }
                     }
+                    // K2: handoff 结构化分类（每段文本按首个命中的桶归类，避免一段进多个桶）。
+                    let lower = text.to_lowercase();
+                    let item = truncate_chars(text, 200).to_string();
+                    if !constraints.contains(&item)
+                        && (lower.contains("must")
+                            || lower.contains("must not")
+                            || lower.contains("don't")
+                            || lower.contains("不能")
+                            || lower.contains("不要")
+                            || lower.contains("必须")
+                            || lower.contains("不可")
+                            || lower.contains("required"))
+                    {
+                        constraints.push(item);
+                    } else if !unknowns.contains(&item)
+                        && (lower.contains("unknown")
+                            || lower.contains("not sure")
+                            || lower.contains("不确定")
+                            || lower.contains("还没")
+                            || lower.contains("尚未"))
+                    {
+                        unknowns.push(item);
+                    } else if !next_steps.contains(&item)
+                        && (lower.contains("next step")
+                            || lower.contains("下一步")
+                            || lower.contains("接下来")
+                            || lower.contains("then we"))
+                    {
+                        next_steps.push(item);
+                    } else if !completed.contains(&item)
+                        && (lower.contains("completed")
+                            || lower.contains("finished")
+                            || lower.contains("已完成")
+                            || lower.contains("成功完成"))
+                    {
+                        completed.push(item);
+                    }
+                }
                 _ => {}
             }
         }
@@ -1821,6 +1865,36 @@ fn extract_workflow_context(messages: &[Message], workspace: Option<&Path>) -> S
         context.push_str("**Tasks/TODOs Identified:**\n");
         for task in &tasks_identified {
             context.push_str(&format!("- {task}\n"));
+        }
+        context.push('\n');
+    }
+
+    // K2: handoff 结构化区块 —— 只输出非空桶，保持摘要克制。
+    if !constraints.is_empty() {
+        context.push_str("**Constraints:**\n");
+        for c in &constraints {
+            context.push_str(&format!("- {c}\n"));
+        }
+        context.push('\n');
+    }
+    if !completed.is_empty() {
+        context.push_str("**Completed:**\n");
+        for c in &completed {
+            context.push_str(&format!("- {c}\n"));
+        }
+        context.push('\n');
+    }
+    if !unknowns.is_empty() {
+        context.push_str("**Unknown:**\n");
+        for u in &unknowns {
+            context.push_str(&format!("- {u}\n"));
+        }
+        context.push('\n');
+    }
+    if !next_steps.is_empty() {
+        context.push_str("**Next Steps:**\n");
+        for n in &next_steps {
+            context.push_str(&format!("- {n}\n"));
         }
         context.push('\n');
     }

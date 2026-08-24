@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::Path;
+use std::str::FromStr;
 
 use hnsw_rs::prelude::*;
 use rusqlite::OptionalExtension;
@@ -13,7 +14,54 @@ use tracing::{debug, info};
 use crate::Result;
 use crate::error::MemoryError;
 
-/// An observation with its metadata
+/// 记忆来源与信任分级，用于防投毒晋升门（L3）。
+///
+/// 四级信任，按可信度**升序**排列（`CrossSession` < `Model` < `User` < `Verified`）：
+/// - `CrossSession`：跨会话/未归因引用，最不可信，几乎不直接产生；
+/// - `Model`：模型/工具发起的写入，先落在隔离区，须经晋升门验证后才完全可信；
+/// - `User`：用户直接陈述 / 会话自动抽取，可信，直接生效；
+/// - `Verified`：独立验证 / 用户显式确认（`promote_to_trusted`），最高可信。
+///
+/// 序列化兼容旧值：`"user"` / `"model"` 保持原字符串，老数据无需迁移；
+/// 未知值默认归为 `User`（与旧 `from_str` 行为一致）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum MemoryOrigin {
+    /// 跨会话/未归因引用（最不可信）。
+    CrossSession,
+    /// 模型或工具发起的写入（需晋升门验证后注入）。
+    Model,
+    /// 用户直接陈述 / 会话自动抽取（可信，直接生效）。
+    User,
+    /// 独立验证 / 用户显式确认（最高可信，晋升目标）。
+    Verified,
+}
+
+impl MemoryOrigin {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::CrossSession => "cross-session",
+            Self::Model => "model",
+            Self::User => "user",
+            Self::Verified => "verified",
+        }
+    }
+}
+
+/// 标准 `FromStr` 实现：`"user"`/`"model"` 保持旧字符串，未知值归为
+/// `User`（与旧固有 `from_str` 行为一致），永不失败。
+impl std::str::FromStr for MemoryOrigin {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "cross-session" => Self::CrossSession,
+            "model" => Self::Model,
+            "verified" => Self::Verified,
+            _ => Self::User, // 未知/旧默认归为可信用户来源
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Observation {
     /// Unique identifier
@@ -50,6 +98,9 @@ pub struct Observation {
     /// Empty for observations without a session dimension (treated as
     /// `"default"` at assembly time).
     pub session_id: String,
+    /// 记忆来源（L3 防投毒晋升门）。模型/工具写入为 `Model`（需晋升验证），
+    /// 用户/自动抽取为 `User`（可信）。
+    pub origin: MemoryOrigin,
 }
 
 impl Observation {
@@ -74,6 +125,7 @@ impl Observation {
             last_accessed_at: None,
             expires_at: None,
             session_id,
+            origin: MemoryOrigin::User, // 默认用户来源；模型/工具写入方需显式置为 Model
         }
     }
 
@@ -214,7 +266,8 @@ impl VectorStore {
                 access_count INTEGER NOT NULL DEFAULT 0,
                 last_accessed_at INTEGER,
                 expires_at INTEGER,
-                session_id TEXT NOT NULL DEFAULT ''
+                session_id TEXT NOT NULL DEFAULT '',
+                origin TEXT NOT NULL DEFAULT 'user'
             );
 
             CREATE INDEX IF NOT EXISTS idx_observations_kind ON observations(kind);
@@ -275,6 +328,7 @@ impl VectorStore {
             ("access_count", "INTEGER NOT NULL DEFAULT 0"),
             ("last_accessed_at", "INTEGER"),
             ("expires_at", "INTEGER"),
+            ("origin", "TEXT NOT NULL DEFAULT 'user'"),
         ];
         for (col, ty) in CANDIDATES {
             if !existing.contains(*col) {
@@ -289,7 +343,7 @@ impl VectorStore {
     }
 
     /// Schema version for forward migrations (#716 `schema_migration`).
-    pub const SCHEMA_VERSION: u32 = 2;
+    pub const SCHEMA_VERSION: u32 = 3;
 
     /// Load or create HNSW index
     fn load_or_create_index(vectors: &Db, _dimension: usize) -> Result<Hnsw<f32, DistL2>> {
@@ -402,8 +456,8 @@ impl VectorStore {
         let result: Result<i64> = (|| {
             self.sqlite.execute(
                 r#"
-                INSERT INTO observations (content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                INSERT INTO observations (content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id, origin)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                 "#,
                 rusqlite::params![
                     observation.content,
@@ -417,6 +471,7 @@ impl VectorStore {
                     observation.last_accessed_at,
                     observation.expires_at,
                     observation.session_id,
+                    observation.origin.as_str(),
                 ],
             )?;
 
@@ -584,10 +639,11 @@ impl VectorStore {
         base: &[VectorMatch],
         limit: usize,
     ) -> Result<Vec<VectorMatch>> {
-        let tokens: Vec<String> = query
-            .split(|c: char| !c.is_alphanumeric())
-            .map(|t| t.to_lowercase())
-            .filter(|t| t.len() >= 3)
+        // 词法 token：CJK 汉字按单字切分（否则整句成一词，中文检索失效），
+        // 拉丁/数字 token 保留长度 ≥ 3 以滤掉过短停用词。
+        let tokens: Vec<String> = crate::tokenizer::tokenize(query)
+            .into_iter()
+            .filter(|t| t.len() >= 3 || crate::tokenizer::contains_cjk(t))
             .collect();
         if tokens.is_empty() {
             return Ok(base.to_vec());
@@ -663,6 +719,7 @@ impl VectorStore {
             let files_read_json: String = row.get(4)?;
             let files_modified_json: String = row.get(5)?;
             let concepts_json: String = row.get(6)?;
+            let origin_str: String = row.get(12).unwrap_or_else(|_| "user".to_string());
             Ok(Observation {
                 id: row.get(0)?,
                 content: row.get(1)?,
@@ -676,6 +733,7 @@ impl VectorStore {
                 last_accessed_at: row.get(9)?,
                 expires_at: row.get(10).ok().unwrap_or(None),
                 session_id: row.get(11).unwrap_or_default(),
+                origin: MemoryOrigin::from_str(&origin_str).unwrap_or(MemoryOrigin::User),
             })
         }
     }
@@ -684,7 +742,7 @@ impl VectorStore {
         let sql = match project {
             Some(_) => {
                 r#"
-                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id, origin
                 FROM observations
                 WHERE project = ?1
                 ORDER BY created_at DESC
@@ -693,7 +751,7 @@ impl VectorStore {
             }
             None => {
                 r#"
-                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
+                SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id, origin
                 FROM observations
                 ORDER BY created_at DESC
                 LIMIT ?1
@@ -717,7 +775,7 @@ impl VectorStore {
     pub fn load_observation(&self, id: i64) -> Result<Option<Observation>> {
         let mut stmt = self.sqlite.prepare(
             r#"
-            SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id
+            SELECT id, content, kind, project, files_read_json, files_modified_json, concepts_json, created_at, access_count, last_accessed_at, expires_at, session_id, origin
             FROM observations
             WHERE id = ?1
             "#,
@@ -728,6 +786,7 @@ impl VectorStore {
             let files_read_json: String = row.get(4)?;
             let files_modified_json: String = row.get(5)?;
             let concepts_json: String = row.get(6)?;
+            let origin_str: String = row.get(12).unwrap_or_else(|_| "user".to_string());
 
             Ok(Observation {
                 id: row.get(0)?,
@@ -742,6 +801,7 @@ impl VectorStore {
                 last_accessed_at: row.get(9)?,
                 expires_at: row.get(10).ok().unwrap_or(None),
                 session_id: row.get(11).unwrap_or_default(),
+                origin: MemoryOrigin::from_str(&origin_str).unwrap_or(MemoryOrigin::User),
             })
         });
 
@@ -905,6 +965,20 @@ impl VectorStore {
         Ok(n > 0)
     }
 
+    /// #716/#718 slice: `promote_to_trusted` — promote an observation to the
+    /// highest trust tier (`MemoryOrigin::Verified`) so it is injected without
+    /// the untrusted-source caveat. Triggered by explicit user confirmation
+    /// (`/vmemory trust <id>`) or independent verification. Distinct from
+    /// [`Self::promote`] which only extends lifetime; this changes *origin*
+    /// (trust), not expiry.
+    pub fn promote_to_trusted(&self, id: i64) -> Result<bool> {
+        let n = self.sqlite.execute(
+            "UPDATE observations SET origin = ?1 WHERE id = ?2",
+            rusqlite::params![MemoryOrigin::Verified.as_str(), id],
+        )?;
+        Ok(n > 0)
+    }
+
     /// Delete an observation by ID
     pub fn delete_observation(&self, id: i64) -> Result<()> {
         debug!("Deleting observation: {}", id);
@@ -1048,7 +1122,10 @@ mod enhancement_tests {
         let emb = vec![0.3_f32; 8];
         // Insert a handful of observations (all kept by the salience gate).
         for i in 0..5 {
-            let o = obs("p", &format!("a sufficiently long observation number {}", i));
+            let o = obs(
+                "p",
+                &format!("a sufficiently long observation number {}", i),
+            );
             store.store_observation(&o, &emb).unwrap();
         }
         assert_eq!(store.count().unwrap(), 5);
@@ -1086,6 +1163,50 @@ mod enhancement_tests {
             reloaded.expires_at.is_some(),
             "promoted memory gets far-future expiry"
         );
+    }
+
+    #[test]
+    fn promote_to_trusted_upgrades_origin_to_verified() {
+        let (_d, store) = tmp_store();
+        let emb = vec![0.5_f32; 8];
+        let o = obs("p", "a model-written fact worth trusting");
+        let id = store.store_observation(&o, &emb).unwrap();
+        assert!(
+            store.promote_to_trusted(id).unwrap(),
+            "known id promotes successfully"
+        );
+        let reloaded = store.load_observation(id).unwrap().unwrap();
+        assert_eq!(
+            reloaded.origin,
+            MemoryOrigin::Verified,
+            "promote_to_trusted changes origin to Verified (trust tier L3)"
+        );
+        // Unknown id → Ok(false), never an error.
+        assert!(!store.promote_to_trusted(999_999).unwrap());
+    }
+
+    #[test]
+    fn memory_origin_serialization_is_backward_compatible() {
+        // Legacy values ("user"/"model") still round-trip; unknown → User.
+        assert_eq!(MemoryOrigin::from_str("user").unwrap(), MemoryOrigin::User);
+        assert_eq!(
+            MemoryOrigin::from_str("model").unwrap(),
+            MemoryOrigin::Model
+        );
+        assert_eq!(
+            MemoryOrigin::from_str("verified").unwrap(),
+            MemoryOrigin::Verified
+        );
+        assert_eq!(
+            MemoryOrigin::from_str("cross-session").unwrap(),
+            MemoryOrigin::CrossSession
+        );
+        assert_eq!(
+            MemoryOrigin::from_str("legacy-unknown").unwrap(),
+            MemoryOrigin::User
+        );
+        assert_eq!(MemoryOrigin::User.as_str(), "user");
+        assert_eq!(MemoryOrigin::Verified.as_str(), "verified");
     }
 
     #[test]

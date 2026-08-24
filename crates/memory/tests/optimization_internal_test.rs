@@ -1,5 +1,5 @@
 use mimofan_memory::optimization::SearchCache;
-use mimofan_memory::vector::{Observation, VectorMatch};
+use mimofan_memory::vector::{MemoryOrigin, Observation, VectorMatch};
 
 fn fake_match(content: &str, score: f32) -> VectorMatch {
     VectorMatch {
@@ -16,6 +16,7 @@ fn fake_match(content: &str, score: f32) -> VectorMatch {
             last_accessed_at: None,
             expires_at: None,
             session_id: "test".to_string(),
+            origin: MemoryOrigin::User,
         },
         score,
     }

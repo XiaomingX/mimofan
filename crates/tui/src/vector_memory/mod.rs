@@ -36,7 +36,9 @@ use mimofan_memory::compressor::{CompressionStrategy, ObservationCompressor};
 #[cfg(feature = "vector-memory")]
 use mimofan_memory::optimization::SearchCache;
 #[cfg(feature = "vector-memory")]
-use mimofan_memory::{EmbeddingConfig, EmbeddingService, Observation, SearchFilters, VectorStore};
+use mimofan_memory::{
+    EmbeddingConfig, EmbeddingService, MemoryOrigin, Observation, SearchFilters, VectorStore,
+};
 
 /// 向量记忆后端：持有 embedding 服务与向量库，提供 remember/recall/list/inject 的
 /// 构建块。
@@ -160,6 +162,7 @@ impl VectorMemory {
         content: &str,
         session_id: &str,
         embedding: &[f32],
+        origin: MemoryOrigin,
     ) -> Result<i64> {
         let store = self.store.as_ref().ok_or_else(|| {
             anyhow::anyhow!("vector-memory 未启用：请配置 MIMOFAN_MEMORY_API_KEY 后重启")
@@ -170,6 +173,7 @@ impl VectorMemory {
             content.to_string(),
             session_id.to_string(),
         );
+        obs.origin = origin;
         // #716 slice: run the observation through `ObservationCompressor` on the
         // production write path. Low-value / redundant memories are marked
         // `Discard` and skipped, keeping the long-term store focused on
@@ -183,6 +187,18 @@ impl VectorMemory {
         let id = store.store_observation(&obs, embedding)?;
         self.search_cache.borrow_mut().clear();
         Ok(id)
+    }
+
+    /// 晋升一条记忆为 `Verified`（最高可信，`/vmemory trust <id>`）。
+    ///
+    /// 模型/工具写入的记忆默认 `Model` 来源、注入时带 untrusted 标注；用户
+    /// 显式确认后晋升为 `Verified`，后续注入不再带低置信提示。未启用时返回
+    /// `Ok(false)` 而非报错（与其它向量记忆操作一致地优雅降级）。
+    pub fn promote_to_trusted(&self, id: i64) -> Result<bool> {
+        match self.store.as_ref() {
+            Some(store) => store.promote_to_trusted(id).map_err(Into::into),
+            None => Ok(false),
+        }
     }
 
     /// 用预计算的 embedding 做语义检索（同步，不跨 await）。
@@ -317,6 +333,7 @@ mod tests {
             last_accessed_at: None,
             expires_at: None,
             session_id: "test".to_string(),
+            origin: mimofan_memory::MemoryOrigin::User,
         }
     }
 

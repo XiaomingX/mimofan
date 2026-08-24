@@ -318,17 +318,19 @@ pub fn apply_landlock_pre_exec_tokio(
     writable_root: Option<&Path>,
 ) {
     let ws = writable_root.map(|p| p.to_path_buf());
-    let result = cmd.pre_exec(move || {
-        restrict_child(ws.as_deref()).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                format!("landlock restriction failed, refusing to run unsandboxed: {e}"),
-            )
+    // `tokio::process::Command::pre_exec` is `unsafe fn` returning `&mut Self`
+    // (same `CommandExt` contract as std). Any failure to register is surfaced
+    // only by the child exiting non-zero inside the hook, matching the std path.
+    let _ = unsafe {
+        cmd.pre_exec(move || {
+            restrict_child(ws.as_deref()).map_err(|e| {
+                std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    format!("landlock restriction failed, refusing to run unsandboxed: {e}"),
+                )
+            })
         })
-    });
-    if let Err(e) = result {
-        tracing::warn!("failed to register landlock pre_exec (tokio): {e}");
-    }
+    };
 }
 
 /// A Landlock-backed [`SandboxBackend`] that executes commands locally with a

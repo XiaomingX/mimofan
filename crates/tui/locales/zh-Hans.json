@@ -267,7 +267,7 @@
   "HomeGoalModeTip": "Goal 跟踪 - 设置 /goal <目标> 以跟踪持久目标",
   "OnboardLanguageTitle": "选择语言",
   "OnboardLanguageBlurb": "选择界面语言。可随时使用 `/settings set locale <tag>` 修改。",
-  "OnboardLanguageFooter": "按 1-7 选择，或按 Enter 保留当前设置",
+  "OnboardLanguageFooter": "按 1-2 选择，或按 Enter 保留当前设置",
   "OnboardApiKeyTitle": "连接你的 DeepSeek API 密钥",
   "OnboardApiKeyStep1": "步骤 1.  打开 https://platform.deepseek.com/api_keys 创建一个密钥。",
   "OnboardApiKeyStep2": "步骤 2.  把密钥粘贴到下方并按 Enter。",

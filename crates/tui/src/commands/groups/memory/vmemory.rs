@@ -10,6 +10,7 @@
 //! - `/vmemory remember <kind> <text>`  Store an observation
 //! - `/vmemory query <text>`          Semantic recall of related observations
 //! - `/vmemory list`                  List recently stored observations
+//! - `/vmemory trust <id>`            Promote a model-sourced memory to verified (trusted)
 //! - `/vmemory help`                  Show this help
 
 #![cfg(feature = "vector-memory")]
@@ -19,7 +20,8 @@ use std::path::Path;
 use super::CommandResult;
 use crate::tui::app::App;
 
-const VMEMORY_USAGE: &str = "/vmemory [status|remember <kind> <text>|query <text>|list|help]";
+const VMEMORY_USAGE: &str =
+    "/vmemory [status|remember <kind> <text>|query <text>|list|trust <id>|help]";
 
 fn project_name(app: &App) -> String {
     app.workspace
@@ -59,6 +61,8 @@ fn vmemory_help(enabled: bool, root: &Path, dimension: usize) -> String {
                                         user, feedback, project, reference\n\
            /vmemory query <text>           Semantic recall of related observations\n\
            /vmemory list                   List recently stored observations\n\
+           /vmemory trust <id>             Promote a model-sourced memory to verified\n\
+                                        (trusted; injected without the untrusted caveat)\n\
            /vmemory help                   Show this help\n\n\
          Enable by setting MIMOFAN_MEMORY_API_KEY (and optionally\n\
          MIMOFAN_MEMORY_BASE_URL / MIMOFAN_MEMORY_MODEL / MIMOFAN_MEMORY_DIMENSION).",
@@ -131,7 +135,15 @@ pub fn vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
                         .await
                         .map_err(|e| format!("embedding failed: {e}"))?;
                     let id = vm
-                        .store_observation(&project, kind_str, content, &session_id, &embedding)
+                        .store_observation(
+                            &project,
+                            kind_str,
+                            content,
+                            &session_id,
+                            &embedding,
+                            // 用户显式 `/vmemory remember`：用户陈述，可信。
+                            mimofan_memory::MemoryOrigin::User,
+                        )
                         .map_err(|e| format!("failed to store: {e}"))?;
                     Ok(format!(
                         "remembered (vector id {id}): [{kind_str}] {content}"
@@ -178,6 +190,28 @@ pub fn vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
                             .collect::<Vec<_>>()
                             .join("\n");
                         Ok(format!("recent vector memories:\n{body}"))
+                    }
+                }
+                Some("trust") => {
+                    let id_str = sub.trim_start_matches("trust").trim();
+                    if id_str.is_empty() {
+                        return Err("usage: /vmemory trust <id>".to_string());
+                    }
+                    let id: i64 = id_str.parse().map_err(|_| {
+                        format!("`{id_str}` is not a valid vector memory id (use `/vmemory list` to find one)")
+                    })?;
+                    let trusted = vm
+                        .promote_to_trusted(id)
+                        .map_err(|e| format!("promotion failed: {e}"))?;
+                    if trusted {
+                        Ok(format!(
+                            "memory {id} promoted to verified (trusted source). It will be \
+                             injected without the untrusted-source caveat."
+                        ))
+                    } else {
+                        Ok(format!(
+                            "memory {id} not found — nothing promoted. Use `/vmemory list` to see stored ids."
+                        ))
                     }
                 }
                 other => Err(format!(

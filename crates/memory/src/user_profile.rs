@@ -304,10 +304,16 @@ pub fn distill_from_transcript(turns: &[String]) -> Vec<(Bucket, ProfileEntry)> 
     for turn in turns {
         let t = turn.trim();
         let low = t.to_lowercase();
-        if (low.contains("prefer")
-            || low.contains("don't") && low.contains("want")
-            || low.contains("never") && low.contains("want"))
-            && low.contains("prefer")
+        // 英文线索：I prefer X / I don't want X / I never want X。
+        // 注意分组：`don't want`/`never want` 不应被外层 `contains("prefer")` 再次要求。
+        if low.contains("prefer")
+            || (low.contains("don't") || low.contains("never")) && low.contains("want")
+            // 中文线索：喜欢/偏爱/偏好（正向）、不想/不要（负向）。
+            || low.contains("喜欢")
+            || low.contains("偏爱")
+            || low.contains("偏好")
+            || low.contains("不想")
+            || low.contains("不要")
         {
             out.push((
                 Bucket::Preferences,

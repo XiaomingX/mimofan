@@ -4,6 +4,7 @@
 // name. The module_inception allow is a permanent structure rationale, not
 // migration scaffolding; see docs/architecture/command-dispatch.md.
 #[allow(clippy::module_inception)]
+mod decision;
 mod memory;
 mod note;
 #[cfg(feature = "vector-memory")]
@@ -21,6 +22,7 @@ impl CommandGroup for MemoryCommands {
         let mut cmds: Vec<Box<dyn Command>> = vec![
             Box::new(FunctionCommand::new(&NOTE_INFO, run_note)),
             Box::new(FunctionCommand::new(&MEMORY_INFO, run_memory)),
+            Box::new(FunctionCommand::new(&DECISION_INFO, run_decision)),
         ];
         #[cfg(feature = "vector-memory")]
         cmds.push(Box::new(FunctionCommand::new(&VMEMORY_INFO, run_vmemory)));
@@ -38,6 +40,12 @@ static MEMORY_INFO: CommandInfo = CommandInfo {
     name: "memory",
     aliases: &[],
     usage: "/memory [show|path|clear|edit|help]",
+    description_id: MessageId::CmdMemoryDescription,
+};
+static DECISION_INFO: CommandInfo = CommandInfo {
+    name: "decision",
+    aliases: &[],
+    usage: "/decision [list|show <id>|create <id> <title> <current>|revise <id> <new>|reverse <id> <why>|help]",
     description_id: MessageId::CmdMemoryDescription,
 };
 
@@ -59,6 +67,9 @@ fn run_note(app: &mut App, arg: Option<&str>) -> CommandResult {
 fn run_memory(app: &mut App, arg: Option<&str>) -> CommandResult {
     run_registered(app, "memory", arg)
 }
+fn run_decision(app: &mut App, arg: Option<&str>) -> CommandResult {
+    run_registered(app, "decision", arg)
+}
 
 #[cfg(feature = "vector-memory")]
 fn run_vmemory(app: &mut App, arg: Option<&str>) -> CommandResult {
@@ -73,6 +84,7 @@ pub(in crate::commands) fn dispatch(
     let result = match command {
         "memory" => memory::memory(app, arg),
         "note" => note::note(app, arg),
+        "decision" => decision::decision(app, arg),
         #[cfg(feature = "vector-memory")]
         "vmemory" => vmemory::vmemory(app, arg),
         _ => return None,

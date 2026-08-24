@@ -169,6 +169,14 @@ enum ApplyHunkError {
         adjusted_line: usize,
         offset: isize,
     },
+    #[error(
+        "Ambiguous match for hunk: context matches in multiple places (expected at line {expected_line}, adjusted to {adjusted_line} with offset {offset:+}). Refusing to guess which occurrence to edit; add more context lines or regenerate the patch."
+    )]
+    Ambiguous {
+        expected_line: usize,
+        adjusted_line: usize,
+        offset: isize,
+    },
 }
 
 #[async_trait]
@@ -1051,6 +1059,17 @@ fn format_hunk_no_match_error(
                 "could not find matching context near line {expected_line} (searched around line {adjusted_line} with offset {offset:+} and fuzz up to {max_fuzz}). Expected context preview:\n{expected_preview}\nFile snippet near line {adjusted_line}:\n{file_preview}\nHints: ensure the patch matches the current file contents, increase `fuzz`, or regenerate the patch."
             )
         }
+        ApplyHunkError::Ambiguous {
+            expected_line,
+            adjusted_line,
+            offset,
+        } => {
+            let expected_preview = preview_expected_lines(hunk, HUNK_PREVIEW_LINES).join("\n");
+            let file_preview = snippet_around(lines, *adjusted_line, SNIPPET_RADIUS).join("\n");
+            format!(
+                "ambiguous match near line {expected_line} (searched around line {adjusted_line} with offset {offset:+} and fuzz up to {max_fuzz}): the context matches in multiple places, so mimofan refused to guess which occurrence to edit. Expected context preview:\n{expected_preview}\nFile snippet near line {adjusted_line}:\n{file_preview}\nHints: add more context lines to disambiguate, or regenerate the patch targeting the exact location."
+            )
+        }
     }
 }
 
@@ -1139,8 +1158,33 @@ fn apply_hunk(
             (min..=max).collect()
         };
 
-        for pos in search_range {
-            if matches_at_position(lines, &old_lines, pos) {
+        // 在当前搜索范围内收集所有命中位置（而不是静默应用第一个）。
+        // 若命中 >1 处（context 在文件中多处匹配）则报 Ambiguous，拒绝猜测，
+        // 避免在错误的重复代码块上应用编辑。
+        let matches: Vec<usize> = search_range
+            .iter()
+            .copied()
+            .filter(|&pos| matches_at_position(lines, &old_lines, pos))
+            .collect();
+
+        match matches.len() {
+            0 => continue,
+            1 => {
+                let pos = matches[0];
+                // 拒绝猜测：即使窗口内恰好一处命中，也要确认 context 在文件中唯一。
+                // 重复代码块通常相距较远，fuzz 窗口覆盖不到——若文件其他位置仍有
+                // 相同 context，则视为歧义，宁可不应用也不编辑错误的重复块。
+                // 空 old_lines（纯插入 hunk）处处"匹配"，无歧义可言，跳过检查。
+                let unique = old_lines.is_empty()
+                    || (0..=lines.len().saturating_sub(old_lines.len()))
+                        .all(|p| p == pos || !matches_at_position(lines, &old_lines, p));
+                if !unique {
+                    return Err(ApplyHunkError::Ambiguous {
+                        expected_line: hunk.old_start,
+                        adjusted_line: start_idx + 1, // Convert back to 1-indexed
+                        offset: *cumulative_offset,
+                    });
+                }
                 // Apply the hunk
                 let end_pos = pos + old_lines.len();
                 lines.splice(pos..end_pos, new_lines.clone());
@@ -1150,6 +1194,14 @@ fn apply_hunk(
                 *cumulative_offset += delta;
 
                 return Ok(fuzz);
+            }
+            _ => {
+                // 窗口内多个位置匹配 => 歧义，不猜测。
+                return Err(ApplyHunkError::Ambiguous {
+                    expected_line: hunk.old_start,
+                    adjusted_line: start_idx + 1, // Convert back to 1-indexed
+                    offset: *cumulative_offset,
+                });
             }
         }
     }
@@ -1443,5 +1495,31 @@ mod tests {
     /// fully isolated (no cross-sample filesystem state).
     fn dir_for_sample() -> TempDir {
         TempDir::new().unwrap()
+    }
+
+    #[test]
+    fn apply_hunk_reports_ambiguous_when_context_matches_multiple_places() {
+        // 文件中同一 context 出现两次：`keep` 行在 0 和 2 处都出现。
+        let mut lines: Vec<String> = vec!["keep".into(), "a".into(), "keep".into(), "b".into()];
+        // hunk 把首个 `keep` 替换为 `changed`（context 只含 keep 行，故两处都匹配）。
+        let hunk = Hunk {
+            old_start: 1,
+            old_count: 1,
+            new_start: 1,
+            new_count: 1,
+            lines: vec![
+                HunkLine::Remove("keep".into()),
+                HunkLine::Add("changed".into()),
+            ],
+        };
+        let mut offset = 0isize;
+        // fuzz=1 时搜索范围覆盖整文件，两处 `keep` 都命中 => 应报 Ambiguous。
+        let err = apply_hunk(&mut lines, &hunk, 1, &mut offset).unwrap_err();
+        assert!(
+            matches!(err, ApplyHunkError::Ambiguous { .. }),
+            "expected Ambiguous for multi-match context, got: {err:?}"
+        );
+        // 文件未被改动（拒绝猜测）。
+        assert_eq!(lines, vec!["keep", "a", "keep", "b"]);
     }
 }

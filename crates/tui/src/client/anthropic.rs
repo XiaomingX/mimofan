@@ -28,7 +28,7 @@ use serde_json::{Value, json};
 
 use crate::llm_client::StreamEventBox;
 use crate::logging;
-use crate::models::{ContentBlock, MessageRequest, MessageResponse, StreamEvent, Usage};
+use crate::models::{ContentBlock, Message, MessageRequest, MessageResponse, StreamEvent, Usage};
 
 use super::{ApiClient, ERROR_BODY_MAX_BYTES, bounded_error_text};
 
@@ -66,8 +66,7 @@ impl ApiClient {
         }
 
         body["messages"] = json!(
-            request
-                .messages
+            project_messages_for_anthropic(&request.messages)
                 .iter()
                 .filter_map(message_to_anthropic)
                 .collect::<Vec<_>>()
@@ -305,6 +304,77 @@ pub fn anthropic_tool_choice(tool_choice: &Value) -> Value {
         Some(name) => json!({ "type": "tool", "name": name }),
         None => tool_choice.clone(),
     }
+}
+
+/// 在发送给 Anthropic 前对历史做一致性投影（对照 OpenAI 链 chat.rs 的既有清洗）：
+///
+/// - **孤儿 tool_result**：`tool_result` 的 `tool_use_id` 在全部历史中找不到对应
+///   `tool_use`（例如 compaction 已把调用压缩掉）时丢弃该 block，避免 Anthropic 拒绝。
+/// - **首条非 user**：Anthropic 要求消息列表首条为 `user`；若历史开头是非 user
+///   （assistant / tool），丢弃开头的非 user 消息直到首条是 user。
+///
+/// 不做重复内容折叠（Anthropic 链无 OpenAI 的 `role:"tool"` 语义，重复由上游
+/// compaction 的 `enforce_tool_call_pairs` 负责）。投影保持消息顺序与其余 block 不变。
+fn project_messages_for_anthropic(messages: &[Message]) -> Vec<Message> {
+    // 1. 全局收集所有 tool_use id。
+    let tool_use_ids: std::collections::HashSet<&str> = messages
+        .iter()
+        .flat_map(|m| m.content.iter())
+        .filter_map(|b| match b {
+            ContentBlock::ToolUse { id, .. } => Some(id.as_str()),
+            _ => None,
+        })
+        .collect();
+
+    // 2. 逐消息重建 content，丢弃孤儿 tool_result；跳过空 content 的消息。
+    let mut orphan_tool_results = 0usize;
+    let mut projected: Vec<Message> = messages
+        .iter()
+        .map(|m| {
+            let content: Vec<ContentBlock> = m
+                .content
+                .iter()
+                .filter(|b| match b {
+                    ContentBlock::ToolResult { tool_use_id, .. } => {
+                        let known = tool_use_ids.contains(tool_use_id.as_str());
+                        if !known {
+                            orphan_tool_results += 1;
+                        }
+                        known
+                    }
+                    _ => true,
+                })
+                .cloned()
+                .collect();
+            Message {
+                role: m.role.clone(),
+                content,
+            }
+        })
+        .filter(|m| !m.content.is_empty())
+        .collect();
+
+    // 3. 首条非 user 修正：丢弃开头的非 user 消息。
+    let mut dropped_leading = 0usize;
+    while projected
+        .first()
+        .is_some_and(|m| m.role != "user")
+    {
+        projected.remove(0);
+        dropped_leading += 1;
+    }
+
+    // 4. Anomaly 上报：投影消除的一致性异常本不应出现（上游 compaction 应已
+    //    配对工具调用与结果、首条应为 user）。记录为 anomaly 以便诊断历史污染
+    //    的根因，而不是静默吞掉。
+    if orphan_tool_results > 0 || dropped_leading > 0 {
+        crate::logging::warn(format!(
+            "anthropic history anomaly: dropped {orphan_tool_results} orphan tool_result(s), \
+             {dropped_leading} leading non-user message(s)"
+        ));
+    }
+
+    projected
 }
 
 /// Convert one internal message to the Anthropic wire shape. Returns `None`

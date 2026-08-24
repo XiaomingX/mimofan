@@ -202,14 +202,12 @@ where
 /// 取 0.6 兼顾"同义复述"召回与"不同主题"误并抑制。
 pub const DEDUP_SIMILARITY_THRESHOLD: f64 = 0.6;
 
-/// 把一段文本切分为小写 token 集合（按非字母数字切分）。
+/// 把一段文本切分为小写 token 集合（按非字母数字切分，并对 CJK 汉字按单字切分）。
 ///
 /// 纯函数、无状态，用于 [`content_similarity`] 与 [`dedup`]/[`rollup`]。
+/// 委托给共享 [`crate::tokenizer::tokenize`] 以避免与其他分词逻辑重复。
 fn tokenize(text: &str) -> Vec<String> {
-    text.split(|c: char| !c.is_alphanumeric())
-        .map(|t| t.to_lowercase())
-        .filter(|t| !t.is_empty())
-        .collect()
+    crate::tokenizer::tokenize(text)
 }
 
 /// 两条目内容的 Jaccard 相似度（交集/并集），范围 `[0.0, 1.0]`。

@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::Result;
 use crate::embedding::EmbeddingService;
-use crate::vector::{SearchFilters, VectorMatch, VectorStore};
+use crate::vector::{MemoryOrigin, Observation, SearchFilters, VectorMatch, VectorStore};
 
 /// Memory injection configuration
 #[derive(Debug, Clone)]
@@ -185,23 +185,8 @@ impl MemoryInjector {
 
         for m in &timeline {
             let obs = &m.observation;
-            let provenance = format_timestamp(obs.created_at);
-            let stale_note = if (now - obs.created_at) > STALE_AFTER_DAYS * 86_400 {
-                " (may be outdated — verify before use)"
-            } else {
-                ""
-            };
-            // #777: prefix every line with its source session so cross-session
-            // retrieval stays attributable. Empty session_id → untagged.
-            let session_tag = if obs.session_id.is_empty() {
-                String::new()
-            } else {
-                format!("[session {} @ {}] ", obs.session_id, provenance)
-            };
-            let annotated = format!(
-                "{}{}{} [recalled {}]{}",
-                session_tag, obs.content, stale_note, provenance, ""
-            );
+            // 来源标注（session + trust tier + 置信度提示）抽成纯函数，便于单测。
+            let annotated = annotate_memory_line(obs, now);
 
             match obs.kind.as_str() {
                 "project" => {
@@ -318,6 +303,46 @@ fn format_timestamp(epoch_secs: i64) -> String {
     }
 }
 
+/// Build one injected memory line: session tag + trust-tier source tag + content
+/// + staleness note + low-confidence caveat + recalled date.
+///
+/// #777 cross-session attribution + L3 trust-tier annotation + Ambiguous
+/// lightweight layer in one place: every injected line names its *source* and
+/// *trust tier* so the model can weigh conflicting memories instead of silently
+/// blending them. `Model`/`CrossSession` memories carry an explicit caveat until
+/// the user promotes them (`/vmemory trust`) to `Verified`.
+fn annotate_memory_line(obs: &Observation, now: i64) -> String {
+    let provenance = format_timestamp(obs.created_at);
+    let stale_note = if (now - obs.created_at) > STALE_AFTER_DAYS * 86_400 {
+        " (may be outdated — verify before use)"
+    } else {
+        ""
+    };
+    // #777: prefix every line with its source session so cross-session
+    // retrieval stays attributable. Empty session_id → untagged.
+    let session_tag = if obs.session_id.is_empty() {
+        String::new()
+    } else {
+        format!("[session {} @ {}] ", obs.session_id, provenance)
+    };
+    let (source_tag, untrusted_note) = match obs.origin {
+        MemoryOrigin::Verified => ("[verified] ".to_string(), String::new()),
+        MemoryOrigin::User => ("[user] ".to_string(), String::new()),
+        MemoryOrigin::Model => (
+            "[model-sourced] ".to_string(),
+            " (untrusted source — verify before relying)".to_string(),
+        ),
+        MemoryOrigin::CrossSession => (
+            "[cross-session] ".to_string(),
+            " (unattributed — verify before relying)".to_string(),
+        ),
+    };
+    format!(
+        "{}{}{}{}{} [recalled {}]{}",
+        session_tag, source_tag, obs.content, stale_note, untrusted_note, provenance, ""
+    )
+}
+
 /// #777 — cross-session reassembly core.
 ///
 /// Given recalled matches, produce a reordered stream ready for injection:
@@ -402,6 +427,7 @@ mod cross_session_tests {
                 last_accessed_at: None,
                 expires_at: None,
                 session_id: session_id.to_string(),
+                origin: MemoryOrigin::User,
             },
             score,
         }
@@ -447,5 +473,47 @@ mod cross_session_tests {
         assert_eq!(out[0].observation.content, "legacy-a");
         assert_eq!(out[1].observation.content, "legacy-b");
         assert_eq!(out[2].observation.session_id, "s1");
+    }
+
+    #[test]
+    fn annotates_trust_tier_origin() {
+        let now = chrono::Utc::now().timestamp();
+        // Verified / User inject plainly (no caveat).
+        let mut verified = mk("s1", "user-confirmed fact", now, 0.9);
+        verified.observation.origin = MemoryOrigin::Verified;
+        let v = annotate_memory_line(&verified.observation, now);
+        assert!(
+            v.contains("[verified]"),
+            "verified line carries [verified] tag"
+        );
+        assert!(!v.contains("untrusted"), "verified line has no caveat");
+
+        let mut user = mk("s1", "user-stated preference", now, 0.9);
+        user.observation.origin = MemoryOrigin::User;
+        let u = annotate_memory_line(&user.observation, now);
+        assert!(u.contains("[user]"), "user line carries [user] tag");
+
+        // Model / CrossSession carry the low-confidence caveat so the model can
+        // weigh conflicting memories (Ambiguous lightweight layer, L3 trust).
+        let mut model = mk("s1", "model inferred fact", now, 0.9);
+        model.observation.origin = MemoryOrigin::Model;
+        let m = annotate_memory_line(&model.observation, now);
+        assert!(
+            m.contains("[model-sourced]"),
+            "model line carries [model-sourced]"
+        );
+        assert!(
+            m.contains("untrusted source"),
+            "model line carries the low-confidence caveat"
+        );
+
+        let mut cross = mk("s1", "cross-session reference", now, 0.9);
+        cross.observation.origin = MemoryOrigin::CrossSession;
+        let c = annotate_memory_line(&cross.observation, now);
+        assert!(
+            c.contains("[cross-session]"),
+            "cross-session line carries [cross-session]"
+        );
+        assert!(c.contains("unattributed"), "cross-session line is flagged");
     }
 }

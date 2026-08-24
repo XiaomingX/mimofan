@@ -25,7 +25,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::consolidation::{rollup, DEDUP_SIMILARITY_THRESHOLD, MemoryEntry, MemoryKind};
+use crate::consolidation::{DEDUP_SIMILARITY_THRESHOLD, MemoryEntry, MemoryKind, rollup};
 
 /// 抽取阶段的重要性门槛：低于此值的情景记忆视为弱信号，不进入整合阶段。
 ///
@@ -120,13 +120,7 @@ where
     // 每条记忆的 token 集合（去重），用于文档频次计数。
     let token_sets: Vec<HashSet<String>> = integrated
         .iter()
-        .map(|e| {
-            e.content
-                .split(|c: char| !c.is_alphanumeric())
-                .map(|t| t.to_lowercase())
-                .filter(|t| !t.is_empty())
-                .collect::<HashSet<String>>()
-        })
+        .map(|e| crate::tokenizer::tokenize(&e.content).into_iter().collect())
         .collect();
 
     // 统计 token 文档频次。
@@ -158,7 +152,8 @@ where
             .map(|(e, _)| e.importance)
             .fold(0.0_f64, f64::max);
         let content = format!("Recurring theme across memories: \"{}\"", topic);
-        rules.push(MemoryEntry::with_kind(content, MemoryKind::Abstracted).with_importance(max_imp));
+        rules
+            .push(MemoryEntry::with_kind(content, MemoryKind::Abstracted).with_importance(max_imp));
     }
     rules
 }

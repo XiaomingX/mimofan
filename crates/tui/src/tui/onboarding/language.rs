@@ -16,13 +16,13 @@ use crate::tui::app::App;
 /// Each entry is `(hotkey, settings_tag, native_name, english_label)`.
 /// `settings_tag` is what `Settings::set("locale", …)` accepts and what
 /// `localization::Locale` resolves on next read.
+///
+/// Only locales the localization crate actually implements are listed.
+/// `en/ja/zh-Hant/pt-BR` were previously advertised but silently fell back to
+/// zh-Hans (the crate only ships Simplified Chinese), so they are omitted here.
 pub const LANGUAGE_OPTIONS: &[(char, &str, &str, &str)] = &[
     ('1', "auto", "Auto-detect", "(LC_ALL / LANG)"),
-    ('2', "en", "English", ""),
-    ('3', "ja", "日本語", "(Japanese)"),
-    ('4', "zh-Hans", "简体中文", "(Simplified Chinese)"),
-    ('5', "zh-Hant", "繁體中文", "(Traditional Chinese)"),
-    ('6', "pt-BR", "Português (Brasil)", "(Brazilian Portuguese)"),
+    ('2', "zh-Hans", "简体中文", "(Simplified Chinese)"),
 ];
 
 pub fn lines(app: &App) -> Vec<Line<'static>> {

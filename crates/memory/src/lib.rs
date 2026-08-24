@@ -32,6 +32,7 @@ pub mod injector;
 pub mod knowledge;
 pub mod optimization;
 pub mod retrieval;
+pub mod tokenizer;
 pub mod user_profile;
 pub mod vector;
 
@@ -61,7 +62,7 @@ pub use user_profile::{
     Bucket, ProfileEntry, UserProfile, distill_from_transcript, distill_session,
     inject_user_profile, render_for_injection,
 };
-pub use vector::{Observation, SearchFilters, VectorMatch, VectorStore};
+pub use vector::{MemoryOrigin, Observation, SearchFilters, VectorMatch, VectorStore};
 
 /// Result type for memory operations
 pub type Result<T> = std::result::Result<T, MemoryError>;
