@@ -370,9 +370,7 @@ impl TodoList {
     ///
     /// Returns the resolved parent id, or `None` if it is not yet resoluble.
     pub fn try_resolve_degraded(&mut self, parent_id: u32) -> Option<u32> {
-        let Some(children) = self.degraded_children.get(&parent_id) else {
-            return None;
-        };
+        let children = self.degraded_children.get(&parent_id)?;
         let all_done = children.iter().all(|&cid| {
             self.items
                 .iter()
@@ -1029,10 +1027,11 @@ mod dependency_tests {
     fn degrade_rejects_empty_subtasks_and_unknown_id() {
         let mut list = TodoList::new();
         list.add("task".to_string(), TodoStatus::Pending);
-        assert!(list
-            .degrade_to_subtask(1, vec![], None, None)
-            .is_none());
-        assert!(list.degrade_to_subtask(99, vec!["x".to_string()], None, None).is_none());
+        assert!(list.degrade_to_subtask(1, vec![], None, None).is_none());
+        assert!(
+            list.degrade_to_subtask(99, vec!["x".to_string()], None, None)
+                .is_none()
+        );
     }
 
     #[test]
@@ -1043,7 +1042,10 @@ mod dependency_tests {
             .degrade_to_subtask(1, vec!["a".to_string()], None, None)
             .unwrap();
         // Degrading an already-degraded task yields nothing (no duplicate work).
-        assert!(list.degrade_to_subtask(1, vec!["b".to_string()], None, None).is_none());
+        assert!(
+            list.degrade_to_subtask(1, vec!["b".to_string()], None, None)
+                .is_none()
+        );
         assert_eq!(list.degraded_subtasks(1), Some(&first));
     }
 }
@@ -1116,10 +1118,10 @@ impl TodoClaimStore {
         F: FnOnce(&mut HashMap<u32, ClaimRecord>) -> R,
     {
         let lock_path = self.lock_path();
-        if let Some(parent) = lock_path.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = lock_path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            fs::create_dir_all(parent)?;
         }
         let file = fs::OpenOptions::new()
             .create(true)
@@ -1128,9 +1130,7 @@ impl TodoClaimStore {
             .truncate(false)
             .open(&lock_path)?;
         let mut file_lock = RwLock::new(file);
-        let mut guard = file_lock
-            .write()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let mut guard = file_lock.write().map_err(std::io::Error::other)?;
 
         let mut claims: HashMap<u32, ClaimRecord> = {
             let path = self.claims_path();

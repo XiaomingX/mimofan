@@ -1201,7 +1201,8 @@ mod tests {
     fn continuation_prompt_omits_stop_section_without_condition() {
         let s = active_state();
         let snap = s.snapshot();
-        let prompt = render_goal_continuation_prompt(&snap, 1, snap.stop_condition.as_deref(), "BASE");
+        let prompt =
+            render_goal_continuation_prompt(&snap, 1, snap.stop_condition.as_deref(), "BASE");
         assert!(!prompt.contains("Stop Condition"));
     }
 

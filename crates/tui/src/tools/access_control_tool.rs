@@ -18,7 +18,7 @@
 
 use async_trait::async_trait;
 use mimofan_staticanalysis::access_control::{
-    analyze_dir, analyze_file, DEFAULT_ENTRIES, DEFAULT_GATES, EntrySpec, GateSpec,
+    DEFAULT_ENTRIES, DEFAULT_GATES, EntrySpec, GateSpec, analyze_dir, analyze_file,
 };
 use mimofan_staticanalysis::{AstError, Language};
 use serde::{Deserialize, Serialize};
@@ -143,12 +143,12 @@ fn map_ast_error(err: AstError, what: &str) -> ToolError {
         AstError::Unsupported(_) => ToolError::not_available(format!(
             "language for '{what}' has no compiled grammar in this build"
         )),
-        AstError::Parse(msg) => ToolError::execution_failed(format!(
-            "failed to parse source for '{what}': {msg}"
-        )),
-        AstError::Query(msg) => ToolError::execution_failed(format!(
-            "access-control query failed for '{what}': {msg}"
-        )),
+        AstError::Parse(msg) => {
+            ToolError::execution_failed(format!("failed to parse source for '{what}': {msg}"))
+        }
+        AstError::Query(msg) => {
+            ToolError::execution_failed(format!("access-control query failed for '{what}': {msg}"))
+        }
     }
 }
 
@@ -240,7 +240,8 @@ impl ToolSpec for AccessControlTool {
                 file: target_dir.clone(),
                 issues: views,
             };
-            return ToolResult::json(&output).map_err(|e| ToolError::execution_failed(e.to_string()));
+            return ToolResult::json(&output)
+                .map_err(|e| ToolError::execution_failed(e.to_string()));
         }
 
         // Single-file mode: resolve (file_label, source) from path/source.

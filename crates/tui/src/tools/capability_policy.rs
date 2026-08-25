@@ -113,7 +113,6 @@ impl CapabilityPermissionPolicy {
     /// resolve the spec via `registry.get(name)` and call
     /// `policy.check_before_execute(spec)`. The engine already holds the
     /// registry, so no signature on `ToolSpec::execute` needs to change.
-    #[must_use]
     pub fn check_before_execute(
         &self,
         spec: &dyn ToolSpec,

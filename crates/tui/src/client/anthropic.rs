@@ -356,10 +356,7 @@ fn project_messages_for_anthropic(messages: &[Message]) -> Vec<Message> {
 
     // 3. 首条非 user 修正：丢弃开头的非 user 消息。
     let mut dropped_leading = 0usize;
-    while projected
-        .first()
-        .is_some_and(|m| m.role != "user")
-    {
+    while projected.first().is_some_and(|m| m.role != "user") {
         projected.remove(0);
         dropped_leading += 1;
     }

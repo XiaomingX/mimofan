@@ -280,13 +280,13 @@ impl JobManager {
     /// This is the bridge called from the todo degradation path; it makes the
     /// job-retry layer and the todo degradation layer mutually exclusive.
     pub fn mark_degraded(&mut self, id: &str) {
-        if let Some(job) = self.jobs.get_mut(id) {
-            if !job.retry.degraded {
-                job.retry.degraded = true;
-                Self::clear_retry_schedule(&mut job.retry);
-                job.updated_at = Self::now_ts();
-                Self::push_history(job, "degraded");
-            }
+        if let Some(job) = self.jobs.get_mut(id)
+            && !job.retry.degraded
+        {
+            job.retry.degraded = true;
+            Self::clear_retry_schedule(&mut job.retry);
+            job.updated_at = Self::now_ts();
+            Self::push_history(job, "degraded");
         }
     }
 
@@ -603,6 +603,9 @@ mod degradation_tests {
             mgr.fail(&job.id, "again");
         }
         let record = mgr.jobs.get(&job.id).unwrap();
-        assert_eq!(record.retry.attempt, 0, "degraded job must not consume retry budget");
+        assert_eq!(
+            record.retry.attempt, 0,
+            "degraded job must not consume retry budget"
+        );
     }
 }

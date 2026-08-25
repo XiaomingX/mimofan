@@ -33,17 +33,17 @@ pub fn list_running() -> Result<Vec<RunningSession>> {
     let entries = std::fs::read_dir(&dir).context("read run dir")?;
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) == Some("sock") {
-            if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                // Only report sessions whose socket is actually connectable-ish:
-                // a stale socket file from a crashed daemon would fail to connect,
-                // but discovery-by-file is the documented contract; `attach`
-                // surfaces the real connection error.
-                out.push(RunningSession {
-                    id: name.to_string(),
-                    socket: path,
-                });
-            }
+        if path.extension().and_then(|e| e.to_str()) == Some("sock")
+            && let Some(name) = path.file_stem().and_then(|s| s.to_str())
+        {
+            // Only report sessions whose socket is actually connectable-ish:
+            // a stale socket file from a crashed daemon would fail to connect,
+            // but discovery-by-file is the documented contract; `attach`
+            // surfaces the real connection error.
+            out.push(RunningSession {
+                id: name.to_string(),
+                socket: path,
+            });
         }
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));

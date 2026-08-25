@@ -1332,14 +1332,14 @@ impl SubAgentManager {
             if start.elapsed() >= timeout {
                 // Final re-check after the loop body in case the state moved
                 // during the sleep below.
-                if let Some(state) = self.lifecycle_tracker.state(id) {
-                    if matches!(
+                if let Some(state) = self.lifecycle_tracker.state(id)
+                    && matches!(
                         (&state, cond),
                         (AgentLifecycleState::Blocked(_), WaitCond::Blocked)
                             | (AgentLifecycleState::Done, WaitCond::Done)
-                    ) {
-                        return Ok(state);
-                    }
+                    )
+                {
+                    return Ok(state);
                 }
                 break;
             }

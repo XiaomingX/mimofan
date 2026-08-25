@@ -310,13 +310,13 @@ pub fn named_query(key: &str) -> Option<&'static str> {
     Some(q)
 }
 
-
 // --- Taint/SCA capability modules (taint-sca-group, T-4..T-13) ---
 // Wiring for the security analysis modules. These are additive and do not
 // touch the shared `Language`/`query_source`/`callgraph` foundation owned by
 // the staticanalysis group.
 pub mod access_control;
 pub mod attack_surface;
+pub mod interproc;
 pub mod kb_trace;
 pub mod knowledge;
 pub mod recon;
@@ -326,4 +326,3 @@ pub mod sca;
 pub mod summary;
 pub mod taint;
 pub mod typestate;
-pub mod interproc;

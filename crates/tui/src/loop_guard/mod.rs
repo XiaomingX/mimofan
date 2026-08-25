@@ -522,10 +522,10 @@ impl LoopGuard {
         // The periodic memory/skill reminder is non-diagnostic: it fires on its
         // own cadence and never competes with a loop nudge fired the same turn.
         // When the loop detectors stayed silent, consider the scheduled nudge.
-        if result.is_none() {
-            if let Some(nudge) = self.periodic_memory_skill_nudge() {
-                return Some(nudge);
-            }
+        if result.is_none()
+            && let Some(nudge) = self.periodic_memory_skill_nudge()
+        {
+            return Some(nudge);
         }
         result
     }
@@ -538,7 +538,7 @@ impl LoopGuard {
         if !self.config.memory_skill_nudge || self.nudge_every_n == 0 {
             return None;
         }
-        if self.turn_counter % self.nudge_every_n != 0 {
+        if !self.turn_counter.is_multiple_of(self.nudge_every_n) {
             return None;
         }
         let kind = self.next_nudge;
@@ -686,13 +686,13 @@ impl LoopGuard {
                      something new. If nothing would, report what you found and ask the user \
                      for direction."
                 );
-                if let Some(obj) = &self.objective {
-                    if !obj.text.is_empty() {
-                        nudge.push_str(&format!(
-                            "\n\nYour original task objective is still: {}",
-                            obj.text
-                        ));
-                    }
+                if let Some(obj) = &self.objective
+                    && !obj.text.is_empty()
+                {
+                    nudge.push_str(&format!(
+                        "\n\nYour original task objective is still: {}",
+                        obj.text
+                    ));
                 }
                 nudge
             },
@@ -743,9 +743,7 @@ impl LoopGuard {
         let previous = self.last_distinct_output.clone();
         self.last_distinct_output = Some(observation.output.to_string());
 
-        let Some(prev) = previous else {
-            return None;
-        };
+        let prev = previous?;
         // An exact repeat is owned by the NoProgress/RepeatedCall detectors;
         // only near-duplicates (high but not total overlap) trip here.
         if prev == observation.output {
@@ -861,4 +859,3 @@ impl LoopGuard {
 /// reset on each new user message. The durable portion is also persisted to
 /// disk (see `crate::core::engine::turn_loop`) so it survives process restarts.
 pub type SharedLoopGuard = std::sync::Arc<tokio::sync::Mutex<LoopGuard>>;
-

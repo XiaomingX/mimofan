@@ -1152,7 +1152,12 @@ pub async fn compact_messages(
     external_working_set_paths: Option<&[String]>,
     objective: Option<&objective::Objective>,
     goal_self_check: bool,
-) -> Result<(Vec<Message>, Option<SystemPrompt>, Vec<Message>, Option<LoopBreak>)> {
+) -> Result<(
+    Vec<Message>,
+    Option<SystemPrompt>,
+    Vec<Message>,
+    Option<LoopBreak>,
+)> {
     compact_messages_inner(
         client,
         messages,
@@ -1201,7 +1206,12 @@ async fn compact_messages_inner(
     objective: Option<&objective::Objective>,
     goal_self_check: bool,
     drift_retry: u32,
-) -> Result<(Vec<Message>, Option<SystemPrompt>, Vec<Message>, Option<LoopBreak>)> {
+) -> Result<(
+    Vec<Message>,
+    Option<SystemPrompt>,
+    Vec<Message>,
+    Option<LoopBreak>,
+)> {
     if messages.is_empty() {
         return Ok((Vec::new(), None, Vec::new(), None));
     }
@@ -1365,9 +1375,8 @@ pub(crate) fn build_self_check_nudge(enabled: bool) -> Option<LoopBreak> {
             pattern: crate::loop_guard::LoopPattern::SelfCheck,
             occurrences: 1,
             tools: Vec::new(),
-            nudge:
-                "[自检] 上下文已压缩，请确认当前目标仍与最初一致；如有偏离请显式修正。"
-                    .to_string(),
+            nudge: "[自检] 上下文已压缩，请确认当前目标仍与最初一致；如有偏离请显式修正。"
+                .to_string(),
         })
     } else {
         None
@@ -1787,8 +1796,7 @@ fn extract_workflow_context(messages: &[Message], workspace: Option<&Path>) -> S
                 }
                 ContentBlock::Text { text, .. } => {
                     // Look for task/todo mentions
-                    if text.contains("TODO") || text.contains("task") || text.contains("need to")
-                    {
+                    if text.contains("TODO") || text.contains("task") || text.contains("need to") {
                         let task = truncate_chars(text, 200).to_string();
                         if !tasks_identified.contains(&task) {
                             tasks_identified.push(task);
@@ -2029,7 +2037,7 @@ mod summary_instruction_tests {
 #[cfg(test)]
 mod drift_recompact_tests {
     use super::*;
-    use crate::compaction::objective::{Objective, MUST_KEEP_HEADER};
+    use crate::compaction::objective::{MUST_KEEP_HEADER, Objective};
 
     #[test]
     fn drift_below_threshold_does_not_recompact() {
@@ -2066,8 +2074,8 @@ mod drift_recompact_tests {
             text: "Fix parser".to_string(),
             key_points: Vec::new(),
         };
-        let merged = merge_must_keep_into_custom(Some(&obj), Some("keep migrations"))
-            .expect("non-empty");
+        let merged =
+            merge_must_keep_into_custom(Some(&obj), Some("keep migrations")).expect("non-empty");
         assert!(merged.contains("keep migrations"));
         assert!(merged.contains(MUST_KEEP_HEADER));
     }
@@ -2078,8 +2086,8 @@ mod drift_recompact_tests {
             text: String::new(),
             key_points: Vec::new(),
         };
-        let merged = merge_must_keep_into_custom(Some(&empty), Some("keep migrations"))
-            .expect("non-empty");
+        let merged =
+            merge_must_keep_into_custom(Some(&empty), Some("keep migrations")).expect("non-empty");
         // No mandatory list → fall back to the normal "TASK OBJECTIVE" guidance.
         assert!(merged.contains("TASK OBJECTIVE"));
         assert!(!merged.contains(MUST_KEEP_HEADER));

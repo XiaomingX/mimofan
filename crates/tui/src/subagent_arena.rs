@@ -69,7 +69,11 @@ pub struct ContestantConfig {
 impl ContestantConfig {
     /// 构造一个最简对战配置：id + model + provider。
     #[must_use]
-    pub fn new(id: impl Into<String>, model: impl Into<String>, provider: impl Into<String>) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        model: impl Into<String>,
+        provider: impl Into<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             name: None,
@@ -253,7 +257,7 @@ impl AgentRunner for FakeAgentRunner {
                 config.display_name(),
                 config.provider,
                 config.model,
-                &prompt.chars().take(32).collect::<String>()
+                prompt.chars().take(32).collect::<String>()
             ),
         };
         // 确定性 token 估算：按字符数，便于测试断言 compare 结构。
@@ -559,7 +563,11 @@ impl TeamLeader {
             for task in &batch {
                 let cfg = contestants.get(&task.assignee).cloned().unwrap_or_else(|| {
                     // 没有显式 contestant 时，用默认配置兜底（保证骨架不崩）。
-                    ContestantConfig::new(task.assignee.clone(), "default".to_string(), "default".to_string())
+                    ContestantConfig::new(
+                        task.assignee.clone(),
+                        "default".to_string(),
+                        "default".to_string(),
+                    )
                 });
                 let runner = self.runner.clone();
                 let cfg = cfg.clone();
@@ -775,7 +783,11 @@ mod tests {
 
         assert_eq!(outcome.outcomes.len(), 2, "两个选手都应成功收集");
         assert!(outcome.errors.is_empty(), "无失败");
-        let ids: Vec<&str> = outcome.outcomes.iter().map(|o| o.contestant_id.as_str()).collect();
+        let ids: Vec<&str> = outcome
+            .outcomes
+            .iter()
+            .map(|o| o.contestant_id.as_str())
+            .collect();
         assert!(ids.contains(&"m1"));
         assert!(ids.contains(&"m2"));
     }
@@ -784,7 +796,8 @@ mod tests {
     async fn arena_compare_structure_has_metrics() {
         let fake = FakeAgentRunner::new();
         fake.set_response("a", "short").await;
-        fake.set_response("b", "a much longer answer with many tokens inside it for b").await;
+        fake.set_response("b", "a much longer answer with many tokens inside it for b")
+            .await;
 
         let arena = Arena::with_fake_runner(fake);
         let contestants = vec![
@@ -844,7 +857,10 @@ mod tests {
             .run(prompt, &contestants, fake_manager(), fake_runtime())
             .await;
         for o in &outcome.outcomes {
-            assert!(o.output.contains("UNIQUE-PROMPT-FOR-ARENA-TEST"), "相同 prompt 必须派到每个选手");
+            assert!(
+                o.output.contains("UNIQUE-PROMPT-FOR-ARENA-TEST"),
+                "相同 prompt 必须派到每个选手"
+            );
         }
     }
 
@@ -857,14 +873,21 @@ mod tests {
 
         let leader = TeamLeader::with_fake_runner(fake);
         let objective = "Build a feature";
-        let subtasks = vec!["design".to_string(), "implement".to_string(), "test".to_string()];
+        let subtasks = vec![
+            "design".to_string(),
+            "implement".to_string(),
+            "test".to_string(),
+        ];
 
         let tasks = leader.decompose(objective, &subtasks);
         assert_eq!(tasks.len(), 3, "应分解为 3 个子任务");
         assert!(tasks.iter().all(|t| t.depends_on.is_empty()));
 
         let mut contestants = HashMap::new();
-        contestants.insert("default".to_string(), ContestantConfig::new("default", "m", "p"));
+        contestants.insert(
+            "default".to_string(),
+            ContestantConfig::new("default", "m", "p"),
+        );
 
         let outcome = leader
             .dispatch(&tasks, &contestants, fake_manager(), fake_runtime())
@@ -875,7 +898,12 @@ mod tests {
         assert_eq!(summary.completed, 3);
         assert_eq!(summary.failed, 0);
         assert_eq!(summary.skipped, 0);
-        assert!(outcome.results.iter().all(|r| r.status == TeamTaskStatus::Completed));
+        assert!(
+            outcome
+                .results
+                .iter()
+                .all(|r| r.status == TeamTaskStatus::Completed)
+        );
     }
 
     #[tokio::test]
@@ -885,7 +913,10 @@ mod tests {
 
         let leader = TeamLeader::with_fake_runner(fake);
         let mut contestants = HashMap::new();
-        contestants.insert("default".to_string(), ContestantConfig::new("default", "m", "p"));
+        contestants.insert(
+            "default".to_string(),
+            ContestantConfig::new("default", "m", "p"),
+        );
 
         let outcome = leader
             .execute(
@@ -925,7 +956,10 @@ mod tests {
             },
         ];
         let mut contestants = HashMap::new();
-        contestants.insert("default".to_string(), ContestantConfig::new("default", "m", "p"));
+        contestants.insert(
+            "default".to_string(),
+            ContestantConfig::new("default", "m", "p"),
+        );
 
         let outcome = leader
             .dispatch(&tasks, &contestants, fake_manager(), fake_runtime())

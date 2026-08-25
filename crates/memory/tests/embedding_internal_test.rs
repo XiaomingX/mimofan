@@ -3,8 +3,8 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use mimofan_memory::embedding::{hash_embed, ApiEmbedder, Embedder, EmbeddingService};
 use mimofan_memory::Result;
+use mimofan_memory::embedding::{ApiEmbedder, Embedder, EmbeddingService, hash_embed};
 
 #[test]
 fn hash_embed_is_deterministic() {
@@ -74,7 +74,10 @@ fn api_embedder_satisfies_embedder_trait() {
         dim: usize,
     }
     impl Embedder for StubEmbedder {
-        fn embed(&self, _text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
+        fn embed(
+            &self,
+            _text: &str,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
             Box::pin(async move { Ok(vec![0.0; self.dim]) })
         }
         fn embed_batch(
@@ -116,7 +119,10 @@ fn service_wraps_backend_and_exposes_config() {
         dim: usize,
     }
     impl Embedder for StubEmbedder {
-        fn embed(&self, _text: &str) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
+        fn embed(
+            &self,
+            _text: &str,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<f32>>> + Send + '_>> {
             Box::pin(async move { Ok(vec![0.0; self.dim]) })
         }
         fn embed_batch(

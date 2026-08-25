@@ -147,63 +147,61 @@ impl LlmClient for MockLlmClient {
         "mock-replay"
     }
 
-    fn create_message(
+    async fn create_message(
         &self,
         _request: MessageRequest,
-    ) -> impl std::future::Future<Output = Result<crate::models::MessageResponse>> + Send {
+    ) -> Result<crate::models::MessageResponse> {
         // The harness only needs the streaming path; non-streaming is unused.
         // Build a single static message from whatever the next turn would yield.
-        async move {
-            let front = self
-                .queue
-                .lock()
-                .expect("mock queue poisoned")
-                .front()
-                .cloned()
-                .unwrap_or_default();
-            // Reconstruct a coarse MessageResponse from the tool-use events.
-            let mut content = Vec::new();
-            for event in &front {
-                if let StreamEvent::ContentBlockStart {
-                    content_block: ContentBlockStart::Text { text },
-                    ..
-                } = event
-                {
-                    content.push(ContentBlock::Text {
-                        text: text.clone(),
-                        cache_control: None,
-                    });
-                } else if let StreamEvent::ContentBlockStart {
-                    content_block:
-                        ContentBlockStart::ToolUse {
-                            id,
-                            name,
-                            input,
-                            caller,
-                        },
-                    ..
-                } = event
-                {
-                    content.push(ContentBlock::ToolUse {
-                        id: id.clone(),
-                        name: name.clone(),
-                        input: input.clone(),
-                        caller: caller.clone(),
-                    });
-                }
+        let front = self
+            .queue
+            .lock()
+            .expect("mock queue poisoned")
+            .front()
+            .cloned()
+            .unwrap_or_default();
+        // Reconstruct a coarse MessageResponse from the tool-use events.
+        let mut content = Vec::new();
+        for event in &front {
+            if let StreamEvent::ContentBlockStart {
+                content_block: ContentBlockStart::Text { text },
+                ..
+            } = event
+            {
+                content.push(ContentBlock::Text {
+                    text: text.clone(),
+                    cache_control: None,
+                });
+            } else if let StreamEvent::ContentBlockStart {
+                content_block:
+                    ContentBlockStart::ToolUse {
+                        id,
+                        name,
+                        input,
+                        caller,
+                    },
+                ..
+            } = event
+            {
+                content.push(ContentBlock::ToolUse {
+                    id: id.clone(),
+                    name: name.clone(),
+                    input: input.clone(),
+                    caller: caller.clone(),
+                });
             }
-            Ok(MessageResponse {
-                id: "msg_mock".to_string(),
-                r#type: "message".to_string(),
-                role: "assistant".to_string(),
-                content,
-                model: "mock-replay".to_string(),
-                stop_reason: Some("end_turn".to_string()),
-                stop_sequence: None,
-                usage: Usage::default(),
-                container: None,
-            })
         }
+        Ok(MessageResponse {
+            id: "msg_mock".to_string(),
+            r#type: "message".to_string(),
+            role: "assistant".to_string(),
+            content,
+            model: "mock-replay".to_string(),
+            stop_reason: Some("end_turn".to_string()),
+            stop_sequence: None,
+            usage: Usage::default(),
+            container: None,
+        })
     }
 
     async fn create_message_stream(&self, _request: MessageRequest) -> Result<StreamEventBox> {

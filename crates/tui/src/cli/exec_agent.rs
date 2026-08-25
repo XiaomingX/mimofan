@@ -652,6 +652,7 @@ pub(crate) async fn run_exec_agent(
             instrs
         },
         project_context_pack_enabled: execution_config.project_context_pack_enabled(),
+        git_status_in_prompt: execution_config.git_status_in_prompt(),
         translation_enabled: false,
         show_thinking: settings.show_thinking,
         max_steps: max_turns,
@@ -903,7 +904,8 @@ pub(crate) async fn run_exec_agent(
                     if name == crate::tools::json_schema_terminator::JSON_SCHEMA_TERMINATOR_NAME
                         && output.success
                     {
-                        if let Some(submitted) = json_schema_submission.lock().unwrap().take() {
+                        let submitted = json_schema_submission.lock().unwrap().take();
+                        if let Some(submitted) = submitted {
                             summary.output = serde_json::to_string_pretty(&submitted)
                                 .unwrap_or_else(|_| submitted.to_string());
                             summary.status = Some("completed".to_string());

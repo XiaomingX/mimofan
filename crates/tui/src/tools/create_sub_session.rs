@@ -81,7 +81,7 @@ impl ToolSpec for CreateSubSessionTool {
 
         // 1) create the sibling thread.
         let create_resp = dispatch(
-            &tx,
+            tx,
             ThreadRequest::Create {
                 metadata: metadata.clone(),
             },
@@ -92,7 +92,7 @@ impl ToolSpec for CreateSubSessionTool {
         if mode == "first-turn" {
             let prompt = required_string(&input, "prompt")?;
             let turn_resp = dispatch(
-                &tx,
+                tx,
                 ThreadRequest::Message {
                     thread_id: thread_id.clone(),
                     input: prompt,

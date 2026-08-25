@@ -331,10 +331,22 @@ impl DecisionLog {
             out,
             "Lifetime decisions: {} (tool_chosen={}, branch_taken={}, goal_revised={}, hypothesis={}, other={})",
             self.lifetime_total,
-            self.lifetime_counts.get(&Kind::ToolChosen).copied().unwrap_or(0),
-            self.lifetime_counts.get(&Kind::BranchTaken).copied().unwrap_or(0),
-            self.lifetime_counts.get(&Kind::GoalRevised).copied().unwrap_or(0),
-            self.lifetime_counts.get(&Kind::Hypothesis).copied().unwrap_or(0),
+            self.lifetime_counts
+                .get(&Kind::ToolChosen)
+                .copied()
+                .unwrap_or(0),
+            self.lifetime_counts
+                .get(&Kind::BranchTaken)
+                .copied()
+                .unwrap_or(0),
+            self.lifetime_counts
+                .get(&Kind::GoalRevised)
+                .copied()
+                .unwrap_or(0),
+            self.lifetime_counts
+                .get(&Kind::Hypothesis)
+                .copied()
+                .unwrap_or(0),
             self.lifetime_counts.get(&Kind::Other).copied().unwrap_or(0),
         );
 
@@ -383,7 +395,11 @@ mod tests {
         for i in 1..=10u64 {
             log.record(DecisionEvent::new(
                 i,
-                if i % 2 == 0 { Kind::ToolChosen } else { Kind::BranchTaken },
+                if i % 2 == 0 {
+                    Kind::ToolChosen
+                } else {
+                    Kind::BranchTaken
+                },
                 format!("decision {i}"),
             ));
         }
@@ -417,7 +433,9 @@ mod tests {
         let mut log = DecisionLog::with_config(cfg(total, keep));
         let mut raw_len = 0usize;
         for i in 1..=total as u64 {
-            let s = format!("decision event number {i} with a fairly long descriptive summary text that would cost many tokens if kept verbatim for every single one of these events");
+            let s = format!(
+                "decision event number {i} with a fairly long descriptive summary text that would cost many tokens if kept verbatim for every single one of these events"
+            );
             raw_len += s.chars().count();
             let kind = match i % 3 {
                 0 => Kind::ToolChosen,
@@ -484,7 +502,11 @@ mod tests {
             "accepted hypothesis A",
             0.87,
         ));
-        log.record(DecisionEvent::new(2, Kind::Hypothesis, "rejected hypothesis B"));
+        log.record(DecisionEvent::new(
+            2,
+            Kind::Hypothesis,
+            "rejected hypothesis B",
+        ));
         let s = log.drain_compact().expect("compact");
         assert!(s.contains("conf=0.87"), "confidence must render");
         assert!(s.contains("rejected hypothesis B"));

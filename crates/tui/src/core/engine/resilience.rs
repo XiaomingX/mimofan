@@ -662,4 +662,3 @@ impl SharedResumeController {
         self.0.lock().map(|g| g.is_some()).unwrap_or(false)
     }
 }
-

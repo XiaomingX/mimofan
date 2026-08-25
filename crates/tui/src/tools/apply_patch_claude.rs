@@ -43,8 +43,7 @@ use serde_json::{Value, json};
 use thiserror::Error;
 
 use super::spec::{
-    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
-    required_str,
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, required_str,
 };
 
 /// 单个文件块的动词类型。
@@ -172,9 +171,7 @@ fn parse_patch(input: &str) -> Result<Vec<FileBlock>, PatchParseError> {
             ParseState::InUpdate | ParseState::InAdd | ParseState::InDelete => {
                 if line.starts_with(marker) {
                     // 遇到新 `***` 标记：先收尾当前块。
-                    let finished = current
-                        .take()
-                        .ok_or(PatchParseError::MissingEnd)?;
+                    let finished = current.take().ok_or(PatchParseError::MissingEnd)?;
                     blocks.push(finished);
                     // 回退到 ExpectFileOrEnd 重新处理本行。
                     state = ParseState::ExpectFileOrEnd;
@@ -210,9 +207,7 @@ fn parse_patch(input: &str) -> Result<Vec<FileBlock>, PatchParseError> {
                     }
                 } else {
                     // 块内普通行。
-                    let block = current
-                        .as_mut()
-                        .ok_or(PatchParseError::MissingEnd)?;
+                    let block = current.as_mut().ok_or(PatchParseError::MissingEnd)?;
                     if block.op == FileOp::Delete {
                         // Delete 块体忽略。
                     } else {
@@ -224,7 +219,7 @@ fn parse_patch(input: &str) -> Result<Vec<FileBlock>, PatchParseError> {
     }
 
     // 收尾：若还有未结束的块，缺 `*** End Patch`。
-    if let Some(_) = current {
+    if current.is_some() {
         return Err(PatchParseError::MissingEnd);
     }
     // 仍处于 ExpectBegin 表示从未看到 End（never entered a patch at all,
@@ -258,10 +253,7 @@ async fn apply_file_block(
             }
             let original = if abs.exists() {
                 tokio::fs::read_to_string(&abs).await.map_err(|e| {
-                    ToolError::execution_failed(format!(
-                        "Failed to read {}: {e}",
-                        abs.display()
-                    ))
+                    ToolError::execution_failed(format!("Failed to read {}: {e}", abs.display()))
                 })?
             } else {
                 return Err(ToolError::execution_failed(format!(
@@ -289,10 +281,7 @@ async fn apply_file_block(
         FileOp::Delete => {
             if abs.exists() {
                 tokio::fs::remove_file(&abs).await.map_err(|e| {
-                    ToolError::execution_failed(format!(
-                        "Failed to delete {}: {e}",
-                        abs.display()
-                    ))
+                    ToolError::execution_failed(format!("Failed to delete {}: {e}", abs.display()))
                 })?;
             }
             Ok((true, block.path.clone()))
@@ -306,6 +295,7 @@ async fn apply_file_block(
 /// - 上下文行（` ` 前缀）：必须在 original 当前位置匹配，原样保留。
 /// - 删除行（`-` 前缀）：必须从 original 当前位置匹配，跳过不输出。
 /// - 新增行（`+` 前缀）：插入输出，不消费 original。
+///
 /// 不匹配即报错。
 fn apply_update_lines(
     original: &str,
@@ -421,7 +411,7 @@ impl ToolSpec for ApplyPatchClaudeTool {
 
     async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
         let patch_text = required_str(&input, "patch")?;
-        let blocks = parse_patch(&patch_text).map_err(ToolError::from)?;
+        let blocks = parse_patch(patch_text).map_err(ToolError::from)?;
 
         let mut applied = 0usize;
         let mut created = Vec::new();
@@ -511,7 +501,10 @@ mod tests {
     #[tokio::test]
     async fn execute_update_file_add_delete() {
         let dir = tempfile::TempDir::new().unwrap();
-        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let ws = dir
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| dir.path().to_path_buf());
         let f = ws.join("a.txt");
         {
             let mut fh = std::fs::File::create(&f).unwrap();
@@ -529,10 +522,7 @@ mod tests {
  context line
 *** End Patch";
         let tool = ApplyPatchClaudeTool;
-        let res = tool
-            .execute(json!({ "patch": patch }), &ctx)
-            .await
-            .unwrap();
+        let res = tool.execute(json!({ "patch": patch }), &ctx).await.unwrap();
         let out = std::fs::read_to_string(&f).unwrap();
         assert!(out.contains("new line"));
         assert!(!out.contains("old line"));
@@ -543,7 +533,10 @@ mod tests {
     #[tokio::test]
     async fn execute_add_file() {
         let dir = tempfile::TempDir::new().unwrap();
-        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let ws = dir
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| dir.path().to_path_buf());
         let ctx = ctx_with(&ws);
         let patch = "\
 *** Begin Patch
@@ -561,7 +554,10 @@ mod tests {
     #[tokio::test]
     async fn execute_delete_file() {
         let dir = tempfile::TempDir::new().unwrap();
-        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let ws = dir
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| dir.path().to_path_buf());
         let f = ws.join("gone.txt");
         std::fs::write(&f, "x\n").unwrap();
         let ctx = ctx_with(&ws);
@@ -578,7 +574,10 @@ mod tests {
     #[tokio::test]
     async fn execute_missing_end_returns_error() {
         let dir = tempfile::TempDir::new().unwrap();
-        let ws = dir.path().canonicalize().unwrap_or_else(|_| dir.path().to_path_buf());
+        let ws = dir
+            .path()
+            .canonicalize()
+            .unwrap_or_else(|_| dir.path().to_path_buf());
         let ctx = ctx_with(&ws);
         let patch = "\
 *** Begin Patch

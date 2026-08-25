@@ -4,18 +4,21 @@
 //! （B4 验收样本，`reference_tokens` 为本机 tiktoken cl100k_base 实测值，已冻结）。
 //! 这里通过 `include_str!` 在编译期嵌入该 JSON，既保证真值唯一、又避免运行时依赖工作目录。
 
-use mimofan::tokenizer::{count_tokens, count_tokens_for_model, heuristic_tokens, Encoding};
+use mimofan::tokenizer::{Encoding, count_tokens, count_tokens_for_model, heuristic_tokens};
 
 #[test]
 fn matches_frozen_reference_token_counts_exactly() {
     let raw = include_str!("../../../benchmark/agentbench/samples/tokenizer_samples.json");
-    let v: serde_json::Value = serde_json::from_str(raw).expect("tokenizer_samples.json 应为合法 JSON");
+    let v: serde_json::Value =
+        serde_json::from_str(raw).expect("tokenizer_samples.json 应为合法 JSON");
     let samples = v["samples"].as_array().expect("samples 字段应为数组");
     assert!(!samples.is_empty(), "样本集不应为空");
     for s in samples {
         let id = s["id"].as_str().unwrap_or("<无 id>");
         let text = s["text"].as_str().expect("text 字段缺失");
-        let expected = s["reference_tokens"].as_u64().expect("reference_tokens 字段缺失") as usize;
+        let expected = s["reference_tokens"]
+            .as_u64()
+            .expect("reference_tokens 字段缺失") as usize;
         assert_eq!(
             count_tokens(text),
             expected,
@@ -69,9 +72,7 @@ fn counts_json_payload() {
 #[test]
 fn counts_mixed_chinese_english() {
     assert_eq!(
-        count_tokens(
-            "在 Rust 中使用 tokio::spawn 启动异步任务时，需要注意 Send + 'static 约束。"
-        ),
+        count_tokens("在 Rust 中使用 tokio::spawn 启动异步任务时，需要注意 Send + 'static 约束。"),
         27
     );
 }
@@ -103,7 +104,13 @@ fn mimo_and_deepseek_use_default_encoding() {
 
 #[test]
 fn openai_o200k_family_is_detected() {
-    for model in ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "openai/o1-preview"] {
+    for model in [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "o1",
+        "o3-mini",
+        "openai/o1-preview",
+    ] {
         assert_eq!(
             Encoding::for_model(model),
             Encoding::O200kBase,
@@ -124,7 +131,10 @@ fn o_series_detection_does_not_false_positive() {
 #[test]
 fn per_model_counting_matches_default_for_unknown_models() {
     let text = "上下文压缩子系统需要在保留关键信息的前提下尽可能减少令牌数量。";
-    assert_eq!(count_tokens_for_model(text, "deepseek-chat"), count_tokens(text));
+    assert_eq!(
+        count_tokens_for_model(text, "deepseek-chat"),
+        count_tokens(text)
+    );
 }
 
 /// 词表全局复用：重复调用不应重建，且结果稳定。

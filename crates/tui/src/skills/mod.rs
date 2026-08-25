@@ -564,10 +564,10 @@ pub fn discover_in_workspace_with_mode(
     }
     // #868：env 守卫的 herdr 运行时自控制 skill。仅在 HERDR_ENV /
     // MIMOFAN_RUNTIME_ENV 设置时返回 Some；否则为 no-op，不影响其他 skill。
-    if let Some(herdr) = crate::skills::herdr::herdr_skill_if_enabled() {
-        if !merged.skills.iter().any(|s| s.name == herdr.name) {
-            merged.skills.push(herdr);
-        }
+    if let Some(herdr) = crate::skills::herdr::herdr_skill_if_enabled()
+        && !merged.skills.iter().any(|s| s.name == herdr.name)
+    {
+        merged.skills.push(herdr);
     }
     merged
 }

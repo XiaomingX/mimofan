@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use mimofan_memory::codebase::{
-    chunk_source, extract_symbols, fuse_retrieval_hits, normalize_bm25, normalize_query,
     ChunkKind, CodebaseIndex, RetrievalHit, RetrievalSource, SearchFilters, SearchHit,
+    chunk_source, extract_symbols, fuse_retrieval_hits, normalize_bm25, normalize_query,
 };
 use mimofan_memory::knowledge::CorpusSource;
 
@@ -149,9 +149,11 @@ fn symbol_filter_post_fts() {
             10,
         )
         .unwrap();
-    assert!(hits.iter().all(
-        |h| h.symbols.contains(&"Tokenizer".to_string()) || h.content.contains("Tokenizer")
-    ));
+    assert!(
+        hits.iter().all(
+            |h| h.symbols.contains(&"Tokenizer".to_string()) || h.content.contains("Tokenizer")
+        )
+    );
 }
 
 #[test]

@@ -33,6 +33,8 @@ pub mod replay;
 /// #639：统一 VFS 抽象（文件工具 IO 出入口）。
 pub mod vfs;
 
+pub mod access_control_tool;
+pub mod attack_surface_tool;
 /// #854：工具级权限策略（按 ToolCapability 裁决 deny_capability / 限网络）。模块声明在此；dispatch 接线延后，本文件不改动 registry 逻辑。
 pub mod capability_policy;
 pub mod codebase_search;
@@ -61,13 +63,12 @@ pub mod plugin;
 pub mod project;
 /// #846：system prompt 冗余/矛盾/膨胀审计（PromptAuditTool 实现 ToolSpec，ReadOnly）。
 pub mod prompt_audit;
+pub mod protocol_check_tool;
 pub mod record_artifact;
 pub mod registry;
 pub mod remember;
 #[cfg(feature = "vector-memory")]
 pub mod remember_vector;
-#[cfg(feature = "vector-memory")]
-pub mod session_search;
 pub mod revert_turn;
 pub mod review;
 pub mod rlm;
@@ -79,9 +80,8 @@ pub mod schema_sanitize;
 pub mod search;
 pub mod security_audit;
 pub mod security_audit_tool;
-pub mod attack_surface_tool;
-pub mod protocol_check_tool;
-pub mod access_control_tool;
+#[cfg(feature = "vector-memory")]
+pub mod session_search;
 pub mod shell;
 mod shell_output;
 pub mod skill;

@@ -36,7 +36,7 @@
 # ─────────────────────────────────────────────────────────────────────────────────
 # 选择默认使用的服务商。现在主要推荐使用 [profiles.xxx] 来管理多套环境。
 # 为了向后兼容，如果未指定 provider，顶层的 `api_key` 和 `base_url` 依然被视为默认配置。
-provider = "custom"
+provider = "openai-compatible"   # DeepSeek 走 OpenAI 兼容协议
 api_key = "YOUR_DEEPSEEK_API_KEY" # 必须非空
 base_url = "https://api.deepseek.com/beta"
 # provider = "deepseek-cn"                       # 官方 API 的国内别名
@@ -101,8 +101,9 @@ memory_path = "~/.mimofan/memory.md"
 # 用户记忆 (User memory)
 # ─────────────────────────────────────────────────────────────────────────────────
 # 开启后，TUI 在启动时读取 memory_path，并作为系统提示词注入给模型。
+# 默认开启；如不需要可设置 enabled = false 或 MIMOFAN_MEMORY=off 关闭。
 [memory]
-# enabled = true            # 是否开启记忆功能 (默认: false)
+# enabled = true            # 是否开启记忆功能 (默认: true)
 
 # 语音/TTS 输出目录
 [speech]
@@ -216,6 +217,10 @@ l1_threshold = 192000
 l2_threshold = 384000
 l3_threshold = 576000
 seam_model = "deepseek-v4-flash"
+# 将工作区 git 状态摘要（分支 + 变更计数，不含文件列表）注入模型系统提示词，
+# 让模型在编辑前感知脏/未跟踪状态。默认 false（保持前缀字节稳定）；开启后
+# 工作树计数变化时会触发少量尾部重编码。见 issue #880-7。
+git_status_in_prompt = false
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # 并发调度与压力控制 (Capacity Controller)
@@ -279,22 +284,22 @@ fallback_default_prior = 3.8
 # ─────────────────────────────────────────────────────────────────────────────────
 # 通过 `mimofan --profile <name>` 或 `MIMOFAN_PROFILE=<name>` 来快速切换环境配置。
 [profiles.mimo]
-provider = "xiaomi-mimo"
+provider = "openai-compatible"   # MiMo 走 OpenAI 兼容协议
 api_key = "YOUR_XIAOMI_KEY"
 default_text_model = "mimo-v2.5-pro"
 
 [profiles.mimo-anthropic]
-provider = "anthropic"
+provider = "anthropic-compatible"
 api_key = "YOUR_XIAOMI_KEY"
 default_text_model = "mimo-v2.5"
 
 [profiles.deepseek]
-provider = "custom"
+provider = "openai-compatible"
 api_key = "YOUR_DEEPSEEK_API_KEY"
 default_text_model = "deepseek-v4-pro"
 
 [profiles.nvidia-nim]
-provider = "custom"
+provider = "openai-compatible"  # NVIDIA NIM 走 OpenAI 兼容协议
 api_key = "YOUR_NVIDIA_API_KEY"
 base_url = "https://integrate.api.nvidia.com/v1"
 default_text_model = "deepseek-ai/deepseek-v4-pro"

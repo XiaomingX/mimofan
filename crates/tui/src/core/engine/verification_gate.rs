@@ -11,14 +11,27 @@
 
 /// Tools whose success counts as "the model edited code".
 pub const CODE_EDIT_TOOLS: &[&str] = &[
-    "write", "edit", "multi_edit", "notebook_edit", "write_file", "edit_file", "apply_patch",
+    "write",
+    "edit",
+    "multi_edit",
+    "notebook_edit",
+    "write_file",
+    "edit_file",
+    "apply_patch",
 ];
 
 /// Tools/commands whose success counts as "the model verified the change".
 ///
 /// These are the harness-native verification surfaces plus the `bash`/shell
 /// escape hatch (so `cargo test`, `npm test`, `make check`, etc. all count).
-pub const VERIFICATION_TOOLS: &[&str] = &["test", "build", "verifier", "run_verifiers", "bash", "shell"];
+pub const VERIFICATION_TOOLS: &[&str] = &[
+    "test",
+    "build",
+    "verifier",
+    "run_verifiers",
+    "bash",
+    "shell",
+];
 
 /// Substrings that, when present in a `bash`/`shell` invocation, indicate a
 /// verification command rather than an arbitrary side-effecting script.
@@ -177,7 +190,10 @@ mod tests {
         assert!(VerificationGate::is_verification_tool("test", ""));
         assert!(VerificationGate::is_verification_tool("build", ""));
         assert!(VerificationGate::is_verification_tool("verifier", ""));
-        assert!(VerificationGate::is_verification_tool("bash", "cargo nextest"));
+        assert!(VerificationGate::is_verification_tool(
+            "bash",
+            "cargo nextest"
+        ));
         assert!(!VerificationGate::is_verification_tool("bash", "echo hi"));
         assert!(!VerificationGate::is_verification_tool("edit", ""));
     }

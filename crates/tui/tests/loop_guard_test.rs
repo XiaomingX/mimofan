@@ -10,8 +10,8 @@ use mimofan::core::engine::resilience::{
 };
 use mimofan::loop_guard::{
     DEFAULT_ALTERNATION_CYCLES, DEFAULT_MAX_NUDGES_PER_PATTERN, DEFAULT_NO_PROGRESS_THRESHOLD,
-    DEFAULT_REPEAT_THRESHOLD, DEFAULT_WARMUP_CALLS, LoopGuard, LoopGuardConfig,
-    LoopPattern, ToolObservation, fingerprint,
+    DEFAULT_REPEAT_THRESHOLD, DEFAULT_WARMUP_CALLS, LoopGuard, LoopGuardConfig, LoopPattern,
+    ToolObservation, fingerprint,
 };
 use serde_json::json;
 

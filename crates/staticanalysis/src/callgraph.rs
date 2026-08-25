@@ -123,10 +123,10 @@ impl CallGraph {
                 continue;
             }
             for edge in self.calls_of(current) {
-                if let Some(callee) = edge.callee {
-                    if !visited.contains(&callee) {
-                        worklist.push(callee);
-                    }
+                if let Some(callee) = edge.callee
+                    && !visited.contains(&callee)
+                {
+                    worklist.push(callee);
                 }
                 // Unresolved callees (None) are skipped: they have no node in
                 // this unit, matching the conservative same-file resolution.
@@ -264,7 +264,8 @@ impl CallGraph {
     /// Resolve a function id by exact name or by suffix (last path segment /
     /// `Class.method` tail). Used for conservative cross-file call resolution
     /// so `Foo.bar` resolves `bar` and vice versa when only one def exists.
-    pub fn function_id(&self, name: &str) -> Option<FuncId> {        if let Some(id) = self.function_id_by_name(name) {
+    pub fn function_id(&self, name: &str) -> Option<FuncId> {
+        if let Some(id) = self.function_id_by_name(name) {
             return Some(id);
         }
         // Suffix match: last segment of `name` equals a registered name's tail.
@@ -295,33 +296,33 @@ fn collect_functions(graph: &mut CallGraph, file: &str, source: &str, node: Node
                 register_function(graph, name, None, file, name_node.start_position().row + 1);
             }
         }
-    } else if node.kind() == "method_declaration" {
-        if let Some(name_node) = node.child_by_field_name("name") {
-            let method = name_node
-                .utf8_text(source.as_bytes())
-                .unwrap_or("")
-                .to_string();
-            if !method.is_empty() {
-                let class = enclosing_class_name(node, source);
-                // Register under both `Class.method` and the bare `method`
-                // (first-wins) so same-file short-name calls also resolve.
-                if let Some(cls) = &class {
-                    register_function(
-                        graph,
-                        format!("{cls}.{method}"),
-                        Some(cls.clone()),
-                        file,
-                        name_node.start_position().row + 1,
-                    );
-                }
+    } else if node.kind() == "method_declaration"
+        && let Some(name_node) = node.child_by_field_name("name")
+    {
+        let method = name_node
+            .utf8_text(source.as_bytes())
+            .unwrap_or("")
+            .to_string();
+        if !method.is_empty() {
+            let class = enclosing_class_name(node, source);
+            // Register under both `Class.method` and the bare `method`
+            // (first-wins) so same-file short-name calls also resolve.
+            if let Some(cls) = &class {
                 register_function(
                     graph,
-                    method.clone(),
-                    class,
+                    format!("{cls}.{method}"),
+                    Some(cls.clone()),
                     file,
                     name_node.start_position().row + 1,
                 );
             }
+            register_function(
+                graph,
+                method.clone(),
+                class,
+                file,
+                name_node.start_position().row + 1,
+            );
         }
     }
     let mut cursor = node.walk();
@@ -360,18 +361,17 @@ fn register_function(
 fn enclosing_class_name(node: Node, source: &str) -> Option<String> {
     let mut current = node.parent();
     while let Some(n) = current {
-        if n.kind() == "class_declaration"
+        if (n.kind() == "class_declaration"
             || n.kind() == "enum_declaration"
-            || n.kind() == "interface_declaration"
+            || n.kind() == "interface_declaration")
+            && let Some(name_node) = n.child_by_field_name("name")
         {
-            if let Some(name_node) = n.child_by_field_name("name") {
-                return Some(
-                    name_node
-                        .utf8_text(source.as_bytes())
-                        .unwrap_or("")
-                        .to_string(),
-                );
-            }
+            return Some(
+                name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or("")
+                    .to_string(),
+            );
         }
         current = n.parent();
     }
@@ -419,10 +419,10 @@ fn collect_calls(graph: &mut CallGraph, source: &str, node: Node) {
         let enclosing = graph
             .function_id(&lookup)
             .or_else(|| graph.function_id(&method_name));
-        if let Some(caller) = enclosing {
-            if let Some(body) = node.child_by_field_name("body") {
-                scan_calls_in_body(graph, source, caller, body);
-            }
+        if let Some(caller) = enclosing
+            && let Some(body) = node.child_by_field_name("body")
+        {
+            scan_calls_in_body(graph, source, caller, body);
         }
         // Descend so nested methods (lambdas, local classes) register too.
         let mut cursor = node.walk();
@@ -533,7 +533,7 @@ fn resolve_java_invocation(node: Node, source: &str) -> String {
 /// skeleton; type/field-sensitive resolution is a later slice of #598.
 fn resolve_callee_name(function_node: Node, source: &str) -> String {
     let text = function_node.utf8_text(source.as_bytes()).unwrap_or("");
-    text.rsplit(|c| c == ':' || c == '.')
+    text.rsplit([':', '.'])
         .next()
         .unwrap_or("")
         .trim()
@@ -550,10 +550,10 @@ fn collect_java_files(dir: &Path, out: &mut Vec<(String, String)>) {
         let path = entry.path();
         if path.is_dir() {
             collect_java_files(&path, out);
-        } else if path.extension().map(|e| e == "java").unwrap_or(false) {
-            if let Ok(text) = std::fs::read_to_string(&path) {
-                out.push((path.to_string_lossy().to_string(), text));
-            }
+        } else if path.extension().map(|e| e == "java").unwrap_or(false)
+            && let Ok(text) = std::fs::read_to_string(&path)
+        {
+            out.push((path.to_string_lossy().to_string(), text));
         }
     }
 }

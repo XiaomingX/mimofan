@@ -1,4 +1,4 @@
-use mimofan_staticanalysis::knowledge::{load_kb_dir, KnowledgeBase};
+use mimofan_staticanalysis::knowledge::{KnowledgeBase, load_kb_dir};
 
 const KB: &str = r#"
 gadgets:

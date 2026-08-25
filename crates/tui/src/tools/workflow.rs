@@ -475,7 +475,7 @@ impl<E: NodeExecutor> WorkflowEngine<E> {
         executor: Arc<E>,
         workspace: PathBuf,
     ) -> Result<Self, ToolError> {
-        let max_parallel = 4usize.max(1);
+        let max_parallel = 4usize;
         let stall_timeout = Duration::from_millis(300_000);
         Ok(Self {
             spec: WorkflowSpec {
@@ -1047,4 +1047,3 @@ impl WorkflowTool {
         ))
     }
 }
-

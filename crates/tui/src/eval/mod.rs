@@ -427,7 +427,11 @@ impl EvalHarness {
             // loop did not fully succeed, so record `failed` instead of
             // `completed`. This keeps the trajectory's exit status honest for
             // downstream labeling/analysis.
-            let exit_status = if tool_errors == 0 { "completed" } else { "failed" };
+            let exit_status = if tool_errors == 0 {
+                "completed"
+            } else {
+                "failed"
+            };
             if let Some(sink) = trajectory.as_ref() {
                 let _ = sink.emit(&SessionEvent {
                     kind: SessionEventKind::SessionEnd,
@@ -896,7 +900,10 @@ mod tests {
         let poc_json: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&poc).expect("read run_poc.json"))
                 .expect("valid json");
-        assert!(poc_json.get("realized").is_some(), "run_poc.json should carry realized");
+        assert!(
+            poc_json.get("realized").is_some(),
+            "run_poc.json should carry realized"
+        );
 
         let chain = task_dir.join("gadget_chain.json");
         assert!(chain.exists(), "gadget_chain.json should be written");
@@ -924,8 +931,7 @@ mod tests {
         assert!(path.exists(), "trajectory.jsonl should be written");
 
         // Replay the log and assert it is non-empty and captures the key events.
-        let events =
-            crate::core::engine::trace::read_session(&path);
+        let events = crate::core::engine::trace::read_session(&path);
         assert!(
             !events.is_empty(),
             "trajectory should contain at least one event"

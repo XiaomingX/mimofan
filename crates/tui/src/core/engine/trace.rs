@@ -250,15 +250,12 @@ impl SessionEventSink {
         let mut to_write = ev.clone();
         if let Some(result) = to_write.tool_result.as_mut()
             && let Some(content) = result.get_mut("content")
+            && let Some(original) = content.as_str()
+            && original.chars().count() > MAX_TOOL_OUTPUT_CHARS
         {
-            if let Some(original) = content.as_str()
-                && original.chars().count() > MAX_TOOL_OUTPUT_CHARS
-            {
-                let truncated: String =
-                    original.chars().take(MAX_TOOL_OUTPUT_CHARS).collect();
-                *content = serde_json::Value::String(format!("{truncated}…"));
-                to_write.truncated = Some(true);
-            }
+            let truncated: String = original.chars().take(MAX_TOOL_OUTPUT_CHARS).collect();
+            *content = serde_json::Value::String(format!("{truncated}…"));
+            to_write.truncated = Some(true);
         }
         // Privacy-first default: when `redact` is set, hash sensitive payloads
         // (tool input, tool-result content, assistant text) so the on-disk
@@ -271,10 +268,9 @@ impl SessionEventSink {
             }
             if let Some(result) = to_write.tool_result.as_mut()
                 && let Some(content) = result.get_mut("content")
+                && let Some(s) = content.as_str()
             {
-                if let Some(s) = content.as_str() {
-                    *content = serde_json::Value::String(redact_hash(s.as_bytes()));
-                }
+                *content = serde_json::Value::String(redact_hash(s.as_bytes()));
             }
             if let Some(text) = to_write.text.as_mut() {
                 *text = redact_hash(text.as_bytes());
@@ -649,8 +645,14 @@ mod tests {
         // Raw secrets must never appear.
         let raw = serde_json::to_string(written).unwrap();
         assert!(!raw.contains("SECRET_INPUT"), "tool input must be hashed");
-        assert!(!raw.contains("SECRET_OUTPUT"), "tool result content must be hashed");
-        assert!(!raw.contains("SECRET_PROMPT_TEXT"), "assistant text must be hashed");
+        assert!(
+            !raw.contains("SECRET_OUTPUT"),
+            "tool result content must be hashed"
+        );
+        assert!(
+            !raw.contains("SECRET_PROMPT_TEXT"),
+            "assistant text must be hashed"
+        );
 
         // Tool input replaced by a redacted marker.
         let input = written.tool_input.as_ref().expect("tool_input present");
@@ -706,7 +708,10 @@ mod tests {
         sink.emit(&ev).expect("emit should succeed");
 
         let raw = std::fs::read_to_string(&path).unwrap();
-        assert!(raw.contains("raw"), "open_at must not redact (raw payload kept)");
+        assert!(
+            raw.contains("raw"),
+            "open_at must not redact (raw payload kept)"
+        );
         assert!(!raw.contains("sha256:"), "open_at must not hash payloads");
     }
 
@@ -718,7 +723,8 @@ mod tests {
         std::fs::create_dir_all(sink_path.parent().unwrap()).unwrap();
 
         // A line with ONLY the old fields — no new optional fields present.
-        let old_line = r#"{"kind":"AssistantText","turn":1,"ts":"2026-08-15T12:00:00Z","text":"hello"}"#;
+        let old_line =
+            r#"{"kind":"AssistantText","turn":1,"ts":"2026-08-15T12:00:00Z","text":"hello"}"#;
         let mut f = OpenOptions::new()
             .create(true)
             .append(true)

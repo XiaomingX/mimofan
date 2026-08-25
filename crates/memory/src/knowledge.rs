@@ -1,4 +1,7 @@
 //! Knowledge agent and corpus functionality
+//!
+//! 当前仅被 memory crate 内部使用（`codebase.rs` 引用 `CorpusSource`），未被 tui
+//! 运行时直接调用。为 memory crate 的独立知识库能力，供未来接入或重构复用。
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

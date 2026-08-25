@@ -32,6 +32,7 @@ use crate::lsp::LspManager;
 use crate::network_policy::NetworkPolicyDecider;
 use crate::rlm::session::SessionObjectSnapshot;
 use crate::rlm::session::{SharedRlmSessionStore, new_shared_rlm_session_store};
+use crate::runtime_threads::ThreadRequestSender;
 use crate::sandbox::backend::SandboxBackend;
 use crate::tools::handle::{SharedHandleStore, new_shared_handle_store};
 use crate::tools::shell::{SharedShellManager, new_shared_shell_manager};
@@ -190,12 +191,7 @@ pub struct RuntimeToolServices {
     /// Channel for tools to spawn sibling sessions (issue #697 `create_sub_session`).
     /// The engine consumes `(ThreadRequest, reply)` pairs and answers via the
     /// oneshot sender. `None` outside the live engine (test contexts cannot spawn).
-    pub thread_request_tx: Option<
-        UnboundedSender<(
-            ThreadRequest,
-            oneshot::Sender<Result<ThreadResponse, String>>,
-        )>,
-    >,
+    pub thread_request_tx: Option<ThreadRequestSender>,
     /// Channel for tools to append durable artifact records to the session index
     /// (issue #697 `record_artifact`). The engine consumes records and persists
     /// them alongside `app.session_artifacts`. `None` when no session index is
@@ -342,7 +338,9 @@ fn prior_read_error_with(
     }
     let trailer = Value::Object(fields);
     let code = match reason {
-        PriorReadViolation::NeverRead | PriorReadViolation::UnreadLines | PriorReadViolation::Unverifiable => {
+        PriorReadViolation::NeverRead
+        | PriorReadViolation::UnreadLines
+        | PriorReadViolation::Unverifiable => {
             crate::error_taxonomy::tool_codes::ToolCode::EditRequiresPriorRead
         }
         PriorReadViolation::Stale => {
@@ -1028,32 +1026,30 @@ impl ToolContext {
 /// checks. `modified` degrades to `None` and the byte hash to its hex form
 /// so edit_core stays free of `SystemTime`/`sha2`.
 fn to_edit_core_identity(id: &FileIdentity) -> EditCoreFileIdentity {
-        EditCoreFileIdentity {
-            len: id.len,
-            modified: id.modified.and_then(|t| {
-                t.duration_since(std::time::UNIX_EPOCH)
-                    .ok()
-                    .map(|d| d.as_secs())
-            }),
-            content_hash: id.content_hash.map(|h| {
-                h.iter()
-                    .map(|b| format!("{b:02x}"))
-                    .collect::<String>()
-            }),
-        }
+    EditCoreFileIdentity {
+        len: id.len,
+        modified: id.modified.and_then(|t| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .ok()
+                .map(|d| d.as_secs())
+        }),
+        content_hash: id
+            .content_hash
+            .map(|h| h.iter().map(|b| format!("{b:02x}")).collect::<String>()),
     }
+}
 
 impl ReadState for ToolContext {
     fn current_identity(&self, path: &Path) -> Option<EditCoreFileIdentity> {
-        file_identity(path)
-            .ok()
-            .as_ref()
-            .map(to_edit_core_identity)
+        file_identity(path).ok().as_ref().map(to_edit_core_identity)
     }
 
     fn prior_identity(&self, path: &Path) -> Option<EditCoreFileIdentity> {
         let tracker = self.file_read_tracker.lock().ok()?;
-        tracker.reads.get(path).map(|s| to_edit_core_identity(&s.identity))
+        tracker
+            .reads
+            .get(path)
+            .map(|s| to_edit_core_identity(&s.identity))
     }
 
     fn covers(&self, path: &Path, start: usize, end: usize) -> bool {

@@ -5,8 +5,7 @@
 
 use mimofan_edit_core::{
     find_all_lines_by_anchor, find_line_by_anchor, leading_whitespace_fuzzy_matches,
-    line_content_hash, line_span_for_byte_range, match_byte_ranges,
-    punctuation_normalized_matches,
+    line_content_hash, line_span_for_byte_range, match_byte_ranges, punctuation_normalized_matches,
 };
 
 use super::diff_format::make_unified_diff;
@@ -894,12 +893,15 @@ impl ToolSpec for EditFileTool {
                     (updated, 1, Some("anchor"))
                 }
                 _ => {
-                    return Err(err_with_code(format!(
-                        "Anchor '{}' is non-unique: matched {} locations in {}. Recovery: use a different anchor or provide surrounding context with search mode.",
-                        anchor,
-                        matches.len(),
-                        file_path.display(),
-                    ), ToolCode::AmbiguousMatch));
+                    return Err(err_with_code(
+                        format!(
+                            "Anchor '{}' is non-unique: matched {} locations in {}. Recovery: use a different anchor or provide surrounding context with search mode.",
+                            anchor,
+                            matches.len(),
+                            file_path.display(),
+                        ),
+                        ToolCode::AmbiguousMatch,
+                    ));
                 }
             }
         } else {
@@ -946,29 +948,38 @@ impl ToolSpec for EditFileTool {
                                 (updated, 1, Some("punctuation"))
                             }
                             _ => {
-                                return Err(err_with_code(format!(
-                                    "edit_file search is non-unique after punctuation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
-                                    punct_matches.len(),
-                                    file_path.display()
-                                ), ToolCode::AmbiguousMatch));
+                                return Err(err_with_code(
+                                    format!(
+                                        "edit_file search is non-unique after punctuation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
+                                        punct_matches.len(),
+                                        file_path.display()
+                                    ),
+                                    ToolCode::AmbiguousMatch,
+                                ));
                             }
                         }
                     }
                     _ => {
-                        return Err(err_with_code(format!(
-                            "edit_file search is non-unique after indentation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
-                            indent_matches.len(),
-                            file_path.display()
-                        ), ToolCode::AmbiguousMatch));
+                        return Err(err_with_code(
+                            format!(
+                                "edit_file search is non-unique after indentation normalization: matched {} locations in {}. Recovery: call read_file with path=\"{path_str}\" and retry with surrounding lines that make the search unique.",
+                                indent_matches.len(),
+                                file_path.display()
+                            ),
+                            ToolCode::AmbiguousMatch,
+                        ));
                     }
                 }
             } else if count > 1 && !replace_all {
-                return Err(err_with_code(format!(
-                    "edit_file search is non-unique: matched {count} locations in {}. \
+                return Err(err_with_code(
+                    format!(
+                        "edit_file search is non-unique: matched {count} locations in {}. \
                      Recovery: either retry with surrounding lines that make the search match exactly once, \
                      or pass replace_all=true to replace all {count} occurrences in a single call.",
-                    file_path.display()
-                ), ToolCode::AmbiguousMatch));
+                        file_path.display()
+                    ),
+                    ToolCode::AmbiguousMatch,
+                ));
             } else {
                 // Every match site must have been read, otherwise a
                 // replace_all could rewrite regions the model never saw.
@@ -1170,4 +1181,3 @@ fn list_dir_timeout(timeout: Duration) -> ToolError {
         seconds: timeout.as_secs().max(1),
     }
 }
-

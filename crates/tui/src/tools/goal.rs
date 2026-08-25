@@ -76,11 +76,14 @@ pub fn persist_goal_queue(queue: &SharedGoalQueue, base_dir: Option<&Path>) {
         }
     };
     let path = goal_queue_persist_path(base_dir);
-    if let Some(parent) = path.parent() {
-        if let Err(err) = std::fs::create_dir_all(parent) {
-            tracing::warn!("failed to create goal queue dir {}: {err}", parent.display());
-            return;
-        }
+    if let Some(parent) = path.parent()
+        && let Err(err) = std::fs::create_dir_all(parent)
+    {
+        tracing::warn!(
+            "failed to create goal queue dir {}: {err}",
+            parent.display()
+        );
+        return;
     }
     if let Err(err) = crate::utils::write_atomic(&path, json.as_bytes()) {
         tracing::warn!("failed to persist goal queue to {}: {err}", path.display());
@@ -110,11 +113,7 @@ pub fn load_goal_queue_fallback(base_dir: Option<&Path>) -> Option<GoalQueue> {
         }
     };
     let queue = GoalQueue::from_snapshot(&snapshot);
-    if queue.is_empty() {
-        None
-    } else {
-        Some(queue)
-    }
+    if queue.is_empty() { None } else { Some(queue) }
 }
 
 /// Render the continuation prompt injected when a goal is still active after a
@@ -133,7 +132,6 @@ pub fn render_continuation_prompt(
         GOAL_CONTINUATION_PROMPT,
     )
 }
-
 
 fn lock_goal_queue(
     state: &SharedGoalQueue,

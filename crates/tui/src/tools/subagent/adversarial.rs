@@ -303,7 +303,7 @@ pub async fn adversarial_verify(
 
     let config = AdversarialVerifyConfig::default();
     resolver
-        .resolve(&runtime, manager, claim, evidence, config)
+        .resolve(runtime, manager, claim, evidence, config)
         .await
 }
 

@@ -5,8 +5,8 @@
 mod symbol_index_tests {
     use std::path::Path;
 
-    use mimofan_staticanalysis::index::SymbolIndex;
     use mimofan_staticanalysis::Language;
+    use mimofan_staticanalysis::index::SymbolIndex;
 
     const RUST_SRC: &str = r#"
 use std::process;
@@ -26,8 +26,7 @@ fn leaf() {}
     #[test]
     fn index_and_query_roundtrip() {
         let mut idx = SymbolIndex::open(Path::new(":memory:")).expect("open");
-        let tmp =
-            std::env::temp_dir().join(format!("mimofan_idx_test_{}.rs", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("mimofan_idx_test_{}.rs", std::process::id()));
         std::fs::write(&tmp, RUST_SRC).expect("write");
 
         let changed = idx

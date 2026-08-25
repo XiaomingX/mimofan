@@ -142,10 +142,10 @@ impl Vfs for StdFs {
     }
 
     fn write_text(&self, path: &Path, content: &str) -> IoResult<()> {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)?;
         }
         std::fs::write(path, content)
     }
@@ -156,10 +156,10 @@ impl Vfs for StdFs {
         expected_old_content: &str,
         new_content: &str,
     ) -> Result<(), VfsError> {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)?;
         }
         // 读取磁盘当前内容；不存在视为空串。
         let current = match std::fs::read_to_string(path) {

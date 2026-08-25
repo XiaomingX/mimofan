@@ -274,28 +274,27 @@ fn enclosing_function_name(node: Node, source: &str) -> String {
     let mut current = node.parent();
     let mut method = None;
     while let Some(n) = current {
-        if n.kind() == "method_declaration" {
-            if let Some(name_node) = n.child_by_field_name("name") {
-                method = Some(
-                    name_node
-                        .utf8_text(source.as_bytes())
-                        .unwrap_or("")
-                        .to_string(),
-                );
-            }
-            // Keep walking up to find the enclosing class for the prefix.
-        }
-        if n.kind() == "class_declaration"
-            || n.kind() == "enum_declaration"
-            || n.kind() == "interface_declaration"
+        if n.kind() == "method_declaration"
+            && let Some(name_node) = n.child_by_field_name("name")
         {
-            if let (Some(m), Some(name_node)) = (&method, n.child_by_field_name("name")) {
-                let cls = name_node
+            method = Some(
+                name_node
                     .utf8_text(source.as_bytes())
                     .unwrap_or("")
-                    .to_string();
-                return format!("{cls}.{m}");
-            }
+                    .to_string(),
+            );
+        }
+        // Keep walking up to find the enclosing class for the prefix.
+        if (n.kind() == "class_declaration"
+            || n.kind() == "enum_declaration"
+            || n.kind() == "interface_declaration")
+            && let (Some(m), Some(name_node)) = (&method, n.child_by_field_name("name"))
+        {
+            let cls = name_node
+                .utf8_text(source.as_bytes())
+                .unwrap_or("")
+                .to_string();
+            return format!("{cls}.{m}");
         }
         current = n.parent();
     }
@@ -418,10 +417,10 @@ fn bfs_to_sink(
     start: FuncId,
     sink_hits_by_func: &HashMap<String, Vec<(String, SourceLocation)>>,
 ) -> Option<(String, Vec<String>)> {
-    if let Some(name) = graph.function_name(start) {
-        if sink_hits_by_func.contains_key(name) {
-            return Some((name.to_string(), vec![name.to_string()]));
-        }
+    if let Some(name) = graph.function_name(start)
+        && sink_hits_by_func.contains_key(name)
+    {
+        return Some((name.to_string(), vec![name.to_string()]));
     }
     let mut visited = HashSet::new();
     let mut parent: HashMap<FuncId, FuncId> = HashMap::new();
@@ -429,27 +428,27 @@ fn bfs_to_sink(
     queue.push_back(start);
     visited.insert(start);
     while let Some(cur) = queue.pop_front() {
-        if let Some(name) = graph.function_name(cur) {
-            if sink_hits_by_func.contains_key(name) {
-                // Reconstruct path.
-                let mut path = vec![name.to_string()];
-                let mut p = cur;
-                while let Some(&prev) = parent.get(&p) {
-                    if let Some(pn) = graph.function_name(prev) {
-                        path.push(pn.to_string());
-                    }
-                    p = prev;
+        if let Some(name) = graph.function_name(cur)
+            && sink_hits_by_func.contains_key(name)
+        {
+            // Reconstruct path.
+            let mut path = vec![name.to_string()];
+            let mut p = cur;
+            while let Some(&prev) = parent.get(&p) {
+                if let Some(pn) = graph.function_name(prev) {
+                    path.push(pn.to_string());
                 }
-                path.reverse();
-                return Some((name.to_string(), path));
+                p = prev;
             }
+            path.reverse();
+            return Some((name.to_string(), path));
         }
         for edge in graph.calls_of(cur) {
-            if let Some(callee) = edge.callee {
-                if visited.insert(callee) {
-                    parent.insert(callee, cur);
-                    queue.push_back(callee);
-                }
+            if let Some(callee) = edge.callee
+                && visited.insert(callee)
+            {
+                parent.insert(callee, cur);
+                queue.push_back(callee);
             }
         }
     }
@@ -467,10 +466,10 @@ fn collect_java_files(dir: &Path, out: &mut Vec<(String, String)>) {
         let path = entry.path();
         if path.is_dir() {
             collect_java_files(&path, out);
-        } else if path.extension().map(|e| e == "java").unwrap_or(false) {
-            if let Ok(text) = std::fs::read_to_string(&path) {
-                out.push((path.to_string_lossy().to_string(), text));
-            }
+        } else if path.extension().map(|e| e == "java").unwrap_or(false)
+            && let Ok(text) = std::fs::read_to_string(&path)
+        {
+            out.push((path.to_string_lossy().to_string(), text));
         }
     }
 }

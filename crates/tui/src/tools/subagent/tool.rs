@@ -164,6 +164,11 @@ impl ToolSpec for AgentTool {
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "For action=team: optional explicit subtasks to delegate. When omitted, the leader treats the whole prompt as one overall task."
+                },
+                "allowed_tools": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "For action=start: optional allow-list of tool names the child agent may use, e.g. [\"Read\", \"Write\", \"Bash\"]. Omit or pass an empty array to inherit the parent's full toolset. A custom agent definition with its own tools overrides this field."
                 }
             },
             "required": []
@@ -241,7 +246,12 @@ impl AgentTool {
         }
         let arena = crate::subagent_arena::Arena::with_spawn_runner();
         let outcome = arena
-            .run(&prompt, &contestants, self.manager.clone(), self.runtime.clone())
+            .run(
+                &prompt,
+                &contestants,
+                self.manager.clone(),
+                self.runtime.clone(),
+            )
             .await;
         let comparison = outcome.compare();
         let mut tool_result = ToolResult::json(&comparison)
@@ -278,8 +288,10 @@ impl AgentTool {
         let tasks = leader.decompose(&objective, &subtasks);
         // Map every assignee to a default contestant config (same family as the
         // parent); the production runner forwards each to `spawn_subagent_from_input`.
-        let mut contestants: std::collections::HashMap<String, crate::subagent_arena::ContestantConfig> =
-            std::collections::HashMap::new();
+        let mut contestants: std::collections::HashMap<
+            String,
+            crate::subagent_arena::ContestantConfig,
+        > = std::collections::HashMap::new();
         for task in &tasks {
             if !contestants.contains_key(&task.assignee) {
                 contestants.insert(
@@ -293,10 +305,15 @@ impl AgentTool {
             }
         }
         let outcome = leader
-            .dispatch(&tasks, &contestants, self.manager.clone(), self.runtime.clone())
+            .dispatch(
+                &tasks,
+                &contestants,
+                self.manager.clone(),
+                self.runtime.clone(),
+            )
             .await;
-        let mut tool_result = ToolResult::json(&outcome)
-            .map_err(|e| ToolError::execution_failed(e.to_string()))?;
+        let mut tool_result =
+            ToolResult::json(&outcome).map_err(|e| ToolError::execution_failed(e.to_string()))?;
         tool_result.metadata = Some(json!({
             "action": "team",
             "task_count": tasks.len(),
@@ -317,7 +334,9 @@ fn agent_required_str(input: &Value, key: &str) -> Result<String, ToolError> {
 /// #871 — parse the `models` array of `"model@provider"` (or `"model/provider"`)
 /// strings into Arena contestants. Falls back to `default` provider when no
 /// separator is present.
-fn parse_contestants(input: &Value) -> Result<Vec<crate::subagent_arena::ContestantConfig>, ToolError> {
+fn parse_contestants(
+    input: &Value,
+) -> Result<Vec<crate::subagent_arena::ContestantConfig>, ToolError> {
     let Some(models) = input.get("models").and_then(|v| v.as_array()) else {
         return Ok(Vec::new());
     };

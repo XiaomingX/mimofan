@@ -83,16 +83,28 @@ mod tests {
             assert!(code.is_retryable(), "{code} must be retryable");
             // The string must be stable and non-empty so downstream retries
             // key on it deterministically.
-            assert!(!code.as_code_str().is_empty(), "{code:?} needs a code string");
+            assert!(
+                !code.as_code_str().is_empty(),
+                "{code:?} needs a code string"
+            );
         }
     }
 
     #[test]
     fn code_strings_match_the_wire_prefix_contract() {
-        assert_eq!(ToolCode::EditRequiresPriorRead.as_code_str(), "EDIT_REQUIRES_PRIOR_READ");
-        assert_eq!(ToolCode::FileChangedSinceRead.as_code_str(), "FILE_CHANGED_SINCE_READ");
+        assert_eq!(
+            ToolCode::EditRequiresPriorRead.as_code_str(),
+            "EDIT_REQUIRES_PRIOR_READ"
+        );
+        assert_eq!(
+            ToolCode::FileChangedSinceRead.as_code_str(),
+            "FILE_CHANGED_SINCE_READ"
+        );
         assert_eq!(ToolCode::AmbiguousMatch.as_code_str(), "AMBIGUOUS_MATCH");
-        assert_eq!(ToolCode::TargetNotRegularFile.as_code_str(), "TARGET_NOT_REGULAR_FILE");
+        assert_eq!(
+            ToolCode::TargetNotRegularFile.as_code_str(),
+            "TARGET_NOT_REGULAR_FILE"
+        );
         assert_eq!(ToolCode::TargetNotFound.as_code_str(), "TARGET_NOT_FOUND");
     }
 

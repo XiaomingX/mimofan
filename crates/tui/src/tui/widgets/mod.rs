@@ -2218,7 +2218,7 @@ fn build_empty_state_lines(app: &App, area: Rect) -> Vec<Line<'static>> {
 
     // Inner content of the welcome card (each line is rendered padded to the
     // card content width so the left/right borders line up).
-    let brand = format!(">_ mimofan");
+    let brand = ">_ mimofan".to_string();
     let version = format!("v{}", env!("CARGO_PKG_VERSION"));
     let slogan = "你的终端 AI 编程伙伴";
     let hints = "输入任务开始 · 用 / 命令 · ↑ 历史";

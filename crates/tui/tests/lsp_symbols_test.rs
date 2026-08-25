@@ -11,12 +11,10 @@ use std::time::Duration;
 use mimofan::lsp::{CallHierarchyTree, CallNode, LspManager, LspSymbol};
 use mimofan::tools::lsp_symbols::{
     LspCallHierarchyTool, LspDocumentSymbolsTool, LspFindReferencesTool, LspGotoDefinitionTool,
-    MAX_CALL_DEPTH, MAX_WAIT_MS, SymbolOut, count_nodes, count_symbols, display_path,
-    node_to_json, resolve_wait, symbol_kind_name,
+    MAX_CALL_DEPTH, MAX_WAIT_MS, SymbolOut, count_nodes, count_symbols, display_path, node_to_json,
+    resolve_wait, symbol_kind_name,
 };
-use mimofan::tools::spec::{
-    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolSpec,
-};
+use mimofan::tools::spec::{ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolSpec};
 use serde_json::{Value, json};
 use tempfile::TempDir;
 

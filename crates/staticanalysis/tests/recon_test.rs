@@ -1,4 +1,4 @@
-use mimofan_staticanalysis::recon::{run, ReconBudget, ReconCapability};
+use mimofan_staticanalysis::recon::{ReconBudget, ReconCapability, run};
 use mimofan_staticanalysis::sarif::SecurityIssue;
 
 struct FakeCap {

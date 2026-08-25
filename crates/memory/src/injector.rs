@@ -1,4 +1,8 @@
 //! Cross-session memory injection
+//!
+//! 当前未被 tui 运行时直接调用：tui 侧记忆注入走 `crate::tui::memory` 的自有路径
+//! （`compose_index_block` + engine 注入）。本模块保留为 memory crate 的独立注入
+//! 能力，供未来接入或重构复用。
 
 use serde::{Deserialize, Serialize};
 use tracing::info;

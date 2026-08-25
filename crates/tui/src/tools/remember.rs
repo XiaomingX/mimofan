@@ -161,12 +161,9 @@ impl ToolSpec for RememberTool {
             RememberAction::Decide => {
                 let id = required_str(&input, "id")?;
                 let note = required_str(&input, "note")?;
-                crate::memory::decision_create(dir, id, "", &category, note)
-                    .map_err(|err| {
-                        ToolError::execution_failed(format!(
-                            "failed to decide `{id}`: {err}"
-                        ))
-                    })?;
+                crate::memory::decision_create(dir, id, "", &category, note).map_err(|err| {
+                    ToolError::execution_failed(format!("failed to decide `{id}`: {err}"))
+                })?;
                 Ok(ToolResult::success(format!(
                     "decided ({id}): {}",
                     note.trim_start_matches('#').trim()
@@ -197,9 +194,7 @@ impl ToolSpec for RememberTool {
                     ToolError::execution_failed(format!("failed to reverse `{id}`: {err}"))
                 })?;
                 if ok {
-                    Ok(ToolResult::success(format!(
-                        "reversed ({id}): {why}"
-                    )))
+                    Ok(ToolResult::success(format!("reversed ({id}): {why}")))
                 } else {
                     Ok(ToolResult::success(format!(
                         "nothing to reverse ({id}): unknown id or already reversed"
@@ -305,7 +300,13 @@ mod tests {
         let ctx = ctx_with_memory(&dir);
         let _res = RememberTool
             .execute(
-                json_action("decide", "architecture", "api-auth", "Use Bearer tokens", ""),
+                json_action(
+                    "decide",
+                    "architecture",
+                    "api-auth",
+                    "Use Bearer tokens",
+                    "",
+                ),
                 &ctx,
             )
             .await
@@ -322,10 +323,7 @@ mod tests {
         let dir = tmp_memory_dir();
         let ctx = ctx_with_memory(&dir);
         RememberTool
-            .execute(
-                json_action("decide", "architecture", "d1", "v1", ""),
-                &ctx,
-            )
+            .execute(json_action("decide", "architecture", "d1", "v1", ""), &ctx)
             .await
             .unwrap();
         let _res = RememberTool
@@ -339,7 +337,10 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].current, "v2");
         assert_eq!(entries[0].history.len(), 2);
-        assert_eq!(entries[0].history[1].kind, memory::DecisionEventKind::Revision);
+        assert_eq!(
+            entries[0].history[1].kind,
+            memory::DecisionEventKind::Revision
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -362,7 +363,10 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert!(entries[0].reversed);
         assert_eq!(entries[0].history.len(), 2);
-        assert_eq!(entries[0].history[1].kind, memory::DecisionEventKind::Reversal);
+        assert_eq!(
+            entries[0].history[1].kind,
+            memory::DecisionEventKind::Reversal
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

@@ -156,6 +156,12 @@ pub struct ContextConfig {
     /// prefix. Default: true; set `[context] project_pack = false` to disable.
     #[serde(default)]
     pub project_pack: Option<bool>,
+    /// Inject a bounded `<workspace_git_status>` summary (branch + change
+    /// counts, no per-file lines) into the model system prompt (#880-7).
+    /// Default: false — keeps the stable prefix byte-stable; opting in costs
+    /// a small tail re-encode whenever the working tree counts change.
+    #[serde(default)]
+    pub git_status_in_prompt: Option<bool>,
     /// Verbatim window: last N turns never summarized. Default: 16.
     #[serde(default)]
     pub verbatim_window_turns: Option<usize>,
@@ -1475,16 +1481,13 @@ impl Config {
             .collect()
     }
 
-    /// Whether the user-memory feature is enabled. The default is **off**
-    /// to preserve zero-overhead behavior for users who haven't opted in.
-    /// Flips to `true` when `[memory] enabled = true` in `config.toml` or
-    /// `MIMOFAN_MEMORY=on` is set in the environment.
+    /// Whether the user-memory feature is enabled. The default is **on** so
+    /// file memory works out of the box. Users can opt out explicitly with
+    /// `[memory] enabled = false` in `config.toml` or `MIMOFAN_MEMORY=off` in
+    /// the environment.
     #[must_use]
     pub fn memory_enabled(&self) -> bool {
-        self.memory
-            .as_ref()
-            .and_then(|m| m.enabled)
-            .unwrap_or(false)
+        self.memory.as_ref().and_then(|m| m.enabled).unwrap_or(true)
     }
 
     /// Return the configured vision model config, inheriting api_key from main config.
@@ -1500,6 +1503,13 @@ impl Config {
     #[must_use]
     pub fn project_context_pack_enabled(&self) -> bool {
         self.context.project_pack.unwrap_or(true)
+    }
+
+    /// Whether to inject a git-status summary block into the model system
+    /// prompt. Default: false (opt-in, byte-stable by default).
+    #[must_use]
+    pub fn git_status_in_prompt(&self) -> bool {
+        self.context.git_status_in_prompt.unwrap_or(false)
     }
 
     /// Return whether shell execution is allowed. Defaults to `false`: shell
@@ -2185,6 +2195,10 @@ fn merge_config(base: Config, override_cfg: Config) -> Config {
                 .context
                 .project_pack
                 .or(base.context.project_pack),
+            git_status_in_prompt: override_cfg
+                .context
+                .git_status_in_prompt
+                .or(base.context.git_status_in_prompt),
             verbatim_window_turns: override_cfg
                 .context
                 .verbatim_window_turns

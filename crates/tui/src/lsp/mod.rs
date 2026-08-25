@@ -756,4 +756,3 @@ fn uri_from_path_string(path: &Path) -> String {
         format!("file:///{}", s.trim_start_matches('/'))
     }
 }
-

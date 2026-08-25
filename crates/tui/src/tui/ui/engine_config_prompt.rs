@@ -16,6 +16,7 @@ pub(crate) fn build_engine_config(app: &App, config: &Config) -> EngineConfig {
         skills_scan_mimofan_only: app.skills_scan_mimofan_only,
         instructions: configured_instruction_sources(config),
         project_context_pack_enabled: config.project_context_pack_enabled(),
+        git_status_in_prompt: config.git_status_in_prompt(),
         translation_enabled: app.translation_enabled,
         show_thinking: app.show_thinking,
         verbosity: app.verbosity.clone(),

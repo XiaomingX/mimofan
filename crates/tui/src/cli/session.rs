@@ -21,7 +21,6 @@ pub(crate) fn list_sessions(limit: usize, search: Option<String>) -> Result<()> 
         manager
             .search_sessions_fulltext(&query)?
             .into_iter()
-            .map(Into::into)
             .collect()
     } else {
         manager

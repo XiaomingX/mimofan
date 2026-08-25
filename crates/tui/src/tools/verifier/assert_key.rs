@@ -154,10 +154,10 @@ pub fn verify_output(assert: &AssertKey, output: &Value) -> Result<(), AssertErr
 
     let mut present = Vec::new();
     for key in &assert.forbid {
-        if let Some(value) = resolve(output, key) {
-            if is_present(value) {
-                present.push(key.clone());
-            }
+        if let Some(value) = resolve(output, key)
+            && is_present(value)
+        {
+            present.push(key.clone());
         }
     }
 

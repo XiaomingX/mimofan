@@ -91,9 +91,9 @@ fn join_reader(reader: Option<JoinHandle<String>>) -> String {
 }
 
 /// Spawn a stdin-writer thread that delivers `bytes` to the child's stdin.
-fn spawn_stdin_writer(mut stdin: std::process::ChildStdin, mut bytes: Vec<u8>) -> JoinHandle<()> {
+fn spawn_stdin_writer(mut stdin: std::process::ChildStdin, bytes: Vec<u8>) -> JoinHandle<()> {
     std::thread::spawn(move || {
-        let _ = stdin.write_all(&mut bytes);
+        let _ = stdin.write_all(&bytes);
     })
 }
 
@@ -262,7 +262,10 @@ mod tests {
     fn build_shell_command_is_platform_wrapper() {
         let cmd = build_shell_command("echo hi");
         // Assert the command string is preserved somewhere in argv.
-        let argv: Vec<String> = cmd.get_args().map(|s| s.to_string_lossy().into_owned()).collect();
+        let argv: Vec<String> = cmd
+            .get_args()
+            .map(|s| s.to_string_lossy().into_owned())
+            .collect();
         #[cfg(not(windows))]
         {
             assert_eq!(argv[0], "-c");
@@ -294,7 +297,11 @@ mod tests {
             Duration::from_secs(5),
         );
         assert!(res.success, "expected success, got {res:?}");
-        assert!(res.stdout.contains("session_start"), "stdout={}", res.stdout);
+        assert!(
+            res.stdout.contains("session_start"),
+            "stdout={}",
+            res.stdout
+        );
     }
 
     #[test]

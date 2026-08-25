@@ -245,7 +245,11 @@ fn run_solver(
     };
     // Apply the cross-unit seeds.
     for (call_id, positions) in arg_seed {
-        solver.arg_taint.entry(*call_id).or_default().extend(positions.iter().copied());
+        solver
+            .arg_taint
+            .entry(*call_id)
+            .or_default()
+            .extend(positions.iter().copied());
     }
     for (call_id, tag) in ret_seed {
         let e = solver.ret_taint.entry(*call_id).or_default();

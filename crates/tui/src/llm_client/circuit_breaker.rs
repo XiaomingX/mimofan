@@ -85,12 +85,10 @@ impl CircuitBreaker {
     pub fn can_attempt(&self, now: Instant) -> bool {
         match self.state {
             CircuitBreakerState::Closed | CircuitBreakerState::HalfOpen => true,
-            CircuitBreakerState::Open => match self.opened_at {
-                Some(opened_at) if now.saturating_duration_since(opened_at) >= self.cooldown => {
-                    true
-                }
-                _ => false,
-            },
+            CircuitBreakerState::Open => matches!(
+                self.opened_at,
+                Some(opened_at) if now.saturating_duration_since(opened_at) >= self.cooldown
+            ),
         }
     }
 
@@ -135,12 +133,11 @@ impl CircuitBreaker {
     /// Callers should invoke this before deciding whether to attempt a request,
     /// typically right before calling [`CircuitBreaker::can_attempt`].
     pub fn tick(&mut self, now: Instant) -> CircuitBreakerState {
-        if self.state == CircuitBreakerState::Open {
-            if let Some(opened_at) = self.opened_at {
-                if now.saturating_duration_since(opened_at) >= self.cooldown {
-                    self.state = CircuitBreakerState::HalfOpen;
-                }
-            }
+        if self.state == CircuitBreakerState::Open
+            && let Some(opened_at) = self.opened_at
+            && now.saturating_duration_since(opened_at) >= self.cooldown
+        {
+            self.state = CircuitBreakerState::HalfOpen;
         }
         self.state
     }

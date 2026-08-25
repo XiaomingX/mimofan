@@ -108,6 +108,14 @@ struct TurnSeed {
     items: Vec<SeedItem>,
 }
 
+/// Sender for the `create_sub_session` thread-request channel (#697): a
+/// request plus a oneshot reply channel. Shared by the runtime thread manager
+/// and [`crate::tools::spec::RuntimeToolServices`].
+pub type ThreadRequestSender = UnboundedSender<(
+    ThreadRequest,
+    oneshot::Sender<Result<ThreadResponse, String>>,
+)>;
+
 /// Manages active engine threads, lifecycle, and event persistence.
 ///
 /// # Lock ordering invariant
@@ -139,12 +147,7 @@ pub struct RuntimeThreadManager {
     /// When `Some`, model-visible tools can spawn sibling sessions via the
     /// core `Runtime`. `None` in contexts without a live `Runtime`
     /// (e.g. standalone task manager) — `create_sub_session` fails closed there.
-    thread_request_tx: Option<
-        UnboundedSender<(
-            ThreadRequest,
-            oneshot::Sender<Result<ThreadResponse, String>>,
-        )>,
-    >,
+    thread_request_tx: Option<ThreadRequestSender>,
     /// Sender side of the `record_artifact` session-index channel (#697).
     /// Records are appended to a per-session artifact index on disk so they
     /// survive resume. `None` disables artifact indexing.
@@ -1739,6 +1742,7 @@ impl RuntimeThreadManager {
                 .map(Into::into)
                 .collect(),
             project_context_pack_enabled: self.config.project_context_pack_enabled(),
+            git_status_in_prompt: self.config.git_status_in_prompt(),
             translation_enabled: false,
             show_thinking: settings.show_thinking,
             max_steps: 100,

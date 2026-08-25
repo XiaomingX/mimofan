@@ -467,14 +467,23 @@ async fn write_file_detects_same_length_change_after_read() {
 
 #[test]
 fn err_with_code_prefixes_the_stable_code_and_keeps_prose() {
-    let err = err_with_code("boom", mimofan::error_taxonomy::tool_codes::ToolCode::AmbiguousMatch);
+    let err = err_with_code(
+        "boom",
+        mimofan::error_taxonomy::tool_codes::ToolCode::AmbiguousMatch,
+    );
     let msg = err.to_string();
     assert!(
         msg.contains("[AMBIGUOUS_MATCH]"),
         "code must be present in the message, got: {msg}"
     );
-    assert!(msg.contains("boom"), "original prose must be preserved: {msg}");
-    assert_eq!(tool_code_from_error(&err), Some(mimofan::error_taxonomy::tool_codes::ToolCode::AmbiguousMatch));
+    assert!(
+        msg.contains("boom"),
+        "original prose must be preserved: {msg}"
+    );
+    assert_eq!(
+        tool_code_from_error(&err),
+        Some(mimofan::error_taxonomy::tool_codes::ToolCode::AmbiguousMatch)
+    );
 }
 
 #[test]
@@ -555,8 +564,5 @@ async fn reading_a_missing_path_is_rejected_with_target_not_found() {
     let err = read(&ctx, json!({ "path": "does_not_exist.txt" }))
         .await
         .expect_err("a missing file must be refused");
-    assert_eq!(
-        tool_code_from_error(&err),
-        Some(ToolCode::TargetNotFound)
-    );
+    assert_eq!(tool_code_from_error(&err), Some(ToolCode::TargetNotFound));
 }

@@ -122,6 +122,44 @@ fn collect(workspace: &Path) -> Option<String> {
     Some(format!("{branch} | {status}"))
 }
 
+/// Build a bounded, model-facing summary of the workspace git state (#880-7).
+///
+/// Emits `<workspace_git_status>` with the branch and change *counts* only —
+/// deliberately file-name-free so a single working-tree edit does not rewrite
+/// the injected block (byte-stable, prefix-cache friendly). The engine caches
+/// this behind a TTL and the `[context] git_status_in_prompt` toggle (default
+/// off), so it never runs git on the hot path by default. Returns `None` when
+/// the workspace is not a git repository or git itself is unavailable.
+pub(crate) fn model_git_status_block(workspace: &Path) -> Option<String> {
+    let branch = branch(workspace)?;
+    let summary = change_summary(workspace)?;
+    Some(format_model_git_status_block(&branch, &summary))
+}
+
+/// Pure formatter for [`model_git_status_block`]; split out so the block shape
+/// is unit-testable without spawning git.
+fn format_model_git_status_block(branch: &str, summary: &ChangeSummary) -> String {
+    let mut parts = Vec::new();
+    if summary.staged > 0 {
+        parts.push(format!("{} staged", summary.staged));
+    }
+    if summary.modified > 0 {
+        parts.push(format!("{} modified", summary.modified));
+    }
+    if summary.untracked > 0 {
+        parts.push(format!("{} untracked", summary.untracked));
+    }
+    if summary.conflicts > 0 {
+        parts.push(format!("{} conflicts", summary.conflicts));
+    }
+    let status = if parts.is_empty() {
+        "clean".to_string()
+    } else {
+        parts.join(", ")
+    };
+    format!("<workspace_git_status>\nbranch: {branch}\nstatus: {status}\n</workspace_git_status>")
+}
+
 pub(crate) fn branch_from_context(context: &str) -> Option<&str> {
     let (branch, _) = context.rsplit_once(" | ")?;
     (!branch.is_empty()).then_some(branch)
@@ -273,4 +311,49 @@ fn run_git(workspace: &Path, args: &[&str]) -> std::io::Result<String> {
         return Err(std::io::Error::other("git command failed"));
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+#[cfg(test)]
+mod model_git_status_block_tests {
+    use super::*;
+
+    fn summary(
+        staged: usize,
+        modified: usize,
+        untracked: usize,
+        conflicts: usize,
+    ) -> ChangeSummary {
+        ChangeSummary {
+            staged,
+            modified,
+            untracked,
+            conflicts,
+        }
+    }
+
+    #[test]
+    fn clean_workspace_emits_clean_status() {
+        let out = format_model_git_status_block("main", &summary(0, 0, 0, 0));
+        assert_eq!(
+            out,
+            "<workspace_git_status>\nbranch: main\nstatus: clean\n</workspace_git_status>"
+        );
+    }
+
+    #[test]
+    fn dirty_workspace_emits_bounded_counts_only() {
+        let out = format_model_git_status_block("feature/x", &summary(2, 3, 1, 0));
+        assert_eq!(
+            out,
+            "<workspace_git_status>\nbranch: feature/x\nstatus: 2 staged, 3 modified, 1 untracked\n</workspace_git_status>"
+        );
+        // Byte-stable by design: no per-file lines that churn on every edit.
+        assert!(!out.contains("src/"));
+    }
+
+    #[test]
+    fn conflicts_are_surfaced() {
+        let out = format_model_git_status_block("main", &summary(0, 0, 0, 1));
+        assert!(out.contains("1 conflicts"));
+    }
 }

@@ -22,9 +22,6 @@ fn parsing_roundtrip() {
     assert_eq!(MemoryCategory::from_str_name(""), None);
     for cat in MemoryCategory::ALL {
         assert_eq!(MemoryCategory::from_str_name(cat.as_str()), Some(*cat));
-        assert_eq!(
-            cat.as_str(),
-            cat.as_str().to_ascii_lowercase().as_str()
-        );
+        assert_eq!(cat.as_str(), cat.as_str().to_ascii_lowercase().as_str());
     }
 }

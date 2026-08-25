@@ -1821,10 +1821,7 @@ mod otlp_endpoint_tests {
         "#;
         let cfg: ConfigToml = toml::from_str(raw).unwrap();
         assert_eq!(cfg.telemetry, Some(true));
-        assert_eq!(
-            cfg.otlp_endpoint.as_deref(),
-            Some("http://localhost:4317")
-        );
+        assert_eq!(cfg.otlp_endpoint.as_deref(), Some("http://localhost:4317"));
     }
 
     #[test]
@@ -1839,7 +1836,8 @@ mod otlp_endpoint_tests {
         let mut cfg = ConfigToml::default();
         assert!(cfg.otlp_endpoint.is_none());
 
-        cfg.set_value("otlp_endpoint", "http://collector:4317").unwrap();
+        cfg.set_value("otlp_endpoint", "http://collector:4317")
+            .unwrap();
         assert_eq!(
             cfg.get_value("otlp_endpoint").as_deref(),
             Some("http://collector:4317")

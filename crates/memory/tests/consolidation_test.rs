@@ -1,7 +1,6 @@
 use mimofan_memory::consolidation::{
-    content_similarity, dedup, evict_to_budget, rollup, ConsolidationScheduler, MemoryEntry,
-    MemoryKind,     ACCESS_REINFORCE_GAIN, DEFAULT_IMPORTANCE, DEDUP_SIMILARITY_THRESHOLD,
-    IMPORTANCE_MAX,
+    ACCESS_REINFORCE_GAIN, ConsolidationScheduler, DEDUP_SIMILARITY_THRESHOLD, DEFAULT_IMPORTANCE,
+    IMPORTANCE_MAX, MemoryEntry, MemoryKind, content_similarity, dedup, evict_to_budget, rollup,
 };
 
 #[test]

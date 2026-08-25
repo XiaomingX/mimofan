@@ -48,7 +48,7 @@ pub struct Results {
 }
 
 /// 汇总输入。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ArtifactInput {
     pub brief: Brief,
     pub claims: Vec<Claim>,
@@ -58,25 +58,13 @@ pub struct ArtifactInput {
     pub setup_steps: Vec<String>,
 }
 
-impl Default for ArtifactInput {
-    fn default() -> Self {
-        ArtifactInput {
-            brief: Brief::default(),
-            claims: Vec::new(),
-            results: Results::default(),
-            provenance: Vec::new(),
-            setup_steps: Vec::new(),
-        }
-    }
-}
-
 impl ArtifactInput {
     /// 渲染 README.md 文本（纯函数，可单测）。
     pub fn render_readme(&self) -> String {
         let mut s = String::new();
         s.push_str("# Research Artifact\n\n");
         s.push_str("## Brief\n\n");
-        s.push_str(&self.brief.text.trim());
+        s.push_str(self.brief.text.trim());
         s.push('\n');
 
         if !self.setup_steps.is_empty() {
@@ -108,7 +96,7 @@ impl ArtifactInput {
             s.push_str("\n## Claims (accepted)\n\n");
             for c in &self.claims {
                 s.push_str(&format!("### {}  _[{}]_\n\n", c.title, c.strength));
-                s.push_str(&c.body.trim());
+                s.push_str(c.body.trim());
                 s.push('\n');
                 if !c.evidence.is_empty() {
                     s.push_str("\nEvidence:\n");

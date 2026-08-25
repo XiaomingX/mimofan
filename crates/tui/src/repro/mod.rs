@@ -50,7 +50,7 @@ impl Default for Brief {
 impl Brief {
     pub fn new(text: impl Into<String>, source: impl Into<String>) -> Self {
         Brief {
-            id: format!("brief-{}", UlidLike::new()),
+            id: format!("brief-{}", UlidLike::generate()),
             text: text.into(),
             created_at: Utc::now(),
             source: source.into(),
@@ -213,7 +213,7 @@ fn hash_file_prefix(path: &Path, hex_len: usize) -> Result<String> {
 /// 轻量唯一 id（避免引入 ulid crate 依赖；仅需会话内唯一性）。
 struct UlidLike;
 impl UlidLike {
-    fn new() -> String {
+    fn generate() -> String {
         let now = Utc::now().timestamp_nanos_opt().unwrap_or(0);
         let rand: u32 = rand_simple();
         format!("{now:x}{rand:x}")
@@ -233,7 +233,7 @@ mod tests {
     use super::*;
 
     fn tmp() -> PathBuf {
-        let d = std::env::temp_dir().join(format!("mimofan-repro-test-{}", UlidLike::new()));
+        let d = std::env::temp_dir().join(format!("mimofan-repro-test-{}", UlidLike::generate()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d

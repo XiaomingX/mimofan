@@ -1,7 +1,7 @@
 #[cfg(not(feature = "lang-java"))]
 use mimofan_staticanalysis::AstError;
-use mimofan_staticanalysis::callgraph::CallGraph;
 use mimofan_staticanalysis::Language;
+use mimofan_staticanalysis::callgraph::CallGraph;
 
 const SRC: &str = r#"
 fn main() {

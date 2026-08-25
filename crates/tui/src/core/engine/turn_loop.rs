@@ -154,8 +154,7 @@ impl Engine {
                 // calls that set `open_at` directly keep raw trajectories.
                 let redact = self.config.session_trace.redact;
                 match crate::core::engine::trace::SessionEventSink::open_at_with_redact(
-                    path,
-                    redact,
+                    path, redact,
                 ) {
                     Ok(s) => Some(s),
                     Err(e) => {
@@ -2952,11 +2951,9 @@ impl Engine {
                         "Verification gate — nudging the model to verify edits",
                     ))
                     .await;
-                self.add_session_message(
-                    self.user_text_message_with_turn_metadata(
-                        VerificationGate::nudge_text().to_string(),
-                    ),
-                )
+                self.add_session_message(self.user_text_message_with_turn_metadata(
+                    VerificationGate::nudge_text().to_string(),
+                ))
                 .await;
             }
 

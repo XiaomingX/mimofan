@@ -112,9 +112,7 @@ pub struct ProvenanceLock {
 /// (e.g. "only surface memories at or above `Observed`"). The ordering is the
 /// source-reliability ladder described in MY_PLAN_0817 §13 for *memory*
 /// provenance, distinct from the skill-supply-chain [`IsolationLevel`].
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TrustTier {
     /// Cross-session / unattributed reference we cannot re-verify here. Treated
@@ -207,10 +205,10 @@ impl MemoryProvenance {
 
     /// Filter a slice, keeping only entries whose trust is at least `min`.
     #[must_use]
-    pub fn filter_by_min_tier<'a>(
-        items: &'a [MemoryProvenance],
+    pub fn filter_by_min_tier(
+        items: &[MemoryProvenance],
         min: TrustTier,
-    ) -> Vec<&'a MemoryProvenance> {
+    ) -> Vec<&MemoryProvenance> {
         items.iter().filter(|p| p.is_at_least(min)).collect()
     }
 }
@@ -415,8 +413,7 @@ mod tests {
         assert_eq!(kept.len(), 3);
         assert!(kept.iter().all(|p| p.is_at_least(TrustTier::Observed)));
 
-        let only_verified =
-            MemoryProvenance::filter_by_min_tier(&items, TrustTier::Verified);
+        let only_verified = MemoryProvenance::filter_by_min_tier(&items, TrustTier::Verified);
         assert_eq!(only_verified.len(), 1);
         assert_eq!(only_verified[0].tier, TrustTier::Verified);
 

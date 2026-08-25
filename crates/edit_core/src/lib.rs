@@ -344,7 +344,12 @@ mod tests {
     }
 
     impl MemReadState {
-        fn set_read(&mut self, path: &str, identity: FileIdentity, ranges: Option<Vec<(usize, usize)>>) {
+        fn set_read(
+            &mut self,
+            path: &str,
+            identity: FileIdentity,
+            ranges: Option<Vec<(usize, usize)>>,
+        ) {
             self.prior.insert(path.to_string(), Some(identity.clone()));
             self.current.insert(path.to_string(), Some(identity));
             self.covered.insert(path.to_string(), ranges);
@@ -353,13 +358,24 @@ mod tests {
 
     impl ReadState for MemReadState {
         fn current_identity(&self, path: &Path) -> Option<FileIdentity> {
-            self.current.get(&path.to_string_lossy().into_owned()).cloned().flatten()
+            self.current
+                .get(&path.to_string_lossy().into_owned())
+                .cloned()
+                .flatten()
         }
         fn prior_identity(&self, path: &Path) -> Option<FileIdentity> {
-            self.prior.get(&path.to_string_lossy().into_owned()).cloned().flatten()
+            self.prior
+                .get(&path.to_string_lossy().into_owned())
+                .cloned()
+                .flatten()
         }
         fn covers(&self, path: &Path, start: usize, end: usize) -> bool {
-            match self.covered.get(&path.to_string_lossy().into_owned()).cloned().flatten() {
+            match self
+                .covered
+                .get(&path.to_string_lossy().into_owned())
+                .cloned()
+                .flatten()
+            {
                 None => true, // whole-file read
                 Some(ranges) => {
                     let mut cursor = start;
@@ -515,7 +531,10 @@ mod tests {
         // Whole-file read grants full coverage via None... use a range here.
         state.set_read("main.rs", id(10), Some(vec![(1, 5)]));
         // Editing line 8 which was never read.
-        assert_eq!(require_read_coverage(&state, path, 8, 8), ReadCheck::UnreadLines);
+        assert_eq!(
+            require_read_coverage(&state, path, 8, 8),
+            ReadCheck::UnreadLines
+        );
     }
 
     #[test]

@@ -643,10 +643,10 @@ impl SnapshotRepo {
         }
         for line in String::from_utf8_lossy(&body.stdout).lines() {
             let line = line.trim();
-            if let Some(rest) = line.strip_prefix("conv_len=") {
-                if let Ok(n) = rest.trim().parse::<usize>() {
-                    return n;
-                }
+            if let Some(rest) = line.strip_prefix("conv_len=")
+                && let Ok(n) = rest.trim().parse::<usize>()
+            {
+                return n;
             }
         }
         0

@@ -839,10 +839,10 @@ impl App {
         // Circuit breaker (#795): a provider that has tripped open after
         // repeated recoverable failures is skipped during its cooldown window
         // so the fallback chain probes a healthier candidate instead.
-        if let Ok(mut breaker) = self.provider_breaker.lock() {
-            if !breaker.allow_request(provider.as_str(), std::time::Instant::now()) {
-                return false;
-            }
+        if let Ok(mut breaker) = self.provider_breaker.lock()
+            && !breaker.allow_request(provider.as_str(), std::time::Instant::now())
+        {
+            return false;
         }
         self.provider_readiness
             .iter()

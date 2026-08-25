@@ -1,4 +1,4 @@
-use mimofan_staticanalysis::rules::{load_rules_dir, parse_yaml, RuleSet, SymbolSpec};
+use mimofan_staticanalysis::rules::{RuleSet, SymbolSpec, load_rules_dir, parse_yaml};
 use serde_json::json;
 
 const SAMPLE: &str = r#"

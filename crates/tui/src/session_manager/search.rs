@@ -206,7 +206,7 @@ impl SessionManager {
 
         // Relevance: body matches (higher match_count) before title-only hits;
         // ties resolved by recency, which is already the input order.
-        hits.sort_by(|a, b| b.match_count.cmp(&a.match_count));
+        hits.sort_by_key(|h| std::cmp::Reverse(h.match_count));
         Ok(hits)
     }
 }

@@ -86,10 +86,10 @@ fn extract_frontmatter_field(content: &str, key: &str) -> Option<String> {
     let frontmatter = &rest[..end];
     for line in frontmatter.lines() {
         let line = line.trim();
-        if let Some((k, v)) = line.split_once(':') {
-            if k.trim().eq_ignore_ascii_case(key) {
-                return Some(v.trim().to_string());
-            }
+        if let Some((k, v)) = line.split_once(':')
+            && k.trim().eq_ignore_ascii_case(key)
+        {
+            return Some(v.trim().to_string());
         }
     }
     None

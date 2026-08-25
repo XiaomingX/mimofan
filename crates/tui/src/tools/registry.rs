@@ -219,14 +219,24 @@ impl ToolRegistry {
         if !self.tools.contains_key(tool_name) {
             return;
         }
-        *self.usage.lock().unwrap().entry(tool_name.to_string()).or_insert(0) += 1;
+        *self
+            .usage
+            .lock()
+            .unwrap()
+            .entry(tool_name.to_string())
+            .or_insert(0) += 1;
         *self.api_cache.lock().unwrap() = None;
     }
 
     /// Return the recorded invocation count for `tool_name` (0 if unknown).
     #[must_use]
     pub fn usage_count(&self, tool_name: &str) -> u64 {
-        self.usage.lock().unwrap().get(tool_name).copied().unwrap_or(0)
+        self.usage
+            .lock()
+            .unwrap()
+            .get(tool_name)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Snapshot of the current usage counts, keyed by tool name.
@@ -253,7 +263,7 @@ impl ToolRegistry {
             let ub = usage.get(*b).copied().unwrap_or(0);
             ub.cmp(&ua).then_with(|| a.cmp(b))
         });
-        names.into_iter().map(std::string::String::clone).collect()
+        names.into_iter().cloned().collect()
     }
 
     /// Convert all tools to API Tool format for sending to the model.

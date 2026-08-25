@@ -130,4 +130,3 @@ pub fn count_tokens_with(encoding: Encoding, text: &str) -> usize {
         None => heuristic_tokens(text),
     }
 }
-

@@ -2,7 +2,14 @@ use mimofan_memory::consolidation::{MemoryEntry, MemoryKind};
 use mimofan_memory::consolidation_stages::{abstract_rules, dream_cycle, extract, integrate};
 
 fn entry(id: &str, content: &str, importance: f64) -> MemoryEntry {
-    MemoryEntry::with_id(id, content, MemoryKind::Episodic, importance, chrono::Utc::now(), 1)
+    MemoryEntry::with_id(
+        id,
+        content,
+        MemoryKind::Episodic,
+        importance,
+        chrono::Utc::now(),
+        1,
+    )
 }
 
 #[test]
@@ -82,7 +89,10 @@ fn abstract_empty_when_too_sparse() {
         entry("x", "alpha beta gamma", 0.9),
         entry("y", "delta epsilon zeta", 0.9),
     ];
-    assert!(abstract_rules(disjoint).is_empty(), "no shared theme => no rule");
+    assert!(
+        abstract_rules(disjoint).is_empty(),
+        "no shared theme => no rule"
+    );
 }
 
 #[test]

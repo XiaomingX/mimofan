@@ -76,10 +76,7 @@ impl ToolSpec for EnterWorktreeTool {
         let path = optional_path(&input, "path");
         let base_ref = required_opt_string(&input, "base_ref");
         let label = required_opt_string(&input, "label");
-        let seed = branch
-            .as_deref()
-            .or_else(|| label.as_deref())
-            .map(str::to_string);
+        let seed = branch.as_deref().or(label.as_deref()).map(str::to_string);
 
         let request = WorktreeSpawnRequest {
             branch,

@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use mimofan_memory::user_profile::{
-    distill_from_transcript, render_for_injection, Bucket, ProfileEntry, SCHEMA_VERSION,
-    UserProfile,
+    Bucket, ProfileEntry, SCHEMA_VERSION, UserProfile, distill_from_transcript,
+    render_for_injection,
 };
 
 fn tmp_path() -> PathBuf {
@@ -40,8 +40,7 @@ fn save_then_load_roundtrips() {
 
 #[test]
 fn load_missing_file_returns_empty() {
-    let path =
-        std::env::temp_dir().join(format!("mimofan_up_missing_{}", uuid::Uuid::new_v4()));
+    let path = std::env::temp_dir().join(format!("mimofan_up_missing_{}", uuid::Uuid::new_v4()));
     let p = UserProfile::load(&path);
     assert!(p.is_empty());
     assert_eq!(p.version, SCHEMA_VERSION);

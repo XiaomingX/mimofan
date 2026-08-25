@@ -49,6 +49,10 @@ pub struct EngineConfig {
     /// working with `.into()` at the call site.
     pub instructions: Vec<crate::prompts::InstructionSource>,
     pub project_context_pack_enabled: bool,
+    /// Inject a bounded `<workspace_git_status>` summary (branch + change
+    /// counts) into the stable prompt (#880-7). Default: false — opting in
+    /// re-encodes the prompt tail when the working-tree counts change.
+    pub git_status_in_prompt: bool,
     /// When true, the model is instructed to respond in the current locale
     /// and a post-hoc translation layer replaces remaining English output.
     pub translation_enabled: bool,
@@ -270,6 +274,7 @@ impl Default for EngineConfig {
             skills_scan_mimofan_only: false,
             instructions: Vec::new(),
             project_context_pack_enabled: true,
+            git_status_in_prompt: false,
             translation_enabled: false,
             show_thinking: true,
             // High backstop rather than a working ceiling. Repetition is
@@ -298,7 +303,7 @@ impl Default for EngineConfig {
             lsp_config: None,
             runtime_services: RuntimeToolServices::default(),
             subagent_model_overrides: HashMap::new(),
-            memory_enabled: false,
+            memory_enabled: true,
             memory_dir: PathBuf::from("./memory"),
             speech_output_dir: None,
             vision_config: None,

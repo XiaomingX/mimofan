@@ -122,24 +122,18 @@ pub async fn run_attach(
     let mut stdout = tokio::io::stdout();
     let mut reader_task = tokio::spawn(async move {
         let mut header = [0u8; 5];
-        loop {
-            match tokio::time::timeout(std::time::Duration::from_secs(3600), r.read(&mut header))
-                .await
-            {
-                Ok(Ok(5)) => {
-                    let len =
-                        u32::from_be_bytes([header[1], header[2], header[3], header[4]]) as usize;
-                    let mut payload = vec![0u8; len];
-                    if r.read_exact(&mut payload).await.is_err() {
-                        break;
-                    }
-                    if stdout.write_all(&payload).await.is_err() {
-                        break;
-                    }
-                    let _ = stdout.flush().await;
-                }
-                _ => break,
+        while let Ok(Ok(5)) =
+            tokio::time::timeout(std::time::Duration::from_secs(3600), r.read(&mut header)).await
+        {
+            let len = u32::from_be_bytes([header[1], header[2], header[3], header[4]]) as usize;
+            let mut payload = vec![0u8; len];
+            if r.read_exact(&mut payload).await.is_err() {
+                break;
             }
+            if stdout.write_all(&payload).await.is_err() {
+                break;
+            }
+            let _ = stdout.flush().await;
         }
     });
 

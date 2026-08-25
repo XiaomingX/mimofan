@@ -588,10 +588,7 @@ impl StdioLspTransport {
         }
         // A capability entry is "supported" when present and not explicitly
         // `false` (e.g. `{"dynamicRegistration": false}` still means supported).
-        match node.as_bool() {
-            Some(false) => false,
-            _ => true,
-        }
+        node.as_bool() != Some(false)
     }
 }
 

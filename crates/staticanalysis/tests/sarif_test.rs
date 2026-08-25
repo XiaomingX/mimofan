@@ -1,4 +1,4 @@
-use mimofan_staticanalysis::sarif::{issue_dedup_key, SarifLog};
+use mimofan_staticanalysis::sarif::{SarifLog, issue_dedup_key};
 
 const SARIF: &str = r#"{
       "version": "2.1.0",

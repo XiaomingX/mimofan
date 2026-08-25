@@ -16,7 +16,7 @@
 //!
 //! 这三条契约若被拆分改坏，本测试会立即红，从而保护 P0 接线不被回归。
 
-use mimofan::compaction::decision_log::{DecisionLog, DecisionEvent, Kind};
+use mimofan::compaction::decision_log::{DecisionEvent, DecisionLog, Kind};
 use mimofan_memory::consolidation::{ConsolidationScheduler, MemoryEntry, MemoryKind};
 use mimofan_memory::consolidation_stages::dream_cycle;
 use std::time::Instant;
@@ -28,7 +28,11 @@ use std::time::Instant;
 #[test]
 fn golden_consolidation_scheduler_fires_at_interval() {
     let mut scheduler = ConsolidationScheduler::with_interval(3);
-    assert_eq!(scheduler.maybe_consolidate(|| false, || true), None, "未到间隔不应触发");
+    assert_eq!(
+        scheduler.maybe_consolidate(|| false, || true),
+        None,
+        "未到间隔不应触发"
+    );
     scheduler.tick();
     assert_eq!(scheduler.maybe_consolidate(|| false, || true), None);
     scheduler.tick();
@@ -76,12 +80,11 @@ fn golden_dream_cycle_produces_abstractions() {
     ];
     let res = dream_cycle(raw);
     assert!(res.extracted_count >= 1, "高信号片段被抽取");
+    assert!(!res.abstractions.is_empty(), "三阶段必须产出抽象规则");
     assert!(
-        !res.abstractions.is_empty(),
-        "三阶段必须产出抽象规则"
-    );
-    assert!(
-        res.abstractions.iter().all(|a| a.kind == MemoryKind::Abstracted),
+        res.abstractions
+            .iter()
+            .all(|a| a.kind == MemoryKind::Abstracted),
         "抽象产物为 Abstracted 类别"
     );
 }
@@ -94,8 +97,16 @@ fn golden_dream_cycle_produces_abstractions() {
 fn golden_decision_log_summary_injection_contract() {
     let mut log = DecisionLog::new();
     // 模拟 turn_loop 在工具分派点记录一条 ToolChosen 决策。
-    log.record(DecisionEvent::new(1, Kind::ToolChosen, "chose tool `edit_file`"));
-    log.record(DecisionEvent::new(2, Kind::BranchTaken, "took the refactor branch"));
+    log.record(DecisionEvent::new(
+        1,
+        Kind::ToolChosen,
+        "chose tool `edit_file`",
+    ));
+    log.record(DecisionEvent::new(
+        2,
+        Kind::BranchTaken,
+        "took the refactor branch",
+    ));
 
     let summary = log.summary().expect("决策轨迹应可注入");
     assert!(
@@ -106,10 +117,7 @@ fn golden_decision_log_summary_injection_contract() {
         summary.contains("edit_file"),
         "注入块必须含已记录的工具选择"
     );
-    assert!(
-        summary.contains("branch_taken"),
-        "注入块必须含分支决策类型"
-    );
+    assert!(summary.contains("branch_taken"), "注入块必须含分支决策类型");
 }
 
 /// 黄金路径 2b：空决策日志不污染压缩提示（summary 返回 None）。

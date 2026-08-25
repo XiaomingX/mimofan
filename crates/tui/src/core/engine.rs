@@ -14,11 +14,11 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{Duration, Instant, SystemTime};
 
+use crate::core::engine::verification_gate::VerificationGate;
 use anyhow::Result;
 use futures_util::StreamExt;
 use futures_util::stream::FuturesUnordered;
 use mimofan_protocol::runtime::DynamicToolSpec;
-use crate::core::engine::verification_gate::VerificationGate;
 use serde_json::json;
 use tokio::sync::{Mutex as AsyncMutex, RwLock, mpsc};
 use tokio_util::sync::CancellationToken;
@@ -36,8 +36,8 @@ use crate::llm_client::LlmClient;
 use crate::mcp::{McpPool, PendingMcpCall, PreparedMcpCall};
 
 use crate::models::{
-    ContentBlock, ContentBlockStart, Delta, Message, MessageRequest, StreamEvent, SystemBlock,
-    SystemPrompt, Tool, Usage,
+    CacheControl, ContentBlock, ContentBlockStart, Delta, Message, MessageRequest, StreamEvent,
+    SystemBlock, SystemPrompt, Tool, Usage,
 };
 use crate::prompts;
 use crate::purge::{emit_purge_completed, emit_purge_failed, emit_purge_started, run_purge};
@@ -353,6 +353,12 @@ pub struct Engine {
     /// refresh would otherwise drop the injected block.
     #[cfg(feature = "vector-memory")]
     vector_memory_block: Option<String>,
+    /// Cached `<workspace_git_status>` block (#880-7), injected into the stable
+    /// prompt when the `[context] git_status_in_prompt` toggle is on. Refreshed
+    /// synchronously inside `refresh_system_prompt` behind a TTL so git never
+    /// runs on the hot path by default (toggle is opt-in, off by default).
+    git_status_block: Option<String>,
+    git_status_refreshed_at: Option<Instant>,
     /// Cross-session `UserProfile` (#732): loaded once at engine init and
     /// injected into the system prompt so the model "remembers" stable user
     /// preferences/constraints across sessions. Distilled and saved back at
@@ -440,6 +446,12 @@ fn subagent_mailbox_message_is_best_effort(message: &MailboxMessage) -> bool {
 }
 
 const SUBAGENT_MAILBOX_BEST_EFFORT_MIN_INTERVAL: Duration = Duration::from_millis(100);
+
+/// TTL for the cached `<workspace_git_status>` block (#880-7). Refreshed at
+/// most this often so a working-tree summary stays fresh without spawning git
+/// on every refresh pass. Matches the UI badge cadence in
+/// `workspace_context::REFRESH_SECS`.
+const GIT_STATUS_TTL: Duration = Duration::from_secs(15);
 
 fn subagent_mailbox_best_effort_send_permitted(
     last_sent_at: &mut HashMap<String, Instant>,
@@ -699,12 +711,10 @@ impl Engine {
             .lock()
             .map(|q| q.is_empty())
             .unwrap_or(false)
+            && let Some(restored) = load_goal_queue_fallback(None)
+            && let Ok(mut q) = config.goal_queue.lock()
         {
-            if let Some(restored) = load_goal_queue_fallback(None) {
-                if let Ok(mut q) = config.goal_queue.lock() {
-                    *q = restored;
-                }
-            }
+            *q = restored;
         }
 
         let (tx_op, rx_op) = mpsc::channel(32);
@@ -963,6 +973,8 @@ impl Engine {
             vector_memory_injected: false,
             #[cfg(feature = "vector-memory")]
             vector_memory_block: None,
+            git_status_block: None,
+            git_status_refreshed_at: None,
             user_profile: crate::memory::UserProfile::load(
                 crate::memory::UserProfile::default_path()
                     .unwrap_or_else(|| std::path::PathBuf::from(".mimofan/user_profile.json")),
@@ -2312,12 +2324,10 @@ impl Engine {
                 .lock()
                 .map(|q| q.is_empty())
                 .unwrap_or(false)
+                && let Some(restored) = load_goal_queue_fallback(None)
+                && let Ok(mut q) = self.config.goal_queue.lock()
             {
-                if let Some(restored) = load_goal_queue_fallback(None) {
-                    if let Ok(mut q) = self.config.goal_queue.lock() {
-                        *q = restored;
-                    }
-                }
+                *q = restored;
             }
         }
         self.config.allowed_tools = allowed_tools;
@@ -2799,25 +2809,24 @@ impl Engine {
                 // memories when the store is reachable, then record a
                 // checkpoint so a headless supervisor and the event stream
                 // observe the pass.
-                if let Some(dir) = memory_dir {
-                    if let Ok(mut vm) = crate::vector_memory::VectorMemory::open(&dir) {
-                        if vm.enabled() {
-                            if let Err(err) = vm
-                                .enforce_capacity_policy(mimofan_memory::vector::VectorStore::DEFAULT_CAPACITY_LIMIT)
-                            {
-                                tracing::warn!(
-                                    "vector-memory capacity enforcement failed, skipping: {err}"
-                                );
-                            }
-                            // #871: run the Dreaming three-stage pipeline
-                            // (extract → integrate → abstract) over the recent
-                            // observations and record the abstractions. This
-                            // wires `dream_cycle` into the production
-                            // consolidation tick so the long-term store gains
-                            // reusable high-level rules at the turn boundary.
-                            Self::run_dreaming_cycle(&mut vm);
-                        }
+                if let Some(dir) = memory_dir
+                    && let Ok(mut vm) = crate::vector_memory::VectorMemory::open(&dir)
+                    && vm.enabled()
+                {
+                    if let Err(err) = vm.enforce_capacity_policy(
+                        mimofan_memory::vector::VectorStore::DEFAULT_CAPACITY_LIMIT,
+                    ) {
+                        tracing::warn!(
+                            "vector-memory capacity enforcement failed, skipping: {err}"
+                        );
                     }
+                    // #871: run the Dreaming three-stage pipeline
+                    // (extract → integrate → abstract) over the recent
+                    // observations and record the abstractions. This
+                    // wires `dream_cycle` into the production
+                    // consolidation tick so the long-term store gains
+                    // reusable high-level rules at the turn boundary.
+                    Self::run_dreaming_cycle(&mut vm);
                 }
                 true
             },
@@ -3136,7 +3145,6 @@ impl Engine {
             .await;
     }
 
-
     fn build_tool_context(&self, mode: AppMode, auto_approve: bool) -> ToolContext {
         // Load the per-workspace trusted-paths list (#29) on every tool-context
         // build. Cheap (a small JSON file) and always reflects the latest
@@ -3375,6 +3383,7 @@ impl Engine {
     }
     /// Refresh the stable system prompt based on current non-mode context.
     fn refresh_system_prompt(&mut self) {
+        self.refresh_git_status_block();
         let active_paths = self.session.working_set.top_paths(48);
         let user_memory_block = crate::memory::compose_index_block(
             self.config.memory_enabled,
@@ -3430,15 +3439,10 @@ impl Engine {
             prompt_text.push_str(block);
         }
 
-        // Re-append the recalled vector-memory block (if any) so a context
-        // refresh doesn't silently drop the first-turn injection (#570).
-        #[cfg(feature = "vector-memory")]
-        if let Some(ref block) = self.vector_memory_block
-            && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
-        {
-            prompt_text.push_str("\n\n");
-            prompt_text.push_str(block);
-        }
+        // The recalled vector-memory block is re-appended below as a pinned
+        // tail block (Blocks form) so a context refresh doesn't silently drop
+        // the first-turn injection (#570). See the cache-pinning conversion
+        // just before the stable-hash computation.
 
         // #732 slice C: inject the cross-session UserProfile into the system
         // prompt so the model "remembers" stable user preferences/constraints.
@@ -3475,11 +3479,31 @@ impl Engine {
             self.config.memory_enabled,
             &self.config.memory_dir,
             8,
-        )
-            && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
+        ) && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
         {
             prompt_text.push_str("\n\n");
             prompt_text.push_str(&block);
+        }
+
+        // #880-7 — expose a bounded git-status summary (branch + change
+        // counts) to the model so it can reason about dirty/untracked state
+        // before editing. Opt-in via `[context] git_status_in_prompt = true`
+        // and TTL-cached; default-off keeps the stable prefix byte-stable.
+        if self.config.git_status_in_prompt
+            && let Some(block) = self.git_status_block.as_deref()
+            && let Some(SystemPrompt::Text(prompt_text)) = &mut stable_prompt
+        {
+            prompt_text.push_str("\n\n");
+            prompt_text.push_str(block);
+        }
+
+        // #880-38 — cache-pin the dynamic vector-memory block outside the
+        // static prefix (see `pin_memory_block`): Anthropic keeps the prefix
+        // cached across per-session memory changes; OpenAI-compatible backends
+        // flatten Blocks to text and ignore the marker.
+        #[cfg(feature = "vector-memory")]
+        if let Some(mem_block) = self.vector_memory_block.as_deref() {
+            stable_prompt = pin_memory_block(stable_prompt, mem_block);
         }
 
         let stable_hash = system_prompt_hash(stable_prompt.as_ref());
@@ -3490,6 +3514,26 @@ impl Engine {
             self.session.system_prompt = stable_prompt;
             self.session.last_system_prompt_hash = Some(stable_hash);
         }
+    }
+
+    /// Refresh the cached `<workspace_git_status>` block when the opt-in
+    /// toggle is on and the TTL has lapsed. The git call is synchronous but
+    /// runs at most once per [`GIT_STATUS_TTL`] and only when the feature is
+    /// enabled, so the hot path stays git-free by default.
+    fn refresh_git_status_block(&mut self) {
+        if !self.config.git_status_in_prompt {
+            return;
+        }
+        let now = Instant::now();
+        if self
+            .git_status_refreshed_at
+            .is_some_and(|t| now.duration_since(t) < GIT_STATUS_TTL)
+        {
+            return;
+        }
+        self.git_status_block =
+            crate::tui::workspace_context::model_git_status_block(&self.config.workspace);
+        self.git_status_refreshed_at = Some(now);
     }
 
     /// Attempt a one-time vector-memory semantic recall and inject the result
@@ -3553,21 +3597,18 @@ impl Engine {
         // the model knows which recalled context came from another session and
         // should be treated with reduced trust, without altering the core
         // recall/format path.
-        let block = match crate::vector_memory::VectorMemory::format_injection_block(
-            &project,
-            &matches,
-        ) {
-            Some(block) => {
-                let provenance_note =
-                    self.cross_session_provenance_note(&matches);
-                if provenance_note.is_empty() {
-                    block
-                } else {
-                    format!("{block}\n{provenance_note}")
+        let block =
+            match crate::vector_memory::VectorMemory::format_injection_block(&project, &matches) {
+                Some(block) => {
+                    let provenance_note = self.cross_session_provenance_note(&matches);
+                    if provenance_note.is_empty() {
+                        block
+                    } else {
+                        format!("{block}\n{provenance_note}")
+                    }
                 }
-            }
-            None => return,
-        };
+                None => return,
+            };
 
         self.vector_memory_block = Some(block.clone());
         if let Some(sp) = self.session.system_prompt.as_mut() {
@@ -3576,11 +3617,20 @@ impl Engine {
                     text.push_str("\n\n");
                     text.push_str(&block);
                 }
-                SystemPrompt::Blocks(blocks) => blocks.push(SystemBlock {
-                    block_type: "text".into(),
-                    text: block,
-                    cache_control: None,
-                }),
+                // #880-38 — pin the static prefix and keep the recall block in
+                // the uncached tail (same policy as refresh_system_prompt).
+                SystemPrompt::Blocks(blocks) => {
+                    if let Some(last) = blocks.last_mut() {
+                        last.cache_control = Some(CacheControl {
+                            cache_type: "ephemeral".to_string(),
+                        });
+                    }
+                    blocks.push(SystemBlock {
+                        block_type: "text".into(),
+                        text: block,
+                        cache_control: None,
+                    });
+                }
             }
         }
     }
@@ -3680,13 +3730,14 @@ impl Engine {
     /// #871 — record a structured decision event into the engine's decision
     /// log. The `turn` index is the current `turn_counter` so the trail lines
     /// up with the conversation timeline. Best-effort: never panics.
-    fn record_decision(&mut self, kind: crate::compaction::decision_log::Kind, summary: impl Into<String>) {
+    fn record_decision(
+        &mut self,
+        kind: crate::compaction::decision_log::Kind,
+        summary: impl Into<String>,
+    ) {
         use crate::compaction::decision_log::DecisionEvent;
-        self.decision_log.record(DecisionEvent::new(
-            self.turn_counter.max(1),
-            kind,
-            summary,
-        ));
+        self.decision_log
+            .record(DecisionEvent::new(self.turn_counter.max(1), kind, summary));
     }
 
     /// #871 — if the decision log has accumulated events, fold its compact
@@ -3719,6 +3770,58 @@ fn ellipsize(s: &str, max: usize) -> String {
     format!("{taken}…")
 }
 
+/// #880-38 — cache-pin a dynamic memory block outside the static prefix.
+///
+/// When `mem` is non-empty, promote the prompt to Blocks form: the static
+/// prefix (or, in Blocks form, its last block) carries an `ephemeral`
+/// cache_control breakpoint so Anthropic keeps the prefix cache-pinned across
+/// per-session memory changes — only the small memory tail re-encodes.
+/// OpenAI-compatible backends flatten Blocks back to text via
+/// `system_to_instructions` and ignore the marker, so this is a no-op on
+/// their wire. Follows the compaction pattern (compaction/mod.rs:1323-1324).
+/// Returns `prompt` unchanged when `mem` is empty.
+fn pin_memory_block(prompt: Option<SystemPrompt>, mem: &str) -> Option<SystemPrompt> {
+    if mem.is_empty() {
+        return prompt;
+    }
+    Some(match prompt {
+        Some(SystemPrompt::Text(text)) => SystemPrompt::Blocks(vec![
+            SystemBlock {
+                block_type: "text".to_string(),
+                text,
+                cache_control: Some(CacheControl {
+                    cache_type: "ephemeral".to_string(),
+                }),
+            },
+            SystemBlock {
+                block_type: "text".to_string(),
+                text: mem.to_string(),
+                cache_control: None,
+            },
+        ]),
+        Some(SystemPrompt::Blocks(mut blocks)) => {
+            // Pin the static tail (base + compaction blocks) so the appended
+            // memory block lands in the uncached region.
+            if let Some(last) = blocks.last_mut() {
+                last.cache_control = Some(CacheControl {
+                    cache_type: "ephemeral".to_string(),
+                });
+            }
+            blocks.push(SystemBlock {
+                block_type: "text".to_string(),
+                text: mem.to_string(),
+                cache_control: None,
+            });
+            SystemPrompt::Blocks(blocks)
+        }
+        None => SystemPrompt::Blocks(vec![SystemBlock {
+            block_type: "text".to_string(),
+            text: mem.to_string(),
+            cache_control: None,
+        }]),
+    })
+}
+
 fn system_prompt_hash(prompt: Option<&SystemPrompt>) -> u64 {
     let mut hasher = DefaultHasher::new();
     match prompt {
@@ -3741,6 +3844,85 @@ fn system_prompt_hash(prompt: Option<&SystemPrompt>) -> u64 {
         }
     }
     hasher.finish()
+}
+
+#[cfg(test)]
+mod pin_memory_block_tests {
+    use super::*;
+
+    #[test]
+    fn text_prompt_with_memory_pins_prefix_and_tail() {
+        let out = pin_memory_block(
+            Some(SystemPrompt::Text("base".to_string())),
+            "<memory>recalled</memory>",
+        );
+        let SystemPrompt::Blocks(blocks) = out.unwrap() else {
+            panic!("expected Blocks");
+        };
+        assert_eq!(blocks.len(), 2);
+        // Static prefix pinned; memory tail marker-free.
+        assert_eq!(blocks[0].text, "base");
+        assert_eq!(
+            blocks[0]
+                .cache_control
+                .as_ref()
+                .map(|c| c.cache_type.as_str()),
+            Some("ephemeral")
+        );
+        assert_eq!(blocks[1].text, "<memory>recalled</memory>");
+        assert!(blocks[1].cache_control.is_none());
+    }
+
+    #[test]
+    fn empty_memory_leaves_prompt_untouched() {
+        let prompt = Some(SystemPrompt::Text("base".to_string()));
+        let out = pin_memory_block(prompt.clone(), "");
+        assert!(matches!(out, Some(SystemPrompt::Text(_))));
+        assert_eq!(out, prompt);
+    }
+
+    #[test]
+    fn blocks_form_pins_last_static_block_and_appends_memory() {
+        let prompt = Some(SystemPrompt::Blocks(vec![
+            SystemBlock {
+                block_type: "text".to_string(),
+                text: "base".to_string(),
+                cache_control: None,
+            },
+            SystemBlock {
+                block_type: "text".to_string(),
+                text: "compaction".to_string(),
+                cache_control: None,
+            },
+        ]));
+        let out = pin_memory_block(prompt, "mem").unwrap();
+        let SystemPrompt::Blocks(blocks) = out else {
+            panic!("expected Blocks");
+        };
+        assert_eq!(blocks.len(), 3);
+        assert_eq!(blocks[0].text, "base");
+        assert!(blocks[0].cache_control.is_none());
+        // Last static block becomes the pinned prefix boundary.
+        assert_eq!(
+            blocks[1]
+                .cache_control
+                .as_ref()
+                .map(|c| c.cache_type.as_str()),
+            Some("ephemeral")
+        );
+        assert_eq!(blocks[2].text, "mem");
+        assert!(blocks[2].cache_control.is_none());
+    }
+
+    #[test]
+    fn none_prompt_with_memory_produces_single_block() {
+        let out = pin_memory_block(None, "mem").unwrap();
+        let SystemPrompt::Blocks(blocks) = out else {
+            panic!("expected Blocks");
+        };
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].text, "mem");
+    }
 }
 
 /// Spawn the engine in a background task
@@ -3820,16 +4002,14 @@ pub(super) use crate::config::MAX_PARALLEL_SHELL_EXEC;
 pub(crate) use catalog_filter::{default_active_native_tool_names, filter_tool_catalog_for_gates};
 
 use self::approval::{ApprovalDecision, ApprovalResult, UserInputDecision};
-use crate::tools::goal::load_goal_queue_fallback;
-use self::goal::{
-    goal_objective_for_prompt, normalized_goal_objective, sync_goal_state_from_host,
-};
+use self::goal::{goal_objective_for_prompt, normalized_goal_objective, sync_goal_state_from_host};
 use self::plugin_tools::configure_plugin_tools;
 use self::policy::{
     AutoReviewPlanDecision, ToolAskRuleDecision, agent_approval_mode_for_turn,
     auto_review_plan_decision, auto_review_run_origin_for_plan, effective_input_policy,
     exec_shell_ask_rule_decision, file_tool_ask_rule_decision,
 };
+use crate::tools::goal::load_goal_queue_fallback;
 
 use self::dispatch::{
     ParallelToolResult, ParallelToolResultEntry, ToolExecGuard, ToolExecOutcome,
@@ -3944,9 +4124,15 @@ mod consolidation_wiring_tests {
     fn tick_advances_counter_and_triggers_at_interval() {
         let mut scheduler = ConsolidationScheduler::with_interval(3);
         // Turns 1..=2: before interval, no consolidation.
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, false, None),
+            None
+        );
         assert_eq!(scheduler.turn_count(), 1);
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, false, None),
+            None
+        );
         assert_eq!(scheduler.turn_count(), 2);
         // Turn 3: interval reached -> consolidation runs.
         assert_eq!(
@@ -3955,7 +4141,10 @@ mod consolidation_wiring_tests {
         );
         assert_eq!(scheduler.turn_count(), 3);
         // Immediately after, interval not yet reached again.
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, false, None),
+            None
+        );
     }
 
     #[test]
@@ -3969,7 +4158,10 @@ mod consolidation_wiring_tests {
         );
         assert_eq!(scheduler.turn_count(), 2);
         // After compaction ends, the next interval triggers normally.
-        assert_eq!(Engine::run_consolidation_tick(&mut scheduler, false, None), None);
+        assert_eq!(
+            Engine::run_consolidation_tick(&mut scheduler, false, None),
+            None
+        );
         assert_eq!(
             Engine::run_consolidation_tick(&mut scheduler, false, None),
             Some(true)

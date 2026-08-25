@@ -43,7 +43,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::callgraph::{CallGraph, Function};
 use crate::rules::RuleSet;
-use crate::taint::{analyze, analyze_with_seed, ProgramFacts, TaintFinding, TaintTag};
+use crate::taint::{ProgramFacts, TaintFinding, TaintTag, analyze, analyze_with_seed};
 
 /// Per-function return-taint summary, keyed by the function *name* as used in
 /// the call graph (`Function.name`, the simple last-path-segment symbol).
@@ -94,15 +94,25 @@ pub fn analyze_interprocedural(input: &InterProcInput, rules: &RuleSet) -> Vec<T
     // a sink — exactly the cross-file producers #843 was missing.
     for unit in &input.units {
         for call in &unit.calls {
-            if rules.sources.iter().any(|s| s.symbol.matches(&call.symbol, None)) {
+            if rules
+                .sources
+                .iter()
+                .any(|s| s.symbol.matches(&call.symbol, None))
+            {
                 summary.entry(call.function.clone()).or_insert(true);
             }
         }
         for fa in &unit.field_assigns {
             let is_source = fa.rhs_is_source
-                || fa.rhs_call_id
+                || fa
+                    .rhs_call_id
                     .and_then(|id| unit.calls.iter().find(|c| c.id == id))
-                    .map(|c| rules.sources.iter().any(|s| s.symbol.matches(&c.symbol, None)))
+                    .map(|c| {
+                        rules
+                            .sources
+                            .iter()
+                            .any(|s| s.symbol.matches(&c.symbol, None))
+                    })
                     .unwrap_or(false);
             if is_source {
                 summary.entry(fa.function.clone()).or_insert(true);
@@ -160,23 +170,21 @@ pub fn analyze_interprocedural(input: &InterProcInput, rules: &RuleSet) -> Vec<T
             let mut ret_seed: HashMap<usize, TaintTag> = HashMap::new();
             seed_unit_from_summary(&input.call_graph, &unit_file, unit, &summary, &mut ret_seed);
 
-            let findings = analyze_with_seed(unit, rules, &HashMap::new(), &ret_seed)
-                .unwrap_or_default();
+            let findings =
+                analyze_with_seed(unit, rules, &HashMap::new(), &ret_seed).unwrap_or_default();
 
             // Extend the summary with any source step surfaced by the new
             // findings (a tainted return may now appear in a function that
             // previously looked clean).
             for f in &findings {
                 for step in &f.chain {
-                    if let Some(rid) = step.rule_id.as_deref() {
-                        if source_rule_ids.contains(rid) {
-                            if let Some(func) = function_at(&input.call_graph, &step.file, step.line) {
-                                if !*summary.get(&func).unwrap_or(&false) {
-                                    summary.insert(func, true);
-                                    changed = true;
-                                }
-                            }
-                        }
+                    if let Some(rid) = step.rule_id.as_deref()
+                        && source_rule_ids.contains(rid)
+                        && let Some(func) = function_at(&input.call_graph, &step.file, step.line)
+                        && !*summary.get(&func).unwrap_or(&false)
+                    {
+                        summary.insert(func, true);
+                        changed = true;
                     }
                 }
             }

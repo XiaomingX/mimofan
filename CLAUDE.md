@@ -6,23 +6,29 @@ Mimofan 是一个基于 Rust 的终端 AI 编程助手（对标 opencode / claud
 支持多种 LLM 服务商（DeepSeek、OpenAI、Anthropic、Zai 等），提供
 TUI 界面、子智能体系统和 MCP 工具集成。
 
-## 工作区 Crate（14 个成员）
+## 工作区 Crate（19 个成员）
 
 ```
-mimofan-app-server   HTTP 应用服务器（axum）
-mimofan              TUI 界面 + CLI 入口（ratatui），运行时 API，任务管理，
-                       工具执行循环，模型/服务商选择器
-mimofan-core         核心引擎：轮次循环、会话、事件
-mimofan-config       配置：服务商、路由、模型清单
-mimofan-protocol     协议定义：工具、消息格式
-mimofan-agent        子智能体系统
-mimofan-tools        内置工具实现
-mimofan-mcp          MCP 服务器集成
-mimofan-hooks        工具前后钩子
-mimofan-execpolicy   执行策略（安全沙箱）
-mimofan-secrets      密钥/密钥管理
-mimofan-state        状态持久化（通过 rusqlite 的 SQLite）
-mimofan-release      发布工具
+mimofan-app-server     HTTP 应用服务器（axum）
+mimofan                TUI 界面 + CLI 入口（ratatui），运行时 API，任务管理，
+                         工具执行循环，模型/服务商选择器
+mimofan-core           核心引擎：轮次循环、会话、事件
+mimofan-config         配置：服务商、路由、模型清单
+mimofan-protocol       协议定义：工具、消息格式
+mimofan-agent          子智能体系统
+mimofan-tools          内置工具实现
+mimofan-mcp            MCP 服务器集成
+mimofan-hooks          工具前后钩子
+mimofan-execpolicy     执行策略（安全沙箱）
+mimofan-secrets        密钥/密钥管理
+mimofan-state          状态持久化（通过 rusqlite 的 SQLite）
+mimofan-release        发布工具
+mimofan-edit-core      编辑器正确性逻辑（锚点/字节范围查找、模糊匹配），与 FS 解耦
+mimofan-goal-core      纯逻辑 goal 目标管理状态机（GoalState/GoalQueue），不依赖 TUI
+mimofan-localization   TUI 本地化（zh-Hans）
+mimofan-memory         记忆系统：向量搜索/注入/用户画像（经 tui vector-memory 特性接入）
+mimofan-staticanalysis 静态分析（tree-sitter AST 查询）
+mimofan-telemetry      可选的 OpenTelemetry tracing 桥接（特性门控）
 ```
 
 默认成员：`app-server`、`tui`

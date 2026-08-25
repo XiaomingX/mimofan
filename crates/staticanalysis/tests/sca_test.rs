@@ -1,5 +1,5 @@
 use mimofan_staticanalysis::sca::{
-    prune_unreachable, Advisory, InMemoryOsv, parse_cargo_lock, parse_npm_lock, scan,
+    Advisory, InMemoryOsv, parse_cargo_lock, parse_npm_lock, prune_unreachable, scan,
 };
 
 #[test]

@@ -193,7 +193,7 @@ pub fn replay(path: impl AsRef<Path>) -> Result<impl Iterator<Item = EventEnvelo
     let reader = BufReader::new(file);
     let envelopes = reader
         .lines()
-        .filter_map(Result::ok)
+        .map_while(Result::ok)
         .filter(|line| !line.trim().is_empty())
         .filter_map(|line| serde_json::from_str::<EventEnvelope>(&line).ok());
     Ok(envelopes)
@@ -217,7 +217,7 @@ impl EventCounts {
         for event in events {
             let key = match &event.kind {
                 EventKind::Custom(tag) => format!("custom:{tag}"),
-                other => serde_json::to_value(&other)
+                other => serde_json::to_value(other)
                     .ok()
                     .and_then(|v| v.as_str().map(str::to_string))
                     .unwrap_or_else(|| format!("{other:?}")),
@@ -233,7 +233,7 @@ impl EventCounts {
     pub fn count_of(&self, kind: EventKind) -> u64 {
         let key = match &kind {
             EventKind::Custom(tag) => format!("custom:{tag}"),
-            other => serde_json::to_value(&other)
+            other => serde_json::to_value(other)
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_string))
                 .unwrap_or_else(|| format!("{other:?}")),
@@ -279,10 +279,10 @@ impl EventReplay {
     pub fn list_tool_calls(&self) -> Result<Vec<(u64, String, Value)>, ReplayError> {
         let mut out = Vec::new();
         for event in self.events()? {
-            if event.kind == EventKind::ToolCall {
-                if let Some(name) = event.payload.get("tool").and_then(Value::as_str) {
-                    out.push((event.seq, name.to_string(), event.payload));
-                }
+            if event.kind == EventKind::ToolCall
+                && let Some(name) = event.payload.get("tool").and_then(Value::as_str)
+            {
+                out.push((event.seq, name.to_string(), event.payload));
             }
         }
         Ok(out)

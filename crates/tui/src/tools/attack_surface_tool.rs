@@ -129,9 +129,8 @@ impl ToolSpec for AttackSurfaceTool {
     }
 
     async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
-        let parsed: AttackSurfaceInput = serde_json::from_value(input.clone()).map_err(|e| {
-            ToolError::invalid_input(format!("invalid attack_surface input: {e}"))
-        })?;
+        let parsed: AttackSurfaceInput = serde_json::from_value(input.clone())
+            .map_err(|e| ToolError::invalid_input(format!("invalid attack_surface input: {e}")))?;
 
         if parsed.target_dir.trim().is_empty() {
             return Err(ToolError::invalid_input(
@@ -159,8 +158,8 @@ impl ToolSpec for AttackSurfaceTool {
             .await
             .map_err(|e| ToolError::execution_failed(format!("task join: {e}")))?;
 
-        let entries = scan
-            .map_err(|e| ToolError::execution_failed(format!("attack_surface scan: {e}")))?;
+        let entries =
+            scan.map_err(|e| ToolError::execution_failed(format!("attack_surface scan: {e}")))?;
         let views: Vec<AttackSurfaceEntryView> = entries.iter().map(to_view).collect();
         let output = AttackSurfaceOutput {
             target_dir: parsed.target_dir,

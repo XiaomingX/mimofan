@@ -46,15 +46,60 @@ pub fn DEFAULT_GATES() -> &'static [GateSpec] {
     static GATES: OnceLock<Vec<GateSpec>> = OnceLock::new();
     GATES.get_or_init(|| {
         vec![
-            GateSpec { symbol: "require_role".into(), severity: "warning".into(), category: "missing-authorization".into(), cwe: vec!["CWE-862".into()] },
-            GateSpec { symbol: "check_permission".into(), severity: "warning".into(), category: "missing-authorization".into(), cwe: vec!["CWE-862".into()] },
-            GateSpec { symbol: "require_auth".into(), severity: "warning".into(), category: "missing-authentication".into(), cwe: vec!["CWE-306".into()] },
-            GateSpec { symbol: "require_login".into(), severity: "warning".into(), category: "missing-authentication".into(), cwe: vec!["CWE-306".into()] },
-            GateSpec { symbol: "require_permission".into(), severity: "warning".into(), category: "missing-authorization".into(), cwe: vec!["CWE-862".into()] },
-            GateSpec { symbol: "authorize".into(), severity: "warning".into(), category: "missing-authorization".into(), cwe: vec!["CWE-862".into()] },
-            GateSpec { symbol: "ensure_authenticated".into(), severity: "warning".into(), category: "missing-authentication".into(), cwe: vec!["CWE-306".into()] },
-            GateSpec { symbol: "is_admin".into(), severity: "warning".into(), category: "missing-authorization".into(), cwe: vec!["CWE-862".into()] },
-            GateSpec { symbol: "has_role".into(), severity: "warning".into(), category: "missing-authorization".into(), cwe: vec!["CWE-862".into()] },
+            GateSpec {
+                symbol: "require_role".into(),
+                severity: "warning".into(),
+                category: "missing-authorization".into(),
+                cwe: vec!["CWE-862".into()],
+            },
+            GateSpec {
+                symbol: "check_permission".into(),
+                severity: "warning".into(),
+                category: "missing-authorization".into(),
+                cwe: vec!["CWE-862".into()],
+            },
+            GateSpec {
+                symbol: "require_auth".into(),
+                severity: "warning".into(),
+                category: "missing-authentication".into(),
+                cwe: vec!["CWE-306".into()],
+            },
+            GateSpec {
+                symbol: "require_login".into(),
+                severity: "warning".into(),
+                category: "missing-authentication".into(),
+                cwe: vec!["CWE-306".into()],
+            },
+            GateSpec {
+                symbol: "require_permission".into(),
+                severity: "warning".into(),
+                category: "missing-authorization".into(),
+                cwe: vec!["CWE-862".into()],
+            },
+            GateSpec {
+                symbol: "authorize".into(),
+                severity: "warning".into(),
+                category: "missing-authorization".into(),
+                cwe: vec!["CWE-862".into()],
+            },
+            GateSpec {
+                symbol: "ensure_authenticated".into(),
+                severity: "warning".into(),
+                category: "missing-authentication".into(),
+                cwe: vec!["CWE-306".into()],
+            },
+            GateSpec {
+                symbol: "is_admin".into(),
+                severity: "warning".into(),
+                category: "missing-authorization".into(),
+                cwe: vec!["CWE-862".into()],
+            },
+            GateSpec {
+                symbol: "has_role".into(),
+                severity: "warning".into(),
+                category: "missing-authorization".into(),
+                cwe: vec!["CWE-862".into()],
+            },
         ]
     })
 }
@@ -65,10 +110,30 @@ pub fn DEFAULT_ENTRIES() -> &'static [EntrySpec] {
     static ENTRIES: OnceLock<Vec<EntrySpec>> = OnceLock::new();
     ENTRIES.get_or_init(|| {
         vec![
-            EntrySpec { symbol: "handler".into(), severity: "high".into(), category: "unauthenticated-entry-point".into(), cwe: vec!["CWE-306".into()] },
-            EntrySpec { symbol: "endpoint".into(), severity: "high".into(), category: "unauthenticated-entry-point".into(), cwe: vec!["CWE-306".into()] },
-            EntrySpec { symbol: "route".into(), severity: "high".into(), category: "unauthenticated-entry-point".into(), cwe: vec!["CWE-306".into()] },
-            EntrySpec { symbol: "on_request".into(), severity: "high".into(), category: "unauthenticated-entry-point".into(), cwe: vec!["CWE-306".into()] },
+            EntrySpec {
+                symbol: "handler".into(),
+                severity: "high".into(),
+                category: "unauthenticated-entry-point".into(),
+                cwe: vec!["CWE-306".into()],
+            },
+            EntrySpec {
+                symbol: "endpoint".into(),
+                severity: "high".into(),
+                category: "unauthenticated-entry-point".into(),
+                cwe: vec!["CWE-306".into()],
+            },
+            EntrySpec {
+                symbol: "route".into(),
+                severity: "high".into(),
+                category: "unauthenticated-entry-point".into(),
+                cwe: vec!["CWE-306".into()],
+            },
+            EntrySpec {
+                symbol: "on_request".into(),
+                severity: "high".into(),
+                category: "unauthenticated-entry-point".into(),
+                cwe: vec!["CWE-306".into()],
+            },
         ]
     })
 }
@@ -125,13 +190,22 @@ pub fn analyze_graph(
                     "{} at {}:{} does not reach any of the authorization gates ({}) \
                      before doing work. Confirm privileged functionality is not exposed \
                      to unauthenticated/unauthorized users.",
-                    func.name, file, func.line,
-                    gates.iter().map(|g| g.symbol.as_str()).collect::<Vec<_>>().join(", ")
+                    func.name,
+                    file,
+                    func.line,
+                    gates
+                        .iter()
+                        .map(|g| g.symbol.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ),
                 cwe: entry_spec.cwe.clone(),
                 path: Some(file.to_string()),
                 line: Some(func.line as u32),
-                evidence: vec![format!("entry={} line={} -> no gate reachable", func.name, func.line)],
+                evidence: vec![format!(
+                    "entry={} line={} -> no gate reachable",
+                    func.name, func.line
+                )],
                 automated: true,
             });
         }
@@ -140,11 +214,7 @@ pub fn analyze_graph(
 }
 
 /// Java cross-file: analyze all .java files under `dir` with a merged graph.
-pub fn analyze_dir(
-    dir: &str,
-    entries: &[EntrySpec],
-    gates: &[GateSpec],
-) -> Vec<SecurityIssue> {
+pub fn analyze_dir(dir: &str, entries: &[EntrySpec], gates: &[GateSpec]) -> Vec<SecurityIssue> {
     let graph = CallGraph::build_from_dir(std::path::Path::new(dir));
     analyze_graph(&graph, dir, entries, gates)
 }

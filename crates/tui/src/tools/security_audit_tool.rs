@@ -112,9 +112,7 @@ impl ToolSpec for SecurityAuditTool {
 
         let issues = run_semgrep_scan(backend.as_ref(), &opts)
             .await
-            .map_err(|e| {
-                ToolError::execution_failed(format!("security_audit failed: {e}"))
-            })?;
+            .map_err(|e| ToolError::execution_failed(format!("security_audit failed: {e}")))?;
 
         let findings: Vec<ReviewIssue> = issues.iter().map(to_review_issue).collect();
 

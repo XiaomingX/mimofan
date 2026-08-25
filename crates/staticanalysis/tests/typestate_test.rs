@@ -1,4 +1,4 @@
-use mimofan_staticanalysis::typestate::{load_protocols_dir, ProtocolFsm};
+use mimofan_staticanalysis::typestate::{ProtocolFsm, load_protocols_dir};
 
 const DESER: &str = r#"
 protocol: deserialization

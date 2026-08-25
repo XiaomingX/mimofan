@@ -99,18 +99,17 @@ impl ToolSpec for CodebaseSearchTool {
         vec![ToolCapability::ReadOnly]
     }
 
-    async fn execute(
-        &self,
-        input: Value,
-        context: &ToolContext,
-    ) -> Result<ToolResult, ToolError> {
+    async fn execute(&self, input: Value, context: &ToolContext) -> Result<ToolResult, ToolError> {
         let query = required_str(&input, "query")?;
         if query.trim().is_empty() {
             return Err(ToolError::invalid_input("query must not be empty"));
         }
 
         let limit = {
-            let raw = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(DEFAULT_LIMIT as u64);
+            let raw = input
+                .get("limit")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(DEFAULT_LIMIT as u64);
             (raw as usize).clamp(1, 100)
         };
         let language = optional_str(&input, "language").map(|s| s.to_string());
@@ -205,8 +204,8 @@ fn build_index(workspace: &Path, index_dir: &Path, repo: &str) -> Result<usize, 
         .map_err(|e| ToolError::execution_failed(format!("open index: {e}")))?;
     let exts: HashSet<&str> = INDEXED_EXTENSIONS.iter().copied().collect();
 
-        let mut count = 0usize;
-    for path in walkdir(&workspace) {
+    let mut count = 0usize;
+    for path in walkdir(workspace) {
         let ext = match path.extension().and_then(|s| s.to_str()) {
             Some(e) => e.to_ascii_lowercase(),
             None => continue,
@@ -247,10 +246,10 @@ fn walkdir(root: &Path) -> Vec<PathBuf> {
         };
         for entry in entries.flatten() {
             let path = entry.path();
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if SKIP_DIRS.contains(&name) {
-                    continue;
-                }
+            if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                && SKIP_DIRS.contains(&name)
+            {
+                continue;
             }
             match entry.file_type() {
                 Ok(ft) if ft.is_dir() => stack.push(path),
@@ -284,10 +283,12 @@ mod tests {
         let schema = tool.input_schema();
         assert_eq!(schema["type"], "object");
         assert!(schema["properties"]["query"].is_object());
-        assert!(schema["required"]
-            .as_array()
-            .unwrap()
-            .contains(&json!("query")));
+        assert!(
+            schema["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("query"))
+        );
         // Read-only capability -> auto-approved, no destructive side effects.
         assert!(tool.capabilities().contains(&ToolCapability::ReadOnly));
     }
@@ -312,10 +313,7 @@ mod tests {
 
         // Lazy index + query in one call.
         let out = tool
-            .execute(
-                json!({ "query": "validate auth token", "limit": 10 }),
-                &ctx,
-            )
+            .execute(json!({ "query": "validate auth token", "limit": 10 }), &ctx)
             .await
             .expect("execute");
         assert!(out.success, "tool should succeed: {}", out.content);
@@ -332,11 +330,13 @@ mod tests {
             .await
             .expect("execute2");
         let parsed2: Value = serde_json::from_str(&out2.content).unwrap();
-        assert!(parsed2["hits"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|h| h["file_path"].as_str().unwrap().contains("fetch.rs")));
+        assert!(
+            parsed2["hits"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|h| h["file_path"].as_str().unwrap().contains("fetch.rs"))
+        );
     }
 
     #[tokio::test]
@@ -348,7 +348,10 @@ mod tests {
         let ctx = tool_context(ws);
 
         // First call builds the index.
-        let _ = tool.execute(json!({ "query": "alpha" }), &ctx).await.unwrap();
+        let _ = tool
+            .execute(json!({ "query": "alpha" }), &ctx)
+            .await
+            .unwrap();
         // Reindex returns a status, not hits.
         let re = tool
             .execute(json!({ "query": "alpha", "reindex": true }), &ctx)

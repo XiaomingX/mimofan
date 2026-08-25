@@ -5,8 +5,8 @@
 //! 相关类型与方法的可见性已为 `pub`，集成测试经 `mimofan::core::engine::resilience` 访问。
 
 use mimofan::core::engine::resilience::{
-    CheckpointStore, DEFAULT_MAX_ESCALATIONS, EffortEscalationPolicy, EffortTier,
-    ResumeController, SerializableAgentState, TaskBudget, ValidationRetryConfig, ValidationVerdict,
+    CheckpointStore, DEFAULT_MAX_ESCALATIONS, EffortEscalationPolicy, EffortTier, ResumeController,
+    SerializableAgentState, TaskBudget, ValidationRetryConfig, ValidationVerdict,
     retry_turn_with_escalation,
 };
 use mimofan::models::Usage;
@@ -456,8 +456,7 @@ fn acceptance_861_resume_recovers_turn_index_and_state() {
 
 #[test]
 fn resume_state_round_trips_through_controller() {
-    let dir =
-        std::env::temp_dir().join(format!("mimofan-resume-state-{}", Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("mimofan-resume-state-{}", Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
 
     let ctrl = ResumeController::open(&dir);

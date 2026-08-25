@@ -135,9 +135,7 @@ fn collect_from_file(
             if bytes[i] == b'.' {
                 // Extract the token after the dot up to `(` or a non-ident char.
                 let mut j = i + 1;
-                while j < bytes.len()
-                    && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_')
-                {
+                while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
                     j += 1;
                 }
                 let name = &line[i + 1..j];
@@ -237,9 +235,8 @@ impl ToolSpec for ProtocolCheckTool {
     }
 
     async fn execute(&self, input: Value, _context: &ToolContext) -> Result<ToolResult, ToolError> {
-        let parsed: ProtocolCheckInput = serde_json::from_value(input.clone()).map_err(|e| {
-            ToolError::invalid_input(format!("invalid protocol_check input: {e}"))
-        })?;
+        let parsed: ProtocolCheckInput = serde_json::from_value(input.clone())
+            .map_err(|e| ToolError::invalid_input(format!("invalid protocol_check input: {e}")))?;
 
         if parsed.target_dir.trim().is_empty() {
             return Err(ToolError::invalid_input(
@@ -251,9 +248,7 @@ impl ToolSpec for ProtocolCheckTool {
         let output = tokio::task::spawn_blocking(move || run_protocol_check(&target_dir))
             .await
             .map_err(|e| ToolError::execution_failed(format!("task join: {e}")))?
-            .map_err(|e| {
-                ToolError::execution_failed(format!("protocol_check failed: {e}"))
-            })?;
+            .map_err(|e| ToolError::execution_failed(format!("protocol_check failed: {e}")))?;
 
         ToolResult::json(&output).map_err(|e| ToolError::execution_failed(e.to_string()))
     }

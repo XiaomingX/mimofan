@@ -532,10 +532,10 @@ impl PlanState {
     /// Persist the current snapshot to `path` (overwriting). Errors are
     /// returned to the caller, which may decide how to surface them.
     pub fn persist_to(&self, path: &Path) -> std::io::Result<()> {
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            fs::create_dir_all(parent)?;
         }
         let snap = self.snapshot();
         let json = serde_json::to_string_pretty(&snap)
@@ -547,10 +547,10 @@ impl PlanState {
     /// swallowed so a disk hiccup never aborts a plan update (the in-memory
     /// state is still authoritative within the session).
     pub fn try_persist(&self) {
-        if let Some(path) = &self.persist_path {
-            if let Err(e) = self.persist_to(path) {
-                tracing::warn!("plan checkpoint persist to {} failed: {e}", path.display());
-            }
+        if let Some(path) = &self.persist_path
+            && let Err(e) = self.persist_to(path)
+        {
+            tracing::warn!("plan checkpoint persist to {} failed: {e}", path.display());
         }
     }
 
@@ -668,14 +668,12 @@ impl Plan {
             .map(|line| line.trim())
             .filter(|line| !line.is_empty())
             .map(|line| {
-                let trimmed = line
-                    .trim_start_matches([
-                        '-', '*', '+', '#', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-                    ])
-                    .trim_start_matches('.')
-                    .trim()
-                    .to_string();
-                trimmed
+                line.trim_start_matches([
+                    '-', '*', '+', '#', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+                ])
+                .trim_start_matches('.')
+                .trim()
+                .to_string()
             })
             .filter(|line| !line.is_empty())
             .collect();

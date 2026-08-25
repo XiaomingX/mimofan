@@ -40,10 +40,10 @@ fn validate_node(value: &Value, schema: &Value, path: &str) -> Result<(), String
             };
             if let Some(required) = schema.get("required").and_then(Value::as_array) {
                 for req in required {
-                    if let Some(field) = req.as_str() {
-                        if !map.contains_key(field) {
-                            return Err(format!("{path}: missing required field '{field}'"));
-                        }
+                    if let Some(field) = req.as_str()
+                        && !map.contains_key(field)
+                    {
+                        return Err(format!("{path}: missing required field '{field}'"));
                     }
                 }
             }
@@ -102,13 +102,13 @@ fn validate_node(value: &Value, schema: &Value, path: &str) -> Result<(), String
 }
 
 fn check_enum(value: &Value, schema: &Value, path: &str) -> Result<(), String> {
-    if let Some(enum_values) = schema.get("enum").and_then(Value::as_array) {
-        if !enum_values.iter().any(|v| v == value) {
-            return Err(format!(
-                "{path}: value {} not in allowed enum {:?}",
-                value, enum_values
-            ));
-        }
+    if let Some(enum_values) = schema.get("enum").and_then(Value::as_array)
+        && !enum_values.iter().any(|v| v == value)
+    {
+        return Err(format!(
+            "{path}: value {} not in allowed enum {:?}",
+            value, enum_values
+        ));
     }
     Ok(())
 }
@@ -159,7 +159,7 @@ where
     let mut errors: Vec<String> = Vec::new();
     for attempt in 0..=max_retries {
         let prompt = build_attempt_prompt(base_prompt, schema, &errors);
-        let raw = call_model(prompt).await.map_err(|e| e)?;
+        let raw = call_model(prompt).await?;
         let parsed: Value = match serde_json::from_str(&raw) {
             Ok(v) => v,
             Err(e) => {

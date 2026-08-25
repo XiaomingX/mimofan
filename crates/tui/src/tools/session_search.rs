@@ -16,8 +16,7 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 
 use super::spec::{
-    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec,
-    required_str,
+    ApprovalRequirement, ToolCapability, ToolContext, ToolError, ToolResult, ToolSpec, required_str,
 };
 use crate::vector_memory::VectorMemory;
 
@@ -193,7 +192,10 @@ mod tests {
         // query and returns an invalid_input error for blank input.
         let input = json!({ "query": "   " });
         let present = required_str(&input, "query").unwrap();
-        assert!(present.trim().is_empty(), "blank query must be caught by trim check");
+        assert!(
+            present.trim().is_empty(),
+            "blank query must be caught by trim check"
+        );
     }
 
     #[tokio::test]
@@ -202,9 +204,7 @@ mod tests {
         // non-panic error (no backend open, no network).
         let ctx = ToolContext::new(std::env::temp_dir());
         let tool = SessionSearchTool;
-        let result = tool
-            .execute(json!({ "query": "错误处理约定" }), &ctx)
-            .await;
+        let result = tool.execute(json!({ "query": "错误处理约定" }), &ctx).await;
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(

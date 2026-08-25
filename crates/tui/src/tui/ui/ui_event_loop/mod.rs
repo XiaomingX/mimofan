@@ -682,10 +682,9 @@ pub(crate) async fn run_event_loop(
                         // transient outage doesn't keep it tripped open forever.
                         if matches!(status, crate::core::events::TurnOutcomeStatus::Completed)
                             && error.is_none()
+                            && let Ok(mut breaker) = app.provider_breaker.lock()
                         {
-                            if let Ok(mut breaker) = app.provider_breaker.lock() {
-                                breaker.record_success(app.api_provider.as_str());
-                            }
+                            breaker.record_success(app.api_provider.as_str());
                         }
                         app.dispatch_started_at = None;
                         app.pending_provider_switch = None;

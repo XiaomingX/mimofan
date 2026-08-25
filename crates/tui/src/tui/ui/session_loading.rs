@@ -121,15 +121,15 @@ fn restore_plan_and_todo_state(app: &mut App, session_id: &str) {
     let Ok(Some(state)) = manager.load_plan_state(session_id) else {
         return;
     };
-    if let Some(plan) = state.plan {
-        if let Ok(mut guard) = app.plan_state.try_lock() {
-            guard.apply_snapshot(plan);
-        }
+    if let Some(plan) = state.plan
+        && let Ok(mut guard) = app.plan_state.try_lock()
+    {
+        guard.apply_snapshot(plan);
     }
-    if let Some(todos) = state.todos {
-        if let Ok(mut guard) = app.todos.try_lock() {
-            guard.apply_snapshot(todos);
-        }
+    if let Some(todos) = state.todos
+        && let Ok(mut guard) = app.todos.try_lock()
+    {
+        guard.apply_snapshot(todos);
     }
 }
 

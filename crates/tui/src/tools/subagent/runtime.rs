@@ -253,8 +253,9 @@ mod tests {
         // A task that never completes on its own — only an abort can end it.
         // This is exactly the leak scenario: a still-running agent whose
         // handle is dropped without abort would keep consuming a tokio worker.
-        let handle: tokio::task::JoinHandle<Result<crate::tools::subagent::types::SubAgentCompletion>> =
-            tokio::spawn(std::future::pending());
+        let handle: tokio::task::JoinHandle<
+            Result<crate::tools::subagent::types::SubAgentCompletion>,
+        > = tokio::spawn(std::future::pending());
 
         manager
             .register(SubAgentRuntimeHandle {
@@ -272,6 +273,9 @@ mod tests {
         // (it was aborted, so the join resolves to a cancelled error rather
         // than a successful completion).
         let handles = manager.handles.read().await;
-        assert!(handles.is_empty(), "handle must be removed from the manager");
+        assert!(
+            handles.is_empty(),
+            "handle must be removed from the manager"
+        );
     }
 }

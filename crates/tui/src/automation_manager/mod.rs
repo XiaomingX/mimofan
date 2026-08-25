@@ -952,7 +952,9 @@ mod tests {
     /// Run `f` with `WEBHOOK_ENV` set to `value`, guaranteeing no other test
     /// can touch the global env concurrently.
     fn with_webhook_env<R>(value: &str, f: impl FnOnce() -> R) -> R {
-        let _guard = webhook_env_lock().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard = webhook_env_lock()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         unsafe { std::env::set_var(WEBHOOK_ENV, value) };
         let result = f();
         unsafe { std::env::remove_var(WEBHOOK_ENV) };
@@ -961,7 +963,9 @@ mod tests {
 
     /// Run `f` with `WEBHOOK_ENV` unset, serializing against other env tests.
     fn without_webhook_env<R>(f: impl FnOnce() -> R) -> R {
-        let _guard = webhook_env_lock().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _guard = webhook_env_lock()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         unsafe { std::env::remove_var(WEBHOOK_ENV) };
         f()
     }

@@ -114,8 +114,6 @@ pub mod research_ethics;
 mod resource_telemetry;
 mod retry_status;
 pub mod reviewer;
-/// Tower 式 merge gate（合回主干前校验 scope 越界 + review）。
-pub mod worktree_gate;
 pub mod rlm;
 mod route_budget;
 mod route_runtime;
@@ -136,13 +134,13 @@ mod slop_ledger;
 mod snapshot;
 mod state_machine;
 mod status;
+/// Arena 多模型对战 与 Team 领导角色骨架（见模块文档）。
+pub mod subagent_arena;
 mod task_manager;
 mod tls;
 pub mod tokenizer;
 mod tool_output_receipts;
 pub mod tools;
-/// Arena 多模型对战 与 Team 领导角色骨架（见模块文档）。
-pub mod subagent_arena;
 mod tui;
 mod turn_memory;
 mod utils;
@@ -153,6 +151,8 @@ mod worker_profile;
 mod working_set;
 mod workspace_discovery;
 mod workspace_trust;
+/// Tower 式 merge gate（合回主干前校验 scope 越界 + review）。
+pub mod worktree_gate;
 
 // ── Imports from cli sub-modules ───────────────────────────────────────
 // `use crate::cli::*` brings in Cli, Commands, all arg structs, and the
@@ -215,7 +215,10 @@ async fn run_eval(args: EvalArgs) -> Result<()> {
     };
 
     let harness = EvalHarness::new(config);
-    let run = harness.run_async().await.context("evaluation harness failed")?;
+    let run = harness
+        .run_async()
+        .await
+        .context("evaluation harness failed")?;
     let report = run.to_report();
 
     if args.json {
@@ -299,9 +302,9 @@ fn init_otlp_from_config(cli: &Cli) {
     #[cfg(feature = "otlp")]
     {
         if let Err(e) = mimofan_telemetry::init_otel(&endpoint, "mimofan") {
-            logging::warn(&format!("failed to init OTLP telemetry: {e}"));
+            logging::warn(format!("failed to init OTLP telemetry: {e}"));
         } else {
-            logging::info(&format!("OTLP telemetry exporter enabled: {endpoint}"));
+            logging::info(format!("OTLP telemetry exporter enabled: {endpoint}"));
         }
     }
     #[cfg(not(feature = "otlp"))]

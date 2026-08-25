@@ -1,7 +1,7 @@
 use mimofan_staticanalysis::rules::{
     PropagatorRule, RuleSet, SanitizerRule, SinkRule, SourceRule, SymbolSpec,
 };
-use mimofan_staticanalysis::taint::{analyze, CallFact, FieldAssign, FieldRef, ProgramFacts};
+use mimofan_staticanalysis::taint::{CallFact, FieldAssign, FieldRef, ProgramFacts, analyze};
 
 fn c3p0_rules() -> RuleSet {
     let yaml = r#"

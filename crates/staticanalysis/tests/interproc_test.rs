@@ -1,5 +1,5 @@
 use mimofan_staticanalysis::callgraph::CallGraph;
-use mimofan_staticanalysis::interproc::{analyze_interprocedural, InterProcInput};
+use mimofan_staticanalysis::interproc::{InterProcInput, analyze_interprocedural};
 use mimofan_staticanalysis::rules::{RuleSet, SinkRule, SourceRule, SymbolSpec};
 use mimofan_staticanalysis::taint::{CallFact, FieldAssign, FieldRef, ProgramFacts};
 

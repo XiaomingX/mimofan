@@ -14,8 +14,8 @@
 //! - A legacy `~/.mimofan/memory.md` is migrated into `project.md` once
 //!   (see [`migrate_legacy`]).
 //!
-//! Default behavior is **opt-in**: requires `[memory] enabled = true` or
-//! `MIMOFAN_MEMORY=on`.
+//! Default behavior is **enabled**; opt out with `[memory] enabled = false`
+//! or `MIMOFAN_MEMORY=off`.
 
 use std::fs;
 use std::io::{self, Write};
@@ -317,32 +317,32 @@ pub fn compose_index_block(
     let mut block = format!("<user_memory_index source=\"{display}\">\n{payload}");
 
     // Conditionally inline path-scoped bullets when we know the active paths.
-    if let Some(active) = active_paths {
-        if !active.is_empty() {
-            let mut matches_lines = Vec::new();
-            for cat in CATEGORIES {
-                let Some(file_content) = read_category(dir, cat) else {
+    if let Some(active) = active_paths
+        && !active.is_empty()
+    {
+        let mut matches_lines = Vec::new();
+        for cat in CATEGORIES {
+            let Some(file_content) = read_category(dir, cat) else {
+                continue;
+            };
+            for line in file_content.lines() {
+                let line = line.trim();
+                if !line.starts_with("- ") {
                     continue;
-                };
-                for line in file_content.lines() {
-                    let line = line.trim();
-                    if !line.starts_with("- ") {
-                        continue;
-                    }
-                    let (text, paths) = split_paths_tag(line);
-                    if let Some(globs) = paths {
-                        if paths_match(&globs, active) {
-                            let body = strip_timestamp(text.trim_start_matches("- ").trim());
-                            matches_lines.push(format!("- [{cat}] {body}"));
-                        }
-                    }
+                }
+                let (text, paths) = split_paths_tag(line);
+                if let Some(globs) = paths
+                    && paths_match(&globs, active)
+                {
+                    let body = strip_timestamp(text.trim_start_matches("- ").trim());
+                    matches_lines.push(format!("- [{cat}] {body}"));
                 }
             }
-            if !matches_lines.is_empty() {
-                block.push_str("\n\n<memory_paths_matches>\n");
-                block.push_str(&matches_lines.join("\n"));
-                block.push_str("\n</memory_paths_matches>");
-            }
+        }
+        if !matches_lines.is_empty() {
+            block.push_str("\n\n<memory_paths_matches>\n");
+            block.push_str(&matches_lines.join("\n"));
+            block.push_str("\n</memory_paths_matches>");
         }
     }
 
@@ -742,7 +742,9 @@ pub fn parse_decisions(content: &str) -> Vec<DecisionEntry> {
             continue;
         }
 
-        let Some(entry) = current.as_mut() else { continue };
+        let Some(entry) = current.as_mut() else {
+            continue;
+        };
 
         if let Some(rest) = trimmed.strip_prefix("## History") {
             in_history = true;
@@ -850,7 +852,11 @@ pub fn compose_decision_block(enabled: bool, dir: &Path, limit: usize) -> Option
     entries.sort_by(|a, b| b.updated.cmp(&a.updated));
     let display = decisions_path(dir).display().to_string();
     let mut block = format!("<decision_brief source=\"{display}\">\n");
-    let take = if limit == 0 { entries.len() } else { limit.min(entries.len()) };
+    let take = if limit == 0 {
+        entries.len()
+    } else {
+        limit.min(entries.len())
+    };
     for e in &entries[..take] {
         let status = if e.reversed { " _(reversed)_" } else { "" };
         block.push_str(&format!("- [{id}]{status}: ", id = e.id));
@@ -930,13 +936,7 @@ fn field<'a>(line: &'a str, key: &str) -> Option<&'a str> {
     // Value ends at the next ` key:` boundary (a recognized field key).
     let end = ["time:", "kind:", "summary:", "source:"]
         .iter()
-        .filter_map(|k| {
-            if *k == key {
-                None
-            } else {
-                rest.find(*k)
-            }
-        })
+        .filter_map(|k| if *k == key { None } else { rest.find(*k) })
         .min();
     match end {
         Some(e) => Some(rest[..e].trim()),
@@ -1149,9 +1149,14 @@ mod tests {
     #[test]
     fn decision_create_then_read() {
         let dir = tmp_memory_dir();
-        decision_create(&dir, "api-auth", "API auth scheme", "architecture",
-                        "Use Bearer tokens for the public API.")
-            .unwrap();
+        decision_create(
+            &dir,
+            "api-auth",
+            "API auth scheme",
+            "architecture",
+            "Use Bearer tokens for the public API.",
+        )
+        .unwrap();
         let entries = read_decisions(&dir);
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].id, "api-auth");

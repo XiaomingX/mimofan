@@ -26,7 +26,7 @@ pub(crate) async fn fetch_available_models(
     // shared cache for this provider + base URL. Live rows win on identity via
     // the compiler's layered merge (#3385).
     let provider = client.catalog_provider_id();
-    let fp = base_url_fingerprint(&client.base_url());
+    let fp = base_url_fingerprint(client.base_url());
     let cache = catalog_cache.lock().expect("catalog cache poisoned");
     let live = cache.fresh_offerings(&provider, &fp, now_unix());
     let snapshot = CatalogCompiler::new()

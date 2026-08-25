@@ -12,8 +12,8 @@ use async_trait::async_trait;
 use mimofan::tools::spec::ToolError;
 use mimofan::tools::subagent::{SubAgentResult, SubAgentStatus};
 use mimofan::tools::workflow::{
-    NodeExecutor, NodeState, WhenGate, WorkflowEngine, WorkflowJournal, WorkflowNodeSpec,
-    WorkflowSpec, WORKFLOW_JOURNAL_DIR, mk_result, uuid_short,
+    NodeExecutor, NodeState, WORKFLOW_JOURNAL_DIR, WhenGate, WorkflowEngine, WorkflowJournal,
+    WorkflowNodeSpec, WorkflowSpec, mk_result, uuid_short,
 };
 
 /// Deterministic in-memory executor for scheduling tests.
@@ -193,8 +193,7 @@ async fn sequential_and_parallel_dag_completes() {
     let exec = Arc::new(FakeExecutor::new());
     let ws = tmp_ws("seq");
     let mut engine =
-        WorkflowEngine::new(sample_spec(), exec.clone(), ws.clone(), Some("run1".into()))
-            .unwrap();
+        WorkflowEngine::new(sample_spec(), exec.clone(), ws.clone(), Some("run1".into())).unwrap();
     let report = engine.run().await.unwrap();
 
     assert!(report.finished, "all nodes should reach a terminal state");

@@ -11,10 +11,10 @@
 
 // Inherit every import the moved methods relied on from the parent engine
 // module, then re-bind the few `context`-module symbols they need by name.
-use super::*;
 use super::context::{
     MIN_RECENT_MESSAGES_TO_KEEP, context_input_budget_for_route, route_output_reservation_for_route,
 };
+use super::*;
 
 impl Engine {
     /// Memoized estimate of the current request input tokens.
@@ -88,7 +88,11 @@ impl Engine {
     /// provider: run LLM compaction with a forced-below-budget trigger, then
     /// locally trim the oldest messages until the window fits. Returns `true`
     /// if the request was brought under `target_budget`.
-    pub(super) async fn recover_context_overflow(&mut self, client: &ApiClient, reason: &str) -> bool {
+    pub(super) async fn recover_context_overflow(
+        &mut self,
+        client: &ApiClient,
+        reason: &str,
+    ) -> bool {
         let Some(target_budget) = context_input_budget_for_route(
             self.api_provider,
             &self.session.model,
@@ -172,8 +176,9 @@ impl Engine {
                 Some(crate::models::SystemPrompt::Blocks(vec![nudge_block])),
             );
             self.session.system_prompt = merged;
-            self.session.last_system_prompt_hash =
-                Some(super::system_prompt_hash(self.session.system_prompt.as_ref()));
+            self.session.last_system_prompt_hash = Some(super::system_prompt_hash(
+                self.session.system_prompt.as_ref(),
+            ));
         }
 
         let trimmed = self.trim_oldest_messages_to_budget(target_budget);

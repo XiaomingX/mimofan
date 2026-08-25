@@ -208,7 +208,7 @@ impl McpServerConfig {
             .iter()
             .map(|a| expand_env_in_string(a))
             .collect();
-        for (_, v) in expanded.env.iter_mut() {
+        for v in expanded.env.values_mut() {
             *v = expand_env_in_string(v);
         }
         expanded.url = expanded.url.take().map(|s| expand_env_in_string(&s));
@@ -216,7 +216,7 @@ impl McpServerConfig {
             let s = expand_env_in_string(&p.to_string_lossy());
             PathBuf::from(s)
         });
-        for (_, v) in expanded.headers.iter_mut() {
+        for v in expanded.headers.values_mut() {
             *v = expand_env_in_string(v);
         }
         // NOTE: `bearer_token_env_var` is the *name* of an env var read at
@@ -274,12 +274,12 @@ fn resolve_env_var(inner: &str) -> String {
         return String::new();
     }
     // `${VAR:-default}` form.
-    if let Some((name, default)) = inner.split_once(":-") {
-        if is_valid_env_name(name) {
-            match std::env::var(name) {
-                Ok(v) if !v.is_empty() => return v,
-                _ => return expand_env_in_string(default),
-            }
+    if let Some((name, default)) = inner.split_once(":-")
+        && is_valid_env_name(name)
+    {
+        match std::env::var(name) {
+            Ok(v) if !v.is_empty() => return v,
+            _ => return expand_env_in_string(default),
         }
     }
     if is_valid_env_name(inner) {

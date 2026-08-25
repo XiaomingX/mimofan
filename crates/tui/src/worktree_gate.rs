@@ -15,22 +15,13 @@ use crate::reviewer::{ClaimForReview, ReviewVerdict};
 /// scope 规范：描述一次 worktree 合回「被允许/被禁止」改动的文件范围。
 ///
 /// 比对基于 `git diff --name-only` 产出的改动文件相对路径。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ScopeSpec {
     /// 允许改动的文件 glob 列表（relative path，支持 `*` 通配）。
     /// 若为空，表示「除 deny 外全部允许」。
     pub allow: Vec<String>,
     /// 禁止改动的文件 glob 列表（无论 allow 是否命中，命中即越界）。
     pub deny: Vec<String>,
-}
-
-impl Default for ScopeSpec {
-    fn default() -> Self {
-        ScopeSpec {
-            allow: Vec::new(),
-            deny: Vec::new(),
-        }
-    }
 }
 
 /// 一次 merge gate 的判定结果。
@@ -111,7 +102,11 @@ fn changed_files(worktree_path: &Path) -> Vec<String> {
 }
 
 /// 比对改动文件与 scope 规范，向 `blocking_reasons` 追加越界原因，返回 scope 是否 ok。
-fn evaluate_scope(scope: &ScopeSpec, changed: &[String], blocking_reasons: &mut Vec<String>) -> bool {
+fn evaluate_scope(
+    scope: &ScopeSpec,
+    changed: &[String],
+    blocking_reasons: &mut Vec<String>,
+) -> bool {
     // deny 优先：命中任何 deny 即越界。
     for file in changed {
         if scope.deny.iter().any(|g| matches_glob(file, g)) {
@@ -218,10 +213,11 @@ mod tests {
         ];
         let v = MergeGate::check_with_files(&scope, &changed, &accepted_claim());
         assert!(!v.scope_ok);
-        assert!(v
-            .blocking_reasons
-            .iter()
-            .any(|r| r.contains("lib.rs") && r.contains("outside allow")));
+        assert!(
+            v.blocking_reasons
+                .iter()
+                .any(|r| r.contains("lib.rs") && r.contains("outside allow"))
+        );
         assert!(!v.passed());
     }
 
@@ -234,10 +230,11 @@ mod tests {
         let changed = vec!["crates/tui/src/secret.rs".to_string()];
         let v = MergeGate::check_with_files(&scope, &changed, &accepted_claim());
         assert!(!v.scope_ok);
-        assert!(v
-            .blocking_reasons
-            .iter()
-            .any(|r| r.contains("secret.rs") && r.contains("deny")));
+        assert!(
+            v.blocking_reasons
+                .iter()
+                .any(|r| r.contains("secret.rs") && r.contains("deny"))
+        );
         assert!(!v.passed());
     }
 
