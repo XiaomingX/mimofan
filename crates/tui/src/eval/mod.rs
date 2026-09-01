@@ -297,6 +297,8 @@ impl EvalHarness {
                     model: None,
                     exit_status: None,
                     truncated: None,
+                    input_tokens: None,
+                    output_tokens: None,
                 });
             }
 
@@ -330,6 +332,8 @@ impl EvalHarness {
                             model: None,
                             exit_status: None,
                             truncated: None,
+                            input_tokens: None,
+                            output_tokens: None,
                         });
                     }
 
@@ -365,6 +369,8 @@ impl EvalHarness {
                             model: None,
                             exit_status: None,
                             truncated: None,
+                            input_tokens: None,
+                            output_tokens: None,
                         });
                     }
 
@@ -449,6 +455,8 @@ impl EvalHarness {
                     model: None,
                     exit_status: Some(exit_status.to_string()),
                     truncated: None,
+                    input_tokens: None,
+                    output_tokens: None,
                 });
             }
         }

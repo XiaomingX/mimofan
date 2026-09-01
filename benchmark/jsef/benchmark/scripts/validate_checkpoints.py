@@ -1,0 +1,476 @@
+#!/usr/bin/env python3
+"""JSEF Benchmark — 双源校验脚本（validate_checkpoints.py）。
+
+校验 ``expectedresults.csv``（事实源）与样本源码中 ``// [CHECKPOINT id=...]``
+注解之间的一致性，防止两源漂移。
+
+校验项
+------
+1. 孤儿 CSV 行：CSV 中有但源码无对应 CHECKPOINT 注解的 id。
+2. 孤儿源码注解：源码有但 CSV 无对应行的 id。
+3. 重复 id：CSV 内或源码内出现多次的 id。
+4. 行号漂移：对两源都能定位的 id，校验 CSV ``line`` 列是否等于该
+   CHECKPOINT 注解所在实际行号（grep -n 得到）。不一致报告
+   "id=X csv_line=N actual_line=M"。
+5. type↔expect 一致性：CSV ``type`` 列（vuln/safe）与源码注解
+   ``expect=VULN/SAFE`` 字段矛盾（AGENTS.md 完成条件之一）。
+
+约束
+----
+纯标准库（os / argparse / sys / subprocess / re），无第三方依赖。
+
+退出码
+------
+0 = 通过（无孤儿/重复/漂移/type-expect 矛盾）；1 = 存在问题。
+
+示例
+----
+    python validate_checkpoints.py \
+        --expected benchmark/expectedresults.csv \
+        --cases-dir benchmark/cases \
+        --src-dir src/main/java/com/freedom/securitysamples/vulnerability
+"""
+
+import argparse
+import csv
+import json
+import os
+import re
+import subprocess
+import sys
+
+# 匹配 // [CHECKPOINT ... id=JSEF-XXX ...]
+CHECKPOINT_RE = re.compile(r"//\s*\[CHECKPOINT\b[^\]]*?\bid=([^\s,\]]+)")
+
+# 可选 trace 字段：trace=FileA.java:lineB,FileC.java:lineD
+# 非贪婪捕获到下一个空白或 ] 为止，逗号分隔的 file:line 节点列表。
+TRACE_RE = re.compile(r"trace=([^\]\s]+)")
+
+# 单个 trace 节点：相对仓库根路径:行号
+TRACE_NODE_RE = re.compile(r"^(?P<file>.+):(?P<line>\d+)$")
+
+# 注解中的 expect=VULN|SAFE 字段（与 CSV type 列交叉校验）
+EXPECT_RE = re.compile(r"\bexpect=(VULN|SAFE)")
+
+
+def load_csv_ids(expected_path):
+    """读取 CSV，返回 (csv_map, csv_order, missing_line_ids, col_errors)。
+
+    Returns:
+        tuple: (csv_map, csv_order, missing_line_ids, col_errors)
+            - csv_map: {id: int(line)}（line 解析失败存 -1）。
+            - csv_order: 出现顺序的 id 列表（用于重复检测）。
+            - missing_line_ids: 无有效 line 列的 id 列表。
+            - col_errors: 列数异常行列表（行号, 实际列数, id）。
+
+    Raises:
+        FileNotFoundError: 文件不存在。
+        KeyError: 缺少必需列。
+    """
+
+    if not os.path.isfile(expected_path):
+        raise FileNotFoundError("找不到 expectedresults.csv: %s" % expected_path)
+    csv_map = {}
+    csv_order = []
+    missing_line_ids = []
+    col_errors = []  # 列数不符的行（行号，实际列数）
+
+    with open(expected_path, newline="", encoding="utf-8-sig") as fh:
+        reader = csv.reader(fh)
+        raw_rows = list(reader)
+
+    if not raw_rows:
+        raise KeyError("CSV 为空或无法解析表头")
+
+    header = raw_rows[0]
+    expected_ncols = len(header)
+    if "id" not in header or "line" not in header:
+        raise KeyError("expectedresults.csv 缺少 id 或 line 列")
+
+    id_idx = header.index("id")
+    line_idx = header.index("line")
+    cat_idx = header.index("category") if "category" in header else -1
+
+    for row_no, row in enumerate(raw_rows[1:], 2):
+        # 列数校验：sink/source 含未转义逗号会导致列数偏多
+        if len(row) != expected_ncols:
+            col_errors.append((row_no, len(row),
+                               row[id_idx] if len(row) > id_idx else "?"))
+            # 尽力取 id，避免后续全部失效
+            sid = (row[id_idx] if len(row) > id_idx else "").strip()
+            if sid:
+                csv_order.append(sid)
+                csv_map[sid] = -1
+                missing_line_ids.append(sid)
+            continue
+
+        sid = (row[id_idx] or "").strip()
+        if not sid:
+            continue
+        csv_order.append(sid)
+        raw_line = (row[line_idx] or "").strip()
+        try:
+            line = int(raw_line)
+        except (ValueError, TypeError):
+            line = -1
+            missing_line_ids.append(sid)
+        csv_map[sid] = line
+
+        # category 字段不应含裸括号（列错位残留的典型特征）
+        if cat_idx >= 0:
+            cat_val = row[cat_idx].strip()
+            if cat_val.startswith(")") or (cat_val.endswith(")") and "(" not in cat_val):
+                col_errors.append((row_no, len(row),
+                                   "%s [category='%s' 疑似列错位]" % (sid, cat_val)))
+
+    if col_errors:
+        import sys
+        print("\n[CSV 列数异常] 以下行列数不符（期望 %d），"
+              "sink/source 字段可能含未加引号的逗号，"
+              "请用引号包裹含逗号的字段（共 %d 条）：" % (expected_ncols, len(col_errors)),
+              file=sys.stderr)
+        for row_no, ncols, sid in col_errors:
+            print("  - 行 %d: %d 列 (id=%s)" % (row_no, ncols, sid), file=sys.stderr)
+
+    return csv_map, csv_order, missing_line_ids, col_errors
+
+
+def scan_source_ids(dirs):
+    """用 grep 扫描多个目录下所有 ``// [CHECKPOINT id=...]`` 注解。
+
+    Args:
+        dirs: 待扫描目录列表（存在才扫）。
+
+    Returns:
+        dict: {(path, line_no): id} —— 记录每个注解出现的位置与 id。
+    """
+    found = {}
+    for d in dirs:
+        if not os.path.isdir(d):
+            continue
+        try:
+            proc = subprocess.run(
+                ["grep", "-rn", "-E", r"//\s*\[CHECKPOINT", d],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, check=False,
+            )
+        except FileNotFoundError:
+            # 无 grep 时退化为逐文件读取
+            for root, _sub, files in os.walk(d):
+                for fn in files:
+                    if not fn.endswith(".java"):
+                        continue
+                    fp = os.path.join(root, fn)
+                    with open(fp, encoding="utf-8", errors="ignore") as fh:
+                        for i, line in enumerate(fh, 1):
+                            m = CHECKPOINT_RE.search(line)
+                            if m:
+                                trace_m = TRACE_RE.search(line)
+                                found[(fp, i)] = (m.group(1).strip(),
+                                                 trace_m.group(1) if trace_m else "")
+            continue
+        for line in proc.stdout.splitlines():
+            # 形如 path:lineno:content
+            parts = line.split(":", 2)
+            if len(parts) < 3:
+                continue
+            path, lineno_s, content = parts[0], parts[1], parts[2]
+            m = CHECKPOINT_RE.search(content)
+            if not m:
+                continue
+            try:
+                lineno = int(lineno_s)
+            except ValueError:
+                lineno = -1
+            trace_m = TRACE_RE.search(content)
+            found[(path, lineno)] = (m.group(1).strip(),
+                                      trace_m.group(1) if trace_m else "")
+    return found
+
+
+def check_type_expect(expected_path):
+    """交叉校验 CSV ``type`` 列与源码注解 ``expect=`` 字段的一致性。
+
+    对应 AGENTS.md 完成条件「type 与 expect 矛盾即未完成」。
+
+    Returns:
+        tuple: (mismatches, unparsable)
+            - mismatches: [(id, type, expect, file)] 两源语义矛盾（置 rc=1）。
+            - unparsable: [(id, reason)] 无法定位注解/读不到 expect（仅告警）。
+    """
+    mismatches, unparsable = [], []
+    with open(expected_path, newline="", encoding="utf-8-sig") as fh:
+        rows = list(csv.reader(fh))
+    if not rows:
+        return mismatches, unparsable
+    header = rows[0]
+    for col in ("id", "type", "file", "line"):
+        if col not in header:
+            return mismatches, unparsable
+    id_idx, type_idx = header.index("id"), header.index("type")
+    file_idx, line_idx = header.index("file"), header.index("line")
+    for row in rows[1:]:
+        if len(row) != len(header):
+            continue
+        sid = (row[id_idx] or "").strip()
+        ctype = (row[type_idx] or "").strip()
+        cf = row[file_idx].strip()
+        try:
+            cline = int(row[line_idx])
+        except (ValueError, TypeError):
+            continue
+        if not sid or not ctype or not cf or cline < 1:
+            continue
+        if not os.path.isfile(cf):
+            unparsable.append((sid, "文件不存在: %s" % cf))
+            continue
+        try:
+            with open(cf, encoding="utf-8", errors="ignore") as fh:
+                lines = fh.read().splitlines()
+        except OSError as exc:
+            unparsable.append((sid, str(exc)))
+            continue
+        if cline > len(lines):
+            unparsable.append((sid, "注解行越界（文件共 %d 行）" % len(lines)))
+            continue
+        m = EXPECT_RE.search(lines[cline - 1])
+        if not m:
+            unparsable.append((sid, "注解行无 expect 字段"))
+            continue
+        expect = m.group(1)
+        ok = (ctype == "vuln" and expect == "VULN") or \
+             (ctype == "safe" and expect == "SAFE")
+        if not ok:
+            mismatches.append((sid, ctype, expect, cf))
+    return mismatches, unparsable
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="校验 expectedresults.csv 与源码 CHECKPOINT 注解的双源一致性。",
+    )
+    parser.add_argument("--expected",
+                        default="benchmark/expectedresults.csv",
+                        help="expectedresults.csv 路径（默认 benchmark/expectedresults.csv）")
+    parser.add_argument("--cases-dir",
+                        default="benchmark/cases",
+                        help="样本 cases 目录（默认 benchmark/cases）")
+    parser.add_argument("--src-dir",
+                        default="src/main/java/com/freedom/securitysamples/vulnerability",
+                        help="漏洞源码目录（默认 src/main/java/.../vulnerability）")
+    parser.add_argument("--plans-dir",
+                        default=None,
+                        help="多步规划 manifest 目录（默认 None：不检查）。"
+                             "若提供，额外校验 manifest 的 id 与 CSV/源码 id 关联一致性，"
+                             "仅告警不阻断（不置 rc=1），保持双源门禁退出码 0 不变。")
+    args = parser.parse_args(argv)
+
+    rc = 0
+    try:
+        csv_map, csv_order, missing_line_ids, col_errors = load_csv_ids(args.expected)
+    except (FileNotFoundError, KeyError) as exc:
+        print("[错误] %s" % exc, file=sys.stderr)
+        return 2
+
+    if col_errors:
+        rc = 1  # CSV 列错位是硬问题，纳入门禁
+
+
+    source_found = scan_source_ids([args.cases_dir, args.src_dir])
+
+    # 源码 id -> 位置列表（含 trace 字符串）
+    src_id_locations = {}
+    src_id_trace = {}  # id -> trace 字符串（来自 CHECKPOINT 注解的 trace=）
+    for (path, lineno), (sid, trace_str) in source_found.items():
+        src_id_locations.setdefault(sid, []).append((path, lineno))
+        if trace_str:
+            src_id_trace[sid] = trace_str
+
+    csv_ids = set(csv_map)
+    src_ids = set(src_id_locations)
+
+    print("=" * 64)
+    print("JSEF 双源校验：%s" % args.expected)
+    print("  扫描目录：%s , %s" % (args.cases_dir, args.src_dir))
+    print("  CSV id 数=%d  源码注解 id 数=%d" % (len(csv_ids), len(src_ids)))
+    print("=" * 64)
+
+    # 1) 孤儿 CSV 行
+    orphan_csv = sorted(csv_ids - src_ids)
+    if orphan_csv:
+        rc = 1
+        print("\n[孤儿 CSV 行] CSV 有但源码无 CHECKPOINT 注解（共 %d）：" % len(orphan_csv))
+        for sid in orphan_csv:
+            print("  - %s (csv_line=%s)" % (sid, csv_map[sid]))
+    else:
+        print("\n[孤儿 CSV 行] 无（通过）")
+
+    # 2) 孤儿源码注解
+    orphan_src = sorted(src_ids - csv_ids)
+    if orphan_src:
+        rc = 1
+        print("\n[孤儿源码注解] 源码有但 CSV 无对应行（共 %d）：" % len(orphan_src))
+        for sid in orphan_src:
+            locs = src_id_locations[sid]
+            print("  - %s (%s)" % (sid, ", ".join("%s:%d" % (p, n) for p, n in locs)))
+    else:
+        print("\n[孤儿源码注解] 无（通过）")
+
+    # 3) 重复 id
+    csv_dup = sorted({sid for sid in csv_order if csv_order.count(sid) > 1})
+    src_dup = sorted({sid for sid, locs in src_id_locations.items() if len(locs) > 1})
+    if csv_dup or src_dup:
+        rc = 1
+        if csv_dup:
+            print("\n[CSV 内重复 id]（共 %d）：" % len(csv_dup))
+            for sid in csv_dup:
+                print("  - %s 出现 %d 次" % (sid, csv_order.count(sid)))
+        if src_dup:
+            print("\n[源码内重复 id]（共 %d）：" % len(src_dup))
+            for sid in src_dup:
+                for p, n in src_id_locations[sid]:
+                    print("  - %s @ %s:%d" % (sid, p, n))
+    else:
+        print("\n[重复 id] 无（通过）")
+
+    # 4) 行号漂移
+    drift = []
+    for sid in sorted(csv_ids & src_ids):
+        csv_line = csv_map[sid]
+        locs = src_id_locations[sid]
+        if csv_line < 0:
+            continue  # 已在 missing_line_ids 中体现
+        if len(locs) > 1:
+            continue  # 重复情况已在上面报告，跳过逐行比对
+        _path, actual_line = locs[0]
+        if actual_line != csv_line:
+            drift.append((sid, csv_line, actual_line))
+    if drift:
+        rc = 1
+        print("\n[行号漂移] CSV line 与实际 CHECKPOINT 行不一致（共 %d）：" % len(drift))
+        for sid, csv_line, actual_line in drift:
+            print("  - id=%s csv_line=%d actual_line=%d" % (sid, csv_line, actual_line))
+    else:
+        print("\n[行号漂移] 无（通过）")
+
+    if missing_line_ids:
+        rc = 1
+        print("\n[CSV line 列无效]（共 %d）：%s" % (
+            len(missing_line_ids), ", ".join(missing_line_ids)))
+
+    # 5) CSV type 列与源码注解 expect= 交叉校验（AGENTS.md：type 与 expect 矛盾即未完成）
+    type_mismatch, type_unparsable = check_type_expect(args.expected)
+    if type_mismatch:
+        rc = 1
+        print("\n[type↔expect 不一致] CSV type 与注解 expect 矛盾（共 %d）："
+              % len(type_mismatch))
+        for sid, ctype, expect, cf in type_mismatch:
+            print("  - id=%s type=%s expect=%s file=%s" % (sid, ctype, expect, cf))
+    else:
+        print("\n[type↔expect 一致性] 全部一致（通过）")
+    if type_unparsable:
+        print("[type↔expect 告警]（不阻断，仅提示，共 %d）：" % len(type_unparsable))
+        for sid, reason in type_unparsable:
+            print("  - id=%s %s" % (sid, reason))
+
+    # 6) trace 节点有效性（仅告警，不阻断，不置 rc=1）
+    trace_ids = sorted(src_id_trace)
+    trace_invalid = 0
+    if trace_ids:
+        print("\n[trace 节点] 共 %d 个样本带 trace" % len(trace_ids))
+        for sid in trace_ids:
+            trace_str = src_id_trace[sid]
+            nodes = [n.strip() for n in trace_str.split(",") if n.strip()]
+            for node in nodes:
+                nm = TRACE_NODE_RE.match(node)
+                if not nm:
+                    trace_invalid += 1
+                    print("  - id=%s trace node %s 格式非法（应为 相对路径:行号）" % (sid, node))
+                    continue
+                nfile = nm.group("file")
+                nline = int(nm.group("line"))
+                # 相对于仓库根解析（grep 给出的 path 已经是相对路径）
+                if not os.path.isfile(nfile):
+                    trace_invalid += 1
+                    print("  - id=%s trace node %s NOT FOUND" % (sid, node))
+                    continue
+                try:
+                    with open(nfile, encoding="utf-8", errors="ignore") as fh:
+                        total_lines = sum(1 for _ in fh)
+                except OSError:
+                    total_lines = 0
+                if nline < 1 or nline > total_lines:
+                    trace_invalid += 1
+                    print("  - id=%s trace node %s 行号越界（文件共 %d 行）"
+                          % (sid, node, total_lines))
+        print("[trace 节点] %d 个无效" % trace_invalid)
+    else:
+        print("\n[trace 节点] 共 0 个样本带 trace")
+
+    # 7) plans manifest id 关联检查（可选 --plans-dir，仅告警不阻断）
+    if args.plans_dir:
+        plan_orphan_manifest = []  # manifest 有但 CSV/源码无 id
+        plan_orphan_id = []        # CSV/源码有（msp- 类）但无 manifest
+        plan_bad_schema = []
+        if os.path.isdir(args.plans_dir):
+            all_ids = csv_ids | src_ids
+            for fn in sorted(os.listdir(args.plans_dir)):
+                if not fn.endswith(".plan.json"):
+                    continue
+                fp = os.path.join(args.plans_dir, fn)
+                try:
+                    with open(fp, encoding="utf-8") as fh:
+                        data = json.load(fh)
+                except (ValueError, OSError) as exc:
+                    plan_bad_schema.append((fn, str(exc)))
+                    continue
+                pid = (data.get("id") or "").strip()
+                if not pid:
+                    plan_bad_schema.append((fn, "缺少 id 字段"))
+                    continue
+                if pid not in all_ids:
+                    plan_orphan_manifest.append(pid)
+                steps = data.get("steps") or []
+                if not isinstance(steps, list) or not steps:
+                    plan_bad_schema.append((pid, "steps 为空或非数组"))
+
+            # 源码/CSV 中 JSEF-MSP- 类样本应有 manifest
+            # （safe 样本 id 形如 JSEF-MSP-XXXS，复用对应 vuln 的 manifest）
+            for sid in sorted(all_ids):
+                if not sid.startswith("JSEF-MSP-"):
+                    continue
+                base = sid[:-1] if sid.endswith("S") else sid
+                if not os.path.isfile(
+                        os.path.join(args.plans_dir, "%s.plan.json" % base)):
+                    plan_orphan_id.append(sid)
+
+        if plan_orphan_manifest:
+            print("\n[plans 孤儿 manifest] manifest 的 id 不在 CSV/源码中（仅告警，不阻断）：")
+            for pid in plan_orphan_manifest:
+                print("  - %s" % pid)
+        else:
+            print("\n[plans 孤儿 manifest] 无（通过）")
+        if plan_orphan_id:
+            print("\n[plans 缺失 manifest] JSEF-MSP- 样本无对应 plan.json（仅告警，不阻断）：")
+            for sid in plan_orphan_id:
+                print("  - %s" % sid)
+        else:
+            print("\n[plans 缺失 manifest] 无（通过）")
+        if plan_bad_schema:
+            print("\n[plans schema 异常]（仅告警，不阻断）：")
+            for item in plan_bad_schema:
+                print("  - %s: %s" % item)
+        else:
+            print("\n[plans schema 异常] 无（通过）")
+
+    print("\n" + "=" * 64)
+    if rc == 0:
+        print("结果：通过（0=无孤儿/重复/漂移）")
+    else:
+        print("结果：存在问题（退出码 1）")
+    print("=" * 64)
+    return rc
+
+
+if __name__ == "__main__":
+    sys.exit(main())

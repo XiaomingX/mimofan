@@ -12,7 +12,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tracing::debug;
 use uuid::Uuid;
 
@@ -86,12 +86,18 @@ pub fn trace_span_for(trace_id: TraceId) -> tracing::span::Span {
 /// they overlap (`ToolCall`/`ToolResult`/`AgentSpawn`/`AgentDone`/`Error`),
 /// while preserving the vuln-hunt-specific `HypothesisOp`/`PocResult`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SessionEventKind {
     /// A new agent turn began.
     TurnStart,
+    /// The user prompt that started the turn (T4).
+    UserPrompt,
+    /// The model's reasoning / thinking block (T4).
+    AgentThink,
     /// Free-form assistant text was produced.
     AssistantText,
-    /// A tool was invoked (name + input captured).
+    /// A tool was invoked (name + input captured). Matches the G4.1
+    /// `tool_use` label dimension.
     ToolCall,
     /// A tool returned its observation/output (`tool_result`).
     ToolResult,
@@ -101,6 +107,8 @@ pub enum SessionEventKind {
     AgentDone,
     /// A recoverable or fatal error was recorded.
     Error,
+    /// Token usage for the turn (T4; counts in `input_tokens`/`output_tokens`).
+    TokenUsage,
     /// A hypothesis lifecycle op happened (create/add_evidence/resolve).
     HypothesisOp,
     /// A `run_poc` produced a `realized` verdict.
@@ -160,6 +168,82 @@ pub struct SessionEvent {
     /// Whether the tool output was truncated (used by later phases).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub truncated: Option<bool>,
+    /// Prompt/input tokens for a `TokenUsage` event (T4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_tokens: Option<u64>,
+    /// Completion/output tokens for a `TokenUsage` event (T4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_tokens: Option<u64>,
+}
+
+impl SessionEvent {
+    /// Construct a minimal event of `kind` for `turn`, stamping the current
+    /// time and the optional session id. Callers then fill text/tool fields.
+    pub fn new(kind: SessionEventKind, turn: u64, session_id: Option<String>) -> Self {
+        Self {
+            kind,
+            turn,
+            ts: now_ts(),
+            text: None,
+            tool_name: None,
+            tool_input: None,
+            hypothesis_id: None,
+            poc_realized: None,
+            source: None,
+            tool_result: None,
+            tool_call_id: None,
+            session_id,
+            model: None,
+            exit_status: None,
+            truncated: None,
+            input_tokens: None,
+            output_tokens: None,
+        }
+    }
+}
+
+/// Current wall-clock time as an RFC3339-ish string (matches the existing
+/// trajectory convention).
+pub fn now_ts() -> String {
+    chrono::Utc::now().to_rfc3339()
+}
+
+/// Whether a string already looks like a redacted `sha256:` payload (so export
+/// does not double-hash).
+fn is_redacted(s: &str) -> bool {
+    s.starts_with("sha256:")
+}
+
+/// Redact one event for a privacy-safe export (T4 G4.2).
+///
+/// Used by the `export-session` CLI: reads events from an arbitrary sink
+/// (including raw harness trajectories) and hashes sensitive payloads at
+/// export time, preserving structural metadata. Idempotent — events written by
+/// a redacting sink (already `sha256:`/`__redacted__`) are passed through.
+pub fn redact_event_for_export(ev: &mut SessionEvent) {
+    if let Some(text) = ev.text.as_mut() {
+        if !is_redacted(text) {
+            *text = redact_hash(text.as_bytes());
+        }
+    }
+    if let Some(input) = ev.tool_input.take() {
+        // The redacting sink replaces inputs with a marker object; detect that
+        // marker and leave it intact, otherwise hash the payload.
+        let already = input.get("__redacted__").and_then(|v| v.as_str()).is_some();
+        ev.tool_input = if already {
+            Some(input)
+        } else {
+            Some(redacted_value(&input))
+        };
+    }
+    if let Some(result) = ev.tool_result.as_mut()
+        && let Some(content) = result.get_mut("content")
+        && let Some(s) = content.as_str()
+        && !is_redacted(s)
+    {
+        *content = serde_json::Value::String(redact_hash(s.as_bytes()));
+    }
+    ev.truncated = Some(true);
 }
 
 /// Append-only writer that flushes [`SessionEvent`]s as one JSON object per
@@ -311,6 +395,59 @@ fn redacted_value(input: &Value) -> Value {
     })
 }
 
+/// Export a session trajectory as JSON-Lines (T4, `export-session`).
+///
+/// - `raw = true` passes lines through unchanged (used on harness trajectories
+///   written via [`SessionEventSink::open_at`], i.e. redact=false; the output
+///   preserves original text for post-training ingestion).
+/// - `raw = false` re-redacts every event at export time
+///   ([`redact_event_for_export`]), so even a raw sink file can be shared
+///   without PII; the result contains no original assistant text, tool input,
+///   or tool-result content.
+///
+/// Malformed lines are skipped (mirroring [`read_session`]).
+pub fn export_session_jsonl(path: &Path, raw: bool) -> std::io::Result<String> {
+    let events = read_session(path);
+    let mut out = String::new();
+    for mut ev in events {
+        if !raw {
+            redact_event_for_export(&mut ev);
+        }
+        match serde_json::to_string(&ev) {
+            Ok(line) => {
+                out.push_str(&line);
+                out.push('\n');
+            }
+            Err(e) => {
+                debug!(target: "engine::trace", error = %e, "export: skipping un-serializable event");
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Compact trajectory export: strips payload-heavy fields (tool inputs /
+/// tool outputs / text), keeping only event kind, tool/model/line and
+/// metadata. Deterministic, LLM-free; used for cost-efficient dashboards
+/// and T9 token-savings accounting.
+pub fn export_compact_jsonl(path: &Path) -> std::io::Result<String> {
+    let events = read_session(path);
+    let mut out = String::new();
+    for ev in events {
+        let mut slim = ev;
+        slim.text = None;
+        slim.tool_input = None;
+        slim.tool_result = None;
+        slim.hypothesis_id = None;
+        slim.poc_realized = None;
+        if let Ok(line) = serde_json::to_string(&slim) {
+            out.push_str(&line);
+            out.push('\n');
+        }
+    }
+    Ok(out)
+}
+
 /// Read back every [`SessionEvent`] from a `.jsonl` sink, in order.
 ///
 /// Used by the harness to replay a recorded session and by the round-trip
@@ -335,14 +472,51 @@ pub fn read_session(path: &Path) -> Vec<SessionEvent> {
         if t.is_empty() {
             continue;
         }
-        match serde_json::from_str::<SessionEvent>(t) {
-            Ok(ev) => out.push(ev),
-            Err(e) => {
-                debug!(target: "engine::trace", line = i, error = %e, "skip malformed session line");
+
+        // Trajectories written before loop v3 / T4 used PascalCase kind labels
+        // (e.g. "AssistantText"); normalize them to the snake_case labels so
+        // old sessions stay replayable.
+        match serde_json::from_str::<Value>(t) {
+            Ok(mut v) if v.is_object() => {
+                if let Some(kind) = v.get("kind").and_then(|k| k.as_str()) {
+                    if let Some(snake) = legacy_kind_to_snake(kind) {
+                        v["kind"] = Value::String(snake.to_string());
+                    }
+                }
+                match serde_json::from_value::<SessionEvent>(v) {
+                    Ok(ev) => out.push(ev),
+                    Err(e) => {
+                        debug!(target: "engine::trace", line = i, error = %e, "skip malformed session line");
+                    }
+                }
+            }
+            _ => {
+                debug!(target: "engine::trace", line = i, "skip non-object session line");
             }
         }
     }
     out
+}
+
+/// Map a legacy PascalCase event label to the snake_case schema (T4).
+fn legacy_kind_to_snake(kind: &str) -> Option<&'static str> {
+    Some(match kind {
+        "turn_start" | "TurnStart" => "turn_start",
+        "user_prompt" | "UserPrompt" => "user_prompt",
+        "agent_think" | "AgentThink" => "agent_think",
+        "assistant_text" | "AssistantText" => "assistant_text",
+        "tool_call" | "ToolCall" => "tool_call",
+        "tool_result" | "ToolResult" => "tool_result",
+        "agent_spawn" | "AgentSpawn" => "agent_spawn",
+        "agent_done" | "AgentDone" => "agent_done",
+        "error" | "Error" => "error",
+        "token_usage" | "TokenUsage" => "token_usage",
+        "hypothesis_op" | "HypothesisOp" => "hypothesis_op",
+        "poc_result" | "PocResult" => "poc_result",
+        "turn_end" | "TurnEnd" => "turn_end",
+        "session_end" | "SessionEnd" => "session_end",
+        _ => return None,
+    })
 }
 
 #[cfg(test)]
@@ -405,6 +579,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         let ev2 = SessionEvent {
             kind: SessionEventKind::PocResult,
@@ -422,6 +598,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
 
         // Mirror emit's exact output (one JSON object per line).
@@ -477,6 +655,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: Some(true),
+            input_tokens: None,
+            output_tokens: None,
         };
         let ev2 = SessionEvent {
             kind: SessionEventKind::AgentSpawn,
@@ -494,6 +674,8 @@ mod tests {
             model: Some("deepseek-v4".to_string()),
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         let ev3 = SessionEvent {
             kind: SessionEventKind::Error,
@@ -511,6 +693,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         let ev4 = SessionEvent {
             kind: SessionEventKind::SessionEnd,
@@ -528,6 +712,8 @@ mod tests {
             model: None,
             exit_status: Some("submitted".to_string()),
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
 
         let mut f = OpenOptions::new()
@@ -594,6 +780,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         sink.emit(&ev).expect("emit should succeed");
 
@@ -629,6 +817,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         sink.emit(&ev).expect("emit should succeed");
 
@@ -704,6 +894,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         sink.emit(&ev).expect("emit should succeed");
 
@@ -770,6 +962,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         sink.emit(&ev).expect("emit");
 
@@ -820,6 +1014,8 @@ mod tests {
             model: None,
             exit_status: None,
             truncated: None,
+            input_tokens: None,
+            output_tokens: None,
         };
         sink.emit(&ev).expect("emit");
 
@@ -833,4 +1029,138 @@ mod tests {
             .and_then(|c| c.as_str());
         assert_eq!(content, Some("ok"));
     }
+}
+
+// ---- T4 export-session / trajectory completeness tests ----
+
+#[test]
+fn export_session_raw_keeps_payloads_and_is_parseable() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("session.jsonl");
+    let sink = SessionEventSink::open_at(&path).expect("open_at");
+    let mut ev = SessionEvent::new(SessionEventKind::UserPrompt, 1, Some("s1".into()));
+    ev.text = Some("sk-secret-raw-prompt password=hunter2".to_string());
+    sink.emit(&ev).expect("emit");
+
+    let raw = export_session_jsonl(&path, true).expect("raw export");
+    assert!(
+        raw.contains("sk-secret-raw-prompt"),
+        "raw export must keep original text: {raw}"
+    );
+    // G4.4: post-training loader (read_session) must parse the raw export.
+    let replayed = read_session(&path);
+    assert_eq!(replayed.len(), 1);
+    assert_eq!(replayed[0].kind, SessionEventKind::UserPrompt);
+    assert!(
+        replayed[0]
+            .text
+            .as_deref()
+            .unwrap()
+            .contains("sk-secret-raw-prompt")
+    );
+}
+
+#[test]
+fn export_session_redacted_hashes_sensitive_payloads() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("session.jsonl");
+    let sink = SessionEventSink::open_at(&path).expect("open_at");
+    let mut ev = SessionEvent::new(SessionEventKind::ToolCall, 1, Some("s1".into()));
+    ev.tool_name = Some("exec_shell".to_string());
+    ev.tool_input =
+        Some(json!({"cmd": "curl -H 'Authorization: Bearer sk-live-abc123' https://example.test"}));
+    ev.text = Some("password=hunter2 secret_token=topsecret".to_string());
+    sink.emit(&ev).expect("emit");
+    let mut out = SessionEvent::new(SessionEventKind::ToolResult, 1, Some("s1".into()));
+    out.tool_result = Some(json!({"success": true, "content": "output with sk-embedded-9876"}));
+    sink.emit(&out).expect("emit");
+
+    let redacted = export_session_jsonl(&path, false).expect("redacted export");
+
+    // G4.2-style secret sweep over the redacted export.
+    for needle in ["sk-", "password", "secret", "hunter2", "abc123", "9876"] {
+        assert!(
+            !redacted.to_lowercase().contains(needle),
+            "redacted export must not contain `{needle}`: {redacted}"
+        );
+    }
+    // Replayable after redaction.
+    let replayed = read_session(std::path::Path::new(
+        &std::env::temp_dir().join("nonexistent-guard"),
+    ));
+    assert!(replayed.is_empty());
+    let parsed: Vec<Value> = redacted
+        .lines()
+        .map(|l| serde_json::from_str::<Value>(l).expect("redacted line is JSON"))
+        .collect();
+    assert_eq!(parsed.len(), 2);
+    assert_eq!(parsed[0]["kind"], "tool_call");
+    assert_eq!(parsed[1]["kind"], "tool_result");
+}
+
+#[test]
+fn new_event_kinds_serialize_to_snake_case_labels() {
+    let kind_label = |k: SessionEventKind| serde_json::to_string(&k).unwrap();
+    assert_eq!(kind_label(SessionEventKind::UserPrompt), "\"user_prompt\"");
+    assert_eq!(kind_label(SessionEventKind::AgentThink), "\"agent_think\"");
+    assert_eq!(kind_label(SessionEventKind::TokenUsage), "\"token_usage\"");
+    assert_eq!(kind_label(SessionEventKind::ToolCall), "\"tool_call\"");
+    assert_eq!(kind_label(SessionEventKind::AgentSpawn), "\"agent_spawn\"");
+    assert_eq!(kind_label(SessionEventKind::AgentDone), "\"agent_done\"");
+    assert_eq!(kind_label(SessionEventKind::Error), "\"error\"");
+}
+
+#[test]
+fn full_coverage_fixture_emits_every_required_label() {
+    // G4.1-style full-label session used by scripts/check_trace_fields.py.
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("session.jsonl");
+    let sink = SessionEventSink::open_at(&path).expect("open_at");
+    let mk = |kind: SessionEventKind| {
+        let mut ev = SessionEvent::new(kind, 1, Some("cov".into()));
+        ev.text = Some(format!("payload for {kind:?}"));
+        sink.emit(&ev).expect("emit");
+    };
+    mk(SessionEventKind::UserPrompt);
+    mk(SessionEventKind::AgentThink);
+    mk(SessionEventKind::ToolCall);
+    mk(SessionEventKind::Error);
+    let mut usage = SessionEvent::new(SessionEventKind::TokenUsage, 1, Some("cov".into()));
+    usage.input_tokens = Some(100);
+    usage.output_tokens = Some(40);
+    sink.emit(&usage).expect("emit");
+    mk(SessionEventKind::AgentSpawn);
+    mk(SessionEventKind::AgentDone);
+
+    let raw = std::fs::read_to_string(&path).unwrap();
+    for label in [
+        "user_prompt",
+        "agent_think",
+        "tool_call",
+        "error",
+        "token_usage",
+        "agent_spawn",
+        "agent_done",
+    ] {
+        assert!(
+            raw.contains(&format!("\"kind\":\"{label}\"")),
+            "missing required label {label} in {raw}"
+        );
+    }
+}
+
+#[test]
+fn legacy_pascal_case_kinds_are_normalized_on_read() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("session.jsonl");
+    // Old-trajectory label (pre-T4 PascalCase).
+    std::fs::write(
+        &path,
+        "{\"kind\":\"AssistantText\",\"turn\":1,\"ts\":\"t\",\"text\":\"hello\"}\n",
+    )
+    .unwrap();
+    let events = read_session(&path);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].kind, SessionEventKind::AssistantText);
+    assert_eq!(events[0].text.as_deref(), Some("hello"));
 }

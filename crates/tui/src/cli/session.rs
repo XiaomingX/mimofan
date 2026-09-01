@@ -353,3 +353,79 @@ pub(crate) fn preserve_interrupted_checkpoint_for_explicit_resume(launch_workspa
         );
     }
 }
+
+/// Resolve the session.jsonl path for an export: explicit `--file` wins,
+/// otherwise look up `~/.mimofan/tasks/<id>` (exact id or unique prefix).
+pub(crate) fn resolve_task_session_path(task: &str) -> Result<std::path::PathBuf> {
+    let Some(home) = dirs::home_dir() else {
+        anyhow::bail!("could not resolve home directory for ~/.mimofan/tasks");
+    };
+    let tasks_dir = home.join(".mimofan").join("tasks");
+    if !tasks_dir.is_dir() {
+        anyhow::bail!(
+            "no session tasks directory at {} (run a session first)",
+            tasks_dir.display()
+        );
+    }
+    let direct = tasks_dir.join(task).join("session.jsonl");
+    if direct.is_file() {
+        return Ok(direct);
+    }
+    // Prefix match (IDs are UUIDs; accept a short prefix when unique).
+    let mut matches = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(&tasks_dir) {
+        for entry in rd.flatten() {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            if name.starts_with(task) {
+                let candidate = entry.path().join("session.jsonl");
+                if candidate.is_file() {
+                    matches.push(candidate);
+                }
+            }
+        }
+    }
+    match matches.len() {
+        0 => anyhow::bail!("no session.jsonl found for task id '{task}'"),
+        1 => Ok(matches.pop().unwrap()),
+        n => anyhow::bail!("task id prefix '{task}' is ambiguous ({n} matches); use the full id"),
+    }
+}
+
+/// Run `mimofan export-session`: export a session trajectory raw or redacted.
+pub(crate) fn run_export_session(args: &super::ExportSessionArgs) -> Result<()> {
+    use crate::core::engine::trace::export_session_jsonl;
+
+    let path = match &args.file {
+        Some(p) => std::path::PathBuf::from(p),
+        None => match &args.task {
+            Some(t) => resolve_task_session_path(t)?,
+            None => anyhow::bail!("export-session requires a TASK_ID (or use --file <path>)"),
+        },
+    };
+    if !path.is_file() {
+        anyhow::bail!("session trajectory not found: {}", path.display());
+    }
+
+    let output = if args.compact {
+        crate::core::engine::trace::export_compact_jsonl(&path)
+            .map_err(|e| anyhow::anyhow!("failed to compact export {}: {e}", path.display()))?
+    } else {
+        export_session_jsonl(&path, args.raw)
+            .map_err(|e| anyhow::anyhow!("failed to export session {}: {e}", path.display()))?
+    };
+
+    match args.output.as_deref() {
+        None | Some("-") => {
+            print!("{output}");
+        }
+        Some(out_path) => {
+            std::fs::write(out_path, output.as_bytes())
+                .map_err(|e| anyhow::anyhow!("failed writing export to {out_path}: {e}"))?;
+        }
+    }
+    if !args.raw {
+        eprintln!("# exported redacted (use --raw for original payloads)");
+    }
+    Ok(())
+}

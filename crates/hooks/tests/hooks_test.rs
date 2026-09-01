@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn hook_event_serializes_with_snake_case_type_and_payload() {
-    let event = HookEvent::ToolLifecycle {
+    let event = HookSinkEvent::ToolLifecycle {
         response_id: "resp-1".to_string(),
         tool_name: "shell".to_string(),
         phase: "end".to_string(),
@@ -27,7 +27,7 @@ fn hook_event_serializes_with_snake_case_type_and_payload() {
 
 #[test]
 fn generic_event_frame_serialization_is_unchanged_by_boxing() {
-    let event = HookEvent::GenericEventFrame {
+    let event = HookSinkEvent::GenericEventFrame {
         frame: Box::new(EventFrame::ResponseStart {
             response_id: "resp-1".to_string(),
         }),
@@ -46,12 +46,12 @@ async fn jsonl_sink_creates_parent_dir_and_appends_events() {
     let path = root.join("nested").join("hooks.jsonl");
     let sink = JsonlHookSink::new(path.clone());
 
-    sink.emit(&HookEvent::ResponseStart {
+    sink.emit(&HookSinkEvent::ResponseStart {
         response_id: "resp-1".to_string(),
     })
     .await
     .expect("emit response_start event to jsonl sink");
-    sink.emit(&HookEvent::ResponseEnd {
+    sink.emit(&HookSinkEvent::ResponseEnd {
         response_id: "resp-1".to_string(),
     })
     .await
@@ -83,7 +83,7 @@ async fn dispatcher_continues_after_sink_error() {
     dispatcher.add_sink(second.clone());
 
     dispatcher
-        .emit(HookEvent::ApprovalLifecycle {
+        .emit(HookSinkEvent::ApprovalLifecycle {
             approval_id: "approval-1".to_string(),
             phase: "requested".to_string(),
             reason: Some("needs review".to_string()),
@@ -108,7 +108,7 @@ async fn unix_socket_sink_skips_when_listener_absent() {
     let (root, socket_path) = unique_short_socket_path("missing");
     let sink = UnixSocketHookSink::new(socket_path);
     let result = sink
-        .emit(&HookEvent::ResponseStart {
+        .emit(&HookSinkEvent::ResponseStart {
             response_id: "resp-1".to_string(),
         })
         .await;
@@ -137,7 +137,7 @@ async fn unix_socket_sink_sends_event_to_listener() {
         line
     });
 
-    sink.emit(&HookEvent::ResponseStart {
+    sink.emit(&HookSinkEvent::ResponseStart {
         response_id: "resp-42".to_string(),
     })
     .await
@@ -169,7 +169,7 @@ impl RecordingSink {
 
 #[async_trait]
 impl HookSink for RecordingSink {
-    async fn emit(&self, event: &HookEvent) -> Result<()> {
+    async fn emit(&self, event: &HookSinkEvent) -> Result<()> {
         self.events
             .lock()
             .expect("lock recording sink events")
@@ -182,7 +182,7 @@ struct FailingSink;
 
 #[async_trait]
 impl HookSink for FailingSink {
-    async fn emit(&self, _event: &HookEvent) -> Result<()> {
+    async fn emit(&self, _event: &HookSinkEvent) -> Result<()> {
         anyhow::bail!("sink failed")
     }
 }

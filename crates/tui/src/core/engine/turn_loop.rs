@@ -187,8 +187,39 @@ impl Engine {
                 model: None,
                 exit_status: None,
                 truncated: None,
+                input_tokens: None,
+                output_tokens: None,
             };
             let _ = sink.emit(&ev);
+
+            // T4: record the user prompt that started the turn (text blocks of
+            // the most recent user message). Best-effort.
+            let prompt_text = self
+                .session
+                .messages
+                .iter()
+                .rev()
+                .find(|m| m.role == "user")
+                .map(|m| {
+                    m.content
+                        .iter()
+                        .filter_map(|b| match b {
+                            ContentBlock::Text { text, .. } => Some(text.as_str()),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                });
+            if let Some(text) = prompt_text.filter(|t| !t.trim().is_empty()) {
+                let mut up = crate::core::engine::trace::SessionEvent::new(
+                    crate::core::engine::trace::SessionEventKind::UserPrompt,
+                    turn.step as u64,
+                    Some(self.session.id.clone()),
+                );
+                up.text = Some(text);
+                up.source = Some("user".to_string());
+                let _ = sink.emit(&up);
+            }
         }
 
         let client = self
@@ -1434,6 +1465,34 @@ impl Engine {
                 .await;
             }
 
+            // T4 trajectory: record reasoning (agent_think) and visible
+            // assistant text. Best-effort; real reasoning only (the
+            // "(reasoning omitted)" placeholder is skipped).
+            if let Some(sink) = sink.as_ref() {
+                if !current_thinking.trim().is_empty() {
+                    let mut ev = crate::core::engine::trace::SessionEvent::new(
+                        crate::core::engine::trace::SessionEventKind::AgentThink,
+                        turn.step as u64,
+                        Some(self.session.id.clone()),
+                    );
+                    ev.text = Some(current_thinking.clone());
+                    ev.source = Some("agent".to_string());
+                    ev.model = Some(self.session.model.clone());
+                    let _ = sink.emit(&ev);
+                }
+                if !current_text_visible.trim().is_empty() {
+                    let mut ev = crate::core::engine::trace::SessionEvent::new(
+                        crate::core::engine::trace::SessionEventKind::AssistantText,
+                        turn.step as u64,
+                        Some(self.session.id.clone()),
+                    );
+                    ev.text = Some(current_text_visible.clone());
+                    ev.source = Some("agent".to_string());
+                    ev.model = Some(self.session.model.clone());
+                    let _ = sink.emit(&ev);
+                }
+            }
+
             // If no tool uses, check for inline REPL blocks (paper §2) or
             // finish the turn.
             if tool_uses.is_empty() {
@@ -2527,6 +2586,8 @@ impl Engine {
                                 model: None,
                                 exit_status: None,
                                 truncated: None,
+                                input_tokens: None,
+                                output_tokens: None,
                             };
                             let _ = sink.emit(&call_ev);
 
@@ -2550,6 +2611,8 @@ impl Engine {
                                     model: None,
                                     exit_status: None,
                                     truncated: None,
+                                    input_tokens: None,
+                                    output_tokens: None,
                                 };
                                 let _ = sink.emit(&spawn_ev);
                             }
@@ -2604,6 +2667,8 @@ impl Engine {
                                 model: None,
                                 exit_status: None,
                                 truncated: None,
+                                input_tokens: None,
+                                output_tokens: None,
                             };
                             let _ = sink.emit(&res_ev);
 
@@ -2634,6 +2699,8 @@ impl Engine {
                                         .to_string(),
                                     ),
                                     truncated: None,
+                                    input_tokens: None,
+                                    output_tokens: None,
                                 };
                                 let _ = sink.emit(&done_ev);
                             }
@@ -3017,9 +3084,23 @@ impl Engine {
                     model: None,
                     exit_status: Some("failed".to_string()),
                     truncated: None,
+                    input_tokens: None,
+                    output_tokens: None,
                 };
                 let _ = sink.emit(&err_ev);
             }
+            // T4: token usage for the turn (accumulated across stream rounds).
+            let mut usage_ev = crate::core::engine::trace::SessionEvent::new(
+                crate::core::engine::trace::SessionEventKind::TokenUsage,
+                turn.step as u64,
+                Some(self.session.id.clone()),
+            );
+            usage_ev.input_tokens = Some(turn.usage.input_tokens as u64);
+            usage_ev.output_tokens = Some(turn.usage.output_tokens as u64);
+            usage_ev.model = Some(self.session.model.clone());
+            usage_ev.source = Some("system".to_string());
+            let _ = sink.emit(&usage_ev);
+
             let end_ev = crate::core::engine::trace::SessionEvent {
                 kind: crate::core::engine::trace::SessionEventKind::SessionEnd,
                 turn: turn.step as u64,
@@ -3036,6 +3117,8 @@ impl Engine {
                 model: None,
                 exit_status: Some(exit_status.to_string()),
                 truncated: None,
+                input_tokens: None,
+                output_tokens: None,
             };
             let _ = sink.emit(&end_ev);
         }

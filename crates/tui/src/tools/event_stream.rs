@@ -1,4 +1,4 @@
-//! #850 — Structured event stream (jsonl) + replay.
+//! #850 — Structured event stream (jsonl) + replay (READ SIDE ONLY).
 //!
 //! An append-only, line-delimited JSON log of mimofan's execution. Each entry
 //! is an [`EventEnvelope`] carrying a monotonic sequence number, an emission
@@ -6,12 +6,18 @@
 //! meant to be durable and machine-inspectable so a session can be replayed,
 //! audited, or turned into metrics without re-running the agent.
 //!
-//! This module owns the data model and I/O only. Tool registration is deferred
-//! (see `EventStreamTool` which is implemented but not wired into the registry
-//! yet), so nothing here reaches into `mod.rs`, `registry.rs`, or `engine.rs`.
+//! Loop v1 / T3 normalization: the writer half (`EventLog` / `EventLogError`)
+//! was REMOVED. Trajectory emission has a single true source —
+//! [`crate::core::engine::trace::SessionEventSink`] (which writes
+//! `~/.mimofan/tasks/<id>/session.jsonl`). The headless failure log is also
+//! emitted through `SessionEventSink` now. This module keeps only the read /
+//! replay data model ([`EventEnvelope`], [`EventKind`], [`replay`],
+//! [`EventReplay`], [`EventCounts`]) so external JSONL logs in the envelope
+//! schema can still be inspected by the `event_stream` tool. Do not add a new
+//! writer here — route emits through `SessionEventSink`.
 
-use std::fs::{File, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
@@ -47,9 +53,11 @@ pub enum EventKind {
 
 /// A timestamped, sequenced record in the event stream.
 ///
-/// `seq` is assigned by [`EventLog`] at append time and is strictly increasing
+/// `seq` is assigned by the writer at append time and is strictly increasing
 /// within a single log file, so replays can reconstruct ordering even if two
-/// events share a wall-clock timestamp.
+/// events share a wall-clock timestamp. (The writer now lives in
+/// [`crate::core::engine::trace::SessionEventSink`]; the envelope schema is
+/// still produced by external JSONL logs this module can replay.)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EventEnvelope {
     /// Emission time (UTC).
@@ -76,93 +84,12 @@ impl EventEnvelope {
     }
 }
 
-/// Errors that can occur while opening, appending to, or reading an event log.
-#[derive(Debug, Error)]
-pub enum EventLogError {
-    /// The log file could not be opened for writing.
-    #[error("Failed to open event log {path}: {source}")]
-    Open {
-        /// Path that failed to open.
-        path: PathBuf,
-        /// Underlying IO error.
-        #[source]
-        source: std::io::Error,
-    },
-    /// An event could not be serialized to JSON.
-    #[error("Failed to serialize event: {0}")]
-    Serialize(#[from] serde_json::Error),
-    /// An event could not be flushed to disk.
-    #[error("Failed to write event log {path}: {source}")]
-    Write {
-        /// Path that failed to write.
-        path: PathBuf,
-        /// Underlying IO error.
-        #[source]
-        source: std::io::Error,
-    },
-}
-
-/// An append-only JSON-Lines event log.
-///
-/// `open` creates (or appends to) a file at `path`. Each [`EventLog::append`]
-/// writes exactly one JSON object followed by `\n` and flushes, so a crash
-/// between events never produces a torn record — the worst case is a missing
-/// final line, which [`replay`] already tolerates.
-pub struct EventLog {
-    path: PathBuf,
-    file: File,
-    next_seq: u64,
-}
-
-impl EventLog {
-    /// Open (creating if absent) the event log at `path`.
-    ///
-    /// The sequence counter starts at 0; callers that need continuity across
-    /// reopen should `replay` first and set `next_seq` from the last seen `seq`.
-    pub fn open(path: impl AsRef<Path>) -> Result<Self, EventLogError> {
-        let path = path.as_ref().to_path_buf();
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)
-            .map_err(|source| EventLogError::Open {
-                path: path.clone(),
-                source,
-            })?;
-        Ok(Self {
-            path,
-            file,
-            next_seq: 0,
-        })
-    }
-
-    /// Path this log writes to.
-    #[must_use]
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    /// Append one event of `kind` with `payload`, returning the assigned
-    /// sequence number. The write is flushed before returning.
-    pub fn append(&mut self, kind: EventKind, payload: Value) -> Result<u64, EventLogError> {
-        let seq = self.next_seq;
-        let envelope = EventEnvelope::new(seq, kind, payload);
-        let mut line = serde_json::to_string(&envelope)?;
-        line.push('\n');
-        self.file
-            .write_all(line.as_bytes())
-            .map_err(|source| EventLogError::Write {
-                path: self.path.clone(),
-                source,
-            })?;
-        self.file.flush().map_err(|source| EventLogError::Write {
-            path: self.path.clone(),
-            source,
-        })?;
-        self.next_seq = self.next_seq.saturating_add(1);
-        Ok(seq)
-    }
-}
+// Deprecated (loop v1 / T3): the `EventLog` writer struct and its
+// `EventLogError` type were removed from this module. Trajectory/failure
+// events must be emitted through
+// `crate::core::engine::trace::SessionEventSink` — the single trajectory
+// writer (session.jsonl). The read/replay model below remains for the
+// read-only `event_stream` tool.
 
 /// Errors that can occur while reading/replaying a log.
 #[derive(Debug, Error)]
@@ -299,21 +226,23 @@ mod tests {
         let dir = tempfile::TempDir::new().unwrap();
         let path = dir.path().join("events.jsonl");
 
-        // Write 3 events: TurnStart, ToolCall, Checkpoint.
-        let mut log = EventLog::open(&path).unwrap();
-        let s0 = log
-            .append(EventKind::TurnStart, json!({"turn": 1}))
-            .unwrap();
-        let s1 = log
-            .append(
+        // Writer half was removed (T3: SessionEventSink is the sole writer);
+        // seed raw envelope JSONL lines exactly as the legacy writer did.
+        let envelopes = [
+            EventEnvelope::new(0, EventKind::TurnStart, json!({"turn": 1})),
+            EventEnvelope::new(
+                1,
                 EventKind::ToolCall,
                 json!({"tool": "read_file", "path": "x.rs"}),
-            )
-            .unwrap();
-        let s2 = log
-            .append(EventKind::Checkpoint, json!({"id": "c1"}))
-            .unwrap();
-        assert_eq!((s0, s1, s2), (0, 1, 2));
+            ),
+            EventEnvelope::new(2, EventKind::Checkpoint, json!({"id": "c1"})),
+        ];
+        let mut contents = String::new();
+        for envelope in &envelopes {
+            contents.push_str(&serde_json::to_string(envelope).unwrap());
+            contents.push('\n');
+        }
+        std::fs::write(&path, contents).unwrap();
 
         // Replay and assert.
         let mut events: Vec<_> = replay(&path).unwrap().collect();
@@ -337,8 +266,6 @@ mod tests {
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].1, "read_file");
 
-        // Drop the log handle first so the temp file's sequence is observable.
-        drop(log);
         events.clear();
     }
 

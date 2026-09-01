@@ -69,7 +69,7 @@ fn read_patch_from_stdin() -> Result<String> {
 // ---------------------------------------------------------------------------
 
 pub(crate) fn run_sandbox_command(args: SandboxArgs) -> Result<()> {
-    use crate::sandbox::{CommandSpec, SandboxManager};
+    use crate::sandbox::{CommandSpec, OsSandbox};
 
     let SandboxCommand::Run {
         policy,
@@ -97,7 +97,7 @@ pub(crate) fn run_sandbox_command(args: SandboxArgs) -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("Command is required"))?;
     let spec =
         CommandSpec::program(program, args.to_vec(), cwd.clone(), timeout).with_policy(policy);
-    let manager = SandboxManager::new();
+    let manager = OsSandbox::new();
     let exec_env = manager.prepare(&spec);
 
     let mut cmd = Command::new(exec_env.program());
@@ -139,7 +139,7 @@ pub(crate) fn run_sandbox_command(args: SandboxArgs) -> Result<()> {
         let stderr_str = String::from_utf8_lossy(&stderr);
         let exit_code = status.code().unwrap_or(-1);
         let sandbox_type = exec_env.sandbox_type;
-        let sandbox_denied = SandboxManager::was_denied(sandbox_type, exit_code, &stderr_str);
+        let sandbox_denied = OsSandbox::was_denied(sandbox_type, exit_code, &stderr_str);
 
         if !stdout.is_empty() {
             print!("{}", String::from_utf8_lossy(&stdout));
@@ -148,10 +148,7 @@ pub(crate) fn run_sandbox_command(args: SandboxArgs) -> Result<()> {
             eprint!("{stderr_str}");
         }
         if sandbox_denied {
-            eprintln!(
-                "{}",
-                SandboxManager::denial_message(sandbox_type, &stderr_str)
-            );
+            eprintln!("{}", OsSandbox::denial_message(sandbox_type, &stderr_str));
         }
 
         if !status.success() {

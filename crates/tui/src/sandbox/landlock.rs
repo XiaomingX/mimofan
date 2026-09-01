@@ -111,20 +111,96 @@ struct LandlockRulesetAttr {
     handled_access_net: u64,
 }
 
+// Landlock syscall numbers (Linux 5.13+). glibc only exposed these as named
+// linkable symbols in glibc 2.49, so linking the `extern "C"` declarations
+// directly fails on older distros (e.g. Ubuntu 22.04 / glibc 2.35) with
+// `undefined symbol: landlock_create_ruleset`. Invoke the raw syscalls
+// instead — the runtime probe in `is_available()` already handles `ENOSYS`
+// on pre-5.13 kernels. The numbers come from `asm-generic/unistd.h` and are
+// identical on the 64-bit architectures below. Unsupported architectures get
+// `-1`, which makes `syscall(2)` fail with `ENOSYS` at runtime.
 #[cfg(target_os = "linux")]
-unsafe extern "C" {
-    fn landlock_create_ruleset(
-        attr: *const LandlockRulesetAttr,
-        size: libc::size_t,
-        flags: libc::c_uint,
-    ) -> libc::c_int;
-    fn landlock_add_rule(
-        ruleset_fd: libc::c_int,
-        rule_type: libc::c_uint,
-        rule_attr: *const libc::c_void,
-        flags: libc::c_uint,
-    ) -> libc::c_int;
-    fn landlock_restrict_self(ruleset_fd: libc::c_int, flags: libc::c_uint) -> libc::c_int;
+mod landlock_sys {
+    #[cfg(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "loongarch64"
+    ))]
+    pub const CREATE_RULESET: libc::c_long = 444;
+    #[cfg(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "loongarch64"
+    ))]
+    pub const ADD_RULE: libc::c_long = 445;
+    #[cfg(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "loongarch64"
+    ))]
+    pub const RESTRICT_SELF: libc::c_long = 446;
+
+    #[cfg(not(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "loongarch64"
+    )))]
+    pub const CREATE_RULESET: libc::c_long = -1;
+    #[cfg(not(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "loongarch64"
+    )))]
+    pub const ADD_RULE: libc::c_long = -1;
+    #[cfg(not(any(
+        target_arch = "x86_64",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "loongarch64"
+    )))]
+    pub const RESTRICT_SELF: libc::c_long = -1;
+}
+
+#[cfg(target_os = "linux")]
+unsafe fn landlock_create_ruleset(
+    attr: *const LandlockRulesetAttr,
+    size: libc::size_t,
+    flags: libc::c_uint,
+) -> libc::c_int {
+    // SAFETY: `attr` is a fully-initialized ruleset attr (or NULL with the
+    // ABI-size flags, which we never use); syscall returns -1/errno on failure.
+    unsafe { libc::syscall(landlock_sys::CREATE_RULESET, attr, size, flags) as libc::c_int }
+}
+
+#[cfg(target_os = "linux")]
+unsafe fn landlock_add_rule(
+    ruleset_fd: libc::c_int,
+    rule_type: libc::c_uint,
+    rule_attr: *const libc::c_void,
+    flags: libc::c_uint,
+) -> libc::c_int {
+    // SAFETY: `rule_attr` points to a valid `landlock_path_beneath_attr` for
+    // the rule type we issue; fd is owned by the caller.
+    unsafe {
+        libc::syscall(
+            landlock_sys::ADD_RULE,
+            ruleset_fd,
+            rule_type,
+            rule_attr,
+            flags,
+        ) as libc::c_int
+    }
+}
+
+#[cfg(target_os = "linux")]
+unsafe fn landlock_restrict_self(ruleset_fd: libc::c_int, flags: libc::c_uint) -> libc::c_int {
+    // SAFETY: ruleset_fd is a valid fd created in this process.
+    unsafe { libc::syscall(landlock_sys::RESTRICT_SELF, ruleset_fd, flags) as libc::c_int }
 }
 
 /// Access mask we *grant* to files: everything except the write/make/remove

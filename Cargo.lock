@@ -3554,7 +3554,6 @@ name = "mimofan-staticanalysis"
 version = "0.0.22"
 dependencies = [
  "anyhow",
- "rusqlite",
  "serde",
  "serde_json",
  "tempfile",

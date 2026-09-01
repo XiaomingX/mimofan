@@ -204,6 +204,8 @@ pub(crate) enum Commands {
         #[arg(long = "last", default_value_t = false, conflicts_with = "session_id")]
         last: bool,
     },
+    /// Export a session trajectory (session.jsonl) for post-training/harness use
+    ExportSession(ExportSessionArgs),
     /// Fork a previous session by ID (use --last for most recent)
     Fork {
         /// Conversation/session id (UUID or prefix)
@@ -552,6 +554,26 @@ pub(crate) struct DoctorArgs {
     /// Emit only the diagnostic context source map as JSON
     #[arg(long, default_value_t = false, conflicts_with = "json")]
     pub(crate) context_json: bool,
+}
+
+#[derive(Args, Debug, Clone)]
+pub(crate) struct ExportSessionArgs {
+    /// Task/session id under ~/.mimofan/tasks/ (exact id or unique prefix)
+    #[arg(value_name = "TASK_ID")]
+    pub(crate) task: Option<String>,
+    /// Direct path to a session.jsonl file (overrides task lookup)
+    #[arg(long, value_name = "PATH")]
+    pub(crate) file: Option<String>,
+    /// Emit the RAW trajectory (original assistant text / tool inputs and
+    /// outputs). Without --raw the export is re-redacted (privacy-safe).
+    #[arg(long, default_value_t = false)]
+    pub(crate) raw: bool,
+    /// Write output to a file instead of stdout ("-" for stdout)
+    #[arg(long, value_name = "OUT")]
+    pub(crate) output: Option<String>,
+    /// Compact metadata-only export (drops tool inputs/outputs; T9 savings)
+    #[arg(long, default_value_t = false)]
+    pub(crate) compact: bool,
 }
 
 #[derive(Args, Debug, Clone)]

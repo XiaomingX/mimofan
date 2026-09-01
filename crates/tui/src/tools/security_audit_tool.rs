@@ -98,28 +98,50 @@ impl ToolSpec for SecurityAuditTool {
             ));
         }
 
-        let Some(backend) = context.sandbox_backend.as_ref() else {
-            return Err(ToolError::not_available(
-                "no sandbox backend configured; security_audit requires an execution backend",
-            ));
-        };
+        let target = parsed.target.clone();
+        let mut findings: Vec<ReviewIssue> = Vec::new();
 
-        let opts = SemgrepOptions {
-            target: parsed.target,
-            config: parsed.config,
-            extra_flags: parsed.extra_flags,
-        };
+        // Built-in, always-available Java taint analysis (no external binary,
+        // no sandbox/SK needed): runs against .java targets/directories.
+        let target_path = std::path::Path::new(&target);
+        let is_java = target.ends_with(".java") || target_path.extension().is_none();
+        if is_java {
+            let internal = if target.ends_with(".java") {
+                let src = std::fs::read_to_string(&target).map_err(|e| {
+                    ToolError::execution_failed(format!("cannot read {target}: {e}"))
+                })?;
+                mimofan_staticanalysis::java_taint::analyze_file(&target, &src).unwrap_or_default()
+            } else {
+                mimofan_staticanalysis::java_taint::analyze_dir(&target)
+            };
+            for issue in &internal {
+                findings.push(to_review_issue(issue));
+            }
+        }
 
-        let issues = run_semgrep_scan(backend.as_ref(), &opts)
-            .await
-            .map_err(|e| ToolError::execution_failed(format!("security_audit failed: {e}")))?;
+        // Optional external semgrep (only when a sandbox backend is present
+        // and semgrep is installed); the internal analysis already covers
+        // Java, so this is additive.
+        if let Some(backend) = context.sandbox_backend.as_ref() {
+            let opts = SemgrepOptions {
+                target: parsed.target.clone(),
+                config: parsed.config.clone(),
+                extra_flags: parsed.extra_flags.clone(),
+            };
+            if let Ok(external) = run_semgrep_scan(backend.as_ref(), &opts).await {
+                for issue in &external {
+                    let ri = to_review_issue(issue);
+                    if !findings
+                        .iter()
+                        .any(|f| f.path == ri.path && f.line == ri.line && f.rule_id == ri.rule_id)
+                    {
+                        findings.push(ri);
+                    }
+                }
+            }
+        }
 
-        let findings: Vec<ReviewIssue> = issues.iter().map(to_review_issue).collect();
-
-        let output = SecurityAuditOutput {
-            target: opts.target,
-            findings,
-        };
+        let output = SecurityAuditOutput { target, findings };
 
         ToolResult::json(&output).map_err(|e| ToolError::execution_failed(e.to_string()))
     }

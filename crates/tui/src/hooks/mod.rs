@@ -19,71 +19,11 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-/// Events that can trigger hook execution
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum HookEvent {
-    /// Triggered when a new session starts
-    SessionStart,
-    /// Triggered when a session ends (quit, Ctrl+C)
-    SessionEnd,
-    /// Triggered before a user message is sent to the LLM
-    MessageSubmit,
-    /// Triggered before a tool is executed
-    ToolCallBefore,
-    /// Triggered after a tool completes (success or failure)
-    ToolCallAfter,
-    /// Triggered when the user changes modes (Plan, Agent, Yolo)
-    ModeChange,
-    /// Triggered when an error occurs
-    OnError,
-    /// Triggered after a turn completes and post-turn state has been updated
-    TurnEnd,
-    /// Triggered when a sub-agent is spawned
-    SubagentSpawn,
-    /// Triggered when a sub-agent reaches a terminal state
-    SubagentComplete,
-    /// Triggered immediately before each `exec_shell` invocation. The hook's
-    /// stdout is parsed as `KEY=VALUE\n` lines and merged on top of the
-    /// shell command's environment — useful for ephemeral credentials,
-    /// per-skill PATH adjustments, or short-lived tokens (#456). Hooks that
-    /// fail or time out are logged but do *not* abort the shell call; they
-    /// simply contribute no env vars.
-    ShellEnv,
-    /// Triggered immediately before an automatic or manual context compaction
-    /// runs. The hook can inspect the imminent compaction (cause, message
-    /// count) and, like `ToolCallBefore`, deny it via exit code 2 to preserve
-    /// critical context that the summarizer would otherwise discard. Mirrors
-    /// the `PreCompact` lifecycle hook available in other agents.
-    PreCompact,
-    /// Triggered immediately after a context compaction completes
-    /// successfully. Useful for re-injecting context that should survive the
-    /// summarization pass (e.g. re-reading disk-backed project rules), or for
-    /// telemetry on compaction outcomes. Not fired when compaction is skipped
-    /// or fails, so listeners can assume a real summarization took place.
-    PostCompact,
-}
-
-impl HookEvent {
-    /// Get string representation for environment variable
-    pub fn as_str(self) -> &'static str {
-        match self {
-            HookEvent::SessionStart => "session_start",
-            HookEvent::SessionEnd => "session_end",
-            HookEvent::MessageSubmit => "message_submit",
-            HookEvent::ToolCallBefore => "tool_call_before",
-            HookEvent::ToolCallAfter => "tool_call_after",
-            HookEvent::ModeChange => "mode_change",
-            HookEvent::OnError => "on_error",
-            HookEvent::TurnEnd => "turn_end",
-            HookEvent::SubagentSpawn => "subagent_spawn",
-            HookEvent::SubagentComplete => "subagent_complete",
-            HookEvent::ShellEnv => "shell_env",
-            HookEvent::PreCompact => "pre_compact",
-            HookEvent::PostCompact => "post_compact",
-        }
-    }
-}
+// `HookEvent` (the lifecycle hook-trigger enum) is defined once in the
+// `mimofan-hooks` crate and re-exported here. Loop v1 / T3 normalized away the
+// TUI's duplicate copy; do not re-introduce a local HookEvent definition.
+// The streaming/sink-side event type is `mimofan_hooks::HookSinkEvent`.
+pub use mimofan_hooks::HookEvent;
 
 /// Condition for when a hook should run
 #[derive(Debug, Clone, Serialize, Deserialize)]

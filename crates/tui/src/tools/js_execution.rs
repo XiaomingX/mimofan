@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::dependencies::ExternalTool;
-use crate::sandbox::{CommandSpec, SandboxManager, SandboxType};
+use crate::sandbox::{CommandSpec, OsSandbox, SandboxType};
 use serde_json::{Value, json};
 
 use crate::models::Tool;
@@ -150,7 +150,7 @@ pub async fn execute_js_execution_tool(
     // sandbox transforms the command into a restricted ExecEnv with a cleared
     // environment (no inherited host credentials). When unavailable it falls
     // back to an unsandboxed ExecEnv that preserves prior behavior.
-    let mut sandbox_manager = SandboxManager::new();
+    let mut sandbox_manager = OsSandbox::new();
     let sandbox_available = sandbox_manager.is_available();
     let mut node_args = node_fixed_args.clone();
     node_args.push(script_path.to_string_lossy().to_string());

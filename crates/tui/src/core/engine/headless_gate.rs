@@ -6,8 +6,9 @@
 //! - **(a)** the engine must NOT block on human input — enforced by the
 //!   `#853` `UnattendedPolicy` tool filter (applied at engine construction),
 //! - **(b)** on any unrecoverable error the engine writes a structured
-//!   failure event (reusing `crate::tools::event_stream::EventEnvelope` /
-//!   `EventKind::Error`) and exits non-zero rather than hanging,
+//!   failure event through `crate::core::engine::trace::SessionEventSink`
+//!   (the single trajectory writer, `SessionEventKind::Error`) and exits
+//!   non-zero rather than hanging,
 //! - **(c)** the `TaskBudget` (#848) halts the run at exhaustion,
 //! - **(d)** the resume path (#857) lets a crash be restarted.
 //!
@@ -18,9 +19,9 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::tools::event_stream::{EventEnvelope, EventKind, EventLog};
-
 use anyhow::{Context, Result, anyhow, bail};
+
+use crate::core::engine::trace::{SessionEvent, SessionEventKind, SessionEventSink};
 
 /// Validation/coherence errors surfaced by [`HeadlessGate::validate`].
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -132,9 +133,15 @@ impl HeadlessGate {
 
     /// Append a structured failure event to the failure log.
     ///
-    /// Best-effort: a missing parent directory is created, and any I/O error is
-    /// returned (not silently swallowed) so the caller can still exit non-zero.
-    /// Returns the sequence number assigned to the record.
+    /// The record goes through [`SessionEventSink`] (loop v1 / T3: the single
+    /// trajectory/failure writer; the old `EventLog` was removed) opened at the
+    /// failure-log path with redaction disabled so external headless
+    /// supervisors can read the failure message. The failure `code` is carried
+    /// in the event's `exit_status` field and the message in `text`.
+    ///
+    /// A missing parent directory is created, and any I/O error is returned
+    /// (not silently swallowed) so the caller can still exit non-zero.
+    /// Returns 0 on success (sequence tracking lives in the session trajectory).
     pub fn write_failure(
         &self,
         code: impl Into<String>,
@@ -147,17 +154,29 @@ impl HeadlessGate {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("creating failure log dir {}", parent.display()))?;
         }
-        let _ = EventLog::open(path).and_then(|mut log| {
-            log.append(
-                EventKind::Error,
-                serde_json::json!({
-                    "code": code.into(),
-                    "message": message.into(),
-                }),
-            )
-        });
-        // Re-open to read the assigned sequence number is wasteful; instead we
-        // report 0 on success and rely on the file as the source of truth.
+        let sink =
+            SessionEventSink::open_at(path).context("opening failure-log SessionEventSink")?;
+        let event = SessionEvent {
+            kind: SessionEventKind::Error,
+            turn: 0,
+            ts: chrono::Utc::now().to_rfc3339(),
+            text: Some(message.into()),
+            tool_name: None,
+            tool_input: None,
+            hypothesis_id: None,
+            poc_realized: None,
+            source: Some("system".to_string()),
+            tool_result: None,
+            tool_call_id: None,
+            session_id: None,
+            model: None,
+            exit_status: Some(code.into()),
+            truncated: None,
+            input_tokens: None,
+            output_tokens: None,
+        };
+        sink.emit(&event)
+            .context("writing failure event to failure log")?;
         Ok(0)
     }
 }
@@ -252,5 +271,31 @@ mod tests {
         });
         let path = gate.resolve_failure_log_path(&ws).unwrap();
         assert!(path.ends_with(".mimofan/failures.jsonl"));
+    }
+
+    #[test]
+    fn write_failure_emits_session_event_through_sink() {
+        // T3 normalization: the failure record is emitted via
+        // SessionEventSink (single trajectory writer) in SessionEvent schema —
+        // no more separate EventLog writer.
+        let dir = tempfile::TempDir::new().unwrap();
+        let failure_log = dir.path().join("failures.jsonl");
+        let mut gate = HeadlessGate::new(HeadlessGateConfig {
+            unattended: true,
+            task_budget_tokens: Some(100),
+            max_steps: 0,
+            failure_log_path: Some(failure_log.clone()),
+        });
+        gate.validate(dir.path()).unwrap();
+
+        gate.write_failure("turn_failed", "boom message").unwrap();
+
+        let events = crate::core::engine::trace::read_session(&failure_log);
+        assert_eq!(events.len(), 1, "one failure event written");
+        let ev = &events[0];
+        assert_eq!(ev.kind, SessionEventKind::Error);
+        assert_eq!(ev.exit_status.as_deref(), Some("turn_failed"));
+        assert_eq!(ev.text.as_deref(), Some("boom message"));
+        assert_eq!(ev.source.as_deref(), Some("system"));
     }
 }

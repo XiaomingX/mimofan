@@ -12,16 +12,90 @@ use tokio::io::AsyncWriteExt;
 /// Shell-command execution for hook sinks (see [`command::CommandHookSink`]).
 pub mod command;
 
-/// All events that can be emitted through the hook system.
+/// Lifecycle events that can trigger user-configured hooks.
+///
+/// This is the canonical home of the lifecycle hook-event enum (normalized in
+/// loop v1 / T3: the TUI previously defined its own identical copy; it now
+/// re-exports this one). Each variant maps to a stable `snake_case` string via
+/// [`HookEvent::as_str`] — that string is the `event` value users write in
+/// `[[hooks.hooks]]` configuration and the `MIMOFAN_HOOK_EVENT`-style contract
+/// surfaced to hook commands.
+///
+/// The streaming/sink-side event type is [`HookSinkEvent`]; the two are
+/// deliberately distinct: this enum is a fixed set of lifecycle *triggers*,
+/// while [`HookSinkEvent`] carries structured payloads to [`HookSink`]s.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HookEvent {
+    /// Triggered when a new session starts
+    SessionStart,
+    /// Triggered when a session ends (quit, Ctrl+C)
+    SessionEnd,
+    /// Triggered before a user message is sent to the LLM
+    MessageSubmit,
+    /// Triggered before a tool is executed
+    ToolCallBefore,
+    /// Triggered after a tool completes (success or failure)
+    ToolCallAfter,
+    /// Triggered when the user changes modes (Plan, Agent, Yolo)
+    ModeChange,
+    /// Triggered when an error occurs
+    OnError,
+    /// Triggered after a turn completes and post-turn state has been updated
+    TurnEnd,
+    /// Triggered when a sub-agent is spawned
+    SubagentSpawn,
+    /// Triggered when a sub-agent reaches a terminal state
+    SubagentComplete,
+    /// Triggered immediately before each `exec_shell` invocation. The hook's
+    /// stdout is parsed as `KEY=VALUE\n` lines and merged on top of the
+    /// shell command's environment — useful for ephemeral credentials,
+    /// per-skill PATH adjustments, or short-lived tokens (#456). Hooks that
+    /// fail or time out are logged but do *not* abort the shell call; they
+    /// simply contribute no env vars.
+    ShellEnv,
+    /// Triggered immediately before an automatic or manual context compaction
+    /// runs.
+    PreCompact,
+    /// Triggered immediately after a context compaction completes successfully.
+    PostCompact,
+}
+
+impl HookEvent {
+    /// Get string representation for environment variables and hook config.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            HookEvent::SessionStart => "session_start",
+            HookEvent::SessionEnd => "session_end",
+            HookEvent::MessageSubmit => "message_submit",
+            HookEvent::ToolCallBefore => "tool_call_before",
+            HookEvent::ToolCallAfter => "tool_call_after",
+            HookEvent::ModeChange => "mode_change",
+            HookEvent::OnError => "on_error",
+            HookEvent::TurnEnd => "turn_end",
+            HookEvent::SubagentSpawn => "subagent_spawn",
+            HookEvent::SubagentComplete => "subagent_complete",
+            HookEvent::ShellEnv => "shell_env",
+            HookEvent::PreCompact => "pre_compact",
+            HookEvent::PostCompact => "post_compact",
+        }
+    }
+}
+
+/// All events that can be emitted to hook sinks.
 ///
 /// Each variant represents a distinct lifecycle or streaming event. The enum is
 /// serialised with a `"type"` discriminator using `snake_case` naming (e.g.
 /// `"response_start"`, `"tool_lifecycle"`), making it easy to consume from
 /// JSON-based log files or webhook receivers.
-#[allow(clippy::large_enum_variant)] // Keep the public HookEvent shape stable for 0.8.x.
+///
+/// Renamed from `HookEvent` in loop v1 / T3 to disambiguate it from the
+/// lifecycle-trigger enum [`HookEvent`]: this type is the payload delivered to
+/// [`HookSink`] implementations via [`HookDispatcher`].
+#[allow(clippy::large_enum_variant)] // Keep the public HookSinkEvent shape stable for 0.8.x.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum HookEvent {
+pub enum HookSinkEvent {
     /// A new response stream has started.
     ResponseStart {
         /// Unique identifier for the response being streamed.
@@ -97,7 +171,7 @@ pub enum HookEvent {
     },
 }
 
-impl HookEvent {
+impl HookSinkEvent {
     /// Serialise this event into a [`serde_json::Value`].
     ///
     /// Returns a JSON object with the `"type"` discriminator and all variant
@@ -126,7 +200,7 @@ pub trait HookSink: Send + Sync {
     ///
     /// Implementations should be resilient to transient failures (e.g. a
     /// missing listener) and should not block the caller for extended periods.
-    async fn emit(&self, event: &HookEvent) -> Result<()>;
+    async fn emit(&self, event: &HookSinkEvent) -> Result<()>;
 }
 
 /// A [`HookSink`] that prints each event as a single JSON line to stdout.
@@ -138,7 +212,7 @@ pub struct StdoutHookSink;
 
 #[async_trait]
 impl HookSink for StdoutHookSink {
-    async fn emit(&self, event: &HookEvent) -> Result<()> {
+    async fn emit(&self, event: &HookSinkEvent) -> Result<()> {
         println!("{}", event.to_json());
         Ok(())
     }
@@ -165,7 +239,7 @@ impl JsonlHookSink {
 
 #[async_trait]
 impl HookSink for JsonlHookSink {
-    async fn emit(&self, event: &HookEvent) -> Result<()> {
+    async fn emit(&self, event: &HookSinkEvent) -> Result<()> {
         if let Some(parent) = self.path.parent() {
             tokio::fs::create_dir_all(parent).await.with_context(|| {
                 format!("failed to create hook log directory {}", parent.display())
@@ -217,7 +291,7 @@ impl WebhookHookSink {
 
 #[async_trait]
 impl HookSink for WebhookHookSink {
-    async fn emit(&self, event: &HookEvent) -> Result<()> {
+    async fn emit(&self, event: &HookSinkEvent) -> Result<()> {
         let client = self.client.get_or_init(reqwest::Client::new);
         let mut retries = 0usize;
         loop {
@@ -280,7 +354,7 @@ impl UnixSocketHookSink {
 #[async_trait]
 impl HookSink for UnixSocketHookSink {
     #[cfg(unix)]
-    async fn emit(&self, event: &HookEvent) -> Result<()> {
+    async fn emit(&self, event: &HookSinkEvent) -> Result<()> {
         let mut stream = match tokio::net::UnixStream::connect(&self.path).await {
             Ok(s) => s,
             Err(_) => return Ok(()), // listener not running, skip silently
@@ -299,7 +373,7 @@ impl HookSink for UnixSocketHookSink {
     }
 
     #[cfg(not(unix))]
-    async fn emit(&self, _event: &HookEvent) -> Result<()> {
+    async fn emit(&self, _event: &HookSinkEvent) -> Result<()> {
         // Unix sockets are not available on this platform.
         Ok(())
     }
@@ -326,7 +400,7 @@ impl HookDispatcher {
     ///
     /// Errors from individual sinks are silently discarded so that one failing
     /// sink does not block the others.
-    pub async fn emit(&self, event: HookEvent) {
+    pub async fn emit(&self, event: HookSinkEvent) {
         for sink in &self.sinks {
             let _ = sink.emit(&event).await;
         }

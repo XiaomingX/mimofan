@@ -12,7 +12,7 @@ use mimofan_execpolicy::{
     AskForApproval, ExecApprovalRequirement, ExecPolicyContext, ExecPolicyDecision,
     ExecPolicyEngine,
 };
-use mimofan_hooks::{HookDispatcher, HookEvent};
+use mimofan_hooks::{HookDispatcher, HookSinkEvent};
 use mimofan_mcp::{
     McpManager, McpStartupCompleteEvent, McpStartupStatus as McpManagerStartupStatus,
 };
@@ -414,12 +414,12 @@ impl Runtime {
                 self.thread_manager.touch_message(&thread_id, &input)?;
                 let response_id = format!("{thread_id}:{}", input.len());
                 self.hooks
-                    .emit(HookEvent::ResponseStart {
+                    .emit(HookSinkEvent::ResponseStart {
                         response_id: response_id.clone(),
                     })
                     .await;
                 self.hooks
-                    .emit(HookEvent::ResponseEnd {
+                    .emit(HookSinkEvent::ResponseEnd {
                         response_id: response_id.clone(),
                     })
                     .await;
@@ -467,18 +467,18 @@ impl Runtime {
         let response_id = format!("resp-{}", Uuid::new_v4());
 
         self.hooks
-            .emit(HookEvent::ResponseStart {
+            .emit(HookSinkEvent::ResponseStart {
                 response_id: response_id.clone(),
             })
             .await;
         self.hooks
-            .emit(HookEvent::ResponseDelta {
+            .emit(HookSinkEvent::ResponseDelta {
                 response_id: response_id.clone(),
                 delta: "model-selected".to_string(),
             })
             .await;
         self.hooks
-            .emit(HookEvent::ResponseEnd {
+            .emit(HookSinkEvent::ResponseEnd {
                 response_id: response_id.clone(),
             })
             .await;
@@ -559,7 +559,7 @@ impl Runtime {
             .clone()
             .unwrap_or_else(|| format!("tool-call-{}", Uuid::new_v4()));
         self.hooks
-            .emit(HookEvent::ToolLifecycle {
+            .emit(HookSinkEvent::ToolLifecycle {
                 response_id: response_id.clone(),
                 tool_name: call.name.clone(),
                 phase: "precheck".to_string(),
@@ -575,14 +575,14 @@ impl Runtime {
                 message: reason.clone(),
             };
             self.hooks
-                .emit(HookEvent::ApprovalLifecycle {
+                .emit(HookSinkEvent::ApprovalLifecycle {
                     approval_id,
                     phase: "denied".to_string(),
                     reason: Some(reason.clone()),
                 })
                 .await;
             self.hooks
-                .emit(HookEvent::GenericEventFrame {
+                .emit(HookSinkEvent::GenericEventFrame {
                     frame: Box::new(error_frame.clone()),
                 })
                 .await;
@@ -610,7 +610,7 @@ impl Runtime {
                 policy_cwd.clone(),
             );
             self.hooks
-                .emit(HookEvent::ApprovalLifecycle {
+                .emit(HookSinkEvent::ApprovalLifecycle {
                     approval_id: approval_id.clone(),
                     phase: "requested".to_string(),
                     reason: Some(reason.clone()),
@@ -619,7 +619,7 @@ impl Runtime {
             let mut events = Vec::new();
             if let Some(frame) = maybe_approval_frame {
                 self.hooks
-                    .emit(HookEvent::GenericEventFrame {
+                    .emit(HookSinkEvent::GenericEventFrame {
                         frame: Box::new(frame.clone()),
                     })
                     .await;
@@ -659,7 +659,7 @@ impl Runtime {
             let mut events = Vec::new();
             if let Some(frame) = maybe_frame {
                 self.hooks
-                    .emit(HookEvent::GenericEventFrame {
+                    .emit(HookSinkEvent::GenericEventFrame {
                         frame: Box::new(frame.clone()),
                     })
                     .await;
@@ -682,12 +682,12 @@ impl Runtime {
             arguments: tool_payload_value(&call.payload),
         };
         self.hooks
-            .emit(HookEvent::GenericEventFrame {
+            .emit(HookSinkEvent::GenericEventFrame {
                 frame: Box::new(start_frame.clone()),
             })
             .await;
         self.hooks
-            .emit(HookEvent::ToolLifecycle {
+            .emit(HookSinkEvent::ToolLifecycle {
                 response_id: response_id.clone(),
                 tool_name: call.name.clone(),
                 phase: "dispatching".to_string(),
@@ -706,12 +706,12 @@ impl Runtime {
                     output: tool_output_value(&tool_output),
                 };
                 self.hooks
-                    .emit(HookEvent::GenericEventFrame {
+                    .emit(HookSinkEvent::GenericEventFrame {
                         frame: Box::new(result_frame.clone()),
                     })
                     .await;
                 self.hooks
-                    .emit(HookEvent::ToolLifecycle {
+                    .emit(HookSinkEvent::ToolLifecycle {
                         response_id: response_id.clone(),
                         tool_name: call.name,
                         phase: "completed".to_string(),
@@ -738,12 +738,12 @@ impl Runtime {
                     message: message.clone(),
                 };
                 self.hooks
-                    .emit(HookEvent::GenericEventFrame {
+                    .emit(HookSinkEvent::GenericEventFrame {
                         frame: Box::new(error_frame.clone()),
                     })
                     .await;
                 self.hooks
-                    .emit(HookEvent::ToolLifecycle {
+                    .emit(HookSinkEvent::ToolLifecycle {
                         response_id: response_id.clone(),
                         tool_name: call.name,
                         phase: "failed".to_string(),
@@ -782,7 +782,7 @@ impl Runtime {
                 McpManagerStartupStatus::Cancelled => mimofan_protocol::McpStartupStatus::Cancelled,
             };
             self.hooks
-                .emit(HookEvent::GenericEventFrame {
+                .emit(HookSinkEvent::GenericEventFrame {
                     frame: Box::new(EventFrame::McpStartupUpdate {
                         update: mimofan_protocol::McpStartupUpdateEvent {
                             server_name: update.server_name,
@@ -793,7 +793,7 @@ impl Runtime {
                 .await;
         }
         self.hooks
-            .emit(HookEvent::GenericEventFrame {
+            .emit(HookSinkEvent::GenericEventFrame {
                 frame: Box::new(EventFrame::McpStartupComplete {
                     summary: mimofan_protocol::McpStartupCompleteEvent {
                         ready: summary.ready.clone(),

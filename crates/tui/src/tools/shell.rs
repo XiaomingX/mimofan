@@ -32,7 +32,7 @@ use crate::sandbox::landlock::apply_landlock_pre_exec;
 use crate::sandbox::{
     CommandSpec,
     ExecEnv,
-    SandboxManager,
+    OsSandbox,
     SandboxPolicy as ExecutionSandboxPolicy, // Rename to avoid conflict with spec::SandboxPolicy
     SandboxType,
 };
@@ -553,7 +553,7 @@ impl BackgroundShell {
             return false;
         }
         let (_, stderr_full, _, _) = self.full_output();
-        SandboxManager::was_denied(
+        OsSandbox::was_denied(
             self.sandbox_type,
             self.exit_code.unwrap_or(-1),
             &stderr_full,
@@ -699,7 +699,7 @@ pub struct ShellManager {
     processes: HashMap<String, BackgroundShell>,
     stale_jobs: HashMap<String, ShellJobSnapshot>,
     default_workspace: PathBuf,
-    sandbox_manager: SandboxManager,
+    sandbox_manager: OsSandbox,
     sandbox_policy: ExecutionSandboxPolicy,
     foreground_background_requested: bool,
 }
@@ -726,7 +726,7 @@ impl ShellManager {
             processes: HashMap::new(),
             stale_jobs: HashMap::new(),
             default_workspace: workspace,
-            sandbox_manager: SandboxManager::new(),
+            sandbox_manager: OsSandbox::new(),
             sandbox_policy: ExecutionSandboxPolicy::default(),
             foreground_background_requested: false,
         }
@@ -738,7 +738,7 @@ impl ShellManager {
             processes: HashMap::new(),
             stale_jobs: HashMap::new(),
             default_workspace: workspace,
-            sandbox_manager: SandboxManager::new(),
+            sandbox_manager: OsSandbox::new(),
             sandbox_policy: policy,
             foreground_background_requested: false,
         }
@@ -1009,7 +1009,7 @@ impl ShellManager {
 
         // Apply the Linux Landlock restriction in the child before exec. The
         // writable root was stashed in MIMOFAN_LANDLOCK_WS by
-        // SandboxManager::prepare_landlock. If the restriction fails to apply,
+        // OsSandbox::prepare_landlock. If the restriction fails to apply,
         // the child refuses to run (pre_exec returns Err) — never unsandboxed.
         #[cfg(target_os = "linux")]
         if matches!(sandbox_type, SandboxType::Landlock) {
@@ -1057,7 +1057,7 @@ impl ShellManager {
             let exit_code = status.code().unwrap_or(-1);
 
             // Check if sandbox denied the operation
-            let sandbox_denied = SandboxManager::was_denied(sandbox_type, exit_code, &stderr_str);
+            let sandbox_denied = OsSandbox::was_denied(sandbox_type, exit_code, &stderr_str);
             let (stdout, stdout_meta) = truncate_with_meta(&stdout_str);
             let (stderr, stderr_meta) = truncate_with_meta(&stderr_str);
 

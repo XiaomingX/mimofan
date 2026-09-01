@@ -14,7 +14,6 @@ tree-sitter-kotlin-ng = { version = "1.1", optional = true }
 tree-sitter-swift = { version = "0.7", optional = true }
 tree-sitter-objc = { version = "3", optional = true }
 tree-sitter-json = { version = "0.24", optional = true }
-rusqlite = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = "1"
@@ -43,10 +42,6 @@ lang-all = [
     "lang-objc",
     "lang-json",
 ]
-# Persistent symbol index (SQLite). Off by default so the default build does
-# not pull in the bundled SQLite compile. Enable for the SAST code-index.
-symbol-index = ["dep:rusqlite"]
-
 [dev-dependencies]
 # Test-only: tempdir fixtures for call-graph / auto-gadget integration tests.
 tempfile = { workspace = true }

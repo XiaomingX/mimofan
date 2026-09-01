@@ -8,7 +8,7 @@ use crate::commands::CommandResult;
 use crate::config::Config;
 use crate::execpolicy::{ExecPolicyDecision, load_default_policy};
 use crate::localization::{MessageId, tr};
-use crate::sandbox::{CommandSpec, SandboxManager, SandboxType};
+use crate::sandbox::{CommandSpec, OsSandbox, SandboxType};
 use crate::tools::plugin::scan_plugin_dir;
 use crate::tui::app::App;
 
@@ -297,7 +297,7 @@ pub fn plugin_test(_app: &mut App, args: Option<&str>) -> CommandResult {
     // available it falls back to an unsandboxed ExecEnv that preserves the
     // previous behavior. execpolicy validation above remains a *policy* gate,
     // not a substitute for this isolation.
-    let mut sandbox_manager = SandboxManager::new();
+    let mut sandbox_manager = OsSandbox::new();
     let sandbox_available = sandbox_manager.is_available();
     let cwd = path
         .parent()

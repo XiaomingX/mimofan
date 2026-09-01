@@ -15,9 +15,9 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use sandbox::{SandboxManager, CommandSpec, SandboxPolicy};
+//! use sandbox::{OsSandbox, CommandSpec, SandboxPolicy};
 //!
-//! let manager = SandboxManager::new();
+//! let manager = OsSandbox::new();
 //! let spec = CommandSpec::shell("ls -la", PathBuf::from("."), Duration::from_secs(30))
 //!     .with_policy(SandboxPolicy::default());
 //!
@@ -262,6 +262,24 @@ impl ExecEnv {
     pub fn is_sandboxed(&self) -> bool {
         !matches!(self.sandbox_type, SandboxType::None)
     }
+
+    /// Attach the Landlock `pre_exec` hook marker to this resolved command.
+    ///
+    /// Since `ExecEnv` is a resolved plan (not a `Command`), the hook is
+    /// recorded here as a side-channel env var and applied by the executor
+    /// when it spawns the process (`MIMOFAN_LANDLOCK_WS` names the writable
+    /// root). Loop v1 / T3: this method was misplaced inside the manager impl
+    /// (a `self: ExecEnv` method in `impl OsSandbox`), which broke the Linux
+    /// build outright; it belongs to `impl ExecEnv` where the call site
+    /// (`OsSandbox::prepare_landlock`) resolves it.
+    #[cfg(target_os = "linux")]
+    fn with_landlock_hook(mut self, writable_root: PathBuf) -> ExecEnv {
+        self.env.insert(
+            "MIMOFAN_LANDLOCK_WS".to_string(),
+            writable_root.display().to_string(),
+        );
+        self
+    }
 }
 
 /// Detect what sandbox technology is available on the current platform.
@@ -290,12 +308,12 @@ pub fn is_sandbox_available() -> bool {
 
 /// Manager for sandbox operations.
 ///
-/// The `SandboxManager` is responsible for:
+/// The `OsSandbox` is responsible for:
 /// - Detecting available sandbox technologies
 /// - Transforming `CommandSpecs` into sandboxed `ExecEnvs`
 /// - Detecting sandbox denials from command output
 #[derive(Debug, Default)]
-pub struct SandboxManager {
+pub struct OsSandbox {
     /// Cached sandbox availability check.
     sandbox_available: Option<bool>,
 
@@ -307,13 +325,13 @@ pub struct SandboxManager {
     prefer_bwrap: bool,
 }
 
-impl SandboxManager {
-    /// Create a new `SandboxManager`.
+impl OsSandbox {
+    /// Create a new `OsSandbox`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Create a new `SandboxManager` with bwrap preference (#2184).
+    /// Create a new `OsSandbox` with bwrap preference (#2184).
     ///
     /// When `prefer_bwrap` is true and `/usr/bin/bwrap` is present on Linux,
     /// exec_shell commands will be routed through bubblewrap.
@@ -453,20 +471,6 @@ impl SandboxManager {
         .with_landlock_hook(writable_root)
     }
 
-    /// Attach the Landlock `pre_exec` hook to the underlying command of an
-    /// `ExecEnv`. Since `ExecEnv` is a resolved plan (not a `Command`), the hook
-    /// is recorded here and applied by the executor when it spawns the process.
-    /// We store the writable root in a side-channel: the executor reads
-    /// `MIMOFAN_LANDLOCK_WS` to know where to grant writes.
-    #[cfg(target_os = "linux")]
-    fn with_landlock_hook(mut self, writable_root: PathBuf) -> ExecEnv {
-        self.env.insert(
-            "MIMOFAN_LANDLOCK_WS".to_string(),
-            writable_root.display().to_string(),
-        );
-        self
-    }
-
     /// Check if a command failure was due to sandbox denial.
     ///
     /// This helps distinguish between legitimate command failures and
@@ -558,12 +562,12 @@ impl SandboxManager {
     }
 }
 
-/// `SandboxManager` can act as a `SandboxBackend` by delegating to the
+/// `OsSandbox` can act as a `SandboxBackend` by delegating to the
 /// OS-level execution path (Seatbelt / Landlock / unsandboxed). This lets the
 /// local OS sandbox be plugged into the same `SandboxBackend` seam used by the
 /// remote OpenSandbox / container backends (#835).
 #[async_trait]
-impl SandboxBackend for SandboxManager {
+impl SandboxBackend for OsSandbox {
     async fn exec(
         &self,
         cmd: &str,
@@ -579,7 +583,7 @@ mod tests {
 
     /// A mock `SandboxBackend` that records the command it was asked to run and
     /// returns a canned `SandboxOutput`. Used to prove the trait is
-    /// dyn-compatible and that `SandboxManager` satisfies it.
+    /// dyn-compatible and that `OsSandbox` satisfies it.
     struct MockBackend {
         last_cmd: std::sync::Mutex<Option<String>>,
     }
@@ -602,8 +606,8 @@ mod tests {
 
     #[tokio::test]
     async fn sandbox_manager_implements_sandbox_backend() {
-        // Construct a no-op/local policy manager (mirrors `SandboxManager::new`).
-        let manager = SandboxManager::new();
+        // Construct a no-op/local policy manager (mirrors `OsSandbox::new`).
+        let manager = OsSandbox::new();
         // Box it as the trait object the rest of the system stores.
         let backend: Box<dyn SandboxBackend> = Box::new(manager);
 

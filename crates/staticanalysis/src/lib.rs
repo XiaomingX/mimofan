@@ -37,10 +37,13 @@ pub mod callgraph;
 /// Java gadget-chain discovery over a project directory.
 pub mod auto_gadget;
 
-/// Persistent symbol index (SQLite). Only compiled with the `symbol-index`
-/// feature so the default build stays lean (no bundled SQLite compile).
-#[cfg(feature = "symbol-index")]
-pub mod index;
+// Loop v2 / T1: the feature-gated `symbol-index` SQLite symbol index was an
+// orphan node — complete (348 lines) but with zero production callers.
+// Cross-file SAST (interproc/callgraph/auto_gadget) works from in-memory
+// tree-sitter traversals and the benchmark scans each tree once, so there is
+// no incremental-persistence consumer. Removed per graph normalization
+// (G1.1); reintroduce behind a real indexing workflow if repeated re-scans
+// ever demand it.
 
 /// Supported source languages. Grammars are feature-gated to keep the default
 /// build lean.
@@ -317,6 +320,10 @@ pub fn named_query(key: &str) -> Option<&'static str> {
 pub mod access_control;
 pub mod attack_surface;
 pub mod interproc;
+
+/// Java intraprocedural taint frontend (T2-A): tree-sitter → ProgramFacts →
+/// declarative-rule taint findings, exposed as SARIF-style SecurityIssues.
+pub mod java_taint;
 pub mod kb_trace;
 pub mod knowledge;
 pub mod recon;

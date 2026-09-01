@@ -93,6 +93,23 @@ struct McpServer {
     /// 依赖反转：运行期能力（配置加载 / API 客户端 / 会话列举）经端口注入，
     /// mcp_server 不再直接耦合 `client` / `config` / `session_manager` 等平级实现模块。
     backend: Box<dyn McpBackend>,
+    /// T5: trajectory sink recording external tools/call events into
+    /// `~/.mimofan/tasks/mcp-server/session.jsonl`.
+    trajectory: Option<crate::core::engine::trace::SessionEventSink>,
+}
+
+/// Open (best-effort) the external-trajectory sink:
+/// `~/.mimofan/tasks/mcp-server/session.jsonl`, raw (unredacted) so driving
+/// harnesses can score local-tool results. None when home is unresolvable or
+/// creation fails.
+fn open_external_trajectory() -> Option<crate::core::engine::trace::SessionEventSink> {
+    let home = dirs::home_dir()?;
+    let path = home
+        .join(".mimofan")
+        .join("tasks")
+        .join("mcp-server")
+        .join("session.jsonl");
+    crate::core::engine::trace::SessionEventSink::open_at(&path).ok()
 }
 
 impl McpServer {
@@ -116,13 +133,35 @@ impl McpServer {
         } else {
             crate::worker_profile::ShellPolicy::ReadOnly
         };
-        let mut builder = ToolRegistryBuilder::new().with_agent_tools_policy(shell_policy);
+        let mut builder = ToolRegistryBuilder::new()
+            .with_agent_tools_policy(shell_policy)
+            // Loop v4 / T5: expose the full SAST/DAST security surface over
+            // MCP so an external agent tool backend (e.g. Claude Code via MCP)
+            // can drive vulnerability analysis with NO mimofan SK: mimofan
+            // only runs local tools, no LLM calls.
+            .with_security_audit_tools()
+            .with_gadget_chain_tools()
+            .with_auto_gadget_tools()
+            .with_attack_surface_tools()
+            .with_protocol_check_tools()
+            .with_access_control_tools()
+            .with_run_poc_tools();
         if internal_names.contains("apply_patch") {
             builder = builder.with_patch_tools();
         }
 
-        let context = ToolContext::new(workspace.clone());
+        let mut context = ToolContext::new(workspace.clone());
+        // Local execution backend for `run_poc`: the OS sandbox
+        // (Landlock/seatbelt preparation + local process exec) implements the
+        // SandboxBackend seam, so DAST works with no container/runtime config.
+        context.sandbox_backend = Some(Arc::new(crate::sandbox::OsSandbox::default()));
         let registry = builder.build(context);
+
+        // Loop v4 / T5: trajectory sink so external MCP tool calls land in a
+        // replayable session.jsonl (visible via `mimofan export-session`).
+        // Best-effort: open a raw (unredacted) sink so the driving harness can
+        // score local-tool results; failure just disables recording.
+        let trajectory = open_external_trajectory();
 
         Ok(Self {
             workspace,
@@ -132,6 +171,7 @@ impl McpServer {
             threads: Arc::new(Mutex::new(HashMap::new())),
             next_notification_id: 0,
             backend,
+            trajectory,
         })
     }
 
@@ -326,7 +366,48 @@ impl McpServer {
             .get("arguments")
             .cloned()
             .unwrap_or_else(|| json!({}));
-        let result = runtime.block_on(self.registry.execute_full(&internal, arguments));
+
+        // T5 (G5.3): external MCP tool calls emit to the session trajectory so
+        // `mimofan export-session --task mcp-server` shows what the external
+        // agent drove locally.
+        if let Some(sink) = self.trajectory.as_ref() {
+            let mut ev = crate::core::engine::trace::SessionEvent::new(
+                crate::core::engine::trace::SessionEventKind::ToolCall,
+                0,
+                Some("mcp-server".to_string()),
+            );
+            ev.tool_name = Some(internal.clone());
+            ev.tool_input = Some(arguments.clone());
+            ev.source = Some("mcp".to_string());
+            let _ = sink.emit(&ev);
+        }
+
+        let result = runtime.block_on(self.registry.execute_full(&internal, arguments.clone()));
+
+        if let Some(sink) = self.trajectory.as_ref() {
+            use crate::core::engine::trace::{SessionEvent, SessionEventKind};
+            match &result {
+                Ok(tr) => {
+                    let mut ev = SessionEvent::new(
+                        SessionEventKind::ToolResult,
+                        0,
+                        Some("mcp-server".into()),
+                    );
+                    ev.tool_name = Some(internal.clone());
+                    ev.tool_result = Some(json!({"success": tr.success, "content": tr.content}));
+                    ev.source = Some("mcp".to_string());
+                    let _ = sink.emit(&ev);
+                }
+                Err(e) => {
+                    let mut ev =
+                        SessionEvent::new(SessionEventKind::Error, 0, Some("mcp-server".into()));
+                    ev.tool_name = Some(internal.clone());
+                    ev.text = Some(e.to_string());
+                    ev.source = Some("mcp".to_string());
+                    let _ = sink.emit(&ev);
+                }
+            }
+        }
         Ok(tool_result_to_mcp(result))
     }
 
@@ -515,6 +596,14 @@ fn default_expose_tools() -> Vec<String> {
         "shell".to_string(),
         "mimofan".to_string(),
         "mimofan-reply".to_string(),
+        // T5: SAST/DAST security surface (no SK needed — local tools).
+        "security_audit".to_string(),
+        "gadget_chain_trace".to_string(),
+        "auto_gadget_discovery".to_string(),
+        "attack_surface".to_string(),
+        "protocol_check".to_string(),
+        "access_control".to_string(),
+        "run_poc".to_string(),
     ]
 }
 
@@ -650,5 +739,64 @@ mod tests {
             result.contains("reverse-mcp-ok"),
             "file content returned, got {result}"
         );
+    }
+
+    #[test]
+    fn tools_list_includes_all_seven_security_tools() {
+        // G5.1: security surface exposed over MCP with no SK needed.
+        let server = test_server();
+        let resp = server.list_tools_response();
+        let tools = resp.get("tools").and_then(Value::as_array).unwrap();
+        let names: Vec<&str> = tools
+            .iter()
+            .filter_map(|t| t.get("name").and_then(Value::as_str))
+            .collect();
+        for required in [
+            "security_audit",
+            "gadget_chain_trace",
+            "auto_gadget_discovery",
+            "attack_surface",
+            "protocol_check",
+            "access_control",
+            "run_poc",
+        ] {
+            assert!(
+                names.contains(&required),
+                "missing security tool {required} in {names:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn run_poc_executes_locally_without_container_or_sk() {
+        // G5.2: the local OS sandbox backend makes run_poc return realized.
+        // Plain #[test]: call_tool is synchronous and block_ons its own
+        // runtime, so it must not be called from inside a tokio context.
+        let runtime = Runtime::new().expect("mcp runtime");
+        let mut server = test_server();
+        let result = server
+            .call_tool(
+                &runtime,
+                json!({
+                    "name": "run_poc",
+                    "arguments": {
+                        "command": "echo poc-realized-marker",
+                        "expect": "poc-realized-marker"
+                    }
+                }),
+                Some(json!(42)),
+            )
+            .expect("run_poc call succeeds");
+        let is_error = result
+            .get("isError")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
+        assert!(
+            !is_error,
+            "run_poc must not error without container: {result}"
+        );
+        let text = result["content"][0]["text"].as_str().expect("result text");
+        let parsed: Value = serde_json::from_str(text).expect("json payload");
+        assert_eq!(parsed["realized"], true, "run_poc must be realized: {text}");
     }
 }

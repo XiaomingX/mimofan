@@ -905,7 +905,7 @@ impl AutomationManager {
                         // `emit` does not hold the manager mutex; spawn fire-and-forget
                         // best-effort delivery (delivery failures are non-fatal).
                         if let Some(dispatcher) = self.hook_dispatcher.clone() {
-                            let event = mimofan_hooks::HookEvent::AutomationLifecycle {
+                            let event = mimofan_hooks::HookSinkEvent::AutomationLifecycle {
                                 automation_id: automation.id.clone(),
                                 name: automation.name.clone(),
                                 run_id: run.id.clone(),
@@ -998,7 +998,7 @@ mod tests {
 
     #[test]
     fn automation_lifecycle_event_serializes_with_discriminator() {
-        let event = mimofan_hooks::HookEvent::AutomationLifecycle {
+        let event = mimofan_hooks::HookSinkEvent::AutomationLifecycle {
             automation_id: "auto-1".to_string(),
             name: "nightly backup".to_string(),
             run_id: "run-9".to_string(),

@@ -1,70 +1,417 @@
-# Java security rules — declarative, hot-reloadable (T-4).
-# Matched by symbol suffix; `arg` selects which argument carries taint.
+# Java security rules — declarative, hot-reloadable.
+# Symbols are matched by their BARE method/type name (last segment); the
+# java_taint frontend seeds tainted argument positions and the taint solver
+# matches source/sink/sanitizer/propagator calls. Bare names keep matching
+# independent of receiver packages (javax/spring/shiro alike).
 # `neutralizes: []` = strong (full) sanitizer; `neutralizes: [xss]` = partial.
 
 sources:
-  - id: java-servlet-request
+  # --- Servlet / Spring web entry data ---
+  - id: java-servlet-getparameter
     language: java
     symbol: getParameter
     category: untrusted-input
+    cwe: [CWE-20, CWE-79, CWE-89, CWE-78, CWE-22, CWE-918, CWE-917]
+  - id: java-servlet-getparametervalues
+    language: java
+    symbol: getParameterValues
+    category: untrusted-input
+    cwe: [CWE-20, CWE-79, CWE-89, CWE-78]
+  - id: java-servlet-getheader
+    language: java
+    symbol: getHeader
+    category: untrusted-input
+    cwe: [CWE-20, CWE-79, CWE-918, CWE-113]
+  - id: java-servlet-getheaders
+    language: java
+    symbol: getHeaders
+    category: untrusted-input
+    cwe: [CWE-20]
+  - id: java-servlet-getquerystring
+    language: java
+    symbol: getQueryString
+    category: untrusted-input
+    cwe: [CWE-20, CWE-89, CWE-79]
+  - id: java-servlet-getcookies
+    language: java
+    symbol: getCookies
+    category: untrusted-input
     cwe: [CWE-20, CWE-79]
-  - id: java-http-request-body
+  - id: java-servlet-getinputstream
     language: java
     symbol: getInputStream
     category: untrusted-input
     cwe: [CWE-20]
-  - id: java-jndi-name-setter
+  - id: java-servlet-getreader
     language: java
-    symbol: setJndiName
-    category: jndi-injection
-    cwe: [CWE-74, CWE-502]
-  - id: java-request-header
+    symbol: getReader
+    category: untrusted-input
+    cwe: [CWE-20]
+  - id: java-spring-pathvariable
     language: java
-    symbol: getHeader
+    symbol: getPathVariable
+    category: untrusted-input
+    cwe: [CWE-20, CWE-22, CWE-89, CWE-78]
+  - id: java-spring-requestbody
+    language: java
+    symbol: getRequestBody
+    category: untrusted-input
+    cwe: [CWE-20, CWE-79, CWE-89]
+  - id: java-io-readline
+    language: java
+    symbol: readLine
+    category: untrusted-input
+    cwe: [CWE-20, CWE-78]
+  - id: java-json-getstring
+    language: java
+    symbol: getString
+    category: untrusted-input
+    cwe: [CWE-20, CWE-79, CWE-89, CWE-78, CWE-917]
+  - id: java-json-get
+    language: java
+    symbol: optString
     category: untrusted-input
     cwe: [CWE-20]
 
 sinks:
+  # --- JNDI injection / deserialization (CWE-74/CWE-502/CWE-917) ---
   - id: java-jndi-lookup
     language: java
-    symbol: InitialContext.lookup
+    symbol: lookup
     category: jndi-injection
-    cwe: [CWE-74]
+    cwe: [CWE-74, CWE-502]
     severity: error
+  - id: java-deser-readobject
+    language: java
+    symbol: readObject
+    category: insecure-deserialization
+    cwe: [CWE-502]
+    severity: error
+  - id: java-fastjson-parseobject
+    language: java
+    symbol: parseObject
+    category: insecure-deserialization
+    cwe: [CWE-502]
+    severity: error
+  - id: java-spel-parseexpression
+    language: java
+    symbol: parseExpression
+    category: spel-injection
+    cwe: [CWE-917]
+    severity: error
+  - id: java-ognl-parseexpression
+    language: java
+    symbol: parseExpressionOgnl
+    category: expression-injection
+    cwe: [CWE-917]
+    severity: error
+  # --- Command injection (CWE-78) ---
   - id: java-runtime-exec
     language: java
-    symbol: Runtime.exec
+    symbol: exec
     category: command-injection
     cwe: [CWE-78]
     severity: error
-  - id: java-sql-statement
+  - id: java-processbuilder-start
     language: java
-    symbol: executeQuery
-    category: sql-injection
-    cwe: [CWE-89]
+    symbol: start
+    category: command-injection
+    cwe: [CWE-78]
     severity: error
-  - id: java-process-builder
+  - id: java-processbuilder-ctor
     language: java
     symbol: ProcessBuilder
     category: command-injection
     cwe: [CWE-78]
     severity: error
+  # --- SQL injection (CWE-89) ---
+  - id: java-sql-executequery
+    language: java
+    symbol: executeQuery
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-sql-executeupdate
+    language: java
+    symbol: executeUpdate
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-jdbc-queryforobject
+    language: java
+    symbol: queryForObject
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-jdbc-queryforlist
+    language: java
+    symbol: queryForList
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-jdbc-query
+    language: java
+    symbol: queryForStream
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-jpa-createnativequery
+    language: java
+    symbol: createNativeQuery
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-jpa-createquery
+    language: java
+    symbol: createQuery
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  # --- SSRF (CWE-918) ---
+  - id: java-url-openconnection
+    language: java
+    symbol: openConnection
+    category: ssrf
+    cwe: [CWE-918]
+    severity: error
+  - id: java-http-getforobject
+    language: java
+    symbol: getForObject
+    category: ssrf
+    cwe: [CWE-918]
+    severity: error
+  - id: java-http-postforobject
+    language: java
+    symbol: postForObject
+    category: ssrf
+    cwe: [CWE-918]
+    severity: error
+  - id: java-http-exchange
+    language: java
+    symbol: exchange
+    category: ssrf
+    cwe: [CWE-918]
+    severity: error
+  - id: java-rest-getforentity
+    language: java
+    symbol: getForEntity
+    category: ssrf
+    cwe: [CWE-918]
+    severity: error
+  # --- Path traversal (CWE-22) ---
+  - id: java-file-ctor
+    language: java
+    symbol: File
+    category: path-traversal
+    cwe: [CWE-22]
+    severity: error
+  - id: java-fileinputstream-ctor
+    language: java
+    symbol: FileInputStream
+    category: path-traversal
+    cwe: [CWE-22]
+    severity: error
+  - id: java-filereader-ctor
+    language: java
+    symbol: FileReader
+    category: path-traversal
+    cwe: [CWE-22]
+    severity: error
+  # --- Open redirect (CWE-601) / XSS-ish redirect ---
+  - id: java-sendredirect
+    language: java
+    symbol: sendRedirect
+    category: open-redirect
+    cwe: [CWE-601]
+    severity: error
+  # --- LDAP / XPath / XML injection (CWE-90) ---
+
+
+  # --- Insecure deserialization (Jackson / SnakeYAML) ---
+  - id: java-jackson-readvalue
+    language: java
+    symbol: readValue
+    category: insecure-deserialization
+    cwe: [CWE-502]
+    severity: error
+  - id: java-snakeyaml-load
+    language: java
+    symbol: loadAs
+    category: insecure-deserialization
+    cwe: [CWE-502]
+    severity: error
+  - id: java-yaml-load
+    language: java
+    symbol: load
+    category: insecure-deserialization
+    cwe: [CWE-502]
+    severity: error
+  # --- Expression / template injection / class loading (CWE-94/1336) ---
+  - id: java-class-forname
+    language: java
+    symbol: forName
+    category: expression-injection
+    cwe: [CWE-94]
+    severity: error
+  - id: java-scriptengine-eval
+    language: java
+    symbol: eval
+    category: expression-injection
+    cwe: [CWE-94]
+    severity: error
+  # --- Reflected XSS sinks (writer output) ---
+  - id: java-writer-print
+    language: java
+    symbol: print
+    category: xss
+    cwe: [CWE-79]
+    severity: error
+  - id: java-writer-println
+    language: java
+    symbol: println
+    category: xss
+    cwe: [CWE-79]
+    severity: error
+  - id: java-writer-write
+    language: java
+    symbol: write
+    category: xss
+    cwe: [CWE-79]
+    severity: error
+
+  # --- SpEL (raw parse + value evaluation) ---
+  - id: java-spel-parseraw
+    language: java
+    symbol: parseRaw
+    category: spel-injection
+    cwe: [CWE-917]
+    severity: error
+  - id: java-spel-getvalue
+    language: java
+    symbol: getValue
+    category: spel-injection
+    cwe: [CWE-917]
+    severity: error
+  # --- fastjson JSON.parse (generic return, respects AutoType) ---
+  - id: java-fastjson-parse
+    language: java
+    symbol: parse
+    category: insecure-deserialization
+    cwe: [CWE-502]
+    severity: error
+  # --- LDAP injection ---
+  - id: java-ldap-search
+    language: java
+    symbol: search
+    category: ldap-injection
+    cwe: [CWE-90]
+    severity: error
+  # --- XPath injection ---
+  - id: java-xpath-compile
+    language: java
+    symbol: compile
+    category: xpath-injection
+    cwe: [CWE-643]
+    severity: error
+  - id: java-xpath-selectnodes
+    language: java
+    symbol: selectNodes
+    category: xpath-injection
+    cwe: [CWE-643]
+    severity: error
+
+  - id: java-jdbc-batchupdate
+    language: java
+    symbol: batchUpdate
+    category: sql-injection
+    cwe: [CWE-89]
+    severity: error
+  - id: java-http-send
+    language: java
+    symbol: send
+    category: ssrf
+    cwe: [CWE-918]
+    severity: error
+  - id: java-http-newcall
+    language: java
+    symbol: newCall
+    category: ssrf
+    cwe: [CWE-918]
+    severity: error
+  - id: java-template-evaluate
+    language: java
+    symbol: evaluate
+    category: ssti
+    cwe: [CWE-1336]
+    severity: error
 
 sanitizers:
-  # Partial: only defeats XSS, leaves SQLi/command injection intact.
-  - id: java-esapi-encode-html
+  # Strong validation/canonicalization.
+  - id: java-esapi-getvalidinput
     language: java
-    symbol: ESAPI.encoder.encodeForHTML
-    neutralizes: [xss]
-  # Strong: ESAPI canonicalization clears all classes.
+    symbol: getValidInput
+    neutralizes: []
   - id: java-esapi-canonicalize
     language: java
-    symbol: ESAPI.validator.getValidInput
+    symbol: canonicalize
     neutralizes: []
-  # Strong: isAutoTypeDenyClass is a hard allow/deny gate.
-  - id: java-fastjson-autotype-deny
+  - id: java-autotype-deny
     language: java
     symbol: isAutoTypeDenyClass
+    neutralizes: []
+  - id: java-spel-safelist-context
+    language: java
+    symbol: SimpleEvaluationContext
+    neutralizes: [CWE-917]
+  # Encoders (partial: defeat XSS only; SQLi/CMDi survive).
+  - id: java-esapi-encode-html
+    language: java
+    symbol: encodeForHTML
+    neutralizes: [xss]
+  - id: java-esapi-encode-js
+    language: java
+    symbol: encodeForJavaScript
+    neutralizes: [xss]
+  - id: java-stringescape-escapehtml
+    language: java
+    symbol: escapeHtml
+    neutralizes: [xss]
+  - id: java-stringescape-escapehtml4
+    language: java
+    symbol: escapeHtml4
+    neutralizes: [xss]
+  - id: java-stringescape-escapeecma
+    language: java
+    symbol: escapeEcmaScript
+    neutralizes: [xss]
+  - id: java-encoder-forhtml
+    language: java
+    symbol: forHtml
+    neutralizes: [xss]
+  - id: java-urlencoder-encode
+    language: java
+    symbol: encode
+    neutralizes: [CWE-601]
+  # Numeric/whitelist neutralization.
+  - id: java-integer-parseint
+    language: java
+    symbol: parseInt
+    neutralizes: []
+  - id: java-integer-valueof
+    language: java
+    symbol: valueOf
+    neutralizes: []
+  - id: java-long-parselong
+    language: java
+    symbol: parseLong
+    neutralizes: []
+  - id: java-boolean-parseboolean
+    language: java
+    symbol: parseBoolean
+    neutralizes: []
+  - id: java-whitelist-matches
+    language: java
+    symbol: matches
     neutralizes: []
 
 propagators:
@@ -75,11 +422,41 @@ propagators:
     to_receiver: false
   - id: java-stringbuilder-append
     language: java
-    symbol: StringBuilder.append
+    symbol: append
     from_arg: 0
     to_receiver: true
   - id: java-string-format
     language: java
-    symbol: String.format
+    symbol: format
+    from_arg: 0
+    to_receiver: false
+  - id: java-string-join
+    language: java
+    symbol: join
+    from_arg: 1
+    to_receiver: false
+  - id: java-string-substring
+    language: java
+    symbol: substring
+    from_arg: 0
+    to_receiver: false
+  - id: java-string-replace
+    language: java
+    symbol: replace
+    from_arg: 0
+    to_receiver: false
+  - id: java-string-trim
+    language: java
+    symbol: trim
+    from_arg: 0
+    to_receiver: false
+  - id: java-string-tostring
+    language: java
+    symbol: toString
+    from_arg: 0
+    to_receiver: false
+  - id: java-stringbuilder-tostring
+    language: java
+    symbol: toString
     from_arg: 0
     to_receiver: false

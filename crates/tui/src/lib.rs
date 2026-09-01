@@ -468,6 +468,7 @@ pub async fn run() -> Result<()> {
                 Ok(())
             }
             Commands::Sessions { limit, search } => list_sessions(limit, search),
+            Commands::ExportSession(args) => crate::cli::session::run_export_session(&args),
             Commands::Init => init_project(),
             Commands::Login { provider, api_key } => {
                 let mut store = mimofan_config::ConfigStore::load(cli.config.clone())?;

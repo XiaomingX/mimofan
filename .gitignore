@@ -180,3 +180,6 @@ settings.example.json
 .antigravity/
 # #777 LongMemEval 评测数据集（277MB，从 HuggingFace 下载，不入库）
 benchmark/agentbench/samples/longmemeval/
+
+# Loop Engineer 上游基线 SHA（clone 时记录，不随改动提交；用于产上游 diff patch）
+.loop_plan_baseline_sha

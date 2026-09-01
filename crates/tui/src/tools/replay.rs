@@ -116,19 +116,21 @@ mod tests {
     async fn tool_reports_path_and_is_read_only() {
         let dir = tempfile::TempDir::new().unwrap();
         let path = dir.path().join("events.jsonl");
-        // Seed a real log so `summary: true` can compute counts.
+        // Seed a real log so `summary: true` can compute counts. The writer
+        // half was removed in T3 (SessionEventSink is the sole trajectory
+        // writer), so seed raw envelope JSONL lines directly.
         {
-            let mut log = crate::tools::event_stream::EventLog::open(&path).unwrap();
-            log.append(
-                crate::tools::event_stream::EventKind::TurnStart,
-                json!({"turn": 1}),
-            )
-            .unwrap();
-            log.append(
-                crate::tools::event_stream::EventKind::ToolCall,
-                json!({"tool": "read_file"}),
-            )
-            .unwrap();
+            use crate::tools::event_stream::{EventEnvelope, EventKind};
+            let envelopes = [
+                EventEnvelope::new(0, EventKind::TurnStart, json!({"turn": 1})),
+                EventEnvelope::new(1, EventKind::ToolCall, json!({"tool": "read_file"})),
+            ];
+            let mut contents = String::new();
+            for envelope in &envelopes {
+                contents.push_str(&serde_json::to_string(envelope).unwrap());
+                contents.push('\n');
+            }
+            std::fs::write(&path, contents).unwrap();
         }
         let tool = EventStreamTool::new(path.clone());
 

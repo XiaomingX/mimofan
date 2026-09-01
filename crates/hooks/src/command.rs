@@ -20,7 +20,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use wait_timeout::ChildExt;
 
-use crate::{HookEvent, HookSink};
+use crate::{HookSink, HookSinkEvent};
 
 /// Outcome of running a shell hook command (mirrors the TUI's `HookResult`).
 #[derive(Debug, Clone, Default)]
@@ -228,7 +228,7 @@ impl CommandHookSink {
     /// Synchronously run the sink's command for a given event, returning the
     /// raw [`CommandResult`]. Useful when the caller needs the command's
     /// stdout (e.g. env injection or a deny decision) rather than fire-and-forget.
-    pub fn run_for_event(&self, event: &HookEvent) -> CommandResult {
+    pub fn run_for_event(&self, event: &HookSinkEvent) -> CommandResult {
         run_shell_command(
             &self.command,
             &self.env,
@@ -241,7 +241,7 @@ impl CommandHookSink {
 
 #[async_trait]
 impl HookSink for CommandHookSink {
-    async fn emit(&self, event: &HookEvent) -> Result<()> {
+    async fn emit(&self, event: &HookSinkEvent) -> Result<()> {
         // The shell execution itself is CPU/IO bound and short-lived; run it
         // on a blocking thread so the async runtime is not starved.
         let sink = self.clone();
@@ -256,7 +256,7 @@ impl HookSink for CommandHookSink {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::HookEvent;
+    use crate::HookSinkEvent;
 
     #[test]
     fn build_shell_command_is_platform_wrapper() {
@@ -340,7 +340,7 @@ mod tests {
             Duration::from_secs(5),
             HashMap::new(),
         );
-        let event = HookEvent::ResponseStart {
+        let event = HookSinkEvent::ResponseStart {
             response_id: "r1".to_string(),
         };
         sink.emit(&event).await.unwrap();
