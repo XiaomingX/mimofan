@@ -2,7 +2,9 @@
 
 > 面向中国开发者的架构文档。说人话，不堆术语。
 >
-> 配套文档：`ARCHITECTURE_IMPROVEMENT_PLAN.md`（DDD 分析与改进待办）、`ARCHITECTURE_STABILITY.md`（稳定性/性能/可扩展性）、`USER_GUIDE_CN.md`（使用说明）。
+> 配套文档：`ARCHITECTURE_IMPROVEMENT_PLAN.md`（DDD 分析与改进待办）、`ARCHITECTURE_STABILITY.md`（稳定性/性能/可扩展性）、`USER_GUIDE_CN.md`（使用说明）、`EVOLUTION_CRAWLER.md`（百亿级分布式爬虫演进路线）。
+>
+> 最后更新：2026-09-03（以当前 `main` 代码为准复核：crate 数 15→**19**、补充 edit_core/goal_core/staticanalysis/telemetry 四个新 crate、更正"TUI 不依赖 core"的失真表述、新增 §5 安全检测能力）。
 
 ---
 
@@ -73,7 +75,7 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 
 ### 2.2 Crate 依赖关系
 
-整个项目拆成 15 个 Rust crate（可以理解为 15 个模块），每个 crate 负责一件事：
+整个项目拆成 **19 个 Rust crate**（可以理解为 19 个模块），每个 crate 负责一件事：
 
 ```
                      ┌────────────────────────────────┐
@@ -103,9 +105,9 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
    └─────────┘ └────────┘    └──────────────────────────────────┘
 ```
 
-**注意一个关键点：** `mimofan`（TUI+CLI）**不依赖** `mimofan-core`。TUI 自己实现了一套运行时逻辑，两者是并行的关系。
+**注意一个关键点（已更正）：** `mimofan`（TUI+CLI）**依赖** `mimofan-core`。TUI 既自实现了一套交互式引擎（`crate::core::Engine`，管流式/轮次/终端暂停），又通过 `mimofan_core::Runtime`（无界面 API 核心）复用会话编排、任务调度等底层能力（见 `crates/tui/src/runtime_threads/mod.rs:44`、`crates/tui/src/lib.rs:708` 等）。两者是 DDD 下两个正确的限界上下文（交互 UI 循环 vs 无界面 API 核心），通过共享内核（protocol/tools/execpolicy/state/config）协同，而非互斥。
 
-### 15 个 Crate 干什么
+### 19 个 Crate 干什么
 
 | Crate | 干什么 | 一句话解释 |
 |-------|--------|-----------|
@@ -123,9 +125,13 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 | `mimofan-state` | 状态持久化 | SQLite 存会话历史和检查点 |
 | `mimofan-memory` | 记忆系统 | 向量记忆（已默认编译，经 `vector_memory` 接入主流程作语义召回互补层；运行时按 `MIMOFAN_MEMORY_API_KEY` 优雅降级，仍 experimental） |
 | `mimofan-release` | 发布工具 | 版本管理和发布 |
-| `mimofan-localization` | 国际化文本层 | 100+ UI 调用点的 `tr(MessageId)`，当前仅内置简体中文 |
+| `mimofan-localization` | 国际化文本层 | 100+ UI 调用点的 `tr(MessageId)`，当前仅内置简体中文（`localization` 已是独立 crate，精简为 ~100 行 stub） |
+| `mimofan-edit-core` | 编辑正确性逻辑 | 下沉自 `tools/file.rs` 的纯逻辑：字节区间→行号映射、锚点（内容哈希）定位、模糊匹配、读前必读守卫（`ReadState`），零依赖，可独立单测 |
+| `mimofan-goal-core` | 目标管理状态机 | 下沉自 `tools/goal.rs` 的纯逻辑目标机：`GoalState`/`GoalQueue`、token 预算护栏、依赖 DAG 与环检测、快照恢复，**不依赖 TUI** |
+| `mimofan-staticanalysis` | 静态分析（SAST）地基 | tree-sitter 抽象语法树分析：调用图、污点/数据流、跨过程污点、访问控制、攻击面枚举、gadget 链发现、SARIF、SCA/OSV。`crates/staticanalysis/src/lib.rs` 是其入口 |
+| `mimofan-telemetry` | 可观测性 | feature-gated 的 OpenTelemetry 桥 + 无依赖的进程内 Prometheus 指标记录器；默认 `otlp` feature 关闭，主二进制默认惰性（`OtelHandle::Disabled`） |
 
-**关于 `tui` crate 的现状（重要）：** 它是最大的一块，约 20 万行，占全仓 85%+。其中 5 个最大的单文件（subagent、ui、shell、engine、config）已在 2026-08-04～05 按内聚性拆成子模块并合并（PR #567 / issue #566），文件变小了、可读性好了，但**所有子域仍在一个 crate 里**。"按领域拆成独立 crate"属于战略级重构，不在本次范围内（详见 `ARCHITECTURE_IMPROVEMENT_PLAN.md` §4.8 的 DDD 重构总纲）。
+**关于 `tui` crate 的现状（重要）：** 它是最大的一块，约 **26.6 万行**（2026-09-03 实测 `266,340` 行），占全仓（`313,501` 行）约 **85%**。其中 5 个最大的单文件（subagent、ui、shell、engine、config）已在 2026-08-04～05 按内聚性拆成子模块并合并（PR #567 / issue #566），文件变小了、可读性好了，但**所有子域仍在一个 crate 里**。"按领域拆成独立 crate"属于战略级重构，不在本次范围内（详见 `ARCHITECTURE_IMPROVEMENT_PLAN.md` §4.8 的 DDD 重构总纲）。
 
 **一句话理解分层（说人话版）：**
 - **你摸得到的**：终端界面（TUI）、命令行（CLI）、HTTP 接口（给外部系统调）——这层是对外契约，用法恒定。
@@ -178,7 +184,19 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 
 ### 3.6 LLM 适配
 
-**没有用任何官方 SDK**。项目自己实现了 OpenAI / Anthropic 的 wire format 适配，依赖面小、可控。这是刻意的设计决策。
+**没有用任何官方 SDK**。项目自己实现了 OpenAI / Anthropic / Gemini 的 wire format 适配，依赖面小、可控。这是刻意的设计决策。
+
+### 3.7 新增强领域组件
+
+| 组件 | 用途 | 所在 crate |
+|------|------|-----------|
+| tree-sitter | 语法树解析，静态分析地基 | `staticanalysis` |
+| semgrep（外部 CLI） | 真实安全审计扫描（离线调用） | 通过 `SandboxBackend` 调起 |
+| hnsw_rs + sled | 向量检索 + 嵌入式 KV（memory 实验性能力） | `memory` |
+| tiktoken-rs | 真实 BPE 分词（cl100k_base / o200k_base），替代 bytes/4 启发式估算 | workspace |
+| opentelemetry（可选 feature） | 可观测性链路（`otlp` feature 启用） | `telemetry` |
+
+> 说明：以上多为**可选/实验性**能力，不进入默认编译链路（telemetry 默认 `Disabled`，memory 按 `MIMOFAN_MEMORY_API_KEY` 优雅降级）。
 
 ---
 
@@ -215,12 +233,28 @@ mimofan 是一个**跑在你终端里的 AI 编程搭档**。你用中文下指�
 
 | 能力 | 代码入口 | 怎么扩展 |
 |------|---------|---------|
-| 加内置工具 | `crates/tools/src/lib.rs` | 实现 `Tool` trait |
+| 加内置工具 | `crates/tools/src/lib.rs` | 实现 `ToolHandler` trait（`crates/tools/src/lib.rs:385`），注册进 `ToolRegistry` |
 | 桥接 MCP server | `crates/mcp/src/lib.rs` | 配置 `~/.mimofan/mcp.json` |
-| 加生命周期钩子 | `crates/hooks/src/lib.rs` | 实现 `Hook` trait |
-| 修改执行策略 | `crates/execpolicy/src/lib.rs` | 修改 `ExecPolicyEngine` 规则 |
-| 加 sandbox 后端 | `crates/tui/src/sandbox/` | 实现 `SandboxBackend` trait |
+| 加生命周期钩子 | `crates/hooks/src/lib.rs` | 实现 `HookSink` trait（`crates/hooks/src/lib.rs:198`） |
+| 修改执行策略 | `crates/execpolicy/src/lib.rs` | 修改 `ExecPolicyEngine` 规则（`ExecPolicyEngine::check`） |
+| 加 sandbox 后端 | `crates/tui/src/sandbox/` | 实现 `SandboxBackend` trait（`crates/tui/src/sandbox/backend.rs:70`） |
 | 加 slash 命令 | `crates/tui/src/commands/groups/<group>/` | 注册 `CommandGroup` |
+| 加静态分析引擎 | `crates/staticanalysis/src/` | 在 `lib.rs` 暴露新分析模块（污点/调用图/访问控制等） |
+
+### 5.1 新增强能力速览（已并入 `main`，非待办）
+
+> 这些能力均在 2026-08 之后陆续合并进 `main`（如 v0.0.22），是**已实现**状态。详见 `docs/NEW_CAPABILITIES_GUIDE.md` 与 `plans/13-*`。
+
+| 能力 | 入口 | 一句话 |
+|------|------|--------|
+| **网络安全检测** | `crates/tui/src/tools/security_audit_tool.rs` 等 | 把离线静态分析引擎（semgrep/攻击面/协议/访问控制/gadget 链）包装成模型可调用的安全工具，`crates/tui/src/core/engine/tool_setup.rs:97-103` 接线；还随 release 内置了 `vuln-hunt` / `security-audit` skill |
+| **静态分析地基** | `crates/staticanalysis/src/lib.rs` | tree-sitter AST：调用图、污点/数据流、跨过程污点（`interproc.rs`）、访问控制（`access_control.rs`）、攻击面（`attack_surface.rs`）、gadget 链（`auto_gadget.rs`）、SARIF、SCA/OSV |
+| **长程任务轨迹** | `crates/tui/src/core/engine/trace.rs` | 追加式 JSONL 会话轨迹（`trajectory.jsonl`），默认开启（opt-out，`config/notifications.rs:134-143`），供标注/分析/训练数据源；工具输出截断 16 KiB 并脱敏 |
+| **评测/数据闭环** | `crates/tui/src/eval/mod.rs` + `benchmark/vuln_hunt/evaluate.py` | 离线 harness 用 Mock LLM 驱动真实 `ToolRegistry`，记录轨迹并持久化产物，供三维校验器（一致性/追踪/复现）评分，回灌得分闭环 |
+| **安全审核工具族** | `crates/tui/src/tools/security_audit.rs` 等 | 真实调用 `semgrep` 命令、解析 SARIF、映射为 `ReviewIssue` 的安全审计工具 |
+| **研究运维斜杠指令** | `/evolve` `/repro` `/artifact` `/reviewer` | 可机评优化回路、可复现性纪律、研究成果物汇总、独立评审者（详见 `docs/NEW_CAPABILITIES_GUIDE.md`） |
+
+> 注意：安全检测工具族（security_audit / attack_surface / protocol_check / access_control / gadget_chain / auto_gadget / run_poc）**并非全部默认常驻**在普通 Agent 路径；`with_agent_tools_policy`（`crates/tui/src/tools/registry.rs:1210`）默认只带 `with_hypothesis_tools()`，完整安全面经 `with_full_agent_surface`（`:1305`）与 `tool_setup.rs` 接线。写文档/演示时要注意区分，避免"以为默认开、其实要特定入口"。
 
 ---
 
@@ -240,16 +274,16 @@ fn main() -> std::process::ExitCode {
 
 ```rust
 use mimofan_core::Runtime;
-use mimofan_config::{ConfigToml, load_config};
+use mimofan_config::{ConfigStore, ConfigToml};
 use mimofan_state::StateStore;
 use mimofan_tools::ToolRegistry;
 use std::sync::Arc;
 
-// 加载配置
-let config: ConfigToml = load_config(None)?;
+// 加载配置（入口是 ConfigStore::load，不是 load_config）
+let config: ConfigToml = ConfigStore::load(None)?.config;
 
 // 打开持久化存储
-let state = StateStore::open("~/.mimofan/state.db")?;
+let state = StateStore::open(Some(PathBuf::from("~/.mimofan/state.db")))?;
 
 // 创建工具注册表（内置工具）
 let tools = Arc::new(ToolRegistry::with_builtins());
@@ -258,6 +292,8 @@ let tools = Arc::new(ToolRegistry::with_builtins());
 let runtime = Runtime::new(config, state, tools);
 // 接下来可以用 runtime.thread_manager / runtime.jobs 驱动对话
 ```
+
+> 说明：真实签名以代码为准。`ConfigStore` 定义在 `crates/config/src/lib.rs:820`，`ConfigStore::load` 在 `:821`；`StateStore` 在 `crates/state/src/lib.rs:272`；`Runtime` 在 `crates/core/src/lib.rs:35`。
 
 ### 6.3 发送用户消息
 
@@ -275,25 +311,27 @@ let event: UserInputRequestEvent = req.into();
 ### 6.4 注册自定义工具
 
 ```rust
-use mimofan_tools::{Tool, ToolRegistry, ToolCall, ToolResult};
+use mimofan_tools::{ToolHandler, ToolRegistry, ToolSpec, ToolInvocation, ToolOutput, ToolKind};
 use async_trait::async_trait;
 
 struct MyTool;
 
 #[async_trait]
-impl Tool for MyTool {
-    fn name(&self) -> &str { "my_tool" }
-    fn description(&self) -> &str { "我的自定义工具" }
+impl ToolHandler for MyTool {
+    fn kind(&self) -> ToolKind { ToolKind::ReadOnly }
 
-    async fn invoke(&self, call: ToolCall) -> anyhow::Result<ToolResult> {
+    async fn handle(&self, call: ToolInvocation) -> std::result::Result<ToolOutput, FunctionCallError> {
         // 你的工具逻辑
         todo!()
     }
 }
 
-let mut reg = ToolRegistry::with_builtins();
-reg.register(Box::new(MyTool));
+// 工具的名字/schema 放在 ToolSpec 里，注册时一并传入
+let mut reg = ToolRegistry::new();
+reg.register(ToolSpec { name: "my_tool".into(), /* ... */ }, Arc::new(MyTool));
 ```
+
+> 说明：工具调用 trait 实际叫 **`ToolHandler`**（`crates/tools/src/lib.rs:385`），名字/schema 放在 `ToolSpec`（`:268`）而非 trait 上。此示例为示意，完整字段见 `crates/tools/src/lib.rs`。
 
 ---
 
@@ -312,6 +350,11 @@ reg.register(Box::new(MyTool));
 | 会话持久化 | `state/src/lib.rs` |
 | MCP 集成 | `mcp/src/lib.rs`、`tui/src/mcp.rs` |
 | 提示词构建 | `tui/src/prompts.rs`、`tui/src/prompts/` |
+| 安全检测工具 | `tui/src/tools/security_audit*.rs`、`staticanalysis/src/` |
+| 长程任务轨迹 | `tui/src/core/engine/trace.rs`、`tui/src/config/notifications.rs` |
+| 评测闭环 | `tui/src/eval/mod.rs`、`benchmark/vuln_hunt/` |
+| 编辑正确性 | `edit_core/src/lib.rs` |
+| 目标状态机 | `goal_core/src/lib.rs` |
 
 ---
 
@@ -331,11 +374,12 @@ reg.register(Box::new(MyTool));
 
 ## 9. 并发与稳定性（一句话版）
 
-- **工具并发门禁** `ToolCallRuntime`（`crates/tools/src/lib.rs:417`）用 `tokio::sync::RwLock` + 重入保护，是规范写法，**不会死锁**。
-- **app-server** 目前用一把 `Arc<Mutex<Runtime>>` 把外部 HTTP 请求串行化（队头阻塞风险），属于可扩展性优化项，详见 `ARCHITECTURE_STABILITY.md`。
-- **没有发现**活死锁或内存泄漏；长生命周期对象均有清理机制（spillover 7 天清理、SQLite 索引等）。
+- **工具并发门禁** `ToolCallRuntime`（`crates/tools/src/lib.rs:416`）用 `tokio::sync::RwLock` + 重入保护，是规范写法，**不会死锁**。
+- **app-server** 已把 `Arc<Mutex<Runtime>>` 改为 `Arc<RwLock<Runtime>>`（`crates/app-server/src/lib.rs:75`）：`&mut self` 方法走写锁，`&self` 方法（invoke_tool / app_status / mcp_startup）走读锁可并发，消除队头阻塞。详见 `ARCHITECTURE_STABILITY.md` §1。
+- **没有发现**活死锁或内存泄漏；绝大多数 `std::sync::Mutex` 守卫都被限制在同步代码块内、不跨 `.await`。
+- **已知一处真实内存增长隐患**：`mimofan-telemetry` 的 `PrometheusRecorder::histograms`（`crates/telemetry/src/lib.rs:146`）是 `Vec<f64>` 且按标签（含 model 名）无限追加、从不淘汰——长进程下会单调增长。当前默认 feature 关闭、影响面小，但作为归档风险记录在稳定性文档。
 - 完整核实报告见 **`ARCHITECTURE_STABILITY.md`**；未来演进路线见 **`EVOLUTION_CRAWLER.md`**；DDD 优化清单见 **`ARCHITECTURE_IMPROVEMENT_PLAN.md`**。
 
 ---
 
-> 最后更新：2026-08-07
+> 最后更新：2026-09-03

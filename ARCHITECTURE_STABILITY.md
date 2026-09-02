@@ -2,17 +2,18 @@
 
 > 面向中国开发者的架构稳定性说明。
 > 本报告**只写经代码核实的真实风险**，不夸大、不凑数。凡"当前已符合最佳实践"的点，标为"无需改造"并说明原因。
-> 最后更新：2026-08-07（修正 mcp_server 路径、memory 已可选集成结论）
+> 最后更新：2026-09-03（复核：app-server 已是 `RwLock`；确认无活死锁/JoinHandle 泄漏；新增 §5b telemetry 直方图无限增长的**真实内存增长隐患**与 §5c 三个新增"未来脚枪"；内存增长防护 §4 已与 "memory 已可选集成" 对齐）。
 
 ---
 
 ## 0. 先说结论（不吓人版）
 
-我把仓库里所有 `Mutex` / `RwLock` / `tokio::sync` / `spawn` / 长生命周期对象都过了一遍。**没有发现正在发生的死锁或内存泄漏**。代码在并发安全上整体是专业的：
+我把仓库里所有 `Mutex` / `RwLock` / `tokio::sync` / `spawn` / 长生命周期对象都过了一遍。**没有发现正在发生的死锁或 JoinHandle 泄漏**。代码在并发安全上整体是专业的：
 
 - 工具并发门禁 `ToolCallRuntime` 用的是 `tokio::sync::RwLock` + 自有守卫 + `task_local` 重入保护（见 §2），是**教科书级正确写法**。
 - 之前被怀疑的 `goal.rs` 和 `mcp_server/mod.rs` 里的 `std::sync::Mutex`，经核实**都在同步代码块内使用、不会跨 `.await`**（见 §3），所以**不是活死锁**，只是"风格隐患 + 未来改动的脚枪"。
-- 真正的、**值得修**的问题只有一个：`app-server` 用一把 `Arc<Mutex<Runtime>>` 把**所有 HTTP 请求串行化**了（见 §1），这是服务器吞吐量的天花板，属于可扩展性问题，不是崩溃问题。
+- 真正的、**值得修**的问题只有一个：`app-server` 用一把 `Arc<Mutex<Runtime>>` 把**所有 HTTP 请求串行化**了（见 §1），这是服务器吞吐量的天花板，属于可扩展性问题，不是崩溃问题。**已于 2026-08-06 修复为 `Arc<RwLock<Runtime>>`。**
+- **一处结构性内存增长隐患**（非泄漏，但长期运行必然涨）：`mimofan-telemetry` 的 `PrometheusRecorder::histograms`（§5b）无限追加且标签基数无界；当前默认 feature 关闭、影响面小，作为建议项列档。
 
 ---
 
@@ -104,7 +105,7 @@ json_result(&snapshot)
 | `crates/tui/src/prompts.rs` 前缀缓存分区（`prompt_zones.rs`） | 稳定前缀不重算，省 token/内存 | ✅ 设计合理 |
 | `~/.mimofan` 各缓存目录 | 未见无限增长逻辑 | ✅ |
 
-**唯一留意点**：`crates/memory`（向量记忆，`sled` + `hnsw_rs`）**未被任何生产代码依赖**（见 §5），所以它**不会**造成内存泄漏——它根本没跑。若将来要接，需评估 `sled` 嵌入式数据库的磁盘/内存上限。
+**唯一留意点**：`crates/memory`（向量记忆，`sled` + `hnsw_rs`）**已在 tui 的 `vector-memory` feature（默认编译）接入主流程**，作文件记忆的语义召回互补层（详见 §5）。它**不会**在未配置 `MIMOFAN_MEMORY_API_KEY` 时跑 embedding/写向量库——`enabled()==false` 时所有读写安全降级、零 IO。若将来启用，需评估 `sled` 嵌入式数据库的磁盘/内存上限（避免本地存储无界增长）。
 
 ---
 
@@ -119,12 +120,39 @@ json_result(&snapshot)
 
 ---
 
+## 5b. 已核实的真实风险：telemetry 直方图/标签无限增长（本报告唯一"真实内存增长"项）
+
+> 2026-09-03 复核新增。区别于 §3 的"风格脚枪"，这一处是**结构性的无限增长**：只要进程长跑、持续记录延迟/吞吐，堆占用就会单调上升。
+
+**位置**：`crates/telemetry/src/lib.rs:146`（`histograms: RwLock<HashMap<String, Vec<f64>>>`），`record_histogram` 在 `:163-165` 做 `h.entry(name).or_default().push(value)`——**Vec 从不设上限、从不淘汰**。
+
+- **两条叠加的无界路径**：
+  1. `histograms` 里每个 metric 的 `Vec<f64>` 无限 `push`（无 cap / ring-buffer）；
+  2. GenAI 标签（`GenAiSpan::finish`，`:285-316`）把 **model 名/提供商**编进 metric key，每个新 model/provider 组合都会创建**永不淘汰**的新 key → 标签基数（cardinality）无界。
+
+- **严重度**：低（今日）→ 中（长期进程）。因为当前 telemetry **不是默认 feature**（默认 `init_otel` 返回 `OtelHandle::Disabled`，见 `crates/telemetry/src/lib.rs:50`），Prometheus 记录器只在显式启用/相关 feature 下才活跃；但一旦启用并长期运行，`/metrics` 采样端与内存都会持续增长。
+
+- **[ ] 建议项（非本轮强改，因为默认关闭、影响面小）**：给直方图加**容量上限/环形缓冲**（如 `VecDeque` + `MAX_SAMPLES` 截断），或自定义标签白名单（避免把 model 名/key 作为高基数 label）。若启用 otlp feature 作为长期观测，此项应落地。
+- **（明确不做）**：不为此做运行时代价高的每样本持久化；仅需"有界 + 低基数"两个约束即可消除增长。
+
+---
+
+## 5c. 三个"未来脚枪"（非活 Bug，跨长会话/集群化时触发）
+
+> 2026-09-03 复核新增。均为"长期运行或规模放大后"才显现的渐进增长，不是当前崩溃/死锁。
+
+1. **`GoalQueue.entries` 永不淘汰**（`crates/goal_core/src/lib.rs:594`）：`cancel`/`mark_complete`/`mark_blocked`（`:885/:901/:947`）只把 `queue_status` 置为 `Done`，**不 remove 条目**。每个目标在进程生命周期内累积一条→ 长会话下 `Vec` 缓慢增长。**建议**：在 `GoalQueue` 提供 `prune_finished()`（按阈值保留最近 N 条已完成），或对 `Done` 状态做可配置保留策略。优先级低（单条目标占用极小）。
+2. **`provider/batch.rs` 的 `FALLBACK_PENDING` 潜在泄漏**（`crates/tui/src/provider/batch.rs:180`）：`submit` 时 `insert`，仅在 `collect` 里移除；若某个提交后 `collect` 永不执行（异常/取消），id 条目残留。**建议**：对 `FALLBACK_PENDING` 加超时清理或随任务取消清理。优先级低。
+3. **`state`（SQLite）消息/索引 append-only 无保留策略**（`crates/state/src/lib.rs`）：`append_message`（`:1045`）与 `session_index.jsonl` 都只追加，无 `VACUUM` / 时间窗口 `DELETE` / 行数上限。这是**磁盘增长**（非内存），只在超大/超长会话下显现。**建议**：提供会话归档/清理策略（如保留最近 N 条/最近 N 天）。
+
+---
+
 ## 6. 依赖纪律（稳定性地基）
 
 - [x] **自研 LLM wire format**，不依赖任何官方 SDK（`providers` 用 OpenAI / Anthropic 线协议自实现）。依赖面小 = 供应链风险小、升级可控。
 - [x] **`rusqlite` bundled 编译**：不依赖系统 SQLite 库，部署确定性高。
 - [x] **`reqwest` 用 `rustls` 而非 `native-tls`**：避免系统 OpenSSL 版本地狱。
-- [x] **15 crate 严格 DAG 依赖**：无环，编译隔离清晰，单点故障不会横向扩散。
+- [x] **19 crate 严格 DAG 依赖**：无环，编译隔离清晰，单点故障不会横向扩散。
 
 这些都是**对稳定性有利的既定设计，保持不变**。
 
@@ -149,8 +177,10 @@ json_result(&snapshot)
 | app-server 单 `Mutex<Runtime>` 串行化 | 真实可扩展性风险 — **已修复**（RwLock 改造） | **已动**（§1，标[x]） |
 | ToolCallRuntime 读写锁 | 教科书级正确 | 不动 |
 | goal.rs / mcp_server/mod.rs 的 `std` Mutex | 当前安全，脚枪（已加红线性注释） | 明确不做替换（§3，标[x]） |
+| telemetry 直方图/标签无限增长 | 真实内存增长风险（默认 feature 关闭） | 见 §5b，建议项（[ ]，非本轮强改） |
+| GoalQueue.entries / batch FALLBACK_PENDING / state 无保留 | 未来脚枪（长期/放大触发） | 见 §5c，建议项（[ ]，优先级低） |
 | 内存增长防护 | 已做 | 不动 |
-| memory crate | feature-gated 可选，默认未接 | 标 experimental，按需启用，待评估 |
+| memory crate | feature-gated 可选，默认编译、按需启用 | 标 experimental，按需启用，待评估 |
 | 依赖纪律 | 已优 | 不动 |
 
-> 本报告刻意不夸大：没有死锁、没有内存泄漏。原 §1 的 app-server 并发粒度风险已于 2026-08-06 通过 `RwLock` 改造消除。其余要么已达标，要么是明确不做的高风险无收益改动。
+> 本报告刻意不夸大：没有死锁、没有 JoinHandle 泄漏。原 §1 的 app-server 并发粒度风险已于 2026-08-06 通过 `RwLock` 改造消除。**唯一真实的内存增长隐患**是 §5b 的 telemetry（且默认关闭）；其余要么已达标，要么是"未来脚枪"（§5c，低优先级建议）或"明确不做的高风险无收益改动"。

@@ -54,13 +54,13 @@ mimofan doctor
 
 ### 2.1 前置条件
 
-- **Rust 1.88+**（项目用了 `let_chains` 特性，低版本编不过）
+- **Rust 1.95+**（代码本身用 `let_chains` 特性需要 1.88；下限制约来自依赖 rusqlite 0.40 / libsqlite3-sys 0.38 需 1.95。项目已在 `Cargo.toml.rust-version` 显式声明）
 - **macOS / Linux**（Windows 未测试）
 
 检查 Rust 版本：
 
 ```bash
-rustc --version   # 需要 >= 1.88
+rustc --version   # 需要 >= 1.95
 ```
 
 ### 2.2 编译安装
@@ -364,20 +364,42 @@ cost_currency = "usd"   # 显示美元
 
 ---
 
-## 8. 文档索引
+## 8. 进阶能力速览（已开放）
+
+以下能力随 `main` 合入，升级后即可用（详见 `docs/NEW_CAPABILITIES_GUIDE.md`）：
+
+| 能力 | 命令/入口 | 一句话 |
+|------|----------|--------|
+| 网络安全检测 | `security_audit` / `attack_surface` / `protocol_check` / `access_control` 等工具 + 内置 `vuln-hunt` skill | 用离线静态分析引擎扫描代码漏洞（semgrep/污点/攻击面/访问控制），模型在对话中直接调用 |
+| 长程任务轨迹 | 默认开启（opt-out） | 会话过程自动落盘 `trajectory.jsonl`，供标注/分析/训练 |
+| 评测闭环 | `mimofan eval` | 用 Mock 模型驱动真实工具跑评测，含一致性/追踪/复现三维评分 |
+| 可机评优化回路 | `/evolve <goal>` | 你给 evaluator 脚本，AI 只出候选，脚本裁决，避免自我评价 |
+| 可复现性纪律 | `/repro <brief>` | 固化 `BRIEF.md` + 环境快照 + provenance 留痕 |
+| 研究成果物汇总 | `/artifact <id> [--publish]` | 把研究产物汇总为可复现目录，只收录通过评审的 Claim |
+| 独立评审者 | `/reviewer [<id>]` | 只读审核，执行者与评审者职责分离 |
+| 子智能体协作 | `/subagents`、`/fleet` | 并行拆任务、多 Agent 协作、独立 worktree |
+| 共同作者署名 | `git_commit` 默认 `co_authored_by: true` | 提交自动追加 `Co-Authored-By: mimofan`（可关） |
+
+> 提示：安全检测工具族并非在普通对话入口默认全开——它面向「网络安全研究人员/评测」场景接线（完整面经 `with_full_agent_surface` 与 `tool_setup.rs`）。普通编码会话若要调用，可在 `/plan` 或 Agent 模式下让模型以相应工具完成，或参考 `docs/SUBAGENTS.md`。
+
+---
+
+## 9. 文档索引
 
 | 文档 | 内容 |
 |------|------|
 | [ARCHITECTURE_CN.md](ARCHITECTURE_CN.md) | 中文架构说明（分层图/依赖/提示词/入口/用例） |
 | [ARCHITECTURE_IMPROVEMENT_PLAN.md](ARCHITECTURE_IMPROVEMENT_PLAN.md) | 系统架构设计与 DDD 改进计划（含待办清单 [ ]/[x]） |
 | [ARCHITECTURE_STABILITY.md](ARCHITECTURE_STABILITY.md) | 稳定性/性能/可扩展性专项报告（内存/死锁/并发风险） |
+| [EVOLUTION_CRAWLER.md](EVOLUTION_CRAWLER.md) | 百亿级 URL 分布式爬虫 + 开源情报监测演进路线 |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | 配置详解 |
 | [docs/MCP.md](docs/MCP.md) | MCP 工具集成 |
 | [docs/SUBAGENTS.md](docs/SUBAGENTS.md) | 子智能体系统 |
 | [docs/MODES.md](docs/MODES.md) | 操作模式（Plan / Agent / YOLO） |
 | [docs/PROMPTS.md](docs/PROMPTS.md) | 提示词工程 |
+| [docs/NEW_CAPABILITIES_GUIDE.md](docs/NEW_CAPABILITIES_GUIDE.md) | 新增能力（/evolve /repro /artifact /reviewer 等） |
 | [CLAUDE.md](CLAUDE.md) | 开发者与 AI 协作指南 |
 
 ---
 
-> 最后更新：2026-08-07
+> 最后更新：2026-09-03

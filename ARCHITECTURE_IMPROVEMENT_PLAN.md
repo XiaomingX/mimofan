@@ -2,7 +2,7 @@
 
 > 基于第一性原理与领域驱动设计（DDD）的架构分析与改进方案。
 > 本文档如实记录现状，**只写真实存在的待办**，不凑数、不迎合。
-> 最后更新：2026-08-17（本轮以 `main` 代码为准复核全部事实性声明：§2 crate 数 15→17、§3 godfile 行数与 `ui_event_loop` 目录化/新增 `context_recovery`、§4.1 tui 行数、§8.3 goal.rs/mcp_server 行号均按 `git grep`/`wc -l` 实测刷新；新增 §12 记录 2026-08-16 起已合并 main 的真实新增能力）
+> 最后更新：2026-09-03（复核：crate 数 **19**；§4.1 tui 行数 253,716→**266,340**、全仓 313,501；Phase A 更正"TUI 从不引用 mimofan_core::Runtime"为失真——TUI 已依赖 core；§12 新增 2026-08-18 起已合并 main 的 edit_core/goal_core/staticanalysis/telemetry/安全检测/轨迹/评测能力）
 
 > **核对纪律（呼应 issue #727）**：本文档所有 `[x]` 结论均以 `grep`/`cargo check` 亲核代码为准，不采信二手对标清单。
 > 跨文档的对标清单（如 `vs_*.md` 中逐项能力勾选）与本文档视角不同，二者冲突时**以当前 `main` 分支代码为准**；
@@ -30,7 +30,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 | 维度 | 评价 | 为什么好 |
 |------|------|---------|
-| **Crate 依赖图** | ✅ | 17 个 crate 形成严格向下的 DAG，无环。这是 Rust workspace 工程纪律的体现，编译隔离清晰。 |
+| **Crate 依赖图** | ✅ | 19 个 crate 形成严格向下的 DAG，无环。这是 Rust workspace 工程纪律的体现，编译隔离清晰。 |
 | **共享内核（protocol）** | ✅ | `protocol` crate 作为 DTO 层，多入口共享同一套消息/工具类型。典型的 DDD 共享内核模式，避免各上下文重复定义。 |
 | **端口化设计** | ✅ | 22+ 个 trait 端口（`Tool`、`SandboxBackend`、`LlmClient`、`McpBackend`、`Hook` 等），扩展点清晰，符合"依赖倒置"。 |
 | **自研 wire format** | ✅ | 不依赖任何官方 LLM SDK，自己实现 OpenAI/Anthropic 线协议。依赖面小、可控、易换模型。 |
@@ -69,7 +69,7 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 ### 问题 1：tui crate 仍是"大泥球"（最核心）
 
-- **现状**：`tui` crate 约 **25.4 万行**（2026-08-17 实测 `253,716` 行），占全仓约 85%（全仓约 29.9 万行）。Godfile 拆分后，文件变小了，但**所有子域仍挤在一个 crate 里**，通过 `crate::` 互相直连。
+- **现状**：`tui` crate 约 **26.6 万行**（2026-09-03 实测 `266,340` 行），占全仓约 85%（全仓约 31.4 万行 / `313,501` 行）。Godfile 拆分后，文件变小了，但**所有子域仍挤在一个 crate 里**，通过 `crate::` 互相直连。
 - **DDD 视角**：限界上下文边界缺失。"用户界面""对话运行时""模型网关编排""工具调度""提示词构建""配置加载"本应是不同生命周期、不同模型的子域，现在共享一个编译单元与命名空间。
 - **影响**：编译慢（任一改动重编整个 tui）、耦合高、新人难上手。
 
@@ -190,7 +190,8 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 - [x] 核查结论（决定性）：
   - `mimofan_core::Runtime`（`crates/core/src/lib.rs:35`）= **无界面（headless）应用核心**，被 **app-server HTTP API** 独占使用（`app-server/src/lib.rs:14`，调用 `handle_thread`/`handle_prompt`/`invoke_tool`/`mcp_startup`）。注意 `handle_prompt` 只记录消息并返回元数据，**不实现 LLM 对话循环**。
-  - tui `crate::core::Engine`（`crates/tui/src/core/engine/`，`spawn_engine`/`EngineHandle`）= **交互式 LLM 循环**（流式/轮次/终端），被 **TUI 独占使用**（`runtime_threads/mod.rs:31` 导入）。**TUI 从不使用 `mimofan_core::Runtime`**（全仓搜不到 tui 对 crate 级 Runtime 的引用）。
+  - tui `crate::core::Engine`（`crates/tui/src/core/engine/`，`spawn_engine`/`EngineHandle`）= **交互式 LLM 循环**（流式/轮次/终端），被 **TUI 独占使用**（`runtime_threads/mod.rs:31` 导入）。
+  - **更正（2026-09-03）**：旧文本"TUI 从不使用 `mimofan_core::Runtime`（全仓搜不到 tui 对 crate 级 Runtime 的引用）"**已失真**。实测 TUI **依赖并引用** `mimofan_core`：`crates/tui/Cargo.toml:39` 声明 `mimofan-core`；`crates/tui/src/runtime_threads/mod.rs:44` `use mimofan_core::Runtime;`；`crates/tui/src/lib.rs:708`、`runtime_api/mod.rs:537`、`task_manager/mod.rs:775` 均出现 `RwLock<mimofan_core::Runtime>`；`tui/ui/ports.rs:9` 用 `mimofan_core::BalanceProvider`。**正确表述**：TUI 是"自实现交互引擎 + 复用 `mimofan_core::Runtime`（无界面 API 核心）提供会话/任务/余额等底层能力"的**双应用核心**结构，二者是 DDD 下两个正确的限界上下文，TUI 通过共享内核（protocol/tools/execpolicy/state/config）与 core 协同，而**非**互斥的"两套完全独立的运行时"。
   - 二者是 DDD 下**两个正确的限界上下文**（交互 UI vs 无界面 API），依赖**共享内核**（`protocol`/`tools`/`execpolicy`/`state`/`config`/`agent`/`mcp`/`hooks`）。
   - 策略检查（`mimofan_execpolicy::ExecPolicyEngine.check()`）与工具派发（`tool_registry.dispatch`）**早已通过共享内核复用**，未在两边都重写；tui 的 `tool_execution.rs` 仅处理 TUI 专属机制（交互终端暂停、并行扇出），不重实现审批流。
 - [x] 决策：**保留两份，明确分工边界**（即现状）。强行"统一/合并"会耦合交互 UI 循环与无界面 API、违反限界上下文边界、同时威胁 TUI 与 HTTP API 两个入口——是反模式，非改进。当前结构已符合 DDD 最佳实践，不硬写可有可无的待办。
@@ -407,11 +408,49 @@ mimofan 是一个**跑在终端里的 AI 编程搭档**：用户用自然语言�
 
 | 声明 | 原值 | 2026-08-17 实测 |
 |------|------|----------------|
-| crate 数量（§2） | 15 | **17** |
-| tui crate 行数（§4.1） | 约 20 万 | **253,716**（全仓 298,591，占 ~85%） |
-| `engine.rs` 行数（§3） | 2782（拆分后） | **3682**（含新增注入/路由能力，子模块边界仍清晰） |
-| `ui_event_loop`（§3） | `ui_event_loop.rs` 4259 行 | **`ui_event_loop/` 目录 4327 行**（模块化，非单文件） |
-| `goal.rs` Mutex 行号（§8.3） | 27/294 | **29/481/1051** |
+| crate 数量（§2） | 15 | **19**（2026-09-03：edit_core/goal_core/staticanalysis/telemetry 已在 08-17 后并入） |
+| tui crate 行数（§4.1） | 约 20 万 | **266,340**（2026-09-03，全仓 313,501，占 ~85%） |
+| `engine.rs` 行数（§3） | 2782（拆分后） | **4,170**（含新增注入/路由能力，子模块边界仍清晰） |
+| `ui_event_loop`（§3） | `ui_event_loop.rs` 4259 行 | **`ui_event_loop/` 目录模块化**（单文件 `mod.rs` 3493 行） |
+| `goal.rs` Mutex 行号（§8.3） | 27/294 | **136/270**（TUI 侧）；状态机已下沉 `goal_core` |
 | `mcp_server` Mutex 行号（§8.3） | 90/385/436 | **90/132** |
 
-> 结论：原文档的 DDD 边界分析（§4 七问、Phase A–D 澄清结论）仍成立，未因新增能力推翻；本轮主要是**事实数字刷新** + **记录已合并的新增能力**，未引入新的待办 TODO。
+> 结论：原文档的 DDD 边界分析（§4 七问、Phase A–D 澄清结论）**基本仍成立**；主要更正为 Phase A 中"TUI 不引用 mimofan_core"的失真表述（实为依赖+复用）。TUI 仍是唯一大泥球（战略拆分留作独立立项）。
+
+---
+
+## 13. 2026-08-17 之后已并入 `main` 的新增能力（均 `[x]`，非待办）
+
+> 如实记录 08-17 之后已合并的真实新增，避免文档与代码再次脱节。所有声明经 `git log`/`grep`/`wc -l` 复核（2026-09-03）。
+
+### 13.1 逻辑下沉为新 crate（战术层继续收敛，均 `[x]`）
+
+- [x] **`mimofan-edit-core`**：编辑器正确性逻辑（字节区间→行号映射、锚点内容哈希定位、模糊匹配、`ReadState` 读前必读守卫）下沉为**零依赖**纯逻辑 crate，可脱离 FS/工具层单测。来源：`refactor(edit-core)`。
+- [x] **`mimofan-goal-core`**：目标管理状态机（`GoalState`/`GoalQueue`、token 预算护栏、依赖 DAG 与环检测、快照恢复）下沉为独立 crate，只依赖 `mimofan-protocol`，**明确不依赖 TUI**；UI 耦合部分留在 tui 层。
+- [x] **`mimofan-staticanalysis`**：tree-sitter SAST 地基（调用图、污点/数据流、跨过程污点、访问控制、攻击面、gadget 链、SARIF、SCA/OSV），feature-gated 按语言加载语法。
+- [x] **`mimofan-telemetry`**：feature-gated 的 OpenTelemetry 桥 + 进程内 Prometheus 记录器；默认 `otlp` 关闭（`OtelHandle::Disabled`）。
+
+### 13.2 网络安全检测能力接线（v0.0.22，均 `[x]`）
+
+- [x] 把离线静态分析引擎包装成模型可调用工具：`security_audit`/`attack_surface`/`protocol_check`/`access_control`/`gadget_chain`/`auto_gadget`/`run_poc`/`hypothesis`，经 `crates/tui/src/core/engine/tool_setup.rs:97-103` 与 `crates/tui/src/tools/registry.rs` 的 builder 接入。
+- [x] `security_audit` 工具真实调起 `semgrep` 命令（通过共享 `SandboxBackend`）、解析 SARIF、映射为 `ReviewIssue`。
+- [x] 内置 `vuln-hunt` / `security-audit` skill（`crates/tui/assets/skills/`）与 `security_auditor` 人格（`prompts/personalities/security_auditor.md`）。
+- [~] 注：安全工具族**并非默认常驻**普通 Agent 路径——`with_agent_tools_policy`（`registry.rs:1210`）默认只带 `with_hypothesis_tools()`；完整安全面经 `with_full_agent_surface`（`:1305`）与 `tool_setup.rs` 接线。文档/演示需区分入口。
+
+### 13.3 长程任务轨迹（均 `[x]`）
+
+- [x] `crates/tui/src/core/engine/trace.rs`：追加式 JSONL 会话轨迹（`trajectory.jsonl`），事件含 `TurnStart`/`UserPrompt`/`AgentThink`/`AssistantText`/`ToolCall`/`ToolResult`/`AgentSpawn`/`AgentDone`/`TokenUsage`/`HypothesisOp`/`PocResult`/`TurnEnd`/`SessionEnd`。
+- [x] **默认开启（opt-out）**：`config/notifications.rs:134-143`；工具输出截断 16 KiB 并脱敏（`open_at_with_redact`）。
+- [x] 下游导出：`benchmark/vuln_hunt/trajectory_export.py` 转 ShareGPT 训练数据 / DPO 失败样本。
+
+### 13.4 评测 / 数据闭环（均 `[x]`）
+
+- [x] `crates/tui/src/eval/mod.rs`：离线 `EvalHarness` 用 Mock LLM 驱动真实 `ToolRegistry`，记录轨迹并持久化产物（`gadget_chain.json`/`run_poc.json`/`hypotheses.json`）。
+- [x] `benchmark/vuln_hunt/evaluate.py`：三维校验器（一致性/追踪/复现）评分；`benchmark/sample_registry.json` + `build_sample_registry.py` 回灌得分闭环（`sample_registry 回灌`）。
+- [x] CLI 入口：`mimofan eval`（`crates/tui/src/cli/mod.rs:580` `EvalArgs`）。
+
+### 13.5 其他研究/运维斜杠指令（均 `[x]`，详见 `docs/NEW_CAPABILITIES_GUIDE.md`）
+
+- [x] `/evolve`（可机评优化回路）、`/repro`（可复现性纪律）、`/artifact`（研究成果物汇总）、`/reviewer`（独立评审者）、`git_commit` 默认 `Co-Authored-By: mimofan`。
+
+> 小结：以上均为**已实现并已合并**的真实能力，按"完成即回写"纪律补充为 `[x]`，不引入新的待办。唯一仍标 `[ ]` 的演进项仍是 §9 Phase F 的阶段 3–6（百亿爬虫），见 `EVOLUTION_CRAWLER.md`。

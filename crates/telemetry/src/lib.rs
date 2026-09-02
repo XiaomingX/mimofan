@@ -138,6 +138,12 @@ const HISTOGRAM_BUCKETS: &[f64] = &[
     0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
 ];
 
+/// Per-metric histogram sample cap: keep a rolling window of the most recent
+/// samples so a long-running process never grows the stored Vec unbounded
+/// (see ARCHITECTURE_STABILITY.md §5b). High enough to keep bucket statistics
+/// meaningful, low enough to bound heap growth.
+const HISTOGRAM_MAX_SAMPLES: usize = 4096;
+
 /// In-process Prometheus-style recorder.
 #[derive(Default)]
 pub struct PrometheusRecorder {
@@ -161,7 +167,14 @@ impl PrometheusRecorder {
     /// Record a histogram observation (e.g. a latency in seconds).
     pub fn record_histogram(&self, name: &str, value: f64) {
         let mut h = self.histograms.write().unwrap();
-        h.entry(name.to_string()).or_default().push(value);
+        let samples = h.entry(name.to_string()).or_default();
+        samples.push(value);
+        // Bound growth: drop the oldest samples beyond the cap so the recorder's
+        // heap usage is bounded in a long-running process (see stability doc §5b).
+        if samples.len() > HISTOGRAM_MAX_SAMPLES {
+            let overflow = samples.len() - HISTOGRAM_MAX_SAMPLES;
+            samples.drain(..overflow);
+        }
     }
 
     /// Convenience: record a latency histogram sample (seconds).
@@ -424,6 +437,20 @@ mod metric_tests {
         assert!(text.contains("turn_latency_bucket{le=\"0.010\"} 1"));
         assert!(text.contains("turn_latency_bucket{le=\"1.000\"} 2"));
         assert!(text.contains("turn_latency_bucket{le=\"+Inf\"} 2"));
+    }
+
+    #[test]
+    fn histogram_bounds_sample_growth() {
+        let r = PrometheusRecorder::new();
+        // Exceed HISTOGRAM_MAX_SAMPLES; recorder must retain a bounded window.
+        for i in 0..(HISTOGRAM_MAX_SAMPLES + 100) {
+            r.record_latency("turn_latency", i as f64);
+        }
+        let h = r.histograms.read().unwrap();
+        assert!(
+            h.get("turn_latency")
+                .map_or(false, |s| s.len() == HISTOGRAM_MAX_SAMPLES)
+        );
     }
 
     #[test]
