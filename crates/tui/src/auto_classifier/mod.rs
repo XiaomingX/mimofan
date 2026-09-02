@@ -24,6 +24,16 @@
 //! prefers a human in the loop) on timeout/error. AUTO mode is only "auto"
 //! for tools the classifier confidently allows; everything ambiguous or failed
 //! is denied or escalated, never silently approved.
+//!
+//! ## Wiring status
+//!
+//! > **Intentionally not yet wired.** This classifier is the #730 scaffold for
+//! > the AUTO-approval mode and currently lives as a standalone, tested module
+//! > (see `mod auto_classifier;` in `lib.rs`) but is *not* called from the
+//! > engine's approval path yet. The approval path still routes through
+//! > `mimofan_execpolicy` / `AskForApproval`. It is deliberately preserved, not
+//! > dead code; integrating it requires wiring the engine's approval decision
+//! > point, not deleting the module. Do not remove.
 
 use std::time::{Duration, Instant};
 

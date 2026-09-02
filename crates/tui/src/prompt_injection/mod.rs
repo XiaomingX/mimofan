@@ -25,6 +25,15 @@
 //!   a separate pass over `skills/`.
 //! * **OSV / advisory pull** — cross-reference scanned dependency manifests
 //!   against the OSV database. Out of scope for the input-side guard.
+//!
+//! ## Wiring status
+//!
+//! > **Intentionally not yet wired.** This is the #723 MVP input-side scanner;
+//! > it is a standalone, tested module (see `mod prompt_injection;` in `lib.rs`)
+//! > but is *not* invoked from the prompt-input pipeline yet (tool results, web
+//! > fetches, MCP responses, skill bodies). It is deliberately preserved, not
+//! > dead code; wiring it means hooking `scan`/`contains_injection` into where
+//! > untrusted content is folded into the next prompt. Do not remove the module.
 
 use regex::Regex;
 use std::sync::OnceLock;

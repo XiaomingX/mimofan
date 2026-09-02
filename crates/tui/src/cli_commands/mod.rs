@@ -731,18 +731,6 @@ pub(crate) fn app_server_token_from_env() -> Option<String> {
         .or_else(|| std::env::var("MIMOFAN_APP_SERVER_TOKEN").ok())
 }
 
-// ── MCP Server command implementation ───────────────────────────────────────
-
-pub(crate) fn run_mcp_server_command(_store: &mut ConfigStore) -> Result<()> {
-    // NOTE: The reverse MCP server (exposing mimofan's own tools) is now wired
-    // to `Commands::McpServer` in lib.rs, which calls `crate::mcp_server::run_mcp_server`.
-    // The previous interactive forward-facing definition manager that lived here
-    // was removed as dead code (issue #746 corrected the wiring).
-    bail!(
-        "Use `mimofan mcp-server` to start the reverse MCP server, or `mimofan mcp` for forward MCP client management."
-    )
-}
-
 // ── Login command implementation ────────────────────────────────────────────
 
 pub(crate) fn run_login_command(store: &mut ConfigStore, args: LoginArgs) -> Result<()> {

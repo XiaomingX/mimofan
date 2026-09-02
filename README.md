@@ -4,7 +4,7 @@
 >
 > 基于 Rust 实现，原生支持小米 MiMo 模型，兼容 DeepSeek、OpenAI、通义千问等主流大模型。
 
-[![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.95%2B-orange.svg)](https://www.rust-lang.org/)
 [![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey.svg)]()
 [![MCP Ready](https://img.shields.io/badge/MCP-Supported-green.svg)](docs/MCP.md)
 
